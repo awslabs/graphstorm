@@ -23,5 +23,11 @@ lint:
   script:
     - python3 -m pip install --upgrade prospector pip
     - FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm
 
-
+e2e:
+  stage: test
+  tags:
+    - gpu
+  script:
+    - python3 -m pip install --upgrade prospector pip
