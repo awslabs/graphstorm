@@ -12,7 +12,7 @@ Run data processing
 ```
 $ M5GNN_HOME=/fsx-dev/xiangsx/home/workspace/m5-gnn
 $ export PYTHONPATH=$M5GNN_HOME/python/
-$ python3 M5GNN_HOME/python/m5gnn/data/ogbn_datasets.py --filepath paper100m-raw --savepath ./paper100m-processed-512/ --dataset ogbn-papers100M --bert_model_name "allenai/scibert_scivocab_uncased"
+$ python3 M5GNN_HOME/python/graphstorm/data/ogbn_datasets.py --filepath paper100m-raw --savepath ./paper100m-processed-512/ --dataset ogbn-papers100M --bert_model_name "allenai/scibert_scivocab_uncased"
 ```
 
 Partition the graph

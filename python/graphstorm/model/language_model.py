@@ -21,7 +21,7 @@ from .extract_node_embeddings import extract_bert_embeddings_dist
 from .extract_node_embeddings import prepare_batch_input
 from .utils import save_sparse_embeds
 from .utils import LazyDistTensor
-from .utils import load_model as load_m5gnn_model
+from .utils import load_model as load_lm_model
 
 class LanguageModelBase():
     """ Base language model
@@ -211,7 +211,7 @@ class LanguageModelBase():
         # Restore the model to a checkpoint saved previously.
         if self.restore_bert_model_path is not None:
             print('load BERT model from ', self.restore_bert_model_path)
-            load_m5gnn_model(self.restore_bert_model_path, None, None, self.bert_model, None)
+            load_lm_model(self.restore_bert_model_path, None, None, self.bert_model, None)
 
         self.bert_train = bert_train
         self.bert_static = bert_static

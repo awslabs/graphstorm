@@ -1,12 +1,12 @@
 ---
 version: 1.0
-m5bert:
+lm_model:
   bert_models: # bert model(s) definition, one bert model for each node type having text data
     -
       node_type: movie
       model_name: "bert-base-uncased"
       gradient_checkpoint: true
-m5gnn:
+gsf:
   basic:
     graph_name: movie-lens-100k
     backend: gloo
@@ -39,7 +39,7 @@ m5gnn:
     dropout: 0.
     lr: 0.001
     bert_tune_lr: 0.0001
-    n_epochs: 3
+    n_epochs: 2
     batch_size: 64
     eval_batch_size: 1024
     bert_infer_bs: 128
