@@ -1,12 +1,12 @@
 ---
 version: 1.0
-m5bert:
+lm_model:
   bert_models: # bert model(s) definition, one bert model for each node type having text data
     -
       node_type: movie
       model_name: "bert-base-uncased"
       gradient_checkpoint: true
-m5gnn:
+gsf:
   basic:
     model_encoder_type: rgcn
     graph_name: movie-lens-100k
@@ -24,10 +24,10 @@ m5gnn:
     n_layers: 1
     n_hidden: 128
   input:
-    restore_model_path: /data/m5gnn_nc_ml/
+    restore_model_path: /data/gsgnn_nc_ml/
   output:
-    save_embeds_path: /data/m5gnn_nc_ml/infer-emb/
-    save_predict_path: /data/m5gnn_nc_ml/prediction/
+    save_embeds_path: /data/gsgnn_nc_ml/infer-emb/
+    save_predict_path: /data/gsgnn_nc_ml/prediction/
   hyperparam:
     eval_batch_size: 1024
     bert_infer_bs: 128

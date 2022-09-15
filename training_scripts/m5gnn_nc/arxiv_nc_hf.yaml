@@ -1,12 +1,12 @@
 ---
 version: 1.0
-m5bert:
+lm_model:
   bert_models: # bert model(s) definition, one bert model for each node type having text data
     -
       node_type: node
       model_name: "allenai/scibert_scivocab_uncased"
       gradient_checkpoint: true
-m5gnn:
+gsf:
   basic:
     model_encoder_type: gnn
     graph_name: ogbn-arxiv

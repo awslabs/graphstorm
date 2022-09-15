@@ -54,7 +54,7 @@ def get_argument_parser():
     # Optional parameters to override arguments in yaml config
     parser = _add_initialization_args(parser)
     # basic args
-    parser = _add_m5gnn_basic_args(parser)
+    parser = _add_gsgnn_basic_args(parser)
     parser = _add_bert_tune_args(parser)
     # gnn args
     parser = _add_gnn_args(parser)
@@ -94,17 +94,17 @@ class M5GNNConfig:
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
         print(configuration)
-        # handle m5 model config
-        if 'm5bert' in configuration:
-            m5_bert_family = configuration['m5bert']
-            if "bert_models" in m5_bert_family:
-                setattr(self, '_bert_config', m5_bert_family['bert_models'])
+        # handle language model config
+        if 'lm_model' in configuration:
+            lm_model = configuration['lm_model']
+            if "bert_models" in lm_model:
+                setattr(self, '_bert_config', lm_model['bert_models'])
             else:
                 setattr(self, '_bert_config', None)
 
-        # handle m5gnn config
-        m5gnn_family = configuration['m5gnn']
-        for family, param_family in m5gnn_family.items():
+        # handle gnn config
+        lmgnn_family = configuration['gsf']
+        for family, param_family in lmgnn_family.items():
             for key, val in param_family.items():
                 setattr(self, f"_{key}", val)
 
@@ -584,7 +584,7 @@ class M5GNNConfig:
         if hasattr(self, "_mlflow_run_name"):
             return self._mlflow_run_name
         # default run name
-        return 'test-m5gnn-run'
+        return 'test-lmgnn-run'
 
     @property
     def mlflow_report_frequency(self):
@@ -1322,8 +1322,8 @@ def _add_initialization_args(parser):
     )
     return parser
 
-def _add_m5gnn_basic_args(parser):
-    group = parser.add_argument_group(title="m5gnn")
+def _add_gsgnn_basic_args(parser):
+    group = parser.add_argument_group(title="graphstorm gnn")
     group.add_argument('--backend', type=str, default=argparse.SUPPRESS,
             help='PyTorch distributed backend')
     group.add_argument('--graph-name', type=str, default=argparse.SUPPRESS,

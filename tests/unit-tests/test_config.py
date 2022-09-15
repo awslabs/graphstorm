@@ -21,7 +21,7 @@ def check_failure(config, field):
 def create_dummpy_config_obj():
     yaml_object = { # dummy config, bypass checks by default
         "version": 1.0,
-        "m5gnn": {
+        "gsf": {
             "basic": {},
             "gnn": {
                 "fanout": "4",
@@ -41,7 +41,7 @@ def create_dummpy_config_obj():
 
 def create_basic_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "debug" : True,
         "graph_name": "test",
         "backend": "gloo",
@@ -58,7 +58,7 @@ def create_basic_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # config for check default value
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "num_gpus": 1,
         "ip_config": "ip.txt",
         "part_config": "part.json",
@@ -68,7 +68,7 @@ def create_basic_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # config for wrong values
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "backend": "error",
         "num_gpus": 0,
         "evaluation_frequency": 0,
@@ -80,7 +80,7 @@ def create_basic_config(tmp_path, file_name):
 
 def create_bert_tune_info_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "use_bert_cache": True,
         "refresh_cache": True,
         "gnn_warmup_epochs": 1,
@@ -91,14 +91,14 @@ def create_bert_tune_info_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # config for check default value
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
     }
 
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # config for check default value2
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "use_bert_cache": True
     }
 
@@ -106,7 +106,7 @@ def create_bert_tune_info_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # config for wrong values
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "use_bert_cache": False,
         "refresh_cache": True, # use_bert_cache is not set to True, will fail
         "gnn_warmup_epochs": -1,
@@ -210,10 +210,10 @@ def test_bert_tune_info():
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgat"
     }
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "feat_name": "test_feat",
         "fanout": "10,20,30",
         "n_layers": 3,
@@ -223,10 +223,10 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgcn"
     }
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "feat_name": "test_feat",
         "fanout": "a:10@b:10,a:10@b:10@c:20",
         "eval_fanout": "10,10",
@@ -237,10 +237,10 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "lm"
     }
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "n_layers": 2, # for encoder of lm, n_layers will always be 0
         "n_hidden": 128,
     }
@@ -248,16 +248,16 @@ def create_gnn_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # config for check default value
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
     }
 
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgcn"
     }
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "fanout": "error", # error fanout
         "eval_fanout": "error",
         "n_hidden": 0,
@@ -267,7 +267,7 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_error1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "fanout": "10,10", # error fanout
         "eval_fanout": "10,10",
         "n_hidden": 32,
@@ -337,16 +337,16 @@ def test_gnn_info():
 
 def create_io_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["input"] = {
+    yaml_object["gsf"]["input"] = {
     }
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
     }
 
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["input"] = {
+    yaml_object["gsf"]["input"] = {
         "load_model_path": "./load_path",
         "restore_model_path": "./restore",
         "restore_optimizer_path": "./opt_restore",
@@ -354,7 +354,7 @@ def create_io_config(tmp_path, file_name):
         "restore_model_encoder_path": "./encoder"
     }
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "save_model_path": "./save",
         "save_model_per_iters": 100,
         "save_embeds_path": "./save_emb",
@@ -393,14 +393,14 @@ def test_load_io_info():
 
 def create_mlflow_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
     }
 
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "mlflow_exp_name": "test_flow",
     }
 
@@ -408,7 +408,7 @@ def create_mlflow_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_default2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "mlflow_exp_name": "test_flow",
         "mlflow_run_name": "test_run",
         "mlflow_report_frequency": 10000,
@@ -418,7 +418,7 @@ def create_mlflow_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "mlflow_exp_name": "test_flow",
         "mlflow_run_name": "test_run",
         "mlflow_report_frequency": -1,
@@ -445,7 +445,7 @@ def test_mlflow_info():
         config = M5GNNConfig(args)
         assert config.mlflow_tracker == True
         assert config.mlflow_exp_name == "test_flow"
-        assert config.mlflow_run_name == "test-m5gnn-run"
+        assert config.mlflow_run_name == "test-lmgnn-run"
         assert config.mlflow_report_frequency == 100
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test.yaml'),
@@ -464,7 +464,7 @@ def test_mlflow_info():
 
 def create_train_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["hyperparam"] = {
+    yaml_object["gsf"]["hyperparam"] = {
     }
 
     # config for check default value
@@ -472,7 +472,7 @@ def create_train_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # normal value
-    yaml_object["m5gnn"]["hyperparam"] = {
+    yaml_object["gsf"]["hyperparam"] = {
         "dropout" : 0.1,
         "lr": 0.001,
         "n_epochs": 10,
@@ -492,7 +492,7 @@ def create_train_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # for failures
-    yaml_object["m5gnn"]["hyperparam"] = {
+    yaml_object["gsf"]["hyperparam"] = {
         "dropout" : -1.0,
         "lr": 0.,
         "n_epochs": -1,
@@ -577,25 +577,25 @@ def test_train_info():
 
 def create_rgcn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["rgcn"] = {
+    yaml_object["gsf"]["rgcn"] = {
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["rgcn"] = {
+    yaml_object["gsf"]["rgcn"] = {
         "n_bases": 2,
     }
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["rgcn"] = {
+    yaml_object["gsf"]["rgcn"] = {
         "n_bases": 0.1,
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["rgcn"] = {
+    yaml_object["gsf"]["rgcn"] = {
         "n_bases": -2,
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
@@ -625,19 +625,19 @@ def test_rgcn_info():
 
 def create_rgat_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["rgat"] = {
+    yaml_object["gsf"]["rgat"] = {
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["rgat"] = {
+    yaml_object["gsf"]["rgat"] = {
         "n_heads": 2,
     }
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["rgat"] = {
+    yaml_object["gsf"]["rgat"] = {
         "n_heads": 0,
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
@@ -661,20 +661,20 @@ def test_rgat_info():
 
 def create_pretrain_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["model_pretrain"] = {
+    yaml_object["gsf"]["model_pretrain"] = {
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["model_pretrain"] = {
+    yaml_object["gsf"]["model_pretrain"] = {
         "pretrain_emb_layer": False,
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["model_pretrain"] = {
+    yaml_object["gsf"]["model_pretrain"] = {
         "pretrain_emb_layer": "error",
     }
     # config for check default value
@@ -699,13 +699,13 @@ def test_pretrain_info():
 
 def create_node_class_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "predict_ntype": "a",
         "label_field": "label",
         "multilabel": True,
@@ -714,7 +714,7 @@ def create_node_class_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "predict_ntype": "a",
         "label_field": "label",
         "multilabel": True,
@@ -725,7 +725,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test eval metric
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "eval_metric": "F1_score",
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
@@ -734,7 +734,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test eval metric
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "eval_metric": ["F1_score", "precision_recall", "ROC_AUC"],
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
@@ -742,7 +742,7 @@ def create_node_class_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_metric2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "multilabel": "error",
         "num_classes": 0,
     }
@@ -750,7 +750,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test eval metric and multi-label
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "multilabel_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2", # multilabel is not set to True
         "eval_metric": "unknown"
@@ -760,7 +760,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test eval metric and multi-label
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "eval_metric": {}, # eval metric must be string or list
         "multilabel": False,
@@ -771,7 +771,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test eval metric and multi-label
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "eval_metric": ["F1_score", "unknown"], # one of metrics is not supported
         "multilabel": True,
@@ -782,7 +782,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test multi-label
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "multilabel": True,
         "multilabel_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,-0.1", # weight can not be negative
@@ -792,7 +792,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test imbalance label
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1", # len(weight) != num_classes
     }
@@ -801,7 +801,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test imbalance label
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,0", # weight must larger than 0
     }
@@ -810,7 +810,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test imbalance label
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "multilabel": True,
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,0", # Does not work with multilabel
@@ -820,7 +820,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test imbalance label
-    yaml_object["m5gnn"]["node_classification"] = {
+    yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,abc123", # weights must be float
     }
@@ -925,13 +925,13 @@ def test_node_class_info():
 
 def create_node_regress_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["node_regression"] = {
+    yaml_object["gsf"]["node_regression"] = {
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["node_regression"] = {
+    yaml_object["gsf"]["node_regression"] = {
         "predict_ntype": "a",
         "label_field": "label",
         "eval_metric": "Mse"
@@ -939,7 +939,7 @@ def create_node_regress_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["node_regression"] = {
+    yaml_object["gsf"]["node_regression"] = {
         "predict_ntype": "a",
         "label_field": "label",
         "eval_metric": ["mse", "RMSE"],
@@ -947,19 +947,19 @@ def create_node_regress_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["node_regression"] = {
+    yaml_object["gsf"]["node_regression"] = {
         "eval_metric": "error"
     }
     with open(os.path.join(tmp_path, file_name+"_fail_metric1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["node_regression"] = {
+    yaml_object["gsf"]["node_regression"] = {
         "eval_metric": ["MSE", "error"], # one of metrics is not supported
     }
     with open(os.path.join(tmp_path, file_name+"_fail_metric2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["node_regression"] = {
+    yaml_object["gsf"]["node_regression"] = {
         "eval_metric": {}, # eval metric must be string or list
     }
     with open(os.path.join(tmp_path, file_name+"_fail_metric3.yaml"), "w") as f:
@@ -1003,13 +1003,13 @@ def test_node_regress_info():
 
 def create_edge_class_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["edge_classification"] = {
+    yaml_object["gsf"]["edge_classification"] = {
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["edge_classification"] = {
+    yaml_object["gsf"]["edge_classification"] = {
         "target_etype": ["query,match,asin"],
         "reverse_edge_types_map": [],
         "label_field": "label",
@@ -1023,7 +1023,7 @@ def create_edge_class_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["edge_classification"] = {
+    yaml_object["gsf"]["edge_classification"] = {
         "target_etype": ["query,match,asin", "query,click,asin"],
         "reverse_edge_types_map": ["query,match,rev-match,asin", "query,click,rev-click,asin"],
         "num_classes": 4,
@@ -1034,7 +1034,7 @@ def create_edge_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # test failure
-    yaml_object["m5gnn"]["edge_classification"] = {
+    yaml_object["gsf"]["edge_classification"] = {
         "target_etype": "query,match,asin",
         "reverse_edge_types_map": "query,match,rev-match,asin",
         "multilabel": "error",
@@ -1046,7 +1046,7 @@ def create_edge_class_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["edge_classification"] = {
+    yaml_object["gsf"]["edge_classification"] = {
         "target_etype": [],
         "num_classes": 4,
         "eval_metric": ["per_class_f1_score", "rmse"]
@@ -1114,13 +1114,13 @@ def test_edge_class_info():
 
 def create_lp_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["link_prediction"] = {
+    yaml_object["gsf"]["link_prediction"] = {
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["link_prediction"] = {
+    yaml_object["gsf"]["link_prediction"] = {
         "negative_sampler": BUILTIN_LP_JOINT_NEG_SAMPLER,
         "num_negative_edges": 4,
         "num_negative_edges_eval": 100,
@@ -1138,7 +1138,7 @@ def create_lp_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["link_prediction"] = {
+    yaml_object["gsf"]["link_prediction"] = {
         "negative_sampler": "udf", # we allow udf sampler
         "train_etype": ["query,exactmatch,asin","query,click,asin"],
         "eval_etype": ["query,exactmatch,asin","query,click,asin"],
@@ -1150,7 +1150,7 @@ def create_lp_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["link_prediction"] = {
+    yaml_object["gsf"]["link_prediction"] = {
         "num_negative_edges": 0,
         "num_negative_edges_eval": 0,
         "train_etype": "query,exactmatch,asin",
@@ -1165,26 +1165,26 @@ def create_lp_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["link_prediction"] = {
+    yaml_object["gsf"]["link_prediction"] = {
         "exclude_training_targets": True,
         "reverse_edge_types_map": [],
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["link_prediction"] = {
+    yaml_object["gsf"]["link_prediction"] = {
         "eval_metric": "error"
     }
     with open(os.path.join(tmp_path, file_name+"_fail_metric1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["link_prediction"] = {
+    yaml_object["gsf"]["link_prediction"] = {
         "eval_metric": ["mrr", "error"], # one of metrics is not supported
     }
     with open(os.path.join(tmp_path, file_name+"_fail_metric2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["link_prediction"] = {
+    yaml_object["gsf"]["link_prediction"] = {
         "eval_metric": {}, # eval metric must be string or list
     }
     with open(os.path.join(tmp_path, file_name+"_fail_metric3.yaml"), "w") as f:
@@ -1274,19 +1274,19 @@ def test_lp_info():
 
 def create_lml_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["mlm"] = {
+    yaml_object["gsf"]["mlm"] = {
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["mlm"] = {
+    yaml_object["gsf"]["mlm"] = {
         "mlm_probability": 0.4
     }
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["mlm"] = {
+    yaml_object["gsf"]["mlm"] = {
         "mlm_probability": 0.0
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
@@ -1315,38 +1315,38 @@ def create_bert_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_default1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5bert"] = {
+    yaml_object["lm_model"] = {
     }
     with open(os.path.join(tmp_path, file_name+"_default2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5bert"] = {
+    yaml_object["lm_model"] = {
         "bert_models": None
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5bert"] = {
+    yaml_object["lm_model"] = {
         "bert_models": [{"node_type":"movie","model_name":"bert-base-uncased"}]
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5bert"] = {
+    yaml_object["lm_model"] = {
         "bert_models": [{"node_type":"movie","model_name":"bert-base-uncased"}, {"node_type":"use","model_name":"bert-base-uncased"}]
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # fail
-    yaml_object["m5bert"] = {
+    yaml_object["lm_model"] = {
         "bert_models": {"node_type":"movie","model_name":"bert-base-uncased"}
     }
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # fail
-    yaml_object["m5bert"] = {
+    yaml_object["lm_model"] = {
         "bert_models": []
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
@@ -1389,10 +1389,10 @@ def test_bert_config():
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgat"
     }
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "feat_name": "test_feat",
         "fanout": "10,20,30",
         "n_layers": 3,
@@ -1402,10 +1402,10 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgcn"
     }
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "feat_name": "ntype0:feat_name",
         "fanout": "a:10@b:10,a:10@b:10@c:20",
         "eval_fanout": "10,10",
@@ -1416,16 +1416,16 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "feat_name": "ntype0:feat_name ntype1:fname",
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "lm"
     }
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "n_layers": 2, # for encoder of lm, n_layers will always be 0
         "n_hidden": 128,
     }
@@ -1433,16 +1433,16 @@ def create_gnn_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # config for check default value
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
     }
 
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["basic"] = {
+    yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgcn"
     }
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "feat_name": "ntype0:feat_name ntype0:feat_name", # set feat_name twice
         "fanout": "error", # error fanout
         "eval_fanout": "error",
@@ -1453,7 +1453,7 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_error1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["gnn"] = {
+    yaml_object["gsf"]["gnn"] = {
         "feat_name": {"ntype0":"feat_name"}, # not a string
         "fanout": "10,10", # error fanout
         "eval_fanout": "10,10",
@@ -1537,16 +1537,16 @@ def test_gnn_info():
 
 def create_io_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["input"] = {
+    yaml_object["gsf"]["input"] = {
     }
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
     }
 
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["input"] = {
+    yaml_object["gsf"]["input"] = {
         "load_model_path": "./load_path",
         "restore_model_path": "./restore",
         "restore_optimizer_path": "./opt_restore",
@@ -1554,7 +1554,7 @@ def create_io_config(tmp_path, file_name):
         "restore_model_encoder_path": "./encoder"
     }
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "save_model_path": "./save",
         "save_model_per_iters": 100,
         "save_embeds_path": "./save_emb",
@@ -1563,7 +1563,7 @@ def create_io_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "save_model_path": "./save",
         "save_model_per_iters": 100,
         "save_embeds_path": "./save_emb",
@@ -1610,14 +1610,14 @@ def test_load_io_info():
 
 def create_mlflow_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
     }
 
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "mlflow_exp_name": "test_flow",
     }
 
@@ -1625,7 +1625,7 @@ def create_mlflow_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_default2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "mlflow_exp_name": "test_flow",
         "mlflow_run_name": "test_run",
         "mlflow_report_frequency": 10000,
@@ -1635,7 +1635,7 @@ def create_mlflow_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    yaml_object["m5gnn"]["output"] = {
+    yaml_object["gsf"]["output"] = {
         "mlflow_exp_name": "test_flow",
         "mlflow_run_name": "test_run",
         "mlflow_report_frequency": -1,
@@ -1662,7 +1662,7 @@ def test_mlflow_info():
         config = M5GNNConfig(args)
         assert config.mlflow_tracker == True
         assert config.mlflow_exp_name == "test_flow"
-        assert config.mlflow_run_name == "test-m5gnn-run"
+        assert config.mlflow_run_name == "test-lmgnn-run"
         assert config.mlflow_report_frequency == 100
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test.yaml'),

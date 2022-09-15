@@ -4,7 +4,7 @@ from m5_dataloaders.datasets.constants import REGRESSION_TASK, CLASSIFICATION_TA
 from graphstorm.data.constants import TOKEN_IDX
 
 
-def test_m5gnn_dataset(input_dir):
+def test_gsgnn_dataset(input_dir):
     dataset = StandardM5gnnDataset(input_dir, "test",
         hf_bert_model='bert-base-uncased',
         max_node_seq_length={'node':16},
@@ -25,7 +25,7 @@ def test_m5gnn_dataset(input_dir):
     assert g.nodes['node'].data['nfeat1'].shape[0] == 4
     assert g.nodes['node'].data['nfeat1'].shape[1] == 3
 
-def test_m5gnn_dataset_nfeats(input_dir):
+def test_gsgnn_dataset_nfeats(input_dir):
     dataset = StandardM5gnnDataset(input_dir, "test",
         hf_bert_model='bert-base-uncased',
         max_node_seq_length={'node':16},
@@ -47,7 +47,7 @@ def test_m5gnn_dataset_nfeats(input_dir):
     assert g.nodes['node'].data['nfeat1'].shape[0] == 4
     assert g.nodes['node'].data['nfeat1'].shape[1] == 3
 
-def test_m5gnn_dataset_eclass(input_dir):
+def test_gsgnn_dataset_eclass(input_dir):
     dataset = StandardM5gnnDataset(input_dir, "test",
         hf_bert_model='bert-base-uncased',
         max_node_seq_length={'node':16},
@@ -72,5 +72,5 @@ def test_m5gnn_dataset_eclass(input_dir):
     assert g.edges['r0'].data['label'].shape[0] == 6
 
 if __name__ == '__main__':
-    #test_m5gnn_dataset(os.path.join('./data/', 'node_class'))
-    test_m5gnn_dataset_eclass(os.path.join('./data/', 'edge_class'))
+    #test_gsgnn_dataset(os.path.join('./data/', 'node_class'))
+    test_gsgnn_dataset_eclass(os.path.join('./data/', 'edge_class'))
