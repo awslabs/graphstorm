@@ -1,16 +1,16 @@
 """ Infer wrapper for link predicion
 """
-from ..model import M5GNNLinkPredictionModel
-from ..model import M5gnnMrrLPEvaluator
-from ..model.dataloading import M5gnnLinkPredictionInferData
+from ..model import GSgnnLinkPredictionModel
+from ..model import GSgnnMrrLPEvaluator
+from ..model.dataloading import GSgnnLinkPredictionInferData
 from .graphstorm_infer import GSInfer
 
 def get_model_class(config): # pylint: disable=unused-argument
     """ Get model class
     """
-    return M5GNNLinkPredictionModel, M5gnnMrrLPEvaluator
+    return GSgnnLinkPredictionModel, GSgnnMrrLPEvaluator
 
-class M5gnnLinkPredictionInfer(GSInfer):
+class GSgnnLinkPredictionInfer(GSInfer):
     """ Link prediction infer.
 
     This is a highlevel infer wrapper that can be used directly
@@ -22,27 +22,27 @@ class M5gnnLinkPredictionInfer(GSInfer):
 
     Usage:
     ```
-    from m5gnn.config import M5GNNConfig
-    from m5gnn.model import M5BertLoader
-    from m5gnn.model import M5gnnLinkPredictionInfer
+    from graphstorm.config import GSConfig
+    from graphstorm.model.huggingface import HuggingfaceBertLoader
+    from graphstorm.model import GSgnnLinkPredictionInfer
 
-    config = M5GNNConfig(args)
+    config = GSConfig(args)
     bert_config = config.bert_config
-    m5_models = M5BertLoader(bert_config).load()
+    lm_models = HuggingfaceBertLoader(bert_config).load()
 
-    infer = M5gnnLinkPredictionInfer(config, m5_models)
+    infer = GSgnnLinkPredictionInfer(config, lm_models)
     infer.infer()
     ```
 
     Parameters
     ----------
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     bert_model: dict
-        A dict of BERT models in the format of node-type -> M5 BERT model
+        A dict of BERT models in the format of node-type -> BERT model
     """
     def __init__(self, config, bert_model):
-        super(M5gnnLinkPredictionInfer, self).__init__()
+        super(GSgnnLinkPredictionInfer, self).__init__()
         assert isinstance(bert_model, dict)
         self.bert_model = bert_model
         self.config = config
@@ -73,11 +73,11 @@ class M5gnnLinkPredictionInfer(GSInfer):
         part_book = g.get_partition_book()
         config = self.config
 
-        infer_data = M5gnnLinkPredictionInferData(g, part_book, self.eval_etypes)
+        infer_data = GSgnnLinkPredictionInferData(g, part_book, self.eval_etypes)
 
         model_class, eval_class = get_model_class(config)
         lp_model = model_class(g, config, self.bert_model, train_task=False)
-        lp_model.init_m5gnn_model(train=False)
+        lp_model.init_gsgnn_model(train=False)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:

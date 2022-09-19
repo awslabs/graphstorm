@@ -2,14 +2,14 @@
 """
 
 from graphstorm.config import get_argument_parser
-from graphstorm.config import M5GNNConfig
-from graphstorm.inference import M5gnnNodePredictInfer
+from graphstorm.config import GSConfig
+from graphstorm.inference import GSgnnNodePredictInfer
 
 def main(args):
-    config = M5GNNConfig(args)
-    m5_models = {}
+    config = GSConfig(args)
+    lm_models = {}
 
-    infer = M5gnnNodePredictInfer(config, m5_models)
+    infer = GSgnnNodePredictInfer(config, lm_models)
     infer.infer()
 
 def generate_parser():

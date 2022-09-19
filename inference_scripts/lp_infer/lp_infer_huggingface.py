@@ -2,16 +2,16 @@
 """
 
 from graphstorm.config import get_argument_parser
-from graphstorm.config import M5GNNConfig
+from graphstorm.config import GSConfig
 from graphstorm.model.huggingface import HuggingfaceBertLoader
-from graphstorm.inference import M5gnnLinkPredictionInfer
+from graphstorm.inference import GSgnnLinkPredictionInfer
 
 def main(args):
-    config = M5GNNConfig(args)
+    config = GSConfig(args)
     bert_config = config.bert_config
-    m5_models = HuggingfaceBertLoader(bert_config).load()
+    lm_models = HuggingfaceBertLoader(bert_config).load()
 
-    infer = M5gnnLinkPredictionInfer(config, m5_models)
+    infer = GSgnnLinkPredictionInfer(config, lm_models)
     infer.infer()
 
 def generate_parser():

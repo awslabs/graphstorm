@@ -15,11 +15,11 @@ from .extract_node_embeddings import extract_bert_embeddings_dist, prepare_batch
 from ..data.constants import TOKEN_IDX
 from .embed import DistGraphEmbed
 from .hbert import wrap_bert, get_bert_flops_info
-from .utils import save_model as save_m5gnn_model
+from .utils import save_model as save_gsgnn_model
 from .utils import save_sparse_embeds
-from .utils import load_model as load_m5gnn_model
+from .utils import load_model as load_gsgnn_model
 from .utils import load_sparse_embeds
-from .utils import save_embeddings as save_m5gnn_embeddings
+from .utils import save_embeddings as save_gsgnn_embeddings
 from .utils import load_opt_state, save_opt_state
 from .rgat_encoder import RelationalGATEncoder
 from .rgcn_encoder import RelationalGCNEncoder
@@ -65,7 +65,7 @@ class OptimizerCombiner():
             if optimizer is not None:
                 optimizer.step()
 
-class M5GNNBase():
+class GSgnnBase():
     """ Base RGNN model
 
     Note: we assume each node type has a standalone BERT model.
@@ -74,7 +74,7 @@ class M5GNNBase():
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
+    config: GSConfig
         Configurations
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
@@ -514,32 +514,32 @@ class M5GNNBase():
         else:
             self.fine_tune_opt = None
 
-    def restoring_m5gnn(self, train):
+    def restoring_gsgnn(self, train):
         g = self.g
 
         # Restore the model weights and or optimizers to a checkpoint saved previously.
         if self.restore_model_path is not None:
-            print('load M5GNN model from ', self.restore_model_path)
-            load_m5gnn_model(self.restore_model_path, self.gnn_encoder, self.embed_layer, self.bert_model, self.decoder)
+            print('load GNN model from ', self.restore_model_path)
+            load_gsgnn_model(self.restore_model_path, self.gnn_encoder, self.embed_layer, self.bert_model, self.decoder)
             if g.rank() == 0:
                 print('Load Sparse embedding from ', self.restore_model_path)
                 load_sparse_embeds(self.restore_model_path, self.embed_layer)
 
         if self.restore_optimizer_path is not None and train:
-            print('load M5GNN optimizer state from ', self.restore_model_path)
+            print('load GSgnn optimizer state from ', self.restore_model_path)
             load_opt_state(self.restore_model_path, self.optimizer, self.fine_tune_opt, self.emb_optimizer)
 
         if self.restore_model_encoder_path is not None:
-            print('load M5GNN model encoder from ', self.restore_model_encoder_path)
-            load_m5gnn_model(self.restore_model_encoder_path, self.gnn_encoder, self.embed_layer, self.bert_model, decoder=None)
+            print('load GNN model encoder from ', self.restore_model_encoder_path)
+            load_gsgnn_model(self.restore_model_encoder_path, self.gnn_encoder, self.embed_layer, self.bert_model, decoder=None)
 
         # Restore the bert model to a checkpoint saved previously.
         if self.restore_bert_model_path is not None:
             print('load BERT model from ', self.restore_bert_model_path)
-            load_m5gnn_model(self.restore_bert_model_path, None, None, self.bert_model, None)
+            load_gsgnn_model(self.restore_bert_model_path, None, None, self.bert_model, None)
 
-    def init_m5gnn_model(self, train=True):
-        ''' Initialize the M5GNN model.
+    def init_gsgnn_model(self, train=True):
+        ''' Initialize the GNN model.
 
         Argument
         --------
@@ -552,7 +552,7 @@ class M5GNNBase():
         self.init_model_optimizers(train)
         self.init_bert_model(train)
 
-        self.restoring_m5gnn(train)
+        self.restoring_gsgnn(train)
 
         self.setup_combine_optimizer(train)
 
@@ -828,7 +828,7 @@ class M5GNNBase():
             save_model_path = self.save_model_path + '-' + str(epoch)
             if i is not None:
                 save_model_path = save_model_path + '-' + str(i)
-            save_m5gnn_model(model_conf, save_model_path, model, embed_layer, bert_model, decoder)
+            save_gsgnn_model(model_conf, save_model_path, model, embed_layer, bert_model, decoder)
             save_sparse_embeds(save_model_path, embed_layer)
             save_opt_state(save_model_path, self.optimizer, self.fine_tune_opt, self.emb_optimizer)
             print('successfully save the model to ' + save_model_path)
@@ -843,7 +843,7 @@ class M5GNNBase():
             save_embeds_path = self.save_embeds_path + '-' + str(epoch)
             if i is not None:
                 save_embeds_path = save_embeds_path + '-' + str(i)
-            save_m5gnn_embeddings(save_embeds_path, embeddings, g.rank(), th.distributed.get_world_size())
+            save_gsgnn_embeddings(save_embeds_path, embeddings, g.rank(), th.distributed.get_world_size())
 
         # wait for rank0 to save the model and/or embeddings
         th.distributed.barrier()

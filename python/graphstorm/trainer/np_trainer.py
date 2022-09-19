@@ -2,34 +2,34 @@ import dgl
 from importlib import import_module
 
 import torch as th
-from ..model import M5gnnNodeDataLoader
-from ..model import M5gnnNodeTrainData
-from ..model import M5GNNNodeClassModel
-from ..model import M5gnnAccEvaluator
-from ..model import M5GNNNodeRegressModel
-from ..model import M5gnnRegressionEvaluator
-from .m5gnn_trainer import M5gnnTrainer
+from ..model import GSgnnNodeDataLoader
+from ..model import GSgnnNodeTrainData
+from ..model import GSgnnNodeClassModel
+from ..model import GSgnnAccEvaluator
+from ..model import GSgnnNodeRegressModel
+from ..model import GSgnnRegressionEvaluator
+from .gsgnn_trainer import GSgnnTrainer
 
 def get_model_class(config):
     if config.task_type == "node_regression":
-        return M5GNNNodeRegressModel, M5gnnRegressionEvaluator
+        return GSgnnNodeRegressModel, GSgnnRegressionEvaluator
     elif config.task_type == 'node_classification':
-        return M5GNNNodeClassModel, M5gnnAccEvaluator
+        return GSgnnNodeClassModel, GSgnnAccEvaluator
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
-class M5gnnNodePredictTrainer(M5gnnTrainer):
+class GSgnnNodePredictTrainer(GSgnnTrainer):
     """ A trainer for node prediction
 
     Parameters
     ----------
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     bert_model: dict
-        A dict of BERT models in the format of node-type -> M5 BERT model
+        A dict of BERT models in the format of node-type -> BERT model
     """
     def __init__(self, config, bert_model):
-        super(M5gnnNodePredictTrainer, self).__init__()
+        super(GSgnnNodePredictTrainer, self).__init__()
         assert isinstance(bert_model, dict)
         self.bert_model = bert_model
         self.config = config
@@ -67,8 +67,8 @@ class M5gnnNodePredictTrainer(M5gnnTrainer):
         pb = g.get_partition_book()
         config = self.config
 
-        train_data = M5gnnNodeTrainData(g, pb, self.predict_ntype, config.label_field)
-        dataloader = M5gnnNodeDataLoader(g,
+        train_data = GSgnnNodeTrainData(g, pb, self.predict_ntype, config.label_field)
+        dataloader = GSgnnNodeDataLoader(g,
                                          train_data,
                                          self.fanout,
                                          self.n_layers,
@@ -77,7 +77,7 @@ class M5gnnNodePredictTrainer(M5gnnTrainer):
 
         model_cls, eval_class = get_model_class(config)
         nc_model = model_cls(g, self.config, self.bert_model)
-        nc_model.init_m5gnn_model(True)
+        nc_model.init_gsgnn_model(True)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:

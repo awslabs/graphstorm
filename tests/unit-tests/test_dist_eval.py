@@ -5,7 +5,7 @@
     and when called by two workers (distributed evaluation).
 
     For classification tasks. it compares the output of
-    `M5gnnAccEvaluator.evaluate' when called by a single worker
+    `GSgnnAccEvaluator.evaluate' when called by a single worker
     (single process evaluation) and when called by two workers
     (distributed evaluation).
 """
@@ -18,8 +18,8 @@ from numpy.testing import assert_almost_equal
 import numpy as np
 
 from graphstorm.model.utils import fullgraph_eval
-from graphstorm.model.evaluator import M5gnnAccEvaluator
-from graphstorm.model.evaluator import M5gnnRegressionEvaluator
+from graphstorm.model.evaluator import GSgnnAccEvaluator
+from graphstorm.model.evaluator import GSgnnRegressionEvaluator
 
 from util import Dummy
 
@@ -181,9 +181,9 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
     config, train_data = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:
-        evaluator = M5gnnRegressionEvaluator(None, config, train_data)
+        evaluator = GSgnnRegressionEvaluator(None, config, train_data)
     else:
-        evaluator = M5gnnAccEvaluator(None, config, train_data)
+        evaluator = GSgnnAccEvaluator(None, config, train_data)
 
     val_score0, test_score0 = evaluator.evaluate(
         val_pred.to(device),
@@ -269,9 +269,9 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
     config, train_data = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:
-        evaluator = M5gnnRegressionEvaluator(None, config, train_data)
+        evaluator = GSgnnRegressionEvaluator(None, config, train_data)
     else:
-        evaluator = M5gnnAccEvaluator(None, config, train_data)
+        evaluator = GSgnnAccEvaluator(None, config, train_data)
     val_score0, test_score0 = evaluator.evaluate(val_pred, test_pred, val_labels0, test_labels, 100)
     val_score1, test_score1 = evaluator.evaluate(val_pred, test_pred, val_labels1, test_labels, 200)
     val_score2, _ = evaluator.evaluate(val_pred, test_pred, val_labels2, test_labels, 300)

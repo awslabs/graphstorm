@@ -1,19 +1,19 @@
 import dgl
 import torch as th
 
-class M5gnnTrainer():
-    """ Generic M5GNN trainer.
+class GSgnnTrainer():
+    """ Generic GSgnn trainer.
 
 
     Parameters
     ----------
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     bert_model: dict
-        A dict of BERT models in the format of node-type -> M5 BERT model
+        A dict of BERT models in the format of node-type -> BERT model
     """
     def __init__(self):
-        super(M5gnnTrainer, self).__init__()
+        super(GSgnnTrainer, self).__init__()
 
     def init_dist_context(self, ip_config, graph_name, part_config, backend):
         """ Initialize distributed inference context

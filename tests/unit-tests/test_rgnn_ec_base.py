@@ -1,7 +1,7 @@
-""" test_rgnn_nc_base test functionalities of M5GNNEdgeClassificationModel
+""" test_rgnn_nc_base test functionalities of GSgnnEdgeClassificationModel
 
     The tested functions includes:
-        M5GNNEdgeClassificationModel.eval(): We use mock to verify whether eval()
+        GSgnnEdgeClassificationModel.eval(): We use mock to verify whether eval()
         function act as expected under single process evaluation and
         distributed evaluation.
         It verifies that the validation and test scores are correct and
@@ -16,9 +16,9 @@ import pytest
 import torch as th
 from unittest.mock import patch, MagicMock
 
-from graphstorm.model.rgnn_edge_base import M5GNNEdgeModel
-from graphstorm.model.evaluator import M5gnnAccEvaluator
-from graphstorm.model.rgnn_ec_base import M5GNNEdgeClassificationModel
+from graphstorm.model.rgnn_edge_base import GSgnnEdgeModel
+from graphstorm.model.evaluator import GSgnnAccEvaluator
+from graphstorm.model.rgnn_ec_base import GSgnnEdgeClassificationModel
 
 from util import Dummy
 from test_rgnn_nc_base import gen_rand_labels
@@ -34,7 +34,7 @@ def run_dist_ec_eval_worker(eval_config, worker_rank, val_pred, test_pred,
                                       rank=worker_rank)
     device = 'cuda:%d' % worker_rank
     th.cuda.set_device(worker_rank)
-    accEvaluator = M5gnnAccEvaluator(None, eval_config, train_data)
+    accEvaluator = GSgnnAccEvaluator(None, eval_config, train_data)
     val_labels = train_data.labels[train_data.val_idxs["test"]].to(device)
     test_labels = train_data.labels[train_data.test_idxs["test"]].to(device)
 
@@ -44,10 +44,10 @@ def run_dist_ec_eval_worker(eval_config, worker_rank, val_pred, test_pred,
             0)
 
     @patch('time.time', MagicMock(return_value=12345))
-    @patch.object(M5GNNEdgeClassificationModel, 'inference', return_value=(val_pred.to(device), val_labels.to(device), test_pred.to(device), test_labels.to(device)))
-    @patch.object(M5GNNEdgeClassificationModel, 'log_print_metrics', return_value=None)
+    @patch.object(GSgnnEdgeClassificationModel, 'inference', return_value=(val_pred.to(device), val_labels.to(device), test_pred.to(device), test_labels.to(device)))
+    @patch.object(GSgnnEdgeClassificationModel, 'log_print_metrics', return_value=None)
     def call_eval(mock_log_print_metrics, mock_inference):
-        ec = M5GNNEdgeClassificationModel.__new__(M5GNNEdgeClassificationModel)
+        ec = GSgnnEdgeClassificationModel.__new__(GSgnnEdgeClassificationModel)
         ec.register_evaluator(accEvaluator)
         ec.target_etype = ("t0", "test", "t1")
         ec.eval(worker_rank, train_data, None, 100)
@@ -79,7 +79,7 @@ def run_local_ec_eval_worker(eval_config, val_pred, test_pred,
                                       world_size=1,
                                       rank=0)
 
-    accEvaluator = M5gnnAccEvaluator(None, eval_config, train_data)
+    accEvaluator = GSgnnAccEvaluator(None, eval_config, train_data)
     val_labels = train_data.labels[train_data.val_idxs["test"]]
     test_labels = train_data.labels[train_data.test_idxs["test"]]
 
@@ -89,10 +89,10 @@ def run_local_ec_eval_worker(eval_config, val_pred, test_pred,
             0)
 
     @patch('time.time', MagicMock(return_value=12345))
-    @patch.object(M5GNNEdgeClassificationModel, 'inference', return_value=(val_pred, val_labels, test_pred, test_labels))
-    @patch.object(M5GNNEdgeClassificationModel, 'log_print_metrics', return_value=None)
+    @patch.object(GSgnnEdgeClassificationModel, 'inference', return_value=(val_pred, val_labels, test_pred, test_labels))
+    @patch.object(GSgnnEdgeClassificationModel, 'log_print_metrics', return_value=None)
     def call_eval(mock_log_print_metrics, mock_inference):
-        ec = M5GNNEdgeClassificationModel.__new__(M5GNNEdgeClassificationModel)
+        ec = GSgnnEdgeClassificationModel.__new__(GSgnnEdgeClassificationModel)
         ec.register_evaluator(accEvaluator)
         ec.target_etype = ("t0", "test", "t1")
         ec.eval(0, train_data, None, 100)
@@ -215,58 +215,58 @@ def test_ec_dist_eval(metric, seed, backend):
     assert local_result[0] == dist_result[0]
     assert local_result[1] == dist_result[1]
 
-def test_ec_init_m5gnn_model():
-    @patch.object(M5GNNEdgeModel, 'init_m5gnn_model', return_value=None)
-    def call_init_m5gnn_model(mock_linit_m5gnn_model):
-        ec = M5GNNEdgeClassificationModel.__new__(M5GNNEdgeClassificationModel)
+def test_ec_init_gsgnn_model():
+    @patch.object(GSgnnEdgeModel, 'init_gsgnn_model', return_value=None)
+    def call_init_gsgnn_model(mock_linit_gsgnn_model):
+        ec = GSgnnEdgeClassificationModel.__new__(GSgnnEdgeClassificationModel)
         setattr(ec, "multilabel", False)
         setattr(ec, "multilabel_weights", None)
         setattr(ec, "imbalance_class_weights", None)
         setattr(ec, "_dev_id", 0)
-        ec.init_m5gnn_model()
+        ec.init_gsgnn_model()
 
         assert isinstance(ec.loss_func, th.nn.CrossEntropyLoss)
-        mock_linit_m5gnn_model.assert_called_once()
-        mock_linit_m5gnn_model.reset_mock()
+        mock_linit_gsgnn_model.assert_called_once()
+        mock_linit_gsgnn_model.reset_mock()
 
-        ec = M5GNNEdgeClassificationModel.__new__(M5GNNEdgeClassificationModel)
+        ec = GSgnnEdgeClassificationModel.__new__(GSgnnEdgeClassificationModel)
         setattr(ec, "multilabel", True)
         setattr(ec, "multilabel_weights", None)
         setattr(ec, "imbalance_class_weights", None)
         setattr(ec, "_dev_id", 0)
-        ec.init_m5gnn_model()
+        ec.init_gsgnn_model()
 
         assert not isinstance(ec.loss_func, th.nn.CrossEntropyLoss)
-        mock_linit_m5gnn_model.assert_called_once()
-        mock_linit_m5gnn_model.reset_mock()
+        mock_linit_gsgnn_model.assert_called_once()
+        mock_linit_gsgnn_model.reset_mock()
 
-        ec = M5GNNEdgeClassificationModel.__new__(M5GNNEdgeClassificationModel)
+        ec = GSgnnEdgeClassificationModel.__new__(GSgnnEdgeClassificationModel)
         setattr(ec, "multilabel", True)
         setattr(ec, "multilabel_weights", th.tensor([1,2,3]))
         setattr(ec, "imbalance_class_weights", None)
         setattr(ec, "_dev_id", 0)
-        ec.init_m5gnn_model()
+        ec.init_gsgnn_model()
 
         assert not isinstance(ec.loss_func, th.nn.CrossEntropyLoss)
         assert callable(ec.loss_func)
-        mock_linit_m5gnn_model.assert_called_once()
-        mock_linit_m5gnn_model.reset_mock()
+        mock_linit_gsgnn_model.assert_called_once()
+        mock_linit_gsgnn_model.reset_mock()
 
-        ec = M5GNNEdgeClassificationModel.__new__(M5GNNEdgeClassificationModel)
+        ec = GSgnnEdgeClassificationModel.__new__(GSgnnEdgeClassificationModel)
         setattr(ec, "multilabel", False)
         setattr(ec, "multilabel_weights", None)
         setattr(ec, "imbalance_class_weights", th.tensor([1,2,3]))
         setattr(ec, "_dev_id", 0)
-        ec.init_m5gnn_model()
+        ec.init_gsgnn_model()
 
         assert isinstance(ec.loss_func, th.nn.CrossEntropyLoss)
         assert ec.loss_func.weight.tolist() == [1,2,3]
-        mock_linit_m5gnn_model.assert_called_once()
-        mock_linit_m5gnn_model.reset_mock()
+        mock_linit_gsgnn_model.assert_called_once()
+        mock_linit_gsgnn_model.reset_mock()
 
-    call_init_m5gnn_model()
+    call_init_gsgnn_model()
 
 if __name__ == '__main__':
     test_ec_dist_eval(["accuracy"], seed=41, backend="gloo")
     test_ec_dist_eval(["accuracy"], seed=41, backend="nccl")
-    test_ec_init_m5gnn_model()
+    test_ec_init_gsgnn_model()

@@ -1,4 +1,4 @@
-""" Utils for m5gnn """
+""" Utils """
 import os
 import json
 import time
@@ -529,7 +529,7 @@ def save_embeddings(model_path, embeddings, local_rank, world_size):
             f.write(json.dumps(emb_info))
 
 def load_model(model_path, gnn_model=None, embed_layer=None, bert_model=None, decoder=None):
-    """ Load a complete m5gnn model.
+    """ Load a complete gnn model.
         A user needs to provide the correct model architectures first.
 
         Parameters

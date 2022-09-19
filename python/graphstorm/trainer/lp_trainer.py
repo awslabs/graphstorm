@@ -1,46 +1,46 @@
-from ..model import M5gnnLinkPredictionTrainData
-from ..model import M5gnnLinkPredictionDataLoader
-from ..model import M5gnnLPJointNegDataLoader
-from ..model import M5gnnLPLocalUniformNegDataLoader
-from ..model import M5GNNLinkPredictionModel
-from ..model import M5gnnMrrLPEvaluator
-from .m5gnn_trainer import M5gnnTrainer
+from ..model import GSgnnLinkPredictionTrainData
+from ..model import GSgnnLinkPredictionDataLoader
+from ..model import GSgnnLPJointNegDataLoader
+from ..model import GSgnnLPLocalUniformNegDataLoader
+from ..model import GSgnnLinkPredictionModel
+from ..model import GSgnnMrrLPEvaluator
+from .gsgnn_trainer import GSgnnTrainer
 
 from ..model.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from ..model.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from ..model.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
 
 def get_model_class(config):
-    return M5GNNLinkPredictionModel, M5gnnMrrLPEvaluator
+    return GSgnnLinkPredictionModel, GSgnnMrrLPEvaluator
 
-class M5gnnLinkPredictionTrainer(M5gnnTrainer):
+class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
 
     This is a highlevel trainer wrapper that can be used directly to train a link prediction model.
 
     Usage:
     ```
-    from graphstorm.config import M5GNNConfig
-    from graphstorm.model import M5BertLoader
-    from graphstorm.model import M5gnnLinkPredictionTrainer
+    from graphstorm.config import GSConfig
+    from graphstorm.model.huggingface import HuggingfaceBertLoader
+    from graphstorm.model import GSgnnLinkPredictionTrainer
 
-    config = M5GNNConfig(args)
+    config = GSConfig(args)
     bert_config = config.bert_config
-    m5_models = M5BertLoader(bert_config).load()
+    lm_models = HuggingfaceBertLoader(bert_config).load()
 
-    trainer = M5gnnLinkPredictionTrainer(config, m5_models)
+    trainer = GSgnnLinkPredictionTrainer(config, lm_models)
     trainer.fit()
     ```
 
     Parameters
     ----------
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     bert_model: dict
-        A dict of BERT models in the format of node-type -> M5 BERT model
+        A dict of BERT models in the format of node-type -> BERT model
     """
     def __init__(self, config, bert_model):
-        super(M5gnnLinkPredictionTrainer, self).__init__()
+        super(GSgnnLinkPredictionTrainer, self).__init__()
         assert isinstance(bert_model, dict)
         self.bert_model = bert_model
         self.config = config
@@ -78,14 +78,14 @@ class M5gnnLinkPredictionTrainer(M5gnnTrainer):
         pb = g.get_partition_book()
         config = self.config
 
-        train_data = M5gnnLinkPredictionTrainData(g, pb, self.train_etypes, self.eval_etypes, full_graph_training)
+        train_data = GSgnnLinkPredictionTrainData(g, pb, self.train_etypes, self.eval_etypes, full_graph_training)
 
         if g.rank() == 0:
             print("Use {} negative sampler with exclude training target {}".format(
                 self.negative_sampler,
                 self.exclude_training_targets))
         if self.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-            dataloader = M5gnnLinkPredictionDataLoader(g,
+            dataloader = GSgnnLinkPredictionDataLoader(g,
                                                        train_data,
                                                        self.fanout,
                                                        self.n_layers,
@@ -95,7 +95,7 @@ class M5gnnLinkPredictionTrainer(M5gnnTrainer):
                                                        self.exclude_training_targets,
                                                        self.reverse_edge_types_map)
         elif self.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
-            dataloader = M5gnnLPJointNegDataLoader(g,
+            dataloader = GSgnnLPJointNegDataLoader(g,
                                                    train_data,
                                                    self.fanout,
                                                    self.n_layers,
@@ -105,7 +105,7 @@ class M5gnnLinkPredictionTrainer(M5gnnTrainer):
                                                    self.exclude_training_targets,
                                                    self.reverse_edge_types_map)
         elif self.negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
-            dataloader = M5gnnLPLocalUniformNegDataLoader(g,
+            dataloader = GSgnnLPLocalUniformNegDataLoader(g,
                                                           train_data,
                                                           self.fanout,
                                                           self.n_layers,
@@ -119,7 +119,7 @@ class M5gnnLinkPredictionTrainer(M5gnnTrainer):
 
         model_class, eval_class = get_model_class(config)
         lp_model = model_class(g, config, self.bert_model)
-        lp_model.init_m5gnn_model(True)
+        lp_model.init_gsgnn_model(True)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:

@@ -5,9 +5,9 @@ import torch as th
 import boto3
 import os
 
-from .dataset import M5gnnDataset
+from .dataset import GSgnnDataset
 
-class OGBArxivTextFeatDataset(M5gnnDataset):
+class OGBArxivTextFeatDataset(GSgnnDataset):
     """r ogbn-arxiv dataset for node classification
     """
     def __init__(self, raw_dir, text_feat_type='title', retain_original_features=False,

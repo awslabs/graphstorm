@@ -20,7 +20,7 @@ def run_bert(bert_model, input_ids, attention_mask, token_type_ids, labels=None,
 
     Parameters
     ----------
-    bert_model: Bert model, it can be M5Bert or HuggingFace Bert
+    bert_model: Bert model, it can be a HuggingFace Bert
     input_ids: Input token ids
     attention_mask: Attention mask, it can be a 2D bool mask tensor
         indicating attention masks for each sequence or an integer

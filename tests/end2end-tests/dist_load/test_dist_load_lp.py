@@ -6,9 +6,8 @@ import torch as th
 from torch import nn
 import argparse
 import time
-from m5_dataloaders.datasets.constants import REGRESSION_TASK, CLASSIFICATION_TASK
 
-from graphstorm.data import StandardM5gnnDataset
+from graphstorm.data import StandardGSgnnDataset
 from graphstorm.data.constants import TOKEN_IDX, VALID_LEN_IDX
 
 import test_dist_load_nc
@@ -28,7 +27,7 @@ if __name__ == '__main__':
         meta_info = json.load(f)
 
     # process using single process
-    dataset = StandardM5gnnDataset(json_graph_path,
+    dataset = StandardGSgnnDataset(json_graph_path,
                                    "ml",
                                    hf_bert_model="bert-base-uncased",
                                    nid_fields={},

@@ -11,7 +11,7 @@ class HuggingfaceBertTokenizer():
     -----------
     bert_config: dict
         BERT model configurations. In the format of node-type -> BERT config
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     """
     def __init__(self, bert_configs):
@@ -38,7 +38,7 @@ class HuggingfaceMLMBertLoader():
     -----------
     bert_config: dict
         BERT model configurations. In the format of node-type -> BERT config
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     """
     def __init__(self, bert_configs):
@@ -72,7 +72,7 @@ class HuggingfaceBertLoader():
     -----------
     bert_config: dict
         BERT model configurations. In the format of node-type -> BERT config
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     """
     def __init__(self, bert_configs):

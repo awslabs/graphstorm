@@ -5,7 +5,7 @@ from .sampler import LocalUniform, JointUniform
 from ..data.utils import return_reverse_mappings
 from .utils import trim_data, modify_fanout_for_target_etype
 
-####################### M5 GNN dataset ############################
+####################### GNN dataset ############################
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
@@ -17,7 +17,7 @@ def split_full_edge_list(g, etype, rank):
     end = g.num_edges(etype) // th.distributed.get_world_size() * (rank + 1)
     return th.arange(start, end)
 
-class M5gnnLinkPredictionTrainData():
+class GSgnnLinkPredictionTrainData():
     """ Link prediction training data
 
     Parameters
@@ -127,7 +127,7 @@ class M5gnnLinkPredictionTrainData():
     def do_validation(self):
         return self._do_validation
 
-class M5gnnLinkPredictionInferData():
+class GSgnnLinkPredictionInferData():
     """ Link prediction training data
 
     Parameters
@@ -199,7 +199,7 @@ class M5gnnLinkPredictionInferData():
     def do_validation(self):
         return self._do_validation
 
-class M5gnnEdgePredictionTrainData():
+class GSgnnEdgePredictionTrainData():
     """ Edge prediction training data
 
     Parameters
@@ -375,7 +375,7 @@ class M5gnnEdgePredictionTrainData():
     def do_validation(self):
         return self._do_validation
 
-class M5gnnEdgePredictionInferData():
+class GSgnnEdgePredictionInferData():
     """ Edge prediction inference data
 
     Parameters
@@ -481,7 +481,7 @@ class M5gnnEdgePredictionInferData():
     def target_ntypes(self):
         return self._target_ntypes
 
-class M5gnnNodeTrainData():
+class GSgnnNodeTrainData():
     """ Training data for node tasks
 
     Parameters
@@ -566,7 +566,7 @@ class M5gnnNodeTrainData():
     def do_validation(self):
         return self._do_validation
 
-class M5gnnNodeInferData():
+class GSgnnNodeInferData():
     """ Inference data for node tasks
 
     Parameters
@@ -646,9 +646,9 @@ class M5gnnNodeInferData():
     def do_validation(self):
         return self._do_validation
 
-################ M5 GNN MLM dataset #######################
+################ GNN MLM dataset #######################
 
-class M5gnnMLMTrainData():
+class GSgnnMLMTrainData():
     """ Training data for Masked-Language Modeling finetuning
 
     Parameters
@@ -718,13 +718,13 @@ class M5gnnMLMTrainData():
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
-class M5gnnEdgePredictionDataLoader():
+class GSgnnEdgePredictionDataLoader():
     """ Edge prediction minibatch dataloader
         The dataloader we use here will
     Argument
     --------
     g: DGLGraph
-    train_dataset: M5gnnEdgePredictionDataLoader
+    train_dataset: GSgnnEdgePredictionDataLoader
         The dataset used in training. It must includes train_idxs.
     fanout: neighbor sample fanout
     n_layers: number of GNN layers
@@ -794,7 +794,7 @@ BUILTIN_LP_UNIFORM_NEG_SAMPLER = 'uniform'
 BUILTIN_LP_JOINT_NEG_SAMPLER = 'joint'
 BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER = 'localuniform'
 
-class M5gnnLinkPredictionDataLoader():
+class GSgnnLinkPredictionDataLoader():
     """ Link prediction minibatch dataloader
 
     The negative edges are sampled uniformly.
@@ -802,7 +802,7 @@ class M5gnnLinkPredictionDataLoader():
     Argument
     --------
     g: DGLGraph
-    train_dataset: M5gnnLinkPredictionTrainData
+    train_dataset: GSgnnLinkPredictionTrainData
         The dataset used in training. It must includes train_idxs.
     fanout: neighbor sample fanout
     n_layers: number of GNN layers
@@ -861,13 +861,13 @@ class M5gnnLinkPredictionDataLoader():
     def __next__(self):
         return self.dataloader.__next__()
 
-class M5gnnLPJointNegDataLoader(M5gnnLinkPredictionDataLoader):
+class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
 
     """
     def __init__(self, g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device,
         exclude_training_targets=False, reverse_edge_types_map=None):
-        super(M5gnnLPJointNegDataLoader, self).__init__(
+        super(GSgnnLPJointNegDataLoader, self).__init__(
             g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device, exclude_training_targets, reverse_edge_types_map)
 
     def _prepare_negative_sampler(self, num_negative_edges):
@@ -875,13 +875,13 @@ class M5gnnLPJointNegDataLoader(M5gnnLinkPredictionDataLoader):
         negative_sampler = JointUniform(num_negative_edges)
         return negative_sampler
 
-class M5gnnLPLocalUniformNegDataLoader(M5gnnLinkPredictionDataLoader):
+class GSgnnLPLocalUniformNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with local uniform negative sampler
 
     """
     def __init__(self, g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device,
         exclude_training_targets=False, reverse_edge_types_map=None):
-        super(M5gnnLPLocalUniformNegDataLoader, self).__init__(
+        super(GSgnnLPLocalUniformNegDataLoader, self).__init__(
             g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device, exclude_training_targets, reverse_edge_types_map)
 
     def _prepare_negative_sampler(self, num_negative_edges):
@@ -891,14 +891,14 @@ class M5gnnLPLocalUniformNegDataLoader(M5gnnLinkPredictionDataLoader):
 
 ################ Minibatch DataLoader (Node classification) #######################
 
-class M5gnnNodeDataLoader():
+class GSgnnNodeDataLoader():
     """ Minibatch dataloader for node tasks
 
     Parameters
     ----------
     g: DGLGraph
         The graph used in training and testing
-    train_dataset: M5gnnNodeTrainData
+    train_dataset: GSgnnNodeTrainData
         Training ataset
     fanout: list of int
         Neighbor sample fanout

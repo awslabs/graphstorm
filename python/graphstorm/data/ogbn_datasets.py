@@ -7,9 +7,9 @@ import psutil
 import os
 import argparse
 
-from .dataset import M5gnnDataset
+from .dataset import GSgnnDataset
 
-class OGBTextFeatDataset(M5gnnDataset):
+class OGBTextFeatDataset(GSgnnDataset):
     """
     This class can be used for ogbn-arxiv, ogbn-papers100M and ogbn-products datasets. The text features are collected
     from the original titles and abstractrs of the papers for the first two graphs and the ASIN titles for the last

@@ -1,4 +1,4 @@
-# The general dataset for M5GNN
+# The general dataset for GSgnn
 
 import os, sys
 import json
@@ -19,7 +19,7 @@ from torch.utils.data.sampler import RandomSampler, SequentialSampler
 
 from transformers import AutoTokenizer
 from .utils import save_raw_text, save_maps
-from .dataset import M5gnnDataset
+from .dataset import GSgnnDataset
 from .utils import get_id, reverse_etype, add_reverse_edges
 from .utils import alltoallv_cpu, alltoall_cpu
 from .utils import all_reduce_sum
@@ -29,7 +29,6 @@ from .constants import TOKEN_IDX, VALID_LEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX, \
 
 from multiprocessing import Manager
 try:
-    from m5_tokenizers.tokenizers import SentencepieceTokenizer
     from m5_dataloaders.datasets import JSONPredictionDatasetStream
     from m5_dataloaders.datasets.constants import CLASSIFICATION_TASK, REGRESSION_TASK
     from m5_dataloaders import DataProvider, WorkerInitObj
@@ -38,9 +37,9 @@ try:
     has_m5 = True
 except Exception as e:
     print(e)
-    REGRESSION_TASK = "regression"
-    CLASSIFICATION_TASK = "classification"
-    print("M5 is not available")
+    from .constants import REGRESSION_TASK
+    from .constants import CLASSIFICATION_TASK
+    print("M5 data loader is not available")
     has_m5 = False
 
 def _get_mask(json_data):
@@ -106,7 +105,6 @@ class JSONEdgeDataset(Dataset):
 
     The dataset supports loading data from
     multiple JSON files. If the edge data contain text features, the text will be tokenized.
-    We use the M5 dataset to tokenize text. (currently, this is not supported)
 
     Arguments
     ---------
@@ -279,9 +277,6 @@ class JSONEdgeDataset(Dataset):
 def _pad_arrs_to_max_length(arrs, pad_axis, pad_val, round_to=None, max_length=None):
     """Inner Implementation of the Pad collate
 
-    Note: this method is replicated to M5Models for dependency decoupling. Please make sure to sync any related changes
-        to https://tiny.amazon.com/14outu2a8
-
     Arguments:
         arrs (list)
         pad_axis (int)
@@ -327,10 +322,6 @@ def _pad_arrs_to_max_length(arrs, pad_axis, pad_val, round_to=None, max_length=N
 
 class Pad:
     r"""Returns a callable that pads and stacks data.
-
-    Note: this class (along with the helper method `_pad_arrs_to_max_length`) is replicated to M5Models
-        for dependency decoupling. Please make sure to sync any related changes to
-        https://tiny.amazon.com/14outu2a8
 
     Arguments:
         axis (int, optional): The axis to pad the arrays.
@@ -425,7 +416,6 @@ class JSONNodeDataset(JSONPredictionDatasetStream):
 
     The dataset supports loading data from
     multiple JSON files. If the node data contain text features, the text will be tokenized.
-    We use the M5 dataset to tokenize text.
 
     Arguments
     ---------
@@ -471,7 +461,7 @@ class JSONNodeDataset(JSONPredictionDatasetStream):
         super(JSONNodeDataset, self).__init__(tokenizer, id_field=id_field,
                                               label_field=label_field, fields=text_fields,
                                               max_seq_length=max_seq_length, task_type=task_type)
-        # TODO(zhengda) The Pad function in M5 doesn't work. For some reason, Pytorch cannot allocate memory
+
         # in other processes. The customized Pad function allocate memory with NumPy. It works fine.
         self.pad = Pad(pad_val=tokenizer.pad_token_id, max_length=max_seq_length)
         self.inputs = self.get_input_arrays()
@@ -573,9 +563,7 @@ class JSONNodeDataset(JSONPredictionDatasetStream):
             tokens = self.tokenizer(text, max_length=self.max_seq_length, truncation=True,
                                     padding='max_length', return_tensors='pt')
             # The output from the HF tokenizer has the shape of (1, dim) while
-            # the output from the M5 tokenizer has the shape of (dim,).
-            # Let's remove the first dimension to unify the shape of the outputs from
-            # the two tokenizers.
+            # Let's remove the first dimension
             input_ids.append(th.squeeze(tokens[TOKEN_IDX]))
             valid_lens.append(tokens[ATT_MASK_IDX].sum(dim=1))
             # TODO(zhengda) we may need to handle token type IDs in the future.
@@ -604,9 +592,6 @@ class JSONNodeDataset(JSONPredictionDatasetStream):
 
     def get_input_arrays(self):
         ''' Parse input files and save the results in multiple arrays
-
-        It relies on the M5 data loader to extract the node IDs, labels and text data from
-        the input files and tokenize the text data.
 
         If `has_data_split` is enabled, it extracts train masks, validation masks and test masks.
 
@@ -1000,8 +985,8 @@ def _load_node_data(dataset_path, tokenizer, use_hf_tokenizer, id_field, label_f
 def _is_sorted(tensor):
     return np.all((tensor[1:] - tensor[:-1] > 0).numpy())
 
-class StandardM5gnnDataset(M5gnnDataset):
-    """r This class loads data in the standardized M5GNN data format.
+class StandardGSgnnDataset(GSgnnDataset):
+    """r This class loads data in the standardized GSgnn data format.
 
     Parameters
     ----------
@@ -1019,8 +1004,8 @@ class StandardM5gnnDataset(M5gnnDataset):
         max_edge_seq_length : dict of string to int
             The dictionary that contains the max sequence length on each edge type.
             The key is edge type, the value is the max length
-        m5_vocab : str
-            The path of the m5 vocab used for tokenization
+        vocab : str
+            The path of the vocab used for tokenization
         hf_bert_model : str
             The name of the BERT model. We create a tokenizer accordingly based on the BERT model.
         num_worker : int
@@ -1064,7 +1049,7 @@ class StandardM5gnnDataset(M5gnnDataset):
     def __init__(self, raw_dir, name, rank=-1,
                  force_reload=False,
                  verbose=True, max_node_seq_length={}, max_edge_seq_length={},
-                 m5_vocab=None, hf_bert_model=None, num_worker=32, nfeat_format=None, efeat_format=None,
+                 vocab=None, hf_bert_model=None, num_worker=32, nfeat_format=None, efeat_format=None,
                  nid_fields={}, src_field='src_id', dst_field='dst_id',
                  nlabel_fields={}, elabel_fields={},
                  ntask_types={}, etask_types={},
@@ -1097,17 +1082,12 @@ class StandardM5gnnDataset(M5gnnDataset):
         self._efeat_format = efeat_format
         self._edge_name_delimiter = edge_name_delimiter
 
-        assert m5_vocab is not None or hf_bert_model is not None
-        if m5_vocab is not None:
-            print('M5 tokenizer is used:', m5_vocab)
-            self._tokenizer = SentencepieceTokenizer(m5_vocab)
-            self._use_hf_tokenizer = False
-        elif hf_bert_model is not None:
+        if hf_bert_model is not None:
             print('HuggingFace tokenizer is used:', hf_bert_model)
             self._tokenizer = AutoTokenizer.from_pretrained(hf_bert_model)
             self._use_hf_tokenizer = True
-        print("[{}/{}]Build M5gnnDataset.".format(self._rank, self._world_size))
-        super(StandardM5gnnDataset, self).__init__(name,
+        print("[{}/{}]Build GSgnnDataset.".format(self._rank, self._world_size))
+        super(StandardGSgnnDataset, self).__init__(name,
                                                    url=None,
                                                    raw_dir=raw_dir,
                                                    force_reload=force_reload,
@@ -1205,7 +1185,7 @@ class StandardM5gnnDataset(M5gnnDataset):
         assert self._file_format == 'JSON'
         # Load node data.
         # TODO assert that there is no None value in the text fields. This will fail the program for the HF tokenizer
-        #  and will discard the rows for the M5 tokenizer. In the second case the number of nodes will be more that the
+        # In the second case the number of nodes will be more that the
         #  number of features and the code will fail again.
 
         print('Start loading ndata')

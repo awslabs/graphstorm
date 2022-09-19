@@ -1,23 +1,23 @@
 """ Infer wrapper for node classification and regression
 """
-from ..model import M5GNNNodeClassModel
-from ..model import M5gnnAccEvaluator
-from ..model import M5GNNNodeRegressModel
-from ..model import M5gnnRegressionEvaluator
+from ..model import GSgnnNodeClassModel
+from ..model import GSgnnAccEvaluator
+from ..model import GSgnnNodeRegressModel
+from ..model import GSgnnRegressionEvaluator
 from .graphstorm_infer import GSInfer
-from ..model.dataloading import M5gnnNodeInferData
+from ..model.dataloading import GSgnnNodeInferData
 
 def get_model_class(config): # pylint: disable=unused-argument
     """ Get model class
     """
     if config.task_type == "node_regression":
-        return M5GNNNodeRegressModel, M5gnnRegressionEvaluator
+        return GSgnnNodeRegressModel, GSgnnRegressionEvaluator
     elif config.task_type == 'node_classification':
-        return M5GNNNodeClassModel, M5gnnAccEvaluator
+        return GSgnnNodeClassModel, GSgnnAccEvaluator
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
-class M5gnnNodePredictInfer(GSInfer):
+class GSgnnNodePredictInfer(GSInfer):
     """ Node classification/regression infer.
 
     This is a highlevel infer wrapper that can be used directly
@@ -30,27 +30,27 @@ class M5gnnNodePredictInfer(GSInfer):
 
     Usage:
     ```
-    from m5gnn.config import M5GNNConfig
-    from m5gnn.model import M5BertLoader
-    from m5gnn.model import M5gnnNodePredictInfer
+    from graphstorm.config import GSConfig
+    from graphstorm.model.huggingface import HuggingfaceBertLoader
+    from graphstorm.model import GSgnnNodePredictInfer
 
-    config = M5GNNConfig(args)
+    config = GSConfig(args)
     bert_config = config.bert_config
-    m5_models = M5BertLoader(bert_config).load()
+    lm_models = HuggingfaceBertLoader(bert_config).load()
 
-    infer = M5gnnNodePredictInfer(config, m5_models)
+    infer = GSgnnNodePredictInfer(config, lm_models)
     infer.infer()
     ```
 
     Parameters
     ----------
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     bert_model: dict
-        A dict of BERT models in the format of node-type -> M5 BERT model
+        A dict of BERT models in the format of node-type -> BERT model
     """
     def __init__(self, config, bert_model):
-        super(M5gnnNodePredictInfer, self).__init__()
+        super(GSgnnNodePredictInfer, self).__init__()
         assert isinstance(bert_model, dict)
         self.bert_model = bert_model
         self.config = config
@@ -78,11 +78,11 @@ class M5gnnNodePredictInfer(GSInfer):
         part_book = g.get_partition_book()
         config = self.config
 
-        infer_data = M5gnnNodeInferData(g, part_book, self.predict_ntype, config.label_field)
+        infer_data = GSgnnNodeInferData(g, part_book, self.predict_ntype, config.label_field)
 
         model_class, eval_class = get_model_class(config)
         np_model = model_class(g, config, self.bert_model, train_task=False)
-        np_model.init_m5gnn_model(train=False)
+        np_model.init_gsgnn_model(train=False)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:

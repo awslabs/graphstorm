@@ -59,15 +59,15 @@ def early_stop_cons_increase_judge(val_score, val_perf_list, comparator):
 
     return early_stop
 
-# TODO(xiangsx): combine M5gnnInstanceEvaluator and M5gnnLPEvaluator
-class M5gnnInstanceEvaluator():
+# TODO(xiangsx): combine GSgnnInstanceEvaluator and GSgnnLPEvaluator
+class GSgnnInstanceEvaluator():
     """ Template class for user defined evaluator.
 
     Parameters
     ----------
-    config: M5GNNConfig
+    config: GSConfig
         Configurations. Users can add their own configures in the yaml config file.
-    train_data: M5gnnTrainData
+    train_data: GSgnnTrainData
         The processed training dataset
     """
     def __init__(self, config, train_data):
@@ -104,7 +104,7 @@ class M5gnnInstanceEvaluator():
     @abc.abstractmethod
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
         """
-        M5GNNLinkPredictionModel.fit() will call this function to do user defined evalution.
+        GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
         Parameters
         ----------
@@ -244,20 +244,20 @@ class M5gnnInstanceEvaluator():
         """
         return self._best_iter
 
-class M5gnnRegressionEvaluator(M5gnnInstanceEvaluator):
+class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
     """ Template class for user defined evaluator.
 
         Parameters
         ----------
         g: DGLGraph
             The graph used in training and testing
-        config: M5GNNConfig
+        config: GSConfig
             Configurations. Users can add their own configures in the yaml config file.
-        train_data: M5gnnNodeTrainData
+        train_data: GSgnnNodeTrainData
             The processed training dataset
     """
     def __init__(self, g, config, train_data): # pylint: disable=unused-argument
-        super(M5gnnRegressionEvaluator, self).__init__(config, train_data)
+        super(GSgnnRegressionEvaluator, self).__init__(config, train_data)
         self._metric = config.eval_metric
         assert len(self.metric) > 0, "At least one metric must be defined"
         self._best_val_score = {}
@@ -337,20 +337,20 @@ class M5gnnRegressionEvaluator(M5gnnInstanceEvaluator):
                     if pred is not None and labels is not None else -1
         return scores
 
-class M5gnnAccEvaluator(M5gnnInstanceEvaluator):
+class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
     """ Template class for user defined evaluator.
 
         Parameters
         ----------
         g: DGLGraph
             The graph used in training and testing
-        config: M5GNNConfig
+        config: GSConfig
             Configurations. Users can add their own configures in the yaml config file.
-        train_data: M5gnnTrainData
+        train_data: GSgnnTrainData
             The processed training dataset
     """
     def __init__(self, g, config, train_data): # pylint: disable=unused-argument
-        super(M5gnnAccEvaluator, self).__init__(config, train_data)
+        super(GSgnnAccEvaluator, self).__init__(config, train_data)
         self.multilabel = config.multilabel
         self._metric = config.eval_metric
         assert len(self.metric) > 0, \
@@ -442,14 +442,14 @@ class M5gnnAccEvaluator(M5gnnInstanceEvaluator):
                 results[metric] = -1
         return results
 
-class M5gnnLPEvaluator():
+class GSgnnLPEvaluator():
     """ Template class for user defined evaluator.
 
         Parameters
         ----------
-        config: M5GNNConfig
+        config: GSConfig
             Configurations. Users can add their own configures in the yaml config file.
-        dataset: M5gnnLinkPredictionTrainData
+        dataset: GSgnnLinkPredictionTrainData
             The processed training dataset
     """
     def __init__(self, config, dataset=None): # pylint: disable=unused-argument
@@ -486,7 +486,7 @@ class M5gnnLPEvaluator():
     @abc.abstractmethod
     def evaluate(self, embeddings, decoder, total_iters, device):
         """
-        M5GNNLinkPredictionModel.fit() will call this function to do user defined evalution.
+        GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
         Parameters
         ----------
@@ -610,20 +610,20 @@ class M5gnnLPEvaluator():
         """
         return self._best_iter
 
-class M5gnnMrrLPEvaluator(M5gnnLPEvaluator):
+class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
     """ Template class for user defined evaluator.
 
     Parameters
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
+    config: GSConfig
         Configurations. Users can add their own configures in the yaml config file.
-    data: M5gnnLinkPredictionTrainData or M5gnnLinkPredictionInferData
+    data: GSgnnLinkPredictionTrainData or GSgnnLinkPredictionInferData
         The processed dataset
     """
     def __init__(self, g, config, data):
-        super(M5gnnMrrLPEvaluator, self).__init__(config, data)
+        super(GSgnnMrrLPEvaluator, self).__init__(config, data)
         self.g = g
         self.train_idxs = data.train_idxs
         self.val_idxs = data.val_idxs
@@ -738,7 +738,7 @@ class M5gnnMrrLPEvaluator(M5gnnLPEvaluator):
         return {"mrr": val_mrr}
 
     def evaluate(self, embeddings, decoder, total_iters, device):
-        """ M5GNNLinkPredictionModel.fit() will call this function to do user defined evalution.
+        """ GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
             Parameters
             ----------

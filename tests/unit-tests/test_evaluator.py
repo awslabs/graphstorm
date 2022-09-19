@@ -7,9 +7,9 @@ import operator
 import torch as th
 import dgl
 
-from graphstorm.model.evaluator import M5gnnMrrLPEvaluator
-from graphstorm.model.evaluator import M5gnnAccEvaluator
-from graphstorm.model.evaluator import M5gnnRegressionEvaluator
+from graphstorm.model.evaluator import GSgnnMrrLPEvaluator
+from graphstorm.model.evaluator import GSgnnAccEvaluator
+from graphstorm.model.evaluator import GSgnnRegressionEvaluator
 from graphstorm.model.evaluator import early_stop_avg_increase_judge
 from graphstorm.model.evaluator import early_stop_cons_increase_judge
 from graphstorm.config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -60,9 +60,9 @@ def test_mrr_lp_evaluator():
 
     # test evaluate_on_idx
     @patch('builtins.print')
-    @patch.object(M5gnnMrrLPEvaluator, '_fullgraph_eval')
+    @patch.object(GSgnnMrrLPEvaluator, '_fullgraph_eval')
     def check_evaluate_on_idx(mock_fullgraph_eval, mock_print):
-        lp = M5gnnMrrLPEvaluator.__new__(M5gnnMrrLPEvaluator)
+        lp = GSgnnMrrLPEvaluator.__new__(GSgnnMrrLPEvaluator)
 
         # test lp.evaluate_on_idx
         lp.g = hg
@@ -116,9 +116,9 @@ def test_mrr_lp_evaluator():
     check_evaluate_on_idx()
 
     # test evaluate
-    @patch.object(M5gnnMrrLPEvaluator, 'evaluate_on_idx')
+    @patch.object(GSgnnMrrLPEvaluator, 'evaluate_on_idx')
     def check_evaluate(mock_evaluate_on_idx):
-        lp = M5gnnMrrLPEvaluator(hg, config, train_data)
+        lp = GSgnnMrrLPEvaluator(hg, config, train_data)
         lp.g.rank = MagicMock(return_value=0)
 
         mock_evaluate_on_idx.side_effect = [
@@ -144,7 +144,7 @@ def test_mrr_lp_evaluator():
         assert lp.best_test_score["mrr"] == 0.65
         assert lp.best_iter_num["mrr"] == 200
 
-    # check M5gnnMrrLPEvaluator.evaluate()
+    # check GSgnnMrrLPEvaluator.evaluate()
     check_evaluate()
 
     # common Dummy objects
@@ -155,9 +155,9 @@ def test_mrr_lp_evaluator():
             "do_validation": True
         })
     # test evaluate
-    @patch.object(M5gnnMrrLPEvaluator, 'evaluate_on_idx')
+    @patch.object(GSgnnMrrLPEvaluator, 'evaluate_on_idx')
     def check_evaluate_infer(mock_evaluate_on_idx):
-        lp = M5gnnMrrLPEvaluator(hg, config, train_data)
+        lp = GSgnnMrrLPEvaluator(hg, config, train_data)
         lp.g.rank = MagicMock(return_value=0)
 
         mock_evaluate_on_idx.side_effect = [
@@ -176,13 +176,13 @@ def test_mrr_lp_evaluator():
         assert lp.best_test_score["mrr"] == 0 # Still initial value 0
         assert lp.best_iter_num["mrr"] == 0 # Still initial value 0
 
-    # check M5gnnMrrLPEvaluator.evaluate()
+    # check GSgnnMrrLPEvaluator.evaluate()
     check_evaluate_infer()
 
-    # check M5gnnMrrLPEvaluator.do_eval()
+    # check GSgnnMrrLPEvaluator.do_eval()
     # train_data.do_validation True
     # config.no_validation False
-    lp = M5gnnMrrLPEvaluator(hg, config, train_data)
+    lp = GSgnnMrrLPEvaluator(hg, config, train_data)
     assert lp.do_eval(120, epoch_end=True) is True
     assert lp.do_eval(200) is True
     assert lp.do_eval(0) is True
@@ -197,7 +197,7 @@ def test_mrr_lp_evaluator():
         })
     # train_data.do_validation False
     # config.no_validation False
-    lp = M5gnnMrrLPEvaluator(hg, config, train_data2)
+    lp = GSgnnMrrLPEvaluator(hg, config, train_data2)
     assert lp.do_eval(120, epoch_end=True) is False
     assert lp.do_eval(200) is False
 
@@ -213,7 +213,7 @@ def test_mrr_lp_evaluator():
 
     # train_data.do_validation True
     # config.no_validation True
-    lp = M5gnnMrrLPEvaluator(hg, config2, train_data)
+    lp = GSgnnMrrLPEvaluator(hg, config2, train_data)
     assert lp.do_eval(120, epoch_end=True) is False
     assert lp.do_eval(200) is False
 
@@ -230,7 +230,7 @@ def test_mrr_lp_evaluator():
     # train_data.do_validation True
     # config.no_validation False
     # evaluation_frequency is 0
-    lp = M5gnnMrrLPEvaluator(hg, config3, train_data)
+    lp = GSgnnMrrLPEvaluator(hg, config3, train_data)
     assert lp.do_eval(120, epoch_end=True) is True
     assert lp.do_eval(200) is False
 
@@ -261,9 +261,9 @@ def test_acc_evaluator():
     hg = gen_hg()
 
     # Test evaluate
-    @patch.object(M5gnnAccEvaluator, 'compute_score')
+    @patch.object(GSgnnAccEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
-        nc = M5gnnAccEvaluator(hg, config, train_data)
+        nc = GSgnnAccEvaluator(hg, config, train_data)
         mock_compute_score.side_effect = [
             {"accuracy": 0.7},
             {"accuracy": 0.65},
@@ -293,10 +293,10 @@ def test_acc_evaluator():
 
     check_evaluate()
 
-    # check M5gnnAccEvaluator.do_eval()
+    # check GSgnnAccEvaluator.do_eval()
     # train_data.do_validation True
     # config.no_validation False
-    nc = M5gnnAccEvaluator(hg, config, train_data)
+    nc = GSgnnAccEvaluator(hg, config, train_data)
     assert nc.do_eval(120, epoch_end=True) is True
     assert nc.do_eval(200) is True
     assert nc.do_eval(0) is True
@@ -308,7 +308,7 @@ def test_acc_evaluator():
         })
     # train_data.do_validation False
     # config.no_validation False
-    nc = M5gnnAccEvaluator(hg, config, train_data2)
+    nc = GSgnnAccEvaluator(hg, config, train_data2)
     assert nc.do_eval(120, epoch_end=True) is False
     assert nc.do_eval(200) is False
 
@@ -324,7 +324,7 @@ def test_acc_evaluator():
 
     # train_data.do_validation True
     # config.no_validation True
-    nc = M5gnnAccEvaluator(hg, config2, train_data)
+    nc = GSgnnAccEvaluator(hg, config2, train_data)
     assert nc.do_eval(120, epoch_end=True) is False
     assert nc.do_eval(200) is False
 
@@ -341,7 +341,7 @@ def test_acc_evaluator():
     # train_data.do_validation True
     # config.no_validation False
     # evaluation_frequency is 0
-    nc = M5gnnAccEvaluator(hg, config3, train_data)
+    nc = GSgnnAccEvaluator(hg, config3, train_data)
     assert nc.do_eval(120, epoch_end=True) is True
     assert nc.do_eval(200) is False
     th.distributed.destroy_process_group()
@@ -370,9 +370,9 @@ def test_regression_evaluator():
     hg = gen_hg()
 
     # Test evaluate
-    @patch.object(M5gnnRegressionEvaluator, 'compute_score')
+    @patch.object(GSgnnRegressionEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
-        nr = M5gnnRegressionEvaluator(hg, config, train_data)
+        nr = GSgnnRegressionEvaluator(hg, config, train_data)
         mock_compute_score.side_effect = [
             {"rmse": 0.7},
             {"rmse": 0.8},
@@ -403,10 +403,10 @@ def test_regression_evaluator():
 
     check_evaluate()
 
-    # check M5gnnRegressionEvaluator.do_eval()
+    # check GSgnnRegressionEvaluator.do_eval()
     # train_data.do_validation True
     # config.no_validation False
-    nr = M5gnnRegressionEvaluator(hg, config, train_data)
+    nr = GSgnnRegressionEvaluator(hg, config, train_data)
     assert nr.do_eval(120, epoch_end=True) is True
     assert nr.do_eval(200) is True
     assert nr.do_eval(0) is True
@@ -418,7 +418,7 @@ def test_regression_evaluator():
         })
     # train_data.do_validation False
     # config.no_validation False
-    nr = M5gnnRegressionEvaluator(hg, config, train_data2)
+    nr = GSgnnRegressionEvaluator(hg, config, train_data2)
     assert nr.do_eval(120, epoch_end=True) is False
     assert nr.do_eval(200) is False
 
@@ -432,7 +432,7 @@ def test_regression_evaluator():
         })
     # train_data.do_validation True
     # config.no_validation True
-    nr = M5gnnRegressionEvaluator(hg, config2, train_data)
+    nr = GSgnnRegressionEvaluator(hg, config2, train_data)
     assert nr.do_eval(120, epoch_end=True) is False
     assert nr.do_eval(200) is False
 
@@ -448,7 +448,7 @@ def test_regression_evaluator():
     # train_data.do_validation True
     # config.no_validation False
     # evaluation_frequency is 0
-    nr = M5gnnRegressionEvaluator(hg, config3, train_data)
+    nr = GSgnnRegressionEvaluator(hg, config3, train_data)
     assert nr.do_eval(120, epoch_end=True) is True
     assert nr.do_eval(200) is False
     th.distributed.destroy_process_group()
@@ -499,7 +499,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
 
-    evaluator = M5gnnRegressionEvaluator(None, config, train_data)
+    evaluator = GSgnnRegressionEvaluator(None, config, train_data)
     for _ in range(10):
         # always return false
         assert evaluator.do_early_stop({"rmse": 0.1}) is False
@@ -514,7 +514,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
 
-    evaluator = M5gnnRegressionEvaluator(None, config, train_data)
+    evaluator = GSgnnRegressionEvaluator(None, config, train_data)
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"rmse": 0.5}) is False
@@ -539,7 +539,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
 
-    evaluator = M5gnnAccEvaluator(None, config2, train_data)
+    evaluator = GSgnnAccEvaluator(None, config2, train_data)
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"accuracy": 0.5}) is False
@@ -571,7 +571,7 @@ def test_early_stop_lp_evaluator():
             "enable_early_stop": False,
         })
     hg = gen_hg()
-    evaluator = M5gnnMrrLPEvaluator(hg, config, train_data)
+    evaluator = GSgnnMrrLPEvaluator(hg, config, train_data)
     for _ in range(10):
         # always return false
         assert evaluator.do_early_stop({"mrr": 0.5}) is False
@@ -588,7 +588,7 @@ def test_early_stop_lp_evaluator():
             "window_for_early_stop": 3,
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
-    evaluator = M5gnnMrrLPEvaluator(hg, config, train_data)
+    evaluator = GSgnnMrrLPEvaluator(hg, config, train_data)
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"mrr": 0.5}) is False
@@ -614,7 +614,7 @@ def test_early_stop_lp_evaluator():
             "window_for_early_stop": 3,
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
-    evaluator = M5gnnMrrLPEvaluator(hg, config, train_data)
+    evaluator = GSgnnMrrLPEvaluator(hg, config, train_data)
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"accuracy": 0.5}) is False

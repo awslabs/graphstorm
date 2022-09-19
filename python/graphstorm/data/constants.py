@@ -12,3 +12,6 @@ LABEL_IDX = 'labels'
 TRAIN_IDX = 'train_mask'
 VALID_IDX = 'val_mask'
 TEST_IDX = 'test_mask'
+
+REGRESSION_TASK = "regression"
+CLASSIFICATION_TASK = "classification"

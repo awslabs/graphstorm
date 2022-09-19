@@ -11,7 +11,7 @@ def local_tokenize(inputs):
     tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
     sub_tokens = tokenizer(val,  max_length=max_seq_length,truncation=True, padding=True, return_tensors='pt')
 
-    # For either m5 or huggingface bert,
+    # For either m5 bert or huggingface bert,
     # we only use TOKEN_IDX and VALID_LEN_IDX
     input_ids = sub_tokens[TOKEN_IDX].share_memory_()
     valid_len = sub_tokens[ATT_MASK_IDX].sum(dim=1).share_memory_()
@@ -21,14 +21,14 @@ def local_tokenize(inputs):
         VALID_LEN_IDX: valid_len
     }
 
-class M5gnnDataset(DGLDataset):
-    """r Basic class of M5GNN dataset
+class GSgnnDataset(DGLDataset):
+    """r Basic class of GSgnn dataset
     """
     def __init__(self, name, url, raw_dir, force_reload=False, verbose=True, reverse_edge=True):
         self._encoding = 'utf-8'
         self._raw_text_feat = None
 
-        super(M5gnnDataset, self).__init__(name,
+        super(GSgnnDataset, self).__init__(name,
                                            url=url,
                                            raw_dir=raw_dir,
                                            force_reload=force_reload,
@@ -148,7 +148,7 @@ class M5gnnDataset(DGLDataset):
                             self._g.nodes[ntype].data[dtype] = th.load(os.path.join(cache_path,
                                          'token_%s_%s.pt' % (ntype, dtype)))
                 return
-            ## Jun: Is this the correct tokenizer for M5?
+
             print("Using for tokenizer "+bert_model_name)
             tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
             new_feats = {}
@@ -168,7 +168,7 @@ class M5gnnDataset(DGLDataset):
         else:
             assert False
 
-class ConstructedGraphDataset(M5gnnDataset):
+class ConstructedGraphDataset(GSgnnDataset):
     """ A general dgl graph dataset wrapper used for loading the
         output DGL Graph of construct_graph.py.
 

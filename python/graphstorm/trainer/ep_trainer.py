@@ -1,47 +1,47 @@
-from ..model import M5gnnEdgePredictionTrainData
-from ..model import M5gnnEdgePredictionDataLoader
-from ..model import M5GNNEdgeClassificationModel
-from ..model import M5gnnAccEvaluator
-from ..model import M5GNNEdgeRegressModel
-from ..model import M5gnnRegressionEvaluator
-from .m5gnn_trainer import M5gnnTrainer
+from ..model import GSgnnEdgePredictionTrainData
+from ..model import GSgnnEdgePredictionDataLoader
+from ..model import GSgnnEdgeClassificationModel
+from ..model import GSgnnAccEvaluator
+from ..model import GSgnnEdgeRegressModel
+from ..model import GSgnnRegressionEvaluator
+from .gsgnn_trainer import GSgnnTrainer
 
 def get_model_class(config):
     if config.task_type == "edge_regression":
-        return M5GNNEdgeRegressModel, M5gnnRegressionEvaluator
+        return GSgnnEdgeRegressModel, GSgnnRegressionEvaluator
     elif config.task_type == 'edge_classification':
-        return M5GNNEdgeClassificationModel, M5gnnAccEvaluator
+        return GSgnnEdgeClassificationModel, GSgnnAccEvaluator
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
-class M5gnnEdgePredictionTrainer(M5gnnTrainer):
+class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
 
     This is a highlevel trainer wrapper that can be used directly to train a edge prediction model.
 
     Usage:
     ```
-    from graphstorm.config import M5GNNConfig
-    from graphstorm.model import M5BertLoader
-    from graphstorm.model import M5gnnEdgePredictionTrainer
+    from graphstorm.config import GSConfig
+    from graphstorm.model.huggingface import HuggingfaceBertLoader
+    from graphstorm.model import GSgnnEdgePredictionTrainer
 
-    config = M5GNNConfig(args)
+    config = GSConfig(args)
     bert_config = config.bert_config
-    m5_models = M5BertLoader(bert_config).load()
+    lm_models = HuggingfaceBertLoader(bert_config).load()
 
-    trainer = M5gnnEdgePredictionTrainer(config, m5_models)
+    trainer = GSgnnEdgePredictionTrainer(config, lm_models)
     trainer.fit()
     ```
 
     Parameters
     ----------
-    config: M5GNNConfig
+    config: GSConfig
         Task configuration
     bert_model: dict
-        A dict of BERT models in the format of node-type -> M5 BERT model
+        A dict of BERT models in the format of node-type -> BERT model
     """
     def __init__(self, config, bert_model):
-        super(M5gnnEdgePredictionTrainer, self).__init__()
+        super(GSgnnEdgePredictionTrainer, self).__init__()
         assert isinstance(bert_model, dict)
         self.bert_model = bert_model
         self.config = config
@@ -78,9 +78,9 @@ class M5gnnEdgePredictionTrainer(M5gnnTrainer):
         pb = g.get_partition_book()
         config = self.config
 
-        train_data = M5gnnEdgePredictionTrainData(g, pb, self.target_etypes, config.label_field)
+        train_data = GSgnnEdgePredictionTrainData(g, pb, self.target_etypes, config.label_field)
 
-        dataloader = M5gnnEdgePredictionDataLoader(g,
+        dataloader = GSgnnEdgePredictionDataLoader(g,
                                                    train_data,
                                                    self.fanout,
                                                    self.n_layers,
@@ -92,7 +92,7 @@ class M5gnnEdgePredictionTrainer(M5gnnTrainer):
 
         model_class, eval_class = get_model_class(config)
         ep_model = model_class(g, config, self.bert_model)
-        ep_model.init_m5gnn_model()
+        ep_model.init_gsgnn_model()
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:
