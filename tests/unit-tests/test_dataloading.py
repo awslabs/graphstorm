@@ -5,10 +5,10 @@ Test functions and classes in the dataloading.py
 import torch as th
 from data_utils import generate_dummy_dist_graph
 
-from graphstorm.model.dataloading import M5gnnLinkPredictionTrainData
+from graphstorm.model.dataloading import GSgnnLinkPredictionTrainData
 
 
-def test_M5gnnLinkPredictionTrainData():
+def test_GSgnnLinkPredictionTrainData():
 
     # get the test dummy distributed graph
     dist_graph = generate_dummy_dist_graph()
@@ -23,7 +23,7 @@ def test_M5gnnLinkPredictionTrainData():
     tr_etypes = [("n0", "r1", "n1")]
     va_etypes = [("n0", "r1", "n1")]
     ts_etypes = [("n0", "r1", "n1")]
-    lp_data = M5gnnLinkPredictionTrainData(dist_graph, pb=pb,
+    lp_data = GSgnnLinkPredictionTrainData(dist_graph, pb=pb,
                                           train_etypes=tr_etypes, eval_etypes=va_etypes,
                                           full_graph_training=False)
     # successful initialization with default setting
@@ -52,4 +52,4 @@ def test_M5gnnLinkPredictionTrainData():
 
 
 if __name__ == '__main__':
-    test_M5gnnLinkPredictionTrainData()
+    test_GSgnnLinkPredictionTrainData()

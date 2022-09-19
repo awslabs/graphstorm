@@ -4,7 +4,7 @@ import yaml
 import unittest, pytest
 from argparse import Namespace
 
-from graphstorm.config import M5GNNConfig
+from graphstorm.config import GSConfig
 from graphstorm.config.config import BUILTIN_LP_LOSS_CROSS_ENTROPY
 from graphstorm.config.config import BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
 from graphstorm.model.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
@@ -123,7 +123,7 @@ def test_load_basic_info():
         create_basic_config(Path(tmpdirname), 'basic_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         # success load
         assert config.debug == True
         assert config.graph_name == "test"
@@ -144,7 +144,7 @@ def test_load_basic_info():
         # Check default values
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test_default.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.debug == False
         check_failure(config, "graph_name")
         assert config.backend == "gloo"
@@ -156,7 +156,7 @@ def test_load_basic_info():
         # Check failures
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test_fail.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "backend")
         check_failure(config, "num_gpus")
         check_failure(config, "ip_config")
@@ -171,7 +171,7 @@ def test_bert_tune_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info.yaml'),
                          local_rank=0)
 
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.use_bert_cache == True
         assert config.refresh_cache == True
         assert config.gnn_warmup_epochs == 1
@@ -180,7 +180,7 @@ def test_bert_tune_info():
         # Check default values
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info_default.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.use_bert_cache == False
         assert config.refresh_cache == False
         assert config.gnn_warmup_epochs == 0
@@ -188,7 +188,7 @@ def test_bert_tune_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info_default2.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.refresh_cache == True
 
         config._refresh_cache = False
@@ -197,7 +197,7 @@ def test_bert_tune_info():
         # Check failures
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info_fail.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "refresh_cache")
         check_failure(config, "gnn_warmup_epochs")
         check_failure(config, "train_nodes")
@@ -283,7 +283,7 @@ def test_gnn_info():
         create_gnn_config(Path(tmpdirname), 'gnn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.feat_name == "test_feat"
         assert config.fanout == [10,20,30]
         assert config.eval_fanout == [-1, -1, -1]
@@ -293,7 +293,7 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test2.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.feat_name == "test_feat"
         assert config.fanout[0]["a"] == 10
         assert config.fanout[0]["b"] == 10
@@ -307,12 +307,12 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test3.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.n_layers == 0 # lm model does not need n layers
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_default.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.feat_name is None
         assert config.n_layers == 0 # lm model does not need n layers
         assert config.n_hidden == 0 # lm model may not need n hidden
@@ -322,7 +322,7 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
         check_failure(config, "n_hidden")
@@ -331,7 +331,7 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error2.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
 
@@ -369,7 +369,7 @@ def test_load_io_info():
         create_io_config(Path(tmpdirname), 'io_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test_default.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.load_model_path == None
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
@@ -381,7 +381,7 @@ def test_load_io_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.load_model_path == "./load_path"
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
@@ -434,7 +434,7 @@ def test_mlflow_info():
         create_mlflow_config(Path(tmpdirname), 'mlflow_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_default.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlflow_tracker == False
         check_failure(config, "mlflow_exp_name")
         check_failure(config, "mlflow_run_name")
@@ -442,7 +442,7 @@ def test_mlflow_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_default2.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlflow_tracker == True
         assert config.mlflow_exp_name == "test_flow"
         assert config.mlflow_run_name == "test-lmgnn-run"
@@ -450,7 +450,7 @@ def test_mlflow_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlflow_tracker == True
         assert config.mlflow_exp_name == "test_flow"
         assert config.mlflow_run_name == "test_run"
@@ -458,7 +458,7 @@ def test_mlflow_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_fail.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlflow_tracker == True
         check_failure(config, "mlflow_report_frequency")
 
@@ -518,7 +518,7 @@ def test_train_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_train_config(Path(tmpdirname), 'train_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
 
         assert config.dropout == 0
         check_failure(config, "lr")
@@ -538,7 +538,7 @@ def test_train_info():
         assert config.enable_early_stop == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
 
         assert config.dropout == 0.1
         assert config.lr == 0.001
@@ -557,7 +557,7 @@ def test_train_info():
         assert config.window_for_early_stop == 3
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "dropout")
         check_failure(config, "lr")
         check_failure(config, "n_epochs")
@@ -608,19 +608,19 @@ def test_rgcn_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_rgcn_config(Path(tmpdirname), 'rgcn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.n_bases == -1
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.n_bases == 2
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_fail.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "n_bases")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_fail2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "n_bases")
 
 def create_rgat_config(tmp_path, file_name):
@@ -648,15 +648,15 @@ def test_rgat_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_rgat_config(Path(tmpdirname), 'rgat_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.n_heads == 4
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.n_heads == 2
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_fail.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "n_heads")
 
 def create_pretrain_config(tmp_path, file_name):
@@ -686,15 +686,15 @@ def test_pretrain_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_pretrain_config(Path(tmpdirname), 'pretrain_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'pretrain_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.pretrain_emb_layer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'pretrain_test.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.pretrain_emb_layer == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'pretrain_test_fail.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "pretrain_emb_layer")
 
 def create_node_class_config(tmp_path, file_name):
@@ -833,7 +833,7 @@ def test_node_class_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_node_class_config(Path(tmpdirname), 'node_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "predict_ntype")
         check_failure(config, "label_field")
         assert config.multilabel == False
@@ -842,7 +842,7 @@ def test_node_class_info():
         check_failure(config, "num_classes")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.predict_ntype == "a"
         assert config.label_field == "label"
         assert config.multilabel == True
@@ -853,73 +853,73 @@ def test_node_class_info():
         assert config.eval_metric[0] == "accuracy"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.multilabel == True
         # imbalance_class_weight does not work with multilabel == True
         check_failure(config, "imbalance_class_weights")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_metric1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.eval_metric[0] == "f1_score"
         assert config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_metric2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert len(config.eval_metric) == 3
         assert config.eval_metric[0] == "f1_score"
         assert config.eval_metric[1] == "precision_recall"
         assert config.eval_metric[2] == "roc_auc"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "multilabel")
         check_failure(config, "num_classes")
         check_failure(config, "eval_metric")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.num_classes == 20
         check_failure(config, "eval_metric")
         check_failure(config, "multilabel_weights")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_ml_w1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.num_classes == 20
         check_failure(config, "eval_metric")
         assert config.multilabel == False
         check_failure(config, "multilabel_weights")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_ml_w2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.num_classes == 20
         check_failure(config, "eval_metric")
         assert config.multilabel == True
         check_failure(config, "multilabel_weights")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_ml_w3.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.num_classes == 20
         assert config.multilabel == True
         check_failure(config, "multilabel_weights")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_imb_l_w1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.num_classes == 20
         check_failure(config, "imbalance_class_weights")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_imb_l_w2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.num_classes == 20
         check_failure(config, "imbalance_class_weights")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_imb_l_w3.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.num_classes == 20
         assert config.multilabel == True
         check_failure(config, "imbalance_class_weights")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_imb_l_w4.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.num_classes == 20
         check_failure(config, "imbalance_class_weights")
 
@@ -970,35 +970,35 @@ def test_node_regress_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_node_regress_config(Path(tmpdirname), 'node_regress_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "predict_ntype")
         check_failure(config, "label_field")
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "rmse"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.predict_ntype == "a"
         assert config.label_field == "label"
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mse"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert len(config.eval_metric) == 2
         assert config.eval_metric[0] == "mse"
         assert config.eval_metric[1] == "rmse"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_fail_metric1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "eval_metric")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_fail_metric2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "eval_metric")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_fail_metric3.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "eval_metric")
 
 def create_edge_class_config(tmp_path, file_name):
@@ -1059,7 +1059,7 @@ def test_edge_class_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_edge_class_config(Path(tmpdirname), 'edge_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "target_etype")
         assert config.decoder_type == "DenseBiDecoder"
         assert config.num_decoder_basis == 2
@@ -1070,7 +1070,7 @@ def test_edge_class_info():
         check_failure(config, "num_classes")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.target_etype[0] == "query,match,asin"
         assert len(config.target_etype) == 1
         assert config.decoder_type == "MLPDecoder"
@@ -1084,7 +1084,7 @@ def test_edge_class_info():
         assert config.eval_metric[0] == "accuracy"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.target_etype[0] == "query,match,asin"
         assert config.target_etype[1] == "query,click,asin"
         assert len(config.target_etype) == 2
@@ -1099,7 +1099,7 @@ def test_edge_class_info():
         assert config.eval_metric[1] == "precision_recall"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "target_etype")
         check_failure(config, "reverse_edge_types_map")
         check_failure(config, "multilabel")
@@ -1108,7 +1108,7 @@ def test_edge_class_info():
         check_failure(config, "remove_target_edge")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "target_etype")
         check_failure(config, "eval_metric")
 
@@ -1195,7 +1195,7 @@ def test_lp_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_lp_config(Path(tmpdirname), 'lp_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
         assert config.num_negative_edges == 16
         assert config.num_negative_edges_eval == 1000
@@ -1211,7 +1211,7 @@ def test_lp_info():
         assert config.eval_metric[0] == "mrr"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
         assert config.num_negative_edges == 4
         assert config.num_negative_edges_eval == 100
@@ -1231,7 +1231,7 @@ def test_lp_info():
         assert config.eval_metric[0] == "mrr"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.negative_sampler == "udf"
         assert len(config.train_etype) == 2
         assert config.train_etype[0] == "query,exactmatch,asin"
@@ -1245,7 +1245,7 @@ def test_lp_info():
         assert config.eval_metric[0] == "mrr"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "num_negative_edges")
         check_failure(config, "num_negative_edges_eval")
         check_failure(config, "train_etype")
@@ -1257,19 +1257,19 @@ def test_lp_info():
         check_failure(config, "use_dot_product")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "exclude_training_targets")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail_metric1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "eval_metric")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail_metric2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "eval_metric")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail_metric3.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "eval_metric")
 
 def create_lml_config(tmp_path, file_name):
@@ -1297,16 +1297,16 @@ def test_lml_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_lml_config(Path(tmpdirname), 'lml_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lml_test_default.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlm_probability == 0.15
         assert config.eval_metric == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lml_test.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlm_probability == 0.4
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lml_test_fail.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "mlm_probability")
 
 def create_bert_config(tmp_path, file_name):
@@ -1357,34 +1357,34 @@ def test_bert_config():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_bert_config(Path(tmpdirname), 'bert_config_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test_default1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.bert_config == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test_default2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.bert_config == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.bert_config == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert len(config.bert_config) == 1
         assert config.bert_config[0] == {"node_type":"movie","model_name":"bert-base-uncased"}
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test3.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert len(config.bert_config) == 2
         assert config.bert_config[0] == {"node_type":"movie","model_name":"bert-base-uncased"}
         assert config.bert_config[1] == {"node_type":"use","model_name":"bert-base-uncased"}
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test_fail1.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "bert_config")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test_fail2.yaml'), local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "bert_config")
 
 def create_gnn_config(tmp_path, file_name):
@@ -1470,7 +1470,7 @@ def test_gnn_info():
         create_gnn_config(Path(tmpdirname), 'gnn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.feat_name == "test_feat"
         assert config.fanout == [10,20,30]
         assert config.eval_fanout == [-1, -1, -1]
@@ -1480,7 +1480,7 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test2.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert len(config.feat_name) == 1
         assert 'ntype0' in config.feat_name
         assert config.feat_name['ntype0'] == "feat_name"
@@ -1496,7 +1496,7 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test3.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert len(config.feat_name) == 2
         assert 'ntype0' in config.feat_name
         assert 'ntype1' in config.feat_name
@@ -1505,12 +1505,12 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test4.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.n_layers == 0 # lm model does not need n layers
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_default.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.feat_name is None
         assert config.n_layers == 0 # lm model does not need n layers
         check_failure(config, "n_hidden") # lm model may not need n hidden
@@ -1520,7 +1520,7 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
@@ -1530,7 +1530,7 @@ def test_gnn_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error2.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         check_failure(config, "feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
@@ -1579,7 +1579,7 @@ def test_load_io_info():
         create_io_config(Path(tmpdirname), 'io_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test_default.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.load_model_path == None
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
@@ -1591,7 +1591,7 @@ def test_load_io_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.load_model_path == "./load_path"
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
@@ -1604,7 +1604,7 @@ def test_load_io_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test2.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.save_embeds_path == "./save_emb"
         assert config.save_predict_path == "./prediction"
 
@@ -1651,7 +1651,7 @@ def test_mlflow_info():
         create_mlflow_config(Path(tmpdirname), 'mlflow_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_default.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlflow_tracker == False
         check_failure(config, "mlflow_exp_name")
         check_failure(config, "mlflow_run_name")
@@ -1659,7 +1659,7 @@ def test_mlflow_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_default2.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlflow_tracker == True
         assert config.mlflow_exp_name == "test_flow"
         assert config.mlflow_run_name == "test-lmgnn-run"
@@ -1667,7 +1667,7 @@ def test_mlflow_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlflow_tracker == True
         assert config.mlflow_exp_name == "test_flow"
         assert config.mlflow_run_name == "test_run"
@@ -1675,7 +1675,7 @@ def test_mlflow_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_fail.yaml'),
                          local_rank=0)
-        config = M5GNNConfig(args)
+        config = GSConfig(args)
         assert config.mlflow_tracker == True
         check_failure(config, "mlflow_report_frequency")
 

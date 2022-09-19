@@ -4,25 +4,25 @@ import torch as th
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel
 
-from .rgnn_node_base import M5GNNNodeModel
+from .rgnn_node_base import GSgnnNodeModel
 from .nc_decoder import EntityClassifier
 
-class M5GNNNodeClassModel(M5GNNNodeModel):
+class GSgnnNodeClassModel(GSgnnNodeModel):
     """ RGNN node classification model
 
     Parameters
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
-        The M5 GNN configuration
+    config: GSConfig
+        The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
     train_task: bool
         Whether it is a training task
     """
     def __init__(self, g, config, bert_model, train_task=True):
-        super(M5GNNNodeClassModel, self).__init__(g, config, bert_model, train_task)
+        super(GSgnnNodeClassModel, self).__init__(g, config, bert_model, train_task)
 
         # node classification related
         self.multilabel = config.multilabel
@@ -59,15 +59,15 @@ class M5GNNNodeClassModel(M5GNNNodeModel):
         decoder = decoder.to(dev_id)
         self.decoder = DistributedDataParallel(decoder, device_ids=[dev_id], output_device=dev_id, find_unused_parameters=True)
 
-    def init_m5gnn_model(self, train=True):
-        ''' Initialize the M5GNN model.
+    def init_gsgnn_model(self, train=True):
+        ''' Initialize the GNN model.
 
         Argument
         --------
         train : bool
             Indicate whether the model is initialized for training.
         '''
-        super(M5GNNNodeClassModel, self).init_m5gnn_model(train)
+        super(GSgnnNodeClassModel, self).init_gsgnn_model(train)
         loss_func = nn.BCEWithLogitsLoss(pos_weight=self.multilabel_weights) \
             if self.multilabel else \
             nn.CrossEntropyLoss(weight=self.imbalance_class_weights)

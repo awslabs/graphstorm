@@ -1,17 +1,17 @@
-""" M5GNN semantic match training example
+""" GSgnn semantic match training example
 """
 
 from graphstorm.config import get_argument_parser
-from graphstorm.config import M5GNNConfig
+from graphstorm.config import GSConfig
 from graphstorm.model.huggingface import HuggingfaceBertLoader
-from graphstorm.trainer import M5gnnLinkPredictionTrainer
+from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
 def main(args):
-    config = M5GNNConfig(args)
+    config = GSConfig(args)
     bert_config = config.bert_config
-    m5_models = HuggingfaceBertLoader(bert_config).load()
+    lm_models = HuggingfaceBertLoader(bert_config).load()
 
-    trainer = M5gnnLinkPredictionTrainer(config, m5_models)
+    trainer = GSgnnLinkPredictionTrainer(config, lm_models)
     trainer.fit()
 
 def generate_parser():

@@ -5,9 +5,9 @@ import argparse
 import time, datetime
 import json
 import psutil
-from m5_dataloaders.datasets.constants import REGRESSION_TASK, CLASSIFICATION_TASK
+from graphstorm.data.constants import REGRESSION_TASK, CLASSIFICATION_TASK
 
-from graphstorm.data import StandardM5gnnDataset
+from graphstorm.data import StandardGSgnnDataset
 from graphstorm.data.constants import TOKEN_IDX, VALID_LEN_IDX
 
 def etype2path(etype):
@@ -178,8 +178,7 @@ if __name__ == '__main__':
 
     # Options for BERT computation.
     argparser.add_argument('--hf_bert_model', type=str, help='The name of the HuggingFace BERT model.')
-    argparser.add_argument('--m5_vocab', type=str, help='The vocabulary file of M5 model.')
-    argparser.add_argument('--m5_model', type=str, help='The file of the M5 model.')
+    argparser.add_argument('--vocab', type=str, help='The vocabulary file of bert model.')
     argparser.add_argument('--compute_bert_emb',  type=lambda x: (str(x).lower() in ['true', '1']),
                            default=False, help= "Whether or not compute BERT embeddings.")
     argparser.add_argument('--remove_text_tokens',  type=lambda x: (str(x).lower() in ['true', '1']),
@@ -296,7 +295,7 @@ if __name__ == '__main__':
             ntext_fields[ntype] = fields
         print('node text fields:', ntext_fields)
 
-    assert args.hf_bert_model is not None or args.m5_vocab is not None
+    assert args.hf_bert_model is not None or args.vocab is not None
     if global_rank == 0:
         # TODO(xiangsx): We assume the output is in FSX
         # Support S3 later.
@@ -305,9 +304,9 @@ if __name__ == '__main__':
 
     # load graph data
     # Note: args.compute_bert_emb should be passed-in
-    dataset = StandardM5gnnDataset(args.filepath, args.name,
+    dataset = StandardGSgnnDataset(args.filepath, args.name,
                                     rank=global_rank,
-                                    m5_vocab=args.m5_vocab,
+                                    vocab=args.vocab,
                                     hf_bert_model=args.hf_bert_model,
                                     nid_fields=nid_fields, src_field=args.src_field, dst_field=args.dst_field,
                                     nlabel_fields=nlabel_fields,

@@ -32,7 +32,7 @@ class LanguageModelBase():
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
+    config: GSConfig
         Configurations
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
@@ -326,8 +326,8 @@ class LanguageModelBase():
         self.sparse_emb_optimizer = sparse_emb_optimizer
         self.emb_optimizer = emb_optimizer
 
-    def init_m5gnn_model(self, train=True):
-        ''' Initialize the M5GNN model.
+    def init_gsgnn_model(self, train=True):
+        ''' Initialize the GNN model.
 
         Argument
         --------
@@ -621,8 +621,8 @@ class LanguageModelMLM(LanguageModelBase):
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
-        The M5 GNN configuration
+    config: GSConfig
+        The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
         Here the bert_model only has value, i.e., the fine-tuning target.

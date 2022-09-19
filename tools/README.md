@@ -1,5 +1,5 @@
 # Construct a graph from the standard input.
-`tools/construct_graph.py` is a generic script for converting graph data in the M5GNN input format to the DGL format.
+`tools/construct_graph.py` is a generic script for converting graph data in the GSGNN input format to the DGL format.
 
 The example below constructs a DGL graph for a MovieLens dataset, which is stored with the standard format. Users can choose whether to load pre-processing node features or computes BERT embeddings.
 After constructing the graph, it partitions the graph for
@@ -38,22 +38,15 @@ python3 partition_graph_lp.py --dataset query_asin_match --filepath qa_data_grap
 
 # Partition paper100m
 ```
-python3 /fsx-dev/xiangsx/home/workspace/m5-gnn/tools/partition_graph.py --dataset ogbn-papers100m --filepath ./paper100m-processed-512/ --num_parts 8 --predict_ntypes "node" --balance_train --num_trainers_per_machine 8 --output /fsx-dev/xiangsx/home/workspace/m5-gnn/training_scripts/m5gnn_nc/ogbn_papers100m_nc_8p_8t/
+python3 /fsx-dev/xiangsx/home/workspace/graph-storm/tools/partition_graph.py --dataset ogbn-papers100m --filepath ./paper100m-processed-512/ --num_parts 8 --predict_ntypes "node" --balance_train --num_trainers_per_machine 8 --output /fsx-dev/xiangsx/home/workspace/graph-storm/training_scripts/gsgnn_nc/ogbn_papers100m_nc_8p_8t/
 ```
-
-# Partition constructed amazon-review graph
-The amazon-review.dgl is under amazon-review-graph-undirected-overall.
-```
-python3 $M5GNN_HOME/tools/partition_graph.py --dataset "amazon-review" --filepath "./amazon-review-graph-undirected-overall" --num_parts 8 --predict_ntypes review --balance_train --num_trainers_per_machine 8 --output "./amazon_review_undirected_overall_nr_8p_8t"
-```
-
 
 # Test the construct graph
 
 ## for edge class
 
 ```
-/opt/conda/bin/python3 tools/construct_graph.py --name test --filepath  ~/m5-gnn/python/m5gnn/data/test/data/edge_class/ --output data_test_ec --dist_output test_ec_1p_4t --num_dataset_workers 10 \
+/opt/conda/bin/python3 tools/construct_graph.py --name test --filepath  ~/graph-storm/python/graphstorm/data/test/data/edge_class/ --output data_test_ec --dist_output test_ec_1p_4t --num_dataset_workers 10 \
 			--hf_bert_model bert-base-uncased --ntext_fields "node:text" --elabel_fields "node,r0,item:label" --predict_etype node,r0,item \
 			--num_parts 1 --balance_train --balance_edges --num_trainers_per_machine 4 \
 			 --device 0 --split_etypes node,r0,item
@@ -61,7 +54,7 @@ python3 $M5GNN_HOME/tools/partition_graph.py --dataset "amazon-review" --filepat
 
 Example to load edge features and precomputed edge embeddings:
 ```
-/opt/conda/bin/python3 ~/m5-gnn/tools/construct_graph.py --name test --filepath  ~/m5-gnn/python/m5gnn/data/test/data/edge_class_with_features_and_ext_feats/ --output data_test_ec --dist_output test_ec_1p_4t --num_dataset_workers 10 \
+/opt/conda/bin/python3 ~/graph-storm/tools/construct_graph.py --name test --filepath  ~/graph-storm/python/graphstorm/data/test/data/edge_class_with_features_and_ext_feats/ --output data_test_ec --dist_output test_ec_1p_4t --num_dataset_workers 10 \
 			--hf_bert_model bert-base-uncased --ntext_fields "node:text" --elabel_fields "node,r0,item:label" --predict_etype node,r0,item \
 			--efeat_format npy --num_parts 1 --balance_train --balance_edges --num_trainers_per_machine 4 \
 			 --device 0 --split_etypes node,r0,item
@@ -69,14 +62,14 @@ Example to load edge features and precomputed edge embeddings:
 Example to load edge features:
 ```python3 tools/construct_graph.py \
 	--name edge-feature-toy \
-	--filepath python/m5gnn/data/test/data/edge_class_with_features \
+	--filepath python/graphstorm/data/test/data/edge_class_with_features \
 	--output data/single \
 	--dist_output data/dist \
 	--num_parts 1 \
 	--balance_train \
 	--balance_edges \
 	--num_trainers_per_machine 4 \
-	--m5_vocab /fsx-dev/vocab/bert_asin.model \
+	--vocab /fsx-dev/vocab/bert_asin.model \
 	--ntext_fields "item:id node:text" \
 	--efeat_fields "node,r0,item:f1,f2" \
 	--num_dataset_workers 2 \
@@ -86,7 +79,7 @@ Example to load edge features:
 ## for node class with node features
 
 ```
-/opt/conda/bin/python3 ~/m5-gnn/tools/construct_graph.py --name test --filepath  ~/m5-gnn/python/m5gnn/data/test/data/node_class_with_nfeats/ --output data_test_ec --dist_output test_ec_1p_4t --num_dataset_workers 10 \
+/opt/conda/bin/python3 ~/graph-storm/tools/construct_graph.py --name test --filepath  ~/graph-storm/python/graphstorm/data/test/data/node_class_with_nfeats/ --output data_test_ec --dist_output test_ec_1p_4t --num_dataset_workers 10 \
 			--hf_bert_model bert-base-uncased --ntext_fields "node:text" --nlabel_fields "node:label" --predict_ntype node \
 			--nfeat_fields "node:cat" --num_parts 1 --balance_train --balance_edges --split_ntypes node --num_trainers_per_machine 4 \
 			 --device 0
@@ -99,21 +92,8 @@ In this example we have only one machine. It runs two separate processes to do d
 ```
 rm -fr ml-output
 
-python3 launch_dist_process.py --num_workers 2 --ip_config ip_list.txt --workspace /fsx-dev/xiangsx/home/workspace/m5-gnn/tools '/opt/conda/bin/python3 preprocess_dist_graph.py --name ml --filepath /fsx-dev/xiangsx/home/workspace/m5-gnn/tools/ml-json --output ml-output --hf_bert_model "bert-base-uncased" --ntext_fields "movie:title" --nlabel_fields "movie:genre" --predict_ntype "movie" --ntask_types "movie:classify"  --generate_new_split true --ntypes "movie occupation user" --etypes "user;rating;movie user;has-occupation;occupation" --undirected'
+python3 launch_dist_process.py --num_workers 2 --ip_config ip_list.txt --workspace /fsx-dev/xiangsx/home/workspace/graph-storm/tools '/opt/conda/bin/python3 preprocess_dist_graph.py --name ml --filepath /fsx-dev/xiangsx/home/workspace/graph-storm/tools/ml-json --output ml-output --hf_bert_model "bert-base-uncased" --ntext_fields "movie:title" --nlabel_fields "movie:genre" --predict_ntype "movie" --ntask_types "movie:classify"  --generate_new_split true --ntypes "movie occupation user" --etypes "user;rating;movie user;has-occupation;occupation" --undirected'
 ```
 
 ## Run data pre-processing for yelp
-python3 launch_dist_process.py --num_workers 4 --ip_config ip_list.txt --workspace /fsx-dev/xiangsx/home/workspace/m5-gnn/tools '/opt/conda/bin/python3 preprocess_dist_graph.py --name yelp --filepath /data/m5gnn/dataset/yelp/yelp/ --output yelp-output --hf_bert_model "bert-base-uncased" --ntext_fields "review:text" --nlabel_fields "business:stars" --predict_ntype "business" --ntask_types "business:regression"  --generate_new_split true --ntypes "business category city review user" --etypes "business;incategory;category business;in;city review;on;business user;friendship;user user;write;review"'
-
-
-
-## Create Nid
-#### Run this script to create the node id (nid) file before constructing graph.
-#### Example:
-
-```
-cd /fsx-dev/m5gnn/dataset/price-pred/us
-python3 /fsx-dev/junmaa/home/workspace/m5-gnn/tools/create_nid.py --node-file ./nodes-asin --id-field asin_id
-
-
-```
+python3 launch_dist_process.py --num_workers 4 --ip_config ip_list.txt --workspace /fsx-dev/xiangsx/home/workspace/graph-storm/tools '/opt/conda/bin/python3 preprocess_dist_graph.py --name yelp --filepath /data/graph-storm/dataset/yelp/yelp/ --output yelp-output --hf_bert_model "bert-base-uncased" --ntext_fields "review:text" --nlabel_fields "business:stars" --predict_ntype "business" --ntask_types "business:regression"  --generate_new_split true --ntypes "business category city review user" --etypes "business;incategory;category business;in;city review;on;business user;friendship;user user;write;review"'

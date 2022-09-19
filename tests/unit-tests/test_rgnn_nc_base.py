@@ -1,7 +1,7 @@
-""" test_rgnn_nc_base test functionalities of M5GNNNodeClassModel
+""" test_rgnn_nc_base test functionalities of GSgnnNodeClassModel
 
     The tested functions includes:
-        M5GNNNodeClassModel.eval(): We use mock to verify whether eval()
+        GSgnnNodeClassModel.eval(): We use mock to verify whether eval()
         function act as expected under single process evaluation and
         distributed evaluation.
         It verifies that the validation and test scores are correct and
@@ -16,9 +16,9 @@ import pytest
 import torch as th
 from unittest.mock import patch, MagicMock
 
-from graphstorm.model.evaluator import M5gnnAccEvaluator
-from graphstorm.model.rgnn_nc_base import M5GNNNodeClassModel
-from graphstorm.model.rgnn_node_base import M5GNNNodeModel
+from graphstorm.model.evaluator import GSgnnAccEvaluator
+from graphstorm.model.rgnn_nc_base import GSgnnNodeClassModel
+from graphstorm.model.rgnn_node_base import GSgnnNodeModel
 
 from util import Dummy
 
@@ -48,7 +48,7 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, val_pred, test_pred,
                                       rank=worker_rank)
     device = 'cuda:%d' % worker_rank
     th.cuda.set_device(worker_rank)
-    accEvaluator = M5gnnAccEvaluator(None, eval_config, train_data)
+    accEvaluator = GSgnnAccEvaluator(None, eval_config, train_data)
     val_labels = train_data.labels[train_data.val_idx].to(device)
     test_labels = train_data.labels[train_data.test_idx].to(device)
 
@@ -58,10 +58,10 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, val_pred, test_pred,
             0)
 
     @patch('time.time', MagicMock(return_value=12345))
-    @patch.object(M5GNNNodeClassModel, 'inference', return_value=th.cat([val_pred, test_pred]).to(device))
-    @patch.object(M5GNNNodeClassModel, 'log_print_metrics', return_value=None)
+    @patch.object(GSgnnNodeClassModel, 'inference', return_value=th.cat([val_pred, test_pred]).to(device))
+    @patch.object(GSgnnNodeClassModel, 'log_print_metrics', return_value=None)
     def call_eval(mock_log_print_metrics, mock_inference):
-        nc = M5GNNNodeClassModel.__new__(M5GNNNodeClassModel)
+        nc = GSgnnNodeClassModel.__new__(GSgnnNodeClassModel)
         nc.register_evaluator(accEvaluator)
         nc.eval(worker_rank, train_data, None, 100)
         # Note: we can not use
@@ -92,7 +92,7 @@ def run_local_nc_eval_worker(eval_config, val_pred, test_pred,
                                       world_size=1,
                                       rank=0)
 
-    accEvaluator = M5gnnAccEvaluator(None, eval_config, train_data)
+    accEvaluator = GSgnnAccEvaluator(None, eval_config, train_data)
     val_labels = train_data.labels[train_data.val_idx]
     test_labels = train_data.labels[train_data.test_idx]
 
@@ -102,10 +102,10 @@ def run_local_nc_eval_worker(eval_config, val_pred, test_pred,
             0)
 
     @patch('time.time', MagicMock(return_value=12345))
-    @patch.object(M5GNNNodeClassModel, 'inference', return_value=th.cat([val_pred, test_pred]))
-    @patch.object(M5GNNNodeClassModel, 'log_print_metrics', return_value=None)
+    @patch.object(GSgnnNodeClassModel, 'inference', return_value=th.cat([val_pred, test_pred]))
+    @patch.object(GSgnnNodeClassModel, 'log_print_metrics', return_value=None)
     def call_eval(mock_log_print_metrics, mock_inference):
-        nc = M5GNNNodeClassModel.__new__(M5GNNNodeClassModel)
+        nc = GSgnnNodeClassModel.__new__(GSgnnNodeClassModel)
         nc.register_evaluator(accEvaluator)
         nc.eval(0, train_data, None, 100)
         # Note: we can not use
@@ -218,58 +218,58 @@ def test_nc_dist_eval(metric, seed, backend):
     assert local_result[0] == dist_result[0]
     assert local_result[1] == dist_result[1]
 
-def test_nc_init_m5gnn_model():
-    @patch.object(M5GNNNodeModel, 'init_m5gnn_model', return_value=None)
-    def call_init_m5gnn_model(mock_linit_m5gnn_model):
-        nc = M5GNNNodeClassModel.__new__(M5GNNNodeClassModel)
+def test_nc_init_gsgnn_model():
+    @patch.object(GSgnnNodeModel, 'init_gsgnn_model', return_value=None)
+    def call_init_gsgnn_model(mock_linit_gsgnn_model):
+        nc = GSgnnNodeClassModel.__new__(GSgnnNodeClassModel)
         setattr(nc, "multilabel", False)
         setattr(nc, "multilabel_weights", None)
         setattr(nc, "imbalance_class_weights", None)
         setattr(nc, "_dev_id", 0)
-        nc.init_m5gnn_model()
+        nc.init_gsgnn_model()
 
         assert isinstance(nc.loss_func, th.nn.CrossEntropyLoss)
-        mock_linit_m5gnn_model.assert_called_once()
-        mock_linit_m5gnn_model.reset_mock()
+        mock_linit_gsgnn_model.assert_called_once()
+        mock_linit_gsgnn_model.reset_mock()
 
-        nc = M5GNNNodeClassModel.__new__(M5GNNNodeClassModel)
+        nc = GSgnnNodeClassModel.__new__(GSgnnNodeClassModel)
         setattr(nc, "multilabel", True)
         setattr(nc, "multilabel_weights", None)
         setattr(nc, "imbalance_class_weights", None)
         setattr(nc, "_dev_id", 0)
-        nc.init_m5gnn_model()
+        nc.init_gsgnn_model()
 
         assert not isinstance(nc.loss_func, th.nn.CrossEntropyLoss)
-        mock_linit_m5gnn_model.assert_called_once()
-        mock_linit_m5gnn_model.reset_mock()
+        mock_linit_gsgnn_model.assert_called_once()
+        mock_linit_gsgnn_model.reset_mock()
 
-        nc = M5GNNNodeClassModel.__new__(M5GNNNodeClassModel)
+        nc = GSgnnNodeClassModel.__new__(GSgnnNodeClassModel)
         setattr(nc, "multilabel", True)
         setattr(nc, "multilabel_weights", th.tensor([1,2,3]))
         setattr(nc, "imbalance_class_weights", None)
         setattr(nc, "_dev_id", 0)
-        nc.init_m5gnn_model()
+        nc.init_gsgnn_model()
 
         assert not isinstance(nc.loss_func, th.nn.CrossEntropyLoss)
         assert callable(nc.loss_func)
-        mock_linit_m5gnn_model.assert_called_once()
-        mock_linit_m5gnn_model.reset_mock()
+        mock_linit_gsgnn_model.assert_called_once()
+        mock_linit_gsgnn_model.reset_mock()
 
-        nc = M5GNNNodeClassModel.__new__(M5GNNNodeClassModel)
+        nc = GSgnnNodeClassModel.__new__(GSgnnNodeClassModel)
         setattr(nc, "multilabel", False)
         setattr(nc, "multilabel_weights", None)
         setattr(nc, "imbalance_class_weights", th.tensor([1,2,3]))
         setattr(nc, "_dev_id", 0)
-        nc.init_m5gnn_model()
+        nc.init_gsgnn_model()
 
         assert isinstance(nc.loss_func, th.nn.CrossEntropyLoss)
         assert nc.loss_func.weight.tolist() == [1,2,3]
-        mock_linit_m5gnn_model.assert_called_once()
-        mock_linit_m5gnn_model.reset_mock()
+        mock_linit_gsgnn_model.assert_called_once()
+        mock_linit_gsgnn_model.reset_mock()
 
-    call_init_m5gnn_model()
+    call_init_gsgnn_model()
 
 if __name__ == '__main__':
     test_nc_dist_eval(["accuracy"], seed=41, backend="gloo")
     test_nc_dist_eval(["accuracy"], seed=41, backend="nccl")
-    test_nc_init_m5gnn_model()
+    test_nc_init_gsgnn_model()

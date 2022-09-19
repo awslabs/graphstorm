@@ -41,8 +41,8 @@ gsf:
     save_model_path: ./models/ogb_arxiv/train_val/ogb_arxiv_hf_train_val_1p_2t_model
     save_embeds_path: null
     save_model_per_iters: 1000
-    mlflow_exp_name: "m5_gnn_exp"
-    mlflow_run_name: "m5_gnn_run"
+    mlflow_exp_name: "gnn_exp"
+    mlflow_run_name: "gnn_run"
     mlflow_report_frequency: 50
   hyperparam:
     dropout: 0.

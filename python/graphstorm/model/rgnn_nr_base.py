@@ -9,7 +9,7 @@ from torch.nn.parallel import DistributedDataParallel
 import dgl
 
 import inspect
-from .rgnn_node_base import M5GNNNodeModel
+from .rgnn_node_base import GSgnnNodeModel
 
 class Regression(nn.Module):
     def __init__(self,
@@ -24,22 +24,22 @@ class Regression(nn.Module):
     def forward(self, h):
         return th.matmul(h, self.decoder)
 
-class M5GNNNodeRegressModel(M5GNNNodeModel):
+class GSgnnNodeRegressModel(GSgnnNodeModel):
     """ RGNN node regression model
 
     Parameters
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
-        The M5 GNN configuration
+    config: GSConfig
+        The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
     train_task: bool
         Whether it is a training task
     """
     def __init__(self, g, config, bert_model, train_task=True):
-        super(M5GNNNodeRegressModel, self).__init__(g, config, bert_model, train_task)
+        super(GSgnnNodeRegressModel, self).__init__(g, config, bert_model, train_task)
 
         self.model_conf = {
             'task': 'node_regression',
@@ -68,15 +68,15 @@ class M5GNNNodeRegressModel(M5GNNNodeModel):
         self.decoder = DistributedDataParallel(decoder, device_ids=[dev_id], output_device=dev_id, find_unused_parameters=True)
 
 
-    def init_m5gnn_model(self, train=True):
-        ''' Initialize the M5GNN model.
+    def init_gsgnn_model(self, train=True):
+        ''' Initialize the GNN model.
 
         Argument
         --------
         train : bool
             Indicate whether the model is initialized for training.
         '''
-        super(M5GNNNodeRegressModel, self).init_m5gnn_model(train)
+        super(GSgnnNodeRegressModel, self).init_gsgnn_model(train)
         mse_loss_func = nn.MSELoss()
         mse_loss_func = mse_loss_func.to(self.dev_id)
         def loss_func(logits, lbl):

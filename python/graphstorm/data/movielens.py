@@ -5,11 +5,11 @@ import pickle
 import dgl
 import torch as th
 
-from .dataset import M5gnnDataset
+from .dataset import GSgnnDataset
 from .utils import parse_category_single_feat
 from .utils import get_id
 
-class MovieLens100kNCDataset(M5gnnDataset):
+class MovieLens100kNCDataset(GSgnnDataset):
     """r Movielens dataset for node classification
     """
     def __init__(self, raw_dir, edge_pct=1, bert_model_name='bert-base-uncased',

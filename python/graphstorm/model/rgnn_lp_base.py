@@ -9,26 +9,26 @@ from .utils import save_embeddings as save_node_embeddings
 from .utils import save_relation_embeddings
 
 from .lp_decoder import LinkPredictDotDecoder, LinkPredictDistMultDecoder
-from .rgnn import M5GNNBase
+from .rgnn import GSgnnBase
 
 from ..eval import compute_acc_lp
 
-class M5GNNLinkPredictionModel(M5GNNBase):
+class GSgnnLinkPredictionModel(GSgnnBase):
     """ RGNN link prediction model
 
     Parameters
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
-        The M5 GNN configuration
+    config: GSConfig
+        The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
     train_task: bool
         Whether it is a training task
     """
     def __init__(self, g, config, bert_model, train_task=True):
-        super(M5GNNLinkPredictionModel, self).__init__(g, config, bert_model, train_task)
+        super(GSgnnLinkPredictionModel, self).__init__(g, config, bert_model, train_task)
         self._g = g
 
         # train specific configs
@@ -105,7 +105,7 @@ class M5GNNLinkPredictionModel(M5GNNBase):
         ----------
         g : DGLGraph
             The input graph
-        loader : M5GNN dataloader
+        loader : GSgnn dataloader
             The dataloader generates mini-batches to train the model.
         bert_emb_cache : dict of embedding cache
             The embedding cache for the nodes in the input graph.

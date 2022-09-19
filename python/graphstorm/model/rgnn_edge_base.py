@@ -7,27 +7,27 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import dgl
 
-from .rgnn import M5GNNBase
+from .rgnn import GSgnnBase
 
 from .utils import modify_fanout_for_target_etype
 from .utils import save_embeddings as save_node_embeddings
 
-class M5GNNEdgeModel(M5GNNBase):
+class GSgnnEdgeModel(GSgnnBase):
     """ RGNN edge classification model
 
     Parameters
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
-        The M5 GNN configuration
+    config: GSConfig
+        The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
     train_task: bool
         Whether it is a training task
     """
     def __init__(self, g, config, bert_model, train_task=True):
-        super(M5GNNEdgeModel, self).__init__(g, config, bert_model, train_task)
+        super(GSgnnEdgeModel, self).__init__(g, config, bert_model, train_task)
 
         self.bert_hidden_size = {ntype: bm.config.hidden_size for ntype, bm in bert_model.items()}
         # TODO needs to be extended to multiple
@@ -150,7 +150,7 @@ class M5GNNEdgeModel(M5GNNBase):
         ----------
         g : DGLGraph
             The input graph
-        loader : M5GNN dataloader
+        loader : GSgnn dataloader
             The dataloader generates mini-batches to train the model.
         bert_emb_cache : dict of embedding cache
             The embedding cache for the nodes in the input graph.
@@ -313,7 +313,7 @@ class M5GNNEdgeModel(M5GNNBase):
             ----------
             rank: int
                 Distributed rank
-            train_data: M5gnnEdgePredictionTrainData
+            train_data: GSgnnEdgePredictionTrainData
                 Training data
             bert_emb_cache: dict of tensor
                 Bert embedding cahce

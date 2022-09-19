@@ -515,7 +515,7 @@ def submit_jobs(args, udf_command):
 
 def get_argument_parser():
     """Parse command-line arguments"""
-    parser = argparse.ArgumentParser(description="M5GNN Arguments")
+    parser = argparse.ArgumentParser(description="GSgnn Arguments")
 
     # Required parameters
     parser.add_argument(
@@ -545,10 +545,10 @@ def get_argument_parser():
         required=True)
 
     # Optional parameters to override arguments in yaml config
-    parser = _add_m5gnn_args(parser)
+    parser = _add_gsgnn_args(parser)
     return parser
 
-def _add_m5gnn_args(parser):
+def _add_gsgnn_args(parser):
 
     parser.add_argument('--workspace', type=str, default=argparse.SUPPRESS,
                         help='Path of user directory of distributed tasks. \

@@ -34,7 +34,7 @@ __all__ = [
 
 def get_argument_parser():
     """Parse command-line arguments"""
-    parser = argparse.ArgumentParser(description="M5GNN Arguments")
+    parser = argparse.ArgumentParser(description="GSGNN Arguments")
     # Required parameters
     parser.add_argument(
         "--yaml_config_file",
@@ -72,8 +72,8 @@ def get_argument_parser():
     return parser
 
 # pylint: disable=no-member
-class M5GNNConfig:
-    """M5GNN Argument class which contains all arguments
+class GSConfig:
+    """GSgnn Argument class which contains all arguments
        from yaml config and constructs additional arguments
 
     Parameters:
@@ -478,7 +478,7 @@ class M5GNNConfig:
     ###################### I/O related ######################
     @property
     def load_model_path(self):
-        """ M5 model path
+        """ Model path
 
         Deprecated: Use restore model path instead
         """

@@ -13,29 +13,29 @@ import dgl
 import abc
 import psutil
 
-from .rgnn import M5GNNBase
+from .rgnn import GSgnnBase
 from .utils import rand_gen_trainmask
 from .emb_cache import EmbedCache
 from .extract_node_embeddings import prepare_batch_input
 from .hbert import get_bert_flops_info
 from .utils import save_embeddings as save_node_embeddings
 
-class M5GNNNodeModel(M5GNNBase):
+class GSgnnNodeModel(GSgnnBase):
     """ RGNN model for node tasks
 
     Parameters
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
-        The M5 GNN configuration
+    config: GSConfig
+        The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
     train_task: bool
         Whether it is a training task
     """
     def __init__(self, g, config, bert_model, train_task=True):
-        super(M5GNNNodeModel, self).__init__(g, config, bert_model, train_task)
+        super(GSgnnNodeModel, self).__init__(g, config, bert_model, train_task)
         self.predict_ntype = config.predict_ntype
         self.save_predict_path = config.save_predict_path
         self.bert_hidden_size = {ntype: bm.config.hidden_size for ntype, bm in bert_model.items()}
@@ -211,7 +211,7 @@ class M5GNNNodeModel(M5GNNBase):
             ----------
             rank: int
                 Distributed rank
-            train_data: M5gnnNodeTrainData
+            train_data: GSgnnNodeTrainData
                 Training data
             bert_emb_cache: dict of tensor
                 Bert embedding cahce

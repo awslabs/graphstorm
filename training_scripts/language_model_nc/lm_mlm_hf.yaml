@@ -34,8 +34,8 @@ gsf:
     save_model_path: ./models/ogb_arxiv/bert-tune/
     save_embeds_path: null
     save_model_per_iters: -1
-    mlflow_exp_name: "m5_gnn_exp"
-    mlflow_run_name: "m5_gnn_run"
+    mlflow_exp_name: "gnn_exp"
+    mlflow_run_name: "gnn_run"
     mlflow_report_frequency: 50
   hyperparam:
     dropout: 0.

@@ -25,8 +25,8 @@ class LinkPredictionRelGNN(RelGNNBase):
     ----------
     g: DGLGraph
         The graph used in training and testing
-    config: M5GNNConfig
-        The M5 GNN configuration
+    config: GSConfig
+        The graphstorm GNN configuration
     """
     def __init__(self, g, config):
         super(LinkPredictionRelGNN, self).__init__(g, config)
