@@ -6,7 +6,6 @@ import numpy as np
 import torch as th
 import dgl
 import psutil
-import apex
 from torch.nn.parallel import DistributedDataParallel
 
 from .utils import do_fullgraph_infer, do_mini_batch_inference, LazyDistTensor, rand_gen_trainmask
@@ -385,21 +384,10 @@ class GSgnnBase():
 
     def init_bert_encoder(self, g, bert_model, dev_id):
         print("Init distributed bert model ...")
+        assert not self.mixed_precision
         for ntype in bert_model.keys():
-            if self.mixed_precision:
-                # Set delay_allreduce to True when using apex O1 optimization,
-                # otherwise loss.backward() will crash with distributed training.
-                # Related issue: https://github.com/NVIDIA/apex/issues/208
-                bert_model[ntype] = apex.parallel.DistributedDataParallel(bert_model[ntype].to(dev_id),
-                 delay_allreduce=True if self.mp_opt_level == 'O1' else False)
-                if g.rank() == 0:
-                    print("Use Apex {} mixed precision optimization".format(self.mp_opt_level))
-            else:
-                bert_model[ntype] = DistributedDataParallel(bert_model[ntype].to(dev_id),
-                                                            device_ids=[dev_id], output_device=dev_id)
-                if g.rank() == 0:
-                    print("Mixed precision is turned off")
-
+            bert_model[ntype] = DistributedDataParallel(bert_model[ntype].to(dev_id),
+                                                        device_ids=[dev_id], output_device=dev_id)
         return bert_model
 
     def init_dist_encoder(self, train):
@@ -484,20 +472,8 @@ class GSgnnBase():
                 if g.rank() == 0:
                     print('Bert model of {} has {} parameters'.format(ntype, num_params))
 
-            if self.mixed_precision and train:
-                fine_tune_opt = apex.optimizers.FusedAdam(bert_params, lr=self.bert_lr)
-                key_list = []
-                bms = []
-                for key, bm in bert_model.items():
-                    key_list.append(key)
-                    bms.append(bm)
-
-                models, fine_tune_opt = apex.amp.initialize(bms, fine_tune_opt, opt_level=self.mp_opt_level)
-                for key, bm in zip(key_list, models):
-                    bert_model[key] = bm
-            elif train:
+            if train:
                 fine_tune_opt = th.optim.Adam(bert_params, lr=self.bert_lr)
-
             bert_train, bert_static = wrap_bert(g,
                                                 bert_model,
                                                 bert_infer_bs=self.bert_infer_bs,
@@ -652,7 +628,6 @@ class GSgnnBase():
                 self.bert_train[ntype].eval()
                 self.bert_static[ntype].eval()
 
-        disable_auto_cast = (self.mixed_precision and self.mp_opt_level=='O1')
         # If we need to compute all node embeddings, full-graph inference is much more efficient.
         # Let's use mini-batch inference if we need to compute the embeddings of a subset of nodes.
         if self.mini_batch_infer and target_nidx is not None:
@@ -673,7 +648,6 @@ class GSgnnBase():
                                                  fanout=self.eval_fanout,
                                                  eval_batch_size=self.eval_batch_size,
                                                  use_bert_embeddings_for_validation=False,
-                                                 disable_auto_cast=disable_auto_cast,
                                                  client=self.tracker,
                                                  mlflow_report_frequency=self.mlflow_report_frequency,
                                                  feat_field=self._feat_name)
@@ -691,7 +665,6 @@ class GSgnnBase():
                                             bert_infer_bs=self.bert_infer_bs,
                                             eval_fanout_list=self.eval_fanout,
                                             eval_batch_size=self.eval_batch_size,
-                                            disable_auto_cast=disable_auto_cast,
                                             client=self.tracker,
                                             mlflow_report_frequency=self.mlflow_report_frequency,
                                             feat_field=self._feat_name)
@@ -732,7 +705,6 @@ class GSgnnBase():
         if target_nidx_per_ntype is None:
             # if the dictionary is not initialized for full graph inference for example this code will fail.
             target_nidx_per_ntype = {ntype: th.arange(g.number_of_nodes(ntype)) for ntype in g.ntypes}
-        disable_auto_cast = (self.mixed_precision and self.mp_opt_level == 'O1')
         embeddings = do_mini_batch_inference(model=self.gnn_encoder,
                                              embed_layer=self.embed_layer,
                                              bert_train=self.bert_train,
@@ -747,7 +719,6 @@ class GSgnnBase():
                                              fanout=self.eval_fanout,
                                              eval_batch_size=self.eval_batch_size,
                                              use_bert_embeddings_for_validation=False,
-                                             disable_auto_cast=disable_auto_cast,
                                              client=self.tracker,
                                              mlflow_report_frequency=self.mlflow_report_frequency,
                                              feat_field=self._feat_name)
@@ -793,17 +764,9 @@ class GSgnnBase():
         bert_forward_time += (t2 - t1)
 
         input_nodes = {ntype: inodes.long().to(device) for ntype, inodes in input_nodes.items()}
-        if self.mixed_precision and self.mp_opt_level == 'O1':
-            # avoid model auto cast as dgl does not support it.
-            # apex opt level O0 does not use mix precision.
-            with apex.amp.disable_casts():
-                emb = embed_layer(inputs, input_nodes=input_nodes) if embed_layer is not None else inputs
-                gnn_embs = model(emb, blocks) if model is not None else {ntype: nemb.to(device)
-                                                                         for ntype, nemb in emb.items()}
-        else:
-            emb = embed_layer(inputs, input_nodes=input_nodes) if embed_layer is not None else inputs
-            gnn_embs = model(emb, blocks) if model is not None else {ntype: nemb.to(device)
-                                                                         for ntype, nemb in emb.items()}
+        emb = embed_layer(inputs, input_nodes=input_nodes) if embed_layer is not None else inputs
+        gnn_embs = model(emb, blocks) if model is not None else {ntype: nemb.to(device)
+                for ntype, nemb in emb.items()}
 
         t3 = time.time()
         gnn_forward_time += (t3 - t2)

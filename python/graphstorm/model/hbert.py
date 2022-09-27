@@ -7,12 +7,10 @@ import time
 from transformers import BertModel, BertForPreTraining, BertConfig
 from torch.nn.parallel import DistributedDataParallel
 
-import apex
 from ..data.constants import TOKEN_IDX, VALID_LEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX
 
 def is_distributed(bert_model):
     return isinstance(bert_model, DistributedDataParallel) \
-            or isinstance(bert_model, apex.parallel.DistributedDataParallel) \
             or isinstance(bert_model, nn.DataParallel)
 
 def run_bert(bert_model, input_ids, attention_mask, token_type_ids, labels=None, use_bert_loss=False, dev='cpu'):
@@ -163,8 +161,6 @@ class MGBertWrapper(nn.Module):
         if self.debug:
             if isinstance(bert, nn.parallel.DistributedDataParallel):
                 self.num_params = np.sum([param.numel() for param in bert.module.encoder.parameters()])
-            elif isinstance(bert, apex.parallel.DistributedDataParallel):
-                self.num_params = np.sum([param.numel() for param in bert.module.encoder.parameters()])
             else:
                 self.num_params = np.sum([param.numel() for param in bert.encoder.parameters()])
         self.max_seq_lens = []
@@ -215,8 +211,6 @@ class StaticMGBertWrapper(nn.Module):
         self.debug = debug
         if self.debug:
             if isinstance(bert, nn.parallel.DistributedDataParallel):
-                self.num_params = np.sum([param.numel() for param in bert.module.encoder.parameters()])
-            elif isinstance(bert, apex.parallel.DistributedDataParallel):
                 self.num_params = np.sum([param.numel() for param in bert.module.encoder.parameters()])
             else:
                 self.num_params = np.sum([param.numel() for param in bert.encoder.parameters()])

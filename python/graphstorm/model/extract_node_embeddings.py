@@ -1,6 +1,5 @@
 import torch as th
 import dgl
-import apex
 from torch.nn.parallel import DistributedDataParallel
 
 from .hbert import extract_bert_embed
@@ -201,7 +200,7 @@ def extract_bert_embeddings_dist(g, batch_size, bert_train, bert_static, bert_hi
     return out_embs
 
 def extract_all_embeddings_dist(g, batch_size, embed_layer, bert_train, bert_static,
-    bert_hidden_size, dev, emb_cache=None, disable_auto_cast=False, client=None, mlflow_report_frequency=100, feat_field='feat'):
+    bert_hidden_size, dev, emb_cache=None, client=None, mlflow_report_frequency=100, feat_field='feat'):
     """
     This function extracts the embeddings for all the nodes in a distributed graph either from the BERT model
     or from the embedding layer.
@@ -259,13 +258,7 @@ def extract_all_embeddings_dist(g, batch_size, embed_layer, bert_train, bert_sta
                     emb[ntype]=None
                     assert embed_layer is not None, "In this case the embedding layer is needed"
                 if embed_layer is not None:
-                    if disable_auto_cast:
-                        # disable the auto cast, as the we store dist tensor as float32
-                        # work with apex opt level O1
-                        with apex.amp.disable_casts():
-                            emb = embed_layer(emb, ntype, {ntype: input_nodes})
-                    else:
-                        emb = embed_layer(emb, ntype, {ntype: input_nodes})
+                    emb = embed_layer(emb, ntype, {ntype: input_nodes})
                 input_emb[input_nodes] = emb[ntype].to('cpu')
             n_embs[ntype] = input_emb
         if g.rank() == 0:
