@@ -8,7 +8,6 @@ import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel
 import numpy as np
-import apex
 import dgl
 import abc
 import psutil
@@ -132,14 +131,7 @@ class GSgnnNodeModel(GSgnnBase):
                                          bert_forward_time, gnn_forward_time, epoch)
 
                 emb = gnn_embs[self.predict_ntype]
-
-                if self.mixed_precision and self.mp_opt_level == 'O1':
-                    # avoid model auto cast as dgl does not support it.
-                    # apex opt level O0 does not use mix precision.
-                    with apex.amp.disable_casts():
-                        logits = decoder(emb)
-                else:
-                    logits = decoder(emb)
+                logits = decoder(emb)
 
                 lbl = train_data.labels[seeds].to(device)
                 loss = self.loss_func(logits, lbl)

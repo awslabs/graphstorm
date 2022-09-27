@@ -1,7 +1,6 @@
 """Language model base implementation"""
 import abc
 import torch as th
-import apex
 import psutil
 import time
 import tqdm
@@ -194,13 +193,11 @@ class LanguageModelBase():
                 text_feat_ntypes.append(ntype)
 
         print("Init distributed bert model ...")
+        assert not self.mixed_precision
         for ntype in bert_model.keys():
-            if self.mixed_precision:
-                bert_model[ntype] = apex.parallel.DistributedDataParallel(bert_model[ntype].to(dev_id))
-            else:
-                bert_model[ntype] = DistributedDataParallel(bert_model[ntype].to(dev_id),
-                                                            device_ids=[dev_id], output_device=dev_id,
-                                                            find_unused_parameters=False)
+            bert_model[ntype] = DistributedDataParallel(bert_model[ntype].to(dev_id),
+                                                        device_ids=[dev_id], output_device=dev_id,
+                                                        find_unused_parameters=False)
 
         if len(bert_model) > 0:
             bert_train, bert_static = wrap_bert(g, bert_model, bert_infer_bs=self.bert_infer_bs, debug=self.debug)
@@ -266,19 +263,7 @@ class LanguageModelBase():
                 num_params = np.sum([np.prod(param.shape) for param in params])
                 num_bert_params[ntype] = num_params
                 print('Bert model of {} has {} parameters'.format(ntype, num_params))
-            if self.mixed_precision:
-                fine_tune_opt = apex.optimizers.FusedAdam(bert_params, lr=self.bert_lr)
-                key_list = []
-                bms = []
-                for key, bm in bert_model.items():
-                    key_list.append(key)
-                    bms.append(bm)
-
-                models, fine_tune_opt = apex.amp.initialize(bms, fine_tune_opt, opt_level=self.mp_opt_level)
-                for key, bm in zip(key_list, models):
-                    bert_model[key] = bm
-            else:
-                fine_tune_opt = th.optim.Adam(bert_params, lr=self.bert_lr)
+            fine_tune_opt = th.optim.Adam(bert_params, lr=self.bert_lr)
         else:
             fine_tune_opt = None
         self.fine_tune_opt = fine_tune_opt
@@ -653,12 +638,10 @@ class LanguageModelMLM(LanguageModelBase):
         }
 
         print("Init distributed bert model ...")
+        assert not self.mixed_precision
         for ntype in bert_model.keys():
-            if self.mixed_precision:
-                bert_model[ntype] = apex.parallel.DistributedDataParallel(bert_model[ntype].to(dev_id))
-            else:
-                bert_model[ntype] = DistributedDataParallel(bert_model[ntype].to(dev_id),
-                                                                device_ids=[dev_id], output_device=dev_id)
+            bert_model[ntype] = DistributedDataParallel(bert_model[ntype].to(dev_id),
+                                                        device_ids=[dev_id], output_device=dev_id)
 
         self.model_conf = model_conf
 
@@ -813,16 +796,9 @@ class LanguageModelMLM(LanguageModelBase):
                 loss = mlm_loss + seq_loss
 
                 tr_loss += loss.item()
-                if self.mixed_precision:
-                    with apex.amp.scale_loss(loss, self.fine_tune_opt) as scaled_loss:
-                        scaled_loss.backward()
-                else:
-                    loss.backward()
+                loss.backward()
 
-                if self.mixed_precision:
-                    th.nn.utils.clip_grad_norm_(apex.amp.master_params(self.fine_tune_opt), 1.0)
-                else:
-                    th.nn.utils.clip_grad_norm_(bert_model.parameters(), 1.0)
+                th.nn.utils.clip_grad_norm_(bert_model.parameters(), 1.0)
                 self.fine_tune_opt.step()
                 bert_model.zero_grad()
                 self.log_metric("Train loss", loss.item(), iter_local, report_step=iter_local)

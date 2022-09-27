@@ -2,7 +2,6 @@
 import os
 import json
 import time
-import apex
 
 import numpy as np
 import torch as th
@@ -910,7 +909,7 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
                             device, bert_emb_cache, target_nidx, g, pb, n_hidden,
                             fanout, eval_batch_size,
                             use_bert_embeddings_for_validation=False,
-                            disable_auto_cast=False, client=None,
+                            client=None,
                             mlflow_report_frequency=100, feat_field='feat'):
     """ Do mini batch inference
 
@@ -944,9 +943,6 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
             The batch size
         use_bert_embeddings_for_validation: bool
              whether use bert embeddings only
-        disable_auto_cast: bool
-            When mixed precision opt level is O1, we need to disable auto cast
-            as dgl does not support it.
         client: Mlflow client
             Mlflow log client
         mlflow_report_frequency: int
@@ -1075,19 +1071,9 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
 
                 input_nodes = {ntype: inodes.long().to(device) \
                     for ntype, inodes in input_nodes.items()}
-                if disable_auto_cast:
-                    # avoid model auto cast as dgl does not support it.
-                    # apex opt level O0 does not use mix precision.
-                    with apex.amp.disable_casts():
-                        emb = embed_layer(inputs, input_nodes=input_nodes) \
-                            if embed_layer is not None else inputs
-                        final_embs = model(emb, blocks) \
-                            if model is not None else {ntype: nemb.to(device) \
-                                for ntype, nemb in emb.items()}
-                else:
-                    emb = embed_layer(inputs, input_nodes=input_nodes) \
+                emb = embed_layer(inputs, input_nodes=input_nodes) \
                         if embed_layer is not None else inputs
-                    final_embs = model(emb, blocks) \
+                final_embs = model(emb, blocks) \
                         if model is not None else {ntype: nemb.to(device) \
                             for ntype, nemb in emb.items()}
             for key in seeds:
@@ -1129,7 +1115,7 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
 
 def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
                        bert_hidden_size, device, bert_emb_cache, bert_infer_bs, eval_fanout_list,
-                       eval_batch_size=None, disable_auto_cast=False, client=None,
+                       eval_batch_size=None, client=None,
                        mlflow_report_frequency=100, feat_field='feat'):
     """ Do fullgraph inference
 
@@ -1157,9 +1143,6 @@ def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
             The evaluation fanout list
         eval_batch_size: int
             The batch size
-        disable_auto_cast: bool
-            When mixed precision opt level is O1, we need to disable auto cast
-            as dgl does not support it.
         client: Mlflow client
             Mlflow log client
         mlflow_report_frequency: int
@@ -1177,25 +1160,12 @@ def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
         bert_train, bert_static,
         bert_hidden_size, dev=device,
         emb_cache=bert_emb_cache,
-        disable_auto_cast=disable_auto_cast,
         client=client, mlflow_report_frequency=mlflow_report_frequency,
         feat_field=feat_field)
     t1 = time.time() # pylint: disable=invalid-name
     # full graph evaluation
     g.barrier()
     model.eval()
-    if disable_auto_cast:
-        # avoid model auto cast as dgl does not support it.
-        # apex opt level O0 does not use mix precision.
-        with apex.amp.disable_casts():
-            if not isinstance(model, DistributedDataParallel):
-                embeddings = model.dist_inference(g, eval_batch_size, device, 0,
-                    node_embed, eval_fanout_list, client=client,
-                    mlflow_report_frequency=mlflow_report_frequency)
-            else:
-                embeddings = model.module.dist_inference(g, eval_batch_size,
-                    device, 0, node_embed, eval_fanout_list, client=client,
-                    mlflow_report_frequency=mlflow_report_frequency)
     if not isinstance(model, DistributedDataParallel):
         embeddings = model.dist_inference(g, eval_batch_size, device, 0,
             node_embed, eval_fanout_list, client=client,
