@@ -67,6 +67,7 @@ class GSgnnLinkPredictionModel(GSgnnBase):
         # logging all the params of this experiment
         self.log_params(self.__dict__)
         self.log_params(config.__dict__)
+        self.alpha_l2norm = config.alpha_l2norm
 
     def init_dist_decoder(self, train):
         g = self.g
@@ -190,18 +191,28 @@ class GSgnnLinkPredictionModel(GSgnnBase):
 
                 score = th.cat([pos_score, neg_score])
                 label = th.cat([th.ones_like(pos_score), th.zeros_like(neg_score)])
-                loss = F.binary_cross_entropy_with_logits(score, label)
+
+                # add regularization loss to all parameters to avoid the unused parameter errors
+                pred_loss = F.binary_cross_entropy_with_logits(score, label)
+
+                reg_loss = th.tensor(0.).to(device)
+                # L2 regularization of dense parameters
+                for d_para in self.get_dense_params():
+                    reg_loss += d_para.square().sum()
+
+                # weighted addition to the total loss
+                total_loss = pred_loss + self.alpha_l2norm * reg_loss
 
                 t3 = time.time()
-                gnn_loss = loss.item()
+                gnn_loss = pred_loss.item()
                 combine_optimizer.zero_grad()
-                loss.backward()
+                total_loss.backward()
                 combine_optimizer.step()
                 back_time += (time.time() - t3)
 
                 train_acc = compute_acc_lp(pos_score, neg_score)
 
-                self.log_metric("Train loss", loss.item(), total_steps, report_step=total_steps)
+                self.log_metric("Train loss", total_loss.item(), total_steps, report_step=total_steps)
                 for metric in train_acc.keys():
                     self.log_metric("Train {}".format(metric), train_acc[metric], total_steps,
                                     report_step=total_steps)
@@ -210,9 +221,8 @@ class GSgnnLinkPredictionModel(GSgnnBase):
                     if self.verbose:
                         self.print_info(epoch, i, num_input_nodes / 20,
                                         (bert_forward_time / 20, gnn_forward_time / 20, back_time / 20))
-                    # Print task specific info.
-                    print("Epoch {:05d} | Batch {:03d} | Train Loss (ALL|GNN): {:.4f}|{:.4f} | Time: {:.4f}".
-                            format(epoch, i, loss.item(), gnn_loss, time.time() - batch_tic))
+                    print("Epoch {:05d} | Batch {:03d} | Total_Train Loss (ALL|GNN): {:.4f}|{:.4f} | Time: {:.4f}".
+                            format(epoch, i, total_loss.item(), gnn_loss, time.time() - batch_tic))
                     for metric in train_acc.keys():
                         print("Train {}: {:.4f}".format(metric, train_acc[metric]))
                     num_input_nodes = bert_forward_time = gnn_forward_time = back_time = 0

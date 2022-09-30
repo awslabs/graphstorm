@@ -479,6 +479,7 @@ def create_train_config(tmp_path, file_name):
         "batch_size": 64,
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
+        "alpha_l2norm": 0.00001,
         "sparse_lr": 0.001,
         "bert_tune_lr": 0.0001,
         "bert_infer_bs": 64,
@@ -528,6 +529,7 @@ def test_train_info():
         assert config.batch_size == 32
         assert config.eval_batch_size == 32
         assert config.wd_l2norm == 0
+        assert config.alpha_l2norm == 0
         config._lr = 0.01
         assert config.sparse_lr == 0.01
         assert config.bert_tune_lr == 0.01
@@ -546,6 +548,7 @@ def test_train_info():
         assert config.batch_size == 64
         assert config.eval_batch_size == 128
         assert config.wd_l2norm == 0.1
+        assert config.alpha_l2norm == 0.00001
         assert config.sparse_lr == 0.001
         assert config.bert_tune_lr == 0.0001
         assert config.use_node_embeddings == False

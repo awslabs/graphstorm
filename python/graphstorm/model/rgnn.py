@@ -378,7 +378,10 @@ class GSgnnBase():
         if gnn_encoder is not None:
             # Create distributed data parallel.
             gnn_encoder = gnn_encoder.to(dev_id)
-            gnn_encoder = DistributedDataParallel(gnn_encoder, device_ids=[dev_id], output_device=dev_id, find_unused_parameters=True)
+            gnn_encoder = DistributedDataParallel(gnn_encoder,
+                                                  device_ids=[dev_id],
+                                                  output_device=dev_id,
+                                                  find_unused_parameters=False)
 
         return gnn_encoder
 

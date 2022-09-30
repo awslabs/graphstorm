@@ -46,6 +46,7 @@ class GSgnnEdgeModel(GSgnnBase):
 
         self.log_params(self.__dict__)
         self.log_params(config.__dict__)
+        self.alpha_l2norm = config.alpha_l2norm
 
     def inference(self, val_test_nodes, val_src_dst_pairs, test_src_dst_pairs, val_labels, test_labels, bert_emb_cache=None):
         '''This performs inference on the target nodes.
@@ -230,17 +231,28 @@ class GSgnnEdgeModel(GSgnnBase):
 
                 logits = decoder(batch_graph, gnn_embs)
                 lbl = train_data.labels[seeds].to(device)
-                loss = self.loss_func(logits, lbl)
+
+                # add regularization loss to all parameters to avoid the unused parameter errors
+                pred_loss = self.loss_func(logits, lbl)
+
+                reg_loss = th.tensor(0.).to(device)
+                # L2 regularization of dense parameters
+                for d_para in self.get_dense_params():
+                    reg_loss += d_para.square().sum()
+
+                # weighted addition to the total loss
+                total_loss = pred_loss + self.alpha_l2norm * reg_loss
+
                 t3 = time.time()
-                gnn_loss = loss.item()
+                gnn_loss = pred_loss.item()
                 combine_optimizer.zero_grad()
-                loss.backward()
+                total_loss.backward()
                 combine_optimizer.step()
                 back_time += (time.time() - t3)
 
                 train_score = self.evaluator.compute_score(self.predict(logits), lbl)
 
-                self.log_metric("Train loss", loss.item(), total_steps, report_step=total_steps)
+                self.log_metric("Train loss", total_loss.item(), total_steps, report_step=total_steps)
                 for metric in self.evaluator.metric:
                     self.log_metric("Train {}".format(metric), train_score[metric], total_steps,
                                     report_step=total_steps)
@@ -250,8 +262,9 @@ class GSgnnEdgeModel(GSgnnBase):
                         self.print_info(epoch, i, num_input_nodes / 20,
                                         (bert_forward_time / 20, gnn_forward_time / 20, back_time / 20))
                     # Print task specific info.
-                    print("Part {} | Epoch {:05d} | Batch {:03d} | Train Loss (ALL|GNN): {:.4f}|{:.4f} | Time: {:.4f}".
-                            format(g.rank(), epoch, i,  loss.item(), gnn_loss, time.time() - batch_tic))
+                    print(
+                        "Part {} | Epoch {:05d} | Batch {:03d} | Train Loss (ALL|GNN): {:.4f}|{:.4f} | Time: {:.4f}".
+                        format(g.rank(), epoch, i, total_loss.item(), gnn_loss, time.time() - batch_tic))
                     for metric in self.evaluator.metric:
                         print("Train {}: {:.4f}".format(metric, train_score[metric]))
                     num_input_nodes = bert_forward_time = gnn_forward_time = back_time = 0

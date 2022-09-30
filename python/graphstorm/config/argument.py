@@ -776,6 +776,15 @@ class GSConfig:
         return 0
 
     @property
+    def alpha_l2norm(self):
+        """ coef for l2 norm of unused weights
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_alpha_l2norm"):
+            return self._alpha_l2norm
+        return .0
+
+    @property
     def use_self_loop(self):
         """ Whether to include self feature as a special relation
         """
@@ -1467,6 +1476,8 @@ def _add_hyperparam_args(parser):
             help="The batch size for bert inference")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
+    group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
+            help="coef for scale unused weights l2norm")
     group.add_argument("--call-to-consider-early-stop",
             type=int, default=argparse.SUPPRESS,
             help="burning period call to start considering early stop")
