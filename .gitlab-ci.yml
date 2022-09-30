@@ -27,6 +27,7 @@ lint:
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/config/
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/evaluator.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/utils.py
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgnn_ec_base.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgnn_er_base.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgat_encoder.py
@@ -40,6 +41,7 @@ e2e:
   script:
     - sh ./tests/end2end-tests/setup.sh
     - sh ./tests/end2end-tests/create_data.sh
+    - sh ./tests/end2end-tests/tools/test_mem_est.sh
     - sh ./tests/end2end-tests/dist_load/test.sh
     - sh ./tests/end2end-tests/lm-nc/test.sh
     - sh ./tests/end2end-tests/lm-lp/test.sh
