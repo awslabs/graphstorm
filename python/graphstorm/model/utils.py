@@ -684,7 +684,7 @@ def gen_lp_score(ranking):
 
 # pylint: disable=invalid-name
 def fullgraph_eval(g, embs, relation_embs, device, target_etype, pos_eids,
-                   num_negative_edges_eval=-1, client=None, mlflow_report_frequency=100):
+                   num_negative_edges_eval=-1, task_tracker=None):
     """ The evaluation is done in a minibatch fasion.
         Firstly, we use fullgraph_emb to generate the node embeddings for all the nodes
         in g. And then evaluate each positive edge with all possible negative edges.
@@ -710,10 +710,8 @@ def fullgraph_eval(g, embs, relation_embs, device, target_etype, pos_eids,
         num_negative_edges_eval: int
             Number of negative edges for each positive edge. if -1, use all edges.
             Default: -1
-        client: Mlflow client
-            Mlflow log client
-        mlflow_report_frequency: int
-            MLflow report frequency
+        task_tracker: GSTaskTrackerAbc
+            task tracker
     """
     metrics = {}
     with th.no_grad():
@@ -749,8 +747,8 @@ def fullgraph_eval(g, embs, relation_embs, device, target_etype, pos_eids,
         }
 
         for p_i in range(int((pos_cnt + pos_batch_size - 1) // pos_batch_size)):
-            if client is not None and p_i % mlflow_report_frequency == 0:
-                client.log_param("Dummy", "Keep alive")
+            if task_tracker is not None:
+                task_tracker.keep_alive(p_i)
 
             left_batch_end = p_i * pos_batch_size
             right_batch_end = (p_i + 1) * pos_batch_size \
@@ -906,11 +904,11 @@ class LazyDistTensor:
 # pylint: disable=invalid-name
 def do_mini_batch_inference(model, embed_layer, bert_train,
                             bert_static, bert_hidden_size,
-                            device, bert_emb_cache, target_nidx, g, pb, n_hidden,
+                            device, bert_emb_cache,
+                            target_nidx, g, pb, n_hidden,
                             fanout, eval_batch_size,
                             use_bert_embeddings_for_validation=False,
-                            client=None,
-                            mlflow_report_frequency=100, feat_field='feat'):
+                            task_tracker=None, feat_field='feat'):
     """ Do mini batch inference
 
         Parameters
@@ -943,10 +941,8 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
             The batch size
         use_bert_embeddings_for_validation: bool
              whether use bert embeddings only
-        client: Mlflow client
-            Mlflow log client
-        mlflow_report_frequency: int
-            MLflow report frequency
+        task_tracker: GSTaskTrackerAbc
+            Task tracker
         feat_field: str
             field to extract features
 
@@ -1019,8 +1015,8 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
     th.cuda.empty_cache()
     with th.no_grad():
         for iter_l, (input_nodes, seeds, blocks) in enumerate(loader):
-            if client is not None and iter_l % mlflow_report_frequency == 0:
-                client.log_param("Dummy", "Keep alive")
+            if task_tracker is not None:
+                task_tracker.keep_alive(iter_l)
 
             # in the case of a graph with a single node type the returned seeds will not be
             # a dictionary but a tensor of integers this is a possible bug in the DGL code.
@@ -1114,9 +1110,9 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
     return embeddings
 
 def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
-                       bert_hidden_size, device, bert_emb_cache, bert_infer_bs, eval_fanout_list,
-                       eval_batch_size=None, client=None,
-                       mlflow_report_frequency=100, feat_field='feat'):
+                       bert_hidden_size, device, bert_emb_cache, bert_infer_bs,
+                       eval_fanout_list, eval_batch_size=None,task_tracker=None,
+                       feat_field='feat'):
     """ Do fullgraph inference
 
         Parameters
@@ -1143,10 +1139,8 @@ def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
             The evaluation fanout list
         eval_batch_size: int
             The batch size
-        client: Mlflow client
-            Mlflow log client
-        mlflow_report_frequency: int
-            MLflow report frequency
+        task_tracker: GSTaskTrackerAbc
+            Task tracker
         feat_field: str
             Field to extract features
 
@@ -1160,7 +1154,7 @@ def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
         bert_train, bert_static,
         bert_hidden_size, dev=device,
         emb_cache=bert_emb_cache,
-        client=client, mlflow_report_frequency=mlflow_report_frequency,
+        task_tracker=task_tracker,
         feat_field=feat_field)
     t1 = time.time() # pylint: disable=invalid-name
     # full graph evaluation
@@ -1168,12 +1162,10 @@ def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
     model.eval()
     if not isinstance(model, DistributedDataParallel):
         embeddings = model.dist_inference(g, eval_batch_size, device, 0,
-            node_embed, eval_fanout_list, client=client,
-            mlflow_report_frequency=mlflow_report_frequency)
+            node_embed, eval_fanout_list, task_tracker=task_tracker)
     else:
         embeddings = model.module.dist_inference(g, eval_batch_size,
-            device, 0, node_embed, eval_fanout_list, client=client,
-            mlflow_report_frequency=mlflow_report_frequency)
+            device, 0, node_embed, eval_fanout_list, task_tracker=task_tracker)
     if g.rank() == 0:
         print(f"computing Bert embeddings: {t1 - t0:.4f} seconds, " \
               f"computing GNN embeddings: {time.time() - t1:.4f} seconds")

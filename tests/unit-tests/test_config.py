@@ -9,6 +9,7 @@ from graphstorm.config.config import BUILTIN_LP_LOSS_CROSS_ENTROPY
 from graphstorm.config.config import BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
 from graphstorm.model.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.model.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 
 def check_failure(config, field):
     has_error = False
@@ -391,7 +392,7 @@ def test_load_io_info():
         assert config.save_model_per_iters == 100
         assert config.save_embeds_path == "./save_emb"
 
-def create_mlflow_config(tmp_path, file_name):
+def create_task_tracker_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["output"] = {
     }
@@ -401,17 +402,8 @@ def create_mlflow_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["output"] = {
-        "mlflow_exp_name": "test_flow",
-    }
-
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_default2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["output"] = {
-        "mlflow_exp_name": "test_flow",
-        "mlflow_run_name": "test_run",
-        "mlflow_report_frequency": 10000,
+        "task_tracker": "sagemaker_task_tracker",
+        "log_report_frequency": 100,
     }
 
     # config for check default value
@@ -419,48 +411,35 @@ def create_mlflow_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["output"] = {
-        "mlflow_exp_name": "test_flow",
-        "mlflow_run_name": "test_run",
-        "mlflow_report_frequency": -1,
+        "task_tracker": "mlflow",
+        "log_report_frequency": 0,
     }
 
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-def test_mlflow_info():
+def test_task_tracker_info():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
-        create_mlflow_config(Path(tmpdirname), 'mlflow_test')
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_default.yaml'),
+        create_task_tracker_config(Path(tmpdirname), 'task_tracker_test')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.mlflow_tracker == False
-        check_failure(config, "mlflow_exp_name")
-        check_failure(config, "mlflow_run_name")
-        check_failure(config, "mlflow_report_frequency")
+        assert config.task_tracker == GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+        assert config.log_report_frequency == 1000
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_default2.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.mlflow_tracker == True
-        assert config.mlflow_exp_name == "test_flow"
-        assert config.mlflow_run_name == "test-lmgnn-run"
-        assert config.mlflow_report_frequency == 100
+        assert config.task_tracker == GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+        assert config.log_report_frequency == 100
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test_fail.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.mlflow_tracker == True
-        assert config.mlflow_exp_name == "test_flow"
-        assert config.mlflow_run_name == "test_run"
-        assert config.mlflow_report_frequency == 10000
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_fail.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.mlflow_tracker == True
-        check_failure(config, "mlflow_report_frequency")
+        check_failure(config, "task_tracker")
+        check_failure(config, "log_report_frequency")
 
 def create_train_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -1611,83 +1590,11 @@ def test_load_io_info():
         assert config.save_embeds_path == "./save_emb"
         assert config.save_predict_path == "./prediction"
 
-def create_mlflow_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["output"] = {
-    }
-
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["output"] = {
-        "mlflow_exp_name": "test_flow",
-    }
-
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_default2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["output"] = {
-        "mlflow_exp_name": "test_flow",
-        "mlflow_run_name": "test_run",
-        "mlflow_report_frequency": 10000,
-    }
-
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["output"] = {
-        "mlflow_exp_name": "test_flow",
-        "mlflow_run_name": "test_run",
-        "mlflow_report_frequency": -1,
-    }
-
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-def test_mlflow_info():
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        create_mlflow_config(Path(tmpdirname), 'mlflow_test')
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_default.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.mlflow_tracker == False
-        check_failure(config, "mlflow_exp_name")
-        check_failure(config, "mlflow_run_name")
-        check_failure(config, "mlflow_report_frequency")
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_default2.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.mlflow_tracker == True
-        assert config.mlflow_exp_name == "test_flow"
-        assert config.mlflow_run_name == "test-lmgnn-run"
-        assert config.mlflow_report_frequency == 100
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.mlflow_tracker == True
-        assert config.mlflow_exp_name == "test_flow"
-        assert config.mlflow_run_name == "test_run"
-        assert config.mlflow_report_frequency == 10000
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'mlflow_test_fail.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.mlflow_tracker == True
-        check_failure(config, "mlflow_report_frequency")
-
 if __name__ == '__main__':
     test_load_basic_info()
     test_bert_tune_info()
     test_gnn_info()
     test_load_io_info()
-    test_mlflow_info()
     test_train_info()
     test_rgcn_info()
     test_rgat_info()

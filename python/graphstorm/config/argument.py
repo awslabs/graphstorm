@@ -19,6 +19,8 @@ from .config import BUILTIN_TASK_LINK_PREDICTION
 from .config import BUILTIN_TASK_MLM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
+from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+from .config import SUPPORTED_TASK_TRACKER
 
 from .config import SUPPORTED_TASKS
 
@@ -60,7 +62,7 @@ def get_argument_parser():
     parser = _add_gnn_args(parser)
     parser = _add_input_args(parser)
     parser = _add_output_args(parser)
-    parser = _add_mlflow_args(parser)
+    parser = _add_task_tracker(parser)
     parser = _add_hyperparam_args(parser)
     parser = _add_rgcn_args(parser)
     parser = _add_rgat_args(parser)
@@ -555,52 +557,32 @@ class GSConfig:
         # By default, use -1, means do not auto save models
         return -1
 
-    ###################### mlflow related ######################
+    ###################### Task tracker related ######################
     @property
-    def mlflow_tracker(self):
-        """ Whether mlflow is used
-
-            If mlflow_exp_name is specified, mlflow is used
-        """
-        return hasattr(self, '_mlflow_exp_name')
-
-    @property
-    def mlflow_exp_name(self):
-        """ Name of mlflow experiment
+    def task_tracker(self):
+        """ Get the type of task_tracker
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_mlflow_exp_name"), \
-            "mlflow_exp_name must be provided"
-        return self._mlflow_exp_name
+        if hasattr(self, "_task_tracker"):
+            assert self._task_tracker in SUPPORTED_TASK_TRACKER
+            return self._task_tracker
+
+        # By default, use SageMaker task tracker
+        # It works as normal print
+        return GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 
     @property
-    def mlflow_run_name(self):
-        """ Name of mlflow run
+    def log_report_frequency(self):
+        """ Get print/log frequency in number of iterations
         """
-        assert self.mlflow_exp_name is not None, \
-            "Mlflow experiment name must be provided"
-
         # pylint: disable=no-member
-        if hasattr(self, "_mlflow_run_name"):
-            return self._mlflow_run_name
-        # default run name
-        return 'test-lmgnn-run'
+        if hasattr(self, "_log_report_frequency"):
+            assert self._log_report_frequency > 0, \
+                "log_report_frequency should be larger than 0"
+            return self._log_report_frequency
 
-    @property
-    def mlflow_report_frequency(self):
-        """ Mlflow report frequency,
-            e.g., report every mlflow_report_frequency iterations
-        """
-        assert self.mlflow_exp_name is not None, \
-            "Mlflow experiment name must be provided"
-
-        # pylint: disable=no-member
-        if hasattr(self, "_mlflow_report_frequency"):
-            assert self._mlflow_report_frequency > 0, \
-                "mlflow report frequency must larger than 0"
-            return self._mlflow_report_frequency
-        # By default, set it to 100.
-        return 100
+        # By default, use 1000
+        return 1000
 
     ###################### Model training related ######################
     @property
@@ -1446,16 +1428,13 @@ def _add_output_args(parser):
 
     return parser
 
-def _add_mlflow_args(parser):
-    group = parser.add_argument_group(title="mlflow")
-    # mlflow argument
-    group.add_argument("--mlflow-exp-name", type=str, default=argparse.SUPPRESS,
-            help='The name of the experiment for mlflow')
-    group.add_argument('--mlflow-run-name', type=str, default=argparse.SUPPRESS,
-            help='The name of the run for mlflow')
-    group.add_argument('--mlflow-report-frequency', type=int, default=argparse.SUPPRESS,
-            help='Mlflow report frequency')
-
+def _add_task_tracker(parser):
+    group = parser.add_argument_group(title="task_tracker")
+    group.add_argument("--task-tracker", type=str, default=argparse.SUPPRESS,
+            help=f'Task tracker name. Now we only support {GRAPHSTORM_SAGEMAKER_TASK_TRACKER}')
+    group.add_argument("--log-report-frequency", type=int, default=argparse.SUPPRESS,
+            help="Task running log report frequency. "
+                 "In training, every log_report_frequency, the task states are reported")
     return parser
 
 def _add_hyperparam_args(parser):

@@ -5,6 +5,7 @@ from ..model import GSgnnLPLocalUniformNegDataLoader
 from ..model import GSgnnLinkPredictionModel
 from ..model import GSgnnMrrLPEvaluator
 from .gsgnn_trainer import GSgnnTrainer
+from ..tracker import get_task_tracker_class
 
 from ..model.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from ..model.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -118,16 +119,22 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             raise Exception('Unknown negative sampler')
 
         model_class, eval_class = get_model_class(config)
-        lp_model = model_class(g, config, self.bert_model)
-        lp_model.init_gsgnn_model(True)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:
             self.evaluator = eval_class(g, config, train_data)
+            eval_metrics = self.evaluator.metric
+        else:
+            eval_metrics = [] # empty list, no evaluator no evaluation metrics
+        tracker_class = get_task_tracker_class(config.task_tracker)
+        task_tracker = tracker_class(config, g.rank(), eval_metrics)
+
+        lp_model = model_class(g, config, self.bert_model, task_tracker)
+        lp_model.init_gsgnn_model(True)
 
         lp_model.register_evaluator(self.evaluator)
-        if lp_model.tracker is not None:
-            self.evaluator.setup_tracker(lp_model.tracker)
+        if lp_model.task_tracker is not None:
+            self.evaluator.setup_task_tracker(lp_model.task_tracker)
         lp_model.fit(dataloader)
 
     @property

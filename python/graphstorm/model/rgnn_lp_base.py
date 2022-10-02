@@ -24,11 +24,14 @@ class GSgnnLinkPredictionModel(GSgnnBase):
         The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
+    task_tracker: GSTaskTrackerAbc
+        Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     """
-    def __init__(self, g, config, bert_model, train_task=True):
-        super(GSgnnLinkPredictionModel, self).__init__(g, config, bert_model, train_task)
+    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
+        super(GSgnnLinkPredictionModel, self).__init__(
+            g, config, bert_model, task_tracker, train_task)
         self._g = g
 
         # train specific configs
@@ -65,7 +68,6 @@ class GSgnnLinkPredictionModel(GSgnnBase):
             'use_self_loop': self.use_self_loop,
         }
         # logging all the params of this experiment
-        self.log_params(self.__dict__)
         self.log_params(config.__dict__)
         self.alpha_l2norm = config.alpha_l2norm
 

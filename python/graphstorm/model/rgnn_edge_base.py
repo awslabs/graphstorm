@@ -23,11 +23,14 @@ class GSgnnEdgeModel(GSgnnBase):
         The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
+    task_tracker: GSTaskTrackerAbc
+        Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     """
-    def __init__(self, g, config, bert_model, train_task=True):
-        super(GSgnnEdgeModel, self).__init__(g, config, bert_model, train_task)
+    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
+        super(GSgnnEdgeModel, self).__init__(
+            g, config, bert_model, task_tracker, train_task)
 
         self.bert_hidden_size = {ntype: bm.config.hidden_size for ntype, bm in bert_model.items()}
         # TODO needs to be extended to multiple
@@ -44,7 +47,6 @@ class GSgnnEdgeModel(GSgnnBase):
                 self._eval_fanout = modify_fanout_for_target_etype(
                     g=g, fanout=self.eval_fanout, target_etypes=target_etypes)
 
-        self.log_params(self.__dict__)
         self.log_params(config.__dict__)
         self.alpha_l2norm = config.alpha_l2norm
 
@@ -107,7 +109,7 @@ class GSgnnEdgeModel(GSgnnBase):
                 val_node_embeddings_dst = \
                     node_embeddings[target_dst_ntype][val_src_dst_pairs[target_etype][1]]
                 for i, (val_idx) in enumerate(dataloader):
-                    self.log_param("Dummy", "Keep alive", report_step=i)
+                    self.keep_alive(report_step=i)
                     if i % 10 == 0:
                         print(f"Decoder val batch number {i}")
                     val_preds_list.append(
@@ -127,7 +129,7 @@ class GSgnnEdgeModel(GSgnnBase):
                 test_node_embeddings_src = node_embeddings[target_src_ntype][test_src_dst_pairs[target_etype][0]]
                 test_node_embeddings_dst = node_embeddings[target_dst_ntype][test_src_dst_pairs[target_etype][1]]
                 for i, (test_idx) in enumerate(dataloader):
-                    self.log_param("Dummy", "Keep alive", report_step=i)
+                    self.keep_alive(report_step=i)
                     if i % 10 == 0:
                         print(("Decoder test batch number {}".format(i)))
                     test_preds_list.append(self.predict(decoder.module.predict(test_node_embeddings_src[test_idx].to(device),

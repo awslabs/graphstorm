@@ -19,11 +19,14 @@ class GSgnnEdgeClassificationModel(GSgnnEdgeModel):
         The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
+    task_tracker: GSTaskTrackerAbc
+        Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     """
-    def __init__(self, g, config, bert_model, train_task=True):
-        super(GSgnnEdgeClassificationModel, self).__init__(g, config, bert_model, train_task)
+    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
+        super(GSgnnEdgeClassificationModel, self).__init__(
+            g, config, bert_model, task_tracker, train_task)
 
         # edge classification related
         self.num_classes = config.num_classes

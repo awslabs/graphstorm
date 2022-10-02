@@ -53,7 +53,7 @@ class RelGraphConvEncoder(nn.Module):
     def forward(self, h=None, blocks=None):
         pass
 
-    def dist_inference(self, g, batch_size, device, num_workers, x, eval_fanout_list, client=None, mlflow_report_frequency=100):
+    def dist_inference(self, g, batch_size, device, num_workers, x, eval_fanout_list, task_tracker=None):
         """Distributed inference of final representation over all node types.
         ***NOTE***
         For node classification, the model is trained to predict on only one node type's
@@ -86,8 +86,8 @@ class RelGraphConvEncoder(nn.Module):
                                                                 num_workers=num_workers)
 
                 for iter_l, (input_nodes, output_nodes, blocks) in enumerate(tqdm.tqdm(dataloader)):
-                    if client is not None and iter_l % mlflow_report_frequency == 0:
-                        client.log_param("Dummy", "Keep alive")
+                    if task_tracker is not None:
+                        task_tracker.keep_alive(report_step=iter_l)
                     block = blocks[0].to(device)
 
                     if type(input_nodes) is not dict:

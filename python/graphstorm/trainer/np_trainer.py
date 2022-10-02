@@ -9,6 +9,7 @@ from ..model import GSgnnAccEvaluator
 from ..model import GSgnnNodeRegressModel
 from ..model import GSgnnRegressionEvaluator
 from .gsgnn_trainer import GSgnnTrainer
+from ..tracker import get_task_tracker_class
 
 def get_model_class(config):
     if config.task_type == "node_regression":
@@ -76,14 +77,20 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
                                          self.device)
 
         model_cls, eval_class = get_model_class(config)
-        nc_model = model_cls(g, self.config, self.bert_model)
-        nc_model.init_gsgnn_model(True)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:
             self.evaluator = eval_class(g, config, train_data)
+            eval_metrics = self.evaluator.metric
+        else:
+            eval_metrics = [] # empty list, no evaluator no evaluation metrics
+        tracker_class = get_task_tracker_class(config.task_tracker)
+        task_tracker = tracker_class(config, g.rank(), eval_metrics)
+
+        nc_model = model_cls(g, self.config, self.bert_model, task_tracker)
+        nc_model.init_gsgnn_model(True)
 
         nc_model.register_evaluator(self.evaluator)
-        if nc_model.tracker is not None:
-            self.evaluator.setup_tracker(nc_model.tracker)
+        if nc_model.task_tracker is not None:
+            self.evaluator.setup_task_tracker(nc_model.task_tracker)
         nc_model.fit(dataloader, train_data)

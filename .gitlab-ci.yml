@@ -33,6 +33,7 @@ lint:
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgat_encoder.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgcn_encoder.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/inference/
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/tracker/
 
 e2e:
   stage: end2end

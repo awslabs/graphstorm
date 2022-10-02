@@ -30,11 +30,14 @@ class GSgnnNodeModel(GSgnnBase):
         The graphstorm GNN configuration
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
+    task_tracker: GSTaskTrackerAbc
+        Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     """
-    def __init__(self, g, config, bert_model, train_task=True):
-        super(GSgnnNodeModel, self).__init__(g, config, bert_model, train_task)
+    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
+        super(GSgnnNodeModel, self).__init__(
+            g, config, bert_model, task_tracker, train_task)
         self.predict_ntype = config.predict_ntype
         self.save_predict_path = config.save_predict_path
         self.bert_hidden_size = {ntype: bm.config.hidden_size for ntype, bm in bert_model.items()}

@@ -4,6 +4,7 @@ from ..model import GSgnnLinkPredictionModel
 from ..model import GSgnnMrrLPEvaluator
 from ..model.dataloading import GSgnnLinkPredictionInferData
 from .graphstorm_infer import GSInfer
+from ..tracker import get_task_tracker_class
 
 def get_model_class(config): # pylint: disable=unused-argument
     """ Get model class
@@ -76,16 +77,23 @@ class GSgnnLinkPredictionInfer(GSInfer):
         infer_data = GSgnnLinkPredictionInferData(g, part_book, self.eval_etypes)
 
         model_class, eval_class = get_model_class(config)
-        lp_model = model_class(g, config, self.bert_model, train_task=False)
-        lp_model.init_gsgnn_model(train=False)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:
             self.evaluator = eval_class(g, config, infer_data)
+            eval_metrics = self.evaluator.metric
+        else:
+            eval_metrics = [] # empty list, no evaluator no evaluation metrics
+        tracker_class = get_task_tracker_class(config.task_tracker)
+        task_tracker = tracker_class(config, g.rank(), eval_metrics)
+
+        lp_model = model_class(g, config, self.bert_model,
+            task_tracker, train_task=False)
+        lp_model.init_gsgnn_model(train=False)
 
         lp_model.register_evaluator(self.evaluator)
-        if lp_model.tracker is not None:
-            self.evaluator.setup_tracker(lp_model.tracker)
+        if lp_model.task_tracker is not None:
+            self.evaluator.setup_task_tracker(lp_model.task_tracker)
 
         lp_model.infer()
 

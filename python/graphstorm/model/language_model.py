@@ -106,47 +106,68 @@ class LanguageModelBase():
         self._n_hidden = config.n_hidden if self.pretrain_emb_layer else 0
 
         # tracker info
-        self.tracker = None
-        if g.rank() == 0 and config.mlflow_tracker:
-            self._mlflow_exp_name = config.mlflow_exp_name
-            self._mlflow_run_name = config.mlflow_run_name
-            self._mlflow_report_frequency = config.mlflow_report_frequency
-            self.init_tracker() # Init self.tracker
-        else:
-            self._mlflow_report_frequency = 0 # dummy, as self.tracker is None, it is not used
-
-    def init_tracker(self):
-        """Initialize mlflow tracker"""
-        # we need this identifier to allow logging for all processes and avoid
-        # writting in the same location that is not allowed
-
-        from m5_job_tracker import tracking_config
-        tracking_id = ":proc_nbr:"+str(self.g.rank())
-        tracking_config.set_tensorboard_config(
-            {"log_dir": self._mlflow_exp_name+tracking_id}
-        )
-        mlflow_config = {"experiment_name": self._mlflow_exp_name+tracking_id,
-                         "run_name": self._mlflow_run_name+tracking_id}
-
-        tracking_config.set_mlflow_config(mlflow_config)
-        self.tracker = tracking_config.get_or_create_client()
-        print("Tracker run info : " + str(self.tracker.get_run_info()))
-        # Log host level metadata
-        self.tracker.log_current_host_attributes()
+        self._task_tracker = None
 
     def log_metric(self, metric_name, metric_value, step, report_step=None):
-        if self.tracker is not None:
-            if report_step is None or (report_step is not None and report_step % self.mlflow_report_frequency == 0):
-                self.tracker.log_metric(metric_name, metric_value, step)
+        """ log evaluation metric
 
-    def log_param(self, param_name, param_value, report_step=None):
-        if self.tracker is not None:
-            if report_step is None or (report_step is not None and report_step % self.mlflow_report_frequency == 0):
-                self.tracker.log_param(param_name, param_value)
+        Parameters
+        ----------
+        metric_name: str
+            Evaluation metric name
+        metric_value: float
+            Value
+        step: int
+            Current step
+        report_step: int
+            Deprecated. Will be deleted later
+            TODO(xiangsx): delete report_step
+        """
+        if self.task_tracker is None:
+            return
+
+        self.task_tracker.log_metric(metric_name, metric_value, step)
+
+    def keep_alive(self, report_step):
+        """ Dummy log, send keep alive message to mlflow server
+
+        Parameters
+        ----------
+        report_step: int
+            Current exec step. Used to decide whether send dummy info
+        """
+        if self.task_tracker is None:
+            return
+
+        self.task_tracker.keep_alive(report_step)
+
+    def log_param(self, param_name, param_value):
+        """ Log parameters
+
+        Parameters
+        ----------
+        param_name: str
+            Parameter name
+        param_value:
+            Parameter value
+        """
+        if self.task_tracker is None:
+            return
+
+        self.task_tracker.log_param(param_name, param_value)
 
     def log_params(self, param_value):
-        if self.tracker is not None:
-            self.tracker.log_params(param_value)
+        """ Log a dict of parameters
+
+        Parameter
+        ---------
+        param_value: dict
+            Key value pairs of parameters to log
+        """
+        if self.task_tracker is None:
+            return
+
+        self.task_tracker.log_params(param_value)
 
     def setup_cuda(self, local_rank):
         # setup cuda env
@@ -246,8 +267,8 @@ class LanguageModelBase():
         assert len(self.bert_static) > 0 # Only bert_static is used in this case
         embs = extract_bert_embeddings_dist(g, self.bert_infer_bs, self.bert_train, self.bert_static,
                                             self.bert_hidden_size, dev=device,
-                                            verbose=self.verbose, client=self.tracker,
-                                            mlflow_report_frequency=self.mlflow_report_frequency)
+                                            verbose=self.verbose,
+                                            task_tracker=self.tracker)
         for ntype, emb in embs.items():
             bert_emb_cache[ntype] = EmbedCache(emb)
         return bert_emb_cache
@@ -399,7 +420,7 @@ class LanguageModelBase():
             t = time.time()
             with th.no_grad():
                 for i, (text_id) in enumerate(dataloader):
-                    self.log_param("Dummy", "Keep alive", report_step=i)
+                    self.keep_alive(report_step=i)
                     input_nodes = {target_ntype: text_id}
                     train_mask = {target_ntype: th.full((text_id.shape[0],), False, dtype=th.bool)}
                     inputs, _ = prepare_batch_input(g,
@@ -475,6 +496,22 @@ class LanguageModelBase():
     @property
     def g(self):
         return self._g
+
+    @property
+    def task_tracker(self):
+        """ Task tracker to log train/inference progress
+        """
+        return self._task_tracker
+
+    def register_task_tracker(self, task_tracker):
+        """ Set task tracker
+
+        Parameter
+        ---------
+        task_tracker: GSTaskTrackerAbc
+            task tracker
+        """
+        self._task_tracker = task_tracker
 
     @property
     def restore_bert_model_path(self):
@@ -592,10 +629,6 @@ class LanguageModelBase():
     @property
     def eval_batch_size(self):
         return self._eval_batch_size
-
-    @property
-    def mlflow_report_frequency(self):
-        return self._mlflow_report_frequency
 
 class LanguageModelMLM(LanguageModelBase):
     """Language model using Masked-Language Modeling for fine-tuning
@@ -725,7 +758,7 @@ class LanguageModelMLM(LanguageModelBase):
         nb_eval_steps = 0
 
         for iter_l, input_nodes in enumerate(tqdm.tqdm(loader)):
-            self.log_param("Dummy", "Keep alive", report_step=iter_l)
+            self.keep_alive(report_step=iter_l)
 
             inputs = g.nodes[self.tune_ntype].data[TOKEN_IDX][input_nodes]
             inputs, labels = self._mask_tokens(inputs)
