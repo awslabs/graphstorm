@@ -6,6 +6,7 @@ from ..model import GSgnnEdgeRegressModel
 from ..model import GSgnnRegressionEvaluator
 from .graphstorm_infer import GSInfer
 from ..model.dataloading import GSgnnEdgePredictionInferData
+from ..tracker import get_task_tracker_class
 
 def get_model_class(config):
     """ Get model class
@@ -80,16 +81,23 @@ class GSgnnEdgePredictInfer(GSInfer):
         infer_data = GSgnnEdgePredictionInferData(g,
             part_book, self.infer_etype, config.label_field)
         model_class, eval_class = get_model_class(config)
-        ep_model = model_class(g, config, self.bert_model, train_task=False)
-        ep_model.init_gsgnn_model(train=False)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:
             self.evaluator = eval_class(g, config, infer_data)
+            eval_metrics = self.evaluator.metric
+        else:
+            eval_metrics = [] # empty list, no evaluator no evaluation metrics
+        tracker_class = get_task_tracker_class(config.task_tracker)
+        task_tracker = tracker_class(config, g.rank(), eval_metrics)
+
+        ep_model = model_class(g, config, self.bert_model,
+            task_tracker, train_task=False)
+        ep_model.init_gsgnn_model(train=False)
 
         ep_model.register_evaluator(self.evaluator)
-        if ep_model.tracker is not None:
-            self.evaluator.setup_tracker(ep_model.tracker)
+        if ep_model.task_tracker is not None:
+            self.evaluator.setup_task_tracker(ep_model.task_tracker)
         ep_model.infer(infer_data)
 
     @property

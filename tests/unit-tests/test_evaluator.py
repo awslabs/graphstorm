@@ -51,8 +51,6 @@ def test_mrr_lp_evaluator():
             "num_negative_edges_eval": 10,
             "use_dot_product": True,
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "enable_early_stop": False,
         })
@@ -69,7 +67,6 @@ def test_mrr_lp_evaluator():
         lp.num_negative_edges_eval = 10
         lp.use_dot_product = True
         lp.tracker = None
-        lp.mlflow_report_frequency = 0
 
         val_idxs = {
             ("src", "rel_0", "dst"): th.tensor([1,2,3]),
@@ -205,8 +202,6 @@ def test_mrr_lp_evaluator():
             "num_negative_edges_eval": 10,
             "use_dot_product": True,
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": True,
             "enable_early_stop": False,
         })
@@ -221,8 +216,6 @@ def test_mrr_lp_evaluator():
             "num_negative_edges_eval": 10,
             "use_dot_product": True,
             "evaluation_frequency": 0,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "enable_early_stop": False,
         })
@@ -252,8 +245,6 @@ def test_acc_evaluator():
     config = Dummy({
             "multilabel": False,
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "eval_metric": ["accuracy"],
             "enable_early_stop": False,
@@ -315,8 +306,6 @@ def test_acc_evaluator():
     config2 = Dummy({
             "multilabel": False,
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": True,
             "eval_metric": ["accuracy"],
             "enable_early_stop": False,
@@ -331,8 +320,6 @@ def test_acc_evaluator():
     config3 = Dummy({
             "multilabel": False,
             "evaluation_frequency": 0,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "eval_metric": ["accuracy"],
             "enable_early_stop": False,
@@ -361,8 +348,6 @@ def test_regression_evaluator():
 
     config = Dummy({
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "eval_metric": ["rmse"],
             "enable_early_stop": False,
@@ -424,8 +409,6 @@ def test_regression_evaluator():
 
     config2 = Dummy({
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": True,
             "eval_metric": ["rmse"],
             "enable_early_stop": False,
@@ -438,8 +421,6 @@ def test_regression_evaluator():
 
     config3 = Dummy({
             "evaluation_frequency": 0,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "eval_metric": ["rmse"],
             "enable_early_stop": False,
@@ -565,8 +546,6 @@ def test_early_stop_lp_evaluator():
             "num_negative_edges_eval": 10,
             "use_dot_product": True,
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "enable_early_stop": False,
         })
@@ -580,8 +559,6 @@ def test_early_stop_lp_evaluator():
             "num_negative_edges_eval": 10,
             "use_dot_product": True,
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "enable_early_stop": True,
             "call_to_consider_early_stop": 5,
@@ -606,8 +583,6 @@ def test_early_stop_lp_evaluator():
             "num_negative_edges_eval": 10,
             "use_dot_product": True,
             "evaluation_frequency": 100,
-            "mlflow_tracker": None,
-            "mlflow_report_frequency": None,
             "no_validation": False,
             "enable_early_stop": True,
             "call_to_consider_early_stop": 5,

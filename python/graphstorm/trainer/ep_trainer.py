@@ -5,6 +5,7 @@ from ..model import GSgnnAccEvaluator
 from ..model import GSgnnEdgeRegressModel
 from ..model import GSgnnRegressionEvaluator
 from .gsgnn_trainer import GSgnnTrainer
+from ..tracker import get_task_tracker_class
 
 def get_model_class(config):
     if config.task_type == "edge_regression":
@@ -91,17 +92,22 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                                                    self.device)
 
         model_class, eval_class = get_model_class(config)
-        ep_model = model_class(g, config, self.bert_model)
-        ep_model.init_gsgnn_model()
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:
             self.evaluator = eval_class(g, config, train_data)
+            eval_metrics = self.evaluator.metric
+        else:
+            eval_metrics = [] # empty list, no evaluator no evaluation metrics
+        tracker_class = get_task_tracker_class(config.task_tracker)
+        task_tracker = tracker_class(config, g.rank(), eval_metrics)
+
+        ep_model = model_class(g, config, self.bert_model, task_tracker)
+        ep_model.init_gsgnn_model(True)
 
         ep_model.register_evaluator(self.evaluator)
-        if ep_model.tracker is not None:
-            self.evaluator.setup_tracker(ep_model.tracker)
-
+        if ep_model.task_tracker is not None:
+            self.evaluator.setup_task_tracker(ep_model.task_tracker)
         ep_model.fit(dataloader, train_data)
 
     @property

@@ -6,6 +6,7 @@ from ..model import GSgnnNodeRegressModel
 from ..model import GSgnnRegressionEvaluator
 from .graphstorm_infer import GSInfer
 from ..model.dataloading import GSgnnNodeInferData
+from ..tracker import get_task_tracker_class
 
 def get_model_class(config): # pylint: disable=unused-argument
     """ Get model class
@@ -81,16 +82,23 @@ class GSgnnNodePredictInfer(GSInfer):
         infer_data = GSgnnNodeInferData(g, part_book, self.predict_ntype, config.label_field)
 
         model_class, eval_class = get_model_class(config)
-        np_model = model_class(g, config, self.bert_model, train_task=False)
-        np_model.init_gsgnn_model(train=False)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:
             self.evaluator = eval_class(g, config, infer_data)
+            eval_metrics = self.evaluator.metric
+        else:
+            eval_metrics = [] # empty list, no evaluator no evaluation metrics
+        tracker_class = get_task_tracker_class(config.task_tracker)
+        task_tracker = tracker_class(config, g.rank(), eval_metrics)
+
+        np_model = model_class(g, config, self.bert_model,
+            task_tracker, train_task=False)
+        np_model.init_gsgnn_model(train=False)
 
         np_model.register_evaluator(self.evaluator)
-        if np_model.tracker is not None:
-            self.evaluator.setup_tracker(np_model.tracker)
+        if np_model.task_tracker is not None:
+            self.evaluator.setup_task_tracker(np_model.task_tracker)
         np_model.infer(infer_data)
 
     @property

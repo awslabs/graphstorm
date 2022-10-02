@@ -91,7 +91,7 @@ class GSgnnInstanceEvaluator():
             self._early_stop_strategy = config.early_stop_strategy
             self._val_perf_list = []
 
-    def setup_tracker(self, client):
+    def setup_task_tracker(self, task_tracker):
         """ Setup evaluation tracker
 
             Parameters
@@ -99,7 +99,7 @@ class GSgnnInstanceEvaluator():
             client:
                 tracker client
         """
-        self.tracker = client
+        self.tracker = task_tracker
 
     @abc.abstractmethod
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
@@ -473,7 +473,7 @@ class GSgnnLPEvaluator():
             self._early_stop_strategy = config.early_stop_strategy
             self._val_perf_list = []
 
-    def setup_tracker(self, client):
+    def setup_task_tracker(self, client):
         """ Setup evaluation tracker
 
             Parameters
@@ -630,9 +630,6 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         self.test_idxs = data.test_idxs
         self.num_negative_edges_eval = config.num_negative_edges_eval
         self.use_dot_product = config.use_dot_product
-        # set mlflow_report_frequency only when mlflow_tracker is True
-        self.mlflow_report_frequency = \
-            config.mlflow_report_frequency if config.mlflow_tracker else 0
         self._metric = ["mrr"]
         assert len(self.metric) > 0, "At least one metric must be defined"
 
@@ -682,8 +679,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
                             device,
                             target_etype, val_idx,
                             num_negative_edges_eval=self.num_negative_edges_eval,
-                            client=self.tracker,
-                            mlflow_report_frequency=self.mlflow_report_frequency)
+                            task_tracker=self.tracker)
 
     def evaluate_on_idx(self, embeddings, decoder, device, val_idxs, eval_type=""):
         """ Compute mrr score on eval or test set

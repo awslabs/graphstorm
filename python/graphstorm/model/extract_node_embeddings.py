@@ -136,7 +136,7 @@ def prepare_batch_input(g, bert_trains, bert_statics, bert_hidden_size, input_no
     return emb, losses
 
 def extract_bert_embeddings_dist(g, batch_size, bert_train, bert_static, bert_hidden_size, dev, verbose=False,
-                                 client=None, mlflow_report_frequency=100):
+                                 task_tracker=None):
     """
     This function extracts the bert embeddings for all the text nodes in a distributed graph.
 
@@ -178,8 +178,8 @@ def extract_bert_embeddings_dist(g, batch_size, bert_train, bert_static, bert_hi
                                                         ntype=ntype, force_even=False)
                 node_list = th.split(infer_nodes, batch_size)
                 for iter_l, input_nodes in enumerate(node_list):
-                    if client is not None and iter_l % mlflow_report_frequency == 0:
-                        client.log_param("Dummy", "Keep alive")
+                    if task_tracker is not None:
+                        task_tracker.keep_alive(iter_l)
 
                     mask = th.full((input_nodes.shape[0],), False, dtype=th.bool)
                     text_embs, _ = extract_bert_embed(nid=input_nodes,
@@ -200,7 +200,7 @@ def extract_bert_embeddings_dist(g, batch_size, bert_train, bert_static, bert_hi
     return out_embs
 
 def extract_all_embeddings_dist(g, batch_size, embed_layer, bert_train, bert_static,
-    bert_hidden_size, dev, emb_cache=None, client=None, mlflow_report_frequency=100, feat_field='feat'):
+    bert_hidden_size, dev, emb_cache=None, task_tracker=None, feat_field='feat'):
     """
     This function extracts the embeddings for all the nodes in a distributed graph either from the BERT model
     or from the embedding layer.
@@ -248,8 +248,8 @@ def extract_all_embeddings_dist(g, batch_size, embed_layer, bert_train, bert_sta
             for iter_l, input_nodes in enumerate(node_list):
                 if iter_l % 10000 == 0:
                     print ("extract_all_embeddings_dist on {}: {} of {}".format(ntype, iter_l, len(node_list)))
-                if client is not None and iter_l % mlflow_report_frequency == 0:
-                    client.log_param("Dummy", "Keep alive")
+                if task_tracker is not None:
+                    task_tracker.keep_alive(iter_l)
 
                 train_mask = {ntype: th.full((input_nodes.shape[0],), False, dtype=th.bool)}
                 emb, _ = prepare_batch_input(g, bert_train, bert_static, bert_hidden_size, {ntype: input_nodes},

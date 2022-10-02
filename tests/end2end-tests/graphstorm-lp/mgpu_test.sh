@@ -25,9 +25,59 @@ error_and_exit () {
 }
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lp_huggingface.py --cf ml_lp.yaml --train-nodes 0 --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_lp_ml_dot/ --save-model-per-iter 0 --save-embeds-path /data/gsgnn_lp_ml_dot/emb/"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lp_huggingface.py --cf ml_lp.yaml --train-nodes 0 --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_lp_ml_dot/ --save-model-per-iter 0 --save-embeds-path /data/gsgnn_lp_ml_dot/emb/" | tee train_log.txt
 
 error_and_exit $?
+
+# check prints
+cnt=$(grep "save_embeds_path: /data/gsgnn_lp_ml_dot/emb/" train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_embeds_pathy"
+    exit -1
+fi
+
+cnt=$(grep "save_model_path: /data/gsgnn_lp_ml_dot/" train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_model_path"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test mrr" train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test mrr"
+    exit -1
+fi
+
+cnt=$(grep "| Test mrr" train_log.txt | wc -l)
+if test $cnt -lt $(1+$bst_cnt)
+then
+    echo "We use SageMaker task tracker, we should have Test mrr"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation mrr" train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation mrr"
+    exit -1
+fi
+
+cnt=$(grep "Validation mrr" train_log.txt | wc -l)
+if test $cnt -lt $(1+$bst_cnt)
+then
+    echo "We use SageMaker task tracker, we should have Validation mrr"
+    exit -1
+fi
+
+cnt=$(grep "Best Iteration" train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Iteration"
+    exit -1
+fi
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: true, save model"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lp_huggingface.py --cf ml_lp.yaml --train-nodes 0 --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_lp_ml_distmult/ --save-model-per-iter 0 --save-embeds-path /data/gsgnn_lp_ml_distmult/emb/ --use-dot-product False --train-etype user,rating,movie user,has-occupation,occupation"
@@ -37,24 +87,45 @@ error_and_exit $?
 echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/lp_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 lp_infer_huggingface.py --cf ml_lp_infer.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_lp_ml_dot/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_dot/-2/" | tee log.txt
 
-cnt=$(grep "Test mrr" log.txt | wc -l)
+error_and_exit $?
+
+cnt=$(grep "| Test mrr" log.txt | wc -l)
 if test $cnt -ne 1
 then
     echo "We do test, should have mrr"
     exit -1
 fi
 
-error_and_exit $?
+bst_cnt=$(grep "Best Test mrr" log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test mrr"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation mrr" log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation mrr"
+    exit -1
+fi
+
+cnt=$(grep "Validation mrr" log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Validation mrr"
+    exit -1
+fi
+
+cnt=$(grep "Best Iteration" log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Iteration"
+    exit -1
+fi
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: DistMult"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/lp_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 lp_infer_huggingface.py --cf ml_lp_infer.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_lp_ml_distmult/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult/-2/ --use-dot-product False --no-validation True --train-etype user,rating,movie user,has-occupation,occupation" | tee log2.txt
-
-cnt=$(grep "Test mrr" log2.txt | wc -l)
-if test $cnt -ne 0
-then
-    echo "We do not do test"
-    exit -1
-fi
 
 error_and_exit $?
 

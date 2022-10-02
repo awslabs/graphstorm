@@ -77,12 +77,15 @@ class GSgnnBase():
         Configurations
     bert_model: dict
         A dict of BERT models in a format of ntype -> bert_model
+    task_tracker: GSTaskTrackerAbc
+        Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     verbose: bool
         If True, more information is printed
     """
-    def __init__(self, g, config, bert_model, train_task=True, verbose=False):
+    def __init__(self, g, config, bert_model, task_tracker=None,
+        train_task=True, verbose=False):
         if verbose:
             print(config)
 
@@ -160,17 +163,7 @@ class GSgnnBase():
         self.bert_hidden_size = {}
 
         # tracker info
-        self.tracker = None
-        if g.rank() == 0 and config.mlflow_tracker:
-            # only rank 0 report to mlflow
-            self._mlflow_exp_name = config.mlflow_exp_name
-            self._mlflow_run_name = config.mlflow_run_name
-            self._mlflow_report_frequency = config.mlflow_report_frequency
-            self.init_tracker() # Init self.tracker
-            # log all config parameters
-            self.log_params(vars(config))
-        else:
-            self._mlflow_report_frequency = 0 # dummy, as self.tracker is None, it is not used
+        self._task_tracker = task_tracker
 
         # setup cuda env
         self.setup_cuda(config.local_rank)
@@ -200,106 +193,93 @@ class GSgnnBase():
         self._gnn_warmup_epochs = config.gnn_warmup_epochs
         assert self._batch_size > 0, "batch size must > 0."
 
-    def init_tracker(self):
-        """Initialize mlflow tracker"""
-        # we need this identifier to allow logging for all processes and avoid
-        # writting in the same location that is not allowed
-        from m5_job_tracker import tracking_config
-        tracking_id = ":proc_nbr:"+str(self.g.rank())
-        tracking_config.set_tensorboard_config(
-            {"log_dir": self._mlflow_exp_name+tracking_id}
-        )
-        mlflow_config = {"experiment_name": self._mlflow_exp_name+tracking_id,
-                         "run_name": self._mlflow_run_name+tracking_id}
-
-        tracking_config.set_mlflow_config(mlflow_config)
-        self.tracker = tracking_config.get_or_create_client()
-        print("Tracker run info : " + str(self.tracker.get_run_info()))
-        # Log host level metadata
-        self.tracker.log_current_host_attributes()
-
     def log_metric(self, metric_name, metric_value, step, report_step=None):
-        if self.tracker is not None:
-            if report_step is None or (report_step is not None and report_step % self.mlflow_report_frequency == 0):
-                self.tracker.log_metric(metric_name, metric_value, step)
+        """ log evaluation metric
 
-    def log_param(self, param_name, param_value, report_step=None):
-        if self.tracker is not None:
-            if report_step is None or (report_step is not None and report_step % self.mlflow_report_frequency == 0):
-                self.tracker.log_param(param_name, param_value)
+        Parameters
+        ----------
+        metric_name: str
+            Evaluation metric name
+        metric_value: float
+            Value
+        step: int
+            Current step
+        report_step: int
+            Deprecated. Will be deleted later
+            TODO(xiangsx): delete report_step
+        """
+        if self.task_tracker is None:
+            return
+
+        self.task_tracker.log_metric(metric_name, metric_value, step)
+
+    def keep_alive(self, report_step):
+        """ Dummy log, send keep alive message to mlflow server
+
+        Parameters
+        ----------
+        report_step: int
+            Current exec step. Used to decide whether send dummy info
+        """
+        if self.task_tracker is None:
+            return
+
+        self.task_tracker.keep_alive(report_step)
+
+    def log_param(self, param_name, param_value):
+        """ Log parameters
+
+        Parameters
+        ----------
+        param_name: str
+            Parameter name
+        param_value:
+            Parameter value
+        """
+        if self.task_tracker is None:
+            return
+
+        self.task_tracker.log_param(param_name, param_value)
 
     def log_params(self, param_value):
-        if self.tracker is not None:
-            self.tracker.log_params(param_value)
+        """ Log a dict of parameters
+
+        Parameter
+        ---------
+        param_value: dict
+            Key value pairs of parameters to log
+        """
+        if self.task_tracker is None:
+            return
+
+        self.task_tracker.log_params(param_value)
 
     def log_print_metrics(self, val_score, test_score, dur_eval, total_steps, train_score=None):
         """
         This function prints and logs all the metrics for evaluation
 
+        Parameters
+        ----------
+        train_score: dict
+            Training score
+        val_score: dict
+            Validation score
+        test_score: dict
+            Test score
+        dur_eval:
+            Total evaluation time
+        total_steps: int
+            The corresponding step/iteration
         """
-        for metric in self.evaluator.metric:
-            train_score_metric = train_score[metric] if train_score is not None else -1
-            val_score_metric = val_score[metric]
-            test_score_metric = test_score[metric]
-            best_val_score_metric = self.evaluator.best_val_score[metric]
-            best_test_score_metric = self.evaluator.best_test_score[metric]
-            best_iter_metric = self.evaluator.best_iter_num[metric]
-            # TODO ivasilei hide the complexity and modularize with a function inside the ClassificationMetric Class
-            if isinstance(val_score_metric, dict):
-                # this case happens when the results are per class as for example the per_class_f1_score metric
-                # in that case the val_score may be { 0:{recall: 0.7, precision: 0.4, f1-score:0.3 },
-                # 1:{recall: 0.1, precision: 0.2, f1-score:0.1 }, 2:{recall: 0.2, precision: 0.6, f1-score:0.4 } }
-                # we read the dictionary and update the metric correspondingly
-                for key in val_score_metric.keys():
-                    # the first hierarchy is the label type
-                    label_type = key
-                    metric_ = "Class_type_" + label_type
-                    val_score_metric_ = val_score_metric[label_type]
-                    test_score_metric_ = test_score_metric[label_type]
-                    best_val_score_metric_ = best_val_score_metric[label_type]
-                    best_test_score_metric_ = best_test_score_metric[label_type]
-                    if isinstance(val_score_metric_, dict):
-                        for key1 in val_score_metric_.keys():
-                            # the second hierarchy is the metric type
-                            sub_metric = key1
-                            metric__ = metric_ + "_sub_metric_" +sub_metric
-                            val_score_metric__ = val_score_metric_[sub_metric]
-                            test_score_metric__ = test_score_metric_[sub_metric]
-                            best_val_score_metric__ = best_val_score_metric_[sub_metric]
-                            best_test_score_metric__ = best_test_score_metric_[sub_metric]
+        if self.task_tracker is None:
+            return
 
-                            self.log_print_per_metric(metric__, train_score_metric, val_score_metric__,
-                                                      test_score_metric__, dur_eval, total_steps,
-                                                      best_val_score_metric__, best_test_score_metric__,
-                                                      best_iter_metric, train_score)
-                    else:
-                            self.log_print_per_metric(metric_, train_score_metric, val_score_metric_,
-                                                      test_score_metric_, dur_eval, total_steps, best_val_score_metric_,
-                                                      best_test_score_metric_, best_iter_metric, train_score)
-            else:
-                self.log_print_per_metric(metric, train_score_metric, val_score_metric, test_score_metric, dur_eval,
-                                          total_steps, best_val_score_metric, best_test_score_metric, best_iter_metric,
-                                          train_score)
-
-    def log_print_per_metric(self, metric, train_score_metric, val_score_metric, test_score_metric, dur_eval,
-                             total_steps, best_val_score_metric, best_test_score_metric, best_iter_metric, train_score):
-        """
-        This functions prints and logs for a specific metric.
-
-        """
-        print("Train {}: {:.4f}, Val {}: {:.4f}, Test {}: {:.4f}, Eval time: {:.4f}, Evaluation step: {:.4f}".format(
-            metric, train_score_metric, metric, val_score_metric, metric, test_score_metric, dur_eval, total_steps))
-        print("Best val {}: {:.4f}, Best test {}: {:.4f}, Best iter: {:.4f}".format(
-            metric, best_val_score_metric, metric, best_test_score_metric, best_iter_metric))
-        self.log_metric("Best val {}".format(metric), best_val_score_metric, total_steps)
-        self.log_metric("Best test {}".format(metric), best_test_score_metric, total_steps)
-        self.log_metric("Best iter {}".format(metric), best_iter_metric, total_steps)
-        self.log_metric("Val {}".format(metric), val_score_metric, total_steps)
-        self.log_metric("Test {}".format(metric), test_score_metric, total_steps)
-        if train_score is not None:
-            self.log_metric("Train {}".format(metric), train_score_metric, total_steps)
-
-        print()
+        best_val_score = self.evaluator.best_val_score
+        best_test_score = self.evaluator.best_test_score
+        best_iter_num = self.evaluator.best_iter_num
+        self.task_tracker.log_iter_metrics(train_score, val_score, test_score,
+            best_val_score, best_test_score, best_iter_num,
+            dur_eval, total_steps)
 
     def setup_cuda(self, local_rank):
         # setup cuda env
@@ -505,7 +485,7 @@ class GSgnnBase():
                 load_sparse_embeds(self.restore_model_path, self.embed_layer)
 
         if self.restore_optimizer_path is not None and train:
-            print('load GSgnn optimizer state from ', self.restore_model_path)
+            print('load GNN optimizer state from ', self.restore_model_path)
             load_opt_state(self.restore_model_path, self.optimizer, self.fine_tune_opt, self.emb_optimizer)
 
         if self.restore_model_encoder_path is not None:
@@ -578,8 +558,7 @@ class GSgnnBase():
         assert len(self.bert_static) > 0 # Only bert_static is used in this case
         embs = extract_bert_embeddings_dist(g, self.bert_infer_bs, self.bert_train, self.bert_static,
                                             self.bert_hidden_size, dev=device,
-                                            verbose=self.verbose, client=self.tracker,
-                                            mlflow_report_frequency=self.mlflow_report_frequency)
+                                            verbose=self.verbose, task_tracker=self.task_tracker)
         for ntype, emb in embs.items():
             bert_emb_cache[ntype] = EmbedCache(emb)
         return bert_emb_cache
@@ -651,8 +630,7 @@ class GSgnnBase():
                                                  fanout=self.eval_fanout,
                                                  eval_batch_size=self.eval_batch_size,
                                                  use_bert_embeddings_for_validation=False,
-                                                 client=self.tracker,
-                                                 mlflow_report_frequency=self.mlflow_report_frequency,
+                                                 task_tracker=self.task_tracker,
                                                  feat_field=self._feat_name)
         else:
             if g.rank() == 0:
@@ -668,8 +646,7 @@ class GSgnnBase():
                                             bert_infer_bs=self.bert_infer_bs,
                                             eval_fanout_list=self.eval_fanout,
                                             eval_batch_size=self.eval_batch_size,
-                                            client=self.tracker,
-                                            mlflow_report_frequency=self.mlflow_report_frequency,
+                                            task_tracker=self.task_tracker,
                                             feat_field=self._feat_name)
             if target_nidx is not None:
                 embeddings = {ntype: LazyDistTensor(embeddings[ntype], target_nidx[ntype]) for ntype in target_nidx.keys()}
@@ -722,8 +699,7 @@ class GSgnnBase():
                                              fanout=self.eval_fanout,
                                              eval_batch_size=self.eval_batch_size,
                                              use_bert_embeddings_for_validation=False,
-                                             client=self.tracker,
-                                             mlflow_report_frequency=self.mlflow_report_frequency,
+                                             task_tracker=self.task_tracker,
                                              feat_field=self._feat_name)
         if g.rank() == 0:
             print("Compute embeddings with mini-batch inference takes : {:.4f}".format(time.time()-t))
@@ -853,6 +829,22 @@ class GSgnnBase():
     @abc.abstractmethod
     def eval(self):
         pass
+
+    @property
+    def task_tracker(self):
+        """ Task tracker to log train/inference progress
+        """
+        return self._task_tracker
+
+    def register_task_tracker(self, task_tracker):
+        """ Set task tracker
+
+        Parameter
+        ---------
+        task_tracker: GSTaskTrackerAbc
+            task tracker
+        """
+        self._task_tracker = task_tracker
 
     @property
     def save_embeds_path(self):
@@ -1024,7 +1016,3 @@ class GSgnnBase():
     @property
     def use_node_embeddings(self):
         return self._use_node_embeddings
-
-    @property
-    def mlflow_report_frequency(self):
-        return self._mlflow_report_frequency
