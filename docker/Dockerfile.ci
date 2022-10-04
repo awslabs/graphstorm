@@ -1,0 +1,53 @@
+FROM nvidia/cuda:11.3.0-devel-ubuntu20.04
+ENV DEBIAN_FRONTEND=noninteractive
+ENV HOME=/root
+
+RUN apt-get update; \
+	    apt-get install -y --no-install-recommends build-essential python3-dev make g++ vim net-tools
+
+RUN apt-get install -y python3-pip git wget psmisc
+RUN apt-get install -y cmake
+
+# Install Pytorch
+RUN pip install torch --extra-index-url https://download.pytorch.org/whl/cu113
+
+# Install DGL
+RUN pip3 install dgl-cu113 -f https://data.dgl.ai/wheels/repo.html
+
+# Install related Python packages
+RUN pip3 install ogb scipy pyarrow boto3 sklearn transformers
+
+# Install M5 dependencies
+RUN apt-get install -y cython3 libicu-dev
+RUN pip3 install h5py psutil
+
+RUN apt-get install -y unzip
+
+# Install M5
+COPY M5Commons /root/M5Commons
+COPY M5Dataloaders /root/M5Dataloaders
+COPY M5DataServer /root/M5DataServer
+COPY M5Datasets /root/M5Datasets
+COPY M5JobTracker /root/M5JobTracker
+COPY M5Models /root/M5Models
+COPY M5Tokenizers /root/M5Tokenizers
+RUN pip3 install --user -e /root/M5Commons --no-use-pep517
+RUN pip3 install --user -e /root/M5Datasets --no-use-pep517
+RUN pip3 install --user -e /root/M5Models --no-use-pep517
+RUN pip3 install --user -e /root/M5Tokenizers --no-use-pep517
+RUN pip3 install --user -e /root/M5JobTracker --no-use-pep517
+RUN pip3 install --user -e /root/M5DataServer --no-use-pep517
+RUN pip3 install --user -e /root/M5Dataloaders --no-use-pep517
+
+# Download DGL source code
+RUN cd /root; git clone --recursive https://github.com/dmlc/dgl.git
+
+# Set up SSH
+RUN apt-get install -y openssh-client openssh-server
+ENV SSH_PORT=2222
+RUN cat /etc/ssh/sshd_config > /tmp/sshd_config && \
+    sed "0,/^#Port 22/s//Port ${SSH_PORT}/" /tmp/sshd_config > /etc/ssh/sshd_config
+ENV SSHDIR $HOME/.ssh
+RUN mkdir -p ${SSHDIR}
+RUN ssh-keygen -t rsa -f ${SSHDIR}/id_rsa -N ''
+RUN cp ${SSHDIR}/id_rsa.pub ${SSHDIR}/authorized_keys
