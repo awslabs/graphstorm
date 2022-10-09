@@ -12,7 +12,7 @@ Run data processing
 ```
 $ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
-$ python3 GS_HOME/python/graphstorm/data/ogbn_datasets.py --filepath paper100m-raw --savepath ./paper100m-processed-512/ --dataset ogbn-papers100M --bert_model_name "allenai/scibert_scivocab_uncased"
+$ python3 GS_HOME/tools/gen_ogbn_dataset.py --filepath paper100m-raw --savepath ./paper100m-processed-512/ --dataset ogbn-papers100M --bert_model_name "allenai/scibert_scivocab_uncased"
 ```
 
 Partition the graph

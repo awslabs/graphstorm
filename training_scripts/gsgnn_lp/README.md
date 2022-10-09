@@ -8,9 +8,8 @@ You need to create a pre-processed arxiv link prediction dataset before training
 $ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ cd $GS_HOME/training_scripts/gsgnn_lp
-$ aws s3 cp --recursive s3://search-m5-app-fsx-us-east-1-prod/FSxLustre20201016T182138Z/ivasilei/home/ogbn_text_graph_data/ogbn-arxiv/ ogbn-arxiv-raw/
-$ python3 $GS_HOME/python/graphstorm/data/ogbn_datasets.py --filepath ogbn-arxiv-raw/ --savepath ogb-arxiv/ --edge_pct 0.8
-$ python3 -u $GS_HOME/tools/partition_graph_lp.py --dataset ogbn-arxiv --filepath ogb-arxiv --num_parts 1 --num_trainers_per_machine 4 --output ogb_arxiv_train_val_1p_4t
+$ aws s3 cp --recursive s3://graphstorm-example/arxiv/ogbn-arxiv-raw/ ogbn-arxiv-raw/
+$ python3 python3 -u $GS_HOME/tools/partition_graph_lp.py --dataset ogbn-arxiv --filepath ogbn-arxiv-raw --num_parts 2 --num_trainers_per_machine 4 --output ogb_arxiv_train_val_2p_4t
 ```
 
 The output file is ogb_arxiv_train_val_1p_4t/. It contains a partitioned DGLGraph with a signle partition.
@@ -99,7 +98,7 @@ python3 $DGL_HOME/tools/launch.py \
 ## None-Bert Training
 Generate a graph data without g.nodes['node'].data['text_idx']
 ```
-$ python3 $GS_HOME/python/graphstorm/data/ogbn_datasets.py --filepath ogbn-arxiv-raw/ --savepath ogb-arxiv-origin/ --edge_pct 0.8 --retain_original_features True
+$ python3 $GS_HOME/tools/gen_ogbn_dataset.py --filepath ogbn-arxiv-raw/ --savepath ogb-arxiv-origin/ --edge_pct 0.8 --retain_original_features True
 $ python3 -u $GS_HOME/tools/partition_graph_lp.py --dataset ogbn-arxiv --filepath ogb-arxiv-origin/ --num_parts 1 --num_trainers_per_machine 4 --output ogb_arxiv_origin_1p_4t
 ```
 
