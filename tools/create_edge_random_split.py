@@ -3,8 +3,9 @@ import dgl
 import torch as th
 import argparse
 import time
-from graphstorm.data import QueryASINSemanticMatchDataset, OGBTextFeatDataset, MovieLens100kNCDataset, ConstructedGraphDataset
-
+from graphstorm.data import OGBTextFeatDataset
+from graphstorm.data import MovieLens100kNCDataset
+from graphstorm.data import ConstructedGraphDataset
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Create edge split graphs")

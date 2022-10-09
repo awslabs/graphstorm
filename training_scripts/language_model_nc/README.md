@@ -8,8 +8,8 @@ You need to create a pre-processed arxiv node classification dataset before trai
 $ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ cd $GS_HOME/training_scripts/language_model_nc
-$ aws s3 cp --recursive s3://search-m5-app-fsx-us-east-1-prod/FSxLustre20201016T182138Z/ivasilei/home/ogbn_text_graph_data/ogbn-arxiv/ ogbn-arxiv-raw/
-$ python3 $GS_HOME/python/graphstorm/data/ogbn_datasets.py --filepath ogbn-arxiv-raw/ --savepath ogbn-arxiv/ --bert_model_name "allenai/scibert_scivocab_uncased"
+$ aws s3 cp --recursive s3://graphstorm-example/arxiv/ogbn-arxiv-raw/ ogbn-arxiv-raw/
+$ python3 $GS_HOME/tools/gen_ogbn_dataset.py --filepath ogbn-arxiv-raw/ --savepath ogbn-arxiv/ --bert_model_name "allenai/scibert_scivocab_uncased"
 $ python3 -u $GS_HOME/tools/partition_graph.py --dataset ogbn-arxiv --filepath ogbn-arxiv/ --num_parts 1 --num_trainers_per_machine 4 --output ogb_arxiv_nc_train_val_1p_4t
 ```
 

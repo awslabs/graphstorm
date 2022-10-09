@@ -5,7 +5,6 @@ import torch as th
 import boto3
 import psutil
 import os
-import argparse
 
 from .dataset import GSgnnDataset
 
@@ -42,7 +41,7 @@ class OGBTextFeatDataset(GSgnnDataset):
         self.self_loop=self_loop
         self.max_sequence_length=max_sequence_length
         self.retain_original_features = retain_original_features
-        self.target_etype = "interacts"
+        self.target_etype = ["interacts"]
         self.edge_pct = edge_pct
         self.bert_model_name=bert_model_name
         if dataset == "ogbn-products":
@@ -215,23 +214,3 @@ class OGBTextFeatDataset(GSgnnDataset):
         The embeddings dictionary
         """
         raise NotImplementedError
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='query-asin')
-    parser.add_argument("--filepath", type=str, default=None)
-    parser.add_argument("--savepath", type=str, default=None)
-    parser.add_argument("--edge_pct", type=float, default=1)
-    parser.add_argument("--dataset",type=str,default="ogbn-arxiv")
-    parser.add_argument('--bert_model_name',type=str,default="bert-base-uncased")
-    parser.add_argument("--max_sequence_length", type=int, default=512)
-    parser.add_argument("--retain_original_features", type=lambda x: (str(x).lower() in ['true', '1']), default=False)
-    args = parser.parse_args()
-    # only for test
-    dataset = OGBTextFeatDataset(args.filepath,
-                                 edge_pct=args.edge_pct,
-                                 dataset=args.dataset,
-                                 bert_model_name=args.bert_model_name,
-                                 max_sequence_length=args.max_sequence_length,
-                                 retain_original_features=args.retain_original_features)
-    dataset.save_graph(args.savepath)

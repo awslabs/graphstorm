@@ -2,7 +2,7 @@ import dgl
 import torch as th
 import argparse
 import time
-from graphstorm.data import QueryASINSemanticMatchDataset, OGBTextFeatDataset
+from graphstorm.data import OGBTextFeatDataset
 from graphstorm.data import MovieLens100kNCDataset
 from graphstorm.data import ConstructedGraphDataset
 from graphstorm.data.utils import save_maps
@@ -43,9 +43,7 @@ if __name__ == '__main__':
     constructed_graph = False
 
     # load graph data
-    if args.dataset == 'query_asin_match':
-        dataset = QueryASINSemanticMatchDataset(args.filepath)
-    elif args.dataset == 'ogbn-arxiv':
+    if args.dataset == 'ogbn-arxiv':
         dataset = OGBTextFeatDataset(args.filepath, args.dataset)
     elif args.dataset == 'ogbn-products':
         dataset = OGBTextFeatDataset(args.filepath, args.dataset)
