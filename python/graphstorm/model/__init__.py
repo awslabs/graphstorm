@@ -9,6 +9,8 @@ from .dataloading import GSgnnLinkPredictionDataLoader
 from .dataloading import GSgnnEdgePredictionDataLoader
 from .dataloading import GSgnnLPJointNegDataLoader
 from .dataloading import GSgnnLPLocalUniformNegDataLoader
+from .dataloading import GSgnnAllEtypeLPJointNegDataLoader
+from .dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from .dataloading import GSgnnLinkPredictionTrainData
 from .dataloading import GSgnnEdgePredictionTrainData
 from .dataloading import GSgnnNodeDataLoader

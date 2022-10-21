@@ -2,6 +2,8 @@ from ..model import GSgnnLinkPredictionTrainData
 from ..model import GSgnnLinkPredictionDataLoader
 from ..model import GSgnnLPJointNegDataLoader
 from ..model import GSgnnLPLocalUniformNegDataLoader
+from ..model import GSgnnAllEtypeLPJointNegDataLoader
+from ..model import GSgnnAllEtypeLinkPredictionDataLoader
 from ..model import GSgnnLinkPredictionModel
 from ..model import GSgnnMrrLPEvaluator
 from .gsgnn_trainer import GSgnnTrainer
@@ -10,6 +12,8 @@ from ..tracker import get_task_tracker_class
 from ..model.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from ..model.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from ..model.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
+from ..model.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
+from ..model.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 
 def get_model_class(config):
     return GSgnnLinkPredictionModel, GSgnnMrrLPEvaluator
@@ -115,6 +119,26 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                                                           self.device,
                                                           self.exclude_training_targets,
                                                           self.reverse_edge_types_map)
+        elif self.negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
+            dataloader = GSgnnAllEtypeLinkPredictionDataLoader(g,
+                                                       train_data,
+                                                       self.fanout,
+                                                       self.n_layers,
+                                                       self.batch_size,
+                                                       self.num_negative_edges,
+                                                       self.device,
+                                                       self.exclude_training_targets,
+                                                       self.reverse_edge_types_map)
+        elif self.negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
+            dataloader = GSgnnAllEtypeLPJointNegDataLoader(g,
+                                                   train_data,
+                                                   self.fanout,
+                                                   self.n_layers,
+                                                   self.batch_size,
+                                                   self.num_negative_edges,
+                                                   self.device,
+                                                   self.exclude_training_targets,
+                                                   self.reverse_edge_types_map)
         else:
             raise Exception('Unknown negative sampler')
 
