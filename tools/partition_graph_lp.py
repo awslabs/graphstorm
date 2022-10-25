@@ -31,6 +31,10 @@ if __name__ == '__main__':
                            help='The output directory to store the partitioned results.')
     argparser.add_argument('--train_graph_only', action='store_true',
                            help='Only partition the training graph.')
+    argparser.add_argument('--retain_original_features',  type=lambda x: (str(x).lower() in ['true', '1']),
+                           default=False, help= "whether to use the original features or use the paper title or abstract"
+                                                "for the ogbn-arxiv dataset")
+    argparser.add_argument('--edge_pct', type=float, default=1.0, help='Percent of edges for training')
     argparser.add_argument('--retain_etypes', nargs='+', type=str, default=[],
         help="The list of canonical etype that will be retained before partitioning the graph. This might be"
              "helpfull to remove noise edges in this application for example "
@@ -44,9 +48,13 @@ if __name__ == '__main__':
 
     # load graph data
     if args.dataset == 'ogbn-arxiv':
-        dataset = OGBTextFeatDataset(args.filepath, args.dataset)
+        dataset = OGBTextFeatDataset(args.filepath, args.dataset,
+                                     edge_pct=args.edge_pct,
+                                     retain_original_features=args.retain_original_features)
     elif args.dataset == 'ogbn-products':
-        dataset = OGBTextFeatDataset(args.filepath, args.dataset)
+        dataset = OGBTextFeatDataset(args.filepath, args.dataset,
+                                     edge_pct=args.edge_pct,
+                                     retain_original_features=args.retain_original_features)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath)
     else:
@@ -58,6 +66,8 @@ if __name__ == '__main__':
     g = dataset[0]
     print(g)
     target_etype = dataset.target_etype if not constructed_graph else [tuple(predict_etype.split(',')) for predict_etype in args.predict_etypes.split(' ')]
+    if not isinstance(target_etype, list):
+        target_etype = [target_etype]
     retain_etypes = [tuple(retain_etype.split(',')) for retain_etype in args.retain_etypes]
 
     print('load {} takes {:.3f} seconds'.format(args.dataset, time.time() - start))
