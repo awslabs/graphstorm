@@ -91,22 +91,23 @@ class OGBTextFeatDataset(GSgnnDataset):
     def process(self):
         """ Process ogbn dataset
         """
-        # this file contains the text data each line corresponds to a node id
-        with open(os.path.join(self._raw_dir, "X.all.txt"), "r") as fin:
-            text_feats_list = fin.readlines()
-        print("|node_text_list={}".format(len(text_feats_list)))
-
-        # We tokenize the text before loading the ogbn graph into memory.
-        # This helps reduce the overhead of creating multiple worker processes
-        # during text tokenization. When a graph is large (e.g., papers100m),
-        # the overhead is not nigligiable.
-        self._raw_text_feat = {'node':text_feats_list}
-        text_feat = self.tokenzie_text(self.max_sequence_length,
-                                       bert_model_name=self.bert_model_name)
-
         data = DglNodePropPredDataset(name=self._dataset)
         print("Graph nodes ={}".format(data.graph[0].num_nodes()))
-        assert len(text_feats_list) == data.graph[0].num_nodes()
+
+        if not self.retain_original_features:
+            # this file contains the text data each line corresponds to a node id
+            with open(os.path.join(self._raw_dir, "X.all.txt"), "r") as fin:
+                text_feats_list = fin.readlines()
+            print("|node_text_list={}".format(len(text_feats_list)))
+            assert len(text_feats_list) == data.graph[0].num_nodes()
+
+            # We tokenize the text before loading the ogbn graph into memory.
+            # This helps reduce the overhead of creating multiple worker processes
+            # during text tokenization. When a graph is large (e.g., papers100m),
+            # the overhead is not nigligiable.
+            self._raw_text_feat = {'node':text_feats_list}
+            text_feat = self.tokenzie_text(self.max_sequence_length,
+                                           bert_model_name=self.bert_model_name)
 
         splitted_idx = data.get_idx_split()
         train_idx, val_idx, test_idx = splitted_idx["train"], splitted_idx["valid"], splitted_idx["test"]
