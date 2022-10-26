@@ -34,6 +34,8 @@ lint:
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgcn_encoder.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/inference/
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/tracker/
+    - pylint --rcfile=./tests/lint/pylintrc ./sagemaker/launch_train.py
+    - pylint --rcfile=./tests/lint/pylintrc ./sagemaker/scripts/*.py
 
 e2e:
   stage: end2end

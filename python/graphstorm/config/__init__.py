@@ -8,3 +8,4 @@ from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATOIN
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import BUILTIN_TASK_LINK_PREDICTION
+from .config import SUPPORTED_TASKS
