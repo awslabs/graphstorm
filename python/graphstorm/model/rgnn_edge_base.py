@@ -409,7 +409,7 @@ class GSgnnEdgeModel(GSgnnBase):
                             test_node_embeddings_dst[test_idx].to(device)))
                         test_preds_list.append(pred)
 
-                    test_labels_list.append(test_labels[test_idx].to(device))
+                        test_labels_list.append(test_labels[test_idx].to(device))
                 test_preds = th.cat(test_preds_list)
                 test_labels = th.cat(test_labels_list)
             th.distributed.barrier()

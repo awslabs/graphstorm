@@ -2,7 +2,7 @@
 Preparing movielens dataset for edge regression. Movie nodes use movie title as text feature and user nodes are featureless.
 
 ```
-$ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
+$ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
 $ unzip ml-100k.zip
