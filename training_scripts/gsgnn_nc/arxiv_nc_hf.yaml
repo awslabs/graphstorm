@@ -8,9 +8,9 @@ lm_model:
       gradient_checkpoint: true
 gsf:
   basic:
-    model_encoder_type: gnn
+    model_encoder_type: rgcn
     graph_name: ogbn-arxiv
-    backend: nccl
+    backend: gloo
     num_gpus: 4
     ip_config: ip_list.txt
     part_config: ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json
