@@ -6,7 +6,7 @@ You can follow training_scripts/gsgnn_er/README 'Movielens edge regression' sect
 You can follow the following commands to build a movielens edge regression dataset and train a fresh model:
 
 ```
-$ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
+$ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
 $ unzip ml-100k.zip

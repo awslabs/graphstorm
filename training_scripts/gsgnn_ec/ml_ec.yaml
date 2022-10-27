@@ -1,0 +1,63 @@
+---
+version: 1.0
+lm_model:
+  bert_models: # bert model(s) definition, one bert model for each node type having text data
+    -
+      node_type: movie
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+gsf:
+  basic:
+    graph_name: movie-lens-100k
+    backend: gloo
+    num_gpus: 4
+    ip_config: ip_list.txt
+    model_encoder_type: rgcn
+    part_config: movielen_100k_ec_2p_4t/movie-lens-100k.json
+    verbose: false
+    use_bert_cache: false
+    refresh_cache: false
+    gnn_warmup_epochs: 0
+    mixed_precision: false
+    no_validation: false
+    mp_opt_level: O2
+    train_nodes: 0
+    debug: false
+    evaluation_frequency: 1000
+  gnn:
+    fanout: "4"
+    n_layers: 1
+    n_hidden: 128
+    mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embeds_path: null
+    save_model_per_iters: 1000
+  hyperparam:
+    dropout: 0.
+    lr: 0.001
+    bert_tune_lr: 0.0001
+    n_epochs: 2
+    batch_size: 64
+    eval_batch_size: 1024
+    bert_infer_bs: 128
+    wd_l2norm: 0
+  rgcn:
+    n_bases: -1
+    use_self_loop: true
+    use_dot_product: true
+    self_loop_init: false
+    sparse_lr: 1e-2
+    use_node_embeddings: false
+  edge_classification:
+    target_etype:
+      - "user,rating,movie"
+    reverse_edge_types_map:
+      - "user,rating,rating-rev,movie"
+    label_field: "rate"
+    multilabel: false
+    num_classes: 6
+    num_decoder_basis: 32
+    exclude_training_targets: false

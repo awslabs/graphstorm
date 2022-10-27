@@ -5,7 +5,7 @@ Arxiv node classification example serves as the simplest GSGNN example. It shows
 You need to create a pre-processed arxiv node classification dataset before training. Following are the example CMDs to create such a dataset:
 
 ```
-$ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
+$ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ cd $GS_HOME/training_scripts/language_model_lp
 $ aws s3 cp --recursive s3://graphstorm-example/arxiv/ogbn-arxiv-raw/ ogbn-arxiv-raw/

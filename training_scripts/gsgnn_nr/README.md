@@ -1,7 +1,7 @@
 # Movielens node regression
 Preparing movielens dataset for node regression. Case 1: Movie nodes use movie title as text feature and user nodes are featureless.
 ```
-$ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
+$ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
 $ unzip ml-100k.zip
@@ -34,7 +34,7 @@ Yelp dataset has multiple node types and edges. Here we perform node regression 
 You need to create a pre-processed the Yelp dataset before training. Following are the example CMDs to create such a dataset:
 
 ```
-$ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
+$ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ cd $GS_HOME/training_scripts/gsgnn_nc
 $ aws s3 cp --recursive s3://search-m5-app-fsx-us-east-1-prod/FSxLustre20201016T182138Z/dzzhen/home/data/yelp_origin .

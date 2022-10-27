@@ -5,7 +5,7 @@ Arxiv link prediction example serves as the simplest GSGNN example. It shows how
 You need to create a pre-processed arxiv link prediction dataset before training. Following are the example CMDs to create such a dataset:
 
 ```
-$ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
+$ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ cd $GS_HOME/training_scripts/gsgnn_lp
 $ aws s3 cp --recursive s3://graphstorm-example/arxiv/ogbn-arxiv-raw/ ogbn-arxiv-raw/
@@ -117,7 +117,7 @@ $ python3 $DGL_HOME/tools/launch.py \
 
 Preparing movielens dataset for link prediction. Movie nodes use movie title as text feature and user nodes are featureless.
 ```
-$ GS_HOME=/fsx-dev/xiangsx/home/workspace/graph-storm
+$ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
 $ unzip ml-100k.zip

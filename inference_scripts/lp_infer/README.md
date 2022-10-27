@@ -5,7 +5,7 @@ You can follow training_scripts/gsgnn_lp/README 'Movielens link prediction' sect
 
 You can follow the following commands to train a fresh model:
 ```
-$ GS_HOME=/graphstorm
+$ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
 $ unzip ml-100k.zip
