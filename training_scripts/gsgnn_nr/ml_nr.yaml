@@ -8,6 +8,7 @@ lm_model:
       gradient_checkpoint: true
 gsf:
   basic:
+    model_encoder_type: rgcn
     graph_name: movie-lens-100k
     backend: gloo
     num_gpus: 4
