@@ -113,7 +113,7 @@ class DistGraphEmbed(nn.Module):
                     continue
                 emb = input[ntype] @ self.input_projs[ntype]
                 if self.use_node_embeddings:
-                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype])
+                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype]).to(emb.device)
                     concat_emb=th.cat((emb, node_emb),dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
             else: # nodes do not have input features

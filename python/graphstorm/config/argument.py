@@ -659,9 +659,7 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_node_embeddings"):
-            #assert self._use_node_embeddings in [True, False]
-            assert self._use_node_embeddings is False, \
-                "Combine trainable node embedding with node feature is not supported now"
+            assert self._use_node_embeddings in [True, False]
             return self._use_node_embeddings
         # By default do not use extra node embedding
         # It will make the model transductive

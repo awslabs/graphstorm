@@ -8,12 +8,12 @@ lm_model:
       gradient_checkpoint: true
 gsf:
   basic:
-    model_encoder_type: gnn
+    model_encoder_type: rgcn
     graph_name: ogbn-arxiv
     backend: nccl
     num_gpus: 4
     ip_config: ip_list.txt
-    part_config: ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json
+    part_config: /data/ogbn-arxiv-1p/ogbn-arxiv.json
     verbose: false
     use_bert_cache: false
     refresh_cache: false
@@ -24,22 +24,22 @@ gsf:
     train_nodes: 10
     debug: false
   gnn:
-    fanout: "4"
-    n_layers: 1
+    fanout: "20,15"
+    n_layers: 2
     n_hidden: 128
-    mini_batch_infer: true
+    mini_batch_infer: false
   input:
     restore_model_path: null
   output:
-    save_model_path: ./models/ogb_arxiv/train_val/ogb_arxiv_hf_train_val_1p_4t_model
+    save_model_path: null
     save_embeds_path: null
     save_model_per_iters: 1000
   hyperparam:
-    dropout: 0.
+    dropout: 0.5
     lr: 0.001
     bert_tune_lr: 0.0001
-    n_epochs: 3
-    batch_size: 128
+    n_epochs: 10
+    batch_size: 1024
     eval_batch_size: 1024
     bert_infer_bs: 128
     wd_l2norm: 0
