@@ -547,7 +547,7 @@ def test_train_info():
         check_failure(config, "eval_batch_size")
         check_failure(config, "sparse_lr")
         check_failure(config, "bert_tune_lr")
-        check_failure(config, "use_node_embeddings")
+        assert config.use_node_embeddings == True
         check_failure(config, "bert_infer_bs")
         check_failure(config, "use_self_loop")
         check_failure(config, "self_loop_init")

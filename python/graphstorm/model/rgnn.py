@@ -109,7 +109,7 @@ class GSgnnBase():
         # we should set the minibatch to True in the LM case since we do not have any benefit for full graph inference
         self._mini_batch_infer = config.mini_batch_infer if self.model_encoder_type in BUILTIN_GNN_ENCODER else True
         # disable combining node embedding with bert embeding
-        self._use_node_embeddings = False # config.use_node_embeddings
+        self._use_node_embeddings = config.use_node_embeddings
         self._feat_name = config.feat_name
 
         # computation related
