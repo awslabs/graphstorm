@@ -1,11 +1,11 @@
 """ Infer wrapper for node classification and regression
 """
 from ..model import GSgnnNodeClassModel
-from ..model import GSgnnAccEvaluator
+from ..eval import GSgnnAccEvaluator
 from ..model import GSgnnNodeRegressModel
-from ..model import GSgnnRegressionEvaluator
+from ..eval import GSgnnRegressionEvaluator
 from .graphstorm_infer import GSInfer
-from ..model.dataloading import GSgnnNodeInferData
+from ..dataloading import GSgnnNodeInferData
 from ..tracker import get_task_tracker_class
 
 def get_model_class(config): # pylint: disable=unused-argument

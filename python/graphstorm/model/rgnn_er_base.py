@@ -5,7 +5,7 @@ from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 
 from .rgnn_edge_base import GSgnnEdgeModel
-from .lp_decoder import DenseBiDecoder, MLPEdgeDecoder
+from .edge_decoder import DenseBiDecoder, MLPEdgeDecoder
 
 class GSgnnEdgeRegressModel(GSgnnEdgeModel):
     """ RGNN edge regression model

@@ -28,7 +28,7 @@ from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
 from ..eval import SUPPORTED_LINK_PREDICTION_METRICS
 
-from ..model.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
+from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 
 __all__ = [
     "get_argument_parser",

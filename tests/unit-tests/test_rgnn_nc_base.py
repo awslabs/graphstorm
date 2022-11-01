@@ -16,7 +16,7 @@ import pytest
 import torch as th
 from unittest.mock import patch, MagicMock
 
-from graphstorm.model.evaluator import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.model.rgnn_nc_base import GSgnnNodeClassModel
 from graphstorm.model.rgnn_node_base import GSgnnNodeModel
 

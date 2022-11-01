@@ -9,7 +9,7 @@ import dgl
 
 from .rgnn import GSgnnBase
 
-from .utils import modify_fanout_for_target_etype
+from ..dataloading.utils import modify_fanout_for_target_etype
 from .utils import save_embeddings as save_node_embeddings
 
 class GSgnnEdgeModel(GSgnnBase):

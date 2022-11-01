@@ -17,7 +17,7 @@ import torch as th
 from unittest.mock import patch, MagicMock
 
 from graphstorm.model.rgnn_edge_base import GSgnnEdgeModel
-from graphstorm.model.evaluator import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.model.rgnn_ec_base import GSgnnEdgeClassificationModel
 
 from util import Dummy

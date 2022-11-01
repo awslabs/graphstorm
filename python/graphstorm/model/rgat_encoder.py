@@ -5,7 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 
-from .rgnn_base import RelGraphConvEncoder
+from .rgnn_encoder_base import RelGraphConvEncoder
 
 class RelationalAttLayer(nn.Module):
     r"""Relational graph attention layer.

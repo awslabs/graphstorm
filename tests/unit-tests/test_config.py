@@ -7,8 +7,8 @@ from argparse import Namespace
 from graphstorm.config import GSConfig
 from graphstorm.config.config import BUILTIN_LP_LOSS_CROSS_ENTROPY
 from graphstorm.config.config import BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
-from graphstorm.model.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.model.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
+from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 
 def check_failure(config, field):

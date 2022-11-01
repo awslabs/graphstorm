@@ -7,11 +7,11 @@ import operator
 import torch as th
 import dgl
 
-from graphstorm.model.evaluator import GSgnnMrrLPEvaluator
-from graphstorm.model.evaluator import GSgnnAccEvaluator
-from graphstorm.model.evaluator import GSgnnRegressionEvaluator
-from graphstorm.model.evaluator import early_stop_avg_increase_judge
-from graphstorm.model.evaluator import early_stop_cons_increase_judge
+from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnRegressionEvaluator
+from graphstorm.eval.evaluator import early_stop_avg_increase_judge
+from graphstorm.eval.evaluator import early_stop_cons_increase_judge
 from graphstorm.config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from graphstorm.config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 

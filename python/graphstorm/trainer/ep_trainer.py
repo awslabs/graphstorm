@@ -1,9 +1,9 @@
-from ..model import GSgnnEdgePredictionTrainData
-from ..model import GSgnnEdgePredictionDataLoader
+from ..dataloading import GSgnnEdgePredictionTrainData
+from ..dataloading import GSgnnEdgePredictionDataLoader
 from ..model import GSgnnEdgeClassificationModel
-from ..model import GSgnnAccEvaluator
+from ..eval import GSgnnAccEvaluator
 from ..model import GSgnnEdgeRegressModel
-from ..model import GSgnnRegressionEvaluator
+from ..eval import GSgnnRegressionEvaluator
 from .gsgnn_trainer import GSgnnTrainer
 from ..tracker import get_task_tracker_class
 
