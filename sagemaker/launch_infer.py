@@ -1,8 +1,10 @@
 """ Launch SageMaker training task
 """
+from email.policy import default
 import os
+import sagemaker
+from sagemaker.pytorch.estimator import PyTorch
 import argparse
-
 import boto3 # pylint: disable=import-error
 
 from graphstorm.config import SUPPORTED_TASKS
@@ -14,6 +16,8 @@ INSTANCE_TYPE = "ml.g4dn.12xlarge"
 
 def run_job(input_args, image, unknowargs):
     """ Run job using SageMaker estimator.PyTorch
+
+        We use SageMaker training task to run offline inference.
 
         TODO: We may need to simplify the argument list. We can use a config object.
 
@@ -31,17 +35,23 @@ def run_job(input_args, image, unknowargs):
     instance_type = input_args.instance_type # SageMaker instance type
     instance_count = input_args.instance_count # Number of infernece instances
     region = input_args.region # AWS region
-    entry_point = input_args.entry_point # GraphStorm training entry_point
-    task_type = input_args.task_type # Training task type
-    graph_name = input_args.graph_name # Training graph name
+    entry_point = input_args.entry_point # GraphStorm inference entry_point
+    task_type = input_args.task_type # Inference task type
+    graph_name = input_args.graph_name # Inference graph name
     graph_data_s3 = input_args.graph_data_s3 # S3 location storing partitioned graph data
-    train_yaml_s3 = input_args.train_yaml_s3 # S3 location storing the yaml file
-    train_yaml_name = input_args.train_yaml_name # Yaml file name
+    infer_yaml_s3 = input_args.infer_yaml_s3 # S3 location storing the yaml file
+    infer_yaml_name = input_args.infer_yaml_name # Yaml file name
+    emb_s3_path = input_args.emb_s3_path # S3 location to save node embeddings
     enable_bert = input_args.enable_bert # Whether enable bert contraining
-    model_artifact_s3 = input_args.model_artifact_s3 # Where to store model artifacts
+    model_artifact_s3 = input_args.model_artifact_s3 # S3 location of saved model artifacts
+    model_sub_path = input_args.model_sub_path # Relative path to the trained
+                                               # model under <model_artifact_s3>
 
     boto_session = boto3.session.Session(region_name=region)
     sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
+    # need to skip s3://
+    assert model_artifact_s3.startswith('s3://'), \
+        "Saved model artifact should be stored in S3"
     sess = sagemaker.session.Session(boto_session=boto_session,
         sagemaker_client=sagemaker_client)
 
@@ -52,15 +62,18 @@ def run_job(input_args, image, unknowargs):
     params = {"task-type": task_type,
               "graph-name": graph_name,
               "graph-data-s3": graph_data_s3,
-              "train-yaml-s3": train_yaml_s3,
-              "train-yaml-name": train_yaml_name,
+              "infer-yaml-s3": infer_yaml_s3,
+              "infer-yaml-name": infer_yaml_name,
+              "emb-s3-path": emb_s3_path,
+              "model-artifact-s3": model_artifact_s3,
+              "model-sub-path": model_sub_path,
               "enable-bert": enable_bert}
+    print(unknowargs)
     for i in range(len(unknowargs)//2):
         # trim --
         params[unknowargs[i*2][2:]] = unknowargs[i*2+1]
 
-    print(f"Parameters {params}")
-    print(f"GraphStorm Parameters {unknowargs}")
+    print(params)
 
     est = PyTorch(
         entry_point=os.path.basename(entry_point),
@@ -69,28 +82,25 @@ def run_job(input_args, image, unknowargs):
         role=role,
         instance_count=instance_count,
         instance_type=instance_type,
-        output_path=model_artifact_s3,
         py_version="py3",
         base_job_name=prefix,
         hyperparameters=params,
         sagemaker_session=sess,
         tags=[{"Key":"GraphStorm", "Value":"beta"},
-              {"Key":"GraphStorm_Task", "Value":"Training"}],
+              {"Key":"GraphStorm_Task", "Value":"Inference"}],
     )
 
-    est.fit({"train": train_yaml_s3}, job_name=sm_task_name, wait=True)
+    est.fit(inputs={"train": infer_yaml_s3}, job_name=sm_task_name, wait=True)
 
 def parse_args():
-    """ Add arguments
-    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--version-tag", type=str,
         default="sagemaker_v3",
-        help="Training image tag")
-    parser.add_argument("--training-ecr-repository", type=str,
+        help="Inferece image tag")
+    parser.add_argument("--inference-ecr-repository", type=str,
         default="graphlytics-pytorch-training-dev",
-        help="ECR repository")
+        help="ECR repository.")
     parser.add_argument("--account-id", type=str,
         help="AWS account number")
     parser.add_argument("--role", type=str,
@@ -105,26 +115,32 @@ def parse_args():
         default="us-east-1",
         help="Region")
     parser.add_argument("--entry-point", type=str,
-        default="graphstorm/sagemaker/scripts/sagemaker_train.py",
-        help="PATH-TO graphstorm/sagemaker/scripts/sagemaker_train.py")
+        default="graphstorm/sagemaker/scripts/sagemaker_infer.py",
+        help="PATH-TO graphstorm/sagemaker/scripts/sagemaker_infer.py")
     parser.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
 
     # task specific
     parser.add_argument("--graph-name", type=str, help="Graph name")
     parser.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input training graph")
+        help="S3 location of input inference graph")
     parser.add_argument("--task-type", type=str,
         help=f"Task type in {SUPPORTED_TASKS}")
-    parser.add_argument("--train-yaml-s3", type=str,
-        help="S3 location of training yaml file. "
+    parser.add_argument("--infer-yaml-s3", type=str,
+        help="S3 location of inference yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--train-yaml-name", type=str,
+    parser.add_argument("--infer-yaml-name", type=str,
         help="Training yaml config file name")
     parser.add_argument("--enable-bert", type=bool, default=False,
         help="Whether enable cotraining Bert with GNN")
-    parser.add_argument("--model-artifact-s3", type=str, default=None,
-        help="S3 bucket to save model artifacts")
+    parser.add_argument("--emb-s3-path", type=str,
+        help="S3 location to save node embeddings")
+    parser.add_argument("--model-artifact-s3", type=str,
+        help="S3 bucket to load the saved model artifacts")
+    parser.add_argument("--model-sub-path", type=str, default=None,
+        help="Relative path to the trained model under <model_artifact_s3>."
+             "There can be multiple model checkpoints under"
+             "<model_artifact_s3>, this argument is used to choose one.")
 
     return parser
 
@@ -133,7 +149,6 @@ if __name__ == "__main__":
     args, unknownargs = arg_parser.parse_known_args()
     print(args)
 
-    train_image = f"{args.account_id}.dkr.ecr.{args.region}.amazonaws.com/" \
-        f"{args.training_ecr_repository}:{args.version_tag}"
+    infer_image = f"{args.account_id}.dkr.ecr.{args.region}.amazonaws.com/{args.inference_ecr_repository}:{args.version_tag}"
 
-    run_job(args, train_image, unknownargs)
+    run_job(args, infer_image, unknownargs)

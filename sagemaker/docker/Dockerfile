@@ -336,6 +336,8 @@ RUN cat /etc/ssh/sshd_config > /tmp/sshd_config && \
 
 # /opt/ml and all subdirectories are utilized by SageMaker, we use the /code subdirectory to store our user code.
 COPY graphstorm /opt/ml/code/graphstorm/
+COPY graphstorm/sagemaker/scripts/utils.py /opt/ml/code/
+COPY graphstorm/sagemaker/scripts/sagemaker_infer.py /opt/ml/code/
 COPY graphstorm/sagemaker/scripts/sagemaker_train.py /opt/ml/code/
 
 # this environment variable is used by the SageMaker PyTorch container to determine our user code directory.
