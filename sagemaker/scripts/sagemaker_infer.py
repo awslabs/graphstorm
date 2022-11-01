@@ -15,6 +15,7 @@ import sys
 import queue
 
 import boto3
+
 from graphstorm.config.config import SUPPORTED_TASKS
 from graphstorm.config.config import BUILTIN_TASK_NODE_CLASSIFICATION
 from graphstorm.config.config import BUILTIN_TASK_NODE_REGRESSION
@@ -25,8 +26,8 @@ from graphstorm.config.config import BUILTIN_TASK_LINK_PREDICTION
 import utils
 import sagemaker
 
-def launch_train_task(task_type, num_gpus, graph_config,
-    save_model_path, ip_list, enable_bert,
+def launch_infer_task(task_type, num_gpus, graph_config,
+    load_model_path, save_emb_path, ip_list, enable_bert,
     yaml_path, extra_args, state_q):
     """ Launch SageMaker training task
 
@@ -40,8 +41,10 @@ def launch_train_task(task_type, num_gpus, graph_config,
         Number of gpus per instance
     graph_config: str
         Where does the graph partition config reside.
-    save_model_path: str
-        Output path to save models
+    load_model_path: str
+        Where to load graph model.
+    save_emb_path: str
+        Output path to save inference result and node embeddings.
     ip_list: str
         Where does the ip list reside.
     enable_bert: bool
@@ -52,28 +55,16 @@ def launch_train_task(task_type, num_gpus, graph_config,
         Training args
     state_q: queue.Queue()
         A queue used to return execution result (success or failure)
-
-    Return
-    ------
-    Thread: training task thread
     """
-    if task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
-        workspace = "/graph-storm/training_scripts/gsgnn_nc"
-        cmd = "gsgnn_nc_huggingface.py" if enable_bert else "gsgnn_pure_gnn_nc.py"
-    elif task_type == BUILTIN_TASK_NODE_REGRESSION:
-        workspace = "/graph-storm/training_scripts/gsgnn_nr"
-        assert enable_bert is True, "gsgnn_pure_gnn_nr.py needs to be supported"
-        cmd = "gsgnn_nr_huggingface.py" if enable_bert else "gsgnn_pure_gnn_nr.py"
-    elif task_type == BUILTIN_TASK_EDGE_CLASSIFICATOIN:
-        workspace = "/graph-storm/training_scripts/gsgnn_ec"
-        cmd = "gsgnn_ec_huggingface.py" if enable_bert else "gsgnn_pure_gnn_ec.py"
-    elif task_type == BUILTIN_TASK_EDGE_REGRESSION:
-        workspace = "/graph-storm/training_scripts/gsgnn_er"
-        assert enable_bert is True, "gsgnn_pure_gnn_er.py needs to be supported"
-        cmd = "gsgnn_er_huggingface.py" if enable_bert else "gsgnn_pure_gnn_er.py"
+    if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+        workspace = "/graph-storm/inference_scripts/np_infer"
+        cmd = "np_infer_huggingface.py" if enable_bert else "np_infer_gnn.py"
+    elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATOIN, BUILTIN_TASK_EDGE_REGRESSION]:
+        workspace = "/graph-storm/inference_scripts/ep_infer"
+        cmd = "ep_infer_huggingface.py" if enable_bert else "ep_infer_gnn.py"
     elif task_type == BUILTIN_TASK_LINK_PREDICTION:
-        workspace = "/graph-storm/training_scripts/gsgnn_lp"
-        cmd = "gsgnn_lp_huggingface.py" if enable_bert else "gsgnn_pure_gnn_lp.py"
+        workspace = "/graph-storm/inference_scripts/lp_infer"
+        cmd = "lp_infer_huggingface.py" if enable_bert else "lp_infer_gnn.py"
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
@@ -88,7 +79,8 @@ def launch_train_task(task_type, num_gpus, graph_config,
         f"--ip_config {ip_list} " \
         "--ssh_port 22 " \
         f"'python3 {cmd} --cf {yaml_path} --ip-config {ip_list} " \
-        f"--part-config {graph_config} --save-model-path {save_model_path} {extra_args}'"
+        f"--part-config {graph_config} --restore-model-path {load_model_path} " \
+        f"--save-embeds-path {save_emb_path} {extra_args}'"
 
     def run(launch_cmd, state_q):
         try:
@@ -107,26 +99,36 @@ def launch_train_task(task_type, num_gpus, graph_config,
     return thread
 
 def parse_train_args():
-    """ Add arguments for model training
+    """ Add arguments for model offline inference
     """
     parser = argparse.ArgumentParser(description='gs sagemaker train pipeline')
 
     parser.add_argument("--task_type", type=str,
         help=f"task type, builtin task type includes: {SUPPORTED_TASKS}")
 
-    # distributed training
+    # disrributed training
     parser.add_argument("--graph-name", type=str, help="Graph name")
     parser.add_argument("--graph-data-s3", type=str,
         help="S3 location of input training graph")
+    parser.add_argument("--model-path-s3", type=str, default=None,
+        help="S3 location of a trained model. If None, use SageMaker default path")
+    parser.add_argument("--emb-s3-path", type=str,
+        help="S3 location to save node embeddings")
     parser.add_argument("--task-type", type=str,
         help=f"Task type in {SUPPORTED_TASKS}")
-    parser.add_argument("--train-yaml-s3", type=str,
+    parser.add_argument("--infer-yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--train-yaml-name", type=str,
+    parser.add_argument("--infer-yaml-name", type=str,
         help="Training yaml config file name")
     parser.add_argument("--enable-bert", type=bool, default=False,
         help="Whether enable cotraining Bert with GNN")
+    parser.add_argument("--model-artifact-s3", type=str,
+        help="S3 bucket to load the saved model artifacts")
+    parser.add_argument("--model-sub-path", type=str, default=None,
+        help="Relative path to the trained model under <model_artifact_s3>."
+             "There can be multiple model checkpoints under"
+             "<model_artifact_s3>, this argument is used to choose one.")
 
     return parser
 
@@ -143,8 +145,10 @@ def main():
         "SageMaker trainer should have the data path in os.environ."
     data_path = str(os.environ['SM_CHANNEL_TRAIN'])
 
-    output_path = "/opt/ml/model/"
-    save_model_path = os.path.join(output_path, "model_checkpoint")
+    assert 'SM_MODEL_DIR' in os.environ, \
+        "SageMaker trainer should have the model dir in os.environ."
+    model_path = str(os.environ['SM_MODEL_DIR'])
+    output_path = '/opt/ml/checkpoints'
 
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
@@ -202,16 +206,27 @@ def main():
     graph_name = args.graph_name
     graph_data_s3 = args.graph_data_s3
     task_type = args.task_type
-    train_yaml_s3 = args.train_yaml_s3
-    train_yaml_name = args.train_yaml_name
+    infer_yaml_s3 = args.infer_yaml_s3
+    infer_yaml_name = args.infer_yaml_name
+    # remove tailing /
+    emb_s3_path = args.emb_s3_path.rstrip('/')
     enable_bert = args.enable_bert
+    model_artifact_s3 = args.model_artifact_s3
+    model_sub_path = args.model_sub_path
 
+    ### Download Partitioned graph data
     boto_session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
-    yaml_path = utils.download_yaml(train_yaml_s3, train_yaml_name,
+
+    yaml_path = utils.download_yaml(infer_yaml_s3, infer_yaml_name,
+        data_path, sagemaker_session)
+    # Download Saved model
+    model_path = utils.download_model(model_artifact_s3, model_sub_path,
         data_path, sagemaker_session)
     graph_config_path = utils.download_graph(graph_data_s3, graph_name,
         host_rank, data_path, sagemaker_session)
+
+    emb_path = os.path.join(output_path, "embs")
 
     err_code = 0
     if host_rank == 0:
@@ -225,10 +240,11 @@ def main():
         try:
             # launch distributed training here
             state_q = queue.Queue()
-            train_task = launch_train_task(task_type,
+            train_task = launch_infer_task(task_type,
                                         num_gpus,
                                         graph_config_path,
-                                        save_model_path,
+                                        model_path,
+                                        emb_path,
                                         ip_list_path,
                                         enable_bert,
                                         yaml_path,
@@ -239,12 +255,19 @@ def main():
         except RuntimeError as e:
             print(e)
             err_code = -1
+
         utils.terminate_workers(client_list, world_size, task_end)
         print("Master End")
+        utils.upload_embs(emb_s3_path, emb_path, sagemaker_session)
+        # clean embs, so SageMaker does not need to upload embs again
+        utils.remove_embs(emb_path)
     else:
         # Block util training finished
         # Listen to end command
         utils.wait_for_exit(sock)
+        utils.upload_embs(emb_s3_path, emb_path, sagemaker_session)
+        # clean embs, so SageMaker does not need to upload embs again
+        utils.remove_embs(emb_path)
         print("Worker End")
 
     sock.close()
