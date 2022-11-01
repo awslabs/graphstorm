@@ -204,7 +204,7 @@ class MovieLens100kNCDataset(GSgnnDataset):
             reader = csv.reader(csvfile, delimiter='\t')
 
             for line in reader:
-                rel = ('user', str(line[2]), 'movie')
+                rel = ('user', f'score-{str(line[2])}', 'movie')
                 if rel not in heads:
                     heads[rel] = []
                     tails[rel] = []
@@ -215,7 +215,7 @@ class MovieLens100kNCDataset(GSgnnDataset):
             reader = csv.reader(csvfile, delimiter='\t')
 
             for line in reader:
-                rel = ('user', str(line[2]), 'movie')
+                rel = ('user', f'score-{str(line[2])}', 'movie')
                 heads[rel].append(unid_map[line[0]])
                 tails[rel].append(inid_map[line[1]])
 
@@ -283,28 +283,28 @@ class MovieLens100kNCDataset(GSgnnDataset):
         # edge_pct has to be between 0.2 and 1 since we will use by default 0.1 for validation and 0.1 for testing as
         # the smallest possible.
         assert self.edge_pct <= 1 and  self.edge_pct >= 0.2
-        int_edges = g.number_of_edges("1")
+        int_edges = g.number_of_edges("score-1")
         if self.edge_pct == 1:
-            g.edges["1"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
-            g.edges["rev-1"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
+            g.edges["score-1"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
+            g.edges["rev-score-1"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
         else:
             # the validation pct is 0.1
             val_pct = 0.1
             train_pct = self.edge_pct - val_pct
             # the test is 1 - the rest
-            g.edges["1"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-1"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["1"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-1"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["1"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-1"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["score-1"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rev-score-1"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["score-1"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rev-score-1"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["score-1"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rev-score-1"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
 
-            g.edges["1"].data['train_mask'][: int(int_edges*train_pct)] = True
-            g.edges["rev-1"].data['train_mask'][: int(int_edges * train_pct)] = True
-            g.edges["1"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
-            g.edges["rev-1"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
-            g.edges["1"].data['test_mask'][int(int_edges*self.edge_pct):] = True
-            g.edges["rev-1"].data['test_mask'][int(int_edges*self.edge_pct):] = True
+            g.edges["score-1"].data['train_mask'][: int(int_edges*train_pct)] = True
+            g.edges["rev-score-1"].data['train_mask'][: int(int_edges * train_pct)] = True
+            g.edges["score-1"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
+            g.edges["rev-score-1"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
+            g.edges["score-1"].data['test_mask'][int(int_edges*self.edge_pct):] = True
+            g.edges["rev-score-1"].data['test_mask'][int(int_edges*self.edge_pct):] = True
         print(g)
 
         self._g = g
