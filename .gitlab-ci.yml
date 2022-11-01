@@ -25,13 +25,15 @@ lint:
     - python3 -m pip install --upgrade prospector pip
     - FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/config/
-    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/evaluator.py
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/eval/evaluator.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/utils.py
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/dataloading/utils.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgnn_ec_base.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgnn_er_base.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgat_encoder.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/rgcn_encoder.py
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/node_decoder.py
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/inference/
     - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/tracker/
     - pylint --rcfile=./tests/lint/pylintrc ./sagemaker/launch_train.py

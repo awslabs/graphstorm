@@ -5,7 +5,7 @@ import numpy as np
 import torch.nn as nn
 import dgl
 
-from .utils import calc_distmult_pos_score, calc_dot_pos_score
+from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score
 
 class DenseBiDecoder(nn.Module):
     r"""Dense bi-linear decoder.

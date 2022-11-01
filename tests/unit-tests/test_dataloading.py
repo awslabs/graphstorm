@@ -6,8 +6,8 @@ import torch as th
 import pytest
 from data_utils import generate_dummy_dist_graph
 
-from graphstorm.model.dataloading import GSgnnLinkPredictionTrainData
-from graphstorm.model.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
+from graphstorm.dataloading import GSgnnLinkPredictionTrainData
+from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 
 def test_GSgnnLinkPredictionTrainData():
 

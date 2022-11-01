@@ -2,12 +2,12 @@ import dgl
 from importlib import import_module
 
 import torch as th
-from ..model import GSgnnNodeDataLoader
-from ..model import GSgnnNodeTrainData
+from ..dataloading import GSgnnNodeDataLoader
+from ..dataloading import GSgnnNodeTrainData
 from ..model import GSgnnNodeClassModel
-from ..model import GSgnnAccEvaluator
+from ..eval import GSgnnAccEvaluator
 from ..model import GSgnnNodeRegressModel
-from ..model import GSgnnRegressionEvaluator
+from ..eval import GSgnnRegressionEvaluator
 from .gsgnn_trainer import GSgnnTrainer
 from ..tracker import get_task_tracker_class
 

@@ -1,19 +1,19 @@
-from ..model import GSgnnLinkPredictionTrainData
-from ..model import GSgnnLinkPredictionDataLoader
-from ..model import GSgnnLPJointNegDataLoader
-from ..model import GSgnnLPLocalUniformNegDataLoader
-from ..model import GSgnnAllEtypeLPJointNegDataLoader
-from ..model import GSgnnAllEtypeLinkPredictionDataLoader
+from ..dataloading import GSgnnLinkPredictionTrainData
+from ..dataloading import GSgnnLinkPredictionDataLoader
+from ..dataloading import GSgnnLPJointNegDataLoader
+from ..dataloading import GSgnnLPLocalUniformNegDataLoader
+from ..dataloading import GSgnnAllEtypeLPJointNegDataLoader
+from ..dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from ..model import GSgnnLinkPredictionModel
-from ..model import GSgnnMrrLPEvaluator
+from ..eval import GSgnnMrrLPEvaluator
 from .gsgnn_trainer import GSgnnTrainer
 from ..tracker import get_task_tracker_class
 
-from ..model.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from ..model.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
-from ..model.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
-from ..model.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
-from ..model.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
+from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
+from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from ..dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
+from ..dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
+from ..dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 
 def get_model_class(config):
     return GSgnnLinkPredictionModel, GSgnnMrrLPEvaluator

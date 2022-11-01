@@ -245,7 +245,7 @@ class GSgnnInstanceEvaluator():
         return self._best_iter
 
 class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
-    """ Template class for user defined evaluator.
+    """ The class for user defined evaluator.
 
         Parameters
         ----------
@@ -338,7 +338,7 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
         return scores
 
 class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
-    """ Template class for user defined evaluator.
+    """ The class for user defined evaluator.
 
         Parameters
         ----------
@@ -611,7 +611,7 @@ class GSgnnLPEvaluator():
         return self._best_iter
 
 class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
-    """ Template class for user defined evaluator.
+    """ The class for user defined evaluator.
 
     Parameters
     ----------

@@ -17,9 +17,9 @@ import torch as th
 from numpy.testing import assert_almost_equal
 import numpy as np
 
-from graphstorm.model.utils import fullgraph_eval
-from graphstorm.model.evaluator import GSgnnAccEvaluator
-from graphstorm.model.evaluator import GSgnnRegressionEvaluator
+from graphstorm.eval.utils import fullgraph_eval
+from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnRegressionEvaluator
 
 from util import Dummy
 

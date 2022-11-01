@@ -1,8 +1,8 @@
 """ Infer wrapper for link predicion
 """
 from ..model import GSgnnLinkPredictionModel
-from ..model import GSgnnMrrLPEvaluator
-from ..model.dataloading import GSgnnLinkPredictionInferData
+from ..eval import GSgnnMrrLPEvaluator
+from ..dataloading import GSgnnLinkPredictionInferData
 from .graphstorm_infer import GSInfer
 from ..tracker import get_task_tracker_class
 

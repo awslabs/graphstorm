@@ -1,4 +1,4 @@
-from ..model import GSgnnMLMTrainData
+from ..dataloading import GSgnnMLMTrainData
 from ..model import LanguageModelMLM
 from .gsgnn_trainer import GSgnnTrainer
 

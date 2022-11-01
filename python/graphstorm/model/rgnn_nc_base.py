@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel
 
 from .rgnn_node_base import GSgnnNodeModel
-from .nc_decoder import EntityClassifier
+from .node_decoder import EntityClassifier
 
 class GSgnnNodeClassModel(GSgnnNodeModel):
     """ RGNN node classification model

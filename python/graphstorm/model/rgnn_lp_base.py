@@ -8,7 +8,7 @@ from torch.nn.parallel import DistributedDataParallel
 from .utils import save_embeddings as save_node_embeddings
 from .utils import save_relation_embeddings
 
-from .lp_decoder import LinkPredictDotDecoder, LinkPredictDistMultDecoder
+from .edge_decoder import LinkPredictDotDecoder, LinkPredictDistMultDecoder
 from .rgnn import GSgnnBase
 
 from ..eval import compute_acc_lp

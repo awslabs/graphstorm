@@ -10,19 +10,7 @@ import dgl
 
 import inspect
 from .rgnn_node_base import GSgnnNodeModel
-
-class Regression(nn.Module):
-    def __init__(self,
-                 h_dim,
-                 dropout=0):
-        super(Regression, self).__init__()
-        self.h_dim = h_dim
-        self.decoder = nn.Parameter(th.Tensor(h_dim, 1))
-        nn.init.xavier_uniform_(self.decoder)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, h):
-        return th.matmul(h, self.decoder)
+from .node_decoder import EntityRegression
 
 class GSgnnNodeRegressModel(GSgnnNodeModel):
     """ RGNN node regression model
@@ -65,7 +53,7 @@ class GSgnnNodeRegressModel(GSgnnNodeModel):
         else:
             # if the embedding layer is not set the dimension here will be the same as the bert hidden size
             in_units = self.bert_hidden_size[self.predict_ntype]
-        decoder = Regression(in_units)
+        decoder = EntityRegression(in_units)
         decoder = decoder.to(dev_id)
         self.decoder = DistributedDataParallel(decoder, device_ids=[dev_id], output_device=dev_id, find_unused_parameters=True)
 
