@@ -1,6 +1,7 @@
 import numpy as np
 import torch as th
 import dgl
+import abc
 
 from ..data.utils import return_reverse_mappings
 
@@ -478,7 +479,8 @@ class GSgnnEdgePredictionInferData():
     def target_ntypes(self):
         return self._target_ntypes
 
-class GSgnnNodeTrainData():
+#### Node classification/regression Task Data ####
+class GSgnnNodeData():
     """ Training data for node tasks
 
     Parameters
@@ -494,10 +496,70 @@ class GSgnnNodeTrainData():
     def __init__(self, g, pb, predict_ntype, label_field):
         self._predict_ntype = predict_ntype
         self._label_field = label_field
+        self._train_idx = None
+        self._val_idx = None
+        self._test_idx = None
+        self._labels = None
+        self._do_validation = False
 
-        self._prepare_train_data(g, pb)
+        self.prepare_data(g, pb)
 
-    def _prepare_train_data(self, g, pb):
+    @abc.abstractmethod
+    def prepare_data(self, g, pb):
+        """
+        Prepare the dataset.
+
+        Arguement
+        ---------
+        g: Dist DGLGraph
+        pb: Partition book
+        """
+
+    @property
+    def predict_ntype(self):
+        return self._predict_ntype
+
+    @property
+    def train_idx(self):
+        return self._train_idx
+
+    @property
+    def val_idx(self):
+        return self._val_idx
+
+    @property
+    def test_idx(self):
+        return self._test_idx
+
+    @property
+    def labels(self):
+        return self._labels
+
+    @property
+    def do_validation(self):
+        return self._do_validation
+
+class GSgnnNodeTrainData(GSgnnNodeData):
+    """ Training data for node tasks
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph used in training and testing
+    pb: DGL partition book
+    predict_ntype : str
+        Target node type
+    label_field : str
+        The field for storing labels
+    """
+    def __init__(self, g, pb, predict_ntype, label_field):
+        super(GSgnnNodeTrainData, self).__init__(
+            g, pb, predict_ntype, label_field)
+
+    def prepare_data(self, g, pb):
+        assert 'train_mask' in g.nodes[self.predict_ntype].data, \
+            "For training dataset, train_mask must be provided."
+
         if 'trainer_id' in g.nodes[self.predict_ntype].data:
             print('over-partitioning')
             node_trainer_ids = g.nodes[self.predict_ntype].data['trainer_id']
@@ -539,31 +601,7 @@ class GSgnnNodeTrainData():
         self._labels = labels
         self._do_validation = do_validation
 
-    @property
-    def predict_ntype(self):
-        return self._predict_ntype
-
-    @property
-    def train_idx(self):
-        return self._train_idx
-
-    @property
-    def val_idx(self):
-        return self._val_idx
-
-    @property
-    def test_idx(self):
-        return self._test_idx
-
-    @property
-    def labels(self):
-        return self._labels
-
-    @property
-    def do_validation(self):
-        return self._do_validation
-
-class GSgnnNodeInferData():
+class GSgnnNodeInferData(GSgnnNodeData):
     """ Inference data for node tasks
 
     Parameters
@@ -577,12 +615,10 @@ class GSgnnNodeInferData():
         The field for storing labels
     """
     def __init__(self, g, pb, predict_ntype, label_field):
-        self._predict_ntype = predict_ntype
-        self._label_field = label_field
+        super(GSgnnNodeInferData, self).__init__(
+            g, pb, predict_ntype, label_field)
 
-        self._prepare_eval_data(g, pb)
-
-    def _prepare_eval_data(self, g, pb):
+    def prepare_data(self, g, pb):
         """
         Prepare the testing node set if any
 
@@ -618,30 +654,6 @@ class GSgnnNodeInferData():
         self._test_idx = test_idx
         self._labels = labels
         self._do_validation = do_validation
-
-    @property
-    def predict_ntype(self):
-        return self._predict_ntype
-
-    @property
-    def train_idx(self):
-        return None
-
-    @property
-    def val_idx(self):
-        return None
-
-    @property
-    def test_idx(self):
-        return self._test_idx
-
-    @property
-    def labels(self):
-        return self._labels
-
-    @property
-    def do_validation(self):
-        return self._do_validation
 
 ################ GNN MLM dataset #######################
 
