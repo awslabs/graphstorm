@@ -24,7 +24,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: ML edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_er/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_er_huggingface.py --cf ml_er.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_er/emb/ --save-model-path /data/gsgnn_er/ --save-model-per-iter 0 -n-epochs 3" | tee train_log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_er/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_er_huggingface.py --cf ml_er.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_er/emb/ --save-model-path /data/gsgnn_er/ --topk-model-to-save 3 --save-model-per-iter 1000 -n-epochs 3" | tee train_log.txt
 
 error_and_exit $?
 
@@ -85,8 +85,15 @@ then
     exit -1
 fi
 
+cnt=$(ls -l /data/gsgnn_er/ | grep epoch | wc -l)
+if test $cnt != 3
+then
+    echo "The number of save models $cnt is not equal to the specified topk 3"
+    exit -1
+fi
+
 echo "**************dataset: ML edge regression, do inference on saved model"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_huggingface.py --cf ml_er_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --mini-batch-infer false --save-embeds-path /data/gsgnn_er/infer-emb/ --restore-model-path /data/gsgnn_er/-2/" | tee log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_huggingface.py --cf ml_er_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --mini-batch-infer false --save-embeds-path /data/gsgnn_er/infer-emb/ --restore-model-path /data/gsgnn_er/epoch-2/" | tee log.txt
 
 error_and_exit $?
 
@@ -126,4 +133,4 @@ then
 fi
 
 cd $GS_HOME/tests/end2end-tests/
-python3 check_infer.py --train_embout /data/gsgnn_er/emb/-2/ --infer_embout /data/gsgnn_er/infer-emb/ --edge_prediction
+python3 check_infer.py --train_embout /data/gsgnn_er/emb/epoch-2/ --infer_embout /data/gsgnn_er/infer-emb/ --edge_prediction

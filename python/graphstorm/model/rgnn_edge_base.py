@@ -12,6 +12,7 @@ from .rgnn import GSgnnBase
 from ..dataloading.utils import modify_fanout_for_target_etype
 from .utils import save_embeddings as save_node_embeddings
 
+
 class GSgnnEdgeModel(GSgnnBase):
     """ RGNN edge classification model
 
@@ -196,6 +197,7 @@ class GSgnnEdgeModel(GSgnnBase):
         back_time = 0
         total_steps = 0
         early_stop = False # used when early stop is True
+
         for epoch in range(self.n_epochs):
             if gnn_encoder is not None:
                 gnn_encoder.train()
@@ -271,10 +273,7 @@ class GSgnnEdgeModel(GSgnnBase):
                         print("Train {}: {:.4f}".format(metric, train_score[metric]))
                     num_input_nodes = bert_forward_time = gnn_forward_time = back_time = 0
 
-                # save model and embeddings every save_model_per_iters
-                if self.save_model_per_iters > 0 and i % self.save_model_per_iters == 0 and i != 0:
-                    self.save_model_embed(epoch, i, g, bert_emb_cache)
-
+                val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(g.rank(), train_data, bert_emb_cache, total_steps)
@@ -282,11 +281,18 @@ class GSgnnEdgeModel(GSgnnBase):
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
+                # Every n iterations, check to save the top k models. If has validation score, will save
+                # the best top k. But if no validation, will either save the last k model or all models
+                # depends on the setting of top k
+                if self.save_model_per_iters > 0 and i % self.save_model_per_iters == 0 and i != 0:
+                    self.save_topk_models(epoch, i, g, bert_emb_cache, val_score)
+
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break
 
-            # end of an epoch
+            # ------- end of an epoch -------
+
             th.distributed.barrier()
             epoch_time = time.time() - t0
             if g.rank() == 0:
@@ -298,14 +304,19 @@ class GSgnnEdgeModel(GSgnnBase):
                 if g.rank() == 0:
                     print('Refresh BERT cache.')
                 bert_emb_cache = self.generate_bert_cache(g)
-            # save model and node embeddings
-            self.save_model_embed(epoch, None, g, bert_emb_cache)
 
+            val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(g.rank(), train_data, bert_emb_cache, total_steps)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
+
+            # After each epoch, check to save the top k models. If has validation score, will save
+            # the best top k. But if no validation, will either save the last k model or all models
+            # depends on the setting of top k. To show this is after epoch save, set the iteration
+            # to be None, so that we can have a determistic model folder name for testing and debug.
+            self.save_topk_models(epoch, None, g, bert_emb_cache, val_score)
 
             th.distributed.barrier()
 
@@ -320,6 +331,12 @@ class GSgnnEdgeModel(GSgnnBase):
                           peak_mem_alloc_MB=th.cuda.max_memory_allocated(device) / 1024 / 1024,
                           best_epoch=best_epoch)
             print(output)
+
+            # if self.verbose:
+            # print top k info only when required because sometime the top k is just the last k
+            print(f'Top {len(self.topklist.toplist)} ranked models:')
+            print([f'Rank {i+1}: epoch-{epoch}' \
+                    for i, epoch in enumerate(self.topklist.toplist)])
 
     def eval(self, rank, train_data, bert_emb_cache, total_steps):
         """ do the model evaluation using validiation and test sets

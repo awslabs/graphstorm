@@ -602,6 +602,115 @@ def test_early_stop_lp_evaluator():
     assert evaluator.do_early_stop({"accuracy": 0.68}) is False # still better
     assert evaluator.do_early_stop({"accuracy": 0.66})
 
+def test_get_val_score_rank():
+    # ------------------- test InstanceEvaluator -------------------
+    # common Dummy objects
+    train_data = Dummy({
+            "do_validation": True
+        })
+
+    config = Dummy({
+            "multilabel": False,
+            "evaluation_frequency": 100,
+            "no_validation": False,
+            "eval_metric": ["accuracy"],
+            "enable_early_stop": False,
+        })
+    hg = gen_hg()
+
+    evaluator = GSgnnAccEvaluator(hg, config, train_data)
+    # For accuracy, the bigger the better.
+    val_score = {"accuracy": 0.47}
+    assert evaluator.get_val_score_rank(val_score) == 1
+    val_score = {"accuracy": 0.40}
+    assert evaluator.get_val_score_rank(val_score) == 2
+    val_score = {"accuracy": 0.7}
+    assert evaluator.get_val_score_rank(val_score) == 1
+    val_score = {"accuracy": 0.47}
+    assert evaluator.get_val_score_rank(val_score) == 3
+
+    train_data = Dummy({
+            "do_validation": True
+        })
+
+    config = Dummy({
+            "multilabel": False,
+            "evaluation_frequency": 100,
+            "no_validation": False,
+            "eval_metric": ["mse"],
+            "enable_early_stop": False,
+        })
+    hg = gen_hg()
+    
+    evaluator = GSgnnRegressionEvaluator(hg, config, train_data)
+    # For mse, the smaller the better
+    val_score = {"mse": 0.47}
+    assert evaluator.get_val_score_rank(val_score) == 1
+    val_score = {"mse": 0.40}
+    assert evaluator.get_val_score_rank(val_score) == 1
+    val_score = {"mse": 0.7}
+    assert evaluator.get_val_score_rank(val_score) == 3
+    val_score = {"mse": 0.47}
+    assert evaluator.get_val_score_rank(val_score) == 3
+
+    train_data = Dummy({
+            "do_validation": True
+        })
+
+    config = Dummy({
+            "multilabel": False,
+            "evaluation_frequency": 100,
+            "no_validation": False,
+            "eval_metric": ["rmse"],
+            "enable_early_stop": False,
+        })
+    hg = gen_hg()
+    
+    evaluator = GSgnnRegressionEvaluator(hg, config, train_data)
+    # For rmse, the smaller the better
+    val_score = {"rmse": 0.47}
+    assert evaluator.get_val_score_rank(val_score) == 1
+    val_score = {"rmse": 0.40}
+    assert evaluator.get_val_score_rank(val_score) == 1
+    val_score = {"rmse": 0.7}
+    assert evaluator.get_val_score_rank(val_score) == 3
+    val_score = {"rmse": 0.47}
+    assert evaluator.get_val_score_rank(val_score) == 3
+
+    # ------------------- test LPEvaluator -------------------
+    # common Dummy objects
+    train_data = Dummy({
+            "train_idxs": th.randint(10, (10,)),
+            "val_idxs": th.randint(10, (10,)),
+            "test_idxs": th.randint(10, (10,)),
+            "do_validation": True
+        })
+
+    config = Dummy({
+            "num_negative_edges_eval": 10,
+            "use_dot_product": True,
+            "evaluation_frequency": 100,
+            "no_validation": False,
+            "enable_early_stop": False,
+            "eval_metric": ["mrr"]
+        })
+    hg = gen_hg()
+
+    evaluator = GSgnnMrrLPEvaluator(hg, config, train_data)
+    # For MRR, the bigger the better
+    val_score = {"mrr": 0.47}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": 0.40}
+    assert evaluator.get_val_score_rank(val_score) == 2
+
+    val_score = {"mrr": 0.7}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": 0.47}
+    assert evaluator.get_val_score_rank(val_score) == 3
+
+
 if __name__ == '__main__':
     # test evaluators
     test_mrr_lp_evaluator()
@@ -611,3 +720,4 @@ if __name__ == '__main__':
     test_early_stop_cons_increase_judge()
     test_early_stop_evaluator()
     test_early_stop_lp_evaluator()
+    test_get_val_score_rank

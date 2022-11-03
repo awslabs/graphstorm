@@ -553,6 +553,10 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_save_model_per_iters"):
+            assert self.save_model_path is not None, \
+                'To save models, please specify a valid path. But got None'
+            assert self._save_model_per_iters > 0, \
+                f'save-model-per-iters must large than 0, but got {self._save_model_per_iters}'
             return self._save_model_per_iters
         # By default, use -1, means do not auto save models
         return -1
@@ -722,6 +726,20 @@ class GSConfig:
 
         # By default do not enable early stop
         return False
+
+    @property
+    def topk_model_to_save(self):
+        """ the number of top k best validation performance model to save
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_topk_model_to_save"):
+            assert self._topk_model_to_save > 0, "Top K best model must > 0"
+            assert self.save_model_path is not None, \
+                'To save models, please specify a valid path. But got None'
+            return self._topk_model_to_save
+
+        # By default use 0, meaning save all models
+        return 0
 
     # Bert related
     @property
@@ -1468,6 +1486,9 @@ def _add_hyperparam_args(parser):
     group.add_argument("--enable-early-stop",
             type=bool, default=argparse.SUPPRESS,
             help='whether to enable early stopping by monitoring the validation loss')
+    group.add_argument("--topk-model-to-save",
+            type=int, default=argparse.SUPPRESS,
+            help="the number of the k top best validation performance model to save")
     return parser
 
 def _add_rgat_args(parser):

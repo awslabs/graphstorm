@@ -41,7 +41,6 @@ gsf:
   output:
     save_model_path: ./models/ogb_arxiv/train_val/ogb_arxiv_mlp_model
     save_embeds_path: null
-    save_model_per_iters: -1
   hyperparam:
     dropout: 0.0
     lr: 0.001
