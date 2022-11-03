@@ -33,7 +33,6 @@ gsf:
   output:
     save_model_path: ./models/ogb_arxiv/bert-tune/
     save_embeds_path: null
-    save_model_per_iters: -1
   hyperparam:
     dropout: 0.
     lr: 0.001

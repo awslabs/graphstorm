@@ -105,6 +105,9 @@ if __name__ == '__main__':
 
     start = time.time()
 
+    if not os.path.exists(args.filepath):
+        raise Exception(f'The given file path {args.filepath} does NOT exist!')
+
     nid_fields = {}
     if args.nid_fields is not None:
         for nid in args.nid_fields.split(' '):
@@ -276,7 +279,7 @@ if __name__ == '__main__':
             g.nodes[category].data['test_mask'] = test_mask
 
     if args.generate_new_edge_split:
-        print("Generating new edge split ...")
+        print(f"Generating new edge split in edge list {e_categories}... ")
         for category in e_categories:
             num_edges = g.number_of_edges(category)
             test_idx = np.random.choice(num_edges, num_edges // 10, replace=False)

@@ -88,6 +88,9 @@ if __name__ == '__main__':
     argparser.add_argument("--path", type=str, required=True,
                            help="dataset to use")
     args = argparser.parse_args()
+    if os.path.exists(args.path):
+        print(f'Generate test data in {args.path}')
+
     generate_nodes(args.path)
     generate_edges(args.path)
     generate_node_feats(args.path)

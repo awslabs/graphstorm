@@ -2,6 +2,7 @@
 import os
 import json
 import time
+import shutil
 
 import numpy as np
 import torch as th
@@ -409,6 +410,32 @@ def load_opt_state(model_path, dense_opt, fine_tune_opt, emb_opt):
         raise NotImplementedError('We cannot load the state of sparse optimizer')
     #    emb_opt.load_state_dict(checkpoint['emb'])
 
+def remove_saved_models(model_path):
+    """ For only save the Top k best performaned models to save disk spaces, need this function to
+        removed previously saved model files.
+
+        Parameters
+        ----------
+        model_path: str
+            The path of the model to be removed.
+
+        Returns
+        ----------
+        status: int
+            The remove status.
+            0 : successful;
+            -1: error occurs for reasons that will be printed.
+    """
+    assert os.path.exists(model_path), f'The {model_path} does not exists!'
+
+    try:
+        shutil.rmtree(model_path)
+    except OSError:
+        print(f'WARNING: Something wrong with deleting contents of {model_path}!')
+        return -1
+
+    return 0
+
 class LazyDistTensor:
     '''Lazy distributed tensor
 
@@ -766,3 +793,59 @@ def all_gather(tensor):
         data_list.append(tensr)
 
     return data_list
+
+class TopKList():
+    """ Purely based on the GSF validation score rank case, which give a score's rank from a list.
+
+    Parameter:
+    ----------
+        top_k: size of the list, should >= 0. If is 0, then does not keep any record, which is
+               for inference only.
+
+    """
+    def __init__(self, top_k):
+        assert top_k >= 0, f'The top_k argument should be larger or equal to 0, but got {top_k}.'
+
+        self.top_k = top_k
+        self.toplist = []
+
+    def insert(self, rank, val):
+        """
+        Arguments:
+        ---------
+            rank: int, the rank of the val in the top list, should > 0
+            val : the value to be stored in the top list. It could be an object
+                  that has comparator method
+
+        Returns:
+        ---------
+            insert_success: Boolean, if the given rank has been inserted.
+                            True, if the topk list is not full or the rank is in the top k
+                            False, if the topk list is full and the rank is not in the top k
+            return_val: A value either is the given val, or the last top k value in the topk list.
+                        If the insert_success is True, the return_val should be the given val,
+                        which should be saved, or the last val in the previous topk list, which
+                        should be removed;
+                        If the insert_success is False, the return_val could be the given val.
+
+        """
+        if (rank - 1) >= self.top_k:                # only when list length > k will rank be > k
+            insert_success = False
+            return_val = val
+        else:
+            if len(self.toplist) == self.top_k: # list is full
+                insert_success = True
+                return_val = self.toplist[-1]
+
+                first_part = self.toplist[:(rank - 1)]
+                last_part = self.toplist[(rank - 1): -1]
+                self.toplist = first_part + [val] + last_part
+            else:                                   # list is not full and rank <= list lenght
+                insert_success = True
+                return_val = val
+
+                first_part = self.toplist[: (rank - 1)]
+                last_part = self.toplist[(rank - 1):]
+                self.toplist = first_part + [val] + last_part
+
+        return insert_success, return_val

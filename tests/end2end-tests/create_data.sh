@@ -15,7 +15,9 @@ rm -R ml-100k
 
 
 export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tests/end2end-tests/generate_test_data.py --path /$GS_HOME/python/graphstorm/data/test/data/edge_class/
+# python3 /$GS_HOME/tests/end2end-tests/generate_test_data.py --path /$GS_HOME/python/graphstorm/data/test/data/edge_class/
+mkdir -p /data/edge_class
+python3 /$GS_HOME/tests/end2end-tests/generate_test_data.py --path /data/edge_class/
 
 # movielens node class with balanced training set
 export PYTHONPATH=$GS_HOME/python/
@@ -97,9 +99,10 @@ python3 /$GS_HOME/tools/construct_graph.py --name movie-lens-100k \
     --generate_new_edge_split true \
     --device 0
 
+# dummy data Edge Classification
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/construct_graph.py --name test \
-    --filepath /$GS_HOME/python/graphstorm/data/test/data/edge_class/ \
+    --filepath /data/edge_class/ \
     --output data \
     --dist_output test_ec_1p_4t --num_dataset_workers 10 \
     --hf_bert_model bert-base-uncased \
@@ -113,7 +116,7 @@ python3 /$GS_HOME/tools/construct_graph.py --name test \
 
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/construct_graph.py --name test \
-    --filepath /$GS_HOME/python/graphstorm/data/test/data/edge_class/ \
+    --filepath /data/edge_class/ \
     --output data \
     --dist_output test_ec_undirected_1p_4t --num_dataset_workers 10 \
     --hf_bert_model bert-base-uncased \
@@ -129,7 +132,7 @@ python3 /$GS_HOME/tools/construct_graph.py --name test \
 
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/construct_graph.py --name test \
-    --filepath /$GS_HOME/python/graphstorm/data/test/data/edge_class/ \
+    --filepath /data/edge_class/ \
     --output datanf \
     --dist_output test_ec_nodefeat_1p_4t --num_dataset_workers 10 \
     --hf_bert_model bert-base-uncased \

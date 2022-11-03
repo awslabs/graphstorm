@@ -1,5 +1,6 @@
 import os, sys
 from pathlib import Path
+from tempfile import tempdir
 import yaml
 import unittest, pytest
 from argparse import Namespace
@@ -356,7 +357,7 @@ def create_io_config(tmp_path, file_name):
     }
 
     yaml_object["gsf"]["output"] = {
-        "save_model_path": "./save",
+        "save_model_path": os.path.join(tmp_path, "save"),
         "save_model_per_iters": 100,
         "save_embeds_path": "./save_emb",
     }
@@ -388,7 +389,7 @@ def test_load_io_info():
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.restore_bert_model_path == "./bert_encoder"
         assert config.restore_model_encoder_path == "./encoder"
-        assert config.save_model_path == "./save"
+        assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
         assert config.save_embeds_path == "./save_emb"
 
@@ -459,6 +460,7 @@ def create_train_config(tmp_path, file_name):
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
         "alpha_l2norm": 0.00001,
+        "topk_model_to_save": 3,
         "sparse_lr": 0.001,
         "bert_tune_lr": 0.0001,
         "bert_infer_bs": 64,
@@ -466,6 +468,7 @@ def create_train_config(tmp_path, file_name):
         "use_self_loop": False,
         "self_loop_init": True,
         "enable_early_stop": True,
+        "save_model_path": os.path.join(tmp_path, "save"),
     }
 
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
@@ -509,6 +512,7 @@ def test_train_info():
         assert config.eval_batch_size == 32
         assert config.wd_l2norm == 0
         assert config.alpha_l2norm == 0
+        assert config.topk_model_to_save == 0
         config._lr = 0.01
         assert config.sparse_lr == 0.01
         assert config.bert_tune_lr == 0.01
@@ -528,6 +532,7 @@ def test_train_info():
         assert config.eval_batch_size == 128
         assert config.wd_l2norm == 0.1
         assert config.alpha_l2norm == 0.00001
+        assert config.topk_model_to_save == 3
         assert config.sparse_lr == 0.001
         assert config.bert_tune_lr == 0.0001
         assert config.use_node_embeddings == False
@@ -1523,7 +1528,7 @@ def create_io_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["output"] = {
     }
-
+    
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1537,7 +1542,7 @@ def create_io_config(tmp_path, file_name):
     }
 
     yaml_object["gsf"]["output"] = {
-        "save_model_path": "./save",
+        "save_model_path": os.path.join(tmp_path, "save"),
         "save_model_per_iters": 100,
         "save_embeds_path": "./save_emb",
     }
@@ -1546,7 +1551,7 @@ def create_io_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["output"] = {
-        "save_model_path": "./save",
+        "save_model_path": os.path.join(tmp_path, "save"),
         "save_model_per_iters": 100,
         "save_embeds_path": "./save_emb",
         "save_predict_path": "./prediction",
@@ -1579,7 +1584,7 @@ def test_load_io_info():
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.restore_bert_model_path == "./bert_encoder"
         assert config.restore_model_encoder_path == "./encoder"
-        assert config.save_model_path == "./save"
+        assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
         assert config.save_embeds_path == "./save_emb"
         assert config.save_predict_path == "./save_emb"

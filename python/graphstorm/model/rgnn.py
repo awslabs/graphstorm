@@ -1,7 +1,9 @@
 """GNN Encoder"""
 import abc
+import os
 
 import time
+import math
 import numpy as np
 import torch as th
 import dgl
@@ -19,7 +21,9 @@ from .utils import save_sparse_embeds
 from .utils import load_model as load_gsgnn_model
 from .utils import load_sparse_embeds
 from .utils import save_embeddings as save_gsgnn_embeddings
+from .utils import remove_saved_models as remove_gsgnn_models
 from .utils import load_opt_state, save_opt_state
+from .utils import TopKList
 from .rgat_encoder import RelationalGATEncoder
 from .rgcn_encoder import RelationalGCNEncoder
 
@@ -161,6 +165,25 @@ class GSgnnBase():
         self.bert_train = {}
         self.bert_static = {}
         self.bert_hidden_size = {}
+
+        # model saving or removing
+        self.topk_model_to_save = config.topk_model_to_save
+
+        if self.topk_model_to_save > 0:
+            self.topklist = TopKList(self.topk_model_to_save)    # A list to store the top k best
+                                                                 # perf epoch+iteration for 
+                                                                 # saving/removing models.
+        else:
+            if self.save_model_per_iters > 0:
+                self.topklist = TopKList(math.inf)  # If not specify the top k and need to save 
+                                                    # per n iterations, save all models at the 
+                                                    # n iterations.
+            else:
+                self.topklist = TopKList(0)         # During inference, the n_epochs could be 0,
+                                                    # so set k to 0 and not allow any insertion.
+                                                    # During training, if users do not specify
+                                                    # neither top k value or n per iteration, we
+                                                    # will not store any models neither.
 
         # tracker info
         self._task_tracker = task_tracker
@@ -767,9 +790,9 @@ class GSgnnBase():
         th.distributed.barrier()
         if self.save_model_path is not None and g.rank() == 0:
             start_save_t = time.time()
-            save_model_path = self.save_model_path + '-' + str(epoch)
-            if i is not None:
-                save_model_path = save_model_path + '-' + str(i)
+
+            save_model_path = self._gen_model_path(self.save_model_path, epoch, i)
+
             save_gsgnn_model(model_conf, save_model_path, model, embed_layer, bert_model, decoder)
             save_sparse_embeds(save_model_path, embed_layer)
             save_opt_state(save_model_path, self.optimizer, self.fine_tune_opt, self.emb_optimizer)
@@ -782,13 +805,84 @@ class GSgnnBase():
             embeddings = self.compute_embeddings(g, device, bert_emb_cache)
 
             # save embeddings in a distributed way
-            save_embeds_path = self.save_embeds_path + '-' + str(epoch)
-            if i is not None:
-                save_embeds_path = save_embeds_path + '-' + str(i)
+            save_embeds_path = self._gen_model_path(self.save_embeds_path, epoch, i)
+
             save_gsgnn_embeddings(save_embeds_path, embeddings, g.rank(), th.distributed.get_world_size())
 
         # wait for rank0 to save the model and/or embeddings
         th.distributed.barrier()
+
+    def remove_saved_model_embed(self, epoch, i, g_rank):
+        """ remove previously saved model, which may not be the best K performed or other reasons.
+            This function will remove the entire folder.
+
+        Parameters
+        ----------
+        epoch: int
+            The number of training epoch.
+        i: int
+            The number of iteration in a training epoch.
+        g_rank: int
+            The rank of the give graph.
+        """
+        if self.save_model_path is not None and g_rank == 0:
+            # construct model path
+            saved_model_path = self._gen_model_path(self.save_model_path, epoch, i)
+
+            # remove the folder that contains saved model files.
+            remove_status = remove_gsgnn_models(saved_model_path)
+            if remove_status == 0:
+                print(f'Successfully removed the saved model files in {saved_model_path}')
+
+    def save_topk_models(self, epoch, i, g, bert_emb_cache, val_score):
+        """ Based on the given val_score, decided if save the current model trained in the i_th
+            iteration and the epoch_th epoch.
+
+        Parameters
+        ----------
+        epoch: int
+            The number of training epoch.
+        i: int
+            The number of iteration in a training epoch.
+        g: DGLDistGraph
+            The distributed graph used in the current training.
+        bert_emb_cache: Tensor
+            The cached bert embeddings in the current training.
+        val_score: dict or None
+            A dictionary contains scores from evaluator's validation function. It could be None 
+            that means there is either no evluator or not do validation. In that case, just set
+            the score rank as 1st to save all models or the last k models.
+        """
+
+        # compute model validation score rank in evaluator
+        if val_score is None:
+            score_rank = 1
+        else:
+            score_rank = self.evaluator.get_val_score_rank(val_score)
+
+        insert_success, (return_epoch, return_i) = self.topklist.insert(score_rank, (epoch, i))
+
+        if insert_success:
+            # if success, should always save this epoch and/or iteration models, and remove the
+            # previous worst model saved if the return_epoch or return_i is different from current
+            # epoch and i
+            if return_epoch != epoch or return_i != i:
+                # here the return_epoch and return_i are the epoch and iteration number that
+                # performan worst in the previous top k list.
+                self.remove_saved_model_embed(return_epoch, return_i, g.rank())
+
+            # save this epoch and iteration's model and node embeddings
+            self.save_model_embed(epoch, i, g, bert_emb_cache)
+
+    def _gen_model_path(self, base_path, epoch, i):
+        """
+        Generate the model path for both saving and removing a folder that contains model files.
+        """
+        model_path = os.path.join(base_path, 'epoch-' + str(epoch))
+        if i is not None:
+            model_path = model_path + '-iter-' + str(i)
+
+        return model_path
 
     def print_info(self, epoch, i, num_input_nodes, compute_time):
         ''' Print basic information during training

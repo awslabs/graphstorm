@@ -19,6 +19,7 @@ from .extract_node_embeddings import prepare_batch_input
 from .hbert import get_bert_flops_info
 from .utils import save_embeddings as save_node_embeddings
 
+
 class GSgnnNodeModel(GSgnnBase):
     """ RGNN model for node tasks
 
@@ -163,7 +164,6 @@ class GSgnnNodeModel(GSgnnBase):
                 for metric in  self.evaluator.metric:
                     self.log_metric("Train {}".format(metric), train_score[metric], total_steps, report_step=total_steps)
 
-
                 if i % 20 == 0 and g.rank() == 0:
                     if self.verbose:
                         self.print_info(epoch, i,  num_input_nodes / 20,
@@ -173,12 +173,20 @@ class GSgnnNodeModel(GSgnnBase):
                     for metric in self.evaluator.metric:
                         print("Train {}: {:.4f}".format(metric, train_score[metric]))
                     num_input_nodes = bert_forward_time = gnn_forward_time = back_time = 0
+
+                val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(g.rank(), train_data, bert_emb_cache, total_steps)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
+
+                # Every n iterations, check to save the top k models. If has validation score, will save
+                # the best top k. But if no validation, will either save the last k model or all models
+                # depends on the setting of top k
+                if self.save_model_per_iters > 0 and i % self.save_model_per_iters == 0 and i != 0:
+                    self.save_topk_models(epoch, i, g, bert_emb_cache, val_score)
 
                 # early_stop, exit current interation.
                 if early_stop is True:
@@ -194,12 +202,19 @@ class GSgnnNodeModel(GSgnnBase):
             # re-generate cache
             if self.use_bert_cache and self.refresh_cache and epoch >= self.gnn_warmup_epochs:
                 bert_emb_cache = self.generate_bert_cache(g)
-            self.save_model_embed(epoch, None, g, bert_emb_cache)
 
+            val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(g.rank(), train_data, bert_emb_cache, total_steps)
+
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
+
+            # After each epoch, check to save the top k models. If has validation score, will save
+            # the best top k. But if no validation, will either save the last k model or all models
+            # depends on the setting of top k. To show this is after epoch save, set the iteration
+            # to be None, so that we can have a determistic model folder name for testing and debug.
+            self.save_topk_models(epoch, None, g, bert_emb_cache, val_score)
 
             # early_stop, exit training
             if early_stop is True:
@@ -209,6 +224,18 @@ class GSgnnNodeModel(GSgnnBase):
             if self.verbose:
                 if self.evaluator is not None:
                     self.evaluator.print_history()
+
+        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        if g.rank() == 0:
+            output = dict(best_test_score=self.evaluator.best_test_score,
+                          best_val_score=self.evaluator.best_val_score,
+                          peak_mem_alloc_MB=th.cuda.max_memory_allocated(device) / 1024 / 1024)
+            print(output)
+
+            # if self.verbose:
+            # print top k info only when required because sometime the top k is just the last k
+            print(f'Top {len(self.topklist.toplist)} ranked models:')
+            print([f'Rank {i+1}: epoch-{epoch}' for i, epoch in enumerate(self.topklist.toplist)])
 
     def eval(self, rank, train_data, bert_emb_cache, total_steps):
         """ do the model evaluation using validiation and test sets

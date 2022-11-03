@@ -59,6 +59,38 @@ def early_stop_cons_increase_judge(val_score, val_perf_list, comparator):
 
     return early_stop
 
+def get_val_score_rank(val_score, val_perf_rank_list, comparator):
+    """
+    Compute the rank of the given validation score with the given comparator.
+
+    Here use the most naive method, i.e., scan the entire list once to get the rank.
+    For the same value, will treat the given validation score as the next rank. For example, in a
+    list [1., 1., 2., 2., 3., 4.], the given value 2. will be ranked to the 5th highest score.
+
+    Later on if need to increase the speed, could use more complex data structure, e.g. LinkedList
+
+    Parameters
+    ----------
+    val_score: float
+        Target validation score.
+    val_perf_rank_list: list
+        A list holding the history validation scores.
+    comparator: operator op
+        Comparator
+
+    Returns
+    -------
+    rank : An integer indicating the rank of the given validation score in the
+           existing validation performance rank list.
+    """
+    rank = 1
+    for existing_score in val_perf_rank_list:
+        if comparator(val_score, existing_score):
+            rank += 1
+
+    return rank
+
+
 # TODO(xiangsx): combine GSgnnInstanceEvaluator and GSgnnLPEvaluator
 class GSgnnInstanceEvaluator():
     """ Template class for user defined evaluator.
@@ -90,6 +122,8 @@ class GSgnnInstanceEvaluator():
             self._window_for_early_stop = config.window_for_early_stop
             self._early_stop_strategy = config.early_stop_strategy
             self._val_perf_list = []
+        # add this list to store
+        self._val_perf_rank_list = []
 
     def setup_task_tracker(self, task_tracker):
         """ Setup evaluation tracker
@@ -219,6 +253,26 @@ class GSgnnInstanceEvaluator():
             "Evaluation metrics object should not be None"
         metric = self.metric[0]
         return self.metrics_obj.metric_comparator[metric]
+
+    def get_val_score_rank(self, val_score):
+        """
+        Get the rank of the given validation score by comparing its values to the existing value
+        list.
+
+        Parameters
+        ----------
+        val_score: dict
+            A dictionary whose key is the metric and the value is a score from evaluator's
+            validation computation.
+        """
+        val_score = list(val_score.values())[0]
+
+        rank = get_val_score_rank(val_score,
+                                  self._val_perf_rank_list,
+                                  self.get_metric_comparator())
+        # after compare, append the score into existing list
+        self._val_perf_rank_list.append(val_score)
+        return rank
 
     @property
     def metric(self):
@@ -472,6 +526,8 @@ class GSgnnLPEvaluator():
             self._window_for_early_stop = config.window_for_early_stop
             self._early_stop_strategy = config.early_stop_strategy
             self._val_perf_list = []
+        # add this list to store all of the performance rank of validation scores for pick top k
+        self._val_perf_rank_list = []
 
     def setup_task_tracker(self, client):
         """ Setup evaluation tracker
@@ -580,6 +636,25 @@ class GSgnnLPEvaluator():
         metric = self.metric[0]
         return self.metrics_obj.metric_comparator[metric]
 
+    def get_val_score_rank(self, val_score):
+        """
+        Get the rank of the given val score by comparing its values to the existing value list.
+
+        Parameters
+        ----------
+        val_score: dict
+            A dictionary whose key is the metric and the value is a score from evaluator's
+            validation computation.
+        """
+        val_score = list(val_score.values())[0]
+
+        rank = get_val_score_rank(val_score,
+                                  self._val_perf_rank_list,
+                                  self.get_metric_comparator())
+        # after compare, append the score into existing list
+        self._val_perf_rank_list.append(val_score)
+        return rank
+
     @property
     def target_nidx(self):
         """ target_nidx
@@ -609,6 +684,13 @@ class GSgnnLPEvaluator():
         """ Best iteration number
         """
         return self._best_iter
+
+    @property
+    def val_perf_rank_list(self):
+        """ validation performance rank list
+        """
+        return self._val_perf_rank_list
+
 
 class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
     """ The class for user defined evaluator.
