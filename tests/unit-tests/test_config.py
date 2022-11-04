@@ -1133,6 +1133,7 @@ def create_lp_config(tmp_path, file_name):
         "exclude_training_targets": False,
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
+        "gamma": 1.0,
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1196,6 +1197,7 @@ def test_lp_info():
         assert config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
+        assert config.gamma == 12.0
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1230,6 +1232,7 @@ def test_lp_info():
         assert len(config.reverse_edge_types_map) == 0
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
+        assert config.gamma == 1.0
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1528,7 +1531,7 @@ def create_io_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["output"] = {
     }
-    
+
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
