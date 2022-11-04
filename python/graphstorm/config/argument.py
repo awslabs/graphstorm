@@ -1596,6 +1596,12 @@ def _add_link_prediction_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="This suggest to use the dot product loss function instead of distmult")
+    group.add_argument(
+            "--gamma",
+            type=float,
+            default=argparse.SUPPRESS,
+            help="Used in DistMult score func"
+    )
 
     return parser
 
