@@ -232,10 +232,10 @@ class GSgnnNodeModel(GSgnnBase):
                           peak_mem_alloc_MB=th.cuda.max_memory_allocated(device) / 1024 / 1024)
             print(output)
 
-            # if self.verbose:
-            # print top k info only when required because sometime the top k is just the last k
-            print(f'Top {len(self.topklist.toplist)} ranked models:')
-            print([f'Rank {i+1}: epoch-{epoch}' for i, epoch in enumerate(self.topklist.toplist)])
+            if self.verbose:
+                # print top k info only when required because sometime the top k is just the last k
+                print(f'Top {len(self.topklist.toplist)} ranked models:')
+                print([f'Rank {i+1}: epoch-{epoch}' for i, epoch in enumerate(self.topklist.toplist)])
 
     def eval(self, rank, train_data, bert_emb_cache, total_steps):
         """ do the model evaluation using validiation and test sets

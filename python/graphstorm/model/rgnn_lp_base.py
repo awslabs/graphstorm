@@ -293,13 +293,11 @@ class GSgnnLinkPredictionModel(GSgnnBase):
                           best_epoch=best_epoch)
             print(output)
 
-            print(self.verbose)
-
-            # if self.verbose:
-            # print top k info only when required because sometime the top k is just the last k
-            print(f'Top {len(self.topklist.toplist)} ranked models:')
-            print([f'Rank {i+1}: epoch-{epoch}-iter-{iter}' \
-                    for i, (epoch, iter) in enumerate(self.topklist.toplist)])
+            if self.verbose:
+                # print top k info only when required because sometime the top k is just the last k
+                print(f'Top {len(self.topklist.toplist)} ranked models:')
+                print([f'Rank {i+1}: epoch-{epoch}-iter-{iter}' \
+                        for i, (epoch, iter) in enumerate(self.topklist.toplist)])
 
     def eval(self, rank, embeddings, total_steps, train_score=None):
         """ do the model evaluation using validiation and test sets
