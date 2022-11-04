@@ -233,6 +233,17 @@ class GSConfig:
         assert hasattr(self, "_part_config"), "Graph partition config must be provided"
         return self._part_config
 
+    @property
+    def verbose(self):
+        """ verbose for print out more information.Default is False
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_verbose"):
+            assert self._verbose in [True, False]
+            return self._verbose
+
+        return False
+
     ### model type ###
     @property
     def model_encoder_type(self):

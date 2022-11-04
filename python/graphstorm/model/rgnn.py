@@ -88,9 +88,8 @@ class GSgnnBase():
     verbose: bool
         If True, more information is printed
     """
-    def __init__(self, g, config, bert_model, task_tracker=None,
-        train_task=True, verbose=False):
-        if verbose:
+    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
+        if config.verbose:
             print(config)
 
         self._g = g
@@ -146,7 +145,7 @@ class GSgnnBase():
         self._save_embeds_path = config.save_embeds_path
 
         self._debug = config.debug
-        self._verbose = verbose
+        self._verbose = config.verbose
 
         assert isinstance(bert_model, dict), \
             "The input bert_model must be a dict of BERT models " \

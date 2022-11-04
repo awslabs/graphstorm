@@ -133,6 +133,7 @@ def test_load_basic_info():
         assert config.num_gpus == 1
         assert config.ip_config == "ip.txt"
         assert config.part_config == "part.json"
+        assert config.verbose == False
         assert config.evaluation_frequency == 100
         assert config.no_validation == True
         check_failure(config, "mixed_precision")
