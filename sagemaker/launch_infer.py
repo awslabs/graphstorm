@@ -1,6 +1,5 @@
 """ Launch SageMaker training task
 """
-from email.policy import default
 import os
 import sagemaker
 from sagemaker.pytorch.estimator import PyTorch
