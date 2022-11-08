@@ -163,24 +163,3 @@ echo "**************dataset: Generated multi feat same name NC test, RGCN layer:
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/test_multi_feat_same_name_nc_4t/multi-feat-sn-nc-test.json --ip_config ip_list.txt --ssh_port 2222 'python3 gsgnn_pure_gnn_nc.py --cf ml_nc.yaml --save-embeds-path ./model/ml-emb/ --n-epochs 3 --graph-name multi-feat-sn-nc-test --part-config test_multi_feat_same_name_nc_4t/multi-feat-sn-nc-test.json --label-field label --predict-ntype ntype1 --num-classes 6 --feat-name "feat0" --mini-batch-infer false'
 
 error_and_exit $?
-
-echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, early stop"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc_huggingface.py --cf ml_nc.yaml --train-nodes 0 --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --enable-early-stop True --call-to-consider-early-stop 2 -e 20 --window-for-early-stop 3" | tee exec.log
-
-error_and_exit $?
-
-# check early stop
-cnt=$(cat exec.log | grep "Evaluation step" | wc -l)
-if test $cnt -eq 20
-then
-	echo "Early stop should work, but it didn't"
-	exit -1
-fi
-
-if test $cnt -le 5
-then
-	echo "Need at least 6 iters"
-	exit -1
-fi
-
-echo 'Done'
