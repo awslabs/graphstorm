@@ -15,7 +15,67 @@ def split_full_edge_list(g, etype, rank):
     end = g.num_edges(etype) // th.distributed.get_world_size() * (rank + 1)
     return th.arange(start, end)
 
-class GSgnnLinkPredictionTrainData():
+class GSgnnLinkPredictionData():
+    """ Data for link prediction tasks
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph used in training and testing
+    pb: DGL partition book
+        DGL partition book
+    train_etypes : list
+        A list of edge types who have training edges
+    eval_etypes : list
+        A list of edge types who have validation and testing edges
+    """
+    def __init__(self, g, pb, train_etypes, eval_etypes):
+        self._train_etypes = train_etypes
+        self._eval_etypes = eval_etypes
+
+        self._train_idxs = None
+        self._val_idxs = None
+        self._test_idxs = None
+        self._do_validation = False
+
+        self.prepare_data(g, pb)
+
+    @abc.abstractmethod
+    def prepare_data(self, g, pb):
+        """
+        Prepare the dataset.
+
+        Arguement
+        ---------
+        g: Dist DGLGraph
+        pb: Partition book
+        """
+
+    @property
+    def train_etypes(self):
+        return self._train_etypes
+
+    @property
+    def eval_etypes(self):
+        return self._eval_etypes
+
+    @property
+    def train_idxs(self):
+        return self._train_idxs
+
+    @property
+    def val_idxs(self):
+        return self._val_idxs
+
+    @property
+    def test_idxs(self):
+        return self._test_idxs
+
+    @property
+    def do_validation(self):
+        return self._do_validation
+
+class GSgnnLinkPredictionTrainData(GSgnnLinkPredictionData):
     """ Link prediction training data
 
     Parameters
@@ -32,13 +92,11 @@ class GSgnnLinkPredictionTrainData():
         pre-training, when entire graph structure is used.
     """
     def __init__(self, g, pb, train_etypes, eval_etypes, full_graph_training=False):
-        self._train_etypes = train_etypes
-        self._eval_etypes = eval_etypes
         self.full_graph_training = full_graph_training
+        super(GSgnnLinkPredictionTrainData, self).__init__(
+            g, pb, train_etypes, eval_etypes)
 
-        self._prepare_train_data(g, pb)
-
-    def _prepare_train_data(self, g, pb):
+    def prepare_data(self, g, pb):
         """
         Prepare the training, validation and testing edge set.
 
@@ -101,31 +159,7 @@ class GSgnnLinkPredictionTrainData():
         self._test_idxs = test_idxs
         self._do_validation = do_validation
 
-    @property
-    def train_etypes(self):
-        return self._train_etypes
-
-    @property
-    def eval_etypes(self):
-        return self._eval_etypes
-
-    @property
-    def train_idxs(self):
-        return self._train_idxs
-
-    @property
-    def val_idxs(self):
-        return self._val_idxs
-
-    @property
-    def test_idxs(self):
-        return self._test_idxs
-
-    @property
-    def do_validation(self):
-        return self._do_validation
-
-class GSgnnLinkPredictionInferData():
+class GSgnnLinkPredictionInferData(GSgnnLinkPredictionData):
     """ Link prediction training data
 
     Parameters
@@ -137,11 +171,10 @@ class GSgnnLinkPredictionInferData():
         A list of edge types who have validation and testing edges
     """
     def __init__(self, g, pb, eval_etypes):
-        self._eval_etypes = eval_etypes
+        super(GSgnnLinkPredictionInferData, self).__init__(
+            g, pb, None, eval_etypes)
 
-        self._prepare_eval_data(g, pb)
-
-    def _prepare_eval_data(self, g, pb):
+    def prepare_data(self, g, pb):
         """
         Prepare the testing edge set if any
 
@@ -176,26 +209,6 @@ class GSgnnLinkPredictionInferData():
 
         self._test_idxs = test_idxs
         self._do_validation = do_validation
-
-    @property
-    def eval_etypes(self):
-        return self._eval_etypes
-
-    @property
-    def train_idxs(self):
-        return None
-
-    @property
-    def val_idxs(self):
-        return None
-
-    @property
-    def test_idxs(self):
-        return self._test_idxs
-
-    @property
-    def do_validation(self):
-        return self._do_validation
 
 class GSgnnEdgePredictionTrainData():
     """ Edge prediction training data
@@ -481,7 +494,7 @@ class GSgnnEdgePredictionInferData():
 
 #### Node classification/regression Task Data ####
 class GSgnnNodeData():
-    """ Training data for node tasks
+    """ Data for node tasks
 
     Parameters
     ----------
