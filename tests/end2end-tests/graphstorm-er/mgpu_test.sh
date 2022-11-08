@@ -58,7 +58,7 @@ then
 fi
 
 cnt=$(grep "| Test rmse" train_log.txt | wc -l)
-if test $cnt -lt $(1+$bst_cnt)
+if test $cnt -lt $((1+$bst_cnt))
 then
     echo "We use SageMaker task tracker, we should have Test rmse"
     exit -1
@@ -72,7 +72,7 @@ then
 fi
 
 cnt=$(grep "Validation rmse" train_log.txt | wc -l)
-if test $cnt -lt $(1+$bst_cnt)
+if test $cnt -lt $((1+$bst_cnt))
 then
     echo "We use SageMaker task tracker, we should have Validation rmse"
     exit -1

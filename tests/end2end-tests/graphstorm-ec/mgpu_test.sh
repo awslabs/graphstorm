@@ -50,24 +50,10 @@ then
     exit -1
 fi
 
-cnt=$(grep "| Test accuracy" train_log.txt | wc -l)
-if test $cnt -lt $(1+$bst_cnt)
-then
-    echo "We use SageMaker task tracker, we should have Test accuracy"
-    exit -1
-fi
-
 bst_cnt=$(grep "Best Validation accuracy" train_log.txt | wc -l)
 if test $bst_cnt -lt 1
 then
     echo "We use SageMaker task tracker, we should have Best Validation accuracy"
-    exit -1
-fi
-
-cnt=$(grep "Validation accuracy" train_log.txt | wc -l)
-if test $cnt -lt $(1+$bst_cnt)
-then
-    echo "We use SageMaker task tracker, we should have Validation accuracy"
     exit -1
 fi
 
