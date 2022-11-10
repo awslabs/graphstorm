@@ -1,3 +1,4 @@
+date
 GS_HOME=$(pwd)
 mkdir -p /data
 cd /data
@@ -217,3 +218,4 @@ python3 /$GS_HOME/tools/construct_graph.py --name multilabel-ec-test \
 	--device 0 \
     --generate_new_edge_split true \
     --undirected
+date

@@ -23,6 +23,10 @@ error_and_exit () {
 	fi
 }
 
+echo "Test language model node classification"
+
+date
+
 echo "**************dataset: MovieLens, language model, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/language_model_nc/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 lm_nc_huggingface.py --cf lm_ml_nc_hf.yaml --train-nodes 0 --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json"
 
@@ -33,5 +37,7 @@ echo "**************dataset: MovieLens, language model, node feat: fine-tune HF 
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/language_model_nc/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 lm_nc_huggingface.py --cf lm_ml_nc_hf.yaml --train-nodes 20 --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json" | tee log.txt
 
 error_and_exit $?
+
+date
 
 echo 'Done'

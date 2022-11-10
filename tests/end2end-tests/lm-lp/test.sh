@@ -23,6 +23,10 @@ error_and_exit () {
 	fi
 }
 
+echo "Test language model link prediction"
+
+date
+
 echo "**************dataset: Movielens, Language model, node feat: finetune HF BERT, BERT nodes: movie, inference: mini-batch"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/language_model_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 lm_lp_huggingface.py --cf ml_lp.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --n-epochs 1"
 
@@ -32,5 +36,7 @@ echo "**************dataset: Movielens, Language model, node feat: full nodes BE
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/language_model_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 lm_lp_huggingface.py --cf ml_lp.yaml --train-nodes -1 --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --batch-size 10 --n-epochs 1"
 
 error_and_exit $?
+
+date
 
 echo 'Done'

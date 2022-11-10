@@ -50,11 +50,11 @@ e2e:
     - sh ./tests/end2end-tests/dist_load/test.sh
     - sh ./tests/end2end-tests/lm-nc/test.sh
     - sh ./tests/end2end-tests/lm-lp/test.sh
+    - sh ./tests/end2end-tests/lm-ec/test.sh
     - sh ./tests/end2end-tests/graphstorm-nc/test.sh
     - sh ./tests/end2end-tests/graphstorm-lp/test.sh
     - sh ./tests/end2end-tests/graphstorm-ec/test.sh
     - sh ./tests/end2end-tests/graphstorm-er/test.sh
-    - sh ./tests/end2end-tests/lm-ec/test.sh
 
 e2e_mgpu:
   stage: end2end
