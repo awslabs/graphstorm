@@ -54,6 +54,8 @@ python3 /$GS_HOME/tools/construct_graph.py --name movie-lens-100k\
     --num_trainers_per_machine 4 \
     --balance_train \
     --balance_edges \
+    --compute_bert_emb true \
+    --remove_text_tokens true \
     --generate_new_edge_split true \
     --device 0 \
     --undirected
@@ -96,6 +98,8 @@ python3 /$GS_HOME/tools/construct_graph.py --name movie-lens-100k \
     --num_trainers_per_machine 4 \
     --balance_train \
     --balance_edges \
+    --compute_bert_emb true \
+    --remove_text_tokens true \
     --generate_new_edge_split true \
     --device 0
 

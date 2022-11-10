@@ -473,8 +473,7 @@ class LazyDistTensor:
 
 # pylint: disable=invalid-name
 def do_mini_batch_inference(model, embed_layer, bert_train,
-                            bert_static, bert_hidden_size,
-                            device, bert_emb_cache,
+                            bert_static, bert_hidden_size, device,
                             target_nidx, g, pb, n_hidden,
                             fanout, eval_batch_size,
                             use_bert_embeddings_for_validation=False,
@@ -495,8 +494,6 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
             A dict of hidden sizes of bert models
         device: th.device
             Device
-        bert_emb_cache: dict of th.Tensor
-            A global bert cache
         target_nidx: th.Tensor
             Target node idices
         g: DistDGLGraph
@@ -614,9 +611,6 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
                                            mask=mask,
                                            bert_train=bert_train[ntype],
                                            bert_static=bert_static[ntype],
-                                           emb_cache=bert_emb_cache[ntype] \
-                                               if bert_emb_cache is not None \
-                                               else None,
                                            bert_hidden_size=bert_hidden_size[ntype] \
                                                if isinstance(bert_hidden_size, dict) \
                                                else bert_hidden_size,
@@ -631,7 +625,6 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
                                                 bert_hidden_size,
                                                 input_nodes,
                                                 train_mask=train_mask,
-                                                emb_cache=bert_emb_cache,
                                                 dev=device,
                                                 feat_field=feat_field)
 
@@ -680,7 +673,7 @@ def do_mini_batch_inference(model, embed_layer, bert_train,
     return embeddings
 
 def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
-                       bert_hidden_size, device, bert_emb_cache, bert_infer_bs,
+                       bert_hidden_size, device, bert_infer_bs,
                        eval_fanout_list, eval_batch_size=None,task_tracker=None,
                        feat_field='feat'):
     """ Do fullgraph inference
@@ -701,8 +694,6 @@ def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
             A dict of hidden sizes of bert models
         device: th.device
             Device
-        bert_emb_cache: dict of th.Tensor
-            A global bert cache
         bert_infer_bs: int
             Bert inference batch size
         eval_fanout_list: list
@@ -723,7 +714,6 @@ def do_fullgraph_infer(g, model, embed_layer, bert_train, bert_static,
         bert_infer_bs, embed_layer,
         bert_train, bert_static,
         bert_hidden_size, dev=device,
-        emb_cache=bert_emb_cache,
         task_tracker=task_tracker,
         feat_field=feat_field)
     t1 = time.time() # pylint: disable=invalid-name

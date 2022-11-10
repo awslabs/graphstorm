@@ -51,7 +51,7 @@ class GSgnnEdgeModel(GSgnnBase):
         self.log_params(config.__dict__)
         self.alpha_l2norm = config.alpha_l2norm
 
-    def inference(self, val_test_nodes, val_src_dst_pairs, test_src_dst_pairs, val_labels, test_labels, bert_emb_cache=None):
+    def inference(self, val_test_nodes, val_src_dst_pairs, test_src_dst_pairs, val_labels, test_labels):
         '''This performs inference on the target nodes.
 
         Parameters
@@ -66,8 +66,6 @@ class GSgnnEdgeModel(GSgnnBase):
             The labels for all validation edges.
         test_labels: tensor
             The labels for all test edges.
-        bert_emb_cache : dict of embedding cache
-            The embedding cache for the nodes in the input graph.
 
         Returns
         -------
@@ -82,7 +80,7 @@ class GSgnnEdgeModel(GSgnnBase):
         2. Call the compute embeddings function
         3. Call the decoder on the results
         """
-        node_embeddings = self.compute_embeddings(g, device, bert_emb_cache, val_test_nodes)
+        node_embeddings = self.compute_embeddings(g, device, val_test_nodes)
 
         t0 = time.time()
         # find the target src and dst ntypes
@@ -147,7 +145,7 @@ class GSgnnEdgeModel(GSgnnBase):
 
         return val_preds, val_labels, test_preds, test_labels
 
-    def fit(self, loader, train_data, bert_emb_cache=None):
+    def fit(self, loader, train_data):
         '''The fit function to train the model.
 
         Parameters
@@ -156,8 +154,6 @@ class GSgnnEdgeModel(GSgnnBase):
             The input graph
         loader : GSgnn dataloader
             The dataloader generates mini-batches to train the model.
-        bert_emb_cache : dict of embedding cache
-            The embedding cache for the nodes in the input graph.
         '''
         g = self.g
         device = 'cuda:%d' % self.dev_id
@@ -166,26 +162,6 @@ class GSgnnEdgeModel(GSgnnBase):
         embed_layer = self.embed_layer
         bert_model = self.bert_model
         combine_optimizer = self.combine_optimizer
-
-        # The bert_emb_cache is used in following cases:
-        # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
-        #    In this case, we only generate bert bert_emb_cache once before model training.
-        # 2) We want to use bert cache to speedup model training, i.e. use_bert_cache == True
-        #    We generate bert bert_emb_cache before model training.
-        #    If refresh_cache is set to True, the bert_emb_cache is refreshed every epoch.
-        #    Otherwise, it is not updated unless some text nodes are selected as trainable text nodes.
-        # 3) GNN warnup when gnn_warmup_epochs > 0. We generate the bert emb_cache before model training.
-        #    In the first gnn_warmup_epochs epochs, the number of trainable text nodes are set to 0 and
-        #    the bert_emb_cache is not refreshed.
-        #    After gnn_warmup_epochs, we follow the Case 2 and Case 4 to control the bert_emb_cache.
-        # 4) if use_bert_cache is False and train_nodes > 0, no emb_cache is used unless Case 3.
-        if (self.train_nodes == 0 or self.use_bert_cache or self.gnn_warmup_epochs > 0) \
-            and (bert_emb_cache is None) and (len(self.bert_static) > 0): # it is not initialized elsewhere
-            bert_emb_cache = self.generate_bert_cache(g)
-            if self.train_nodes == 0 and g.rank() == 0:
-                print('Use fixed BERT embeddings.')
-            elif g.rank() == 0:
-                print('Compute BERT cache.')
 
         # training loop
         print("start training...")
@@ -208,10 +184,6 @@ class GSgnnEdgeModel(GSgnnBase):
                 bert_model[ntype].train()
 
             t0 = time.time()
-            # GNN has been pre-trained, clean the cached bert embedding, if bert cache is not used.
-            if epoch == self.gnn_warmup_epochs and self.train_nodes > 0 and self.use_bert_cache is False:
-                bert_emb_cache = None
-
             for i, (input_nodes, batch_graph, blocks) in enumerate(loader):
                 total_steps += 1
                 blocks = [blk.to(device) for blk in blocks]
@@ -226,7 +198,7 @@ class GSgnnEdgeModel(GSgnnBase):
                 batch_graph = batch_graph.to(device)
                 batch_tic = time.time()
                 gnn_embs, bert_forward_time, gnn_forward_time = \
-                    self.encoder_forward(blocks, input_nodes, bert_emb_cache,
+                    self.encoder_forward(blocks, input_nodes,
                                          bert_forward_time, gnn_forward_time, epoch)
 
                 # TODO expand code for multiple edge types
@@ -276,7 +248,7 @@ class GSgnnEdgeModel(GSgnnBase):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(g.rank(), train_data, bert_emb_cache, total_steps)
+                    val_score = self.eval(g.rank(), train_data, total_steps)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -285,7 +257,7 @@ class GSgnnEdgeModel(GSgnnBase):
                 # the best top k. But if no validation, will either save the last k model or all models
                 # depends on the setting of top k
                 if self.save_model_per_iters > 0 and i % self.save_model_per_iters == 0 and i != 0:
-                    self.save_topk_models(epoch, i, g, bert_emb_cache, val_score)
+                    self.save_topk_models(epoch, i, g, val_score)
 
                 # early_stop, exit current interation.
                 if early_stop is True:
@@ -299,15 +271,9 @@ class GSgnnEdgeModel(GSgnnBase):
                 print("Epoch {} take {}".format(epoch, epoch_time))
             dur.append(epoch_time)
 
-            # re-generate cache
-            if self.use_bert_cache and self.refresh_cache and epoch >= self.gnn_warmup_epochs:
-                if g.rank() == 0:
-                    print('Refresh BERT cache.')
-                bert_emb_cache = self.generate_bert_cache(g)
-
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(g.rank(), train_data, bert_emb_cache, total_steps)
+                val_score = self.eval(g.rank(), train_data, total_steps)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
@@ -316,7 +282,7 @@ class GSgnnEdgeModel(GSgnnBase):
             # the best top k. But if no validation, will either save the last k model or all models
             # depends on the setting of top k. To show this is after epoch save, set the iteration
             # to be None, so that we can have a determistic model folder name for testing and debug.
-            self.save_topk_models(epoch, None, g, bert_emb_cache, val_score)
+            self.save_topk_models(epoch, None, g, val_score)
 
             th.distributed.barrier()
 
@@ -338,7 +304,7 @@ class GSgnnEdgeModel(GSgnnBase):
                 print([f'Rank {i+1}: epoch-{epoch}' \
                         for i, epoch in enumerate(self.topklist.toplist)])
 
-    def eval(self, rank, train_data, bert_emb_cache, total_steps):
+    def eval(self, rank, train_data, total_steps):
         """ do the model evaluation using validiation and test sets
 
             Parameters
@@ -347,8 +313,6 @@ class GSgnnEdgeModel(GSgnnBase):
                 Distributed rank
             train_data: GSgnnEdgePredictionTrainData
                 Training data
-            bert_emb_cache: dict of tensor
-                Bert embedding cahce
             total_steps: int
                 Total number of iterations.
 
@@ -361,8 +325,7 @@ class GSgnnEdgeModel(GSgnnBase):
         test_labels = train_data.labels[train_data.test_idxs[self.target_etype[1]]]
         pred = self.inference(train_data.val_test_nodes,
                               train_data.val_src_dst_pairs,
-                              train_data.test_src_dst_pairs, val_labels, test_labels,
-                              bert_emb_cache)
+                              train_data.test_src_dst_pairs, val_labels, test_labels)
 
         val_pred, val_labels, test_pred, test_labels = pred
 
@@ -378,20 +341,15 @@ class GSgnnEdgeModel(GSgnnBase):
                                 total_steps=total_steps)
         return val_score
 
-    def infer(self, data, bert_emb_cache=None):
+    def infer(self, data):
         g = self.g
         device = 'cuda:%d' % self.dev_id
-
-        if (bert_emb_cache is None) and (len(self.bert_static) > 0):
-            bert_emb_cache = self.generate_bert_cache(g)
-            if g.rank() == 0:
-                print('Compute BERT cache.')
 
         print("start inference ...")
 
         target_ntypes = data.target_ntypes
         # compute node embeddings
-        outputs = self.compute_embeddings(g, device, bert_emb_cache)
+        outputs = self.compute_embeddings(g, device)
         embeddings = {ntype: outputs[ntype] for ntype in target_ntypes}
 
         if self.evaluator is not None and \

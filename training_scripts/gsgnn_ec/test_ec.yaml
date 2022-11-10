@@ -15,8 +15,6 @@ gsf:
     model_encoder_type: rgcn
     part_config: ./test_ec_1p_4t/test.json
     verbose: false
-    use_bert_cache: false
-    refresh_cache: false
     gnn_warmup_epochs: 0
     mixed_precision: false
     no_validation: false

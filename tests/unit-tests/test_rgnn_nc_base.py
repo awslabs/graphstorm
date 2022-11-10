@@ -63,7 +63,7 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, val_pred, test_pred,
     def call_eval(mock_log_print_metrics, mock_inference):
         nc = GSgnnNodeClassModel.__new__(GSgnnNodeClassModel)
         nc.register_evaluator(accEvaluator)
-        nc.eval(worker_rank, train_data, None, 100)
+        nc.eval(worker_rank, train_data, 100)
         # Note: we can not use
         # mock_inference.assert_called_once_with()
         # as torch does not allow Tensor == Tensor
@@ -107,7 +107,7 @@ def run_local_nc_eval_worker(eval_config, val_pred, test_pred,
     def call_eval(mock_log_print_metrics, mock_inference):
         nc = GSgnnNodeClassModel.__new__(GSgnnNodeClassModel)
         nc.register_evaluator(accEvaluator)
-        nc.eval(0, train_data, None, 100)
+        nc.eval(0, train_data, 100)
         # Note: we can not use
         # mock_inference.assert_called_once_with()
         # as torch does not allow Tensor == Tensor

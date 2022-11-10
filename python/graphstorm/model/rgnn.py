@@ -11,7 +11,6 @@ import psutil
 from torch.nn.parallel import DistributedDataParallel
 
 from .utils import do_fullgraph_infer, do_mini_batch_inference, LazyDistTensor, rand_gen_trainmask
-from .emb_cache import EmbedCache
 from .extract_node_embeddings import extract_bert_embeddings_dist, prepare_batch_input
 from ..data.constants import TOKEN_IDX
 from .embed import DistGraphEmbed
@@ -200,8 +199,6 @@ class GSgnnBase():
                     assert e in fanout_dic.keys(), "The edge type {} is not included in the specified fanout".format(e)
 
         self._train_nodes = config.train_nodes
-        self._use_bert_cache = config.use_bert_cache
-        self._refresh_cache = config.refresh_cache
 
         # training related
         self._batch_size = config.batch_size
@@ -557,35 +554,7 @@ class GSgnnBase():
             self.combine_optimizer = None
 
 
-    def generate_bert_cache(self, g):
-        ''' Generate the cache of the BERT embeddings on the nodes of the input graph.
-
-        The cache is specific to the input graph and the embeddings are generated with the model
-        in this class.
-
-        Parameters
-        ----------
-        g : DGLGraph
-            The input graph
-
-        Returns
-        -------
-        dict of EmbedCache
-            The embedding caches for each node type.
-        '''
-        device = 'cuda:%d' % self.dev_id
-        bert_emb_cache = {}
-        assert isinstance(self.bert_train, dict)
-        assert isinstance(self.bert_static, dict)
-        assert len(self.bert_static) > 0 # Only bert_static is used in this case
-        embs = extract_bert_embeddings_dist(g, self.bert_infer_bs, self.bert_train, self.bert_static,
-                                            self.bert_hidden_size, dev=device,
-                                            verbose=self.verbose, task_tracker=self.task_tracker)
-        for ntype, emb in embs.items():
-            bert_emb_cache[ntype] = EmbedCache(emb)
-        return bert_emb_cache
-
-    def compute_embeddings(self, g, device, bert_emb_cache, target_nidx=None):
+    def compute_embeddings(self, g, device, target_nidx=None):
         """
         compute node embeddings
 
@@ -595,18 +564,16 @@ class GSgnnBase():
             The input graph
         device: th.device
             Device to run the computation
-        bert_emb_cache : dict of embedding cache
-            The embedding cache for the nodes in the input graph.
         target_nidx: dict of tensors
             The idices of nodes to generate embeddings.
         """
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
-            embeddings = self.compute_gnn_embeddings(g, device, bert_emb_cache, target_nidx)
+            embeddings = self.compute_gnn_embeddings(g, device, target_nidx)
         else:
-            embeddings = self.compute_lm_embeddings(g, device, bert_emb_cache, target_nidx)
+            embeddings = self.compute_lm_embeddings(g, device, target_nidx)
         return embeddings
 
-    def compute_gnn_embeddings(self, g, device, bert_emb_cache, target_nidx):
+    def compute_gnn_embeddings(self, g, device, target_nidx):
         """
         compute node embeddings
 
@@ -616,8 +583,6 @@ class GSgnnBase():
             The input graph
         device: th.device
             Device to run the computation
-        bert_emb_cache : dict of embedding cache
-            The embedding cache for the nodes in the input graph.
         target_nidx: dict of tensors
             The idices of nodes to generate embeddings.
         """
@@ -644,7 +609,6 @@ class GSgnnBase():
                                                  bert_static=self.bert_static,
                                                  bert_hidden_size=self.bert_hidden_size,
                                                  device=device,
-                                                 bert_emb_cache=bert_emb_cache,
                                                  target_nidx=target_nidx,
                                                  g=g,
                                                  pb=pb,
@@ -664,7 +628,6 @@ class GSgnnBase():
                                             bert_static=self.bert_static,
                                             bert_hidden_size=self.bert_hidden_size,
                                             device=device,
-                                            bert_emb_cache=bert_emb_cache,
                                             bert_infer_bs=self.bert_infer_bs,
                                             eval_fanout_list=self.eval_fanout,
                                             eval_batch_size=self.eval_batch_size,
@@ -683,7 +646,7 @@ class GSgnnBase():
         th.distributed.barrier()
         return embeddings
 
-    def compute_lm_embeddings(self, g, device, emb_cache, target_nidx_per_ntype):
+    def compute_lm_embeddings(self, g, device, target_nidx_per_ntype):
         """
         compute node embeddings for lm
 
@@ -713,7 +676,6 @@ class GSgnnBase():
                                              bert_static=self.bert_static,
                                              bert_hidden_size=self.bert_hidden_size,
                                              device=device,
-                                             bert_emb_cache=emb_cache,
                                              target_nidx=target_nidx_per_ntype,
                                              g=g,
                                              pb=g.get_partition_book(),
@@ -733,7 +695,7 @@ class GSgnnBase():
                 self.bert_static[ntype].train()
         return embeddings
 
-    def encoder_forward(self, blocks, input_nodes, bert_emb_cache, bert_forward_time, gnn_forward_time, epoch):
+    def encoder_forward(self, blocks, input_nodes, bert_forward_time, gnn_forward_time, epoch):
         g = self.g
         bert_train = self.bert_train
         bert_static = self.bert_static
@@ -757,7 +719,6 @@ class GSgnnBase():
                                         bert_hidden_size,
                                         input_nodes,
                                         train_mask=train_node_masks,
-                                        emb_cache=bert_emb_cache,
                                         dev=device,
                                         verbose=self.verbose,
                                         feat_field=self._feat_name)
@@ -774,7 +735,7 @@ class GSgnnBase():
 
         return gnn_embs, bert_forward_time, gnn_forward_time
 
-    def save_model_embed(self, epoch, i, g, bert_emb_cache):
+    def save_model_embed(self, epoch, i, g):
         '''Save the model and node embeddings for a certain iteration in an epoch..
         '''
         model_conf = self.model_conf
@@ -801,7 +762,7 @@ class GSgnnBase():
         if self.save_embeds_path is not None:
             # Generate all the node embeddings
             device = 'cuda:%d' % self.dev_id
-            embeddings = self.compute_embeddings(g, device, bert_emb_cache)
+            embeddings = self.compute_embeddings(g, device)
 
             # save embeddings in a distributed way
             save_embeds_path = self._gen_model_path(self.save_embeds_path, epoch, i)
@@ -833,7 +794,7 @@ class GSgnnBase():
             if remove_status == 0:
                 print(f'Successfully removed the saved model files in {saved_model_path}')
 
-    def save_topk_models(self, epoch, i, g, bert_emb_cache, val_score):
+    def save_topk_models(self, epoch, i, g, val_score):
         """ Based on the given val_score, decided if save the current model trained in the i_th
             iteration and the epoch_th epoch.
 
@@ -845,8 +806,6 @@ class GSgnnBase():
             The number of iteration in a training epoch.
         g: DGLDistGraph
             The distributed graph used in the current training.
-        bert_emb_cache: Tensor
-            The cached bert embeddings in the current training.
         val_score: dict or None
             A dictionary contains scores from evaluator's validation function. It could be None 
             that means there is either no evluator or not do validation. In that case, just set
@@ -871,7 +830,7 @@ class GSgnnBase():
                 self.remove_saved_model_embed(return_epoch, return_i, g.rank())
 
             # save this epoch and iteration's model and node embeddings
-            self.save_model_embed(epoch, i, g, bert_emb_cache)
+            self.save_model_embed(epoch, i, g)
 
     def _gen_model_path(self, base_path, epoch, i):
         """
@@ -1046,14 +1005,6 @@ class GSgnnBase():
     @property
     def train_nodes(self):
         return self._train_nodes
-
-    @property
-    def use_bert_cache(self):
-        return self._use_bert_cache
-
-    @property
-    def refresh_cache(self):
-        return self._refresh_cache
 
     @property
     def gnn_warmup_epochs(self):

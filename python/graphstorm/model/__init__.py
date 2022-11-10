@@ -1,5 +1,4 @@
 from .embed import DistGraphEmbed
-from .emb_cache import EmbedCache
 
 from .utils import rand_gen_trainmask, sparse_emb_initializer
 

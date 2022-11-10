@@ -66,7 +66,7 @@ def generate_pretrained_bert_embeddings(g, batch_size, bert_train, bert_static, 
     return out_embs
 
 def prepare_batch_input(g, bert_trains, bert_statics, bert_hidden_size, input_nodes,
-                        bert_infer_bs=128, train_mask=None, emb_cache=None,
+                        bert_infer_bs=128, train_mask=None,
                         dev='cpu', verbose=False, feat_field='feat'):
     """ Prepare minibatch input features
 
@@ -88,8 +88,6 @@ def prepare_batch_input(g, bert_trains, bert_statics, bert_hidden_size, input_no
         Batch size when doing bert inference
     train_mask: dict of tensor
         A dict of boolean tensors indicating whether the corresponding nodes will be involved in back-propagation.
-    emb_cache: dict of tensor
-        A bert embedding cache
     dev: th.device
         Device to put output in.
     verbose: bool
@@ -113,7 +111,6 @@ def prepare_batch_input(g, bert_trains, bert_statics, bert_hidden_size, input_no
                                                  mask=mask,
                                                  bert_train=bert_trains[ntype],
                                                  bert_static=bert_statics[ntype],
-                                                 emb_cache=emb_cache[ntype] if emb_cache is not None else None,
                                                  bert_hidden_size=bert_hidden_size[ntype] \
                                                     if isinstance(bert_hidden_size, dict) \
                                                     else bert_hidden_size,
@@ -200,7 +197,7 @@ def extract_bert_embeddings_dist(g, batch_size, bert_train, bert_static, bert_hi
     return out_embs
 
 def extract_all_embeddings_dist(g, batch_size, embed_layer, bert_train, bert_static,
-    bert_hidden_size, dev, emb_cache=None, task_tracker=None, feat_field='feat'):
+    bert_hidden_size, dev, task_tracker=None, feat_field='feat'):
     """
     This function extracts the embeddings for all the nodes in a distributed graph either from the BERT model
     or from the embedding layer.
@@ -253,7 +250,7 @@ def extract_all_embeddings_dist(g, batch_size, embed_layer, bert_train, bert_sta
 
                 train_mask = {ntype: th.full((input_nodes.shape[0],), False, dtype=th.bool)}
                 emb, _ = prepare_batch_input(g, bert_train, bert_static, bert_hidden_size, {ntype: input_nodes},
-                                                  train_mask=train_mask, emb_cache=emb_cache, dev=dev, feat_field=feat_field)
+                                                  train_mask=train_mask, dev=dev, feat_field=feat_field)
                 if ntype not in emb:
                     emb[ntype]=None
                     assert embed_layer is not None, "In this case the embedding layer is needed"

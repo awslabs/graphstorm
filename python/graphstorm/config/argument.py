@@ -304,34 +304,6 @@ class GSConfig:
 
     ###################### Bert tuning realted ######################
     @property
-    def use_bert_cache(self):
-        """ Whether use bert cache
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_use_bert_cache"):
-            assert self._use_bert_cache in [True, False]
-            return self._use_bert_cache
-
-        # By default, do not use use bert cache
-        return False
-
-    @property
-    def refresh_cache(self):
-        """ Whether refresh bert cache
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_refresh_cache"):
-            assert self._refresh_cache in [True, False]
-            if self._refresh_cache:
-                assert self.use_bert_cache, \
-                    "use-bert-cache must be turned on."
-            return self._refresh_cache
-
-        # By default, if use_bert_cache is True, use refresh_cache
-        # else set it to False
-        return self.use_bert_cache
-
-    @property
     def gnn_warmup_epochs(self):
         """ Whether train GNN first and then co-train GNN with BERT
         """
@@ -1378,16 +1350,6 @@ def _add_gsgnn_basic_args(parser):
 
 def _add_bert_tune_args(parser):
     group = parser.add_argument_group(title="bert_tune")
-    group.add_argument(
-            '--use-bert-cache',
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="Whether use bert cache during training.")
-    group.add_argument(
-            '--refresh-cache',
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="Whether refresh bert cache after each epoch.")
     group.add_argument('--gnn-warmup-epochs', type=int, default=argparse.SUPPRESS,
             help="Whether warmup (pre-train) GNN model before bert-GNN co-train.")
     parser.add_argument("--train-nodes", type=int, default=argparse.SUPPRESS,
