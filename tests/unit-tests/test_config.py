@@ -83,8 +83,6 @@ def create_basic_config(tmp_path, file_name):
 def create_bert_tune_info_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
-        "use_bert_cache": True,
-        "refresh_cache": True,
         "gnn_warmup_epochs": 1,
         "train_nodes": 1,
     }
@@ -97,25 +95,6 @@ def create_bert_tune_info_config(tmp_path, file_name):
     }
 
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for check default value2
-    yaml_object["gsf"]["basic"] = {
-        "use_bert_cache": True
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_default2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for wrong values
-    yaml_object["gsf"]["basic"] = {
-        "use_bert_cache": False,
-        "refresh_cache": True, # use_bert_cache is not set to True, will fail
-        "gnn_warmup_epochs": -1,
-        "train_nodes": -2
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 
@@ -175,8 +154,6 @@ def test_bert_tune_info():
                          local_rank=0)
 
         config = GSConfig(args)
-        assert config.use_bert_cache == True
-        assert config.refresh_cache == True
         assert config.gnn_warmup_epochs == 1
         assert config.train_nodes == 1
 
@@ -184,32 +161,8 @@ def test_bert_tune_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.use_bert_cache == False
-        assert config.refresh_cache == False
         assert config.gnn_warmup_epochs == 0
         assert config.train_nodes == 0
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info_default2.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.refresh_cache == True
-
-        config._refresh_cache = False
-        assert config.refresh_cache == False
-
-        # Check failures
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info_fail.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        check_failure(config, "refresh_cache")
-        check_failure(config, "gnn_warmup_epochs")
-        check_failure(config, "train_nodes")
-
-        # More checks
-        # if gnn_warmup_epochs > 0, train_nodes should also > 0
-        config._gnn_warmup_epochs = 1
-        config._train_nodes = 0
-        check_failure(config, "gnn_warmup_epochs")
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()

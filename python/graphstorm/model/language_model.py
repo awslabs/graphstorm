@@ -14,7 +14,6 @@ from .hbert import wrap_bert, get_bert_flops_info
 from .utils import save_model as save_lm_model
 
 from ..data.constants import TOKEN_IDX, ATT_MASK_IDX
-from .emb_cache import EmbedCache
 from .embed import DistGraphEmbed
 from .extract_node_embeddings import extract_bert_embeddings_dist
 from .extract_node_embeddings import prepare_batch_input
@@ -48,8 +47,6 @@ class LanguageModelBase():
 
         # lm fine tuning related
         self._train_nodes = config.train_nodes
-        self._use_bert_cache = config.use_bert_cache
-        self._refresh_cache = config.refresh_cache
         self._gnn_warmup_epochs = config.gnn_warmup_epochs
 
         # training related
@@ -244,35 +241,6 @@ class LanguageModelBase():
     def init_loss_function(self):
         pass
 
-    def generate_bert_cache(self, g):
-        ''' Generate the cache of the BERT embeddings on the nodes of the input graph.
-
-        The cache is specific to the input graph and the embeddings are generated with the model
-        in this class.
-
-        Parameters
-        ----------
-        g : DGLGraph
-            The input graph
-
-        Returns
-        -------
-        dict of EmbedCache
-            The embedding caches for each node type.
-        '''
-        device = 'cuda:%d' % self.dev_id
-        bert_emb_cache = {}
-        assert isinstance(self.bert_train, dict)
-        assert isinstance(self.bert_static, dict)
-        assert len(self.bert_static) > 0 # Only bert_static is used in this case
-        embs = extract_bert_embeddings_dist(g, self.bert_infer_bs, self.bert_train, self.bert_static,
-                                            self.bert_hidden_size, dev=device,
-                                            verbose=self.verbose,
-                                            task_tracker=self.tracker)
-        for ntype, emb in embs.items():
-            bert_emb_cache[ntype] = EmbedCache(emb)
-        return bert_emb_cache
-
     def init_lm_encoder_optimizer(self):
         bert_model = self.bert_model
         bert_params = list([])
@@ -377,7 +345,7 @@ class LanguageModelBase():
 
 
 
-    def compute_embeddings(self, g, target_nidx_per_ntype, emb_cache=None):
+    def compute_embeddings(self, g, target_nidx_per_ntype):
         """
         compute node embeddings
 
@@ -429,7 +397,6 @@ class LanguageModelBase():
                                                     bert_hidden_size,
                                                     input_nodes,
                                                     train_mask=train_mask,
-                                                    emb_cache=emb_cache,
                                                     dev=device)
 
                     if self.pretrain_emb_layer:
@@ -594,14 +561,6 @@ class LanguageModelBase():
     @property
     def train_nodes(self):
         return self._train_nodes
-
-    @property
-    def use_bert_cache(self):
-        return self._use_bert_cache
-
-    @property
-    def refresh_cache(self):
-        return self._refresh_cache
 
     @property
     def gnn_warmup_epochs(self):

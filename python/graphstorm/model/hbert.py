@@ -81,7 +81,7 @@ def run_bert(bert_model, input_ids, attention_mask, token_type_ids, labels=None,
 
     return out_embs, loss
 
-def extract_bert_embed(nid, mask, bert_train, bert_static, bert_hidden_size, dev, emb_cache=None, verbose=False):
+def extract_bert_embed(nid, mask, bert_train, bert_static, bert_hidden_size, dev, verbose=False):
     """ Generate bert embeddings.
 
     The nid gives a list of nodes to generate bert embeddings. The mask is used to specify which nodes are
@@ -132,19 +132,11 @@ def extract_bert_embed(nid, mask, bert_train, bert_static, bert_hidden_size, dev
         else:
             text_embs[mask] = out_embs.type(th.float32)
 
-        if emb_cache is not None:
-            # copy back to cpu
-            emb_cache[train_nodes] = out_embs.detach().to('cpu')
-
     if static_nodes is not None and static_nodes.shape[0] > 0:
-        if emb_cache is not None:
-            out_embs = emb_cache[static_nodes].to(dev)
-        else:
-            # num_text_nodes += len(static_nodes)
-            static_nodes = static_nodes.to(dev)
-            if verbose:
-                print("{} static text nodes".format(static_nodes.shape[0]))
-            out_embs = bert_static(static_nodes)
+        static_nodes = static_nodes.to(dev)
+        if verbose:
+            print("{} static text nodes".format(static_nodes.shape[0]))
+        out_embs = bert_static(static_nodes)
         text_embs[~mask] = out_embs.type(th.float32)
 
     return text_embs, loss

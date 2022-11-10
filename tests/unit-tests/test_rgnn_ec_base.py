@@ -50,7 +50,7 @@ def run_dist_ec_eval_worker(eval_config, worker_rank, val_pred, test_pred,
         ec = GSgnnEdgeClassificationModel.__new__(GSgnnEdgeClassificationModel)
         ec.register_evaluator(accEvaluator)
         ec.target_etype = ("t0", "test", "t1")
-        ec.eval(worker_rank, train_data, None, 100)
+        ec.eval(worker_rank, train_data, 100)
         # Note: we can not use
         # mock_inference.assert_called_once_with(None, None, None, val_labels, test_labels, None)
         # as torch does not allow Tensor == Tensor
@@ -95,7 +95,7 @@ def run_local_ec_eval_worker(eval_config, val_pred, test_pred,
         ec = GSgnnEdgeClassificationModel.__new__(GSgnnEdgeClassificationModel)
         ec.register_evaluator(accEvaluator)
         ec.target_etype = ("t0", "test", "t1")
-        ec.eval(0, train_data, None, 100)
+        ec.eval(0, train_data, 100)
         # Note: we can not use
         # mock_inference.assert_called_once_with(None, None, None, val_labels, test_labels, None)
         # as torch does not allow Tensor == Tensor

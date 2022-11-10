@@ -15,8 +15,6 @@ gsf:
     ip_config: ip_list.txt
     part_config: /data/ogbn-arxiv-1p/ogbn-arxiv.json
     verbose: false
-    use_bert_cache: false
-    refresh_cache: false
     gnn_warmup_epochs: 0
     mixed_precision: false
     no_validation: false

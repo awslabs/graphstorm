@@ -15,8 +15,6 @@ gsf:
     ip_config: ip_list.txt
     part_config: movielen_100k_train_val_1p_4t/movie-lens-100k.json
     verbose: false
-    use_bert_cache: false
-    refresh_cache: false
     gnn_warmup_epochs: 0
     mixed_precision: false
     no_validation: false
