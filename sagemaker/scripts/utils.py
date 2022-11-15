@@ -9,6 +9,44 @@ import shutil
 from sagemaker.s3 import S3Downloader
 from sagemaker.s3 import S3Uploader
 
+def barrier_master(client_list, world_size):
+    """ Master barrier, called by host_rank == 0
+
+    Parameters
+    ----------
+    client_list: list
+        List of socket clients
+    world_size: int
+        Size of the distributed training/inference cluster
+    """
+    for rank in range(1, world_size):
+        client_list[rank].send(b"sync")
+
+    for rank in range(1, world_size):
+        msg = client_list[rank].recv(8)
+        msg = msg.decode()
+        assert msg == "sync_ack"
+
+    for rank in range(1, world_size):
+        client_list[rank].send(b"synced")
+
+def barrier(master_sock):
+    """ Worker node barrier, called by host_rank > 0
+
+    Parameters
+    ----------
+    master_sock: socket
+        Socket connecting master
+    """
+    msg = master_sock.recv(8)
+    msg = msg.decode()
+    assert msg == "sync"
+
+    master_sock.send(b"sync_ack")
+
+    msg = master_sock.recv(8)
+    msg = msg.decode()
+    assert msg == "synced"
 
 def keep_alive(client_list, world_size, task_end):
     """ Keep the communication between master and workers alive
@@ -200,6 +238,15 @@ def upload_embs(emb_s3_path, emb_path, sagemaker_session):
         raise RuntimeError(f"Can not upload data into {emb_s3_path}")
     return ret
 
+def remove_data(path):
+    """ Clean up local data under path
+
+    Parameters
+    ----------
+    path: str
+        Path to local data
+    """
+    shutil.rmtree(path)
 
 def remove_embs(emb_path):
     """ Clean up saved embeddings locally,
@@ -210,4 +257,4 @@ def remove_embs(emb_path):
     emb_path: str
         Local embedding path
     """
-    shutil.rmtree(emb_path)
+    remove_data(emb_path)
