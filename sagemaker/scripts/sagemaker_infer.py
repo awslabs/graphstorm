@@ -230,6 +230,8 @@ def main():
 
     err_code = 0
     if host_rank == 0:
+        utils.barrier_master(client_list, world_size)
+
         # launch a thread to send keep alive message to all workers
         task_end = Event()
         thread = Thread(target=utils.keep_alive,
@@ -258,10 +260,13 @@ def main():
 
         utils.terminate_workers(client_list, world_size, task_end)
         print("Master End")
-        utils.upload_embs(emb_s3_path, emb_path, sagemaker_session)
-        # clean embs, so SageMaker does not need to upload embs again
-        utils.remove_embs(emb_path)
+        if err_code != -1:
+            utils.upload_embs(emb_s3_path, emb_path, sagemaker_session)
+            # clean embs, so SageMaker does not need to upload embs again
+            utils.remove_embs(emb_path)
     else:
+        utils.barrier(sock)
+
         # Block util training finished
         # Listen to end command
         utils.wait_for_exit(sock)

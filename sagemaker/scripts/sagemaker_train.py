@@ -1,7 +1,4 @@
 """ training entry point
-
-    As SageMaker only accept a single script as the entry point.
-    We have to put all code in one file.
 """
 # Install additional requirements
 import os
@@ -215,6 +212,8 @@ def main():
 
     err_code = 0
     if host_rank == 0:
+        utils.barrier_master(client_list, world_size)
+
         # launch a thread to send keep alive message to all workers
         task_end = Event()
         thread = Thread(target=utils.keep_alive,
@@ -242,6 +241,7 @@ def main():
         utils.terminate_workers(client_list, world_size, task_end)
         print("Master End")
     else:
+        utils.barrier(sock)
         # Block util training finished
         # Listen to end command
         utils.wait_for_exit(sock)
