@@ -1,38 +1,36 @@
+"""tools to preprocess the movielen100k data for later use
+"""
 import json
 import os
 import time
 import argparse
 import math
 
-def parse_record_user(record, out_nodes, out_edges):
-    '''Parse the record of a user.
-    '''
-    uid, age, gender, occupation, zipcode = record.split('|')
-    out_edges.append({'src_id': uid, 'dst_id': occupation})
-    out_nodes.append({'id': uid, 'age': age, 'gender': gender})
 
 def process_file_user(tfile):
     '''Process a file of users.
 
     Each row in the file is a user record.
     '''
-    edges = []
+    user_edges = []
     users = []
     with open(tfile, 'r', encoding="ISO-8859-1") as f:
         start = time.time()
         lines = f.readlines()
-        for i, line in enumerate(lines):
+        for line in lines:
             line = line.strip()
-            parse_record_user(line, users, edges)
+            uid, age, gender, occupation, _ = line.split('|')
+            user_edges.append({'src_id': uid, 'dst_id': occupation})
+            users.append({'id': uid, 'age': age, 'gender': gender})
         print('processing {} lines takes {:.3f} seconds'.format(len(lines), time.time() - start))
 
     out_nodes = {}
     out_edges = {}
     out_nodes['user'] = users
-    out_edges[('user', 'has-occupation', 'occupation')] = edges
+    out_edges[('user', 'has-occupation', 'occupation')] = user_edges
     return out_nodes, out_edges
 
-def parse_record_movie(record, out_nodes, out_edges):
+def parse_record_movie(record):
     '''Parse the record of a user.
     '''
     fields = record.split('|')
@@ -46,21 +44,22 @@ def parse_record_movie(record, out_nodes, out_edges):
             genre = i
             break
     assert genre is not None
-    out_nodes.append({'id': mid, 'title': title, 'date': date, 'genre': genre})
+
+    return {'id': mid, 'title': title, 'date': date, 'genre': genre}
 
 def process_file_movie(tfile):
     '''Process a file of movies.
 
     Each row in the file is a movie record.
     '''
-    edges = []
     movies = []
     with open(tfile, 'r', encoding="ISO-8859-1") as f:
         start = time.time()
         lines = f.readlines()
-        for i, line in enumerate(lines):
+        for line in lines:
             line = line.strip()
-            parse_record_movie(line, movies, edges)
+            movie_record = parse_record_movie(line)
+            movies.append(movie_record)
         print('processing {} lines takes {:.3f} seconds'.format(len(lines), time.time() - start))
 
     out_nodes = {}
@@ -68,24 +67,24 @@ def process_file_movie(tfile):
     out_nodes['movie'] = movies
     return out_nodes, out_edges
 
-def parse_record_occupation(record, out_nodes, out_edges):
+def parse_record_occupation(record):
     '''Parse the record of a occupation.
     '''
-    out_nodes.append({'id': record})
+    return {'id': record}
 
 def process_file_occupation(tfile):
     '''Process a file of occupations.
 
     Each row in the file is an occupation.
     '''
-    edges = []
     occupations = []
     with open(tfile, 'r', encoding="ISO-8859-1") as f:
         start = time.time()
         lines = f.readlines()
-        for i, line in enumerate(lines):
+        for line in lines:
             line = line.strip()
-            parse_record_occupation(line, occupations, edges)
+            occupation_record  = parse_record_occupation(line)
+            occupations.append(occupation_record)
         print('processing {} lines takes {:.3f} seconds'.format(len(lines), time.time() - start))
 
     out_nodes = {}
@@ -93,39 +92,44 @@ def process_file_occupation(tfile):
     out_nodes['occupation'] = occupations
     return out_nodes, out_edges
 
-def parse_record_rating(record, out_nodes, out_edges):
+def parse_record_rating(record):
     '''Parse the record of a user.
     '''
     user, movie, rating, timestamp = record.split('\t')
-    out_edges.append({'src_id': user, 'dst_id': movie, 'rate': rating, 'time': timestamp})
+
+    return {'src_id': user, 'dst_id': movie, 'rate': rating, 'time': timestamp}
 
 def process_file_ratings(tfile):
     '''Process a file of ratings.
 
     Each row in the file is a rating.
     '''
-    edges = []
-    nodes = []
+    rating_edges = []
     with open(tfile, 'r', encoding="ISO-8859-1") as f:
         start = time.time()
         lines = f.readlines()
-        for i, line in enumerate(lines):
+        for line in lines:
             line = line.strip()
-            parse_record_rating(line, nodes, edges)
+            rating_record = parse_record_rating(line)
+            rating_edges.append(rating_record)
         print('processing {} lines takes {:.3f} seconds'.format(len(lines), time.time() - start))
 
     out_nodes = {}
     out_edges = {}
-    out_edges['user', 'rating', 'movie'] = edges
+    out_edges['user', 'rating', 'movie'] = rating_edges
     return out_nodes, out_edges
 
 def write_list(data, output_file):
-    with open(output_file, 'w') as f:
+    """save data to the local file
+    """
+    with open(output_file, 'w', encoding="utf-8") as f:
         for d in data:
             line = json.dumps(d)
             f.write(line + '\n')
 
 def split_list(data, size):
+    """split data into different partitions
+    """
     res = []
     for x in range(0, len(data), size):
         if x + size <= len(data):
@@ -135,38 +139,46 @@ def split_list(data, size):
     return res
 
 def write_list_split(data, output_dir, size_per_file):
+    """save split data to local files
+    """
     if size_per_file > 0:
         data_list = split_list(data, size_per_file)
     else:
         data_list = [data]
     os.makedirs(output_dir, exist_ok = True)
-    for i, data in enumerate(data_list):
-        with open(os.path.join(output_dir, str(i) + '.json'), 'w') as f:
-            for d in data:
+    for i, data_piece in enumerate(data_list):
+        with open(os.path.join(output_dir, str(i) + '.json'), 'w', encoding="utf-8") as f:
+            for d in data_piece:
                 line = json.dumps(d)
                 f.write(line + '\n')
 
-def write_nodes(nodes, output_dir, num_splits):
-    for ntype in nodes:
-        if len(nodes[ntype]) == 0:
+def write_nodes(out_nodes, output_dir, num_splits):
+    """save nodes into local files
+    """
+    for ntype in out_nodes:
+        data = out_nodes[ntype]
+        if len(data) == 0:
             continue
         node_dir = os.path.join(output_dir, 'nodes-' + ntype)
         os.makedirs(node_dir, exist_ok = True)
         print('node dir:', node_dir)
-        write_list_split(nodes[ntype], node_dir,
-            int(math.ceil(len(nodes[ntype]) / num_splits)))
-        write_list([node['id'] for node in nodes[ntype]],
+        write_list_split(data, node_dir,
+            int(math.ceil(len(data) / num_splits)))
+        write_list([node['id'] for node in data],
                 os.path.join(output_dir, 'nid-{}.txt'.format(ntype)))
 
-def write_edges(edges, output_dir, num_splits):
-    for etype in edges:
-        if len(edges[etype]) == 0:
+def write_edges(out_edges, output_dir, num_splits):
+    """save edges into local files
+    """
+    for etype in out_edges:
+        data = out_edges[etype]
+        if len(data) == 0:
             continue
         etype_dir = os.path.join(output_dir, 'edges-' + '_'.join(etype))
         os.makedirs(etype_dir, exist_ok = True)
         print('etype dir:', etype_dir)
-        write_list_split(edges[etype], etype_dir,
-            int(math.ceil(len(edges[etype]) / num_splits)))
+        write_list_split(data, etype_dir,
+            int(math.ceil(len(data) / num_splits)))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='BertModel')
