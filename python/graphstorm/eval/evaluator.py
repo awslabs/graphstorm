@@ -4,8 +4,7 @@ import abc
 from statistics import mean
 import torch as th
 
-from ..eval import ClassificationMetrics, RegressionMetrics, LinkPredictionMetrics
-
+from .eval_func import ClassificationMetrics, RegressionMetrics, LinkPredictionMetrics
 from .utils import fullgraph_eval
 from .utils import broadcast_data
 from ..config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -166,8 +165,6 @@ class GSgnnInstanceEvaluator():
 
             Parameters
             ----------
-            epoch: int
-                The epoch number
             total_iters: int
                 The total number of iterations has been taken.
             epoch_end: bool
