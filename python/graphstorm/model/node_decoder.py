@@ -46,7 +46,7 @@ class EntityRegression(nn.Module):
     def __init__(self,
                  h_dim,
                  dropout=0):
-        super(Regression, self).__init__()
+        super(EntityRegression, self).__init__()
         self.h_dim = h_dim
         self.decoder = nn.Parameter(th.Tensor(h_dim, 1))
         nn.init.xavier_uniform_(self.decoder)
