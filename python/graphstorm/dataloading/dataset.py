@@ -1,9 +1,10 @@
+"""Various datasets for the GSF
+"""
+import abc
 import numpy as np
 import torch as th
 import dgl
-import abc
 
-from ..data.utils import return_reverse_mappings
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
@@ -53,26 +54,32 @@ class GSgnnLinkPredictionData():
 
     @property
     def train_etypes(self):
+        """edge types for training"""
         return self._train_etypes
 
     @property
     def eval_etypes(self):
+        """edge types for evaluation"""
         return self._eval_etypes
 
     @property
     def train_idxs(self):
+        """traning set's indexes"""
         return self._train_idxs
 
     @property
     def val_idxs(self):
+        """validation set's indexes"""
         return self._val_idxs
 
     @property
     def test_idxs(self):
+        """test set's indexes"""
         return self._test_idxs
 
     @property
     def do_validation(self):
+        """if do validation"""
         return self._do_validation
 
 class GSgnnLinkPredictionTrainData(GSgnnLinkPredictionData):
@@ -88,8 +95,8 @@ class GSgnnLinkPredictionTrainData(GSgnnLinkPredictionData):
     eval_etypes : list
         A list of edge types who have validation and testing edges
     full_graph_training : boolean
-        If set true, train_mask is applied to all edges. The setting is used for tasks requiring link prediction
-        pre-training, when entire graph structure is used.
+        If set true, train_mask is applied to all edges. The setting is used for tasks requiring
+        link prediction pre-training, when entire graph structure is used.
     """
     def __init__(self, g, pb, train_etypes, eval_etypes, full_graph_training=False):
         self.full_graph_training = full_graph_training
@@ -146,13 +153,17 @@ class GSgnnLinkPredictionTrainData(GSgnnLinkPredictionData):
                     g.edges[eval_etype].data['test_mask'], pb, etype=eval_etype, force_even=True)
 
         if (len(test_idxs) == 0 or len(val_idxs) == 0):
-            print('part {}, train: {}'.format(g.rank(), np.sum([len(train_idxs[etype]) for etype in train_idxs])))
+            num_train = np.sum([len(train_idxs[etype]) for etype in train_idxs])
+            print('part {}, train: {}'.format(g.rank(), num_train))
         else:
             do_validation = True
+            num_train = np.sum([len(train_idxs[etype]) for etype in train_idxs])
+            num_val = np.sum([len(val_idxs[etype]) for etype in val_idxs])
+            num_test = np.sum([len(test_idxs[etype]) for etype in test_idxs])
             print('part {}, train: {}, val: {}, test: {}'.format(g.rank(),
-                                                            np.sum([len(train_idxs[etype]) for etype in train_idxs]),
-                                                            np.sum([len(val_idxs[etype]) for etype in val_idxs]),
-                                                            np.sum([len(test_idxs[etype]) for etype in test_idxs])))
+                                                                 num_train,
+                                                                 num_val,
+                                                                 num_test))
 
         self._train_idxs = train_idxs
         self._val_idxs = val_idxs
@@ -200,7 +211,7 @@ class GSgnnLinkPredictionInferData(GSgnnLinkPredictionData):
                 test_idxs[eval_etype] = dgl.distributed.edge_split(
                     g.edges[eval_etype].data['test_mask'], pb, etype=eval_etype, force_even=True)
 
-        if (len(test_idxs) == 0):
+        if len(test_idxs) == 0:
             print("No test set. Do not need to do evaluation")
         else:
             do_validation = True
@@ -284,13 +295,17 @@ class GSgnnEdgePredictionTrainData():
                 test_idxs[eval_etype] = test_idx
 
         if (len(test_idxs) == 0 or len(val_idxs) == 0):
-            print('part {}, train: {}'.format(g.rank(), np.sum([len(train_idxs[etype]) for etype in train_idxs])))
+            num_train = np.sum([len(train_idxs[etype]) for etype in train_idxs])
+            print('part {}, train: {}'.format(g.rank(), num_train))
         else:
             do_validation = True
+            num_train = np.sum([len(train_idxs[etype]) for etype in train_idxs])
+            num_val = np.sum([len(val_idxs[etype]) for etype in val_idxs])
+            num_test = np.sum([len(test_idxs[etype]) for etype in test_idxs])
             print('part {}, train: {}, val: {}, test: {}'.format(g.rank(),
-                                                            np.sum([len(train_idxs[etype]) for etype in train_idxs]),
-                                                            np.sum([len(val_idxs[etype]) for etype in val_idxs]),
-                                                            np.sum([len(test_idxs[etype]) for etype in test_idxs])))
+                                                                 num_train,
+                                                                 num_val,
+                                                                 num_test))
 
         # TODO need to extend the rest of the code to accept multiple etypes
         train_etype = self.train_etypes[0][1]
@@ -303,36 +318,41 @@ class GSgnnEdgePredictionTrainData():
         self._test_idxs = test_idxs
         self._do_validation = do_validation
 
-        # Next generates the node ids needed for evaluation purposes to speed up the evaluation process.
-        # since there are no negative pairs this procedure can be optimized compared to link prediction
+        # Next generates the node ids needed for evaluation purposes to speed up the evaluation
+        # process, since there are no negative pairs this procedure can be optimized compared to
+        # link prediction
 
         val_src_dst_pairs = {}
         test_src_dst_pairs = {}
         val_test_nodes = {}
         # Collect all the nodes to be valuated
-        for etype in val_idxs.keys():
-            (src_type, e_type, dest_type) = g.to_canonical_etype(etype=etype)
+        for etype, _ in val_idxs.items():
+            (src_type, _, dest_type) = g.to_canonical_etype(etype=etype)
             val_src_dst_pairs[etype] = g.find_edges(val_idxs[etype], etype=etype)
             if src_type not in val_test_nodes:
                 val_test_nodes[src_type] = val_src_dst_pairs[etype][0]
             else:
-                val_test_nodes[src_type] = th.cat([val_test_nodes[src_type], val_src_dst_pairs[etype][0]])
+                val_test_nodes[src_type] = th.cat([val_test_nodes[src_type],
+                                                   val_src_dst_pairs[etype][0]])
             if dest_type not in val_test_nodes:
                 val_test_nodes[dest_type] = val_src_dst_pairs[etype][1]
             else:
-                val_test_nodes[dest_type] = th.cat([val_test_nodes[dest_type], val_src_dst_pairs[etype][1]])
+                val_test_nodes[dest_type] = th.cat([val_test_nodes[dest_type],
+                                                    val_src_dst_pairs[etype][1]])
 
-        for etype in test_idxs.keys():
-            (src_type, e_type, dest_type) = g.to_canonical_etype(etype=etype)
+        for etype, _ in test_idxs.items():
+            (src_type, _, dest_type) = g.to_canonical_etype(etype=etype)
             test_src_dst_pairs[etype] = g.find_edges(test_idxs[etype], etype=etype)
             if src_type not in val_test_nodes:
                 val_test_nodes[src_type] = test_src_dst_pairs[etype][0]
             else:
-                val_test_nodes[src_type] = th.cat([val_test_nodes[src_type], test_src_dst_pairs[etype][0]])
+                val_test_nodes[src_type] = th.cat([val_test_nodes[src_type],
+                                                   test_src_dst_pairs[etype][0]])
             if dest_type not in val_test_nodes:
                 val_test_nodes[dest_type] = test_src_dst_pairs[etype][1]
             else:
-                val_test_nodes[dest_type] = th.cat([val_test_nodes[dest_type], test_src_dst_pairs[etype][1]])
+                val_test_nodes[dest_type] = th.cat([val_test_nodes[dest_type],
+                                                    test_src_dst_pairs[etype][1]])
 
         # Need to keep only the unique node ids to generate embeddings
         for ntype in val_test_nodes:
@@ -341,49 +361,60 @@ class GSgnnEdgePredictionTrainData():
         self._val_test_nodes = val_test_nodes
 
         for ntype in val_test_nodes:
-            print('Number of validation and testing nodes for ntype {} required for edge classification inference'
-                  ': {} at trainer {}'.format(ntype, len(val_test_nodes[ntype]), g.rank()))
+            print('Number of validation and testing nodes for ntype {} \
+                  required for edge classification inference: {} at \
+                  trainer {}'.format(ntype, len(val_test_nodes[ntype]), g.rank()))
         self._val_src_dst_pairs = val_src_dst_pairs
         self._test_src_dst_pairs = test_src_dst_pairs
 
     @property
     def val_test_nodes(self):
+        """nodes for validation and test"""
         return self._val_test_nodes
 
     @property
     def val_src_dst_pairs(self):
+        """the edges (source and destination nodes indexes) for validation"""
         return self._val_src_dst_pairs
 
     @property
     def test_src_dst_pairs(self):
+        """the edges (source and destination nodes indexes) for test"""
         return self._test_src_dst_pairs
 
     @property
     def train_etypes(self):
+        """edge types for training"""
         return self._train_etypes
 
     @property
     def eval_etypes(self):
+        """edge types for training validation"""
         return self._eval_etypes
 
     @property
     def train_idxs(self):
+        """train set's indexes"""
         return self._train_idxs
 
     @property
     def val_idxs(self):
+        """validation set's indexes"""
         return self._val_idxs
 
     @property
     def test_idxs(self):
+        """test set's indexes"""
         return self._test_idxs
 
     @property
     def labels(self):
+        """labels"""
         return self._labels
 
     @property
     def do_validation(self):
+        """if do validation"""
         return self._do_validation
 
 class GSgnnEdgePredictionInferData():
@@ -470,26 +501,32 @@ class GSgnnEdgePredictionInferData():
 
     @property
     def target_etypes(self):
+        """edge type to be infered"""
         return self._target_etypes
 
     @property
     def test_idxs(self):
+        """test set's indexes"""
         return self._test_idxs
 
     @property
     def test_src_dst_pairs(self):
+        """the edges (source and destination nodes indexes) for test"""
         return self._test_src_dst_pairs
 
     @property
     def labels(self):
+        """labels"""
         return self._labels
 
     @property
     def do_validation(self):
+        """if do validation"""
         return self._do_validation
 
     @property
     def target_ntypes(self):
+        """node type to be infered"""
         return self._target_ntypes
 
 #### Node classification/regression Task Data ####
@@ -530,26 +567,32 @@ class GSgnnNodeData():
 
     @property
     def predict_ntype(self):
+        """node type to be predicted"""
         return self._predict_ntype
 
     @property
     def train_idx(self):
+        """train set's indexes"""
         return self._train_idx
 
     @property
     def val_idx(self):
+        """validation set's indexes"""
         return self._val_idx
 
     @property
     def test_idx(self):
+        """test set's indexes"""
         return self._test_idx
 
     @property
     def labels(self):
+        """labels"""
         return self._labels
 
     @property
     def do_validation(self):
+        """if do validation"""
         return self._do_validation
 
 class GSgnnNodeTrainData(GSgnnNodeData):
@@ -565,9 +608,6 @@ class GSgnnNodeTrainData(GSgnnNodeData):
     label_field : str
         The field for storing labels
     """
-    def __init__(self, g, pb, predict_ntype, label_field):
-        super(GSgnnNodeTrainData, self).__init__(
-            g, pb, predict_ntype, label_field)
 
     def prepare_data(self, g, pb):
         assert 'train_mask' in g.nodes[self.predict_ntype].data, \
@@ -605,8 +645,10 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         local_nid = pb.partid2nids(pb.partid, self.predict_ntype).detach().numpy()
         print('part {}, train: {} (local: {}), val: {}, test: {}'.format(
             g.rank(), len(train_idx), len(np.intersect1d(train_idx.numpy(), local_nid)),
-            len(val_idx) if val_idx is not None else 0, len(test_idx) if test_idx is not None else 0))
-        labels = g.nodes[self.predict_ntype].data[self._label_field][np.arange(g.number_of_nodes(self.predict_ntype))]
+            len(val_idx) if val_idx is not None else 0,
+            len(test_idx) if test_idx is not None else 0))
+        label_ids = np.arange(g.number_of_nodes(self.predict_ntype))
+        labels = g.nodes[self.predict_ntype].data[self._label_field][label_ids]
 
         self._train_idx = train_idx
         self._val_idx = val_idx
@@ -627,9 +669,6 @@ class GSgnnNodeInferData(GSgnnNodeData):
     label_field : str
         The field for storing labels
     """
-    def __init__(self, g, pb, predict_ntype, label_field):
-        super(GSgnnNodeInferData, self).__init__(
-            g, pb, predict_ntype, label_field)
 
     def prepare_data(self, g, pb):
         """
@@ -654,7 +693,7 @@ class GSgnnNodeInferData(GSgnnNodeData):
                 pb, ntype=self.predict_ntype, force_even=True,
                 node_trainer_ids=node_trainer_ids)
 
-        if (len(test_idx) == 0):
+        if len(test_idx) == 0:
             print("No test set. Do not need to do evaluation")
         else:
             do_validation = True
@@ -662,7 +701,8 @@ class GSgnnNodeInferData(GSgnnNodeData):
         print(f"part {g.rank()}, "\
               f"test: {len(test_idx) if test_idx is not None else 0}")
 
-        labels = g.nodes[self.predict_ntype].data[self._label_field][np.arange(g.number_of_nodes(self.predict_ntype))]
+        label_ids = np.arange(g.number_of_nodes(self.predict_ntype))
+        labels = g.nodes[self.predict_ntype].data[self._label_field][label_ids]
 
         self._test_idx = test_idx
         self._labels = labels
@@ -688,10 +728,11 @@ class GSgnnMLMTrainData():
 
     def _prepare_train_data(self, g, pb):
         num_nodes = g.num_nodes(self.tune_ntype)
+        pt_policy = g.get_node_partition_policy(self.tune_ntype)
         mlm_mask = dgl.distributed.DistTensor((num_nodes,),
                                               name="mlm_mask",
                                               dtype=th.int8,
-                                              part_policy=g.get_node_partition_policy(self.tune_ntype),
+                                              part_policy=pt_policy,
                                               persistent=True)
         g.barrier()
 
@@ -724,17 +765,20 @@ class GSgnnMLMTrainData():
 
     @property
     def tune_ntype(self):
+        """node type to be fine tuned"""
         return self._tune_ntype
 
     @property
     def train_idx(self):
+        """train set's indexes"""
         return self._train_idx
 
     @property
     def val_idx(self):
+        """validation set's indexes"""
         return self._val_idx
 
     @property
     def do_validation(self):
+        """if do validation"""
         return self._do_validation
-

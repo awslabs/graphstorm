@@ -1,10 +1,10 @@
-import math
-
+"""Addtional graph samplers for GSF
+"""
+from collections.abc import Mapping
 import torch as th
 import numpy as np
-from collections.abc import Mapping
-import dgl
 from dgl import backend as F
+from dgl.distributed import node_split
 from dgl.dataloading.negative_sampler import Uniform
 
 class LocalUniform(Uniform):
@@ -43,12 +43,12 @@ class LocalUniform(Uniform):
         if vtype not in self._local_neg_nids:
             pb = g.get_partition_book()
             if self._per_trainer:
-                neg_idx = dgl.distributed.node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
-                                                     pb, ntype=vtype, force_even=False,
-                                                     node_trainer_ids=g.nodes[vtype].data['trainer_id'])
+                neg_idx = node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
+                                     pb, ntype=vtype, force_even=False,
+                                     node_trainer_ids=g.nodes[vtype].data['trainer_id'])
             else:
-                neg_idx = dgl.distributed.node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
-                                                     pb, ntype=vtype, force_even=True)
+                neg_idx = node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
+                                     pb, ntype=vtype, force_even=True)
             self._local_neg_nids[vtype] = neg_idx
 
         dst = F.randint(shape, dtype, ctx, 0, self._local_neg_nids[vtype].shape[0])

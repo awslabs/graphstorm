@@ -1,3 +1,5 @@
+"""tools to preprocess the yelp data for later use
+"""
 import json
 import os
 import time
@@ -21,28 +23,29 @@ def process_file_user(tfile):
 
     Each row in the file is a user record.
     '''
-    edges = []
+    file_edges = []
     users = []
-    with open(tfile, 'r') as f:
+    with open(tfile, 'r', encoding="utf-8") as f:
         start = time.time()
         lines = f.readlines()
-        for i, line in enumerate(lines):
+        for line in lines:
             line = line.strip()
             record = json.loads(line)
-            parse_record_user(record, users, edges)
+            parse_record_user(record, users, file_edges)
         print('processing {} lines takes {:.3f} seconds'.format(len(lines), time.time() - start))
 
     out_nodes = {}
     out_edges = {}
     out_nodes['user'] = users
-    user_set = set([user['id'] for user in users])
-    edges1 = []
+    # use {}, instead of set(), to build a set object as the pylint standard suggested
+    user_set = {user['id'] for user in users}
+    tmp_edges = []
     # Some of the friend nodes do not exist. We need to filter those friendship edges.
-    for edge in edges:
+    for edge in file_edges:
         if edge['src_id'] in user_set and edge['dst_id'] in user_set:
-            edges1.append(edge)
-    out_edges[('user', 'friendship', 'user')] = edges1
-    print('There are {} users and {} valid friendships'.format(len(users), len(edges1)))
+            tmp_edges.append(edge)
+    out_edges[('user', 'friendship', 'user')] = tmp_edges
+    print('There are {} users and {} valid friendships'.format(len(users), len(tmp_edges)))
     return out_nodes, out_edges
 
 def get_binary_attr_values(data, attr_names):
@@ -71,8 +74,8 @@ def get_category_values(data, attr_names, cat_maps):
 
     In the input data, the categorical attribute contains a string. We need to map the string
     to an integer. As such, we need to maintain a map for each categoriacl attribute, whose key
-    is the string and the value is an integer that is unique for the string. We build this categorical
-    map on the fly.
+    is the string and the value is an integer that is unique for the string. We build this
+    categorical map on the fly.
     The string in a categorical attribute may be either u'xxx' or 'xxx'. This function treats
     them as the same categorical value. Each categorical attribute has the default value of 0,
     which indicates a missing value for the attribute.
@@ -109,7 +112,7 @@ def contain_all_attrs(data, attr_names):
     This function is a sanity check to make sure we have collected all attributes
     from the input data.
     '''
-    return all([attr in attr_names for attr in data])
+    return all(attr in attr_names for attr in data)
 
 def load_non_json_data(data):
     '''Extract values from a format incompatible to JSON.
@@ -161,12 +164,16 @@ def parse_record_business(record, cat_map, out_nodes, out_edges):
     num_attr_names = ['RestaurantsPriceRange2']
     attr_name_map = {
             'BusinessParking': ['garage', 'street', 'validated', 'lot', 'valet'],
-            'Ambience': ['touristy', 'hipster', 'romantic', 'divey', 'intimate', 'trendy', 'upscale', 'classy', 'casual'],
+            'Ambience': ['touristy', 'hipster', 'romantic', 'divey', 'intimate',
+                         'trendy', 'upscale', 'classy', 'casual'],
             'GoodForMeal': ['dessert', 'latenight', 'lunch', 'dinner', 'brunch', 'breakfast'],
-            'HairSpecializesIn': ['straightperms', 'coloring', 'extensions', 'africanamerican', 'curly', 'kids', 'perms', 'asian'],
-            'BestNights': ['monday', 'tuesday', 'friday', 'wednesday', 'thursday', 'sunday', 'saturday'],
+            'HairSpecializesIn': ['straightperms', 'coloring', 'extensions', 'africanamerican',
+                                  'curly', 'kids', 'perms', 'asian'],
+            'BestNights': ['monday', 'tuesday', 'friday', 'wednesday', 'thursday', 'sunday',
+                           'saturday'],
             'Music': ['dj', 'background_music', 'no_music', 'jukebox', 'live', 'video', 'karaoke'],
-            "DietaryRestrictions": ['dairy-free', 'gluten-free', 'vegan', 'kosher', 'halal', 'soy-free', 'vegetarian'],
+            "DietaryRestrictions": ['dairy-free', 'gluten-free', 'vegan', 'kosher', 'halal',
+                                    'soy-free', 'vegetarian'],
     }
 
     vals = []
@@ -176,8 +183,8 @@ def parse_record_business(record, cat_map, out_nodes, out_edges):
         assert contain_all_attrs(record['attributes'],
                 bin_attr_names + cat_attr_names + num_attr_names + list(attr_name_map.keys()))
     else:
-        vals.extend([0 for attr in bin_attr_names])
-        cat_vals = [0 for attr in cat_attr_names]
+        vals.extend([0 for _ in bin_attr_names])
+        cat_vals = [0 for _ in cat_attr_names]
 
     vals.extend(get_additional_binary_attrs(record, attr_name_map))
     del record['attributes']
@@ -186,8 +193,8 @@ def parse_record_business(record, cat_map, out_nodes, out_edges):
     if 'categories' in record and record['categories'] is not None:
         for category in record['categories'].split(','):
             category = category.strip()
-            out_edges[('business', 'incategory', 'category')].append({'src_id': record['business_id'],
-                                                                      'dst_id': category})
+            out_edge = {'src_id': record['business_id'], 'dst_id': category}
+            out_edges[('business', 'incategory', 'category')].append(out_edge)
         del record['categories']
 
     # process the location.
@@ -219,18 +226,20 @@ def process_file_business(tfile):
     out_edges = {('business', 'incategory', 'category'): [],
                  ('business', 'in', 'city'): []}
     cat_map = {}
-    with open(tfile, 'r') as f:
+    with open(tfile, 'r', encoding="utf-8") as f:
         start = time.time()
         lines = f.readlines()
-        for i, line in enumerate(lines):
+        for line in lines:
             line = line.strip()
             record = json.loads(line)
             parse_record_business(record, cat_map, out_nodes, out_edges)
         print('processing {} lines takes {:.3f} seconds'.format(len(lines), time.time() - start))
         print('There are {} business'.format(len(out_nodes['business'])))
 
-    categories = list(set([edge['dst_id'] for edge in out_edges[('business', 'incategory', 'category')]]))
-    cities = list(set([edge['dst_id'] for edge in out_edges[('business', 'in', 'city')]]))
+    uniq_cate = {edge['dst_id'] for edge in out_edges[('business', 'incategory', 'category')]}
+    categories = list(uniq_cate)
+    uniq_cities = {edge['dst_id'] for edge in out_edges[('business', 'in', 'city')]}
+    cities = list(uniq_cities)
     print('There are {} categories and {} cities'.format(len(categories), len(cities)))
     # Save category data, which only contains the name of the category.
     # We need the category name to generate word embeddings.
@@ -261,10 +270,10 @@ def process_file_review(tfile, in_node_sets):
     out_nodes = {'review': []}
     out_edges = {('user', 'write', 'review'): [],
                  ('review', 'on', 'business'): []}
-    with open(tfile, 'r') as f:
+    with open(tfile, 'r', encoding="utf-8") as f:
         start = time.time()
         lines = f.readlines()
-        for i, line in enumerate(lines):
+        for line in lines:
             line = line.strip()
             record = json.loads(line)
             parse_record_review(record, in_node_sets, out_nodes, out_edges)
@@ -274,12 +283,16 @@ def process_file_review(tfile, in_node_sets):
     return out_nodes, out_edges
 
 def write_list(data, output_file):
-    with open(output_file, 'w') as f:
+    """save data to local files
+    """
+    with open(output_file, 'w', encoding="utf-8") as f:
         for d in data:
             line = json.dumps(d)
             f.write(line + '\n')
 
 def split_list(data, size):
+    """split data into partitions
+    """
     res = []
     for x in range(0, len(data), size):
         if x + size <= len(data):
@@ -289,52 +302,65 @@ def split_list(data, size):
     return res
 
 def write_list_split(data, output_dir, size_per_file):
+    """save data partitions into local files
+    """
     if size_per_file > 0:
         data_list = split_list(data, size_per_file)
     else:
         data_list = [data]
     os.makedirs(output_dir, exist_ok = True)
-    for i, data in enumerate(data_list):
-        with open(os.path.join(output_dir, str(i) + '.json'), 'w') as f:
-            for d in data:
+    for i, data_partition in enumerate(data_list):
+        with open(os.path.join(output_dir, str(i) + '.json'), 'w', encoding="utf-8") as f:
+            for d in data_partition:
                 line = json.dumps(d)
                 f.write(line + '\n')
 
-def write_nodes(nodes, output_dir, file_size):
-    for ntype in nodes:
-        if len(nodes[ntype]) == 0:
+def write_nodes(out_nodes, output_dir, file_size):
+    """save nodes to local files
+    """
+    for n_type in out_nodes:
+        if len(out_nodes[n_type]) == 0:
             continue
-        node_dir = os.path.join(output_dir, 'nodes-' + ntype)
+        node_dir = os.path.join(output_dir, 'nodes-' + n_type)
         os.makedirs(node_dir, exist_ok = True)
         print('node dir:', node_dir)
-        write_list_split(nodes[ntype], node_dir, file_size)
-        write_list([node['id'] for node in nodes[ntype]],
-                os.path.join(output_dir, 'nid-{}.txt'.format(ntype)))
+        write_list_split(out_nodes[n_type], node_dir, file_size)
+        write_list([node['id'] for node in out_nodes[n_type]],
+                os.path.join(output_dir, 'nid-{}.txt'.format(n_type)))
 
-def write_edges(edges, output_dir):
-    for etype in edges:
-        if len(edges[etype]) == 0:
+def write_edges(out_edges, output_dir):
+    """save edges to local files
+    """
+    for etype in out_edges:
+        if len(out_edges[etype]) == 0:
             continue
         etype_dir = os.path.join(output_dir, 'edges-' + '_'.join(etype))
         os.makedirs(etype_dir, exist_ok = True)
         print('etype dir:', etype_dir)
-        write_list(edges[etype], os.path.join(etype_dir, '0.json'))
+        write_list(out_edges[etype], os.path.join(etype_dir, '0.json'))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='BertModel')
-    parser.add_argument('--input_path', type=str, help='The path of the input directory that contains all files.')
-    parser.add_argument('--output_path', type=str, help='The path of the output directory')
-    parser.add_argument('--node_file_size', type=int, help='The number of records in each node file.')
+    parser.add_argument('--input_path', type=str,
+                         help='The path of the input directory that contains all files.')
+    parser.add_argument('--output_path', type=str,
+                         help='The path of the output directory')
+    parser.add_argument('--node_file_size', type=int,
+                         help='The number of records in each node file.')
     args = parser.parse_args()
 
-    nodes, edges = process_file_business(os.path.join(args.input_path, 'yelp_academic_dataset_business.json'))
-    nodes1, edges1 = process_file_user(os.path.join(args.input_path, 'yelp_academic_dataset_user.json'))
+    business_file_path = os.path.join(args.input_path, 'yelp_academic_dataset_business.json')
+    nodes, edges = process_file_business(business_file_path)
+    user_file_path = os.path.join(args.input_path, 'yelp_academic_dataset_user.json')
+    nodes1, edges1 = process_file_user(user_file_path)
     nodes.update(nodes1)
     edges.update(edges1)
     node_sets = {}
     for ntype in nodes:
-        node_sets[ntype] = set([node['id'] for node in nodes[ntype]])
-    nodes1, edges1 = process_file_review(os.path.join(args.input_path, 'yelp_academic_dataset_review.json'), node_sets)
+        # use {}, instead of set(), to build a set object as the pylint standard suggested
+        node_sets[ntype] = {node['id'] for node in nodes[ntype]}
+    review_file_path = os.path.join(args.input_path, 'yelp_academic_dataset_review.json')
+    nodes1, edges1 = process_file_review(review_file_path, node_sets)
     nodes.update(nodes1)
     edges.update(edges1)
 

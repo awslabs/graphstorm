@@ -1,4 +1,7 @@
+"""various dataloaders for the GSF
+"""
 import math
+import inspect
 import torch as th
 
 import dgl
@@ -24,12 +27,19 @@ class GSgnnEdgePredictionDataLoader():
     batch_size: minibatch size
     reverse_edge_types_map: A map for reverse edge type
     exclude_training_targets: Whether to exclude training edges during neighbor sampling
-    remove_target_edge: This boolean controls whether we will exclude all edges of the target during message passing.
+    remove_target_edge: This boolean controls whether we will exclude all edges of the target
+                        during message passing.
     device : the device for which the sampling will be performed.
     """
     def __init__(self, g, train_dataset, fanout, n_layers, batch_size,
-                 reverse_edge_types_map, remove_target_edge=True, exclude_training_targets=False, device='cpu'):
+                 reverse_edge_types_map, remove_target_edge=True, exclude_training_targets=False,
+                 device='cpu'):
         assert len(fanout) == n_layers
+        # [James] 11/16/2022: temporarily set the self.device to fix the unused variable lint
+        # error. But need to fix this place to check if GSF can use GPU for sampling.
+        # TODO: [James] Set the inner functions to use self.device so that we know if GPU
+        # sampling can work
+        self.device = device
         # set up dictionary fanout
         # remove the target edge type from computational graph
 
@@ -44,7 +54,9 @@ class GSgnnEdgePredictionDataLoader():
                 print("Target edge will not be removed from message passing graph")
 
         if remove_target_edge:
-            edge_fanout_lis = modify_fanout_for_target_etype(g=g, fanout=fanout, target_etypes=target_etypes)
+            edge_fanout_lis = modify_fanout_for_target_etype(g=g,
+                                                             fanout=fanout,
+                                                             target_etypes=target_etypes)
         else:
             edge_fanout_lis = fanout
 
@@ -52,15 +64,17 @@ class GSgnnEdgePredictionDataLoader():
                                                          train_dataset.train_idxs,
                                                          edge_fanout_lis,
                                                          batch_size,
-                                                         exclude_training_targets=exclude_training_targets,
-                                                         reverse_edge_types_map=reverse_edge_types_map,
+                                                         exclude_training_targets,
+                                                         reverse_edge_types_map,
                                                          device='cpu')
 
-    def _prepare_train_dataloader(self, g, train_idxs, fanout, batch_size, device='cpu',
-                                  exclude_training_targets=False, reverse_edge_types_map=None):
+    def _prepare_train_dataloader(self, g, train_idxs, fanout, batch_size,
+                                  exclude_training_targets=False, reverse_edge_types_map=None,
+                                  device='cpu'):
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
 
         # edge loader
+        exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
                                                     train_idxs,
                                                     sampler,
@@ -69,7 +83,7 @@ class GSgnnEdgePredictionDataLoader():
                                                     shuffle=True,
                                                     drop_last=False,
                                                     num_workers=0,
-                                                    exclude='reverse_types' if exclude_training_targets else None,
+                                                    exclude=exclude_val,
                                                     reverse_etypes=reverse_edge_types_map
                                                     if exclude_training_targets else None)
         return loader
@@ -124,7 +138,8 @@ class GSgnnLinkPredictionDataLoader():
         negative_sampler = dgl.dataloading.negative_sampler.Uniform(num_negative_edges)
         return negative_sampler
 
-    def _prepare_train_dataloader(self, g, train_idxs, fanout, num_negative_edges, batch_size, device,
+    def _prepare_train_dataloader(self, g, train_idxs, fanout,
+                                  num_negative_edges, batch_size, device,
                                   exclude_training_targets=False, reverse_edge_types_map=None):
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
@@ -135,7 +150,7 @@ class GSgnnLinkPredictionDataLoader():
                 train_idxs[etype] = trim_data(train_idxs[etype], device)
         else:
             train_idxs = trim_data(train_idxs, device)
-        # latest documentation https://docs.dgl.ai/generated/dgl.dataloading.as_edge_prediction_sampler.html?highlight=as_edge_prediction_sampler
+        # latest documentation https://docs.dgl.ai/generated/dgl.dataloading.as_edge_prediction_sampler.html?highlight=as_edge_prediction_sampler pylint: disable=line-too-long
         loader = dgl.dataloading.DistEdgeDataLoader(g,
                                                     train_idxs,
                                                     sampler,
@@ -160,10 +175,6 @@ class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
 
     """
-    def __init__(self, g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device,
-        exclude_training_targets=False, reverse_edge_types_map=None):
-        super(GSgnnLPJointNegDataLoader, self).__init__(
-            g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device, exclude_training_targets, reverse_edge_types_map)
 
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
@@ -174,10 +185,6 @@ class GSgnnLPLocalUniformNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with local uniform negative sampler
 
     """
-    def __init__(self, g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device,
-        exclude_training_targets=False, reverse_edge_types_map=None):
-        super(GSgnnLPLocalUniformNegDataLoader, self).__init__(
-            g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device, exclude_training_targets, reverse_edge_types_map)
 
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
@@ -185,7 +192,6 @@ class GSgnnLPLocalUniformNegDataLoader(GSgnnLinkPredictionDataLoader):
         return negative_sampler
 
 ######## Per etype sampler ########
-import inspect
 
 class AllEtypeDistEdgeDataLoader(DistDataLoader):
     """ Distributed edge data sampler that samples at least one
@@ -321,14 +327,15 @@ class AllEtypeDistEdgeDataLoader(DistDataLoader):
             return None
         else:
             new_ret = []
-            for i in range(len(ret)):
-                # ret[i] is (etype, eids)
-                if ret[i][1] is None:
+            # for i in range(len(ret)):
+            for rel_t in ret:
+                # rel_t is (etype, eids)
+                if rel_t[1] is None:
                     # if eids is None, randomly generate one more data point
-                    new_ret.append((ret[i][0], self._rand_gen(ret[i][0]).item()))
+                    new_ret.append((rel_t[0], self._rand_gen(rel_t[0]).item()))
                 else:
-                    for data in ret[i][1]:
-                        new_ret.append((ret[i][0], data.item()))
+                    for data in rel_t[1]:
+                        new_ret.append((rel_t[0], data.item()))
             return new_ret
 
 class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
@@ -365,14 +372,10 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     reverse_edge_types_map:
         A map for reverse edge type
     """
-    def __init__(self, g, train_dataset, fanout, n_layers,
-        batch_size, num_negative_edges, device,
-        exclude_training_targets=False, reverse_edge_types_map=None):
-        super(GSgnnAllEtypeLinkPredictionDataLoader, self).__init__(
-            g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device, exclude_training_targets, reverse_edge_types_map)
 
-    def _prepare_train_dataloader(self, g, train_idxs, fanout, num_negative_edges, batch_size, device,
-                                  exclude_training_targets=False, reverse_edge_types_map=None):
+    def _prepare_train_dataloader(self, g, train_idxs, fanout, num_negative_edges,
+                                  batch_size, device, exclude_training_targets=False,
+                                  reverse_edge_types_map=None):
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
@@ -382,7 +385,8 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
                 train_idxs[etype] = trim_data(train_idxs[etype], device)
         else:
             train_idxs = trim_data(train_idxs, device)
-        # latest documentation https://docs.dgl.ai/generated/dgl.dataloading.as_edge_prediction_sampler.html?highlight=as_edge_prediction_sampler
+        # latest documentation https://docs.dgl.ai/generated/dgl.dataloading.as_edge_prediction_sampler.html?highlight=as_edge_prediction_sampler pylint: disable=line-too-long
+        exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = AllEtypeDistEdgeDataLoader(g,
                                             train_idxs,
                                             sampler,
@@ -392,7 +396,7 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
                                             shuffle=True,
                                             drop_last=False,
                                             num_workers=0,
-                                            exclude='reverse_types' if exclude_training_targets else None,
+                                            exclude=exclude_val,
                                             reverse_etypes=reverse_edge_types_map \
                                                 if exclude_training_targets else None)
         return loader
@@ -408,10 +412,6 @@ class GSgnnAllEtypeLPJointNegDataLoader(GSgnnAllEtypeLinkPredictionDataLoader):
         In each minibatch, at least one edge is sampled from each etype.
 
     """
-    def __init__(self, g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device,
-        exclude_training_targets=False, reverse_edge_types_map=None):
-        super(GSgnnAllEtypeLPJointNegDataLoader, self).__init__(
-            g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device, exclude_training_targets, reverse_edge_types_map)
 
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
