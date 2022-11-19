@@ -48,9 +48,20 @@ class RelGraphConvEncoder(nn.Module):
         self.init_encoder()
 
     def init_encoder(self):
+        """ Initialize GNN encoder
+        """
         pass
 
     def forward(self, h=None, blocks=None):
+        """Forward computation
+
+        Parameters
+        ----------
+        h: dict[str, torch.Tensor]
+            Input node feature for each node type.
+        blocks: DGL MFGs
+            Sampled subgraph in DGL MFG
+        """
         pass
 
     def dist_inference(self, g, batch_size, device, num_workers, x, eval_fanout_list, task_tracker=None):
