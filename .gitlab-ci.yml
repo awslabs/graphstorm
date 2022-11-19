@@ -48,9 +48,6 @@ e2e:
     - sh ./tests/end2end-tests/create_data.sh
     - sh ./tests/end2end-tests/tools/test_mem_est.sh
     - sh ./tests/end2end-tests/dist_load/test.sh
-    - sh ./tests/end2end-tests/lm-nc/test.sh
-    - sh ./tests/end2end-tests/lm-lp/test.sh
-    - sh ./tests/end2end-tests/lm-ec/test.sh
     - sh ./tests/end2end-tests/graphstorm-nc/test.sh
     - sh ./tests/end2end-tests/graphstorm-lp/test.sh
     - sh ./tests/end2end-tests/graphstorm-ec/test.sh
