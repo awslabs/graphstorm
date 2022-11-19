@@ -166,8 +166,6 @@ class GSgnnInstanceEvaluator():
 
             Parameters
             ----------
-            epoch: int
-                The epoch number
             total_iters: int
                 The total number of iterations has been taken.
             epoch_end: bool
