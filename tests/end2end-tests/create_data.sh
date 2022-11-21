@@ -2,9 +2,7 @@ date
 GS_HOME=$(pwd)
 mkdir -p /data
 cd /data
-wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
-unzip ml-100k.zip
-rm ml-100k.zip
+cp -R /storage/ml-100k /data
 
 python3 /$GS_HOME/python/graphstorm/data/tools/preprocess_movielens.py \
     --input_path ml-100k --output_path movielen-data
