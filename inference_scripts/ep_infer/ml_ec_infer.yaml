@@ -37,8 +37,12 @@ gsf:
     use_dot_product: true
     self_loop_init: false
     use_node_embeddings: false
-  edge_regression:
+  edge_classification:
     target_etype:
       - "user,rating,movie"
     label_field: "rate"
     num_decoder_basis: 32
+    reverse_edge_types_map: []
+    multilabel: false
+    exclude_training_targets: false
+    num_classes: 6

@@ -29,6 +29,10 @@ if __name__ == '__main__':
                                 in the node feature \'trainer_id\'')
     argparser.add_argument('--output', type=str, default='data',
                            help='The output directory to store the partitioned results.')
+    argparser.add_argument('--elabel_fields', type=str, help='The fields that stores the labels on edges. '
+                           + 'The format is "srcntype1,etype1,dstntype1:label1 srcntype2,etype2,dstntype2:label2". e.g., "customer,review,movie:stars".')
+    argparser.add_argument('--etask_types', type=str, help='The prediction tasks on edges. '
+                           + 'The format is "srcntype1,etype1,dstntype1:task1 srcntype2,etype2,dstntype2:task2". The possible values of tasks are "classify", "regression".')
     argparser.add_argument('--train_graph_only', action='store_true',
                            help='Only partition the training graph.')
     argparser.add_argument('--retain_original_features',  type=lambda x: (str(x).lower() in ['true', '1']),
@@ -56,7 +60,7 @@ if __name__ == '__main__':
                                      edge_pct=args.edge_pct,
                                      retain_original_features=args.retain_original_features)
     elif args.dataset == 'movie-lens-100k':
-        dataset = MovieLens100kNCDataset(args.filepath)
+        dataset = MovieLens100kNCDataset(args.filepath, edge_pct=args.edge_pct)
     else:
         constructed_graph = True
         print("Loading user defined dataset " + str(args.dataset))
@@ -69,6 +73,26 @@ if __name__ == '__main__':
     if not isinstance(target_etype, list):
         target_etype = [target_etype]
     retain_etypes = [tuple(retain_etype.split(',')) for retain_etype in args.retain_etypes]
+
+    elabel_fields = {}
+    etask_types = {}
+    if args.elabel_fields is not None:
+        for elabel_field in args.elabel_fields.split(' '):
+            etype, label = elabel_field.split(':')
+            etype = tuple(etype.split(','))
+            elabel_fields[etype] = label
+    if args.etask_types is not None:
+        for etask_type in args.etask_types.split(' '):
+            etype, task_type = etask_type.split(':')
+            etype = tuple(etype.split(','))
+            assert etype in elabel_fields
+            etask_types[etype] = task_type
+    assert len(elabel_fields) == len(etask_types)
+    for etype, field in elabel_fields.items():
+        if etask_types[etype] == 'classify':
+            g.edges[etype].data[field] = g.edges[etype].data[field].to(th.int64)
+        else:
+            g.edges[etype].data[field] = g.edges[etype].data[field].to(th.float32)
 
     print('load {} takes {:.3f} seconds'.format(args.dataset, time.time() - start))
     print('|V|={}, |E|={}'.format(g.number_of_nodes(), g.number_of_edges()))

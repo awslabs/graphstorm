@@ -14,7 +14,8 @@ class MovieLens100kNCDataset(GSgnnDataset):
     """
     def __init__(self, raw_dir, edge_pct=1, bert_model_name='bert-base-uncased',
                  max_sequence_length=512, retain_original_features=True, user_text=False,
-                 user_age_as_label=False, force_reload=False, verbose=True):
+                 user_age_as_label=False, force_reload=False, verbose=True,
+                 tokenize_text=False):
         """
         Parameters
         ----------
@@ -45,8 +46,9 @@ class MovieLens100kNCDataset(GSgnnDataset):
         self.retain_original_features = retain_original_features
         self.user_text = user_text
         self.user_age_as_label = user_age_as_label
-        self.target_etype = "1"
+        self.target_etype = ('user', 'rating', 'movie')
         self.edge_pct = edge_pct
+        self.tokenize_text = tokenize_text
         if self.user_text:
             assert self.retain_original_features
         super(MovieLens100kNCDataset, self).__init__(name,
@@ -203,24 +205,28 @@ class MovieLens100kNCDataset(GSgnnDataset):
         test_file = os.path.join(root_path, 'u1.test')
         heads = {}
         tails = {}
+        edge_data = {}
         with open(base_file, newline='', encoding="ISO-8859-1") as csvfile:
             reader = csv.reader(csvfile, delimiter='\t')
 
             for line in reader:
-                rel = ('user', f'score-{str(line[2])}', 'movie')
+                rel = ('user', 'rating', 'movie')
                 if rel not in heads:
                     heads[rel] = []
                     tails[rel] = []
+                    edge_data[rel] = []
                 heads[rel].append(unid_map[line[0]])
                 tails[rel].append(inid_map[line[1]])
+                edge_data[rel].append(int(line[2]))
 
         with open(test_file, newline='', encoding="ISO-8859-1") as csvfile:
             reader = csv.reader(csvfile, delimiter='\t')
 
             for line in reader:
-                rel = ('user', f'score-{str(line[2])}', 'movie')
+                rel = ('user', 'rating', 'movie')
                 heads[rel].append(unid_map[line[0]])
                 tails[rel].append(inid_map[line[1]])
+                edge_data[rel].append(int(line[2]))
 
         graph_edges = {}
         node_dicts = {
@@ -229,7 +235,7 @@ class MovieLens100kNCDataset(GSgnnDataset):
         }
         for key in heads.keys():
             graph_edges[key] = (heads[key], tails[key])
-            graph_edges[(key[2], 'rev-'+key[1], key[0])] = (tails[key], heads[key])
+            graph_edges[(key[2], key[1] + '-rev', key[0])] = (tails[key], heads[key])
 
         g = dgl.heterograph(graph_edges, num_nodes_dict=node_dicts)
         if self.retain_original_features:
@@ -239,6 +245,7 @@ class MovieLens100kNCDataset(GSgnnDataset):
             g.nodes['user'].data['text_idx'] = unids
         g.nodes['movie'].data['text_idx'] = inids
         g.nodes['movie'].data['genre'] = movie_labels
+        g.edges['rating'].data['rate'] = th.tensor(edge_data[('user', 'rating', 'movie')], dtype=th.int32)
 
         # split labels
         th.manual_seed(42)
@@ -286,33 +293,34 @@ class MovieLens100kNCDataset(GSgnnDataset):
         # edge_pct has to be between 0.2 and 1 since we will use by default 0.1 for validation and 0.1 for testing as
         # the smallest possible.
         assert self.edge_pct <= 1 and  self.edge_pct >= 0.2
-        int_edges = g.number_of_edges("score-1")
+        int_edges = g.number_of_edges("rating")
         if self.edge_pct == 1:
-            g.edges["score-1"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
-            g.edges["rev-score-1"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
+            g.edges["rating"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
+            g.edges["rating-rev"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
         else:
             # the validation pct is 0.1
             val_pct = 0.1
             train_pct = self.edge_pct - val_pct
             # the test is 1 - the rest
-            g.edges["score-1"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-score-1"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["score-1"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-score-1"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["score-1"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-score-1"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rating"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rating-rev"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rating"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rating-rev"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rating"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rating-rev"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
 
-            g.edges["score-1"].data['train_mask'][: int(int_edges*train_pct)] = True
-            g.edges["rev-score-1"].data['train_mask'][: int(int_edges * train_pct)] = True
-            g.edges["score-1"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
-            g.edges["rev-score-1"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
-            g.edges["score-1"].data['test_mask'][int(int_edges*self.edge_pct):] = True
-            g.edges["rev-score-1"].data['test_mask'][int(int_edges*self.edge_pct):] = True
+            g.edges["rating"].data['train_mask'][: int(int_edges*train_pct)] = True
+            g.edges["rating-rev"].data['train_mask'][: int(int_edges * train_pct)] = True
+            g.edges["rating"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
+            g.edges["rating-rev"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
+            g.edges["rating"].data['test_mask'][int(int_edges*self.edge_pct):] = True
+            g.edges["rating-rev"].data['test_mask'][int(int_edges*self.edge_pct):] = True
         print(g)
 
         self._g = g
-        self._raw_text_feat = text_feat
-        self.preprocess_text_feat(self.max_sequence_length, bert_model_name=self.bert_model_name)
+        if self.tokenize_text:
+            self._raw_text_feat = text_feat
+            self.preprocess_text_feat(self.max_sequence_length, bert_model_name=self.bert_model_name)
 
     def __getitem__(self, idx):
         r"""Gets the data object at index.
