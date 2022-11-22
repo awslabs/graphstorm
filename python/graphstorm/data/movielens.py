@@ -37,6 +37,9 @@ class MovieLens100kNCDataset(GSgnnDataset):
         """
         name = 'ml-100k'
         url = None
+        data_path = os.path.join(raw_dir, 'ml-100k')
+        assert os.path.exists(data_path), f'The givne data folder {data_path} \
+                                            does not exists.'
         self.bert_model_name = bert_model_name
         self.max_sequence_length = max_sequence_length
         self.retain_original_features = retain_original_features
