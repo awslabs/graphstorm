@@ -52,7 +52,7 @@ then
 fi
 
 cnt=$(grep "| Test mrr" train_log.txt | wc -l)
-if test $cnt -lt $(1+$bst_cnt)
+if test $cnt -lt $bst_cnt
 then
     echo "We use SageMaker task tracker, we should have Test mrr"
     exit -1
@@ -66,7 +66,7 @@ then
 fi
 
 cnt=$(grep "Validation mrr" train_log.txt | wc -l)
-if test $cnt -lt $(1+$bst_cnt)
+if test $cnt -lt $bst_cnt
 then
     echo "We use SageMaker task tracker, we should have Validation mrr"
     exit -1
@@ -87,7 +87,7 @@ then
 fi
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: true, save model"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lp_huggingface.py --cf ml_lp.yaml --train-nodes 0 --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_lp_ml_distmult/ --topk-model-to-save 3 --save-model-per-iter 1000 --save-embeds-path /data/gsgnn_lp_ml_distmult/emb/ --use-dot-product False --train-etype user,rating,movie user,has-occupation,occupation"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lp_huggingface.py --cf ml_lp.yaml --train-nodes 0 --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_lp_ml_distmult/ --topk-model-to-save 3 --save-model-per-iter 1000 --save-embeds-path /data/gsgnn_lp_ml_distmult/emb/ --use-dot-product False --train-etype user,rating,movie movie,rating-rev,user"
 
 error_and_exit $?
 
@@ -132,12 +132,14 @@ then
 fi
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: DistMult"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/lp_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 lp_infer_huggingface.py --cf ml_lp_infer.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_lp_ml_distmult/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult/epoch-2/ --use-dot-product False --no-validation True --train-etype user,rating,movie user,has-occupation,occupation" | tee log2.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/lp_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 lp_infer_huggingface.py --cf ml_lp_infer.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false  --use-node-embeddings true --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_lp_ml_distmult/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult/epoch-2/ --use-dot-product False --no-validation True --train-etype user,rating,movie movie,rating-rev,user" | tee log2.txt
 
 error_and_exit $?
 
 cd $GS_HOME/tests/end2end-tests/graphstorm-lp/
 python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_dot/emb/epoch-2/ --infer_embout /data/gsgnn_lp_ml_dot/infer-emb/
+
+error_and_exit $?
 
 cnt=$(ls /data/gsgnn_lp_ml_dot/infer-emb/ | grep rel_emb.pt | wc -l)
 if test $cnt -ne 0

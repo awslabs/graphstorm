@@ -24,7 +24,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: ML edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_er/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_er_huggingface.py --cf ml_er.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_er/emb/ --save-model-path /data/gsgnn_er/ --topk-model-to-save 3 --save-model-per-iter 1000 -n-epochs 3" | tee train_log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_er/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_er_huggingface.py --cf ml_er.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_er/emb/ --save-model-path /data/gsgnn_er/ --topk-model-to-save 3 --save-model-per-iter 1000 --n-epochs 3" | tee train_log.txt
 
 error_and_exit $?
 
@@ -134,3 +134,5 @@ fi
 
 cd $GS_HOME/tests/end2end-tests/
 python3 check_infer.py --train_embout /data/gsgnn_er/emb/epoch-2/ --infer_embout /data/gsgnn_er/infer-emb/ --edge_prediction
+
+error_and_exit $?
