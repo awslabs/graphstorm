@@ -1,5 +1,5 @@
 default:
-  image: 911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm_ci:v1.4
+  image: 911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm_ci_nom5:v1.3
 
 stages:
   - lint-unitest
@@ -48,7 +48,6 @@ e2e:
     - sh ./tests/end2end-tests/setup.sh
     - sh ./tests/end2end-tests/create_data.sh
     - sh ./tests/end2end-tests/tools/test_mem_est.sh
-    - sh ./tests/end2end-tests/dist_load/test.sh
     - sh ./tests/end2end-tests/graphstorm-nc/test.sh
     - sh ./tests/end2end-tests/graphstorm-lp/test.sh
     - sh ./tests/end2end-tests/graphstorm-ec/test.sh

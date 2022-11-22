@@ -18,11 +18,12 @@ def test_moveliens100k_dataset_normal():
     }
 
     dataset = MovieLens100kNCDataset(raw_dir=dataset_config['raw_dir'],
-                                    bert_model_name=dataset_config['bert_model_name'],
-                                    max_sequence_length=dataset_config['max_sequence_length'],
-                                    retain_original_features=dataset_config['retain_original_features'],
-                                    user_text=dataset_config['user_text'],
-                                    user_age_as_label=dataset_config['use_age_as_label'])
+                                     bert_model_name=dataset_config['bert_model_name'],
+                                     max_sequence_length=dataset_config['max_sequence_length'],
+                                     retain_original_features=dataset_config['retain_original_features'],
+                                     user_text=dataset_config['user_text'],
+                                     user_age_as_label=dataset_config['use_age_as_label'],
+                                     tokenize_text=True)
 
     # test dataset own property
     assert dataset.predict_category == 'movie', f"The predict category should be \"movie\" \
@@ -36,7 +37,7 @@ def test_moveliens100k_dataset_normal():
     assert dataset._g, f"Should have build a DGL graph!"
     assert len(dataset._g.ntypes) == 2, f"MovieLen100k should have 2 types of nodes, \
                                          but got {len(dataset._g.ntypes)}"
-    assert len(dataset._g.etypes) == 10, f"MovieLen100k should have 10 types of nodes, \
+    assert len(dataset._g.etypes) == 2, f"MovieLen100k should have 10 types of nodes, \
                                          but got {len(dataset._g.etypes)}"
     assert dataset._g.num_nodes('movie') == 1682, f"MovieLen100k should have 1682 \"movie\" nodes, \
                                                     but got {dataset._g.num_nodes('movie')}"
