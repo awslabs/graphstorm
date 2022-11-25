@@ -57,7 +57,6 @@ def get_argument_parser():
     parser = _add_initialization_args(parser)
     # basic args
     parser = _add_gsgnn_basic_args(parser)
-    parser = _add_bert_tune_args(parser)
     # gnn args
     parser = _add_gnn_args(parser)
     parser = _add_input_args(parser)
@@ -66,7 +65,6 @@ def get_argument_parser():
     parser = _add_hyperparam_args(parser)
     parser = _add_rgcn_args(parser)
     parser = _add_rgat_args(parser)
-    parser = _add_pretrain_args(parser)
     parser = _add_link_prediction_args(parser)
     parser = _add_node_classification_args(parser)
     parser = _add_edge_classification_args(parser)
@@ -96,14 +94,6 @@ class GSConfig:
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
         print(configuration)
-        # handle language model config
-        if 'lm_model' in configuration:
-            lm_model = configuration['lm_model']
-            if "bert_models" in lm_model:
-                setattr(self, '_bert_config', lm_model['bert_models'])
-            else:
-                setattr(self, '_bert_config', None)
-
         # handle gnn config
         lmgnn_family = configuration['gsf']
         for family, param_family in lmgnn_family.items():
@@ -153,26 +143,6 @@ class GSConfig:
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
                 print(f"Overriding Argument: {arg_key}")
-
-    ###################### Bert model config ###############
-    @property
-    def bert_config(self):
-        """ check bert config
-        """
-        if hasattr(self, "_bert_config"):
-            if self._bert_config is None:
-                return None
-
-            # bert_config is not NOne
-            assert isinstance(self._bert_config, list), \
-                "Bert_config is not None. It must be a list"
-            assert len(self._bert_config) > 0, \
-                "Number of bert config must larger than 0"
-
-            return self._bert_config
-
-        # By default there is no bert_config
-        return None
 
     ###################### Basic Info ######################
     @property
@@ -301,38 +271,6 @@ class GSConfig:
             Deprecated
         """
         return "O2"
-
-    ###################### Bert tuning realted ######################
-    @property
-    def gnn_warmup_epochs(self):
-        """ Whether train GNN first and then co-train GNN with BERT
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_gnn_warmup_epochs"):
-            assert self._gnn_warmup_epochs >= 0, \
-                "Number of GNN warmup epochs must larger than or equal to 0."
-            if self._gnn_warmup_epochs > 0:
-                assert self.train_nodes > 0, \
-                    "gnn-warmup-epochs is meaningful when you want to co-train GNN with BERT"
-            return self._gnn_warmup_epochs
-
-        # By default, do not use warmup
-        return 0
-
-    @property
-    def train_nodes(self):
-        """ Number of tunable Bert nodes
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_train_nodes"):
-            assert self._train_nodes >= -1, \
-                "Number of trainable BERT nodes must larger or equal to -1." \
-                "0 means no trainable Bert nodes" \
-                "-1 means all nodes are trainable Bert nodes"
-            return self._train_nodes
-
-        # By default, do not turn on co-training
-        return 0
 
     ###################### general gnn related ######################
     @property
@@ -484,15 +422,6 @@ class GSConfig:
         return None
 
     @property
-    def restore_bert_model_path(self):
-        """ Path to BERT model weights
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_restore_bert_model_path"):
-            return self._restore_bert_model_path
-        return None
-
-    @property
     def restore_optimizer_path(self):
         """ Path to the saved optimizer status including embed layer,
             encoder and decoder.
@@ -504,7 +433,7 @@ class GSConfig:
 
     @property
     def restore_model_encoder_path(self):
-        """ Path to the saved BERT + Embed + GNN encoder.
+        """ Path to the saved Input encoder + GNN encoder.
         """
         # pylint: disable=no-member
         if hasattr(self, "_restore_model_encoder_path"):
@@ -723,29 +652,6 @@ class GSConfig:
 
         # By default use 0, meaning save all models
         return 0
-
-    # Bert related
-    @property
-    def bert_tune_lr(self):
-        """ Learning rate for BERT model(s)
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_bert_tune_lr"):
-            bert_tune_lr = float(self._bert_tune_lr)
-            assert bert_tune_lr > 0.0, "Bert tune learning rate must > 0.0"
-            return bert_tune_lr
-
-        return self.lr
-
-    @property
-    def bert_infer_bs(self):
-        """ The batch size for bert inference
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_bert_infer_bs"):
-            assert self._bert_infer_bs > 0
-            return self._bert_infer_bs
-        return 32
 
     @property
     def wd_l2norm(self):
@@ -1000,21 +906,6 @@ class GSConfig:
 
         # By default, remove training target etype during
         # message passing to avoid information leakage
-        return True
-
-    @property
-    def pretrain_emb_layer(self):
-        """ If this is set then we will pretrain the emb layer
-            with the Bert layer, otherwise only Bert layer is pretrained.
-
-            Only used in pretraining
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_pretrain_emb_layer"):
-            assert self._pretrain_emb_layer in [True, False]
-            return self._pretrain_emb_layer
-
-        # By default, only pretrain embedding layer
         return True
 
     @property
@@ -1348,15 +1239,6 @@ def _add_gsgnn_basic_args(parser):
 
     return parser
 
-def _add_bert_tune_args(parser):
-    group = parser.add_argument_group(title="bert_tune")
-    group.add_argument('--gnn-warmup-epochs', type=int, default=argparse.SUPPRESS,
-            help="Whether warmup (pre-train) GNN model before bert-GNN co-train.")
-    parser.add_argument("--train-nodes", type=int, default=argparse.SUPPRESS,
-            help="Number of tunable Bert nodes")
-
-    return parser
-
 def _add_gnn_args(parser):
     group = parser.add_argument_group(title="gnn")
     group.add_argument("--feat-name", type=str, default=argparse.SUPPRESS,
@@ -1391,8 +1273,6 @@ def _add_input_args(parser):
             help='Load the model from the specified directory.')
     group.add_argument('--restore-model-path', type=str, default=argparse.SUPPRESS,
             help='Restore the model weights saved in the specified directory.')
-    group.add_argument('--restore-bert-model-path', type=str, default=argparse.SUPPRESS,
-            help='Restore the BERT model weights saved in the specified directory.')
     group.add_argument('--restore-optimizer-path', type=str, default=argparse.SUPPRESS,
             help='Restore the optimizer snapshot saved in the specified directory.')
     group.add_argument('--restore-model-encoder-path', type=str, default=argparse.SUPPRESS,
@@ -1432,16 +1312,12 @@ def _add_hyperparam_args(parser):
             help="dropout probability")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
-    group.add_argument("--bert-tune-lr", type=float, default=argparse.SUPPRESS,
-            help="learning rate for fine-tuning Bert")
     group.add_argument("-e", "--n-epochs", type=int, default=argparse.SUPPRESS,
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size. If -1, use full graph training.")
     group.add_argument("--eval-batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size for computing GNN embeddings in evaluation.")
-    group.add_argument("--bert-infer-bs", type=int, default=argparse.SUPPRESS,
-            help="The batch size for bert inference")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
@@ -1493,15 +1369,6 @@ def _add_rgcn_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
-    return parser
-
-def _add_pretrain_args(parser):
-    group = parser.add_argument_group(title="model pretrain")
-    group.add_argument("--pretrain-emb-layer", type=bool, default=argparse.SUPPRESS,
-            help="If this is set then we will pretrain the emb layer "
-                 "together with the Bert layer, otherwise only Bert layer is pretrained. "
-                 "Note, in cases when some nodes do not have textual features, "
-                 "we must turn this flag to true.")
     return parser
 
 def _add_edge_classification_args(parser):

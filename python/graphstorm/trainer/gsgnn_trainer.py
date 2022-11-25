@@ -9,8 +9,6 @@ class GSgnnTrainer():
     ----------
     config: GSConfig
         Task configuration
-    bert_model: dict
-        A dict of BERT models in the format of node-type -> BERT model
     """
     def __init__(self):
         super(GSgnnTrainer, self).__init__()

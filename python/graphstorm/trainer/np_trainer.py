@@ -26,13 +26,9 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
     ----------
     config: GSConfig
         Task configuration
-    bert_model: dict
-        A dict of BERT models in the format of node-type -> BERT model
     """
-    def __init__(self, config, bert_model):
+    def __init__(self, config):
         super(GSgnnNodePredictTrainer, self).__init__()
-        assert isinstance(bert_model, dict)
-        self.bert_model = bert_model
         self.config = config
 
         self.predict_ntype = config.predict_ntype
@@ -48,10 +44,6 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
                                config.graph_name,
                                config.part_config,
                                config.backend)
-
-        for ntype in self.bert_model:
-            assert ntype in self._g.ntypes, \
-                    'A bert model is created for node type {}, but the node type does not exist.'
 
 
     def save(self):
@@ -87,7 +79,7 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
         tracker_class = get_task_tracker_class(config.task_tracker)
         task_tracker = tracker_class(config, g.rank(), eval_metrics)
 
-        nc_model = model_cls(g, self.config, self.bert_model, task_tracker)
+        nc_model = model_cls(g, self.config, task_tracker)
         nc_model.init_gsgnn_model(True)
 
         nc_model.register_evaluator(self.evaluator)

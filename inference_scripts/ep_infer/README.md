@@ -43,11 +43,11 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config movielen_100k_er_1p_4t/movie-lens-100k.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_er_huggingface.py --cf ml_er.yaml  --save-model-path /data/gsgnn_er/ --save-model-per-iter 0"
+    "python3 gsgnn_er.py --cf ml_er.yaml  --save-model-path /data/gsgnn_er/ --save-model-per-iter 0"
 ```
 
 ## Do Inference
 ```
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_huggingface.py --cf ml_er_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --mini-batch-infer false --save-embeds-path /data/gsgnn_er/infer-emb/ --restore-model-path /data/gsgnn_er/-2/"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_gnn.py --cf ml_er_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --mini-batch-infer false --save-embeds-path /data/gsgnn_er/infer-emb/ --restore-model-path /data/gsgnn_er/-2/"
 ```
 

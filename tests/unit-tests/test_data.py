@@ -9,7 +9,6 @@ def test_moveliens100k_dataset_normal():
     # default and correct dataset configurations
     dataset_config = {
         'raw_dir': '/data',
-        'bert_model_name': 'bert-base-uncased',
         'max_sequence_length': 512,
         'retain_original_features': False,
         'user_text': False,
@@ -18,20 +17,16 @@ def test_moveliens100k_dataset_normal():
     }
 
     dataset = MovieLens100kNCDataset(raw_dir=dataset_config['raw_dir'],
-                                     bert_model_name=dataset_config['bert_model_name'],
                                      max_sequence_length=dataset_config['max_sequence_length'],
                                      retain_original_features=dataset_config['retain_original_features'],
                                      user_text=dataset_config['user_text'],
-                                     user_age_as_label=dataset_config['use_age_as_label'],
-                                     tokenize_text=True)
+                                     user_age_as_label=dataset_config['use_age_as_label'])
 
     # test dataset own property
     assert dataset.predict_category == 'movie', f"The predict category should be \"movie\" \
                                                   but got {dataset.predict_category}"
     assert dataset.num_classes == 19, f"The number of classes should be 19, \
                                        but got {dataset.num_classes}"
-    assert dataset.raw_text_feat is not None, f"The raw text are movie names, \
-                                                but got {dataset.raw_text_feat}"
 
     # test graph data property
     assert dataset._g, f"Should have build a DGL graph!"

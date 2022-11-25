@@ -1,5 +1,4 @@
 from .lp_trainer import GSgnnLinkPredictionTrainer
 from .np_trainer import GSgnnNodePredictTrainer
 from .ep_trainer import GSgnnEdgePredictionTrainer
-from .launguage_model_tune_trainer import GSgnnLanguageModelMLMTrainer
 from .gsgnn_trainer import GSgnnTrainer

@@ -56,15 +56,16 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     state_q: queue.Queue()
         A queue used to return execution result (success or failure)
     """
+    assert not enable_bert, "BERT+GNN is not enabled right now."
     if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         workspace = "/graph-storm/inference_scripts/np_infer"
-        cmd = "np_infer_huggingface.py" if enable_bert else "np_infer_gnn.py"
+        cmd = "np_infer_gnn.py"
     elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATOIN, BUILTIN_TASK_EDGE_REGRESSION]:
         workspace = "/graph-storm/inference_scripts/ep_infer"
-        cmd = "ep_infer_huggingface.py" if enable_bert else "ep_infer_gnn.py"
+        cmd = "ep_infer_gnn.py"
     elif task_type == BUILTIN_TASK_LINK_PREDICTION:
         workspace = "/graph-storm/inference_scripts/lp_infer"
-        cmd = "lp_infer_huggingface.py" if enable_bert else "lp_infer_gnn.py"
+        cmd = "lp_infer_gnn.py"
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 

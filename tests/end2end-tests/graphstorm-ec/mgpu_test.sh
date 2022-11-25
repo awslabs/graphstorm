@@ -24,7 +24,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ec/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ec_huggingface.py --cf ml_ec.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --exclude-training-targets True --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --topk-model-to-save 3  --save-embeds-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-per-iter 1000" | tee train_log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ec/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ec.py --cf ml_ec.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --exclude-training-targets True --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --topk-model-to-save 3  --save-embeds-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-per-iter 1000" | tee train_log.txt
 
 error_and_exit $?
 
@@ -72,7 +72,7 @@ then
 fi
 
 echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_huggingface.py --cf ml_ec_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --save-embeds-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-2/" | tee log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_gnn.py --cf ml_ec_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --save-embeds-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-2/" | tee log.txt
 
 error_and_exit $?
 

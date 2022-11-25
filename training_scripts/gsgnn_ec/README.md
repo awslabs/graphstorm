@@ -39,6 +39,6 @@ After copying the movielen_100k_ec_1p_4t folder into current location, We can la
 
 ```
 $ DGL_HOME=~/workspace/dgl/dgl
-$ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ec --num_trainers 4 --num_servers 4 --num_samplers 0 --part_config movielen_100k_ec_1p_4t/movie-lens-100k.json --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ec_huggingface.py --cf ml_ec.yaml"
+$ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ec --num_trainers 4 --num_servers 4 --num_samplers 0 --part_config movielen_100k_ec_1p_4t/movie-lens-100k.json --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ec.py --cf ml_ec.yaml"
 ```
 

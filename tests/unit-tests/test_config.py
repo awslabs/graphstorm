@@ -33,7 +33,6 @@ def create_dummpy_config_obj():
             "output": {},
             "hyperparam": {
                 "lr": 0.01,
-                "bert_tune_lr": 0.0001,
                 "sparse_lr": 0.0001
             },
             "rgcn": {},
@@ -79,24 +78,6 @@ def create_basic_config(tmp_path, file_name):
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
-
-def create_bert_tune_info_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["basic"] = {
-        "gnn_warmup_epochs": 1,
-        "train_nodes": 1,
-    }
-
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for check default value
-    yaml_object["gsf"]["basic"] = {
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
 
 def test_load_basic_info():
     import tempfile
@@ -145,24 +126,6 @@ def test_load_basic_info():
         check_failure(config, "part_config")
         check_failure(config, "evaluation_frequency")
         check_failure(config, "model_encoder_type")
-
-def test_bert_tune_info():
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        create_bert_tune_info_config(Path(tmpdirname), 'bert_tune_info')
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info.yaml'),
-                         local_rank=0)
-
-        config = GSConfig(args)
-        assert config.gnn_warmup_epochs == 1
-        assert config.train_nodes == 1
-
-        # Check default values
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_tune_info_default.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.gnn_warmup_epochs == 0
-        assert config.train_nodes == 0
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -306,7 +269,6 @@ def create_io_config(tmp_path, file_name):
         "load_model_path": "./load_path",
         "restore_model_path": "./restore",
         "restore_optimizer_path": "./opt_restore",
-        "restore_bert_model_path": "./bert_encoder",
         "restore_model_encoder_path": "./encoder"
     }
 
@@ -329,7 +291,6 @@ def test_load_io_info():
         assert config.load_model_path == None
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
-        assert config.restore_bert_model_path == None
         assert config.restore_model_encoder_path == None
         assert config.save_model_path == None
         assert config.save_model_per_iters == -1
@@ -341,7 +302,6 @@ def test_load_io_info():
         assert config.load_model_path == "./load_path"
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
-        assert config.restore_bert_model_path == "./bert_encoder"
         assert config.restore_model_encoder_path == "./encoder"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
@@ -416,8 +376,6 @@ def create_train_config(tmp_path, file_name):
         "alpha_l2norm": 0.00001,
         "topk_model_to_save": 3,
         "sparse_lr": 0.001,
-        "bert_tune_lr": 0.0001,
-        "bert_infer_bs": 64,
         "use_node_embeddings": False,
         "use_self_loop": False,
         "self_loop_init": True,
@@ -436,8 +394,6 @@ def create_train_config(tmp_path, file_name):
         "batch_size": 0,
         "eval_batch_size": 0,
         "sparse_lr": 0.,
-        "bert_tune_lr": 0.,
-        "bert_infer_bs": 0,
         "use_node_embeddings": True,
         "use_self_loop": "error",
         "self_loop_init": "error",
@@ -469,9 +425,7 @@ def test_train_info():
         assert config.topk_model_to_save == 0
         config._lr = 0.01
         assert config.sparse_lr == 0.01
-        assert config.bert_tune_lr == 0.01
         assert config.use_node_embeddings == False
-        assert config.bert_infer_bs == 32
         assert config.use_self_loop == True
         assert config.self_loop_init == False
         assert config.enable_early_stop == False
@@ -488,9 +442,7 @@ def test_train_info():
         assert config.alpha_l2norm == 0.00001
         assert config.topk_model_to_save == 3
         assert config.sparse_lr == 0.001
-        assert config.bert_tune_lr == 0.0001
         assert config.use_node_embeddings == False
-        assert config.bert_infer_bs == 64
         assert config.use_self_loop == False
         assert config.self_loop_init == True
         assert config.enable_early_stop == True
@@ -505,9 +457,7 @@ def test_train_info():
         check_failure(config, "batch_size")
         check_failure(config, "eval_batch_size")
         check_failure(config, "sparse_lr")
-        check_failure(config, "bert_tune_lr")
         assert config.use_node_embeddings == True
-        check_failure(config, "bert_infer_bs")
         check_failure(config, "use_self_loop")
         check_failure(config, "self_loop_init")
         config._dropout = 1.0
@@ -599,44 +549,6 @@ def test_rgat_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "n_heads")
-
-def create_pretrain_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["model_pretrain"] = {
-    }
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["model_pretrain"] = {
-        "pretrain_emb_layer": False,
-    }
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["model_pretrain"] = {
-        "pretrain_emb_layer": "error",
-    }
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-def test_pretrain_info():
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        create_pretrain_config(Path(tmpdirname), 'pretrain_test')
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'pretrain_test_default.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert config.pretrain_emb_layer == True
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'pretrain_test.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert config.pretrain_emb_layer == False
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'pretrain_test_fail.yaml'), local_rank=0)
-        config = GSConfig(args)
-        check_failure(config, "pretrain_emb_layer")
 
 def create_node_class_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -1253,84 +1165,6 @@ def test_lml_info():
         config = GSConfig(args)
         check_failure(config, "mlm_probability")
 
-def create_bert_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_default1.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["lm_model"] = {
-    }
-    with open(os.path.join(tmp_path, file_name+"_default2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["lm_model"] = {
-        "bert_models": None
-    }
-    with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["lm_model"] = {
-        "bert_models": [{"node_type":"movie","model_name":"bert-base-uncased"}]
-    }
-    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["lm_model"] = {
-        "bert_models": [{"node_type":"movie","model_name":"bert-base-uncased"}, {"node_type":"use","model_name":"bert-base-uncased"}]
-    }
-    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # fail
-    yaml_object["lm_model"] = {
-        "bert_models": {"node_type":"movie","model_name":"bert-base-uncased"}
-    }
-    with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # fail
-    yaml_object["lm_model"] = {
-        "bert_models": []
-    }
-    with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-def test_bert_config():
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        create_bert_config(Path(tmpdirname), 'bert_config_test')
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test_default1.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert config.bert_config == None
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test_default2.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert config.bert_config == None
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test1.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert config.bert_config == None
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test2.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert len(config.bert_config) == 1
-        assert config.bert_config[0] == {"node_type":"movie","model_name":"bert-base-uncased"}
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test3.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert len(config.bert_config) == 2
-        assert config.bert_config[0] == {"node_type":"movie","model_name":"bert-base-uncased"}
-        assert config.bert_config[1] == {"node_type":"use","model_name":"bert-base-uncased"}
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test_fail1.yaml'), local_rank=0)
-        config = GSConfig(args)
-        check_failure(config, "bert_config")
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'bert_config_test_fail2.yaml'), local_rank=0)
-        config = GSConfig(args)
-        check_failure(config, "bert_config")
-
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
@@ -1494,7 +1328,6 @@ def create_io_config(tmp_path, file_name):
         "load_model_path": "./load_path",
         "restore_model_path": "./restore",
         "restore_optimizer_path": "./opt_restore",
-        "restore_bert_model_path": "./bert_encoder",
         "restore_model_encoder_path": "./encoder"
     }
 
@@ -1527,7 +1360,6 @@ def test_load_io_info():
         assert config.load_model_path == None
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
-        assert config.restore_bert_model_path == None
         assert config.restore_model_encoder_path == None
         assert config.save_model_path == None
         assert config.save_model_per_iters == -1
@@ -1539,7 +1371,6 @@ def test_load_io_info():
         assert config.load_model_path == "./load_path"
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
-        assert config.restore_bert_model_path == "./bert_encoder"
         assert config.restore_model_encoder_path == "./encoder"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
@@ -1554,16 +1385,13 @@ def test_load_io_info():
 
 if __name__ == '__main__':
     test_load_basic_info()
-    test_bert_tune_info()
     test_gnn_info()
     test_load_io_info()
     test_train_info()
     test_rgcn_info()
     test_rgat_info()
-    test_pretrain_info()
     test_node_class_info()
     test_node_regress_info()
     test_edge_class_info()
     test_lp_info()
     test_lml_info()
-    test_bert_config()

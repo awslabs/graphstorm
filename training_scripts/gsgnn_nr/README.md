@@ -24,7 +24,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config movielen_100k_train_val_1p_4t/movie-lens-100k.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nr_huggingface.py --cf ml_nr.yaml"
+    "python3 gsgnn_nr.py --cf ml_nr.yaml"
 ```
 
 # Yelp node regression
@@ -49,6 +49,6 @@ We can launch the training task.
 
 ```
 $ DGL_HOME=/fsx-dev/xiangsx/home/workspace/dgl/dgl
-$ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nr --num_trainers 4 --num_servers 4 --num_samplers 0 --part_config yelp_undirected_hf_emb_regress_1p_4t/yelp.json --ip_config ip_list.txt "python3 gsgnn_nr_huggingface.py --cf yelp_nr.yaml"
+$ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nr --num_trainers 4 --num_servers 4 --num_samplers 0 --part_config yelp_undirected_hf_emb_regress_1p_4t/yelp.json --ip_config ip_list.txt "python3 gsgnn_nr.py --cf yelp_nr.yaml"
 
 ```

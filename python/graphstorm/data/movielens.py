@@ -12,10 +12,9 @@ from .utils import get_id
 class MovieLens100kNCDataset(GSgnnDataset):
     """r Movielens dataset for node classification
     """
-    def __init__(self, raw_dir, edge_pct=1, bert_model_name='bert-base-uncased',
+    def __init__(self, raw_dir, edge_pct=1,
                  max_sequence_length=512, retain_original_features=True, user_text=False,
-                 user_age_as_label=False, force_reload=False, verbose=True,
-                 tokenize_text=False):
+                 user_age_as_label=False, force_reload=False, verbose=True):
         """
         Parameters
         ----------
@@ -23,8 +22,6 @@ class MovieLens100kNCDataset(GSgnnDataset):
             The file locations
         edge_pct: float
             percentage of edges in the test set
-        bert_model_name: str
-            huggingface bert model name
         max_sequence_length: int
             what is the maximum supported sequence length
         retain_original_features: bool
@@ -38,17 +35,12 @@ class MovieLens100kNCDataset(GSgnnDataset):
         """
         name = 'ml-100k'
         url = None
-        data_path = os.path.join(raw_dir, 'ml-100k')
-        assert os.path.exists(data_path), f'The givne data folder {data_path} \
-                                            does not exists.'
-        self.bert_model_name = bert_model_name
         self.max_sequence_length = max_sequence_length
         self.retain_original_features = retain_original_features
         self.user_text = user_text
         self.user_age_as_label = user_age_as_label
         self.target_etype = ('user', 'rating', 'movie')
         self.edge_pct = edge_pct
-        self.tokenize_text = tokenize_text
         if self.user_text:
             assert self.retain_original_features
         super(MovieLens100kNCDataset, self).__init__(name,
@@ -318,9 +310,7 @@ class MovieLens100kNCDataset(GSgnnDataset):
         print(g)
 
         self._g = g
-        if self.tokenize_text:
-            self._raw_text_feat = text_feat
-            self.preprocess_text_feat(self.max_sequence_length, bert_model_name=self.bert_model_name)
+        self._raw_text_feat = text_feat
 
     def __getitem__(self, idx):
         r"""Gets the data object at index.

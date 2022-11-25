@@ -22,18 +22,14 @@ class GSgnnEdgeModel(GSgnnBase):
         The graph used in training and testing
     config: GSConfig
         The graphstorm GNN configuration
-    bert_model: dict
-        A dict of BERT models in a format of ntype -> bert_model
     task_tracker: GSTaskTrackerAbc
         Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     """
-    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
-        super(GSgnnEdgeModel, self).__init__(
-            g, config, bert_model, task_tracker, train_task)
+    def __init__(self, g, config, task_tracker=None, train_task=True):
+        super(GSgnnEdgeModel, self).__init__(g, config, task_tracker, train_task)
 
-        self.bert_hidden_size = {ntype: bm.config.hidden_size for ntype, bm in bert_model.items()}
         # TODO needs to be extended to multiple
         self.target_etype = [tuple(target_etype.split(',')) for target_etype in config.target_etype][0]
 
@@ -160,7 +156,6 @@ class GSgnnEdgeModel(GSgnnBase):
         gnn_encoder = self.gnn_encoder
         decoder = self.decoder
         embed_layer = self.embed_layer
-        bert_model = self.bert_model
         combine_optimizer = self.combine_optimizer
 
         # training loop
@@ -168,7 +163,6 @@ class GSgnnEdgeModel(GSgnnBase):
         dur = []
         best_epoch = 0
         num_input_nodes = 0
-        bert_forward_time = 0
         gnn_forward_time = 0
         back_time = 0
         total_steps = 0
@@ -180,8 +174,6 @@ class GSgnnEdgeModel(GSgnnBase):
             decoder.train()
             if embed_layer is not None:
                 embed_layer.train()
-            for ntype in bert_model.keys():
-                bert_model[ntype].train()
 
             t0 = time.time()
             for i, (input_nodes, batch_graph, blocks) in enumerate(loader):
@@ -197,9 +189,8 @@ class GSgnnEdgeModel(GSgnnBase):
 
                 batch_graph = batch_graph.to(device)
                 batch_tic = time.time()
-                gnn_embs, bert_forward_time, gnn_forward_time = \
-                    self.encoder_forward(blocks, input_nodes,
-                                         bert_forward_time, gnn_forward_time, epoch)
+                gnn_embs, gnn_forward_time = \
+                    self.encoder_forward(blocks, input_nodes, gnn_forward_time, epoch)
 
                 # TODO expand code for multiple edge types
                 # retrieving seed edge id from the graph to find labels
@@ -236,14 +227,14 @@ class GSgnnEdgeModel(GSgnnBase):
                 if i % 20 == 0 and g.rank() == 0:
                     if self.verbose:
                         self.print_info(epoch, i, num_input_nodes / 20,
-                                        (bert_forward_time / 20, gnn_forward_time / 20, back_time / 20))
+                                        (gnn_forward_time / 20, back_time / 20))
                     # Print task specific info.
                     print(
                         "Part {} | Epoch {:05d} | Batch {:03d} | Train Loss (ALL|GNN): {:.4f}|{:.4f} | Time: {:.4f}".
                         format(g.rank(), epoch, i, total_loss.item(), gnn_loss, time.time() - batch_tic))
                     for metric in self.evaluator.metric:
                         print("Train {}: {:.4f}".format(metric, train_score[metric]))
-                    num_input_nodes = bert_forward_time = gnn_forward_time = back_time = 0
+                    num_input_nodes = gnn_forward_time = back_time = 0
 
                 val_score = None
                 if self.evaluator is not None and \
