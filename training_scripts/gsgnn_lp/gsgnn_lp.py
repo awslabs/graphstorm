@@ -1,17 +1,16 @@
-""" GSgnn semantic match training example
+""" GSgnn pure gpu link prediction
 """
+
+import argparse
+import dgl
 
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.model.huggingface import HuggingfaceBertLoader
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
 def main(args):
     config = GSConfig(args)
-    bert_config = config.bert_config
-    lm_models = HuggingfaceBertLoader(bert_config).load()
-
-    trainer = GSgnnLinkPredictionTrainer(config, lm_models)
+    trainer = GSgnnLinkPredictionTrainer(config)
     trainer.fit()
 
 def generate_parser():

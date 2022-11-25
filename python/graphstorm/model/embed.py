@@ -15,9 +15,7 @@ class DistGraphEmbed(nn.Module):
     def __init__(self,
                  g,
                  feat_size,
-                 text_feat_ntypes,
                  embed_size,
-                 bert_dim = 768,
                  embed_name='embed',
                  activation=None,
                  dropout=0.0,
@@ -29,9 +27,7 @@ class DistGraphEmbed(nn.Module):
         ----------
         g: DistGraph
         feat_size : the original feat size
-        text_feat_ntypes : the text feat size
         embed_size : the embedding size
-        bert_dim : the bert dimension
         embed_name : the name
         activation : the activation function
         dropout : the dropout parameter
@@ -55,8 +51,6 @@ class DistGraphEmbed(nn.Module):
             feat_dim = 0
             if feat_size[ntype] > 0:
                 feat_dim += feat_size[ntype]
-            if ntype in text_feat_ntypes:
-                feat_dim += bert_dim[ntype] if isinstance(bert_dim, dict) else bert_dim
             if feat_dim > 0:
                 if g.rank() == 0:
                     print('Node {} has {} features.'.format(ntype, feat_dim))

@@ -7,9 +7,7 @@ from graphstorm.inference import GSgnnNodePredictInfer
 
 def main(args):
     config = GSConfig(args)
-    lm_models = {}
-
-    infer = GSgnnNodePredictInfer(config, lm_models)
+    infer = GSgnnNodePredictInfer(config)
     infer.infer()
 
 def generate_parser():

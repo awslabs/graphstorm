@@ -1,15 +1,13 @@
-""" GSgnn pure gpu node classification
+""" GSgnn semantic match training example
 """
-
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnNodePredictTrainer
 
 def main(args):
     config = GSConfig(args)
-    lm_models = {}
-
-    trainer = GSgnnNodePredictTrainer(config, lm_models)
+    bert_config = config.bert_config
+    trainer = GSgnnNodePredictTrainer(config)
     trainer.fit()
 
 def generate_parser():

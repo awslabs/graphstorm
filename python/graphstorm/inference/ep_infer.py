@@ -46,13 +46,9 @@ class GSgnnEdgePredictInfer(GSInfer):
     ----------
     config: GSConfig
         Task configuration
-    bert_model: dict
-        A dict of BERT models in the format of node-type -> BERT model
     """
-    def __init__(self, config, bert_model):
+    def __init__(self, config):
         super(GSgnnEdgePredictInfer, self).__init__()
-        assert isinstance(bert_model, dict)
-        self.bert_model = bert_model
         self.config = config
 
         self.infer_etype = [tuple(target_etype.split(',')) for target_etype in config.target_etype]
@@ -91,8 +87,7 @@ class GSgnnEdgePredictInfer(GSInfer):
         tracker_class = get_task_tracker_class(config.task_tracker)
         task_tracker = tracker_class(config, g.rank(), eval_metrics)
 
-        ep_model = model_class(g, config, self.bert_model,
-            task_tracker, train_task=False)
+        ep_model = model_class(g, config, task_tracker, train_task=False)
         ep_model.init_gsgnn_model(train=False)
 
         ep_model.register_evaluator(self.evaluator)

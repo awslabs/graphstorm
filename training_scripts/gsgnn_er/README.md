@@ -40,5 +40,5 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config movielen_100k_er_1p_4t/movie-lens-100k.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_er_huggingface.py --cf ml_er.yaml"
+    "python3 gsgnn_er.py --cf ml_er.yaml"
 ```

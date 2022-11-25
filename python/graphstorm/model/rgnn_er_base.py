@@ -16,16 +16,13 @@ class GSgnnEdgeRegressModel(GSgnnEdgeModel):
         The graph used in training and testing
     config: GSConfig
         The graphstorm GNN configuration
-    bert_model: dict
-        A dict of BERT models in a format of ntype -> bert_model
     task_tracker: GSTaskTrackerAbc
         Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     """
-    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
-        super(GSgnnEdgeRegressModel, self).__init__(
-            g, config, bert_model, task_tracker, train_task)
+    def __init__(self, g, config, task_tracker=None, train_task=True):
+        super(GSgnnEdgeRegressModel, self).__init__(g, config, task_tracker, train_task)
 
         # decoder related
         # specify the type of decoder
@@ -64,21 +61,14 @@ class GSgnnEdgeRegressModel(GSgnnEdgeModel):
 
     def init_dist_decoder(self, train):
         dev_id = self.dev_id
-        if self.pretrain_emb_layer:
-            in_units = self.n_hidden
-        else:
-            # If the embedding layer is not set the dimension here,
-            # it will be the same as the bert hidden size
-            in_units = self.bert_hidden_size[self.g.to_canonical_etype(self.target_etype)[0]]
-
         if self.decoder_type == "DenseBiDecoder":
-            decoder = DenseBiDecoder(in_units, 1,
+            decoder = DenseBiDecoder(self.n_hidden, 1,
                                      num_basis=self.num_decoder_basis,
                                      target_etype=self.target_etype,
                                      dropout_rate=self.dropout,
                                      regression=True)
         elif self.decoder_type == "MLPDecoder":
-            decoder = MLPEdgeDecoder(2*in_units, 1,
+            decoder = MLPEdgeDecoder(2*self.n_hidden, 1,
                                      target_etype=self.target_etype,
                                      regression=True)
         else:

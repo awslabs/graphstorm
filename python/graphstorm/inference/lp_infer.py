@@ -39,13 +39,9 @@ class GSgnnLinkPredictionInfer(GSInfer):
     ----------
     config: GSConfig
         Task configuration
-    bert_model: dict
-        A dict of BERT models in the format of node-type -> BERT model
     """
-    def __init__(self, config, bert_model):
+    def __init__(self, config):
         super(GSgnnLinkPredictionInfer, self).__init__()
-        assert isinstance(bert_model, dict)
-        self.bert_model = bert_model
         self.config = config
 
         self.eval_etypes = None if config.eval_etype is None else \
@@ -87,8 +83,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
         tracker_class = get_task_tracker_class(config.task_tracker)
         task_tracker = tracker_class(config, g.rank(), eval_metrics)
 
-        lp_model = model_class(g, config, self.bert_model,
-            task_tracker, train_task=False)
+        lp_model = model_class(g, config, task_tracker, train_task=False)
         lp_model.init_gsgnn_model(train=False)
 
         lp_model.register_evaluator(self.evaluator)

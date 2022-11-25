@@ -13,9 +13,7 @@ import abc
 import psutil
 
 from .rgnn import GSgnnBase
-from .utils import rand_gen_trainmask
 from .extract_node_embeddings import prepare_batch_input
-from .hbert import get_bert_flops_info
 from .utils import save_embeddings as save_node_embeddings
 
 
@@ -28,19 +26,15 @@ class GSgnnNodeModel(GSgnnBase):
         The graph used in training and testing
     config: GSConfig
         The graphstorm GNN configuration
-    bert_model: dict
-        A dict of BERT models in a format of ntype -> bert_model
     task_tracker: GSTaskTrackerAbc
         Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     """
-    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
-        super(GSgnnNodeModel, self).__init__(
-            g, config, bert_model, task_tracker, train_task)
+    def __init__(self, g, config, task_tracker=None, train_task=True):
+        super(GSgnnNodeModel, self).__init__(g, config, task_tracker, train_task)
         self.predict_ntype = config.predict_ntype
         self.save_predict_path = config.save_predict_path
-        self.bert_hidden_size = {ntype: bm.config.hidden_size for ntype, bm in bert_model.items()}
         self.alpha_l2norm = config.alpha_l2norm
 
     def inference(self, target_nidx):
@@ -69,7 +63,6 @@ class GSgnnNodeModel(GSgnnBase):
         gnn_encoder = self.gnn_encoder
         decoder = self.decoder
         embed_layer = self.embed_layer
-        bert_model = self.bert_model
         combine_optimizer = self.combine_optimizer
 
         # training loop
@@ -77,7 +70,6 @@ class GSgnnNodeModel(GSgnnBase):
         dur = []
         total_steps = 0
         num_input_nodes = 0
-        bert_forward_time = 0
         gnn_forward_time = 0
         back_time = 0
         early_stop = False # used when early stop is True
@@ -86,8 +78,6 @@ class GSgnnNodeModel(GSgnnBase):
                 gnn_encoder.train()
             if embed_layer is not None:
                 embed_layer.train()
-            for ntype in bert_model.keys():
-                bert_model[ntype].train()
             t0 = time.time()
 
             for i, (input_nodes, seeds, blocks) in enumerate(loader):
@@ -104,9 +94,8 @@ class GSgnnNodeModel(GSgnnBase):
                     num_input_nodes += nodes.shape[0]
                 batch_tic = time.time()
 
-                gnn_embs, bert_forward_time, gnn_forward_time = \
-                    self.encoder_forward(blocks, input_nodes,
-                                         bert_forward_time, gnn_forward_time, epoch)
+                gnn_embs, gnn_forward_time = \
+                    self.encoder_forward(blocks, input_nodes, gnn_forward_time, epoch)
 
                 emb = gnn_embs[self.predict_ntype]
                 logits = decoder(emb)
@@ -140,12 +129,12 @@ class GSgnnNodeModel(GSgnnBase):
                 if i % 20 == 0 and g.rank() == 0:
                     if self.verbose:
                         self.print_info(epoch, i,  num_input_nodes / 20,
-                                        (bert_forward_time / 20, gnn_forward_time / 20, back_time / 20))
+                                        (gnn_forward_time / 20, back_time / 20))
                     print("Part {} | Epoch {:05d} | Batch {:03d} | Total_Train Loss (ALL|GNN): {:.4f}|{:.4f} | Time: {:.4f}".
                             format(g.rank(), epoch, i,  total_loss.item(), gnn_loss, time.time() - batch_tic))
                     for metric in self.evaluator.metric:
                         print("Train {}: {:.4f}".format(metric, train_score[metric]))
-                    num_input_nodes = bert_forward_time = gnn_forward_time = back_time = 0
+                    num_input_nodes = gnn_forward_time = back_time = 0
 
                 val_score = None
                 if self.evaluator is not None and \

@@ -20,7 +20,7 @@ After copying the ogb_arxiv_nc_train_val_1p_4t folder into current location (und
 
 ```
 $ DGL_HOME=/fsx-dev/xiangsx/home/workspace/dgl/dgl
-$ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers 4 --num_servers 4 --num_samplers 0 --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" --ip_config ip_list.txt "python3 gsgnn_nc_huggingface.py --cf arxiv_nc_hf.yaml"
+$ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers 4 --num_servers 4 --num_samplers 0 --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" --ip_config ip_list.txt "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml"
 ```
 
 ## Test scripts:
@@ -32,7 +32,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc_huggingface.py --cf arxiv_nc_hf.yaml"
+    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml"
 ```
 
 train+validation+mixed-precision-O1
@@ -43,7 +43,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc_huggingface.py --cf arxiv_nc_hf.yaml --mp-opt-level O1 --save-model-path none --save-embeds-path none --negative-sampler uniform"
+    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --mp-opt-level O1 --save-model-path none --save-embeds-path none --negative-sampler uniform"
 ```
 
 train+validation+mixed-precision-O1-full-graph-infer
@@ -54,7 +54,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc_huggingface.py --cf arxiv_nc_hf.yaml --mp-opt-level O1 --save-model-path none --save-embeds-path none --save-model-per-iters 0 --mini-batch-infer false"
+    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --mp-opt-level O1 --save-model-path none --save-embeds-path none --save-model-per-iters 0 --mini-batch-infer false"
 ```
 
 train+validation+bert-cache
@@ -65,7 +65,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc_huggingface.py --cf arxiv_nc_hf.yaml --use-bert-cache true --refresh-cache true --mixed-precision false --save-model-path none --save-embeds-path none --negative-sampler localuniform"
+    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --use-bert-cache true --refresh-cache true --mixed-precision false --save-model-path none --save-embeds-path none --negative-sampler localuniform"
 ```
 
  * arxiv_nc_nemb.yaml: train+validation+mixed-precision-O2+save-model+save-embeds+user-node-embedding
@@ -97,13 +97,13 @@ $ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc_huggingface.py --cf gsgnn_nc_hf.yaml"
+    "python3 gsgnn_nc.py --cf gsgnn_nc_hf.yaml"
 ```
 
 ### Use a finetuned hugging face bert model
 
  ```
-nohup python3 -u ~/dgl/tools/launch.py --workspace ~/graphstorm/training_scripts/gsgnn_nc --num_trainers 8 --num_servers 1 --num_samplers 0 --part_config /fsx-dev/ivasilei/home/ogbn_text_graph_data/ogbn-arxiv-graph-512-scibert-nc-1p/ogbn-arxiv.json --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" --ip_config ip_list.txt "python3 gsgnn_nc_huggingface.py --cf arxiv_nc_hf_ft.yaml" > t0nmpnp.out 2> t0nmpnp.err &
+nohup python3 -u ~/dgl/tools/launch.py --workspace ~/graphstorm/training_scripts/gsgnn_nc --num_trainers 8 --num_servers 1 --num_samplers 0 --part_config /fsx-dev/ivasilei/home/ogbn_text_graph_data/ogbn-arxiv-graph-512-scibert-nc-1p/ogbn-arxiv.json --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" --ip_config ip_list.txt "python3 gsgnn_nc.py --cf arxiv_nc_hf_ft.yaml" > t0nmpnp.out 2> t0nmpnp.err &
 ```
 
 # Movielens node classification
@@ -132,7 +132,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config movielen_100k_train_val_1p_4t/movie-lens-100k.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc_huggingface.py --cf ml_nc.yaml"
+    "python3 gsgnn_nc.py --cf ml_nc.yaml"
 ```
 
 # Yelp Node Classification Example
@@ -157,5 +157,5 @@ We can launch the training task.
 
 ```
 $ DGL_HOME=/fsx-dev/xiangsx/home/workspace/dgl/dgl
-$ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers 4 --num_servers 1 --num_samplers 0 --part_config yelp_undirected_hf_emb_1p_4t/yelp.json --ip_config ip_list.txt "python3 gsgnn_nc_huggingface.py --cf yelp_nc.yaml"
+$ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers 4 --num_servers 1 --num_samplers 0 --part_config yelp_undirected_hf_emb_1p_4t/yelp.json --ip_config ip_list.txt "python3 gsgnn_nc.py --cf yelp_nc.yaml"
 ```

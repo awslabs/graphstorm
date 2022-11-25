@@ -41,13 +41,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     ----------
     config: GSConfig
         Task configuration
-    bert_model: dict
-        A dict of BERT models in the format of node-type -> BERT model
     """
-    def __init__(self, config, bert_model):
+    def __init__(self, config):
         super(GSgnnLinkPredictionTrainer, self).__init__()
-        assert isinstance(bert_model, dict)
-        self.bert_model = bert_model
         self.config = config
 
         self.train_etypes = [tuple(train_etype.split(',')) for train_etype in config.train_etype]
@@ -153,7 +149,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         tracker_class = get_task_tracker_class(config.task_tracker)
         task_tracker = tracker_class(config, g.rank(), eval_metrics)
 
-        lp_model = model_class(g, config, self.bert_model, task_tracker)
+        lp_model = model_class(g, config, task_tracker)
         lp_model.init_gsgnn_model(True)
 
         lp_model.register_evaluator(self.evaluator)

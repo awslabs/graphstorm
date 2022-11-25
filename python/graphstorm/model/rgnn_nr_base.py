@@ -21,16 +21,13 @@ class GSgnnNodeRegressModel(GSgnnNodeModel):
         The graph used in training and testing
     config: GSConfig
         The graphstorm GNN configuration
-    bert_model: dict
-        A dict of BERT models in a format of ntype -> bert_model
     task_tracker: GSTaskTrackerAbc
         Task tracker used to log task progress
     train_task: bool
         Whether it is a training task
     """
-    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
-        super(GSgnnNodeRegressModel, self).__init__(
-            g, config, bert_model, task_tracker, train_task)
+    def __init__(self, g, config, task_tracker=None, train_task=True):
+        super(GSgnnNodeRegressModel, self).__init__(g, config, task_tracker, train_task)
 
         self.model_conf = {
             'task': 'node_regression',
@@ -48,15 +45,10 @@ class GSgnnNodeRegressModel(GSgnnNodeModel):
 
     def init_dist_decoder(self, train):
         dev_id = self.dev_id
-        if self.pretrain_emb_layer:
-            in_units = self.n_hidden
-        else:
-            # if the embedding layer is not set the dimension here will be the same as the bert hidden size
-            in_units = self.bert_hidden_size[self.predict_ntype]
-        decoder = EntityRegression(in_units)
+        decoder = EntityRegression(self.n_hidden)
         decoder = decoder.to(dev_id)
-        self.decoder = DistributedDataParallel(decoder, device_ids=[dev_id], output_device=dev_id, find_unused_parameters=True)
-
+        self.decoder = DistributedDataParallel(decoder, device_ids=[dev_id],
+                                               output_device=dev_id, find_unused_parameters=True)
 
     def init_gsgnn_model(self, train=True):
         ''' Initialize the GNN model.

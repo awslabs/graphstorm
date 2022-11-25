@@ -15,17 +15,14 @@ class OGBTextFeatDataset(GSgnnDataset):
     graphs. The text features should be stored in the raw_dir location.
     """
     def __init__(self, raw_dir, dataset, edge_pct=1,
-                 retain_original_features=False,
                  force_reload=False, verbose=True,
                  reverse_edge=True, self_loop=False,
-                 max_sequence_length=512,
-                 bert_model_name='bert-base-uncased'):
+                 max_sequence_length=512):
         """
 
         Parameters
         ----------
         raw_dir  str The file locations
-        retain_original_features bool whether we retain the original features.
         force_reload
         verbose
         reverse_edge bool whether we include reverse edges
@@ -40,10 +37,8 @@ class OGBTextFeatDataset(GSgnnDataset):
         self.reverse_edge=reverse_edge
         self.self_loop=self_loop
         self.max_sequence_length=max_sequence_length
-        self.retain_original_features = retain_original_features
         self.target_etype = ["interacts"]
         self.edge_pct = edge_pct
-        self.bert_model_name=bert_model_name
         if dataset == "ogbn-products":
             self._num_classes=47
         elif dataset=="ogbn-arxiv":
@@ -93,21 +88,6 @@ class OGBTextFeatDataset(GSgnnDataset):
         """
         data = DglNodePropPredDataset(name=self._dataset)
         print("Graph nodes ={}".format(data.graph[0].num_nodes()))
-
-        if not self.retain_original_features:
-            # this file contains the text data each line corresponds to a node id
-            with open(os.path.join(self._raw_dir, "X.all.txt"), "r") as fin:
-                text_feats_list = fin.readlines()
-            print("|node_text_list={}".format(len(text_feats_list)))
-            assert len(text_feats_list) == data.graph[0].num_nodes()
-
-            # We tokenize the text before loading the ogbn graph into memory.
-            # This helps reduce the overhead of creating multiple worker processes
-            # during text tokenization. When a graph is large (e.g., papers100m),
-            # the overhead is not nigligiable.
-            self._raw_text_feat = {'node':text_feats_list}
-            text_feat = self.tokenzie_text(self.max_sequence_length,
-                                           bert_model_name=self.bert_model_name)
 
         splitted_idx = data.get_idx_split()
         train_idx, val_idx, test_idx = splitted_idx["train"], splitted_idx["valid"], splitted_idx["test"]
@@ -180,15 +160,8 @@ class OGBTextFeatDataset(GSgnnDataset):
         self._g=g
         self._num_classes = data.num_classes
 
-        if self.retain_original_features:
-            print("Retaining original node features and discarding the text data. This is the original input of ogbn.")
-            self._g.nodes['node'].data['feat'] = graph.ndata["feat"]
-            self._raw_text_feat = {}
-        else:
-            # tokenize the original text
-            for ntype in self._g.ntypes:
-                for name in text_feat[ntype]:
-                    self._g.nodes[ntype].data[name] = text_feat[ntype][name]
+        print("Retaining original node features and discarding the text data. This is the original input of ogbn.")
+        self._g.nodes['node'].data['feat'] = graph.ndata["feat"]
 
     def __getitem__(self, idx):
         r"""Gets the data object at index.
@@ -206,12 +179,3 @@ class OGBTextFeatDataset(GSgnnDataset):
     @property
     def num_classes(self):
         return self._num_classes
-
-    def _download_bert_embeddings(self):
-        """
-        This function downloads the bert embedding that are uploaded in the s3 if these exists otherwise None.
-        Returns
-        -------
-        The embeddings dictionary
-        """
-        raise NotImplementedError

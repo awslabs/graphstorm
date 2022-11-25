@@ -25,7 +25,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch save model save emb node"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc_huggingface.py --cf ml_nc.yaml --train-nodes 0 --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_nc_ml/ --topk-model-to-save 3 --save-embeds-path /data/gsgnn_nc_ml/emb/ --n-epochs 3" | tee train_log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc.py --cf ml_nc.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_nc_ml/ --topk-model-to-save 3 --save-embeds-path /data/gsgnn_nc_ml/emb/ --n-epochs 3" | tee train_log.txt
 
 error_and_exit $?
 
@@ -87,7 +87,7 @@ then
 fi
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers $NUM_INFERs --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 np_infer_huggingface.py --cf ml_nc_infer.yaml --mini-batch-infer false --num-gpus $NUM_INFERs --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-2/ --save-predict-path /data/gsgnn_nc_ml/prediction/" | tee log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers $NUM_INFERs --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 np_infer_gnn.py --cf ml_nc_infer.yaml --mini-batch-infer false --num-gpus $NUM_INFERs --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --save-embeds-path /data/gsgnn_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-2/ --save-predict-path /data/gsgnn_nc_ml/prediction/" | tee log.txt
 
 error_and_exit $?
 
@@ -129,7 +129,7 @@ fi
 # TODO(xiangsx) add a test checking inference results.
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch save model save emb node, early stop"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc_huggingface.py --cf ml_nc.yaml --train-nodes 0 --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_nc_ml/ --topk-model-to-save 3 --save-embeds-path /data/gsgnn_nc_ml/emb/ --enable-early-stop True --call-to-consider-early-stop 2 -e 20 --window-for-early-stop 3 --early-stop-strategy consecutive_increase" | tee exec.log
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc.py --cf ml_nc.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --save-model-path /data/gsgnn_nc_ml/ --topk-model-to-save 3 --save-embeds-path /data/gsgnn_nc_ml/emb/ --enable-early-stop True --call-to-consider-early-stop 2 -e 20 --window-for-early-stop 3 --early-stop-strategy consecutive_increase" | tee exec.log
 
 error_and_exit $?
 

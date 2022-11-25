@@ -10,11 +10,9 @@ import dgl
 import psutil
 from torch.nn.parallel import DistributedDataParallel
 
-from .utils import do_fullgraph_infer, do_mini_batch_inference, LazyDistTensor, rand_gen_trainmask
-from .extract_node_embeddings import extract_bert_embeddings_dist, prepare_batch_input
-from ..data.constants import TOKEN_IDX
+from .utils import do_fullgraph_infer, do_mini_batch_inference, LazyDistTensor
+from .extract_node_embeddings import prepare_batch_input
 from .embed import DistGraphEmbed
-from .hbert import wrap_bert, get_bert_flops_info
 from .utils import save_model as save_gsgnn_model
 from .utils import save_sparse_embeds
 from .utils import load_model as load_gsgnn_model
@@ -70,16 +68,12 @@ class OptimizerCombiner():
 class GSgnnBase():
     """ Base RGNN model
 
-    Note: we assume each node type has a standalone BERT model.
-
     Parameters
     ----------
     g: DGLGraph
         The graph used in training and testing
     config: GSConfig
         Configurations
-    bert_model: dict
-        A dict of BERT models in a format of ntype -> bert_model
     task_tracker: GSTaskTrackerAbc
         Task tracker used to log task progress
     train_task: bool
@@ -87,7 +81,7 @@ class GSgnnBase():
     verbose: bool
         If True, more information is printed
     """
-    def __init__(self, g, config, bert_model, task_tracker=None, train_task=True):
+    def __init__(self, g, config, task_tracker=None, train_task=True):
         if config.verbose:
             print(config)
 
@@ -103,14 +97,13 @@ class GSgnnBase():
 
         # Model related
         # this parameter specifies whether the emb layer will be used. By default is in True for the gnn models
-        self._pretrain_emb_layer = True if self.model_encoder_type in BUILTIN_GNN_ENCODER else config.pretrain_emb_layer
         self._n_bases = config.n_bases if self.model_encoder_type == "rgcn" else None
         self._use_self_loop = config.use_self_loop if self.model_encoder_type in BUILTIN_GNN_ENCODER else False
         self._self_loop_init = config.self_loop_init if self.model_encoder_type in BUILTIN_GNN_ENCODER else False
         self._n_hidden = config.n_hidden
         # we should set the minibatch to True in the LM case since we do not have any benefit for full graph inference
         self._mini_batch_infer = config.mini_batch_infer if self.model_encoder_type in BUILTIN_GNN_ENCODER else True
-        # disable combining node embedding with bert embeding
+        # combining node features with learnable node embeddings.
         self._use_node_embeddings = config.use_node_embeddings
         self._feat_name = config.feat_name
 
@@ -140,29 +133,19 @@ class GSgnnBase():
         self._restore_model_path = config.restore_model_path
         self._restore_optimizer_path = config.restore_optimizer_path
         self._restore_model_encoder_path = config.restore_model_encoder_path
-        self._restore_bert_model_path = config.restore_bert_model_path
         self._save_embeds_path = config.save_embeds_path
 
         self._debug = config.debug
         self._verbose = config.verbose
 
-        assert isinstance(bert_model, dict), \
-            "The input bert_model must be a dict of BERT models " \
-            "in the format of ntype -> bert_model"
-        self._bert_model = bert_model
-
         self._evaluator = None
         # evaluation
         self._eval_batch_size = config.eval_batch_size
-        self._bert_infer_bs = config.bert_infer_bs
 
         self.model_conf = None
         self.gnn_encoder = None
         self.embed_layer = None
         self.decoder = None
-        self.bert_train = {}
-        self.bert_static = {}
-        self.bert_hidden_size = {}
 
         # model saving or removing
         self.topk_model_to_save = config.topk_model_to_save
@@ -198,18 +181,14 @@ class GSgnnBase():
                 for e in self.g.etypes:
                     assert e in fanout_dic.keys(), "The edge type {} is not included in the specified fanout".format(e)
 
-        self._train_nodes = config.train_nodes
-
         # training related
         self._batch_size = config.batch_size
         self._dropout = config.dropout
         self._mp_opt_level = config.mp_opt_level
         self._sparse_lr = config.sparse_lr
         self._lr = config.lr
-        self._bert_lr = config.bert_tune_lr
         self._weight_decay = config.wd_l2norm
         self._n_epochs = config.n_epochs
-        self._gnn_warmup_epochs = config.gnn_warmup_epochs
         assert self._batch_size > 0, "batch size must > 0."
 
     def log_metric(self, metric_name, metric_value, step, report_step=None):
@@ -324,27 +303,20 @@ class GSgnnBase():
             params += list(self.decoder.parameters())
         return params
 
-    def init_emb_layer(self, g, feat_size, text_feat_ntypes, dev_id):
-        if self.pretrain_emb_layer:
-            # create embeddings
-            embed_layer = DistGraphEmbed(g,
-                                        feat_size,
-                                        text_feat_ntypes,
-                                        self.n_hidden,
-                                        bert_dim=self.bert_hidden_size,
-                                        dropout=self.dropout,
-                                        self_loop_init=self.self_loop_init,
-                                        use_node_embeddings=self.use_node_embeddings)
-            self.sparse_embeds = embed_layer.sparse_embeds
-            # If there are dense parameters in the embedding layer
-            # or we use Pytorch saprse embeddings.
-            if len(embed_layer.input_projs) > 0:
-                embed_layer = embed_layer.to(dev_id)
-                embed_layer = DistributedDataParallel(embed_layer, device_ids=[dev_id], output_device=dev_id)
-        else:
-            embed_layer = None
-            self.sparse_embeds = None
-
+    def init_emb_layer(self, g, feat_size, dev_id):
+        # create embeddings
+        embed_layer = DistGraphEmbed(g,
+                                     feat_size,
+                                     self.n_hidden,
+                                     dropout=self.dropout,
+                                     self_loop_init=self.self_loop_init,
+                                     use_node_embeddings=self.use_node_embeddings)
+        self.sparse_embeds = embed_layer.sparse_embeds
+        # If there are dense parameters in the embedding layer
+        # or we use Pytorch saprse embeddings.
+        if len(embed_layer.input_projs) > 0:
+            embed_layer = embed_layer.to(dev_id)
+            embed_layer = DistributedDataParallel(embed_layer, device_ids=[dev_id], output_device=dev_id)
         return embed_layer
 
     def init_gnn_encoder(self, g, dev_id):
@@ -384,18 +356,9 @@ class GSgnnBase():
 
         return gnn_encoder
 
-    def init_bert_encoder(self, g, bert_model, dev_id):
-        print("Init distributed bert model ...")
-        assert not self.mixed_precision
-        for ntype in bert_model.keys():
-            bert_model[ntype] = DistributedDataParallel(bert_model[ntype].to(dev_id),
-                                                        device_ids=[dev_id], output_device=dev_id)
-        return bert_model
-
     def init_dist_encoder(self, train):
         # prepare features
         g = self.g
-        bert_model = self.bert_model
         dev_id = self.dev_id
 
         feat_size = {}
@@ -419,17 +382,11 @@ class GSgnnBase():
                     "to specify feature names for each node type."
                 feat_size[ntype] = g.nodes[ntype].data[feat_name].shape[1]
 
-        text_feat_ntypes = []
-        for ntype in g.ntypes:
-            if TOKEN_IDX in g.nodes[ntype].data:
-                text_feat_ntypes.append(ntype)
-        embed_layer = self.init_emb_layer(g, feat_size, text_feat_ntypes, dev_id)
+        embed_layer = self.init_emb_layer(g, feat_size, dev_id)
         gnn_encoder = self.init_gnn_encoder(g, dev_id)
-        bert_model = self.init_bert_encoder(g, bert_model, dev_id)
 
         self.gnn_encoder = gnn_encoder
         self.embed_layer = embed_layer
-        self._bert_model = bert_model
 
     def init_dist_decoder(self, train):
         pass
@@ -462,59 +419,24 @@ class GSgnnBase():
             self.emb_optimizer = None
             self.optimizer = None
 
-    def init_bert_model(self, train):
-        bert_params = list([])
-        bert_model = self.bert_model
-        g = self.g
-        if len(bert_model) > 0:
-            for ntype, bm in bert_model.items():
-                params = list(bm.parameters())
-                bert_params = bert_params + params
-                num_params = np.sum([np.prod(param.shape) for param in params])
-                if g.rank() == 0:
-                    print('Bert model of {} has {} parameters'.format(ntype, num_params))
-
-            if train:
-                fine_tune_opt = th.optim.Adam(bert_params, lr=self.bert_lr)
-            bert_train, bert_static = wrap_bert(g,
-                                                bert_model,
-                                                bert_infer_bs=self.bert_infer_bs,
-                                                debug=self.debug)
-        else:
-            fine_tune_opt = None
-            bert_train = {}
-            bert_static = {}
-
-        self.bert_train = bert_train
-        self.bert_static = bert_static
-        if train:
-            self.fine_tune_opt = fine_tune_opt
-        else:
-            self.fine_tune_opt = None
-
     def restoring_gsgnn(self, train):
         g = self.g
 
         # Restore the model weights and or optimizers to a checkpoint saved previously.
         if self.restore_model_path is not None:
             print('load GNN model from ', self.restore_model_path)
-            load_gsgnn_model(self.restore_model_path, self.gnn_encoder, self.embed_layer, self.bert_model, self.decoder)
+            load_gsgnn_model(self.restore_model_path, self.gnn_encoder, self.embed_layer, self.decoder)
             if g.rank() == 0:
                 print('Load Sparse embedding from ', self.restore_model_path)
                 load_sparse_embeds(self.restore_model_path, self.embed_layer)
 
         if self.restore_optimizer_path is not None and train:
             print('load GNN optimizer state from ', self.restore_model_path)
-            load_opt_state(self.restore_model_path, self.optimizer, self.fine_tune_opt, self.emb_optimizer)
+            load_opt_state(self.restore_model_path, self.optimizer, self.emb_optimizer)
 
         if self.restore_model_encoder_path is not None:
             print('load GNN model encoder from ', self.restore_model_encoder_path)
-            load_gsgnn_model(self.restore_model_encoder_path, self.gnn_encoder, self.embed_layer, self.bert_model, decoder=None)
-
-        # Restore the bert model to a checkpoint saved previously.
-        if self.restore_bert_model_path is not None:
-            print('load BERT model from ', self.restore_bert_model_path)
-            load_gsgnn_model(self.restore_bert_model_path, None, None, self.bert_model, None)
+            load_gsgnn_model(self.restore_model_encoder_path, self.gnn_encoder, self.embed_layer, decoder=None)
 
     def init_gsgnn_model(self, train=True):
         ''' Initialize the GNN model.
@@ -526,12 +448,8 @@ class GSgnnBase():
         '''
         self.init_dist_encoder(train)
         self.init_dist_decoder(train)
-
         self.init_model_optimizers(train)
-        self.init_bert_model(train)
-
         self.restoring_gsgnn(train)
-
         self.setup_combine_optimizer(train)
 
     def setup_combine_optimizer(self, train):
@@ -548,8 +466,8 @@ class GSgnnBase():
 
         """
         if train:
-            self.combine_optimizer = OptimizerCombiner(optimizer_list=[self.optimizer, self.emb_optimizer,
-                                                                       self.fine_tune_opt])
+            self.combine_optimizer = OptimizerCombiner(optimizer_list=[self.optimizer,
+                                                                       self.emb_optimizer])
         else:
             self.combine_optimizer = None
 
@@ -591,11 +509,6 @@ class GSgnnBase():
         th.distributed.barrier()
         self.gnn_encoder.eval()
         self.embed_layer.eval()
-        for ntype in g.ntypes:
-            if len(self.bert_train) > 0 and \
-                ntype in self.bert_train.keys():
-                self.bert_train[ntype].eval()
-                self.bert_static[ntype].eval()
 
         # If we need to compute all node embeddings, full-graph inference is much more efficient.
         # Let's use mini-batch inference if we need to compute the embeddings of a subset of nodes.
@@ -605,9 +518,6 @@ class GSgnnBase():
                 print('Compute embeddings with mini-batch inference.')
             embeddings = do_mini_batch_inference(model=self.gnn_encoder,
                                                  embed_layer=self.embed_layer,
-                                                 bert_train=self.bert_train,
-                                                 bert_static=self.bert_static,
-                                                 bert_hidden_size=self.bert_hidden_size,
                                                  device=device,
                                                  target_nidx=target_nidx,
                                                  g=g,
@@ -615,7 +525,6 @@ class GSgnnBase():
                                                  n_hidden=self.n_hidden,
                                                  fanout=self.eval_fanout,
                                                  eval_batch_size=self.eval_batch_size,
-                                                 use_bert_embeddings_for_validation=False,
                                                  task_tracker=self.task_tracker,
                                                  feat_field=self._feat_name)
         else:
@@ -624,11 +533,7 @@ class GSgnnBase():
             embeddings = do_fullgraph_infer(g=g,
                                             model=self.gnn_encoder,
                                             embed_layer=self.embed_layer,
-                                            bert_train=self.bert_train,
-                                            bert_static=self.bert_static,
-                                            bert_hidden_size=self.bert_hidden_size,
                                             device=device,
-                                            bert_infer_bs=self.bert_infer_bs,
                                             eval_fanout_list=self.eval_fanout,
                                             eval_batch_size=self.eval_batch_size,
                                             task_tracker=self.task_tracker,
@@ -638,92 +543,26 @@ class GSgnnBase():
         # wait all workers to finish
         self.gnn_encoder.train()
         self.embed_layer.train()
-        for ntype in g.ntypes:
-            if len(self.bert_train) > 0 and \
-                ntype in self.bert_train.keys():
-                self.bert_train[ntype].train()
-                self.bert_static[ntype].train()
         th.distributed.barrier()
         return embeddings
 
-    def compute_lm_embeddings(self, g, device, target_nidx_per_ntype):
-        """
-        compute node embeddings for lm
-
-        Parameters
-        ----------
-        g : DGLGraph
-            The input graph
-        target_nidx_per_ntype: dictionary of tensors
-            The idices of nodes to generate embeddings.
-        """
-        th.distributed.barrier()
-        if self.embed_layer is not None:
-            self.embed_layer.eval()
-        for ntype in g.ntypes:
-            if ntype in self.bert_train.keys():
-                self.bert_train[ntype].eval()
-                self.bert_static[ntype].eval()
-        if g.rank() == 0:
-            t = time.time()
-            print('Compute lm embeddings with mini-batch inference.')
-        if target_nidx_per_ntype is None:
-            # if the dictionary is not initialized for full graph inference for example this code will fail.
-            target_nidx_per_ntype = {ntype: th.arange(g.number_of_nodes(ntype)) for ntype in g.ntypes}
-        embeddings = do_mini_batch_inference(model=self.gnn_encoder,
-                                             embed_layer=self.embed_layer,
-                                             bert_train=self.bert_train,
-                                             bert_static=self.bert_static,
-                                             bert_hidden_size=self.bert_hidden_size,
-                                             device=device,
-                                             target_nidx=target_nidx_per_ntype,
-                                             g=g,
-                                             pb=g.get_partition_book(),
-                                             n_hidden=self.n_hidden,
-                                             fanout=self.eval_fanout,
-                                             eval_batch_size=self.eval_batch_size,
-                                             use_bert_embeddings_for_validation=False,
-                                             task_tracker=self.task_tracker,
-                                             feat_field=self._feat_name)
-        if g.rank() == 0:
-            print("Compute embeddings with mini-batch inference takes : {:.4f}".format(time.time()-t))
-        if self.embed_layer is not None:
-            self.embed_layer.train()
-        for ntype in g.ntypes:
-            if ntype in self.bert_train.keys():
-                self.bert_train[ntype].train()
-                self.bert_static[ntype].train()
-        return embeddings
-
-    def encoder_forward(self, blocks, input_nodes, bert_forward_time, gnn_forward_time, epoch):
+    def encoder_forward(self, blocks, input_nodes, gnn_forward_time, epoch):
         g = self.g
-        bert_train = self.bert_train
-        bert_static = self.bert_static
-        bert_hidden_size = self.bert_hidden_size
         device = 'cuda:%d' % self.dev_id
         model = self.gnn_encoder
         embed_layer = self.embed_layer
 
         blocks = [blk.to(device) for blk in blocks]
 
-        # Only use training nodes during bert back propagation
-        train_node_masks = rand_gen_trainmask(g, input_nodes, self.train_nodes,
-                                              disable_training=epoch < self.gnn_warmup_epochs)
-
         if self.debug:
             th.distributed.barrier()
         t1 = time.time()
-        inputs, _ = prepare_batch_input(g,
-                                        bert_train,
-                                        bert_static,
-                                        bert_hidden_size,
-                                        input_nodes,
-                                        train_mask=train_node_masks,
-                                        dev=device,
-                                        verbose=self.verbose,
-                                        feat_field=self._feat_name)
+        inputs = prepare_batch_input(g,
+                                     input_nodes,
+                                     dev=device,
+                                     verbose=self.verbose,
+                                     feat_field=self._feat_name)
         t2 = time.time()
-        bert_forward_time += (t2 - t1)
 
         input_nodes = {ntype: inodes.long().to(device) for ntype, inodes in input_nodes.items()}
         emb = embed_layer(inputs, input_nodes=input_nodes) if embed_layer is not None else inputs
@@ -733,7 +572,7 @@ class GSgnnBase():
         t3 = time.time()
         gnn_forward_time += (t3 - t2)
 
-        return gnn_embs, bert_forward_time, gnn_forward_time
+        return gnn_embs, gnn_forward_time
 
     def save_model_embed(self, epoch, i, g):
         '''Save the model and node embeddings for a certain iteration in an epoch..
@@ -742,9 +581,7 @@ class GSgnnBase():
         model = self.gnn_encoder
         embed_layer = self.embed_layer
         decoder = self.decoder
-        bert_model = self.bert_model
         assert model_conf is not None
-        assert bert_model is not None
 
         # sync before model saving
         th.distributed.barrier()
@@ -753,9 +590,9 @@ class GSgnnBase():
 
             save_model_path = self._gen_model_path(self.save_model_path, epoch, i)
 
-            save_gsgnn_model(model_conf, save_model_path, model, embed_layer, bert_model, decoder)
+            save_gsgnn_model(model_conf, save_model_path, model, embed_layer, decoder)
             save_sparse_embeds(save_model_path, embed_layer)
-            save_opt_state(save_model_path, self.optimizer, self.fine_tune_opt, self.emb_optimizer)
+            save_opt_state(save_model_path, self.optimizer, self.emb_optimizer)
             print('successfully save the model to ' + save_model_path)
             print('Time on save model {}'.format(time.time() - start_save_t))
 
@@ -853,24 +690,19 @@ class GSgnnBase():
         num_input_nodes: int
             number of input nodes
         compute_time: tuple of ints
-            A tuple of (bert forward time, gnn forward time and backward time)
+            A tuple of (gnn forward time and backward time)
         '''
-        bert_forward_time, gnn_forward_time, back_time = compute_time
+        gnn_forward_time, back_time = compute_time
         device = 'cuda:%d' % self.dev_id
-
-        if self.debug:
-            flops_strs = get_bert_flops_info(self.bert_train, self.bert_static)
-            print('Epoch {:05d} | Batch {:03d} | {}'.format(epoch, i, flops_strs))
 
         print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | Peak Mem alloc: {:.4f} MB".
                 format(epoch, i,
                     th.cuda.memory_reserved(device) / 1024 / 1024,
                     th.cuda.max_memory_allocated(device) / 1024 /1024))
         print('Epoch {:05d} | Batch {:03d} | RAM memory {} used'.format(epoch, i, psutil.virtual_memory()))
-        print('Epoch {:05d} | Batch {:03d} | Avg input nodes per iter {} | Bert forward {:05f} | GNN forward {:05f} | Backward {:05f}'.format(
+        print('Epoch {:05d} | Batch {:03d} | Avg input nodes per iter {} | GNN forward {:05f} | Backward {:05f}'.format(
             epoch, i,
             num_input_nodes,
-            bert_forward_time,
             gnn_forward_time,
             back_time))
 
@@ -939,16 +771,8 @@ class GSgnnBase():
         return self._batch_size
 
     @property
-    def bert_model(self):
-        return self._bert_model
-
-    @property
     def use_self_loop(self):
         return self._use_self_loop
-
-    @property
-    def pretrain_emb_layer(self):
-        return self._pretrain_emb_layer
 
     @property
     def self_loop_init(self):
@@ -991,24 +815,8 @@ class GSgnnBase():
         return self._weight_decay
 
     @property
-    def bert_lr(self):
-        return self._bert_lr
-
-    @property
     def debug(self):
         return self._debug
-
-    @property
-    def bert_infer_bs(self):
-        return self._bert_infer_bs
-
-    @property
-    def train_nodes(self):
-        return self._train_nodes
-
-    @property
-    def gnn_warmup_epochs(self):
-        return self._gnn_warmup_epochs
 
     @property
     def n_epochs(self):
@@ -1033,10 +841,6 @@ class GSgnnBase():
     @property
     def restore_model_path(self):
         return self._restore_model_path
-
-    @property
-    def restore_bert_model_path(self):
-        return self._restore_bert_model_path
 
     @property
     def restore_model_encoder_path(self):

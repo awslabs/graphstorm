@@ -47,13 +47,9 @@ class GSgnnNodePredictInfer(GSInfer):
     ----------
     config: GSConfig
         Task configuration
-    bert_model: dict
-        A dict of BERT models in the format of node-type -> BERT model
     """
-    def __init__(self, config, bert_model):
+    def __init__(self, config):
         super(GSgnnNodePredictInfer, self).__init__()
-        assert isinstance(bert_model, dict)
-        self.bert_model = bert_model
         self.config = config
 
         self.predict_ntype = config.predict_ntype
@@ -92,8 +88,7 @@ class GSgnnNodePredictInfer(GSInfer):
         tracker_class = get_task_tracker_class(config.task_tracker)
         task_tracker = tracker_class(config, g.rank(), eval_metrics)
 
-        np_model = model_class(g, config, self.bert_model,
-            task_tracker, train_task=False)
+        np_model = model_class(g, config, task_tracker, train_task=False)
         np_model.init_gsgnn_model(train=False)
 
         np_model.register_evaluator(self.evaluator)
