@@ -1,5 +1,5 @@
-# Define the constants for data processing.
-
+""" Define the constants for dataset and data processing.
+"""
 EDGE_SRC_IDX='src_id'
 EDGE_DST_IDX='dst_id'
 NODE_ID_IDX='id'
