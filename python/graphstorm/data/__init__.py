@@ -1,3 +1,5 @@
+"""Package initialization. Import all available dataset and functions
+"""
 from .movielens import MovieLens100kNCDataset
 from .ogbn_arxiv import OGBArxivTextFeatDataset
 from .ogbn_datasets import OGBTextFeatDataset
