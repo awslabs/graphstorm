@@ -1,10 +1,9 @@
-from dgl.data.dgl_dataset import DGLDataset
-from transformers import AutoTokenizer
-import torch as th
-import dgl
+"""Base dataset for GSF dataset
+"""
 import os
-import multiprocessing
-from .constants import ATT_MASK_IDX, VALID_LEN_IDX
+import dgl
+from dgl.data.dgl_dataset import DGLDataset
+
 
 class GSgnnDataset(DGLDataset):
     """r Basic class of GSgnn dataset
@@ -15,6 +14,10 @@ class GSgnnDataset(DGLDataset):
         data_path = os.path.join(raw_dir, name)
         assert os.path.exists(data_path), f'The givne data folder {data_path} \
                 does not exists.'
+        # [James 11/25/2022] add the self.reverse_edge attribute to fix unused argument error.
+        # TODO: Need to modify all children classes, e.g. ogbn_arxiv and ogbn_dataset to use this
+        # attribute directly rather than define it by themselves.
+        self.reverse_edge = reverse_edge
 
         super(GSgnnDataset, self).__init__(name,
                                            url=url,
@@ -40,6 +43,8 @@ class GSgnnDataset(DGLDataset):
         pass
 
     def __getitem__(self, idx):
+        # Add this pylint disable because the DGLDataset has the ._g attribute.
+        # pylint: disable=no-member
         r"""Gets the data object at index.
         """
         assert idx == 0, "This dataset has only one graph"
@@ -58,7 +63,7 @@ class ConstructedGraphDataset(GSgnnDataset):
         Note: The graph filename should be path/<name>.dgl
 
         Examples:
-        python3 construct_graph.py --name example --filepath input --output data --dist_output dist_data ...
+        python3 construct_graph.py --name example --filepath input --output data ...
 
         >>> dataset = ConstructedGraphDataset(example, data)
         >>> g = dataset[0]
