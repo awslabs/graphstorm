@@ -1,3 +1,5 @@
+"""Builtin MovieLens100k dataset
+"""
 import os
 import csv
 import pickle
@@ -85,7 +87,9 @@ class MovieLens100kNCDataset(GSgnnDataset):
     def process(self):
         """ The movielens data has has 4 files
             u.user: user feature, id|age|gender|occupation|zipcode
-            u.item: item feature, id|title|year|_url|unknown|Action|Adventure|Animation|Children|Comedy|Crime|Documentary|Drama|Fantasy|Film-Noir|Horror|Musical|Mystery|Romance|Sci-Fi|Thriller|War|Western
+            u.item: item feature, id|title|year|_url|unknown|Action|Adventure|Animation|Children|
+                                  Comedy|Crime|Documentary|Drama|Fantasy|Film-Noir|Horror|Musical|
+                                  Mystery|Romance|Sci-Fi|Thriller|War|Western
             u.base: user rate item edges
             u.test: user rate item edges
         """
@@ -119,9 +123,9 @@ class MovieLens100kNCDataset(GSgnnDataset):
             if self.retain_original_features:
                 # encode age
                 if not self.user_age_as_label:
-                    min = th.min(age)
-                    max = th.max(age)
-                    age = (age - min) / (max - min)
+                    min_age = th.min(age)
+                    max_age = th.max(age)
+                    age = (age - min_age) / (max_age - min_age)
                     age = age.unsqueeze(dim=1)
 
                 # encode gender
@@ -135,7 +139,10 @@ class MovieLens100kNCDataset(GSgnnDataset):
                     user_feat = th.cat((age, gender, occupation), dim=1) \
                             if not self.user_age_as_label else th.cat((gender, occupation), dim=1)
                 else:
-                    user_feat = th.cat((age, gender), dim=1) if not self.user_age_as_label else gender
+                    if not self.user_age_as_label:
+                        user_feat = th.cat((age, gender), dim=1)
+                    else:
+                        user_feat = gender
                     text_feat['user'] = occupation
 
         with open(item_file, newline='', encoding="ISO-8859-1") as csvfile:
@@ -169,9 +176,9 @@ class MovieLens100kNCDataset(GSgnnDataset):
             if self.retain_original_features:
                 # encode year
                 year = th.tensor(year, dtype=th.float32)
-                min = th.min(year)
-                max = th.max(year)
-                year = (year - min) / (max - min)
+                min_year = th.min(year)
+                max_year = th.max(year)
+                year = (year - min_year) / (max_year - min_year)
                 year = year.unsqueeze(dim=1)
 
             self._num_classes = len(movie_labels[0])
@@ -183,8 +190,8 @@ class MovieLens100kNCDataset(GSgnnDataset):
             new_labels = []
             for label in movie_labels:
                 first_label_idx = 0
-                for i, l in enumerate(label):
-                    if l == 1:
+                for i, lbl in enumerate(label):
+                    if lbl == 1:
                         first_label_idx = i
                         break
                 new_labels.append(first_label_idx)
@@ -225,7 +232,7 @@ class MovieLens100kNCDataset(GSgnnDataset):
             'user': unids.shape[0],
             'movie': inids.shape[0]
         }
-        for key in heads.keys():
+        for key, _ in heads.items():
             graph_edges[key] = (heads[key], tails[key])
             graph_edges[(key[2], key[1] + '-rev', key[0])] = (tails[key], heads[key])
 
@@ -237,7 +244,8 @@ class MovieLens100kNCDataset(GSgnnDataset):
             g.nodes['user'].data['text_idx'] = unids
         g.nodes['movie'].data['text_idx'] = inids
         g.nodes['movie'].data['genre'] = movie_labels
-        g.edges['rating'].data['rate'] = th.tensor(edge_data[('user', 'rating', 'movie')], dtype=th.int32)
+        g.edges['rating'].data['rate'] = th.tensor(edge_data[('user', 'rating', 'movie')],
+                                                   dtype=th.int32)
 
         # split labels
         th.manual_seed(42)
@@ -282,8 +290,8 @@ class MovieLens100kNCDataset(GSgnnDataset):
             g.nodes['user'].data['test_mask'] = test_mask
 
         # edge masks
-        # edge_pct has to be between 0.2 and 1 since we will use by default 0.1 for validation and 0.1 for testing as
-        # the smallest possible.
+        # edge_pct has to be between 0.2 and 1 since we will use by default 0.1 for validation
+        # and 0.1 for testing as the smallest possible.
         assert self.edge_pct <= 1 and  self.edge_pct >= 0.2
         int_edges = g.number_of_edges("rating")
         if self.edge_pct == 1:
@@ -303,8 +311,10 @@ class MovieLens100kNCDataset(GSgnnDataset):
 
             g.edges["rating"].data['train_mask'][: int(int_edges*train_pct)] = True
             g.edges["rating-rev"].data['train_mask'][: int(int_edges * train_pct)] = True
-            g.edges["rating"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
-            g.edges["rating-rev"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
+            g.edges["rating"].data['val_mask'][int(int_edges*train_pct):
+                                               int(int_edges*self.edge_pct)] = True
+            g.edges["rating-rev"].data['val_mask'][int(int_edges*train_pct):
+                                                   int(int_edges*self.edge_pct)] = True
             g.edges["rating"].data['test_mask'][int(int_edges*self.edge_pct):] = True
             g.edges["rating-rev"].data['test_mask'][int(int_edges*self.edge_pct):] = True
         print(g)
@@ -323,9 +333,12 @@ class MovieLens100kNCDataset(GSgnnDataset):
 
     @property
     def predict_category(self):
+        """The node type to be predicted, which is the movie in the ML100k dataset
+        """
         return 'movie'
 
     @property
     def num_classes(self):
+        """The number of classess of labels
+        """
         return self._num_classes
-

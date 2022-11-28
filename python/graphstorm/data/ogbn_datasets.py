@@ -1,18 +1,19 @@
+"""Base OGB Dataset with text features
+"""
+import os
 from ogb.nodeproppred import DglNodePropPredDataset
-import csv
 import dgl
 import torch as th
-import boto3
 import psutil
-import os
 
 from .dataset import GSgnnDataset
 
 class OGBTextFeatDataset(GSgnnDataset):
     """
-    This class can be used for ogbn-arxiv, ogbn-papers100M and ogbn-products datasets. The text features are collected
-    from the original titles and abstractrs of the papers for the first two graphs and the ASIN titles for the last
-    graphs. The text features should be stored in the raw_dir location.
+    This class can be used for ogbn-arxiv, ogbn-papers100M and ogbn-products datasets. The text
+    features are collected from the original titles and abstractrs of the papers for the first two
+    graphs and the ASIN titles for the last graphs. The text features should be stored in the
+    raw_dir location.
     """
     def __init__(self, raw_dir, dataset, edge_pct=1,
                  force_reload=False, verbose=True,
@@ -34,7 +35,6 @@ class OGBTextFeatDataset(GSgnnDataset):
         self._dataset=dataset
         self._url = None
         self._raw_dir=raw_dir
-        self.reverse_edge=reverse_edge
         self.self_loop=self_loop
         self.max_sequence_length=max_sequence_length
         self.target_etype = ["interacts"]
@@ -49,7 +49,8 @@ class OGBTextFeatDataset(GSgnnDataset):
                                                       url=self._url,
                                                       raw_dir=raw_dir,
                                                       force_reload=force_reload,
-                                                      verbose=verbose)
+                                                      verbose=verbose,
+                                                      reverse_edge=reverse_edge)
 
     def load(self):
         # load from local storage
@@ -90,7 +91,9 @@ class OGBTextFeatDataset(GSgnnDataset):
         print("Graph nodes ={}".format(data.graph[0].num_nodes()))
 
         splitted_idx = data.get_idx_split()
-        train_idx, val_idx, test_idx = splitted_idx["train"], splitted_idx["valid"], splitted_idx["test"]
+        train_idx = splitted_idx["train"]
+        val_idx = splitted_idx["valid"]
+        test_idx = splitted_idx["test"]
         graph, labels = data[0]
         labels = labels.long()
         self._num_classes = data.num_classes
@@ -130,8 +133,8 @@ class OGBTextFeatDataset(GSgnnDataset):
         g.nodes['node'].data['labels'] = labels.squeeze()
 
         # edge masks
-        # edge_pct has to be between 0.2 and 1 since we will use by default 0.1 for validation and 0.1 for testing as
-        # the smallest possible.
+        # edge_pct has to be between 0.2 and 1 since we will use by default 0.1 for validation
+        # and 0.1 for testing as the smallest possible.
         assert self.edge_pct <= 1 and  self.edge_pct >= 0.2
         int_edges = g.number_of_edges("interacts")
         if self.edge_pct == 1:
@@ -143,16 +146,20 @@ class OGBTextFeatDataset(GSgnnDataset):
             train_pct = self.edge_pct - val_pct
             # the test is 1 - the rest
             g.edges["interacts"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-interacts"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rev-interacts"].data['train_mask'] = th.full((int_edges,), False,
+                                                                  dtype=th.bool)
             g.edges["interacts"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
             g.edges["rev-interacts"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
             g.edges["interacts"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-interacts"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
+            g.edges["rev-interacts"].data['test_mask'] = th.full((int_edges,), False,
+                                                                 dtype=th.bool)
 
             g.edges["interacts"].data['train_mask'][: int(int_edges*train_pct)] = True
             g.edges["rev-interacts"].data['train_mask'][: int(int_edges * train_pct)] = True
-            g.edges["interacts"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
-            g.edges["rev-interacts"].data['val_mask'][int(int_edges*train_pct):int(int_edges*self.edge_pct)] = True
+            g.edges["interacts"].data['val_mask'][int(int_edges*train_pct):
+                                                  int(int_edges*self.edge_pct)] = True
+            g.edges["rev-interacts"].data['val_mask'][int(int_edges*train_pct):
+                                                      int(int_edges*self.edge_pct)] = True
             g.edges["interacts"].data['test_mask'][int(int_edges*self.edge_pct):] = True
             g.edges["rev-interacts"].data['test_mask'][int(int_edges*self.edge_pct):] = True
 
@@ -160,7 +167,8 @@ class OGBTextFeatDataset(GSgnnDataset):
         self._g=g
         self._num_classes = data.num_classes
 
-        print("Retaining original node features and discarding the text data. This is the original input of ogbn.")
+        print("Retaining original node features and discarding the text data. \
+              This is the original input of ogbn.")
         self._g.nodes['node'].data['feat'] = graph.ndata["feat"]
 
     def __getitem__(self, idx):
@@ -174,8 +182,12 @@ class OGBTextFeatDataset(GSgnnDataset):
 
     @property
     def predict_category(self):
+        """The node type to be predicted, which is node in this base dataset
+        """
         return 'node'
 
     @property
     def num_classes(self):
+        """The number of classess of labels
+        """
         return self._num_classes
