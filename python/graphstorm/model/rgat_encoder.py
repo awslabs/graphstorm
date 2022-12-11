@@ -160,31 +160,25 @@ class RelationalGATEncoder(RelGraphConvEncoder):
         # h2h
         for _ in range(self.num_hidden_layers):
             self.layers.append(RelationalAttLayer(
-                self.h_dim, self.h_dim, self.rel_names,
+                self.h_dims, self.h_dims, self.rel_names,
                 self.n_heads, activation=F.relu, self_loop=self.use_self_loop,
                 dropout=self.dropout))
         # h2o
         self.layers.append(RelationalAttLayer(
-            self.h_dim, self.out_dim, self.rel_names,
+            self.h_dims, self.out_dims, self.rel_names,
             self.n_heads, activation=F.relu if self.last_layer_act else None,
             self_loop=self.use_self_loop))
 
-    def forward(self, h=None, blocks=None):
+    def forward(self, blocks, h):
         """Forward computation
 
         Parameters
         ----------
-        h: dict[str, torch.Tensor]
-            Input node feature for each node type.
         blocks: DGL MFGs
             Sampled subgraph in DGL MFG
+        h: dict[str, torch.Tensor]
+            Input node feature for each node type.
         """
-        if blocks is None:
-            # full graph training
-            for layer in self.layers:
-                h = layer(self.g, h)
-        else:
-            # minibatch training
-            for layer, block in zip(self.layers, blocks):
-                h = layer(block, h)
+        for layer, block in zip(self.layers, blocks):
+            h = layer(block, h)
         return h

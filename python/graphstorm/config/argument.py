@@ -13,7 +13,7 @@ from .config import BUILTIN_LP_LOSS_CROSS_ENTROPY
 
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
-from .config import BUILTIN_TASK_EDGE_CLASSIFICATOIN
+from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import BUILTIN_TASK_LINK_PREDICTION
 from .config import BUILTIN_TASK_MLM
@@ -102,8 +102,8 @@ class GSConfig:
 
             if family == BUILTIN_TASK_LINK_PREDICTION:
                 setattr(self, "_task_type", BUILTIN_TASK_LINK_PREDICTION)
-            elif family == BUILTIN_TASK_EDGE_CLASSIFICATOIN:
-                setattr(self, "_task_type", BUILTIN_TASK_EDGE_CLASSIFICATOIN)
+            elif family == BUILTIN_TASK_EDGE_CLASSIFICATION:
+                setattr(self, "_task_type", BUILTIN_TASK_EDGE_CLASSIFICATION)
             elif family == BUILTIN_TASK_EDGE_REGRESSION:
                 setattr(self, "_task_type", BUILTIN_TASK_EDGE_REGRESSION)
             elif family == BUILTIN_TASK_NODE_CLASSIFICATION:
@@ -265,13 +265,6 @@ class GSConfig:
         # By default, do not use mix_precision
         return False
 
-    @property
-    def mp_opt_level(self):
-        """ Mixed precision opt level (used with apex)
-            Deprecated
-        """
-        return "O2"
-
     ###################### general gnn related ######################
     @property
     def feat_name(self):
@@ -400,19 +393,6 @@ class GSConfig:
 
     ###################### I/O related ######################
     @property
-    def load_model_path(self):
-        """ Model path
-
-        Deprecated: Use restore model path instead
-        """
-        print("[Warning] load_model_path is deprecated use restore_model_path instead")
-
-        if hasattr(self, "_load_model_path"):
-            return self._load_model_path
-
-        return self.restore_model_path
-
-    @property
     def restore_model_path(self):
         """ Path to the entire model including embed layer, encoder and decoder
         """
@@ -429,15 +409,6 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_restore_optimizer_path"):
             return self._restore_optimizer_path
-        return None
-
-    @property
-    def restore_model_encoder_path(self):
-        """ Path to the saved Input encoder + GNN encoder.
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_restore_model_encoder_path"):
-            return self._restore_model_encoder_path
         return None
 
     ### Save model ###
@@ -682,22 +653,6 @@ class GSConfig:
         # By default use self loop
         return True
 
-    @property
-    def self_loop_init(self):
-        """ If this is set then we will initialize all the parameters
-            of the encoder as zero and the self_loop weight as identity.
-            This is to bring the model close to the two tower model.
-
-            Deprecated.
-            Will be removed later
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_self_loop_init"):
-            assert self._self_loop_init in [True, False]
-            return self._self_loop_init
-        # By default do not use self_loop_init
-        return False
-
     ## RGCN only ##
     @property
     def n_bases(self):
@@ -841,9 +796,9 @@ class GSConfig:
         """
         # link prediction or edge classification
         assert self.task_type in [BUILTIN_TASK_LINK_PREDICTION, \
-            BUILTIN_TASK_EDGE_CLASSIFICATOIN, BUILTIN_TASK_EDGE_REGRESSION], \
+            BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION], \
             f"Only {BUILTIN_TASK_LINK_PREDICTION}, " \
-            f"{BUILTIN_TASK_EDGE_CLASSIFICATOIN} and "\
+            f"{BUILTIN_TASK_EDGE_CLASSIFICATION} and "\
             f"{BUILTIN_TASK_EDGE_REGRESSION} use reverse_edge_types_map"
 
         # pylint: disable=no-member
@@ -889,7 +844,7 @@ class GSConfig:
         assert len(self._target_etype) > 0, \
             "There must be at least one target etype."
 
-        return self._target_etype
+        return [tuple(target_etype.split(',')) for target_etype in self._target_etype]
 
     @property
     def remove_target_edge(self):
@@ -921,9 +876,7 @@ class GSConfig:
 
     @property
     def num_decoder_basis(self):
-        """ The number of basis for the decoder in edge prediction task
-
-            Used with DenseBiDecoder and DenseBiDecoderWithEdgeFeats
+        """ The number of basis for the decoder in edge prediction task.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_decoder_basis"):
@@ -992,7 +945,8 @@ class GSConfig:
                 return None
             assert isinstance(self._train_etype, list)
             assert len(self._train_etype) > 0
-            return self._train_etype
+
+            return [tuple(train_etype.split(',')) for train_etype in self._train_etype]
         # By default return None, which means use all edge types
         return None
 
@@ -1007,7 +961,7 @@ class GSConfig:
                 return None
             assert isinstance(self._eval_etype, list)
             assert len(self._eval_etype) > 0
-            return self._eval_etype
+            return [tuple(eval_etype.split(',')) for eval_etype in self._eval_etype]
         # By default return None, which means use all edge types
         return None
 
@@ -1103,7 +1057,7 @@ class GSConfig:
         # pylint: disable=no-member
         # Task is node classification
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, \
-            BUILTIN_TASK_EDGE_CLASSIFICATOIN]:
+            BUILTIN_TASK_EDGE_CLASSIFICATION]:
             assert self.num_classes > 1, \
                 "For node classification, num_classes must be provided"
 

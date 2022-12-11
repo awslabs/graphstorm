@@ -17,7 +17,6 @@ gsf:
     gnn_warmup_epochs: 0
     mixed_precision: false
     no_validation: false
-    mp_opt_level: O2
     train_nodes: 0
     debug: false
   gnn:
@@ -44,7 +43,6 @@ gsf:
     n_bases: -1
     use_self_loop: true
     use_dot_product: true
-    self_loop_init: false
     sparse_lr: 1e-2
     use_node_embeddings: false
   node_regression:

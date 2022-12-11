@@ -266,10 +266,8 @@ def create_io_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["input"] = {
-        "load_model_path": "./load_path",
         "restore_model_path": "./restore",
         "restore_optimizer_path": "./opt_restore",
-        "restore_model_encoder_path": "./encoder"
     }
 
     yaml_object["gsf"]["output"] = {
@@ -288,10 +286,8 @@ def test_load_io_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.load_model_path == None
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
-        assert config.restore_model_encoder_path == None
         assert config.save_model_path == None
         assert config.save_model_per_iters == -1
         assert config.save_embeds_path == None
@@ -299,10 +295,8 @@ def test_load_io_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.load_model_path == "./load_path"
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
-        assert config.restore_model_encoder_path == "./encoder"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
         assert config.save_embeds_path == "./save_emb"
@@ -378,7 +372,6 @@ def create_train_config(tmp_path, file_name):
         "sparse_lr": 0.001,
         "use_node_embeddings": False,
         "use_self_loop": False,
-        "self_loop_init": True,
         "enable_early_stop": True,
         "save_model_path": os.path.join(tmp_path, "save"),
     }
@@ -396,7 +389,6 @@ def create_train_config(tmp_path, file_name):
         "sparse_lr": 0.,
         "use_node_embeddings": True,
         "use_self_loop": "error",
-        "self_loop_init": "error",
         "enable_early_stop": True,
         "call_to_consider_early_stop": -1,
         "window_for_early_stop": 0,
@@ -427,7 +419,6 @@ def test_train_info():
         assert config.sparse_lr == 0.01
         assert config.use_node_embeddings == False
         assert config.use_self_loop == True
-        assert config.self_loop_init == False
         assert config.enable_early_stop == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'), local_rank=0)
@@ -444,7 +435,6 @@ def test_train_info():
         assert config.sparse_lr == 0.001
         assert config.use_node_embeddings == False
         assert config.use_self_loop == False
-        assert config.self_loop_init == True
         assert config.enable_early_stop == True
         assert config.call_to_consider_early_stop == 0
         assert config.window_for_early_stop == 3
@@ -459,7 +449,6 @@ def test_train_info():
         check_failure(config, "sparse_lr")
         assert config.use_node_embeddings == True
         check_failure(config, "use_self_loop")
-        check_failure(config, "self_loop_init")
         config._dropout = 1.0
         check_failure(config, "dropout")
         assert config.enable_early_stop == True
@@ -924,7 +913,7 @@ def test_edge_class_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test1.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.target_etype[0] == "query,match,asin"
+        assert config.target_etype[0] == ("query", "match", "asin")
         assert len(config.target_etype) == 1
         assert config.decoder_type == "MLPDecoder"
         assert config.num_decoder_basis == 4
@@ -938,8 +927,8 @@ def test_edge_class_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test2.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.target_etype[0] == "query,match,asin"
-        assert config.target_etype[1] == "query,click,asin"
+        assert config.target_etype[0] == ("query", "match", "asin")
+        assert config.target_etype[1] == ("query", "click", "asin")
         assert len(config.target_etype) == 2
         assert len(config.reverse_edge_types_map) == 2
         print(config.reverse_edge_types_map)
@@ -1072,9 +1061,9 @@ def test_lp_info():
         assert config.num_negative_edges_eval == 100
         assert config.use_dot_product == True
         assert len(config.train_etype) == 1
-        assert config.train_etype[0] == "query,exactmatch,asin"
+        assert config.train_etype[0] == ("query", "exactmatch", "asin")
         assert len(config.eval_etype) == 1
-        assert config.eval_etype[0] == "query,exactmatch,asin"
+        assert config.eval_etype[0] == ("query", "exactmatch", "asin")
         assert config.separate_eval == True
         assert config.exclude_training_targets == True
         assert len(config.reverse_edge_types_map) == 1
@@ -1089,11 +1078,11 @@ def test_lp_info():
         config = GSConfig(args)
         assert config.negative_sampler == "udf"
         assert len(config.train_etype) == 2
-        assert config.train_etype[0] == "query,exactmatch,asin"
-        assert config.train_etype[1] == "query,click,asin"
+        assert config.train_etype[0] == ("query", "exactmatch", "asin")
+        assert config.train_etype[1] == ("query", "click", "asin")
         assert len(config.eval_etype) == 2
-        assert config.eval_etype[0] == "query,exactmatch,asin"
-        assert config.eval_etype[1] == "query,click,asin"
+        assert config.eval_etype[0] == ("query", "exactmatch", "asin")
+        assert config.eval_etype[1] == ("query", "click", "asin")
         assert config.exclude_training_targets == False
         assert len(config.reverse_edge_types_map) == 0
         assert len(config.eval_metric) == 1
@@ -1325,10 +1314,8 @@ def create_io_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["input"] = {
-        "load_model_path": "./load_path",
         "restore_model_path": "./restore",
         "restore_optimizer_path": "./opt_restore",
-        "restore_model_encoder_path": "./encoder"
     }
 
     yaml_object["gsf"]["output"] = {
@@ -1357,10 +1344,8 @@ def test_load_io_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.load_model_path == None
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
-        assert config.restore_model_encoder_path == None
         assert config.save_model_path == None
         assert config.save_model_per_iters == -1
         assert config.save_embeds_path == None
@@ -1368,10 +1353,8 @@ def test_load_io_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.load_model_path == "./load_path"
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
-        assert config.restore_model_encoder_path == "./encoder"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
         assert config.save_embeds_path == "./save_emb"

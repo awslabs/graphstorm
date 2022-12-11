@@ -1,15 +1,16 @@
-""" Utils """
+""" Utility functions and classes
+"""
 import os
 import json
-import time
 import shutil
+import numpy as np
 
 import torch as th
+from torch import nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
-from .extract_node_embeddings import extract_all_embeddings_dist, prepare_batch_input
 
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
@@ -26,45 +27,7 @@ def sparse_emb_initializer(emb):
     th.nn.init.xavier_uniform_(emb)
     return emb
 
-def save_embeds(embed_path, node_embed, relation_embs):
-    ''' Save the generated node embeddings and relation embedding
-
-        Parameters
-        ----------
-        embed_path: str
-            Path to save the embeddings
-        node_embed: th.Tensor
-            Node embedding
-        relation_embs:
-            relation embedding
-    '''
-    emb_states = {
-        'node_embed' : node_embed
-    }
-    if relation_embs is not None:
-        emb_states['relation_embed'] = relation_embs
-    th.save(emb_states, embed_path)
-
-def load_embeds(embed_path):
-    """ Load embedding from disk
-
-        Parameters
-        ----------
-        embed_path: str
-            Path to load the embeddings
-
-        Returns
-        -------
-        node embedding: th.Tensor
-        relation embedding: th.Tensor
-    """
-    emb_states = th.load(embed_path)
-    node_embed = emb_states['node_embed']
-    relation_embs = emb_states['relation_embed'] \
-        if 'relation_embed' in emb_states else None
-    return node_embed, relation_embs
-
-def save_model(conf, model_path, gnn_model=None, embed_layer=None, decoder=None):
+def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ A model should have three parts:
         * GNN model
         * embedding layer
@@ -72,8 +35,6 @@ def save_model(conf, model_path, gnn_model=None, embed_layer=None, decoder=None)
 
         Parameters
         ----------
-        conf: dict
-            The configuration of the model architecture.
         model_path: str
             The path of the model is saved.
         gnn_model: model
@@ -83,32 +44,16 @@ def save_model(conf, model_path, gnn_model=None, embed_layer=None, decoder=None)
         decoder: model
             A (distributed) model of decoder
     """
-
-    if gnn_model is not None:
-        gnn_model = gnn_model.module \
-            if isinstance(gnn_model, DistributedDataParallel) else gnn_model
-
-    if embed_layer is not None:
-        embed_layer = embed_layer.module \
-            if isinstance(embed_layer, DistributedDataParallel) else embed_layer
-
-    if decoder is not None:
-        decoder = decoder.module \
-            if isinstance(decoder, DistributedDataParallel) else decoder
-
     model_states = {}
-    if gnn_model is not None:
+    if gnn_model is not None and isinstance(gnn_model, nn.Module):
         model_states['gnn'] = gnn_model.state_dict()
-    if embed_layer is not None:
+    if embed_layer is not None and isinstance(embed_layer, nn.Module):
         model_states['embed'] = embed_layer.state_dict()
-    if decoder is not None:
+    if decoder is not None and isinstance(decoder, nn.Module):
         model_states['decoder'] = decoder.state_dict()
 
     os.makedirs(model_path, exist_ok=True)
     th.save(model_states, os.path.join(model_path, 'model.bin'))
-
-    with open(os.path.join(model_path, 'model_conf.json'), 'w', encoding='utf-8') as f:
-        json.dump(conf, f, ensure_ascii=False, indent=4)
 
 def save_sparse_embeds(model_path, embed_layer):
     """ save sparse embeddings if any
@@ -142,32 +87,27 @@ def save_sparse_embeds(model_path, embed_layer):
 
             th.save(embs, os.path.join(model_path, f'{ntype}_sparse_emb.pt'))
 
-def save_opt_state(model_path, dense_opt, emb_opt):
+def save_opt_state(model_path, dense_opts, sparse_opts):
     """ Save the states of the optimizers.
-
-        There are usually three optimizers:
-        * for the dense model parameters.
-        * for the sparse embedding layers.
 
         Parameters
         ----------
         model_path : str
             The path of the folder where the model is saved.
             We save the optimizer states with the model.
-        dense_opt : optimizer
-            The optimizer for dense model parameters.
-        emb_opt : optimizer
-            The optimizer for sparse embedding layer.
+        dense_opts : list optimizer
+            The optimizers for dense model parameters.
+        emb_opts : list of optimizer
+            The optimizers for sparse embedding layer.
     """
     opt_states = {}
-    if dense_opt is not None:
-        opt_states['dense'] = dense_opt.state_dict()
+    assert len(dense_opts) == 1, "We can only support one dense optimizer now."
+    opt_states['dense'] = dense_opts[0].state_dict()
     # TODO(zhengda) we need to change DGL to make it work.
-    if emb_opt is not None:
+    if len(sparse_opts) > 0:
         # TODO(xiangsx) Further discussion of whether we need to save the state of
         #               sparse optimizer is needed.
         print("WARNING: We do not export the state of sparse optimizer")
-    #    opt_states['emb'] = emb_opt.state_dict()
     os.makedirs(model_path, exist_ok=True)
     th.save(opt_states, os.path.join(model_path, 'optimizers.bin'))
 
@@ -272,8 +212,6 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     if 'decoder' in checkpoint and decoder is not None:
         print("Loading decoder model")
         decoder.load_state_dict(checkpoint['decoder'])
-    if 'decoder' in checkpoint and decoder is not None:
-        decoder.load_state_dict(checkpoint['decoder'])
 
 def load_sparse_embeds(model_path, embed_layer):
     """load sparse embeddings if any
@@ -302,24 +240,24 @@ def load_sparse_embeds(model_path, embed_layer):
                 # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
                 sparse_emb._tensor[idx] = emb[idx]
 
-def load_opt_state(model_path, dense_opt, emb_opt):
+def load_opt_state(model_path, dense_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
 
         Parameters
         ----------
         model_path: str
             The path of the model is saved.
-        dense_opt: optimizer
+        dense_opts: list of optimizers
             Optimzer for dense layers
-        emb_opt: optimizer
-            Optimizer for emb layer
+        sparse_opts: list of optimizers
+            Optimizer for sparse emb layer
     """
     checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
-    dense_opt.load_state_dict(checkpoint['dense'])
+    assert len(dense_opts) == 1, "Currently, we only support one dense optimizer."
+    dense_opts[0].load_state_dict(checkpoint['dense'])
     # TODO(zhengda) we need to change DGL to make it work.
-    if 'emb' in checkpoint and emb_opt is not None:
+    if 'sparse' in checkpoint and len(sparse_opts) > 0:
         raise NotImplementedError('We cannot load the state of sparse optimizer')
-    #    emb_opt.load_state_dict(checkpoint['emb'])
 
 def remove_saved_models(model_path):
     """ For only save the Top k best performaned models to save disk spaces, need this function to
@@ -381,193 +319,6 @@ class LazyDistTensor:
         s = list(self.dist_tensor.shape)
         s[0] = len(self.slice_idx)
         return tuple(s)
-
-# pylint: disable=invalid-name
-def do_mini_batch_inference(model, embed_layer, device,
-                            target_nidx, g, pb, n_hidden,
-                            fanout, eval_batch_size,
-                            task_tracker=None, feat_field='feat'):
-    """ Do mini batch inference
-
-        Parameters
-        ----------
-        model: torch model
-            GNN model
-        embed_layer: torch model
-            GNN input embedding layer
-        device: th.device
-            Device
-        target_nidx: th.Tensor
-            Target node idices
-        g: DistDGLGraph
-            DGL graph
-        pb: DGL partition book
-            The partition book
-        n_hidden: int
-            GNN hidden size
-        fanout: int
-            Inference fanout
-        eval_batch_size: int
-            The batch size
-        task_tracker: GSTaskTrackerAbc
-            Task tracker
-        feat_field: str
-            field to extract features
-
-        Returns
-        -------
-        Node embeddings: dict of str to th.Tensor
-    """
-    t0 = time.time()
-    # train sampler
-    target_idxs_dist = {}
-    embeddings = {}
-    # this mapping will hold the mapping among the rows of
-    # the embedding matrix to the original target ids
-    for key in target_nidx:
-        # Note: The space overhead here, i.e., using a global target_mask,
-        # is O(N), N is number of nodes.
-        # Use int8 as all_reduce does not work well with bool
-        # TODO(zhengda) we need to reduce the memory complexity described above.
-        target_mask = th.full((g.num_nodes(key),), 0, dtype=th.int8)
-        target_mask[target_nidx[key]] = 1
-
-        # As each trainer may only focus on its own val/test set,
-        # i.e., the val/test sets only contain local nodes or edges.
-        # we need to get the full node or edge list before node_split
-        # Here we use all_reduce to sync the target node/edge mask.
-        # TODO(xiangsx): make it work with NCCL
-        # TODO(xiangsx): make it more efficient
-        th.distributed.all_reduce(target_mask,
-            op=th.distributed.ReduceOp.MAX)
-        print("do allreduce")
-
-        node_trainer_ids=g.nodes[key].data['trainer_id'] \
-            if 'trainer_id' in g.nodes[key].data else None
-        target_idx_dist = dgl.distributed.node_split(
-                target_mask.bool(),
-                pb, ntype=key, force_even=False,
-                node_trainer_ids=node_trainer_ids)
-        target_idxs_dist[key] = target_idx_dist
-        embeddings[key] = dgl.distributed.DistTensor(
-            (g.number_of_nodes(key), n_hidden),
-            dtype=th.float32, name='output_embeddings',
-            part_policy=g.get_node_partition_policy(key),
-            persistent=True)
-
-    sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
-    loader = dgl.dataloading.DistNodeDataLoader(g, target_idxs_dist, sampler,
-                                                batch_size=eval_batch_size,
-                                                shuffle=False, num_workers=0)
-    g.barrier()
-    if model is not None:
-        model.eval()
-    if embed_layer is not None:
-        embed_layer.eval()
-    th.cuda.empty_cache()
-    with th.no_grad():
-        for iter_l, (input_nodes, seeds, blocks) in enumerate(loader):
-            if task_tracker is not None:
-                task_tracker.keep_alive(iter_l)
-
-            # in the case of a graph with a single node type the returned seeds will not be
-            # a dictionary but a tensor of integers this is a possible bug in the DGL code.
-            # Otherwise we will select the seeds that correspond to the category node type
-            if isinstance(input_nodes, dict) is False:
-                # This happens on a homogeneous graph.
-                assert len(g.ntypes) == 1
-                input_nodes = {g.ntypes[0]: input_nodes}
-
-            if isinstance(seeds, dict) is False:
-                # This happens on a homogeneous graph.
-                assert len(g.ntypes) == 1
-                seeds = {g.ntypes[0]: seeds}
-
-            blocks = [blk.to(device) for blk in blocks]
-            inputs = prepare_batch_input(g,
-                                         input_nodes,
-                                         dev=device,
-                                         feat_field=feat_field)
-
-            input_nodes = {ntype: inodes.long().to(device) \
-                    for ntype, inodes in input_nodes.items()}
-            emb = embed_layer(inputs, input_nodes=input_nodes) \
-                    if embed_layer is not None else inputs
-            final_embs = model(emb, blocks) \
-                    if model is not None else {ntype: nemb.to(device) \
-                        for ntype, nemb in emb.items()}
-            for key in seeds:
-                # we need to go over the keys in the seed dictionary and not the final_embs.
-                # The reason is that our model
-                # will always return a zero tensor if there are no nodes of a certain type.
-                if len(seeds[key]) > 0:
-                    # it might be the case that one key has a zero tensor this will cause a failure.
-                    embeddings[key][seeds[key]] = final_embs[key].cpu()
-
-    if model is not None:
-        model.train()
-    if embed_layer is not None:
-        embed_layer.train()
-    g.barrier()
-    t1 = time.time()
-
-    if g.rank() == 0:
-        print(f'Computing GNN embeddings: {(t1 - t0):.4f} seconds')
-
-    if target_nidx is not None:
-        embeddings = {ntype: LazyDistTensor(embeddings[ntype], target_nidx[ntype]) \
-            for ntype in target_nidx.keys()}
-    return embeddings
-
-def do_fullgraph_infer(g, model, embed_layer, device, eval_fanout_list,
-                       eval_batch_size=None,task_tracker=None,
-                       feat_field='feat'):
-    """ Do fullgraph inference
-
-        Parameters
-        ----------
-        g: DistDGLGraph
-            DGLGraph
-        model: torch model
-            GNN model
-        embed_layer: torch model
-            GNN input embedding layer
-        device: th.device
-            Device
-        eval_fanout_list: list
-            The evaluation fanout list
-        eval_batch_size: int
-            The batch size
-        task_tracker: GSTaskTrackerAbc
-            Task tracker
-        feat_field: str
-            Field to extract features
-
-        Returns
-        -------
-        Node embeddings: dict of str to th.Tensor
-    """
-    node_embed = extract_all_embeddings_dist(g,
-                                             # TODO(zhengda) the batch size should be configurable.
-                                             1024,
-                                             embed_layer,
-                                             dev=device,
-                                             task_tracker=task_tracker,
-                                             feat_field=feat_field)
-    t1 = time.time() # pylint: disable=invalid-name
-    # full graph evaluation
-    g.barrier()
-    model.eval()
-    if not isinstance(model, DistributedDataParallel):
-        embeddings = model.dist_inference(g, eval_batch_size, device, 0,
-            node_embed, eval_fanout_list, task_tracker=task_tracker)
-    else:
-        embeddings = model.module.dist_inference(g, eval_batch_size,
-            device, 0, node_embed, eval_fanout_list, task_tracker=task_tracker)
-    if g.rank() == 0:
-        print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
-    model.train()
-    return embeddings
 
 def all_gather(tensor):
     """ Run all_gather on arbitrary tensor data
@@ -676,3 +427,40 @@ class TopKList():
                 self.toplist = first_part + [val] + last_part
 
         return insert_success, return_val
+
+def get_feat_size(g, feat_names):
+    """ Get the feature's size on each node type in the input graph.
+
+    Parameters
+    ----------
+    g : DistGraph
+        The distributed graph.
+    feat_names : str or dict of str
+        The feature names.
+
+    Returns
+    -------
+    dict of int : the feature size for each node type.
+    """
+    feat_size = {}
+    for ntype in g.ntypes:
+        # user can specify the name of the field
+        if feat_names is None:
+            feat_name = None
+        elif isinstance(feat_names, dict) and ntype in feat_names:
+            feat_name = feat_names[ntype]
+        elif isinstance(feat_names, str):
+            feat_name = feat_names
+        else:
+            feat_name = None
+
+        if feat_name is None:
+            feat_size[ntype] = 0
+        else:
+            # We force users to know which node type has node feature
+            # This helps avoid unexpected training behavior.
+            assert feat_name in g.nodes[ntype].data, \
+                    f"Warning. The feat with name {feat_name} " \
+                    f"does not exists for the node type {ntype}."
+            feat_size[ntype] = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
+    return feat_size

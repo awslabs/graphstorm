@@ -5,7 +5,9 @@ from argparse import Namespace
 import torch as th
 import numpy as np
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
+from graphstorm.model.utils import get_feat_size
 
+from data_utils import generate_dummy_dist_graph
 
 def helper_save_embedding(tmpdirname):
     random_emb = th.rand((103, 12))
@@ -103,8 +105,35 @@ def test_topklist():
         assert insert_success_list[epoch] == insert_success
         assert return_val_list[epoch] == return_val
 
+def test_get_feat_size():
+    # get the test dummy distributed graph
+    g = generate_dummy_dist_graph()
+
+    feat_size = get_feat_size(g, 'feat')
+    assert len(feat_size) == len(g.ntypes)
+    for ntype in feat_size:
+        assert ntype in g.ntypes
+        assert feat_size[ntype] == g.nodes[ntype].data['feat'].shape[1]
+
+    feat_size = get_feat_size(g, {'n0': 'feat', 'n1': 'feat'})
+    assert len(feat_size) == len(g.ntypes)
+    for ntype in feat_size:
+        assert ntype in g.ntypes
+        assert feat_size[ntype] == g.nodes[ntype].data['feat'].shape[1]
+
+    feat_size = get_feat_size(g, {'n0' : 'feat'})
+    assert len(feat_size) == len(g.ntypes)
+    assert feat_size['n0'] == g.nodes['n0'].data['feat'].shape[1]
+    assert feat_size['n1'] == 0
+
+    try:
+        feat_size = get_feat_size(g, {'n0': 'feat', 'n1': 'feat1'})
+    except:
+        feat_size = None
+    assert feat_size is None
 
 if __name__ == '__main__':
+    test_get_feat_size()
     test_save_embeddings()
     test_remove_saved_models()
     test_topklist()

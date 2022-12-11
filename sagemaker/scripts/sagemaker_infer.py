@@ -19,7 +19,7 @@ import boto3
 from graphstorm.config.config import SUPPORTED_TASKS
 from graphstorm.config.config import BUILTIN_TASK_NODE_CLASSIFICATION
 from graphstorm.config.config import BUILTIN_TASK_NODE_REGRESSION
-from graphstorm.config.config import BUILTIN_TASK_EDGE_CLASSIFICATOIN
+from graphstorm.config.config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from graphstorm.config.config import BUILTIN_TASK_EDGE_REGRESSION
 from graphstorm.config.config import BUILTIN_TASK_LINK_PREDICTION
 
@@ -60,7 +60,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         workspace = "/graph-storm/inference_scripts/np_infer"
         cmd = "np_infer_gnn.py"
-    elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATOIN, BUILTIN_TASK_EDGE_REGRESSION]:
+    elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
         workspace = "/graph-storm/inference_scripts/ep_infer"
         cmd = "ep_infer_gnn.py"
     elif task_type == BUILTIN_TASK_LINK_PREDICTION:
