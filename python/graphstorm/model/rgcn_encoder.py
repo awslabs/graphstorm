@@ -151,8 +151,6 @@ class RelationalGCNEncoder(RelGraphConvEncoder):
         Whether to add selfloop. Default True
     last_layer_act : torch.function
         Activation for the last layer. Default None
-    self_loop_init: bool
-        Make the input as identical to it self.
     """
     def __init__(self,
                  g,
@@ -161,13 +159,11 @@ class RelationalGCNEncoder(RelGraphConvEncoder):
                  num_hidden_layers=1,
                  dropout=0,
                  use_self_loop=True,
-                 last_layer_act=False,
-                 self_loop_init=False):
+                 last_layer_act=False):
         if num_bases < 0 or num_bases > len(g.etypes):
             self.num_bases = len(g.etypes)
         else:
             self.num_bases = num_bases
-        self.self_loop_init = self_loop_init
         super(RelationalGCNEncoder, self).__init__(g, h_dim, out_dim,
             num_hidden_layers, dropout, use_self_loop, last_layer_act)
 
@@ -178,37 +174,26 @@ class RelationalGCNEncoder(RelGraphConvEncoder):
         # h2h
         for _ in range(self.num_hidden_layers):
             self.layers.append(RelGraphConvLayer(
-                self.h_dim, self.h_dim, self.rel_names,
+                self.h_dims, self.h_dims, self.rel_names,
                 self.num_bases, activation=F.relu, self_loop=self.use_self_loop,
                 dropout=self.dropout))
         # h2o
         self.layers.append(RelGraphConvLayer(
-            self.h_dim, self.out_dim, self.rel_names,
+            self.h_dims, self.out_dims, self.rel_names,
             self.num_bases, activation=F.relu if self.last_layer_act else None,
             self_loop=self.use_self_loop))
 
-        if self.self_loop_init:
-            for param in self.parameters():
-                nn.init.zeros_(param)
-            for layer in self.layers:
-                nn.init.eye_(layer.loop_weight)
-
-    def forward(self, h=None, blocks=None):
+    # TODO(zhengda) refactor this to support edge features.
+    def forward(self, blocks, h):
         """Forward computation
 
         Parameters
         ----------
-        h: dict[str, torch.Tensor]
-            Input node feature for each node type.
         blocks: DGL MFGs
             Sampled subgraph in DGL MFG
+        h: dict[str, torch.Tensor]
+            Input node feature for each node type.
         """
-        if blocks is None:
-            # full graph training
-            for layer in self.layers:
-                h = layer(self.g, h)
-        else:
-            # minibatch training
-            for layer, block in zip(self.layers, blocks):
-                h = layer(block, h)
+        for layer, block in zip(self.layers, blocks):
+            h = layer(block, h)
         return h

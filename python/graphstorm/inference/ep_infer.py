@@ -1,20 +1,22 @@
 """ Infer wrapper for edge classification and regression
 """
-from ..model import GSgnnEdgeClassificationModel
+import time
+import torch as th
+
+from ..model import create_edge_gnn_model
 from ..eval import GSgnnAccEvaluator
-from ..model import GSgnnEdgeRegressModel
 from ..eval import GSgnnRegressionEvaluator
 from .graphstorm_infer import GSInfer
 from ..dataloading import GSgnnEdgePredictionInferData
-from ..tracker import get_task_tracker_class
+from ..model.utils import save_embeddings as save_gsgnn_embeddings
 
-def get_model_class(config):
-    """ Get model class
+def get_eval_class(config):
+    """ Get evaluation class
     """
     if config.task_type == "edge_regression":
-        return GSgnnEdgeRegressModel, GSgnnRegressionEvaluator
+        return GSgnnRegressionEvaluator
     elif config.task_type == 'edge_classification':
-        return GSgnnEdgeClassificationModel, GSgnnAccEvaluator
+        return GSgnnAccEvaluator
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
@@ -48,24 +50,9 @@ class GSgnnEdgePredictInfer(GSInfer):
         Task configuration
     """
     def __init__(self, config):
-        super(GSgnnEdgePredictInfer, self).__init__()
+        super(GSgnnEdgePredictInfer, self).__init__(config)
         self.config = config
-
-        self.infer_etype = [tuple(target_etype.split(',')) for target_etype in config.target_etype]
-
-        # neighbor sample related
-        self.eval_fanout = config.eval_fanout \
-            if config.model_encoder_type in ["rgat", "rgcn"] else [0]
-        self.n_layers = config.n_layers \
-            if config.model_encoder_type in ["rgat", "rgcn"] else 1
-
-        self.eval_batch_size = config.eval_batch_size
-        self.device = f'cuda:{int(config.local_rank)}'
-        self.init_dist_context(config.ip_config,
-                               config.graph_name,
-                               config.part_config,
-                               config.backend)
-        self.evaluator = None
+        self.infer_etype = config.target_etype
 
     def infer(self):
         """ Do inference
@@ -73,30 +60,69 @@ class GSgnnEdgePredictInfer(GSInfer):
         g = self._g
         part_book = g.get_partition_book()
         config = self.config
+        device = self.device
+        feat_name = self.config.feat_name
+        eval_fanout = self.config.eval_fanout
+        eval_batch_size = self.config.eval_batch_size
+        mini_batch_infer = self.config.mini_batch_infer
+        save_embeds_path = self.config.save_embeds_path
+        restore_model_path = self.config.restore_model_path
 
         infer_data = GSgnnEdgePredictionInferData(g,
             part_book, self.infer_etype, config.label_field)
-        model_class, eval_class = get_model_class(config)
+        eval_class = get_eval_class(config)
 
         # if no evalutor is registered, use the default one.
         if self.evaluator is None:
             self.evaluator = eval_class(g, config, infer_data)
-            eval_metrics = self.evaluator.metric
+            self.evaluator.setup_task_tracker(self.task_tracker)
+
+        ep_model = create_edge_gnn_model(g, config, train_task=False)
+        ep_model.restore_model(restore_model_path)
+        ep_model = ep_model.to(device)
+
+        print("start inference ...")
+        if self.evaluator is not None and \
+            self.evaluator.do_eval(0, epoch_end=True):
+            test_start = time.time()
+
+            # Do evaluation
+            target_etypes = infer_data.target_etypes
+            assert len(target_etypes) == 1, \
+                "Only can do edge classification for one edge type"
+            target_etype = target_etypes[0][1]
+            test_src_dst_pairs = infer_data.test_src_dst_pairs
+            test_labels = infer_data.labels[infer_data.test_idxs[target_etype]]
+
+            # TODO: Make it more efficient
+            # We do not need to compute the embedding of all node types
+            test_preds, embeddings = ep_model.predict(g, feat_name, test_src_dst_pairs,
+                                                      eval_fanout, eval_batch_size,
+                                                      mini_batch_infer, self.task_tracker)
+
+            val_score, test_score = self.evaluator.evaluate(
+                test_preds, test_preds,
+                test_labels, test_labels,
+                0)
+
+            if g.rank() == 0:
+                self.log_print_metrics(val_score=val_score,
+                                       test_score=test_score,
+                                       dur_eval=time.time() - test_start,
+                                       total_steps=0)
         else:
-            eval_metrics = [] # empty list, no evaluator no evaluation metrics
-        tracker_class = get_task_tracker_class(config.task_tracker)
-        task_tracker = tracker_class(config, g.rank(), eval_metrics)
+            # compute node embeddings
+            embeddings = ep_model.compute_embeddings(g, feat_name, None,
+                                                     eval_fanout, eval_batch_size,
+                                                     mini_batch_infer, self.task_tracker)
 
-        ep_model = model_class(g, config, task_tracker, train_task=False)
-        ep_model.init_gsgnn_model(train=False)
+        target_ntypes = infer_data.target_ntypes
+        embeddings = {ntype: embeddings[ntype] for ntype in target_ntypes}
 
-        ep_model.register_evaluator(self.evaluator)
-        if ep_model.task_tracker is not None:
-            self.evaluator.setup_task_tracker(ep_model.task_tracker)
-        ep_model.infer(infer_data)
-
-    @property
-    def g(self):
-        """ Get the graph
-        """
-        return self._g
+        # If save_embeds_path is set to None.
+        # A user does not want to save the node embedding
+        if save_embeds_path is not None:
+            # Save node embedding
+            save_gsgnn_embeddings(save_embeds_path,
+                embeddings, g.rank(), th.distributed.get_world_size())
+            th.distributed.barrier()

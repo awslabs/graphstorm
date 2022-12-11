@@ -1,9 +1,13 @@
-from .embed import DistGraphEmbed
+"""Package initialization. Import necessary classes.
+"""
+from .embed import GSNodeInputLayer, prepare_batch_input
 
 from .utils import sparse_emb_initializer
 
-from .rgnn_lp_base import GSgnnLinkPredictionModel
-from .rgnn_ec_base import GSgnnEdgeClassificationModel
-from .rgnn_er_base import GSgnnEdgeRegressModel
-from .rgnn_nc_base import GSgnnNodeClassModel
-from .rgnn_nr_base import GSgnnNodeRegressModel
+from .gnn import GSgnnModel
+from .node_gnn import create_node_gnn_model
+from .edge_gnn import create_edge_gnn_model
+from .lp_gnn import create_lp_gnn_model
+
+from .rgcn_encoder import RelationalGCNEncoder
+from .rgat_encoder import RelationalGATEncoder

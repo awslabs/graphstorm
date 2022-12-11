@@ -11,13 +11,9 @@ class GSTaskTrackerAbc():
             Configurations. Users can add their own configures in the yaml config file.
         rank: int
             Task rank
-        eval_metrics: list
-            List of metrics to report
     """
-    def __init__(self, config, rank, eval_metrics=None):
+    def __init__(self, config, rank):
         self._rank = rank
-        self._eval_metrics = eval_metrics
-
         self._report_frequency = config.log_report_frequency # Can be None if not provided
 
     @abc.abstractmethod
@@ -37,15 +33,15 @@ class GSTaskTrackerAbc():
         """
 
     @abc.abstractmethod
-    def log_iter_metrics(self, train_score=None, val_score=None, test_score=None,
-        best_val_score=None, best_test_score=None, best_iter_num=None,
+    def log_iter_metrics(self, eval_metrics, val_score, test_score,
+        best_val_score, best_test_score, best_iter_num, train_score=None,
         eval_time=-1, total_steps=1):
         """ log evaluation metrics for a specific iteration.
 
         Parameters
         ----------
-        train_score: dict
-            Training score
+        eval_metrics : list of str
+            The evaluation metrics.
         val_score: dict
             Validation score
         test_score: dict
@@ -56,6 +52,8 @@ class GSTaskTrackerAbc():
             Best test score corresponding to the best_val_score
         best_iter_num: dict
             The iteration number corresponding to the best_val_score
+        train_score: dict
+            Training score
         eval_time:
             Total evaluation time
         total_steps: int
@@ -140,9 +138,3 @@ class GSTaskTrackerAbc():
         """ Task rank in a distributed training/inference cluster
         """
         return self._rank
-
-    @property
-    def eval_metrics(self):
-        """ List of evaluation metrics to report
-        """
-        return self._eval_metrics

@@ -3,9 +3,10 @@ import tqdm
 
 import dgl
 import torch as th
-import torch.nn as nn
+from dgl.distributed import DistTensor, node_split
+from .gs_layer import GSLayer
 
-class RelGraphConvEncoder(nn.Module):
+class RelGraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for heterogeneous graph conv encoder.
 
     Parameters
@@ -35,8 +36,8 @@ class RelGraphConvEncoder(nn.Module):
                  last_layer_act=None):
         super(RelGraphConvEncoder, self).__init__()
         self.g = g
-        self.h_dim = h_dim
-        self.out_dim = out_dim
+        self._h_dim = h_dim
+        self._out_dim = out_dim
         self.rel_names = list(set(g.etypes))
         self.rel_names.sort()
         self.num_hidden_layers = num_hidden_layers
@@ -50,9 +51,8 @@ class RelGraphConvEncoder(nn.Module):
     def init_encoder(self):
         """ Initialize GNN encoder
         """
-        pass
 
-    def forward(self, h=None, blocks=None):
+    def forward(self, blocks, h):
         """Forward computation
 
         Parameters
@@ -62,9 +62,9 @@ class RelGraphConvEncoder(nn.Module):
         blocks: DGL MFGs
             Sampled subgraph in DGL MFG
         """
-        pass
 
-    def dist_inference(self, g, batch_size, device, num_workers, x, eval_fanout_list, task_tracker=None):
+    def dist_inference(self, g, batch_size, device, num_workers,
+                       x, fanout, task_tracker=None):
         """Distributed inference of final representation over all node types.
         ***NOTE***
         For node classification, the model is trained to predict on only one node type's
@@ -73,23 +73,27 @@ class RelGraphConvEncoder(nn.Module):
         print("Full graph RGCN inference")
 
         with th.no_grad():
-            for l, layer in enumerate(self.layers):
+            for i, layer in enumerate(self.layers):
                 # get the fanout for this layer
-                eval_fanout = eval_fanout_list[l]
                 y = {}
                 for k in g.ntypes:
-                    y[k] = dgl.distributed.DistTensor((g.number_of_nodes(k), self.h_dim if l != len(self.layers) - 1 else self.out_dim),
-                                                       dtype=th.float32, name='h-' + str(l),
-                                                       part_policy=g.get_node_partition_policy(k),
-                                                       persistent=True)
+                    y[k] = DistTensor((g.number_of_nodes(k),
+                                       self._h_dim if i != len(self.layers) - 1\
+                                                   else self._out_dim),
+                                       dtype=th.float32, name='h-' + str(i),
+                                       part_policy=g.get_node_partition_policy(k),
+                                       # TODO(zhengda) this makes the tensor persistent
+                                       # in memory.
+                                       persistent=True)
 
                 infer_nodes = {}
                 for ntype in g.ntypes:
-                    infer_nodes[ntype] = dgl.distributed.node_split(th.ones((g.number_of_nodes(ntype),), dtype=th.bool),
-                                                                    partition_book=g.get_partition_book(),
-                                                                    ntype=ntype, force_even=False)
+                    infer_nodes[ntype] = node_split(th.ones((g.number_of_nodes(ntype),),
+                                                            dtype=th.bool),
+                                                    partition_book=g.get_partition_book(),
+                                                    ntype=ntype, force_even=False)
                 # need to provide the fanout as a list, the number of layers is one obviously here
-                sampler = dgl.dataloading.MultiLayerNeighborSampler([eval_fanout])
+                sampler = dgl.dataloading.MultiLayerNeighborSampler([fanout])
                 dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
                                                                 batch_size=batch_size,
                                                                 shuffle=True,
@@ -101,12 +105,12 @@ class RelGraphConvEncoder(nn.Module):
                         task_tracker.keep_alive(report_step=iter_l)
                     block = blocks[0].to(device)
 
-                    if type(input_nodes) is not dict:
+                    if not isinstance(input_nodes, dict):
                         # This happens on a homogeneous graph.
                         assert len(g.ntypes) == 1
                         input_nodes = {g.ntypes[0]: input_nodes}
 
-                    if type(output_nodes) is not dict:
+                    if not isinstance(output_nodes, dict):
                         # This happens on a homogeneous graph.
                         assert len(g.ntypes) == 1
                         output_nodes = {g.ntypes[0]: output_nodes}
@@ -115,10 +119,32 @@ class RelGraphConvEncoder(nn.Module):
                     h = layer(block, h)
 
                     for k in h.keys():
-                        # some ntypes might be in the tensor h but are not in the output nodes have empty tensors
+                        # some ntypes might be in the tensor h but are not in the output nodes
+                        # that have empty tensors
                         if k in output_nodes:
                             y[k][output_nodes[k]] = h[k].cpu()
 
                 x = y
-                g.barrier()
+                th.distributed.barrier()
         return y
+
+    @property
+    def in_dims(self):
+        return self._h_dim
+
+    @property
+    def out_dims(self):
+        return self._out_dim
+
+    @property
+    def h_dims(self):
+        """ The hidden dimension.
+        """
+        return self._h_dim
+
+    @property
+    def n_layers(self):
+        """ The number of GNN layers.
+        """
+        # The number of GNN layer is the number of hidden layers + 1
+        return self.num_hidden_layers + 1

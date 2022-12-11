@@ -734,7 +734,7 @@ class GSgnnMLMTrainData():
                                               dtype=th.int8,
                                               part_policy=pt_policy,
                                               persistent=True)
-        g.barrier()
+        th.distributed.barrier()
 
         # split nodes in tune_ntype into train and valid sets
         # 90% for train and 10% for validation
@@ -746,7 +746,7 @@ class GSgnnMLMTrainData():
             train_mask[train_idx] = True
             mlm_mask[th.arange(num_nodes)] = train_mask.type(th.int8)
 
-        g.barrier()
+        th.distributed.barrier()
         train_idx = dgl.distributed.node_split(mlm_mask,
                                                pb, ntype=self.tune_ntype, force_even=True)
 

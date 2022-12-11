@@ -322,8 +322,7 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-    def evaluate(self, val_pred, test_pred,
-        val_labels, test_labels, total_iters):
+    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
         """ Compute scores on validation and test predictions.
 
             Parameters
@@ -359,8 +358,8 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
 
         for metric in self.metric:
             # be careful whether > or < it might change per metric.
-            if self.metrics_obj.metric_comparator[metric](
-                self._best_val_score[metric],val_score[metric]):
+            if self.metrics_obj.metric_comparator[metric](self._best_val_score[metric],
+                                                          val_score[metric]):
                 self._best_val_score[metric] = val_score[metric]
                 self._best_test_score[metric] = test_score[metric]
                 self._best_iter[metric] = total_iters
@@ -789,7 +788,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         val_mrrs = {}
         for target_etype, val_idx in val_idxs.items():
             relation_embs = None if self.use_dot_product \
-                else decoder.module.get_relemb(target_etype)
+                else decoder.get_relemb(target_etype)
             val_metrics = self._fullgraph_eval(g,
                                                 embeddings,
                                                 relation_embs,

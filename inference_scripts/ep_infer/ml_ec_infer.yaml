@@ -35,7 +35,6 @@ gsf:
     n_bases: -1
     use_self_loop: true
     use_dot_product: true
-    self_loop_init: false
     use_node_embeddings: false
   edge_classification:
     target_etype:

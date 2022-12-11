@@ -43,7 +43,8 @@ class GSgnnEdgePredictionDataLoader():
         # set up dictionary fanout
         # remove the target edge type from computational graph
 
-        target_etypes = train_dataset.train_etypes
+        # We need to duplicate this etype list.
+        target_etypes = list(train_dataset.train_etypes)
         for e in target_etypes:
             if e in reverse_edge_types_map and reverse_edge_types_map[e] not in target_etypes:
                 target_etypes.append(reverse_edge_types_map[e])

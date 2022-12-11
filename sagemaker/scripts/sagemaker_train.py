@@ -15,7 +15,7 @@ import boto3
 from graphstorm.config.config import SUPPORTED_TASKS
 from graphstorm.config.config import BUILTIN_TASK_NODE_CLASSIFICATION
 from graphstorm.config.config import BUILTIN_TASK_NODE_REGRESSION
-from graphstorm.config.config import BUILTIN_TASK_EDGE_CLASSIFICATOIN
+from graphstorm.config.config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from graphstorm.config.config import BUILTIN_TASK_EDGE_REGRESSION
 from graphstorm.config.config import BUILTIN_TASK_LINK_PREDICTION
 
@@ -62,7 +62,7 @@ def launch_train_task(task_type, num_gpus, graph_config,
         workspace = "/graph-storm/training_scripts/gsgnn_nr"
         assert enable_bert is True, "gsgnn_pure_gnn_nr.py needs to be supported"
         cmd = "gsgnn_nr.py"
-    elif task_type == BUILTIN_TASK_EDGE_CLASSIFICATOIN:
+    elif task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
         workspace = "/graph-storm/training_scripts/gsgnn_ec"
         cmd = "gsgnn_ec.py"
     elif task_type == BUILTIN_TASK_EDGE_REGRESSION:
