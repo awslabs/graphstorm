@@ -5,7 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 
-from .rgnn_encoder_base import RelGraphConvEncoder
+from .gnn_encoder_base import GraphConvEncoder
 
 class RelGraphConvLayer(nn.Module):
     r"""Relational graph convolution layer.
@@ -130,13 +130,11 @@ class RelGraphConvLayer(nn.Module):
                     # TODO the above might fail if the device is a different GPU
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
-class RelationalGCNEncoder(RelGraphConvEncoder):
+class RelationalGCNEncoder(GraphConvEncoder):
     r""" Relational graph conv encoder.
 
     Parameters
     ----------
-    g : DGLHeteroGraph
-        Input graph.
     h_dim : int
         Hidden dimension
     out_dim : int
@@ -160,28 +158,23 @@ class RelationalGCNEncoder(RelGraphConvEncoder):
                  dropout=0,
                  use_self_loop=True,
                  last_layer_act=False):
+        super(RelationalGCNEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         if num_bases < 0 or num_bases > len(g.etypes):
             self.num_bases = len(g.etypes)
         else:
             self.num_bases = num_bases
-        super(RelationalGCNEncoder, self).__init__(g, h_dim, out_dim,
-            num_hidden_layers, dropout, use_self_loop, last_layer_act)
 
-    def init_encoder(self):
-        """ Initialize RelationalGCNEncoder encoder
-        """
-        self.layers = nn.ModuleList()
         # h2h
-        for _ in range(self.num_hidden_layers):
+        for _ in range(num_hidden_layers):
             self.layers.append(RelGraphConvLayer(
-                self.h_dims, self.h_dims, self.rel_names,
-                self.num_bases, activation=F.relu, self_loop=self.use_self_loop,
-                dropout=self.dropout))
+                h_dim, h_dim, g.etypes,
+                self.num_bases, activation=F.relu, self_loop=use_self_loop,
+                dropout=dropout))
         # h2o
         self.layers.append(RelGraphConvLayer(
-            self.h_dims, self.out_dims, self.rel_names,
-            self.num_bases, activation=F.relu if self.last_layer_act else None,
-            self_loop=self.use_self_loop))
+            h_dim, out_dim, g.etypes,
+            self.num_bases, activation=F.relu if last_layer_act else None,
+            self_loop=use_self_loop))
 
     # TODO(zhengda) refactor this to support edge features.
     def forward(self, blocks, h):

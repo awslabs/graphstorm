@@ -16,6 +16,7 @@ from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .rgcn_encoder import RelationalGCNEncoder
 from .rgat_encoder import RelationalGATEncoder
+from .gnn_encoder_base import dist_inference
 
 class GSOptimizer():
     """ A combination of optimizers.
@@ -441,8 +442,8 @@ def do_full_graph_inference(g, model, fanout=-1,
     # full graph evaluation
     th.distributed.barrier()
     model.eval()
-    embeddings = model.gnn_encoder.dist_inference(g, batch_size, model.device, 0, node_embed,
-                                                  fanout, task_tracker=task_tracker)
+    embeddings = dist_inference(g, model.gnn_encoder, node_embed, batch_size, fanout,
+                                task_tracker=task_tracker)
     if g.rank() == 0:
         print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
     model.train()

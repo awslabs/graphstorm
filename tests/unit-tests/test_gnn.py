@@ -23,7 +23,7 @@ from graphstorm.model.gnn import do_full_graph_inference, do_mini_batch_inferenc
 
 from data_utils import generate_dummy_dist_graph
 
-def create_model(g):
+def create_rgcn_model(g):
     model = GSgnnModel(g)
 
     feat_size = get_feat_size(g, 'feat')
@@ -40,16 +40,24 @@ def create_model(g):
     model.set_gnn_encoder(gnn_encoder)
     return model
 
-def test_compute_embed():
-    # get the test dummy distributed graph
-    g = generate_dummy_dist_graph()
-    # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='gloo',
-                                      init_method='tcp://127.0.0.1:23456',
-                                      rank=0,
-                                      world_size=1)
+def create_rgat_model(g):
+    model = GSgnnModel(g)
 
-    model = create_model(g)
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSNodeInputLayer(g, feat_size, 4,
+                               dropout=0,
+                               use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = RelationalGATEncoder(g, 4, 4,
+                                       n_heads=2,
+                                       num_hidden_layers=1,
+                                       dropout=0,
+                                       use_self_loop=True)
+    model.set_gnn_encoder(gnn_encoder)
+    return model
+
+def check_compute_embed(g, model):
     embs1 = do_full_graph_inference(g, model, feat_field='feat')
     target_nidx = {ntype: th.arange(g.number_of_nodes(ntype)) for ntype in g.ntypes}
     embs2 = do_mini_batch_inference(g, model, target_nidx,
@@ -70,6 +78,30 @@ def test_compute_embed():
             fanout=[-1, -1], batch_size=10, mini_batch_infer=True)
     assert_almost_equal(embs1['n1'][th.arange(10)].numpy(), emb['n1'][0:len(emb['n1'])].numpy(),
             decimal=5)
+
+def test_rgcn_embed():
+    # get the test dummy distributed graph
+    g = generate_dummy_dist_graph()
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    model = create_rgcn_model(g)
+    check_compute_embed(g, model)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_rgat_embed():
+    # get the test dummy distributed graph
+    g = generate_dummy_dist_graph()
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    model = create_rgat_model(g)
+    check_compute_embed(g, model)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -286,7 +318,8 @@ def test_link_prediction():
     dgl.distributed.kvstore.close_kvstore()
 
 if __name__ == '__main__':
-    test_compute_embed()
+    test_rgcn_embed()
+    test_rgat_embed()
     test_edge_classification()
     test_edge_regression()
     test_node_classification()
