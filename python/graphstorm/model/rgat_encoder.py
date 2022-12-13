@@ -5,7 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 
-from .rgnn_encoder_base import RelGraphConvEncoder
+from .gnn_encoder_base import GraphConvEncoder
 
 class RelationalAttLayer(nn.Module):
     r"""Relational graph attention layer.
@@ -117,7 +117,7 @@ class RelationalAttLayer(nn.Module):
 
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
-class RelationalGATEncoder(RelGraphConvEncoder):
+class RelationalGATEncoder(GraphConvEncoder):
     r"""Relational graph attention encoder
 
     Parameters
@@ -145,29 +145,19 @@ class RelationalGATEncoder(RelGraphConvEncoder):
                  dropout=0,
                  use_self_loop=True,
                  last_layer_act=False):
+        super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         self.n_heads = n_heads
-        super(RelationalGATEncoder, self).__init__(
-            g, h_dim, out_dim,
-            num_hidden_layers=num_hidden_layers,
-            dropout=dropout,
-            use_self_loop=use_self_loop,
-            last_layer_act=last_layer_act)
-
-    def init_encoder(self):
-        """ Initialize RelationalGATEncoder encoder
-        """
-        self.layers = nn.ModuleList()
         # h2h
-        for _ in range(self.num_hidden_layers):
+        for _ in range(num_hidden_layers):
             self.layers.append(RelationalAttLayer(
-                self.h_dims, self.h_dims, self.rel_names,
-                self.n_heads, activation=F.relu, self_loop=self.use_self_loop,
-                dropout=self.dropout))
+                h_dim, h_dim, g.etypes,
+                self.n_heads, activation=F.relu, self_loop=use_self_loop,
+                dropout=dropout))
         # h2o
         self.layers.append(RelationalAttLayer(
-            self.h_dims, self.out_dims, self.rel_names,
-            self.n_heads, activation=F.relu if self.last_layer_act else None,
-            self_loop=self.use_self_loop))
+            h_dim, out_dim, g.etypes,
+            self.n_heads, activation=F.relu if last_layer_act else None,
+            self_loop=use_self_loop))
 
     def forward(self, blocks, h):
         """Forward computation
