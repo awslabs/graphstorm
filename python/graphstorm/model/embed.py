@@ -134,7 +134,8 @@ class GSNodeInputLayer(GSLayer):
             if ntype in input_feats:
                 assert ntype in self.input_projs, \
                         f"We need a projection for node type {ntype}"
-                emb = input_feats[ntype] @ self.input_projs[ntype]
+                # If the input data is not float, we need to convert it t float first.
+                emb = input_feats[ntype].float() @ self.input_projs[ntype]
                 if self.use_node_embeddings:
                     assert ntype in self.sparse_embeds, \
                             f"We need sparse embedding for node type {ntype}"

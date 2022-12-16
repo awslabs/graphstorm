@@ -2,9 +2,12 @@ import dgl
 import torch as th
 import argparse
 import time
+
 from graphstorm.data import OGBTextFeatDataset
 from graphstorm.data import MovieLens100kNCDataset
 from graphstorm.data import ConstructedGraphDataset
+from graphstorm.data import MAGLSCDataset
+from graphstorm.utils import sys_tracker
 from graphstorm.data.utils import save_maps
 
 if __name__ == '__main__':
@@ -61,6 +64,8 @@ if __name__ == '__main__':
                                      retain_original_features=args.retain_original_features)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath, edge_pct=args.edge_pct)
+    elif args.dataset == 'mag-lsc':
+        dataset = MAGLSCDataset(args.filepath, edge_pct=args.edge_pct)
     else:
         constructed_graph = True
         print("Loading user defined dataset " + str(args.dataset))
@@ -68,7 +73,6 @@ if __name__ == '__main__':
         assert args.predict_etypes is not None, "For user defined dataset, you must provide predict_etypes"
 
     g = dataset[0]
-    print(g)
     target_etype = dataset.target_etype if not constructed_graph else [tuple(predict_etype.split(',')) for predict_etype in args.predict_etypes.split(' ')]
     if not isinstance(target_etype, list):
         target_etype = [target_etype]
@@ -94,7 +98,6 @@ if __name__ == '__main__':
         else:
             g.edges[etype].data[field] = g.edges[etype].data[field].to(th.float32)
 
-    print('load {} takes {:.3f} seconds'.format(args.dataset, time.time() - start))
     print('|V|={}, |E|={}'.format(g.number_of_nodes(), g.number_of_edges()))
     for target_e in target_etype:
         print('Edge type {} :train: {}, valid: {}, test: {}'.format(target_e, th.sum(g.edges[target_e].data['train_mask'])
@@ -112,7 +115,7 @@ if __name__ == '__main__':
         g = dgl.edge_subgraph(g, sub_edges, relabel_nodes=False, store_ids=False)
     if len(retain_etypes)>0:
         g = dgl.edge_type_subgraph(g, retain_etypes)
-    print("The final graph after processing.")
+    sys_tracker.check("Finish processing the final graph")
     print(g)
     if args.balance_train and not args.train_graph_only:
         balance_etypes = {target_et: g.edges[target_et].data['train_mask'] for target_et in target_etype}
@@ -124,6 +127,7 @@ if __name__ == '__main__':
                                                                          balance_edges=args.balance_edges,
                                                                          num_trainers_per_machine=args.num_trainers_per_machine,
                                                                          return_mapping=True)
+    sys_tracker.check('partition the graph')
     if args.save_mappings:
         # TODO add something that is more scalable here as a saving method and not pickle.
 

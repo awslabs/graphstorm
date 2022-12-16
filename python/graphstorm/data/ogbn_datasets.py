@@ -9,11 +9,30 @@ import psutil
 from .dataset import GSgnnDataset
 
 class OGBTextFeatDataset(GSgnnDataset):
-    """
-    This class can be used for ogbn-arxiv, ogbn-papers100M and ogbn-products datasets. The text
-    features are collected from the original titles and abstractrs of the papers for the first two
-    graphs and the ASIN titles for the last graphs. The text features should be stored in the
-    raw_dir location.
+    """ This class can be used for ogbn-arxiv, ogbn-papers100M and ogbn-products datasets.
+
+    The text features are collected from the original titles and abstractrs of the papers
+    for the first two graphs and the ASIN titles for the last graphs. The text features
+    should be stored in the raw_dir location.
+
+    Parameters
+    ----------
+    raw_dir : str
+        The file locations
+    dataset : str
+        The name of the dataset. It has to be either "ogbn-products", "ogbn-arxiv"
+        and "ogbn-papers100M".
+    force_reload : bool
+    verbose : bool
+        Whether to print additional messages.
+    reverse_edge : bool
+        Whether we include reverse edges
+    self_loop : bool
+        Whether we include self edges
+    max_sequence_length : int
+        The maximum supported sequence length
+    edge_pct : float
+        Percentage of edges in the test set
     """
     def __init__(self, raw_dir, dataset, edge_pct=1,
                  force_reload=False, verbose=True,
@@ -21,29 +40,20 @@ class OGBTextFeatDataset(GSgnnDataset):
                  max_sequence_length=512):
         """
 
-        Parameters
-        ----------
-        raw_dir  str The file locations
-        force_reload
-        verbose
-        reverse_edge bool whether we include reverse edges
-        self_loop bool whether we include self edges
-        max_sequence_length int what is the maximum supported sequence length
-        edge_pct float percentage of edges in the test set
         """
         self._name = 'ogbn'
-        self._dataset=dataset
+        self._dataset = dataset
         self._url = None
-        self._raw_dir=raw_dir
-        self.self_loop=self_loop
-        self.max_sequence_length=max_sequence_length
+        self._raw_dir = raw_dir
+        self.self_loop = self_loop
+        self.max_sequence_length = max_sequence_length
         self.target_etype = ["interacts"]
         self.edge_pct = edge_pct
         if dataset == "ogbn-products":
-            self._num_classes=47
-        elif dataset=="ogbn-arxiv":
-            self._num_classes=40
-        elif dataset=="ogbn-papers100M":
+            self._num_classes = 47
+        elif dataset == "ogbn-arxiv":
+            self._num_classes = 40
+        elif dataset == "ogbn-papers100M":
             self._num_classes = 172
         super(OGBTextFeatDataset, self).__init__(self._name,
                                                       url=self._url,
@@ -139,29 +149,33 @@ class OGBTextFeatDataset(GSgnnDataset):
         int_edges = g.number_of_edges("interacts")
         if self.edge_pct == 1:
             g.edges["interacts"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
-            g.edges["rev-interacts"].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
+            if self.reverse_edge:
+                g.edges["rev-interacts"].data['train_mask'] = th.full((int_edges,), True,
+                                                                      dtype=th.bool)
         else:
             # the validation pct is 0.1
             val_pct = 0.1
             train_pct = self.edge_pct - val_pct
             # the test is 1 - the rest
             g.edges["interacts"].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-interacts"].data['train_mask'] = th.full((int_edges,), False,
-                                                                  dtype=th.bool)
             g.edges["interacts"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-interacts"].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
             g.edges["interacts"].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges["rev-interacts"].data['test_mask'] = th.full((int_edges,), False,
-                                                                 dtype=th.bool)
-
             g.edges["interacts"].data['train_mask'][: int(int_edges*train_pct)] = True
-            g.edges["rev-interacts"].data['train_mask'][: int(int_edges * train_pct)] = True
             g.edges["interacts"].data['val_mask'][int(int_edges*train_pct):
                                                   int(int_edges*self.edge_pct)] = True
-            g.edges["rev-interacts"].data['val_mask'][int(int_edges*train_pct):
-                                                      int(int_edges*self.edge_pct)] = True
             g.edges["interacts"].data['test_mask'][int(int_edges*self.edge_pct):] = True
-            g.edges["rev-interacts"].data['test_mask'][int(int_edges*self.edge_pct):] = True
+
+            if self.reverse_edge:
+                g.edges["rev-interacts"].data['train_mask'] = th.full((int_edges,), False,
+                                                                      dtype=th.bool)
+                g.edges["rev-interacts"].data['val_mask'] = th.full((int_edges,), False,
+                                                                    dtype=th.bool)
+                g.edges["rev-interacts"].data['test_mask'] = th.full((int_edges,), False,
+                                                                     dtype=th.bool)
+                g.edges["rev-interacts"].data['train_mask'][: int(int_edges * train_pct)] = True
+                g.edges["rev-interacts"].data['val_mask'][int(int_edges*train_pct):
+                                                          int(int_edges*self.edge_pct)] = True
+                g.edges["rev-interacts"].data['test_mask'][int(int_edges*self.edge_pct):] = True
 
         print(g)
         self._g=g

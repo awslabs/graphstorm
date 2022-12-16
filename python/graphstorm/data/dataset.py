@@ -12,8 +12,7 @@ class GSgnnDataset(DGLDataset):
         self._encoding = 'utf-8'
         self._raw_text_feat = None
         data_path = os.path.join(raw_dir, name)
-        assert os.path.exists(data_path), f'The givne data folder {data_path} \
-                does not exists.'
+        assert os.path.exists(data_path), f'The given data folder {data_path} does not exists.'
         # [James 11/25/2022] add the self.reverse_edge attribute to fix unused argument error.
         # TODO: Need to modify all children classes, e.g. ogbn_arxiv and ogbn_dataset to use this
         # attribute directly rather than define it by themselves.

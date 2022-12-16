@@ -21,6 +21,8 @@ from ..dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
 from ..dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from ..dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 
+from ..utils import sys_tracker
+
 def get_eval_class(config):
     return GSgnnMrrLPEvaluator
 
@@ -126,6 +128,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         return dataloader
 
     def fit(self, full_graph_training=False):
+        sys_tracker.check('fit start')
         g = self._g
         pb = g.get_partition_book()
         config = self.config
@@ -134,6 +137,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         train_data = GSgnnLinkPredictionTrainData(g, pb, self.train_etypes,
                                                   self.eval_etypes, full_graph_training)
+        sys_tracker.check('construct training data')
 
         if g.rank() == 0:
             print("Use {} negative sampler with exclude training target {}".format(
@@ -154,7 +158,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         dataloader = self.create_dataloader(g, train_data, model.module.num_gnn_layers, device)
 
         # training loop
-        print("start training...")
         dur = []
         best_epoch = 0
         num_input_nodes = 0
@@ -163,6 +166,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         forward_time = 0
         back_time = 0
 
+        sys_tracker.check('start training')
         for epoch in range(self.n_epochs):
             model.train()
             t0 = time.time()
@@ -292,9 +296,12 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         embeddings = model.module.compute_embeddings(g, feat_name, None,
                                                      eval_fanout, eval_batch_size,
                                                      mini_batch_infer, self.task_tracker)
+        sys_tracker.check('compute embeddings')
         decoder = model.module.decoder
         train_mrr = self.evaluator.evaluate_on_train_set(embeddings, decoder, device)
+        sys_tracker.check('evaluate training')
         val_mrr, test_mrr = self.evaluator.evaluate(embeddings, decoder, total_steps, device)
+        sys_tracker.check('evaluate validation/test')
 
         if rank == 0:
             self.log_print_metrics(val_score=val_mrr,
