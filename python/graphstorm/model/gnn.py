@@ -463,7 +463,7 @@ def do_mini_batch_inference(g, model, target_nidx,
             GNN model
         target_nidx: dict of th.Tensor
             Target node idices
-        fanout: int
+        fanout: list of int
             Inference fanout
         batch_size: int
             The batch size

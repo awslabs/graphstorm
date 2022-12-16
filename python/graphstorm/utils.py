@@ -2,6 +2,10 @@
 '''
 import os
 import json
+import time
+import resource
+import psutil
+
 import dgl
 
 def estimate_mem_train(root, task):
@@ -136,3 +140,47 @@ def estimate_mem_infer(root, graph_name, num_hidden, num_layers):
                     'stable serv mem: {stable_serv_mem:.3f} GB, '\
                     'shared mem: {shared_mem_list[-1]:.3f} GB, cli mem: {max_cli_mem:.3f} GB')
     return max(mem_list), max(shared_mem_list)
+
+class SysTracker:
+    """ This tracks the system performance.
+
+    It tracks the runtime and memory consumption.
+    """
+    def __init__(self, debug=True):
+        self._checkpoints = []
+        self._rank = dgl.distributed.rpc.get_rank()
+        self._debug = debug
+
+    # This is to create only one instance.
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
+        """ Only create one instance.
+        """
+        if not isinstance(cls._instance, cls):
+            cls._instance = object.__new__(cls)
+
+        return cls._instance
+
+    def check(self, name):
+        """ Check the system metrics.
+        """
+        mem_info = psutil.Process(os.getpid()).memory_info()
+        gmem_info = psutil.virtual_memory()
+        self._checkpoints.append((name, time.time(), mem_info.rss, mem_info.shared,
+                                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+                                  gmem_info.used, gmem_info.shared))
+        # We need to get the right rank
+        if self._rank < 0:
+            self._rank = dgl.distributed.rpc.get_rank()
+        if len(self._checkpoints) >= 2 and self._debug and self._rank == 0:
+            checkpoint1 = self._checkpoints[-2]
+            checkpoint2 = self._checkpoints[-1]
+            print("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, shared: {:.3f}, \
+                    global curr: {:.3f}, global shared: {:.3f}) GB".format(
+                name, checkpoint2[1] - checkpoint1[1],
+                checkpoint2[2]/1024/1024/1024, checkpoint2[4]/1024/1024,
+                checkpoint2[3]/1024/1024/1024, checkpoint2[5]/1024/1024/1024,
+                checkpoint2[6]/1024/1024/1024))
+
+sys_tracker = SysTracker()

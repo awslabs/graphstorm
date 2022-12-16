@@ -321,7 +321,6 @@ class GSConfig:
         assert len(fanout) == self.n_layers, \
             f"You have a {self.n_layers} layer GNN, " \
             f"but you only specify a {fot_name} fanout for {len(fanout)} layers."
-        print(f"{fot_name} fanout specified as {fanout}.")
         return fanout
 
     @property

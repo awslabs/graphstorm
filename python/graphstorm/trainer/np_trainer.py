@@ -12,6 +12,8 @@ from ..eval import GSgnnAccEvaluator
 from ..eval import GSgnnRegressionEvaluator
 from .gsgnn_trainer import GSgnnTrainer
 
+from ..utils import sys_tracker
+
 def get_eval_class(config):
     if config.task_type == "node_regression":
         return GSgnnRegressionEvaluator
@@ -43,6 +45,7 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
         self._evaluator = evaluator
 
     def fit(self):
+        sys_tracker.check('fit start')
         g = self._g
         pb = g.get_partition_book()
         config = self.config
@@ -50,6 +53,7 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
         feat_field = config.feat_name
 
         train_data = GSgnnNodeTrainData(g, pb, self.predict_ntype, config.label_field)
+        sys_tracker.check('construct training data')
 
         eval_class = get_eval_class(config)
 
@@ -72,13 +76,13 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
                                          device)
 
         # training loop
-        print("start training...")
         dur = []
         total_steps = 0
         num_input_nodes = 0
         forward_time = 0
         back_time = 0
         early_stop = False # used when early stop is True
+        sys_tracker.check('start training')
         for epoch in range(self.n_epochs):
             model.train()
             t0 = time.time()
@@ -207,6 +211,7 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
         target_nidx = th.cat([train_data.val_idx, train_data.test_idx])
         pred, _ = model.module.predict(g, feat_name, {predict_ntype: target_nidx}, eval_fanout,
                                        eval_batch_size, mini_batch_infer, self.task_tracker)
+        sys_tracker.check('predict')
 
         val_pred, test_pred = th.split(pred,
                                        [len(train_data.val_idx),
@@ -215,10 +220,10 @@ class GSgnnNodePredictTrainer(GSgnnTrainer):
         val_label = val_label.to(val_pred.device)
         test_label = train_data.labels[train_data.test_idx]
         test_label = test_label.to(test_pred.device)
-        val_score, test_score = self.evaluator.evaluate(
-            val_pred, test_pred,
-            val_label, test_label,
-            total_steps)
+        val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
+                                                        val_label, test_label,
+                                                        total_steps)
+        sys_tracker.check('evaluate')
         if rank == 0:
             self.log_print_metrics(val_score=val_score,
                                     test_score=test_score,

@@ -9,6 +9,8 @@ from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..tracker import get_task_tracker_class
 
+from ..utils import sys_tracker
+
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
 
@@ -145,7 +147,7 @@ class GSgnnTrainer():
         # This problem will be fixed in the future.
         dgl.distributed.initialize(ip_config, net_type='socket')
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
-        print("Start init distributed group ...")
+        sys_tracker.check("load DistDGL")
         th.distributed.init_process_group(backend=backend)
 
     def setup_task_tracker(self, task_tracker):
@@ -244,6 +246,7 @@ class GSgnnTrainer():
     def save_model_embed(self, g, model, epoch, i):
         '''Save the model and node embeddings for a certain iteration in an epoch.
         '''
+        # TODO(zhengda) we need to separate model saving and embedding computation.
         # sync before model saving
         th.distributed.barrier()
         if self.save_model_path is not None and g.rank() == 0:

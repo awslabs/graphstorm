@@ -13,6 +13,8 @@ from ..eval import GSgnnAccEvaluator
 from ..eval import GSgnnRegressionEvaluator
 from .gsgnn_trainer import GSgnnTrainer
 
+from ..utils import sys_tracker
+
 def get_eval_class(config):
     if config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator
@@ -67,6 +69,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         self._evaluator = evaluator
 
     def fit(self):
+        sys_tracker.check('fit start')
         g = self._g
         pb = g.get_partition_book()
         device = 'cuda:%d' % self.dev_id
@@ -74,6 +77,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         feat_field = config.feat_name
 
         train_data = GSgnnEdgePredictionTrainData(g, pb, self.target_etype, config.label_field)
+        sys_tracker.check('construct training data')
 
         # adjusting the evaluation fanout if the removal of target edge is requested.
         if config.remove_target_edge:
@@ -259,6 +263,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                          th.cat([val_src_dst_pairs[1], test_src_dst_pairs[1]]))
         pred, _ = model.module.predict(g, feat_name, {target_etype[1]: src_dst_pairs}, eval_fanout,
                                        eval_batch_size, mini_batch_infer, self.task_tracker)
+        sys_tracker.check('predict')
         assert len(val_src_dst_pairs[0]) == len(val_labels)
         assert len(test_src_dst_pairs[0]) == len(test_labels)
         val_pred, test_pred = th.split(pred, [len(val_src_dst_pairs[0]),
@@ -266,6 +271,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
                                                         val_labels, test_labels, total_steps)
+        sys_tracker.check('evaluate')
 
         if rank == 0:
             self.log_print_metrics(val_score=val_score,
