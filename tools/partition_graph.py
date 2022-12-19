@@ -40,14 +40,11 @@ if __name__ == '__main__':
 
     # load graph data
     if args.dataset == 'ogbn-arxiv':
-        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
+        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset)
     elif args.dataset == 'ogbn-products':
-        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
-    elif args.dataset == 'ogbn-papers100M':
-        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
+        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset)
+    elif args.dataset == 'ogbn-papers100m':
+        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath)
     else:

@@ -14,9 +14,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # only for test
     dataset = OGBTextFeatDataset(args.filepath,
+                                 args.dataset,
                                  edge_pct=args.edge_pct,
-                                 dataset=args.dataset,
-                                 bert_model_name=args.bert_model_name,
-                                 max_sequence_length=args.max_sequence_length,
-                                 retain_original_features=args.retain_original_features)
+                                 max_sequence_length=args.max_sequence_length)
     dataset.save_graph(args.savepath)
