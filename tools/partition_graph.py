@@ -45,7 +45,7 @@ if __name__ == '__main__':
     elif args.dataset == 'ogbn-products':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features)
-    elif args.dataset == 'ogbn-papers100m':
+    elif args.dataset == 'ogbn-papers100M':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features)
     elif args.dataset == 'movie-lens-100k':
