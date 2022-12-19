@@ -56,11 +56,11 @@ class OGBTextFeatDataset(GSgnnDataset):
         elif dataset == "ogbn-papers100M":
             self._num_classes = 172
         super(OGBTextFeatDataset, self).__init__(self._name,
-                                                      url=self._url,
-                                                      raw_dir=raw_dir,
-                                                      force_reload=force_reload,
-                                                      verbose=verbose,
-                                                      reverse_edge=reverse_edge)
+                                                 url=self._url,
+                                                 raw_dir=raw_dir,
+                                                 force_reload=force_reload,
+                                                 verbose=verbose,
+                                                 reverse_edge=reverse_edge)
 
     def load(self):
         # load from local storage
