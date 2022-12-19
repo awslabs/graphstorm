@@ -64,6 +64,10 @@ if __name__ == '__main__':
                                      retain_original_features=args.retain_original_features)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath, edge_pct=args.edge_pct)
+    elif args.dataset == 'ogbn-papers100M':
+        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
+                                     edge_pct=args.edge_pct,
+                                     retain_original_features=args.retain_original_features)
     elif args.dataset == 'mag-lsc':
         dataset = MAGLSCDataset(args.filepath, edge_pct=args.edge_pct)
     else:
