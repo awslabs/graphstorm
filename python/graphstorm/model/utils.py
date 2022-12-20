@@ -204,13 +204,10 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
 
     checkpoint = th.load(os.path.join(model_path, 'model.bin'), map_location='cpu')
     if 'gnn' in checkpoint and gnn_model is not None:
-        print("Loading gnn model")
         gnn_model.load_state_dict(checkpoint['gnn'])
     if 'embed' in checkpoint and embed_layer is not None:
-        print("Loading embedding model")
         embed_layer.load_state_dict(checkpoint['embed'])
     if 'decoder' in checkpoint and decoder is not None:
-        print("Loading decoder model")
         decoder.load_state_dict(checkpoint['decoder'])
 
 def load_sparse_embeds(model_path, embed_layer):

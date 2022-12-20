@@ -9,6 +9,7 @@ from ..eval import GSgnnRegressionEvaluator
 from .graphstorm_infer import GSInfer
 from ..dataloading import GSgnnEdgePredictionInferData
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
+from ..utils import sys_tracker
 
 def get_eval_class(config):
     """ Get evaluation class
@@ -57,6 +58,7 @@ class GSgnnEdgePredictInfer(GSInfer):
     def infer(self):
         """ Do inference
         """
+        sys_tracker.check('infer start')
         g = self._g
         part_book = g.get_partition_book()
         config = self.config
@@ -70,6 +72,7 @@ class GSgnnEdgePredictInfer(GSInfer):
 
         infer_data = GSgnnEdgePredictionInferData(g,
             part_book, self.infer_etype, config.label_field)
+        sys_tracker.check('create infer data')
         eval_class = get_eval_class(config)
 
         # if no evalutor is registered, use the default one.
@@ -81,7 +84,7 @@ class GSgnnEdgePredictInfer(GSInfer):
         ep_model.restore_model(restore_model_path)
         ep_model = ep_model.to(device)
 
-        print("start inference ...")
+        sys_tracker.check('start inference')
         if self.evaluator is not None and \
             self.evaluator.do_eval(0, epoch_end=True):
             test_start = time.time()
@@ -99,6 +102,7 @@ class GSgnnEdgePredictInfer(GSInfer):
             test_preds, embeddings = ep_model.predict(g, feat_name, test_src_dst_pairs,
                                                       eval_fanout, eval_batch_size,
                                                       mini_batch_infer, self.task_tracker)
+            sys_tracker.check('predict')
 
             val_score, test_score = self.evaluator.evaluate(
                 test_preds, test_preds,
@@ -115,6 +119,7 @@ class GSgnnEdgePredictInfer(GSInfer):
             embeddings = ep_model.compute_embeddings(g, feat_name, None,
                                                      eval_fanout, eval_batch_size,
                                                      mini_batch_infer, self.task_tracker)
+            sys_tracker.check('compute GNN embeddings')
 
         target_ntypes = infer_data.target_ntypes
         embeddings = {ntype: embeddings[ntype] for ntype in target_ntypes}
@@ -125,4 +130,5 @@ class GSgnnEdgePredictInfer(GSInfer):
             # Save node embedding
             save_gsgnn_embeddings(save_embeds_path,
                 embeddings, g.rank(), th.distributed.get_world_size())
+            sys_tracker.check('save GNN embeddings')
             th.distributed.barrier()

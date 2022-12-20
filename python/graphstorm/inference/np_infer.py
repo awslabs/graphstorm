@@ -10,6 +10,7 @@ from ..eval import GSgnnRegressionEvaluator
 from .graphstorm_infer import GSInfer
 from ..dataloading import GSgnnNodeInferData
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
+from ..utils import sys_tracker
 
 def get_eval_class(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -58,6 +59,7 @@ class GSgnnNodePredictInfer(GSInfer):
     def infer(self):
         """ Do inference
         """
+        sys_tracker.check('infer start')
         g = self._g
         part_book = g.get_partition_book()
         config = self.config
@@ -71,6 +73,7 @@ class GSgnnNodePredictInfer(GSInfer):
         restore_model_path = self.config.restore_model_path
 
         infer_data = GSgnnNodeInferData(g, part_book, self.predict_ntype, config.label_field)
+        sys_tracker.check('create infer data')
 
         eval_class = get_eval_class(config)
         # if no evalutor is registered, use the default one.
@@ -81,18 +84,20 @@ class GSgnnNodePredictInfer(GSInfer):
         np_model.restore_model(restore_model_path)
         np_model = np_model.to(device)
 
-        print("start inference ...")
+        sys_tracker.check('start inference')
         # TODO: Make it more efficient
         # We do not need to compute the embedding of all node types
         pred, outputs = np_model.predict(g, feat_name, None,
                                       eval_fanout, eval_batch_size,
                                       mini_batch_infer, self.task_tracker)
+        sys_tracker.check('predict')
 
         embeddings = outputs[self.predict_ntype]
         if save_embeds_path is not None:
             save_gsgnn_embeddings(save_embeds_path,
                 embeddings, g.rank(), th.distributed.get_world_size())
             th.distributed.barrier()
+            sys_tracker.check('save GNN embeddings')
 
         if save_predict_path is not None and g.rank() == 0:
             os.makedirs(save_predict_path, exist_ok=True)

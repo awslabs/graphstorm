@@ -10,6 +10,7 @@ from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model import create_lp_gnn_model
+from ..utils import sys_tracker
 
 def get_eval_class(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -49,6 +50,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
     def infer(self):
         """ Do inference
         """
+        sys_tracker.check('infer start')
         g = self._g
         part_book = g.get_partition_book()
         config = self.config
@@ -62,6 +64,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
         restore_model_path = self.config.restore_model_path
 
         infer_data = GSgnnLinkPredictionInferData(g, part_book, eval_etype)
+        sys_tracker.check('create infer data')
         eval_class = get_eval_class(config)
 
         # if no evalutor is registered, use the default one.
@@ -73,11 +76,12 @@ class GSgnnLinkPredictionInfer(GSInfer):
         lp_model.restore_model(restore_model_path)
         lp_model = lp_model.to(device)
 
-        print("start inference ...")
+        sys_tracker.check('start inference')
         test_start = time.time()
         embeddings = lp_model.compute_embeddings(g, feat_name, None,
                                               eval_fanout, eval_batch_size,
                                               mini_batch_infer, self.task_tracker)
+        sys_tracker.check('compute GNN embeddings')
         if self.evaluator is not None and self.evaluator.do_eval(0, epoch_end=True):
             val_mrr, test_mrr = self.evaluator.evaluate(embeddings, lp_model.decoder, 0, device)
             if g.rank() == 0:
@@ -90,6 +94,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
         # save node embedding
         save_gsgnn_embeddings(save_embeds_path, embeddings,
                               g.rank(), th.distributed.get_world_size())
+        sys_tracker.check('save GNN embeddings')
         th.distributed.barrier()
         # save relation embedding if any
         if g.rank() == 0:

@@ -254,7 +254,7 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
             node_list = th.split(infer_nodes, batch_size)
             dev = embed_layer.device
             for iter_l, input_nodes in enumerate(node_list):
-                if iter_l % 10000 == 0:
+                if iter_l % 10000 == 0 and g.rank() == 0:
                     print ("extract_all_embeddings_dist on {}: {} of {}".format(ntype,
                                                                                 iter_l,
                                                                                 len(node_list)))

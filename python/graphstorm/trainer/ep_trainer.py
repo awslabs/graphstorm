@@ -247,6 +247,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             -------
             float: validation score
         """
+        sys_tracker.check('before eval')
         g = self._g
         feat_name = self.config.feat_name
         eval_fanout = self.config.eval_fanout
