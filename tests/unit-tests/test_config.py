@@ -1,6 +1,7 @@
 import os, sys
 from pathlib import Path
 from tempfile import tempdir
+import json
 import yaml
 import unittest, pytest
 from argparse import Namespace
@@ -44,25 +45,30 @@ def create_basic_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "debug" : True,
-        "graph_name": "test",
         "backend": "gloo",
         "num_gpus": 1,
-        "ip_config": "ip.txt",
-        "part_config": "part.json",
+        "ip_config": os.path.join(tmp_path, "ip.txt"),
+        "part_config": os.path.join(tmp_path, "part.json"),
         "model_encoder_type": "rgat",
         "evaluation_frequency": 100,
         "no_validation": True,
-        "mixed_precision": True, # TODO(xiangsx) TMP: will Fail
     }
-
+    # create dummpy ip.txt
+    with open(os.path.join(tmp_path, "ip.txt"), "w") as f:
+        f.write("127.0.0.1\n")
+    # create dummpy part.json
+    with open(os.path.join(tmp_path, "part.json"), "w") as f:
+        json.dump({
+            "graph_name": "test"
+        }, f)
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # config for check default value
     yaml_object["gsf"]["basic"] = {
         "num_gpus": 1,
-        "ip_config": "ip.txt",
-        "part_config": "part.json",
+        "ip_config": os.path.join(tmp_path, "ip.txt"),
+        "part_config": os.path.join(tmp_path, "part.json"),
     }
 
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
@@ -79,6 +85,15 @@ def create_basic_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # config for none exist ip config file and partition file
+    yaml_object["gsf"]["basic"] = {
+        "ip_config": "ip_missing.txt",
+        "part_config": "part_missing.json",
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
 def test_load_basic_info():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -88,15 +103,13 @@ def test_load_basic_info():
         config = GSConfig(args)
         # success load
         assert config.debug == True
-        assert config.graph_name == "test"
         assert config.backend == "gloo"
         assert config.num_gpus == 1
-        assert config.ip_config == "ip.txt"
-        assert config.part_config == "part.json"
+        assert config.ip_config == os.path.join(Path(tmpdirname), "ip.txt")
+        assert config.part_config == os.path.join(Path(tmpdirname), "part.json")
         assert config.verbose == False
         assert config.evaluation_frequency == 100
         assert config.no_validation == True
-        check_failure(config, "mixed_precision")
 
         # Change config's variables to do further testing
         config._backend = "nccl"
@@ -109,11 +122,9 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.debug == False
-        check_failure(config, "graph_name")
         assert config.backend == "gloo"
         assert config.evaluation_frequency == sys.maxsize
         assert config.no_validation == False
-        assert config.mixed_precision == False
         check_failure(config, "model_encoder_type") # must provide model_encoder_type
 
         # Check failures
@@ -126,6 +137,12 @@ def test_load_basic_info():
         check_failure(config, "part_config")
         check_failure(config, "evaluation_frequency")
         check_failure(config, "model_encoder_type")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test_fail2.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "ip_config")
+        check_failure(config, "part_config")
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()

@@ -8,17 +8,14 @@ lm_model:
       gradient_checkpoint: true
 gsf:
   basic:
-    model_encoder_type: rgcn
-    graph_name: test
     backend: gloo
     num_gpus: 2
     ip_config: ip_list.txt
     part_config: test_multilabel_ec_1p_4t/multilabel-ec-test.json
     verbose: false
-    no_validation: false
-    train_nodes: 0
     debug: false
   gnn:
+    model_encoder_type: rgcn
     fanout: "4"
     n_layers: 1
     n_hidden: 128
@@ -30,6 +27,7 @@ gsf:
   hyperparam:
     eval_batch_size: 1024
     bert_infer_bs: 128
+    no_validation: false
   rgcn:
     n_bases: -1
     use_self_loop: true

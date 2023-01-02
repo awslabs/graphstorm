@@ -48,7 +48,7 @@ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc
 error_and_exit $?
 
 echo "**************restart training from iteration 1 of the previous training"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc.py --cf ml_nc.yaml --fanout '10,15' --n-layers 2 --restore-model-path ./models/movielen_100k/train_val/movielen_100k_utext_train_val_1p_4t_model/epoch-1"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc.py --cf ml_nc.yaml --fanout '10,15' --n-layers 2 --restore-model-path ./models/movielen_100k/train_val/movielen_100k_utext_train_val_1p_4t_model/epoch-1 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json"
 
 error_and_exit $?
 
@@ -92,12 +92,12 @@ cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_multi_label_nc
 python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multilabel.py --path /data/movielen_100k_multi_label_nc --node_class 1 --field genre
 
 echo "**************dataset: multilabel MovieLens, RGCN layer: 1, node feat: generated feature, inference: mini-batch, save emb"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc.py --cf ml_nc.yaml --save-embeds-path ./model/ml-emb/ --n-epochs 3 --part-config movielen_100k_multi_label_nc/movie-lens-100k.json --multilabel true --num-classes 6 --feat-name feat"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc.py --cf ml_nc.yaml --save-embeds-path ./model/ml-emb/ --n-epochs 3 --part-config /data/movielen_100k_multi_label_nc/movie-lens-100k.json --multilabel true --num-classes 6 --feat-name feat"
 
 error_and_exit $?
 
 echo "**************dataset: multilabel MovieLens with weight, RGCN layer: 1, node feat: generated feature, inference: full graph, save emb"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc.py --cf ml_nc.yaml --save-embeds-path ./model/ml-emb/ --n-epochs 3 --part-config movielen_100k_multi_label_nc/movie-lens-100k.json --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --multilabel-weights 0.2,0.2,0.1,0.1,0.2,0.2"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_nc.py --cf ml_nc.yaml --save-embeds-path ./model/ml-emb/ --n-epochs 3 --part-config /data/movielen_100k_multi_label_nc/movie-lens-100k.json --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --multilabel-weights 0.2,0.2,0.1,0.1,0.2,0.2"
 
 error_and_exit $?
 
@@ -111,7 +111,7 @@ cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_multi_feat_nc
 python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multi_feat_nc.py --path /data/movielen_100k_multi_feat_nc
 
 echo "**************dataset: multi-feature MovieLens, RGCN layer: 1, node feat: generated feature, inference: mini-batch"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_feat_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 'python3 gsgnn_nc.py --cf ml_nc.yaml --n-epochs 3 --part-config movielen_100k_multi_feat_nc/movie-lens-100k.json --feat-name "user:feat1 movie:feat0"'
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_nc --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_feat_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 'python3 gsgnn_nc.py --cf ml_nc.yaml --n-epochs 3 --part-config /data/movielen_100k_multi_feat_nc/movie-lens-100k.json --feat-name "user:feat1 movie:feat0"'
 
 error_and_exit $?
 
