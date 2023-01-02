@@ -42,7 +42,6 @@ class GSgnnTrainer():
         # distributed training config
         self._local_rank = config.local_rank
         self._ip_config = config.ip_config
-        self._graph_name = config.graph_name
         self._part_config = config.part_config
         self._save_model_per_iters = config.save_model_per_iters
         self._save_model_path = config.save_model_path
@@ -64,12 +63,12 @@ class GSgnnTrainer():
 
         if self.topk_model_to_save > 0:
             self.topklist = TopKList(self.topk_model_to_save)    # A list to store the top k best
-                                                                 # perf epoch+iteration for 
+                                                                 # perf epoch+iteration for
                                                                  # saving/removing models.
         else:
             if self.save_model_per_iters > 0:
-                self.topklist = TopKList(math.inf)  # If not specify the top k and need to save 
-                                                    # per n iterations, save all models at the 
+                self.topklist = TopKList(math.inf)  # If not specify the top k and need to save
+                                                    # per n iterations, save all models at the
                                                     # n iterations.
             else:
                 self.topklist = TopKList(0)         # During inference, the n_epochs could be 0,
@@ -309,7 +308,7 @@ class GSgnnTrainer():
         i: int
             The number of iteration in a training epoch.
         val_score: dict or None
-            A dictionary contains scores from evaluator's validation function. It could be None 
+            A dictionary contains scores from evaluator's validation function. It could be None
             that means there is either no evluator or not do validation. In that case, just set
             the score rank as 1st to save all models or the last k models.
         """

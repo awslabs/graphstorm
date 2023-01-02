@@ -2,7 +2,7 @@
 """
 import dgl
 import torch as th
-from ..tracker import get_task_tracker_class
+from ..tracker import get_task_tracker_class\
 
 class GSInfer():
     """ Generic GSgnn infer.

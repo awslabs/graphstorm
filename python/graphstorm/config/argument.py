@@ -1,4 +1,5 @@
 """Arguments and config"""
+import os
 import sys
 import argparse
 import yaml
@@ -23,6 +24,8 @@ from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 from .config import SUPPORTED_TASK_TRACKER
 
 from .config import SUPPORTED_TASKS
+
+from .utils import get_graph_name
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -144,7 +147,7 @@ class GSConfig:
                 setattr(self, f"_{arg_key}", arg_val)
                 print(f"Overriding Argument: {arg_key}")
 
-    ###################### Basic Info ######################
+    ###################### Environment Info ######################
     @property
     def debug(self):
         """ Debug flag
@@ -158,9 +161,7 @@ class GSConfig:
     def graph_name(self):
         """ Name of the graph
         """
-        # pylint: disable=no-member
-        assert hasattr(self, "_graph_name"), "Graph name must be provided"
-        return self._graph_name
+        return get_graph_name(self.part_config)
 
     @property
     def backend(self):
@@ -189,10 +190,12 @@ class GSConfig:
 
     @property
     def ip_config(self):
-        """ IP list of instances in the cluster
+        """ IP config of instances in a cluster
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_ip_config"), "IP list must be provided"
+        assert hasattr(self, "_ip_config"), "IP config must be provided"
+        assert os.path.isfile(self._ip_config), \
+            f"IP config file {self._ip_config} does not exist"
         return self._ip_config
 
     @property
@@ -201,6 +204,8 @@ class GSConfig:
         """
         # pylint: disable=no-member
         assert hasattr(self, "_part_config"), "Graph partition config must be provided"
+        assert os.path.isfile(self._part_config), \
+            f"Partition config file {self._part_config} does not exist"
         return self._part_config
 
     @property
@@ -214,10 +219,10 @@ class GSConfig:
 
         return False
 
-    ### model type ###
+    ###################### general gnn model related ######################
     @property
     def model_encoder_type(self):
-        """ Which encoder to use, it can be GNN or language model only
+        """ Which graph encoder to use, it can be GNN or language model only
         """
         # pylint: disable=no-member
         assert hasattr(self, "_model_encoder_type"), \
@@ -226,46 +231,6 @@ class GSConfig:
             f"Model encoder type should be in {BUILTIN_ENCODER}"
         return self._model_encoder_type
 
-    ### evaluation frequency ###
-    @property
-    def evaluation_frequency(self):
-        """ How many iterations between evaluations
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_evaluation_frequency"):
-            assert self._evaluation_frequency > 0, "evaluation_frequency should larger than 0"
-            return self._evaluation_frequency
-        # set max value (Never save)
-        return sys.maxsize
-
-    @property
-    def no_validation(self):
-        """ If no_validation is True, no validation and testing will run
-        """
-        if hasattr(self, "_no_validation"):
-            assert self._no_validation in [True, False]
-            return self._no_validation
-
-        # We do validation by default
-        return False
-
-    ### mix precision config ###
-    @property
-    def mixed_precision(self):
-        """ Whether to turn on mixed precision
-        """
-        # pylint: disable=no-member
-        # TODO(xiangsx): Turn on mixed_precision support later
-        if hasattr(self, "_mixed_precision"):
-            assert self._mixed_precision is False, \
-                "Mixed precision support is turned off"
-            # assert self._mixed_precision in [True, False]
-            return self._mixed_precision
-
-        # By default, do not use mix_precision
-        return False
-
-    ###################### general gnn related ######################
     @property
     def feat_name(self):
         """ User defined node feature name
@@ -526,6 +491,28 @@ class GSConfig:
             assert self._eval_batch_size > 0
             return self._eval_batch_size
         return self.batch_size
+
+    @property
+    def evaluation_frequency(self):
+        """ How many iterations between evaluations
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_evaluation_frequency"):
+            assert self._evaluation_frequency > 0, "evaluation_frequency should larger than 0"
+            return self._evaluation_frequency
+        # set max value (Never save)
+        return sys.maxsize
+
+    @property
+    def no_validation(self):
+        """ If no_validation is True, no validation and testing will run
+        """
+        if hasattr(self, "_no_validation"):
+            assert self._no_validation in [True, False]
+            return self._no_validation
+
+        # We do validation by default
+        return False
 
     @property
     def sparse_lr(self): # pylint: disable=invalid-name
@@ -1160,31 +1147,12 @@ def _add_gsgnn_basic_args(parser):
     group = parser.add_argument_group(title="graphstorm gnn")
     group.add_argument('--backend', type=str, default=argparse.SUPPRESS,
             help='PyTorch distributed backend')
-    group.add_argument('--graph-name', type=str, default=argparse.SUPPRESS,
-            help='graph name')
     group.add_argument("--num-gpus", type=int, default=argparse.SUPPRESS,
             help="number of GPUs")
     group.add_argument('--ip-config', type=str, default=argparse.SUPPRESS,
             help='The file for IP configuration')
     group.add_argument('--part-config', type=str, default=argparse.SUPPRESS,
             help='The path to the partition config file')
-    group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
-            help='Model type can either be  gnn or lm to specify the model encoder')
-    group.add_argument('--mixed-precision',
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="whether to use mixed-precision")
-    group.add_argument('--evaluation-frequency',
-            type=int,
-            default=argparse.SUPPRESS,
-            help="How offen to run the evaluation. "
-                 "Every #evaluation_frequency iterations.")
-    group.add_argument(
-            '--no-validation',
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="If no-validation is set to True, "
-                 "there will be no evaluation during training.")
     group.add_argument("--debug",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
@@ -1194,6 +1162,8 @@ def _add_gsgnn_basic_args(parser):
 
 def _add_gnn_args(parser):
     group = parser.add_argument_group(title="gnn")
+    group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
+            help='Model type can either be gnn or lm to specify the model encoder')
     group.add_argument("--feat-name", type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
             "1)feat_name: global feature name, if a node has node feature,"
@@ -1271,6 +1241,17 @@ def _add_hyperparam_args(parser):
             help="Mini-batch size. If -1, use full graph training.")
     group.add_argument("--eval-batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size for computing GNN embeddings in evaluation.")
+    group.add_argument('--evaluation-frequency',
+            type=int,
+            default=argparse.SUPPRESS,
+            help="How offen to run the evaluation. "
+                 "Every #evaluation_frequency iterations.")
+    group.add_argument(
+            '--no-validation',
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="If no-validation is set to True, "
+                 "there will be no evaluation during training.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,

@@ -8,20 +8,14 @@ lm_model:
       gradient_checkpoint: true
 gsf:
   basic:
-    model_encoder_type: rgat
-    graph_name: ogbn-arxiv
     backend: nccl
     num_gpus: 4
     ip_config: ip_list.txt
     part_config: ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json
     verbose: false
-    gnn_warmup_epochs: 0
-    mixed_precision: false
-    no_validation: false
-    train_nodes: 10
-    evaluation_frequency: 100
     debug: false
   gnn:
+    model_encoder_type: rgat
     fanout: "4"
     n_layers: 1
     n_hidden: 128
@@ -40,6 +34,8 @@ gsf:
     eval_batch_size: 1024
     bert_infer_bs: 128
     wd_l2norm: 0
+    no_validation: false
+    evaluation_frequency: 100
   rgcn:
     n_bases: -1
     use_self_loop: true
