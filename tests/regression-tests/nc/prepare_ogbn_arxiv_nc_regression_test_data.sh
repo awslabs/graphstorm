@@ -1,11 +1,13 @@
 date
-GS_HOME=$(pwd)
+
 mkdir -p /regression-tests-data
 REG_DATA_PATH=/regression-tests-data
 
-
 # create data for ogb_arxiv nc regression tests
-# 1. Construct the graph directly downloading from the OGB site and partition the graph for test
+# 1. Construct the graph directly downloading from the OGB site.
+python3 tools/gen_ogb_dataset.py --savepath ${REG_DATA_PATH}/ogbn-arxiv-nc/ \
+                                 --retain_original_features true
+# 2. partition the graph for test
 python3 tools/partition_graph.py --dataset ogbn-arxiv \
                                  --filepath ${REG_DATA_PATH}/ogbn-arxiv-nc/ \
                                  --num_parts 1 \
