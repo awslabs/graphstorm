@@ -1,0 +1,54 @@
+---
+version: 1.0
+# lm_model:
+#   bert_models: # bert model(s) definition, one bert model for each node type having text data
+#     -
+#       node_type: node
+#       model_name: "allenai/scibert_scivocab_uncased"
+#       gradient_checkpoint: true
+gsf:
+  basic:
+    model_encoder_type: rgcn
+    graph_name: ogbn-mag
+    backend: gloo
+    num_gpus: 4
+    ip_config: ip_list.txt
+    part_config: null
+    verbose: false
+    gnn_warmup_epochs: 0
+    mixed_precision: false
+    no_validation: false
+    mp_opt_level: O2
+    train_nodes: 0
+    debug: false
+  gnn:
+    fanout: "20,10"
+    n_layers: 2
+    n_hidden: 256
+    mini_batch_infer: false
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embeds_path: null
+  hyperparam:
+    dropout: 0.5
+    lr: 0.0005
+    bert_tune_lr: 0.0001
+    n_epochs: 10
+    batch_size: 1600
+    eval_batch_size: 1024
+    bert_infer_bs: 64
+    wd_l2norm: 0
+  rgcn:
+    n_bases: -1
+    use_self_loop: true
+    use_dot_product: true
+    self_loop_init: false
+    sparse_lr: 1e-2
+    use_node_embeddings: false
+  node_classification:
+    predict_ntype: "paper"
+    label_field: "labels"
+    multilabel: false
+    num_classes: 349
