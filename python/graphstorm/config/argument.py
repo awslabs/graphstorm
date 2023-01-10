@@ -2,8 +2,9 @@
 import os
 import sys
 import argparse
-import yaml
+import math
 
+import yaml
 import torch as th
 
 from .config import BUILTIN_GNN_ENCODER
@@ -378,7 +379,7 @@ class GSConfig:
     ### Save model ###
     @property
     def save_embeds_path(self):
-        """ Path to save the generated node embeddings
+        """ Path to save the GNN embeddings from the best model
         """
         # pylint: disable=no-member
         if hasattr(self, "_save_embeds_path"):
@@ -606,9 +607,9 @@ class GSConfig:
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
             return self._topk_model_to_save
-
-        # By default use 0, meaning save all models
-        return 0
+        else:
+            # By default saving all models
+            return math.inf
 
     @property
     def wd_l2norm(self):
@@ -814,6 +815,7 @@ class GSConfig:
         return {}
 
     ### Edge classification ###
+    # TODO(zhengda) we should rename this to predict_etype
     @property
     def target_etype(self):
         """ The list of canonical etype that will be added as

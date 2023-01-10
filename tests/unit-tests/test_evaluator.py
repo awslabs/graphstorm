@@ -95,7 +95,6 @@ def test_mrr_lp_evaluator():
         lp.g.rank = MagicMock(return_value=1)
         metric = lp.evaluate_on_idx(None, None, None, val_idxs, "Valid")
         mock_fullgraph_eval.assert_called()
-        mock_print.assert_not_called()
         assert "mrr" in metric
         assert metric["mrr"] == sum([0.7,0.6,0.65])/3
 
@@ -185,33 +184,6 @@ def test_mrr_lp_evaluator():
     assert lp.do_eval(0) is True
     assert lp.do_eval(1) is False
 
-    # common Dummy objects
-    train_data2 = Dummy({
-            "train_idxs": th.randint(10, (10,)),
-            "val_idxs": th.randint(10, (10,)),
-            "test_idxs": th.randint(10, (10,)),
-            "do_validation": False
-        })
-    # train_data.do_validation False
-    # config.no_validation False
-    lp = GSgnnMrrLPEvaluator(hg, config, train_data2)
-    assert lp.do_eval(120, epoch_end=True) is False
-    assert lp.do_eval(200) is False
-
-    config2 = Dummy({
-            "num_negative_edges_eval": 10,
-            "use_dot_product": True,
-            "evaluation_frequency": 100,
-            "no_validation": True,
-            "enable_early_stop": False,
-        })
-
-    # train_data.do_validation True
-    # config.no_validation True
-    lp = GSgnnMrrLPEvaluator(hg, config2, train_data)
-    assert lp.do_eval(120, epoch_end=True) is False
-    assert lp.do_eval(200) is False
-
     config3 = Dummy({
             "num_negative_edges_eval": 10,
             "use_dot_product": True,
@@ -254,7 +226,7 @@ def test_acc_evaluator():
     # Test evaluate
     @patch.object(GSgnnAccEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
-        nc = GSgnnAccEvaluator(hg, config, train_data)
+        nc = GSgnnAccEvaluator(config)
         mock_compute_score.side_effect = [
             {"accuracy": 0.7},
             {"accuracy": 0.65},
@@ -287,35 +259,11 @@ def test_acc_evaluator():
     # check GSgnnAccEvaluator.do_eval()
     # train_data.do_validation True
     # config.no_validation False
-    nc = GSgnnAccEvaluator(hg, config, train_data)
+    nc = GSgnnAccEvaluator(config)
     assert nc.do_eval(120, epoch_end=True) is True
     assert nc.do_eval(200) is True
     assert nc.do_eval(0) is True
     assert nc.do_eval(1) is False
-
-    # common Dummy objects
-    train_data2 = Dummy({
-            "do_validation": False
-        })
-    # train_data.do_validation False
-    # config.no_validation False
-    nc = GSgnnAccEvaluator(hg, config, train_data2)
-    assert nc.do_eval(120, epoch_end=True) is False
-    assert nc.do_eval(200) is False
-
-    config2 = Dummy({
-            "multilabel": False,
-            "evaluation_frequency": 100,
-            "no_validation": True,
-            "eval_metric": ["accuracy"],
-            "enable_early_stop": False,
-        })
-
-    # train_data.do_validation True
-    # config.no_validation True
-    nc = GSgnnAccEvaluator(hg, config2, train_data)
-    assert nc.do_eval(120, epoch_end=True) is False
-    assert nc.do_eval(200) is False
 
     config3 = Dummy({
             "multilabel": False,
@@ -328,7 +276,7 @@ def test_acc_evaluator():
     # train_data.do_validation True
     # config.no_validation False
     # evaluation_frequency is 0
-    nc = GSgnnAccEvaluator(hg, config3, train_data)
+    nc = GSgnnAccEvaluator(config3)
     assert nc.do_eval(120, epoch_end=True) is True
     assert nc.do_eval(200) is False
     th.distributed.destroy_process_group()
@@ -357,7 +305,7 @@ def test_regression_evaluator():
     # Test evaluate
     @patch.object(GSgnnRegressionEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
-        nr = GSgnnRegressionEvaluator(hg, config, train_data)
+        nr = GSgnnRegressionEvaluator(config)
         mock_compute_score.side_effect = [
             {"rmse": 0.7},
             {"rmse": 0.8},
@@ -391,33 +339,11 @@ def test_regression_evaluator():
     # check GSgnnRegressionEvaluator.do_eval()
     # train_data.do_validation True
     # config.no_validation False
-    nr = GSgnnRegressionEvaluator(hg, config, train_data)
+    nr = GSgnnRegressionEvaluator(config)
     assert nr.do_eval(120, epoch_end=True) is True
     assert nr.do_eval(200) is True
     assert nr.do_eval(0) is True
     assert nr.do_eval(1) is False
-
-    # common Dummy objects
-    train_data2 = Dummy({
-            "do_validation": False
-        })
-    # train_data.do_validation False
-    # config.no_validation False
-    nr = GSgnnRegressionEvaluator(hg, config, train_data2)
-    assert nr.do_eval(120, epoch_end=True) is False
-    assert nr.do_eval(200) is False
-
-    config2 = Dummy({
-            "evaluation_frequency": 100,
-            "no_validation": True,
-            "eval_metric": ["rmse"],
-            "enable_early_stop": False,
-        })
-    # train_data.do_validation True
-    # config.no_validation True
-    nr = GSgnnRegressionEvaluator(hg, config2, train_data)
-    assert nr.do_eval(120, epoch_end=True) is False
-    assert nr.do_eval(200) is False
 
     config3 = Dummy({
             "evaluation_frequency": 0,
@@ -429,7 +355,7 @@ def test_regression_evaluator():
     # train_data.do_validation True
     # config.no_validation False
     # evaluation_frequency is 0
-    nr = GSgnnRegressionEvaluator(hg, config3, train_data)
+    nr = GSgnnRegressionEvaluator(config3)
     assert nr.do_eval(120, epoch_end=True) is True
     assert nr.do_eval(200) is False
     th.distributed.destroy_process_group()
@@ -480,7 +406,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
 
-    evaluator = GSgnnRegressionEvaluator(None, config, train_data)
+    evaluator = GSgnnRegressionEvaluator(config)
     for _ in range(10):
         # always return false
         assert evaluator.do_early_stop({"rmse": 0.1}) is False
@@ -495,7 +421,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
 
-    evaluator = GSgnnRegressionEvaluator(None, config, train_data)
+    evaluator = GSgnnRegressionEvaluator(config)
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"rmse": 0.5}) is False
@@ -520,7 +446,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
 
-    evaluator = GSgnnAccEvaluator(None, config2, train_data)
+    evaluator = GSgnnAccEvaluator(config2)
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"accuracy": 0.5}) is False
@@ -618,7 +544,7 @@ def test_get_val_score_rank():
         })
     hg = gen_hg()
 
-    evaluator = GSgnnAccEvaluator(hg, config, train_data)
+    evaluator = GSgnnAccEvaluator(config)
     # For accuracy, the bigger the better.
     val_score = {"accuracy": 0.47}
     assert evaluator.get_val_score_rank(val_score) == 1
@@ -642,7 +568,7 @@ def test_get_val_score_rank():
         })
     hg = gen_hg()
     
-    evaluator = GSgnnRegressionEvaluator(hg, config, train_data)
+    evaluator = GSgnnRegressionEvaluator(config)
     # For mse, the smaller the better
     val_score = {"mse": 0.47}
     assert evaluator.get_val_score_rank(val_score) == 1
@@ -666,7 +592,7 @@ def test_get_val_score_rank():
         })
     hg = gen_hg()
     
-    evaluator = GSgnnRegressionEvaluator(hg, config, train_data)
+    evaluator = GSgnnRegressionEvaluator(config)
     # For rmse, the smaller the better
     val_score = {"rmse": 0.47}
     assert evaluator.get_val_score_rank(val_score) == 1

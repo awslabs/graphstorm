@@ -55,20 +55,12 @@ def launch_train_task(task_type, num_gpus, graph_config,
     Thread: training task thread
     """
     assert not enable_bert, 'We do not support BERT+GNN right now.'
-    if task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
-        workspace = "/graph-storm/training_scripts/gsgnn_nc"
-        cmd = "gsgnn_nc.py"
-    elif task_type == BUILTIN_TASK_NODE_REGRESSION:
-        workspace = "/graph-storm/training_scripts/gsgnn_nr"
-        assert enable_bert is True, "gsgnn_pure_gnn_nr.py needs to be supported"
-        cmd = "gsgnn_nr.py"
-    elif task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
-        workspace = "/graph-storm/training_scripts/gsgnn_ec"
-        cmd = "gsgnn_ec.py"
-    elif task_type == BUILTIN_TASK_EDGE_REGRESSION:
-        workspace = "/graph-storm/training_scripts/gsgnn_er"
-        assert enable_bert is True, "gsgnn_pure_gnn_er.py needs to be supported"
-        cmd = "gsgnn_er.py"
+    if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+        workspace = "/graph-storm/training_scripts/gsgnn_np"
+        cmd = "gsgnn_np.py"
+    elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+        workspace = "/graph-storm/training_scripts/gsgnn_ep"
+        cmd = "gsgnn_ep.py"
     elif task_type == BUILTIN_TASK_LINK_PREDICTION:
         workspace = "/graph-storm/training_scripts/gsgnn_lp"
         cmd = "gsgnn_lp.py"

@@ -1,6 +1,6 @@
 #!/bin/bash
 LAUNCH_PATH=~/dgl/tools/launch.py
-WORKSPACE=/graph-storm/training_scripts/gsgnn_nc
+WORKSPACE=/graph-storm/training_scripts/gsgnn_np
 NUM_TRAINERS=4
 NUM_SERVERS=1
 NUM_SAMPLERS=0
@@ -17,4 +17,4 @@ python3 -u  ${LAUNCH_PATH} \
         --part_config ${PART_CONFIG} \
         --ip_config ${IP_CONFIG} \
         --ssh_port 2222 \
-        "python3 gsgnn_nc.py --cf ${TRAINING_CONFIG} --feat-name feat"
+        "python3 gsgnn_np.py --cf ${TRAINING_CONFIG} --feat-name feat"

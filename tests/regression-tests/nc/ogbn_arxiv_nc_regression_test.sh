@@ -26,6 +26,6 @@ python3  ${LAUNCH_PATH} \
         --part_config ${PART_CONFIG} \
         --ip_config ${IP_CONFIG} \
         --ssh_port 2222 \
-        "python3 ${GS_HOME}/training_scripts/gsgnn_nc/gsgnn_nc.py --cf ${TRAINING_CONFIG}  \
+        "python3 ${GS_HOME}/training_scripts/gsgnn_np/gsgnn_np.py --cf ${TRAINING_CONFIG}  \
         --ip-config ${IP_CONFIG} \
         --part-config ${PART_CONFIG}"

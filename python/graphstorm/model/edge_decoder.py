@@ -78,7 +78,7 @@ class DenseBiDecoder(GSLayer):
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
-            (src_type, _, dest_type) = g.to_canonical_etype(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
             ufeat = h[src_type][u]
             ifeat = h[dest_type][v]
 
@@ -91,26 +91,31 @@ class DenseBiDecoder(GSLayer):
 
         return out
 
-    def predict(self, ufeat, ifeat, _):
+    def predict(self, g, h):
         """predict function for this decoder
 
         Parameters
         ----------
-        ufeat : Tensor
-            The source node features.
-        ifeat : Tensor
-            The destination node features.
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
 
         Returns
         -------
         Tensor : the scores of each edge.
         """
-        out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
-        out = self.combine_basis(out)
-        if self.regression:
-            out = self.regression_head(out)
-        elif not self._multilabel:
-            out = out.argmax(dim=1)
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+            out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
+            out = self.combine_basis(out)
+            if self.regression:
+                out = self.regression_head(out)
+            elif not self._multilabel:
+                out = out.argmax(dim=1)
         return out
 
     @property
@@ -140,7 +145,7 @@ class MLPEdgeDecoder(GSLayer):
     Parameters
     ----------
     h_dim : int
-        Size of input dim of decoder. It is the dim of [src_emb || dst_emb]
+        The input dim of decoder. It is the dim of source or destinatioin node embeddings.
     out_dim : int
         Output dim. e.g., number of classes
     multilabel : bool
@@ -166,7 +171,8 @@ class MLPEdgeDecoder(GSLayer):
         self.h_dim = h_dim
         self.multilabel = multilabel
         self.out_dim = h_dim if regression else out_dim
-        self.decoder = nn.Parameter(th.randn(h_dim, out_dim))
+        # Here we assume the source and destination nodes have the same dimension.
+        self.decoder = nn.Parameter(th.randn(h_dim * 2, out_dim))
         self.target_etype = target_etype
         assert num_hidden_layers == 1, "More than one layers not supported"
         nn.init.xavier_uniform_(self.decoder,
@@ -193,7 +199,7 @@ class MLPEdgeDecoder(GSLayer):
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
-            (src_type, _, dest_type) = g.to_canonical_etype(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
             ufeat = h[src_type][u]
             ifeat = h[dest_type][v]
 
@@ -204,26 +210,32 @@ class MLPEdgeDecoder(GSLayer):
 
         return out
 
-    def predict(self, ufeat, ifeat, _):
+    def predict(self, g, h):
         """predict function for this decoder
 
         Parameters
         ----------
-        ufeat : Tensor
-            The source node features.
-        ifeat : Tensor
-            The destination node features.
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
 
         Returns
         -------
         Tensor : the scores of each edge.
         """
-        h = th.cat([ufeat, ifeat], dim=1)
-        out = th.matmul(h, self.decoder)
-        if self.regression:
-            out = self.regression_head(out)
-        elif self.multilabel:
-            out = out.argmax(dim=1)
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+
+            h = th.cat([ufeat, ifeat], dim=1)
+            out = th.matmul(h, self.decoder)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self.multilabel:
+                out = out.argmax(dim=1)
         return out
 
     @property
@@ -260,11 +272,11 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         with g.local_scope():
             scores = []
 
-            for etype in g.etypes:
-                if g.num_edges(etype) == 0:
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
                     continue # the block might contain empty edge types
 
-                (src_type, _, dest_type) = g.to_canonical_etype(etype=etype)
+                src_type, etype, dest_type = canonical_etype
                 u, v = g.edges(etype=etype)
                 src_emb = h[src_type][u]
                 dest_emb = h[dest_type][v]
@@ -299,15 +311,21 @@ class LinkPredictDistMultDecoder(GSLayer):
 
     Parameters
     ----------
+    etypes : list of tuples
+        The canonical edge types of the graph
+    h_dim : int
+        The hidden dimension
+    gamma : float
+        The gamma value for initialization
     """
     def __init__(self,
-                 g,
+                 etypes,
                  h_dim,
                  gamma=40.):
         super(LinkPredictDistMultDecoder, self).__init__()
-        self.num_rels = len(g.etypes)
+        self.num_rels = len(etypes)
         self.h_dim = h_dim
-        self.etype2rid = {etype: i for i, etype in enumerate(g.etypes)}
+        self.etype2rid = {etype: i for i, etype in enumerate(etypes)}
         self._w_relation = nn.Embedding(self.num_rels, h_dim)
         self.trained_rels = np.zeros(self.num_rels)
         emb_init = gamma / h_dim
@@ -350,15 +368,15 @@ class LinkPredictDistMultDecoder(GSLayer):
         with g.local_scope():
             scores=[]
 
-            for etype in g.etypes:
-                if g.num_edges(etype) == 0:
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
                     continue # the block might contain empty edge types
 
-                i = self.etype2rid[etype]
+                i = self.etype2rid[canonical_etype]
                 self.trained_rels[i] += 1
                 rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
                 rel_embedding = rel_embedding.unsqueeze(dim=1)
-                (src_type, _, dest_type) = g.to_canonical_etype(etype=etype)
+                src_type, etype, dest_type = canonical_etype
                 u, v = g.edges(etype=etype)
                 src_emb = h[src_type][u]
 

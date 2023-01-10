@@ -35,6 +35,23 @@ def trim_data(nids, device):
     assert new_nids.shape[0] == min_num_nodes
     return new_nids
 
+def dist_sum(size):
+    """ Sum the sizes from all processes.
+
+    Parameters
+    ----------
+    size : int
+        The size in the local process
+
+    Returns
+    -------
+    int : the global size.
+    """
+    dev_id = th.cuda.current_device()
+    size = th.tensor([size], device=th.device(dev_id))
+    dist.all_reduce(size, dist.ReduceOp.SUM)
+    return int(size.cpu())
+
 def modify_fanout_for_target_etype(g, fanout, target_etypes):
     """ This function specifies a zero fanout for the target etype
         removing this etype from the message passing graph

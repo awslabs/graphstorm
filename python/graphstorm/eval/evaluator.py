@@ -9,6 +9,7 @@ from .utils import fullgraph_eval
 from .utils import broadcast_data
 from ..config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from ..config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
+from ..utils import get_rank
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
     """
@@ -98,10 +99,8 @@ class GSgnnInstanceEvaluator():
     ----------
     config: GSConfig
         Configurations. Users can add their own configures in the yaml config file.
-    train_data: GSgnnTrainData
-        The processed training dataset
     """
-    def __init__(self, config, train_data):
+    def __init__(self, config):
         # nodes whose embeddings are used during evaluation
         # if None all nodes are used.
         self._history = []
@@ -112,7 +111,6 @@ class GSgnnInstanceEvaluator():
         self._best_iter = None
         self.metrics_obj = None # Evaluation metrics obj
 
-        self.do_validation = train_data.do_validation and not config.no_validation
         self.evaluation_frequency = config.evaluation_frequency
         self._do_early_stop = config.enable_early_stop
         if self._do_early_stop:
@@ -174,11 +172,9 @@ class GSgnnInstanceEvaluator():
             -------
             Whether do evaluation: bool
         """
-        if epoch_end and self.do_validation:
+        if epoch_end:
             return True
-        elif self.evaluation_frequency != 0 and \
-            total_iters % self.evaluation_frequency == 0 and \
-            self.do_validation:
+        elif self.evaluation_frequency != 0 and total_iters % self.evaluation_frequency == 0:
             return True
         return False
 
@@ -300,15 +296,11 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
 
         Parameters
         ----------
-        g: DGLGraph
-            The graph used in training and testing
         config: GSConfig
             Configurations. Users can add their own configures in the yaml config file.
-        train_data: GSgnnNodeTrainData
-            The processed training dataset
     """
-    def __init__(self, g, config, train_data): # pylint: disable=unused-argument
-        super(GSgnnRegressionEvaluator, self).__init__(config, train_data)
+    def __init__(self, config):
+        super(GSgnnRegressionEvaluator, self).__init__(config)
         self._metric = config.eval_metric
         assert len(self.metric) > 0, "At least one metric must be defined"
         self._best_val_score = {}
@@ -327,9 +319,9 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
 
             Parameters
             ----------
-            val_pred : dict of tensors
+            val_pred : tensor
                 The tensor stores the prediction results on the validation nodes.
-            test_pred : dict of tensors
+            test_pred : tensor
                 The tensor stores the prediction results on the test nodes.
             val_labels : tensor
                 The tensor stores the labels of the validation nodes.
@@ -382,6 +374,8 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
             Evaluation metric values: dict
         """
         scores = {}
+        pred = th.squeeze(pred)
+        labels = th.squeeze(labels)
         for metric in self.metric:
             scores[metric] = self.metrics_obj.metric_function[metric](pred, labels) \
                     if pred is not None and labels is not None else -1
@@ -392,15 +386,11 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
 
         Parameters
         ----------
-        g: DGLGraph
-            The graph used in training and testing
         config: GSConfig
             Configurations. Users can add their own configures in the yaml config file.
-        train_data: GSgnnTrainData
-            The processed training dataset
     """
-    def __init__(self, g, config, train_data): # pylint: disable=unused-argument
-        super(GSgnnAccEvaluator, self).__init__(config, train_data)
+    def __init__(self, config): # pylint: disable=unused-argument
+        super(GSgnnAccEvaluator, self).__init__(config)
         self.multilabel = config.multilabel
         self._metric = config.eval_metric
         assert len(self.metric) > 0, \
@@ -499,10 +489,8 @@ class GSgnnLPEvaluator():
         ----------
         config: GSConfig
             Configurations. Users can add their own configures in the yaml config file.
-        dataset: GSgnnLinkPredictionTrainData
-            The processed training dataset
     """
-    def __init__(self, config, dataset=None): # pylint: disable=unused-argument
+    def __init__(self, config): # pylint: disable=unused-argument
         # nodes whose embeddings are used during evaluation
         # if None all nodes are used.
         self._target_nidx = None
@@ -513,7 +501,6 @@ class GSgnnLPEvaluator():
         self._best_iter = None
         self.metrics_obj = None # Evaluation metrics obj
 
-        self.do_validation = dataset.do_validation and not config.no_validation
         self.evaluation_frequency = config.evaluation_frequency
         self._do_early_stop = config.enable_early_stop
         if self._do_early_stop:
@@ -575,11 +562,10 @@ class GSgnnLPEvaluator():
             -------
             Whether do evaluation: bool
         """
-        if epoch_end and self.do_validation:
+        if epoch_end:
             return True
         elif self.evaluation_frequency != 0 and \
-            total_iters % self.evaluation_frequency == 0 and \
-            self.do_validation:
+            total_iters % self.evaluation_frequency == 0:
             return True
         return False
 
@@ -697,11 +683,11 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         The graph used in training and testing
     config: GSConfig
         Configurations. Users can add their own configures in the yaml config file.
-    data: GSgnnLinkPredictionTrainData or GSgnnLinkPredictionInferData
+    data: GSgnnEdgeData
         The processed dataset
     """
     def __init__(self, g, config, data):
-        super(GSgnnMrrLPEvaluator, self).__init__(config, data)
+        super(GSgnnMrrLPEvaluator, self).__init__(config)
         self.g = g
         self.train_idxs = data.train_idxs
         self.val_idxs = data.val_idxs
@@ -787,19 +773,18 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
 
         val_mrrs = {}
         for target_etype, val_idx in val_idxs.items():
-            relation_embs = None if self.use_dot_product \
-                else decoder.get_relemb(target_etype)
+            relation_embs = None if self.use_dot_product else decoder.get_relemb(target_etype)
             val_metrics = self._fullgraph_eval(g,
-                                                embeddings,
-                                                relation_embs,
-                                                device,
-                                                target_etype,
-                                                val_idx)
+                                               embeddings,
+                                               relation_embs,
+                                               device,
+                                               target_etype,
+                                               val_idx)
             # TODO(xiangsx): change evaluation metric names into lower case
             val_mrr = val_metrics['MRR'] # fullgraph_eval use 'MRR' as keyword
             val_mrrs[target_etype] = val_mrr
         th.distributed.barrier()
-        if g.rank() == 0:
+        if get_rank() == 0:
             print(f"{eval_type} metrics: {val_metrics}")
             print(f"{eval_type} mrr: {val_mrrs}")
         val_mrrs_all = []
@@ -832,7 +817,6 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             test_mrr: float
                 Test mrr
         """
-        g = self.g
         test_score = self.evaluate_on_idx(
             embeddings, decoder, device, self.test_idxs,  eval_type="Testing")
 
@@ -844,7 +828,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
                 embeddings, decoder, device, self.val_idxs, eval_type="Validation")
             # Wait for all trainers to finish their work.
 
-            if g.rank() == 0:
+            if get_rank() == 0:
                 for metric in self.metric:
                     # be careful whether > or < it might change per metric.
                     if self.metrics_obj.metric_comparator[metric](

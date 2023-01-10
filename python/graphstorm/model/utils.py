@@ -128,6 +128,7 @@ def save_relation_embeddings(emb_path, decoder):
     relembs, et2id_map = decoder.get_relembs()
     relembs = relembs.detach().cpu()
     with open(os.path.join(emb_path, 'relation2id_map.json'), "w", encoding='utf-8') as f:
+        et2id_map = {str(key): val for key, val in et2id_map.items()}
         json.dump(et2id_map, f, ensure_ascii=False, indent=4)
     th.save(relembs, os.path.join(emb_path, "rel_emb.pt"))
 
@@ -158,6 +159,8 @@ def save_embeddings(model_path, embeddings, local_rank, world_size):
         start, end = get_data_range(len(embeddings))
         embeddings = embeddings[start:end]
     elif isinstance(embeddings, dict):
+        # We need to duplicate the dict so that the input argument is not changed.
+        embeddings = dict(embeddings.items())
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 start, end = get_data_range(len(emb))

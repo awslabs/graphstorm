@@ -7,6 +7,12 @@ import resource
 import psutil
 
 import dgl
+import torch as th
+
+def get_rank():
+    """ Get rank of a process
+    """
+    return th.distributed.get_rank()
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.

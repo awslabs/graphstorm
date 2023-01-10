@@ -11,16 +11,20 @@ class ClassifyLossFunc(GSLayer):
 
     Parameters
     ----------
-    config : GSConfig
-        The configurations.
+    multilabel : bool
+        Whether this is multi-label classification.
+    multilabel_weights : Tensor
+        The label weights for multi-label classifciation.
+    imbalance_class_weights : Tensor
+        The class weights for imbalanced classes.
     """
-    def __init__(self, config):
+    def __init__(self, multilabel, multilabel_weights=None, imbalance_class_weights=None):
         super(ClassifyLossFunc, self).__init__()
-        self.multilabel = config.multilabel
-        if config.multilabel:
-            self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=config.multilabel_weights)
+        self.multilabel = multilabel
+        if multilabel:
+            self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=multilabel_weights)
         else:
-            self.loss_fn = nn.CrossEntropyLoss(weight=config.imbalance_class_weights)
+            self.loss_fn = nn.CrossEntropyLoss(weight=imbalance_class_weights)
 
     def forward(self, logits, labels):
         """ The forward function.
