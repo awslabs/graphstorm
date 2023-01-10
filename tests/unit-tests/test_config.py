@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import tempdir
 import json
 import yaml
+import math
 import unittest, pytest
 from argparse import Namespace
 
@@ -431,7 +432,7 @@ def test_train_info():
         assert config.eval_batch_size == 32
         assert config.wd_l2norm == 0
         assert config.alpha_l2norm == 0
-        assert config.topk_model_to_save == 0
+        assert config.topk_model_to_save == math.inf
         config._lr = 0.01
         assert config.sparse_lr == 0.01
         assert config.use_node_embeddings == False

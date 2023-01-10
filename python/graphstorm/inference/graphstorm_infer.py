@@ -1,8 +1,6 @@
 """ Infererence framework
 """
-import dgl
 import torch as th
-from ..tracker import get_task_tracker_class\
 
 class GSInfer():
     """ Generic GSgnn infer.
@@ -10,42 +8,53 @@ class GSInfer():
 
     Parameters
     ----------
-    config: GSConfig
-        Task configuration
+    model : GSgnnNodeModel
+        The GNN model for node prediction.
+    rank : int
+        The rank.
     """
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, model, rank):
+        self._model = model
+        self._rank = rank
+        self._dev_id = -1
+        self._evaluator = None
+        self._task_tracker = None
 
-        self.device = f'cuda:{int(config.local_rank)}'
-        self.init_dist_context(config.ip_config,
-                               config.graph_name,
-                               config.part_config,
-                               config.backend)
-        self.evaluator = None
-        tracker_class = get_task_tracker_class(config.task_tracker)
-        self.task_tracker = tracker_class(config, self._g.rank())
+    def setup_cuda(self, dev_id):
+        """ Set up the CUDA device of this trainer.
 
-    def init_dist_context(self, ip_config, graph_name, part_config, backend):
-        """ Initialize distributed inference context
+        The CUDA device is set up based on the local rank.
 
         Parameters
         ----------
-        ip_config: str
-            File path of ip_config file
-        graph_name: str
-            Name of the graph
-        part_config: str
-            File path of partition config
-        backend: str
-            Torch distributed backend
+        dev_id : int
+            The device ID for model training.
         """
+        # setup cuda env
+        use_cuda = th.cuda.is_available()
+        assert use_cuda, "Only support GPU training"
+        th.cuda.set_device(dev_id)
+        self._dev_id = dev_id
+        self._model = self._model.to(self.dev_id)
 
-        # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
-        # This problem will be fixed in the future.
-        dgl.distributed.initialize(ip_config, net_type='socket')
-        self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
-        print("Start init distributed group ...")
-        th.distributed.init_process_group(backend=backend)
+    def setup_task_tracker(self, task_tracker):
+        """ Set the task tracker.
+
+        Parameters
+        ----------
+        task_tracker : GSTaskTracker
+            The task tracker
+        """
+        if self.evaluator is not None:
+            self.evaluator.setup_task_tracker(task_tracker)
+        self._task_tracker = task_tracker
+
+    def setup_evaluator(self, evaluator):
+        """ Set the evaluator
+        """
+        if self.task_tracker is not None:
+            evaluator.setup_task_tracker(self.task_tracker)
+        self._evaluator = evaluator
 
     def log_print_metrics(self, val_score, test_score, dur_eval, total_steps, train_score=None):
         """
@@ -75,3 +84,27 @@ class GSInfer():
                 test_score=test_score, best_val_score=best_val_score,
                 best_test_score=best_test_score, best_iter_num=best_iter_num,
                 eval_time=dur_eval, total_steps=total_steps)
+
+    @property
+    def evaluator(self):
+        """ Get the evaluator associated with the inference.
+        """
+        return self._evaluator
+
+    @property
+    def task_tracker(self):
+        """ Get the task tracker associated with the inference.
+        """
+        return self._task_tracker
+
+    @property
+    def dev_id(self):
+        """ Get the device ID associated with the inference.
+        """
+        return self._dev_id
+
+    @property
+    def rank(self):
+        """ Get the rank the inference.
+        """
+        return self._rank

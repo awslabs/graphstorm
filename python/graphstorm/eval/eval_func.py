@@ -316,8 +316,14 @@ def compute_acc(pred, labels, multilabel):
 def compute_rmse(pred, labels):
     """ compute RMSE for regression.
     """
+    assert pred.dtype == labels.dtype, \
+            "prediction and labels have different data types. {} vs. {}".format(pred.dtype,
+                                                                                labels.dtype)
+    assert pred.shape == labels.shape, \
+            "prediction and labels have different shapes. {} vs. {}".format(pred.shape,
+                                                                            labels.shape)
     diff = pred.cpu() - labels.cpu()
-    return th.mean(th.sqrt(th.mean(diff * diff, dim=1))).cpu().item()
+    return th.sqrt(th.mean(diff * diff)).cpu().item()
 
 def compute_mse(pred, labels):
     """ compute MSE for regression

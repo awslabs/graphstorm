@@ -3,7 +3,6 @@ Create dummy datasets for unit tests
 """
 
 import os
-import tempfile
 import dgl
 import numpy as np
 import torch as th
@@ -59,12 +58,14 @@ def generate_dummy_hetero_graph(size='tiny'):
 
     hetero_graph.nodes['n0'].data['feat'] = node_feat['n0']
     hetero_graph.nodes['n1'].data['feat'] = node_feat['n1']
+    hetero_graph.nodes['n1'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('n1'), ))
 
     hetero_graph.edges['r0'].data['feat'] = edge_feat['r0']
     hetero_graph.edges['r1'].data['feat'] = edge_feat['r1']
+    hetero_graph.edges['r1'].data['label'] = th.randint(10, (hetero_graph.number_of_edges('r1'), ))
 
     # set train/val/test masks for nodes and edges
-    target_ntype = ['n0']
+    target_ntype = ['n1']
     target_etype = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
 
     node_train_mask = generate_mask([0,1], data_size)
@@ -94,47 +95,52 @@ def generate_dummy_hetero_graph(size='tiny'):
     return hetero_graph
 
 
-def partion_and_load_distributed_graph(hetero_graph=None, graph_name='dummy'):
+def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'):
     """
     Partition a heterogeneous graph into a temporal directory, and reload it as a distributed graph
     Parameters
     ----------
     hetero_graph: a DGL heterogeneous graph
+    dirname : the directory where the graph will be partitioned and stored.
     graph_name: string as a name
 
     Returns
     -------
     dist_graph: a DGL distributed graph
+    part_config : the path of the partition configuration file.
     """
 
     if not isinstance(hetero_graph, dgl.DGLGraph):
         raise Exception('Must have a valid DGL heterogeneous graph')
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        print(f'Create a temporary folder \'{tmpdirname}\' for output of distributed graph data')
-        dist.partition_graph(hetero_graph, graph_name=graph_name, num_parts=1,
-                             out_path=tmpdirname, part_method='metis')
+    print(f'Create a temporary folder \'{dirname}\' for output of distributed graph data')
+    dist.partition_graph(hetero_graph, graph_name=graph_name, num_parts=1,
+                         out_path=dirname, part_method='metis')
 
-        dist.initialize('')
-        dist_graph = dist.DistGraph(graph_name=graph_name,
-                                    part_config=os.path.join(tmpdirname, graph_name+'.json'))
+    dist.initialize('')
+    part_config = os.path.join(dirname, graph_name+'.json')
+    dist_graph = dist.DistGraph(graph_name=graph_name, part_config=part_config)
 
-    return dist_graph
+    return dist_graph, part_config
 
 
-def generate_dummy_dist_graph(size='tiny'):
+def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy'):
     """
     Generate a dummy DGL distributed graph with the given size
     Parameters
     ----------
+    dirname : the directory where the graph will be partitioned and stored.
     size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+    graph_name: string as a name
 
     Returns
     -------
-
+    dist_graph: a DGL distributed graph
+    part_config : the path of the partition configuration file.
     """
     hetero_graph = generate_dummy_hetero_graph(size=size)
-    return partion_and_load_distributed_graph(hetero_graph=hetero_graph)
+    return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
+                                              graph_name=graph_name)
 
 
 """ For self tests"""

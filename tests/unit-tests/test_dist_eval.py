@@ -181,9 +181,9 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
     config, train_data = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:
-        evaluator = GSgnnRegressionEvaluator(None, config, train_data)
+        evaluator = GSgnnRegressionEvaluator(config)
     else:
-        evaluator = GSgnnAccEvaluator(None, config, train_data)
+        evaluator = GSgnnAccEvaluator(config)
 
     val_score0, test_score0 = evaluator.evaluate(
         val_pred.to(device),
@@ -269,9 +269,9 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
     config, train_data = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:
-        evaluator = GSgnnRegressionEvaluator(None, config, train_data)
+        evaluator = GSgnnRegressionEvaluator(config)
     else:
-        evaluator = GSgnnAccEvaluator(None, config, train_data)
+        evaluator = GSgnnAccEvaluator(config)
     val_score0, test_score0 = evaluator.evaluate(val_pred, test_pred, val_labels0, test_labels, 100)
     val_score1, test_score1 = evaluator.evaluate(val_pred, test_pred, val_labels1, test_labels, 200)
     val_score2, _ = evaluator.evaluate(val_pred, test_pred, val_labels2, test_labels, 300)

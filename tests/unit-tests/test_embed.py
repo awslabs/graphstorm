@@ -2,6 +2,7 @@ import torch as th
 from torch import nn
 import numpy as np
 from numpy.testing import assert_almost_equal
+import tempfile
 
 import dgl
 from graphstorm.model import GSNodeInputLayer
@@ -12,8 +13,14 @@ from data_utils import generate_dummy_dist_graph
 
 # In this case, we only use the node features to generate node embeddings.
 def test_input_layer1():
-    # get the test dummy distributed graph
-    g = generate_dummy_dist_graph()
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, 'feat')
     layer = GSNodeInputLayer(g, feat_size, 2)
@@ -33,12 +40,19 @@ def test_input_layer1():
     for ntype in embed:
         assert_almost_equal(embed[ntype].detach().numpy(),
                             node_feat[ntype].detach().numpy())
+    th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
 # In this case, we use both node features and sparse embeddings.
 def test_input_layer2():
-    # get the test dummy distributed graph
-    g = generate_dummy_dist_graph()
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, 'feat')
     layer = GSNodeInputLayer(g, feat_size, 2, use_node_embeddings=True)
@@ -67,13 +81,20 @@ def test_input_layer2():
     for ntype in embed:
         true_val = node_feat[ntype].detach().numpy() + node_embs[ntype].detach().numpy()
         assert_almost_equal(embed[ntype].detach().numpy(), true_val)
+    th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
 # In this case, we use node feature on one node type and
 # use sparse embedding on the other node type.
 def test_input_layer3():
-    # get the test dummy distributed graph
-    g = generate_dummy_dist_graph()
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, {'n0' : 'feat'})
     layer = GSNodeInputLayer(g, feat_size, 2)
@@ -110,16 +131,18 @@ def test_input_layer3():
     assert len(embed) == len(input_nodes)
     assert_almost_equal(embed['n0'].detach().numpy(), node_feat['n0'].detach().numpy())
     assert_almost_equal(embed['n1'].detach().numpy(), node_embs['n1'].detach().numpy())
+    th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
 def test_compute_embed():
-    # get the test dummy distributed graph
-    g = generate_dummy_dist_graph()
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='nccl',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
     print('g has {} nodes of n0 and {} nodes of n1'.format(
         g.number_of_nodes('n0'), g.number_of_nodes('n1')))
 

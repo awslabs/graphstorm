@@ -4,6 +4,8 @@ import torch as th
 from torch import nn
 from dgl.distributed import DistEmbedding, DistTensor, node_split
 from .gs_layer import GSLayer
+from ..dataloading.dataset import prepare_batch_input
+from ..utils import get_rank
 
 def init_emb(shape, dtype):
     """Create a tensor with the given shape and date type.
@@ -69,13 +71,13 @@ class GSNodeInputLayer(GSLayer):
             if feat_size[ntype] > 0:
                 feat_dim += feat_size[ntype]
             if feat_dim > 0:
-                if g.rank() == 0:
+                if get_rank() == 0:
                     print('Node {} has {} features.'.format(ntype, feat_dim))
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
                 nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain('relu'))
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
-                    if g.rank() == 0:
+                    if get_rank() == 0:
                         print('Use sparse embeddings on node {}'.format(ntype))
                     part_policy = g.get_node_partition_policy(ntype)
                     self.sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
@@ -90,7 +92,7 @@ class GSNodeInputLayer(GSLayer):
                     self.proj_matrix[ntype] = proj_matrix   # pylint: disable=unsupported-assignment-operation
             else:
                 part_policy = g.get_node_partition_policy(ntype)
-                if g.rank() == 0:
+                if get_rank() == 0:
                     print('Use sparse embeddings on node {}'.format(ntype))
                 self.sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
                                 self.embed_size,
@@ -172,38 +174,6 @@ class GSNodeInputLayer(GSLayer):
         """
         return self.embed_size
 
-def prepare_batch_input(g, input_nodes,
-                        dev='cpu', feat_field='feat'):
-    """ Prepare minibatch input features
-
-    Note: The output is stored in dev.
-
-    Parameters
-    ----------
-    g: DGLGraph
-        The graph.
-    input_nodes: dict of tensor
-        Input nodes.
-    dev: th.device
-        Device to put output in.
-    feat_field: str or dict of str
-        Fields to extract features
-
-    Return:
-    -------
-    Dict of tensors.
-        If a node type has features, it will get node features.
-    """
-    feat = {}
-    for ntype, nid in input_nodes.items():
-        feat_name = None if feat_field is None else \
-            feat_field if isinstance(feat_field, str) \
-            else feat_field[ntype] if ntype in feat_field else None
-
-        if feat_name is not None:
-            feat[ntype] = g.nodes[ntype].data[feat_name][nid].to(dev)
-    return feat
-
 def compute_node_input_embeddings(g, batch_size, embed_layer,
                                   task_tracker=None, feat_field='feat'):
     """
@@ -265,7 +235,7 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
                 emb = embed_layer(feat, {ntype: input_nodes})
                 input_emb[input_nodes] = emb[ntype].to('cpu')
             n_embs[ntype] = input_emb
-        if g.rank() == 0:
+        if get_rank() == 0:
             print("Extract node embeddings")
     if embed_layer is not None:
         embed_layer.train()

@@ -7,7 +7,7 @@ GS_HOME=$(pwd)
 NUM_TRAINERS=4
 NUM_INFO_TRAINERS=2
 export PYTHONPATH=$GS_HOME/python/
-cd $GS_HOME/training_scripts/gsgnn_ec
+cd $GS_HOME/training_scripts/gsgnn_ep
 echo "127.0.0.1" > ip_list.txt
 cd $GS_HOME/inference_scripts/ep_infer
 echo "127.0.0.1" > ip_list.txt
@@ -24,7 +24,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ec/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ec.py --cf ml_ec.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --exclude-training-targets True --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --topk-model-to-save 3  --save-embeds-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-per-iter 1000" | tee train_log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_ec.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --exclude-training-targets True --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --topk-model-to-save 1  --save-embeds-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-per-iter 1000" | tee train_log.txt
 
 error_and_exit $?
 
@@ -65,14 +65,17 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_ec/ | grep epoch | wc -l)
-if test $cnt != 3
+if test $cnt != 1
 then
-    echo "The number of save models $cnt is not equal to the specified topk 3"
+    echo "The number of save models $cnt is not equal to the specified topk 1"
     exit -1
 fi
 
+best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch"
+
 echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_gnn.py --cf ml_ec_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --save-embeds-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-2/" | tee log.txt
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_gnn.py --cf ml_ec_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --multilabel true --num-classes 6 --feat-name feat --mini-batch-infer false --save-embeds-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/" | tee log.txt
 
 error_and_exit $?
 
@@ -112,6 +115,6 @@ then
 fi
 
 cd $GS_HOME/tests/end2end-tests/
-python3 check_infer.py --train_embout /data/gsgnn_ec/emb/epoch-2/ --infer_embout /data/gsgnn_ec/infer-emb/ --edge_prediction
+python3 check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/gsgnn_ec/infer-emb/
 
 error_and_exit $?

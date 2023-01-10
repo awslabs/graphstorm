@@ -4,6 +4,7 @@ import time
 import torch as th
 
 from ..data.utils import alltoallv_nccl, alltoallv_cpu
+from ..utils import get_rank
 
 def calc_distmult_pos_score(h_emb, t_emb, r_emb, device=None):
     """ Calculate DistMulti Score for positive pairs
@@ -425,7 +426,7 @@ def fullgraph_eval(g, embs, relation_embs, device, target_etype, pos_eids,
             return_metric_i = \
                 metric_val / th.distributed.get_world_size()
             return_metric[metric] = return_metric_i.item()
-        if g.rank() == 0:
+        if get_rank() == 0:
             print(f"Full eval {pos_eids.shape[0]} exmpales takes {t1 - t0} seconds")
 
     return return_metric

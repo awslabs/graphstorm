@@ -14,64 +14,63 @@ from .utils import trim_data, modify_fanout_for_target_etype
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
-class GSgnnEdgePredictionDataLoader():
-    """ Edge prediction minibatch dataloader
-        The dataloader we use here will
+class GSgnnEdgeDataLoader():
+    """ The minibatch dataloader for edge prediction
+
     Argument
     --------
-    g: DGLGraph
-    train_dataset: GSgnnEdgePredictionDataLoader
-        The dataset used in training. It must includes train_idxs.
-    fanout: neighbor sample fanout
-    n_layers: number of GNN layers
-    batch_size: minibatch size
-    reverse_edge_types_map: A map for reverse edge type
-    exclude_training_targets: Whether to exclude training edges during neighbor sampling
-    remove_target_edge: This boolean controls whether we will exclude all edges of the target
-                        during message passing.
-    device : the device for which the sampling will be performed.
+    dataset: GSgnnEdgeData
+        The GraphStorm edge dataset
+    target_idx : dict of Tensors
+        The target edges for prediction
+    fanout: list of int or dict of list
+        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+    batch_size: int
+        Batch size
+    device: torch.device
+        the device trainer is running on.
+    train_task : bool
+        Whether or not for training.
+    reverse_edge_types_map: dict
+        A map for reverse edge type
+    exclude_training_targets: bool
+        Whether to exclude training edges during neighbor sampling
+    remove_target_edge: bool
+        Whether we will exclude all edges of the target edge type in message passing.
     """
-    def __init__(self, g, train_dataset, fanout, n_layers, batch_size,
-                 reverse_edge_types_map, remove_target_edge=True, exclude_training_targets=False,
-                 device='cpu'):
-        assert len(fanout) == n_layers
-        # [James] 11/16/2022: temporarily set the self.device to fix the unused variable lint
-        # error. But need to fix this place to check if GSF can use GPU for sampling.
-        # TODO: [James] Set the inner functions to use self.device so that we know if GPU
-        # sampling can work
-        self.device = device
-        # set up dictionary fanout
-        # remove the target edge type from computational graph
-
-        # We need to duplicate this etype list.
-        target_etypes = list(train_dataset.train_etypes)
-        for e in target_etypes:
-            if e in reverse_edge_types_map and reverse_edge_types_map[e] not in target_etypes:
-                target_etypes.append(reverse_edge_types_map[e])
-        if g.rank() == 0:
-            if remove_target_edge:
-                print("Target edge will be removed from message passing graph")
-            else:
-                print("Target edge will not be removed from message passing graph")
-
+    def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
+                 train_task=True, reverse_edge_types_map=None, remove_target_edge=True,
+                 exclude_training_targets=False):
+        self._data = dataset
+        self._device = device
         if remove_target_edge:
-            edge_fanout_lis = modify_fanout_for_target_etype(g=g,
+            assert reverse_edge_types_map is not None, \
+                    "To remove target etype, the reversed etype should be provided."
+            # We need to duplicate this etype list.
+            target_etypes = list(target_idx.keys())
+            for e in target_etypes:
+                if e in reverse_edge_types_map and reverse_edge_types_map[e] not in target_etypes:
+                    target_etypes.append(reverse_edge_types_map[e])
+            edge_fanout_lis = modify_fanout_for_target_etype(g=dataset.g,
                                                              fanout=fanout,
                                                              target_etypes=target_etypes)
         else:
             edge_fanout_lis = fanout
 
-        self.dataloader = self._prepare_train_dataloader(g,
-                                                         train_dataset.train_idxs,
-                                                         edge_fanout_lis,
-                                                         batch_size,
-                                                         exclude_training_targets,
-                                                         reverse_edge_types_map,
-                                                         device='cpu')
+        for etype in target_idx:
+            assert etype in dataset.g.canonical_etypes, \
+                    "edge type {} does not exist in the graph".format(etype)
+        self.dataloader = self._prepare_dataloader(dataset.g,
+                                                   target_idx,
+                                                   edge_fanout_lis,
+                                                   batch_size,
+                                                   exclude_training_targets,
+                                                   reverse_edge_types_map,
+                                                   train_task=train_task)
 
-    def _prepare_train_dataloader(self, g, train_idxs, fanout, batch_size,
-                                  exclude_training_targets=False, reverse_edge_types_map=None,
-                                  device='cpu'):
+    def _prepare_dataloader(self, g, train_idxs, fanout, batch_size,
+                            exclude_training_targets=False, reverse_edge_types_map=None,
+                            train_task=True):
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
 
         # edge loader
@@ -80,8 +79,7 @@ class GSgnnEdgePredictionDataLoader():
                                                     train_idxs,
                                                     sampler,
                                                     batch_size=batch_size,
-                                                    device=device,
-                                                    shuffle=True,
+                                                    shuffle=train_task,
                                                     drop_last=False,
                                                     num_workers=0,
                                                     exclude=exclude_val,
@@ -94,6 +92,12 @@ class GSgnnEdgePredictionDataLoader():
 
     def __next__(self):
         return self.dataloader.__next__()
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+        """
+        return self._data
 
 
 ################ Minibatch DataLoader (Link Prediction) #######################
@@ -111,37 +115,46 @@ class GSgnnLinkPredictionDataLoader():
 
     Argument
     --------
-    g: DGLGraph
-    train_dataset: GSgnnLinkPredictionTrainData
-        The dataset used in training. It must includes train_idxs.
-    fanout: neighbor sample fanout
-    n_layers: number of GNN layers
-    batch_size: minibatch size
-    num_negative_edges: num of negative edges per positive edge
-    device : the device trainer is running on.
-    exclude_training_targets: Whether to exclude training edges during neighbor sampling
-    reverse_edge_types_map: A map for reverse edge type
+    dataset: GSgnnEdgeData
+        The GraphStorm edge dataset
+    target_idx : dict of Tensors
+        The target edges for prediction
+    fanout: list of int or dict of list
+        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+    batch_size: int
+        Batch size
+    num_negative_edges: int
+        The number of negative edges per positive edge
+    device: torch.device
+        the device trainer is running on.
+    train_task : bool
+        Whether or not for training.
+    reverse_edge_types_map: dict
+        A map for reverse edge type
+    exclude_training_targets: bool
+        Whether to exclude training edges during neighbor sampling
     """
-    def __init__(self, g, train_dataset, fanout, n_layers, batch_size, num_negative_edges, device,
-        exclude_training_targets=False, reverse_edge_types_map=None):
-        assert len(fanout) == n_layers
-        self.dataloader = self._prepare_train_dataloader(g,
-                                                         train_dataset.train_idxs,
-                                                         fanout,
-                                                         num_negative_edges,
-                                                         batch_size,
-                                                         device,
-                                                         exclude_training_targets,
-                                                         reverse_edge_types_map)
+    def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
+                 train_task=True, reverse_edge_types_map=None, exclude_training_targets=False):
+        self._data = dataset
+        for etype in target_idx:
+            assert etype in dataset.g.canonical_etypes, \
+                    "edge type {} does not exist in the graph".format(etype)
+
+        self.dataloader = self._prepare_dataloader(dataset.g, target_idx, fanout,
+                num_negative_edges, batch_size, device,
+                train_task=train_task,
+                exclude_training_targets=exclude_training_targets,
+                reverse_edge_types_map=reverse_edge_types_map)
 
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
         negative_sampler = dgl.dataloading.negative_sampler.Uniform(num_negative_edges)
         return negative_sampler
 
-    def _prepare_train_dataloader(self, g, train_idxs, fanout,
-                                  num_negative_edges, batch_size, device,
-                                  exclude_training_targets=False, reverse_edge_types_map=None):
+    def _prepare_dataloader(self, g, train_idxs, fanout,
+                            num_negative_edges, batch_size, device, train_task=True,
+                            exclude_training_targets=False, reverse_edge_types_map=None):
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
@@ -151,19 +164,18 @@ class GSgnnLinkPredictionDataLoader():
                 train_idxs[etype] = trim_data(train_idxs[etype], device)
         else:
             train_idxs = trim_data(train_idxs, device)
-        # latest documentation https://docs.dgl.ai/generated/dgl.dataloading.as_edge_prediction_sampler.html?highlight=as_edge_prediction_sampler pylint: disable=line-too-long
+        exclude = 'reverse_types' if exclude_training_targets else None
+        reverse_etypes = reverse_edge_types_map if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
                                                     train_idxs,
                                                     sampler,
                                                     batch_size=batch_size,
                                                     negative_sampler=negative_sampler,
-                                                    device="cpu", # Only cpu is supported in DistGraph
-                                                    shuffle=True,
+                                                    shuffle=train_task,
                                                     drop_last=False,
                                                     num_workers=0,
-                                                    exclude='reverse_types' if exclude_training_targets else None,
-                                                    reverse_etypes=reverse_edge_types_map \
-                                                        if exclude_training_targets else None)
+                                                    exclude=exclude,
+                                                    reverse_etypes=reverse_etypes)
         return loader
 
     def __iter__(self):
@@ -171,6 +183,12 @@ class GSgnnLinkPredictionDataLoader():
 
     def __next__(self):
         return self.dataloader.__next__()
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+        """
+        return self._data
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
@@ -352,31 +370,12 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
         Note: The resulting batch size of a mini batch may be larger
               than the batch size set by a user.
 
-    Parameters
-    ----------
-    g: DGLGraph
-        Input graph
-    train_dataset: GSgnnLinkPredictionTrainData
-        The dataset used in training. It must includes train_idxs.
-    fanout: list of int
-        Neighbor sample fanout
-    n_layers: int
-        Number of GNN layers
-    batch_size: int
-        Minibatch size
-    num_negative_edges: int
-        Num of negative edges per positive edge
-    device : device
-        The device trainer is running on.
-    exclude_training_targets:
-        Whether to exclude training edges during neighbor sampling
-    reverse_edge_types_map:
-        A map for reverse edge type
     """
 
-    def _prepare_train_dataloader(self, g, train_idxs, fanout, num_negative_edges,
-                                  batch_size, device, exclude_training_targets=False,
-                                  reverse_edge_types_map=None):
+    def _prepare_dataloader(self, g, train_idxs, fanout, num_negative_edges,
+                            batch_size, device, train_task=True,
+                            exclude_training_targets=False,
+                            reverse_edge_types_map=None):
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
@@ -386,15 +385,13 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
                 train_idxs[etype] = trim_data(train_idxs[etype], device)
         else:
             train_idxs = trim_data(train_idxs, device)
-        # latest documentation https://docs.dgl.ai/generated/dgl.dataloading.as_edge_prediction_sampler.html?highlight=as_edge_prediction_sampler pylint: disable=line-too-long
         exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = AllEtypeDistEdgeDataLoader(g,
                                             train_idxs,
                                             sampler,
                                             batch_size=batch_size,
                                             negative_sampler=negative_sampler,
-                                            device="cpu", # Only cpu is supported in DistGraph
-                                            shuffle=True,
+                                            shuffle=train_task,
                                             drop_last=False,
                                             num_workers=0,
                                             exclude=exclude_val,
@@ -426,33 +423,38 @@ class GSgnnNodeDataLoader():
 
     Parameters
     ----------
-    g: DGLGraph
-        The graph used in training and testing
-    train_dataset: GSgnnNodeTrainData
-        Training ataset
-    fanout: list of int
-        Neighbor sample fanout
-    n_layers: int
-        Number of GNN layers
+    dataset: GSgnnNodeData
+        The GraphStorm dataset
+    target_idx : dict of Tensors
+        The target nodes for prediction
+    fanout: list of int or dict of list
+        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size
     device: torch.device
         the device trainer is running on.
+    train_task : bool
+        Whether or not for training.
     """
-    def __init__(self, g, train_dataset, fanout, n_layers, batch_size, device):
-        assert len(fanout) == n_layers
-        self.dataloader = self._prepare_train_dataloader(g,
-                                                         train_dataset.predict_ntype,
-                                                         train_dataset.train_idx,
-                                                         fanout,
-                                                         batch_size,
-                                                         device)
+    def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True):
+        self._data = dataset
+        assert isinstance(target_idx, dict)
+        for ntype in target_idx:
+            assert ntype in dataset.g.ntypes, \
+                    "node type {} does not exist in the graph".format(ntype)
+        self.dataloader = self._prepare_dataloader(dataset.g,
+                                                   target_idx,
+                                                   fanout,
+                                                   batch_size,
+                                                   train_task,
+                                                   device)
 
-    def _prepare_train_dataloader(self, g, predict_ntype, train_idx, fanout, batch_size, device):
+    def _prepare_dataloader(self, g, target_idx, fanout, batch_size, train_task, device):
+        for ntype in target_idx:
+            target_idx[ntype] = trim_data(target_idx[ntype], device)
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
-        train_idx = trim_data(train_idx, device)
-        loader = dgl.dataloading.DistNodeDataLoader(g, {predict_ntype: train_idx}, sampler,
-            batch_size=batch_size, shuffle=True, num_workers=0)
+        loader = dgl.dataloading.DistNodeDataLoader(g, target_idx, sampler,
+            batch_size=batch_size, shuffle=train_task, num_workers=0)
 
         return loader
 
@@ -461,3 +463,9 @@ class GSgnnNodeDataLoader():
 
     def __next__(self):
         return self.dataloader.__next__()
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+        """
+        return self._data

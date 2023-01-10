@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from argparse import Namespace
+import tempfile
 
 import torch as th
 import numpy as np
@@ -106,8 +107,9 @@ def test_topklist():
         assert return_val_list[epoch] == return_val
 
 def test_get_feat_size():
-    # get the test dummy distributed graph
-    g = generate_dummy_dist_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, 'feat')
     assert len(feat_size) == len(g.ntypes)

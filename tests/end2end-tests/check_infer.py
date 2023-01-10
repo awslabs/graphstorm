@@ -11,7 +11,7 @@ if __name__ == '__main__':
                            help="Path to embedding saved by trainer")
     argparser.add_argument("--infer_embout", type=str, required=True,
                            help="Path to embedding saved by trainer")
-    argparser.add_argument("--edge_prediction", action='store_true',
+    argparser.add_argument("--link_prediction", action='store_true',
                            help="Path to embedding saved by trainer")
     args = argparser.parse_args()
     with open(os.path.join(args.train_embout, "emb_info.json"), 'r', encoding='utf-8') as f:
@@ -21,15 +21,15 @@ if __name__ == '__main__':
         info_emb_info = json.load(f)
 
     # meta info should be same
-    if args.edge_prediction:
-        # For edge classification, in inference we only save
-        # node embeddings for the target type.
-        assert len(train_emb_info["emb_name"]) >= len(info_emb_info["emb_name"])
-    else:
+    if args.link_prediction:
         # For link prediction, both training and inference will save
         # node embeddings for each node type.
         assert len(train_emb_info["emb_name"]) == len(info_emb_info["emb_name"])
         assert sorted(train_emb_info["emb_name"]) == sorted(info_emb_info["emb_name"])
+    else:
+        # For other tasks, we only save node embeddings for the target type
+        # in the inference.
+        assert len(train_emb_info["emb_name"]) >= len(info_emb_info["emb_name"])
 
     # feats are same
     train_emb_files = os.listdir(args.train_embout)

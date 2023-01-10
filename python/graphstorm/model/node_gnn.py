@@ -2,31 +2,19 @@
 """
 import torch as th
 
-from .gnn import GSgnnModel, set_gnn_encoder
-from .loss_func import ClassifyLossFunc, RegressionLossFunc
-from .node_decoder import EntityClassifier, EntityRegression
-from ..config import BUILTIN_TASK_NODE_CLASSIFICATION
-from ..config import BUILTIN_TASK_NODE_REGRESSION
+from .gnn import GSgnnModel
 
 class GSgnnNodeModel(GSgnnModel):
     """ GraphStorm GNN model for node prediction tasks
 
     Parameters
     ----------
-    g: DGLGraph
-        The graph used in training and testing
-    predict_ntype: str
-        The node type for prediction.
     alpha_l2norm : float
         The alpha for L2 normalization.
-    task_type : str
-        The task type
     """
-    def __init__(self, g, predict_ntype, alpha_l2norm, task_type):
-        super(GSgnnNodeModel, self).__init__(g)
-        self.predict_ntype = predict_ntype
+    def __init__(self, alpha_l2norm):
+        super(GSgnnNodeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
-        self._task_type = task_type
 
     def forward(self, blocks, input_feats, input_nodes, labels):
         """ The forward function for node prediction.
@@ -35,11 +23,11 @@ class GSgnnNodeModel(GSgnnModel):
         ----------
         blocks : list of DGLBlock
             The message passing graph for computing GNN embeddings.
-        input_feats : dict
+        input_feats : dict of Tensors
             The input features of the message passing graphs.
-        input_nodes : dict
+        input_nodes : dict of Tensors
             The input nodes of the message passing graphs.
-        labels: Tensor
+        labels: dict of Tensor
             The labels of the predicted nodes.
 
         Returns
@@ -48,7 +36,12 @@ class GSgnnNodeModel(GSgnnModel):
         """
         alpha_l2norm = self.alpha_l2norm
         gnn_embs = self.compute_embed_step(blocks, input_feats, input_nodes)
-        emb = gnn_embs[self.predict_ntype]
+        # TODO(zhengda) we only support node prediction on one node type now
+        assert len(labels) == 1, "We only support prediction on one node type for now."
+        target_ntype = list(labels.keys())[0]
+        assert target_ntype in gnn_embs
+        emb = gnn_embs[target_ntype]
+        labels = labels[target_ntype]
         logits = self.decoder(emb)
         pred_loss = self.loss_func(logits, labels)
 
@@ -59,78 +52,116 @@ class GSgnnNodeModel(GSgnnModel):
             reg_loss += d_para.square().sum()
 
         # weighted addition to the total loss
-        total_loss = pred_loss + alpha_l2norm * reg_loss
+        return pred_loss + alpha_l2norm * reg_loss
 
-        return total_loss
-
-    def predict(self, g, feat_name, target_nidx,
-                fanout, batch_size, mini_batch_infer, task_tracker=None):
-        """ Make predict on the target nodes of the input graph.
+    def predict(self, blocks, input_feats, input_nodes):
+        """ Make prediction on the nodes with GNN.
 
         Parameters
         ----------
-        g : DGLGraph
-            The input graph
-        feat_name : str
-            The node feature names
-        target_nidx: dict of tensors
-            The idices of nodes to generate embeddings.
-        fanout : list of int
-            The fanout for sampling neighbors.
-        batch_size : int
-            The mini-batch size
-        mini_batch_infer : bool
-            whether or not to use mini-batch inference.
-        task_tracker : GSTaskTrackerAbc
-            The task tracker
+        blocks : list of DGLBlock
+            The message passing graph for computing GNN embeddings.
+        input_feats : dict of Tensors
+            The input features of the message passing graphs.
+        input_nodes : dict of Tensors
+            The input nodes of the message passing graphs.
 
         Returns
         -------
-        tensor
-            The prediction results.
+        Tensor : the prediction results.
+        Tensor : the GNN embeddings.
         """
-        outputs = self.compute_embeddings(g, feat_name, target_nidx,
-                                          fanout, batch_size, mini_batch_infer, task_tracker)
-        output = outputs[self.predict_ntype]
-        self.decoder.eval()
-        with th.no_grad():
-            # TODO(zhengda) we need to use mini-batch here.
-            res = self.decoder.predict(output[0:len(output)].to(self.device))
-        self.decoder.train()
-        return res, outputs
+        gnn_embs = self.compute_embed_step(blocks, input_feats, input_nodes)
+        # TODO(zhengda) we only support node prediction on one node type.
+        assert len(gnn_embs) == 1, 'There are {} node types: {}'.format(len(gnn_embs),
+                                                                        list(gnn_embs.keys()))
+        target_ntype = list(gnn_embs.keys())[0]
+        return self.decoder.predict(gnn_embs[target_ntype]), gnn_embs[target_ntype]
 
-    @property
-    def task_name(self):
-        """ The task name of the model.
-        """
-        return self._task_type
-
-def create_node_gnn_model(g, config, train_task):
-    """ Create a GNN model for node prediction.
+def node_mini_batch_gnn_predict(model, loader, return_label=False):
+    """ Perform mini-batch prediction on a GNN model.
 
     Parameters
     ----------
-    g: DGLGraph
-        The graph used in training and testing
-    config: GSConfig
-        Configurations
-    train_task : bool
-        Whether this model is used for training.
+    model : GSgnnModel
+        The GraphStorm GNN model
+    loader : GSgnnNodeDataLoader
+        The GraphStorm dataloader
+    return_label : bool
+        Whether or not to return labels.
 
     Returns
     -------
-    GSgnnModel : The GNN model.
+    Tensor : GNN prediction results.
+    Tensor : GNN embeddings.
+    Tensor : labels if return_labels is True
     """
-    model = GSgnnNodeModel(g, config.predict_ntype, config.alpha_l2norm, config.task_type)
-    set_gnn_encoder(model, g, config, train_task)
-    if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
-        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims,
-                                           config.num_classes,
-                                           config.multilabel))
-        model.set_loss_func(ClassifyLossFunc(config))
-    elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
-        model.set_decoder(EntityRegression(model.gnn_encoder.out_dims))
-        model.set_loss_func(RegressionLossFunc())
+    device = model.device
+    data = loader.data
+    preds = []
+    embs = []
+    labels = []
+    model.eval()
+    with th.no_grad():
+        for input_nodes, seeds, blocks in loader:
+            input_feats = data.get_node_feats(input_nodes, device)
+            blocks = [block.to(device) for block in blocks]
+            pred, emb = model.predict(blocks, input_feats, input_nodes)
+            preds.append(pred.cpu())
+            embs.append(emb.cpu())
+
+            if return_label:
+                lbl = data.get_labels(seeds)
+                assert len(lbl) == 1
+                labels.append(list(lbl.values())[0])
+    model.train()
+    preds = th.cat(preds)
+    embs = th.cat(embs)
+    if return_label:
+        labels = th.cat(labels)
+        return preds, embs, labels
     else:
-        raise ValueError('unknown node task: {}'.format(config.task_type))
-    return model
+        return preds, embs
+
+def node_mini_batch_predict(model, emb, loader, return_label=False):
+    """ Perform mini-batch prediction.
+
+    Parameters
+    ----------
+    model : GSgnnModel
+        The GraphStorm GNN model
+    emb : dict of Tensor
+        The GNN embeddings
+    loader : GSgnnNodeDataLoader
+        The GraphStorm dataloader
+    return_label : bool
+        Whether or not to return labels.
+
+    Returns
+    -------
+    Tensor : GNN prediction results.
+    Tensor : labels if return_labels is True
+    """
+    device = model.device
+    data = loader.data
+    preds = []
+    labels = []
+    # TODO(zhengda) I need to check if the data loader only returns target nodes.
+    model.eval()
+    with th.no_grad():
+        for input_nodes, seeds, _ in loader:
+            assert len(input_nodes) == 1, "Currently we only support one node type"
+            ntype = list(input_nodes.keys())[0]
+            in_nodes = input_nodes[ntype]
+            pred = model.decoder.predict(emb[ntype][in_nodes].to(device))
+            preds.append(pred.cpu())
+            if return_label:
+                lbl = data.get_labels(seeds)
+                labels.append(lbl[ntype])
+    model.train()
+    if return_label:
+        preds = th.cat(preds)
+        labels = th.cat(labels)
+        return preds, labels
+    else:
+        return th.cat(preds)
