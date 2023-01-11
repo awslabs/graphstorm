@@ -79,7 +79,6 @@ class OGBTextFeatDataset(GSgnnDataset):
         """ Save processed graph and the raw text data into disk.
 
         The raw texts for each node type are stored separately into different files.
-        A query_asin_match.pkl file is created to store the meta-information of raw text data.
 
         Parameters
         ----------

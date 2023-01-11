@@ -1,69 +1,10 @@
 """Utility functions for dataset and data processing
 """
-import os
-import pickle
 import numpy as np
 import torch as th
 import torch.distributed as dist
 
 from sklearn.preprocessing import LabelBinarizer
-
-
-def save_raw_text(path, dname, raw_text):
-    """Save raw text to local a file.
-    """
-    config = {"nodes":{}}
-    for ntype, text_data in raw_text.items():
-        nfile = "{}_{}.txt".format(dname, ntype)
-        print('Save {}'.format(nfile))
-        config["nodes"][ntype] = nfile
-        nfile = os.path.join(path, nfile)
-        with open(nfile, 'w+', encoding='utf-8') as f:
-            for line in text_data:
-                f.write("{}\n".format(line))
-
-    config_path = "{}.pkl".format(dname)
-    config_path = os.path.join(path, config_path)
-    with open(config_path, 'wb') as f:
-        pickle.dump(config, f)
-    print("Done save raw text")
-
-def save_maps(path, dname, map_data):
-    """Save the the mapping data to a local file
-    """
-    map_file = "{}.pkl".format(dname)
-    map_file = os.path.join(path, map_file)
-    with open(map_file, 'wb', encoding='utf-8') as f:
-        pickle.dump(map_data, f)
-
-def load_maps(path, dname):
-    """Load the mapping data from the local file
-    """
-    map_file = "{}.pkl".format(dname)
-    map_file = os.path.join(path, map_file)
-    with open(map_file, 'rb', encoding='utf-8') as f:
-        map_data = pickle.load(f)
-    return map_data
-
-def load_raw_text(path, dname):
-    """Load the raw text from the local file
-    """
-    config_path = "{}.pkl".format(dname)
-    config_path = os.path.join(path, config_path)
-    with open(config_path, 'rb') as f:
-        config = pickle.load(f)
-
-    text_data = {}
-    for ntype, nfile in config.items():
-        tdata = []
-        nfile = os.path.join(path, nfile)
-        with open(nfile, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                tdata.append(line)
-        text_data[ntype] = tdata
-
-    return text_data
 
 def get_id(nid_dict, key):
     """ Convert Raw node id into integer ids.
