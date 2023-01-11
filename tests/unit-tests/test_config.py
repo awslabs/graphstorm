@@ -291,7 +291,7 @@ def create_io_config(tmp_path, file_name):
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
         "save_model_per_iters": 100,
-        "save_embeds_path": "./save_emb",
+        "save_embed_path": "./save_emb",
     }
 
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
@@ -308,7 +308,7 @@ def test_load_io_info():
         assert config.restore_optimizer_path == None
         assert config.save_model_path == None
         assert config.save_model_per_iters == -1
-        assert config.save_embeds_path == None
+        assert config.save_embed_path == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
                          local_rank=0)
@@ -317,7 +317,7 @@ def test_load_io_info():
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
-        assert config.save_embeds_path == "./save_emb"
+        assert config.save_embed_path == "./save_emb"
 
 def create_task_tracker_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -876,7 +876,7 @@ def create_edge_class_config(tmp_path, file_name):
         "multilabel": True,
         "num_classes": 4,
         "num_decoder_basis": 4,
-        "remove_target_edge": False,
+        "remove_target_edge_type": False,
         "decoder_type": "MLPDecoder"
     }
 
@@ -900,7 +900,7 @@ def create_edge_class_config(tmp_path, file_name):
         "multilabel": "error",
         "num_classes": 1,
         "num_decoder_basis": 1,
-        "remove_target_edge": "error",
+        "remove_target_edge_type": "error",
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
@@ -923,7 +923,7 @@ def test_edge_class_info():
         check_failure(config, "target_etype")
         assert config.decoder_type == "DenseBiDecoder"
         assert config.num_decoder_basis == 2
-        assert config.remove_target_edge == True
+        assert config.remove_target_edge_type == True
         assert len(config.reverse_edge_types_map) == 0
         check_failure(config, "label_field")
         assert config.multilabel == False
@@ -934,8 +934,8 @@ def test_edge_class_info():
         assert config.target_etype[0] == ("query", "match", "asin")
         assert len(config.target_etype) == 1
         assert config.decoder_type == "MLPDecoder"
-        assert config.num_decoder_basis == 4
-        assert config.remove_target_edge == False
+        check_failure(config, "num_decoder_basis")
+        assert config.remove_target_edge_type == False
         assert len(config.reverse_edge_types_map) == 0
         assert config.label_field == "label"
         assert config.multilabel == True
@@ -965,7 +965,7 @@ def test_edge_class_info():
         check_failure(config, "multilabel")
         check_failure(config, "num_classes")
         check_failure(config, "num_decoder_basis")
-        check_failure(config, "remove_target_edge")
+        check_failure(config, "remove_target_edge_type")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1087,7 +1087,7 @@ def test_lp_info():
         assert len(config.reverse_edge_types_map) == 1
         assert config.reverse_edge_types_map[("query", "exactmatch","asin")] == \
             ("asin", "rev-exactmatch","query")
-        assert config.gamma == 2.0
+        check_failure(config, "gamma") # use_dot_product == True
         assert config.lp_loss_func == BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
@@ -1134,43 +1134,6 @@ def test_lp_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail_metric3.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "eval_metric")
-
-def create_lml_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["mlm"] = {
-    }
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["mlm"] = {
-        "mlm_probability": 0.4
-    }
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["mlm"] = {
-        "mlm_probability": 0.0
-    }
-    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-def test_lml_info():
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        create_lml_config(Path(tmpdirname), 'lml_test')
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lml_test_default.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert config.mlm_probability == 0.15
-        assert config.eval_metric == None
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lml_test.yaml'), local_rank=0)
-        config = GSConfig(args)
-        assert config.mlm_probability == 0.4
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lml_test_fail.yaml'), local_rank=0)
-        config = GSConfig(args)
-        check_failure(config, "mlm_probability")
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -1339,7 +1302,7 @@ def create_io_config(tmp_path, file_name):
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
         "save_model_per_iters": 100,
-        "save_embeds_path": "./save_emb",
+        "save_embed_path": "./save_emb",
     }
 
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
@@ -1348,7 +1311,7 @@ def create_io_config(tmp_path, file_name):
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
         "save_model_per_iters": 100,
-        "save_embeds_path": "./save_emb",
+        "save_embed_path": "./save_emb",
         "save_predict_path": "./prediction",
     }
 
@@ -1366,7 +1329,7 @@ def test_load_io_info():
         assert config.restore_optimizer_path == None
         assert config.save_model_path == None
         assert config.save_model_per_iters == -1
-        assert config.save_embeds_path == None
+        assert config.save_embed_path == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
                          local_rank=0)
@@ -1375,13 +1338,13 @@ def test_load_io_info():
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
-        assert config.save_embeds_path == "./save_emb"
+        assert config.save_embed_path == "./save_emb"
         assert config.save_predict_path == "./save_emb"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.save_embeds_path == "./save_emb"
+        assert config.save_embed_path == "./save_emb"
         assert config.save_predict_path == "./prediction"
 
 if __name__ == '__main__':

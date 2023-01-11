@@ -18,7 +18,6 @@ from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import BUILTIN_TASK_LINK_PREDICTION
-from .config import BUILTIN_TASK_MLM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
@@ -72,7 +71,7 @@ def get_argument_parser():
     parser = _add_link_prediction_args(parser)
     parser = _add_node_classification_args(parser)
     parser = _add_edge_classification_args(parser)
-    parser = _add_mlm_args(parser)
+    parser = _add_task_general_args(parser)
     return parser
 
 # pylint: disable=no-member
@@ -114,8 +113,6 @@ class GSConfig:
                 setattr(self, "_task_type", BUILTIN_TASK_NODE_CLASSIFICATION)
             elif family == BUILTIN_TASK_NODE_REGRESSION:
                 setattr(self, "_task_type", BUILTIN_TASK_NODE_REGRESSION)
-            elif family == BUILTIN_TASK_MLM:
-                setattr(self, "_task_type", BUILTIN_TASK_MLM)
 
         if 'udf' in configuration:
             udf_family = configuration['udf']
@@ -139,7 +136,7 @@ class GSConfig:
             if arg_key not in ["yaml_config_file", "local_rank"]:
                 if arg_key == "save_model_path" and arg_val.lower() == "none":
                     arg_val = None
-                if arg_key == "save_embeds_path" and arg_val.lower() == "none":
+                if arg_key == "save_embed_path" and arg_val.lower() == "none":
                     arg_val = None
                 if arg_key == "save_predict_path" and arg_val.lower() == "none":
                     arg_val = None
@@ -357,6 +354,7 @@ class GSConfig:
         return True
 
     ###################### I/O related ######################
+    ### Restore model ###
     @property
     def restore_model_path(self):
         """ Path to the entire model including embed layer, encoder and decoder
@@ -378,12 +376,12 @@ class GSConfig:
 
     ### Save model ###
     @property
-    def save_embeds_path(self):
+    def save_embed_path(self):
         """ Path to save the GNN embeddings from the best model
         """
         # pylint: disable=no-member
-        if hasattr(self, "_save_embeds_path"):
-            return self._save_embeds_path
+        if hasattr(self, "_save_embed_path"):
+            return self._save_embed_path
         return None
 
     @property
@@ -409,7 +407,22 @@ class GSConfig:
         # By default, use -1, means do not auto save models
         return -1
 
-    ###################### Task tracker related ######################
+    @property
+    def topk_model_to_save(self):
+        """ the number of top k best validation performance model to save
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_topk_model_to_save"):
+            assert self._topk_model_to_save > 0, "Top K best model must > 0"
+            assert self.save_model_path is not None, \
+                'To save models, please specify a valid path. But got None'
+            return self._topk_model_to_save
+
+        else:
+            # By default saving all models
+            return math.inf
+
+    #### Task tracker and print options ####
     @property
     def task_tracker(self):
         """ Get the type of task_tracker
@@ -482,6 +495,60 @@ class GSConfig:
         return self._batch_size
 
     @property
+    def sparse_lr(self): # pylint: disable=invalid-name
+        """ Sparse optimizer learning rate
+        """
+        if hasattr(self, "_sparse_lr"):
+            sparse_lr = float(self._sparse_lr)
+            assert sparse_lr > 0.0, \
+                "Sparse optimizer learning rate must be larger than 0"
+            return sparse_lr
+
+        return self.lr
+
+    @property
+    def use_node_embeddings(self):
+        """ Whether to use extra learnable node embeddings
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_use_node_embeddings"):
+            assert self._use_node_embeddings in [True, False]
+            return self._use_node_embeddings
+        # By default do not use extra node embedding
+        # It will make the model transductive
+        return False
+
+    @property
+    def wd_l2norm(self):
+        """ Weight decay
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_wd_l2norm"):
+            return self._wd_l2norm
+        return 0
+
+    @property
+    def alpha_l2norm(self):
+        """ coef for l2 norm of unused weights
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_alpha_l2norm"):
+            return self._alpha_l2norm
+        return .0
+
+    @property
+    def use_self_loop(self):
+        """ Whether to include self feature as a special relation
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_use_self_loop"):
+            assert self._use_self_loop in [True, False]
+            return self._use_self_loop
+        # By default use self loop
+        return True
+
+    ### control evaluation ###
+    @property
     def eval_batch_size(self):
         """ Evaluation batch size
 
@@ -515,30 +582,7 @@ class GSConfig:
         # We do validation by default
         return False
 
-    @property
-    def sparse_lr(self): # pylint: disable=invalid-name
-        """ Sparse optimizer learning rate
-        """
-        if hasattr(self, "_sparse_lr"):
-            sparse_lr = float(self._sparse_lr)
-            assert sparse_lr > 0.0, \
-                "Sparse optimizer learning rate must be larger than 0"
-            return sparse_lr
-
-        return self.lr
-
-    @property
-    def use_node_embeddings(self):
-        """ Whether to use extra learnable node embeddings
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_use_node_embeddings"):
-            assert self._use_node_embeddings in [True, False]
-            return self._use_node_embeddings
-        # By default do not use extra node embedding
-        # It will make the model transductive
-        return False
-
+    ### control early stop ###
     @property
     def call_to_consider_early_stop(self):
         """ Burning period calls to start considering early stop
@@ -597,49 +641,6 @@ class GSConfig:
         # By default do not enable early stop
         return False
 
-    @property
-    def topk_model_to_save(self):
-        """ the number of top k best validation performance model to save
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_topk_model_to_save"):
-            assert self._topk_model_to_save > 0, "Top K best model must > 0"
-            assert self.save_model_path is not None, \
-                'To save models, please specify a valid path. But got None'
-            return self._topk_model_to_save
-        else:
-            # By default saving all models
-            return math.inf
-
-    @property
-    def wd_l2norm(self):
-        """ Weight decay
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_wd_l2norm"):
-            return self._wd_l2norm
-        return 0
-
-    @property
-    def alpha_l2norm(self):
-        """ coef for l2 norm of unused weights
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_alpha_l2norm"):
-            return self._alpha_l2norm
-        return .0
-
-    @property
-    def use_self_loop(self):
-        """ Whether to include self feature as a special relation
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_use_self_loop"):
-            assert self._use_self_loop in [True, False]
-            return self._use_self_loop
-        # By default use self loop
-        return True
-
     ## RGCN only ##
     @property
     def n_bases(self):
@@ -666,21 +667,12 @@ class GSConfig:
         return 4
 
     ############ task related #############
-    ### Node classification ###
-    @property
-    def predict_ntype(self):
-        """ The node type for prediction
-        """
-        # pylint: disable=no-member
-        assert hasattr(self, "_predict_ntype"), \
-            "Must provide the target ntype through predict_ntype"
-        return self._predict_ntype
-
+    ###classification/regression related ####
     @property
     def label_field(self):
         """ The label field in the data
 
-            Used by node classification and edge classification
+            Used by node and edge classification/regression tasks.
         """
         # pylint: disable=no-member
         assert hasattr(self, "_label_field"), \
@@ -689,7 +681,7 @@ class GSConfig:
 
     @property
     def num_classes(self):
-        """ The cardinality of labels in a classifiction task
+        """ The cardinality of labels in a classification task
 
             Used by node classification and edge classification
         """
@@ -701,7 +693,7 @@ class GSConfig:
 
     @property
     def multilabel(self):
-        """ Whether the task is a multi-label classifiction task
+        """ Whether the task is a multi-label classification task
 
             Used by node classification and edge classification
         """
@@ -714,7 +706,7 @@ class GSConfig:
     @property
     def multilabel_weights(self):
         """Used to specify label weight of each class in a
-           multi-label classifiction task. It is feed into th.nn.BCEWithLogitsLoss.
+           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss.
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
@@ -759,7 +751,8 @@ class GSConfig:
             return th.tensor(weights)
 
         return None
-    ###### classification/regression inference related #####
+
+    ###classification/regression inference related ####
     @property
     def save_predict_path(self):
         """ Path to save prediction results.
@@ -769,13 +762,23 @@ class GSConfig:
             return self._save_predict_path
 
         # if save_predict_path is not specified in inference
-        # use save_embeds_path
-        return self.save_embeds_path
+        # use save_embed_path
+        return self.save_embed_path
+
+    ### Node related task variables ###
+    @property
+    def predict_ntype(self):
+        """ The node type for prediction
+        """
+        # pylint: disable=no-member
+        assert hasattr(self, "_predict_ntype"), \
+            "Must provide the target ntype through predict_ntype"
+        return self._predict_ntype
 
     #### edge related task variables ####
     @property
     def reverse_edge_types_map(self):
-        """ A list of reverse egde type info.
+        """ A list of reverse edge type info.
 
             Each information is in the following format:
             <head,relation,reverse relation,tail>. For example:
@@ -814,14 +817,15 @@ class GSConfig:
         # By default return an empty dict
         return {}
 
-    ### Edge classification ###
+    ### Edge classification and regression tasks ###
     # TODO(zhengda) we should rename this to predict_etype
     @property
     def target_etype(self):
         """ The list of canonical etype that will be added as
-            a training target in edge classification
+            a training target in edge classification and regression tasks.
 
-            Only used with edge classification
+            TODO(xiangsx): Only support single task edge
+            classification/regression. Support multiple tasks when needed.
         """
         # pylint: disable=no-member
         assert hasattr(self, "_target_etype"), \
@@ -831,11 +835,16 @@ class GSConfig:
             "[\"query,clicks,asin\", \"query,search,asin\"]."
         assert len(self._target_etype) > 0, \
             "There must be at least one target etype."
+        if len(self._target_etype) != 1:
+            print(f"WARNING: only {self._target_etype[0]} will be used."
+                "Currently, GraphStorm only supports single task edge "
+                "classification/regression. Please contact GraphStorm "
+                "dev team to support multi-task.")
 
         return [tuple(target_etype.split(',')) for target_etype in self._target_etype]
 
     @property
-    def remove_target_edge(self):
+    def remove_target_edge_type(self):
         """ Whether to remove the training target edge type for message passing.
 
             Will set the fanout of training target edge type as zero
@@ -843,9 +852,9 @@ class GSConfig:
             Only used with edge classification
         """
         # pylint: disable=no-member
-        if hasattr(self, "_remove_target_edge"):
-            assert self._remove_target_edge in [True, False]
-            return self._remove_target_edge
+        if hasattr(self, "_remove_target_edge_type"):
+            assert self._remove_target_edge_type in [True, False]
+            return self._remove_target_edge_type
 
         # By default, remove training target etype during
         # message passing to avoid information leakage
@@ -853,7 +862,7 @@ class GSConfig:
 
     @property
     def decoder_type(self):
-        """ Type of edge clasification decoder
+        """ Type of edge clasification or regression decoder
         """
         # pylint: disable=no-member
         if hasattr(self, "_decoder_type"):
@@ -870,6 +879,8 @@ class GSConfig:
         if hasattr(self, "_num_decoder_basis"):
             assert self._num_decoder_basis > 1, \
                 "Decoder basis must be larger than 1"
+            assert self.decoder_type == "DenseBiDecoder", \
+                "num-decoder-basis only works with DenseBiDecoder"
             return self._num_decoder_basis
 
         # By default, return 2
@@ -925,7 +936,9 @@ class GSConfig:
     @property
     def train_etype(self):
         """ The list of canonical etype that will be added as
-            training target(s) with the target e type(s)
+            training target with the target e type(s)
+
+            If not provided, all edge types will be used as training target.
         """
         # pylint: disable=no-member
         if hasattr(self, "_train_etype"):
@@ -941,7 +954,9 @@ class GSConfig:
     @property
     def eval_etype(self):
         """ The list of canonical etype that will be added as
-            evaluation target(s) with the target e type(s)
+            evaluation target with the target edge type(s)
+
+            If not provided, all edge types will be used as evaluation target.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_etype"):
@@ -988,8 +1003,10 @@ class GSConfig:
 
     @property
     def gamma(self):
-        """ Gamma for DistMult of TransE
+        """ Gamma for DistMult
         """
+        assert self.use_dot_product is False, \
+            "Only used with DistMult"
         if hasattr(self, "_gamma"):
             return float(self._gamma)
 
@@ -1008,20 +1025,6 @@ class GSConfig:
         # which means using the default evaluation metrics for different tasks.
         return BUILTIN_LP_LOSS_CROSS_ENTROPY
 
-    ### mlm ###
-    @property
-    def mlm_probability(self):
-        """ Percentage of tokens being masked when pretraining using mlm.
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_mlm_probability"):
-            mlm_probability = float(self._mlm_probability)
-            assert mlm_probability > 0.0, \
-                "Percentage of tokens being masked should be larger than 0.0"
-            return mlm_probability
-        # default 0.15
-        return 0.15
-
     @property
     def task_type(self):
         """ Task type
@@ -1039,7 +1042,7 @@ class GSConfig:
     def eval_metric(self):
         """ Evaluation metric used during evaluation
 
-            The input can be a string specifying the evlaution metric to report.
+            The input can be a string specifying the evaluation metric to report
             or a list of strings specifying a list of  evaluation metrics to report.
         """
         # pylint: disable=no-member
@@ -1122,8 +1125,6 @@ class GSConfig:
                     # no eval_metric
             else:
                 eval_metric = ["mrr"]
-        elif self.task_type == BUILTIN_TASK_MLM:
-            eval_metric = None # ignore
         else:
             assert False, "Unknow task type"
 
@@ -1194,28 +1195,24 @@ def _add_gnn_args(parser):
 
 def _add_input_args(parser):
     group = parser.add_argument_group(title="input")
-    group.add_argument('--load-model-path', type=str, default=argparse.SUPPRESS,
-            help='Load the model from the specified directory.')
     group.add_argument('--restore-model-path', type=str, default=argparse.SUPPRESS,
             help='Restore the model weights saved in the specified directory.')
     group.add_argument('--restore-optimizer-path', type=str, default=argparse.SUPPRESS,
             help='Restore the optimizer snapshot saved in the specified directory.')
-    group.add_argument('--restore-model-encoder-path', type=str, default=argparse.SUPPRESS,
-            help="Restore the model encoder only including language "
-                 "and graph encoder saved in the specified directory.")
-
     return parser
-
 
 def _add_output_args(parser):
     group = parser.add_argument_group(title="output")
-    group.add_argument("--save-embeds-path", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
     group.add_argument('--save-model-per-iters', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,
             help='Save the model to the specified file. Use none to turn off model saveing')
+    group.add_argument("--topk-model-to-save",
+            type=int, default=argparse.SUPPRESS,
+            help="the number of the k top best validation performance model to save")
 
     # inference related output args
     parser = _add_inference_args(parser)
@@ -1240,7 +1237,25 @@ def _add_hyperparam_args(parser):
     group.add_argument("-e", "--n-epochs", type=int, default=argparse.SUPPRESS,
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
-            help="Mini-batch size. If -1, use full graph training.")
+            help="Mini-batch size. Must be larger than 0")
+    group.add_argument("--sparse-lr", type=float, default=argparse.SUPPRESS,
+            help="sparse optimizer learning rate")
+    group.add_argument(
+            "--use-node-embeddings",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="Whether to use extra learnable node embeddings")
+    group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
+            help="weight decay l2 norm coef")
+    group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
+            help="coef for scale unused weights l2norm")
+    group.add_argument(
+            "--use-self-loop",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="include self feature as a special relation")
+
+    # control evaluation
     group.add_argument("--eval-batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size for computing GNN embeddings in evaluation.")
     group.add_argument('--evaluation-frequency',
@@ -1254,10 +1269,7 @@ def _add_hyperparam_args(parser):
             default=argparse.SUPPRESS,
             help="If no-validation is set to True, "
                  "there will be no evaluation during training.")
-    group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
-            help="weight decay l2 norm coef")
-    group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
-            help="coef for scale unused weights l2norm")
+    # early stop
     group.add_argument("--call-to-consider-early-stop",
             type=int, default=argparse.SUPPRESS,
             help="burning period call to start considering early stop")
@@ -1271,9 +1283,6 @@ def _add_hyperparam_args(parser):
     group.add_argument("--enable-early-stop",
             type=bool, default=argparse.SUPPRESS,
             help='whether to enable early stopping by monitoring the validation loss')
-    group.add_argument("--topk-model-to-save",
-            type=int, default=argparse.SUPPRESS,
-            help="the number of the k top best validation performance model to save")
     return parser
 
 def _add_rgat_args(parser):
@@ -1287,24 +1296,43 @@ def _add_rgcn_args(parser):
     group.add_argument("--n-bases", type=int, default=argparse.SUPPRESS,
             help="number of filter weight matrices, default: -1 [use all]")
     group.add_argument(
-            "--use-self-loop",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="include self feature as a special relation")
-    group.add_argument(
             '--self-loop-init',
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="if this is set then we will initialize all the parameters "
                  "of the encoder as zero and the self_loop weight as identity. "
                  "This is to bring the model close to the two tower")
-    group.add_argument("--sparse-lr", type=float, default=argparse.SUPPRESS,
-            help="sparse optimizer learning rate")
+    return parser
+
+def _add_node_classification_args(parser):
+    group = parser.add_argument_group(title="node classification")
+    group.add_argument("--predict-ntype", type=str, default=argparse.SUPPRESS,
+                       help="the node type for prediction")
+    group.add_argument("--label-field", type=str, default=argparse.SUPPRESS,
+                       help="the label field in the data")
     group.add_argument(
-            "--use-node-embeddings",
+            "--multilabel",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
-            help="Whether to use extra learnable node embeddings")
+            help="Whether the task is a multi-label classifiction task")
+    group.add_argument(
+            "--multilabel-weights",
+            type=str,
+            default=argparse.SUPPRESS,
+            help="Used to specify label weight of each class in a "
+            "multi-label classifiction task."
+            "It is feed into th.nn.BCEWithLogitsLoss."
+            "The weights should in following format 0.1,0.2,0.3,0.1,0.0 ")
+    group.add_argument(
+            "--imbalance-class-weights",
+            type=str,
+            default=argparse.SUPPRESS,
+            help="Used to specify a manual rescaling weight given to each class "
+            "in a single-label multi-class classification task."
+            "It is feed into th.nn.CrossEntropyLoss."
+            "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
+    group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
+                       help="The cardinality of labels in a classifiction task")
     return parser
 
 def _add_edge_classification_args(parser):
@@ -1312,7 +1340,7 @@ def _add_edge_classification_args(parser):
     group.add_argument('--target-etype', nargs='+', type=str, default=argparse.SUPPRESS,
             help="The list of canonical etype that will be added as"
                 "a training target with the target e type "
-                "in this application for example "
+                "in this application, for example "
                 "--train-etype query,clicks,asin or"
                 "--train-etype query,clicks,asin query,search,asin if not specified"
                 "then no aditional training target will "
@@ -1326,13 +1354,12 @@ def _add_edge_classification_args(parser):
                             "MLPDecoder to specify the model decoder")
 
     group.add_argument(
-            "--remove-target-edge",
+            "--remove-target-edge-type",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
-            help="Whether to remove the target e type for message passing")
+            help="Whether to remove the target edge type for message passing")
 
     return parser
-
 
 def _add_link_prediction_args(parser):
     group = parser.add_argument_group(title="link prediction")
@@ -1381,47 +1408,13 @@ def _add_link_prediction_args(parser):
 
     return parser
 
-def _add_node_classification_args(parser):
-    group = parser.add_argument_group(title="node classification")
-    group.add_argument("--predict-ntype", type=str, default=argparse.SUPPRESS,
-                       help="the node type for prediction")
-    group.add_argument("--label-field", type=str, default=argparse.SUPPRESS,
-                       help="the label field in the data")
-    group.add_argument(
-            "--multilabel",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="Whether the task is a multi-label classifiction task")
-    group.add_argument(
-            "--multilabel-weights",
-            type=str,
-            default=argparse.SUPPRESS,
-            help="Used to specify label weight of each class in a "
-            "multi-label classifiction task."
-            "It is feed into th.nn.BCEWithLogitsLoss."
-            "The weights should in following format 0.1,0.2,0.3,0.1,0.0 ")
-    group.add_argument(
-            "--imbalance-class-weights",
-            type=str,
-            default=argparse.SUPPRESS,
-            help="Used to specify a manual rescaling weight given to each class "
-            "in a single-label multi-class classification task."
-            "It is feed into th.nn.CrossEntropyLoss."
-            "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
-    group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
-                       help="The cardinality of labels in a classifiction task")
-
+def _add_task_general_args(parser):
+    group = parser.add_argument_group(title="train task")
     group.add_argument('--eval-metric', nargs='+', type=str, default=argparse.SUPPRESS,
             help="The list of canonical etype that will be added as"
                 "the evaluation metric used. Supported metrics are accuracy,"
                 "precision_recall, or roc_auc multiple metrics"
                 "can be specified e.g. --eval-metric accuracy precision_recall")
-    return parser
-
-def _add_mlm_args(parser):
-    group = parser.add_argument_group(title="mlm")
-    group.add_argument("--mlm-probability", type=float, default=argparse.SUPPRESS,
-                       help="Percentage of tokens being masked.")
     return parser
 
 def _add_inference_args(parser):

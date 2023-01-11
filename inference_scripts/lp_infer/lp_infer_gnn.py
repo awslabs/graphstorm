@@ -35,7 +35,7 @@ def main(args):
                                      batch_size=config.eval_batch_size,
                                      num_negative_edges=config.num_negative_edges,
                                      device=device, train_task=False)
-    infer.infer(dataloader, save_embeds_path=config.save_embeds_path)
+    infer.infer(dataloader, save_embed_path=config.save_embed_path)
 
 def generate_parser():
     parser = get_argument_parser()

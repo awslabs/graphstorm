@@ -48,7 +48,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
      --ip_config ip_list.txt \
-     "python3 gsgnn_lp.py --cf arxiv_lp_hf.yaml --mp-opt-level O1 --save-model-path none --save-embeds-path none --negative-sampler uniform"
+     "python3 gsgnn_lp.py --cf arxiv_lp_hf.yaml --mp-opt-level O1 --save-model-path none --save-embed-path none --negative-sampler uniform"
 ```
 
 train+validation+mixed-precision-O1+joint+full-graph-infer
@@ -59,7 +59,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
      --ip_config ip_list.txt \
-     "python3 gsgnn_lp.py --cf arxiv_lp_hf.yaml --mp-opt-level O1 --save-model-path none --save-embeds-path none --save-model-per-iters 0 --mini-batch-infer false"
+     "python3 gsgnn_lp.py --cf arxiv_lp_hf.yaml --mp-opt-level O1 --save-model-path none --save-embed-path none --save-model-per-iters 0 --mini-batch-infer false"
 ```
 
 train-only+mixed-precision-02+joint-sampler+save-model
@@ -70,7 +70,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_lp.py --cf arxiv_lp_hf.yaml --part-config 'ogb_arxiv_train_1p_4t/ogbn-arxiv.json' save-model-path './models/ogb_arxiv/train_only/ogb_arxiv_train_1p_4t_model' --save-embeds-path none --batch-size 64"
+    "python3 gsgnn_lp.py --cf arxiv_lp_hf.yaml --part-config 'ogb_arxiv_train_1p_4t/ogbn-arxiv.json' save-model-path './models/ogb_arxiv/train_only/ogb_arxiv_train_1p_4t_model' --save-embed-path none --batch-size 64"
 ```
 
 train+validation+localuniform-sampler+bert-cache
@@ -81,7 +81,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
      --ip_config ip_list.txt \
-     "python3 gsgnn_lp.py --cf arxiv_lp_hf.yaml --use-bert-cache true --refresh-cache true --mixed-precision false --save-model-path none --save-embeds-path none --negative-sampler localuniform"
+     "python3 gsgnn_lp.py --cf arxiv_lp_hf.yaml --use-bert-cache true --refresh-cache true --mixed-precision false --save-model-path none --save-embed-path none --negative-sampler localuniform"
 ```
 
 train+validation+mixed-precision-O2+joint-sampler+save-model+save-embeds+user-node-embedding

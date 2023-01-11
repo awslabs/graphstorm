@@ -31,7 +31,7 @@ gsf:
     restore_model_path: /data/ogbn-papers100M-model/epoch-0-iter-100/
   output:
     save_model_path: /data/ogbn-papers100M-model
-    save_embeds_path: /data/ogbn-papers100M-model
+    save_embed_path: /data/ogbn-papers100M-model
     save_model_per_iters: 100
   hyperparam:
     dropout: 0.

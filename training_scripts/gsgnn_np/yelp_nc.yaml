@@ -24,7 +24,7 @@ gsf:
     restore_model_path: null
   output:
     save_model_path: ./models/yelp/train_val/yelp_hf_1p_4t_model
-    save_embeds_path: null
+    save_embed_path: null
     save_model_per_iters: 1000
   hyperparam:
     dropout: 0.

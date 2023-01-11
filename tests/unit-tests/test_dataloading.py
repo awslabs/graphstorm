@@ -266,7 +266,7 @@ def test_edge_dataloader():
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10, 'cuda:0',
-                                     train_task=False, remove_target_edge=False)
+                                     train_task=False, remove_target_edge_type=False)
     all_edges = []
     for input_nodes, batch_graph, blocks in dataloader:
         assert len(batch_graph.etypes) == 1
@@ -278,7 +278,7 @@ def test_edge_dataloader():
     # With data shuffling, the seed edges should have different orders
     # whenever the data loader is called.
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10, 'cuda:0',
-                                     train_task=True, remove_target_edge=False)
+                                     train_task=True, remove_target_edge_type=False)
     all_edges1 = []
     for input_nodes, batch_graph, blocks in dataloader:
         assert len(batch_graph.etypes) == 1
@@ -295,7 +295,7 @@ def test_edge_dataloader():
 
     ################### Test removing target edges #######################
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10, 'cuda:0',
-                                     train_task=False, remove_target_edge=True,
+                                     train_task=False, remove_target_edge_type=True,
                                      reverse_edge_types_map={('n0', 'r1', 'n1'): ('n0', 'r0', 'n1')})
     all_edges = []
     for input_nodes, batch_graph, blocks in dataloader:
