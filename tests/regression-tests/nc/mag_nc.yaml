@@ -30,7 +30,7 @@ gsf:
     restore_model_path: null
   output:
     save_model_path: null
-    save_embeds_path: null
+    save_embed_path: null
   hyperparam:
     dropout: 0.5
     lr: 0.0005

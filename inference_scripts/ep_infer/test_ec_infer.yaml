@@ -22,7 +22,7 @@ gsf:
   input:
     restore_model_path: /data/gsgnn_ec/
   output:
-    save_embeds_path: /data/gsgnn_ec/infer-emb/
+    save_embed_path: /data/gsgnn_ec/infer-emb/
     save_predict_path: /data/gsgnn_ec/prediction/
   hyperparam:
     eval_batch_size: 1024

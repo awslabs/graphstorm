@@ -45,7 +45,7 @@ def main(args):
                                      batch_size=config.eval_batch_size, device=device,
                                      train_task=False)
 
-    infer.infer(dataloader, save_embeds_path=config.save_embeds_path,
+    infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_predict_path=config.save_predict_path,
                 mini_batch_infer=config.mini_batch_infer)
 

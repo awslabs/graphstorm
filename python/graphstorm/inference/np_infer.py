@@ -26,7 +26,7 @@ class GSgnnNodePredictionInfer(GSInfer):
         The rank.
     """
 
-    def infer(self, loader, save_embeds_path, save_predict_path=None,
+    def infer(self, loader, save_embed_path, save_predict_path=None,
               mini_batch_infer=False):
         """ Do inference
 
@@ -39,7 +39,7 @@ class GSgnnNodePredictionInfer(GSInfer):
         ----------
         loader : GSNodeDataLoader
             The mini-batch sampler for node prediction task.
-        save_embeds_path : str
+        save_embed_path : str
             The path where the GNN embeddings will be saved.
         save_predict_path : str
             The path where the prediction results will be saved.
@@ -62,8 +62,8 @@ class GSgnnNodePredictionInfer(GSInfer):
         sys_tracker.check('compute embeddings')
 
         embeddings = {ntype: embs[ntype] for ntype in loader.data.eval_ntypes}
-        if save_embeds_path is not None:
-            save_gsgnn_embeddings(save_embeds_path,
+        if save_embed_path is not None:
+            save_gsgnn_embeddings(save_embed_path,
                 embeddings, self.rank, th.distributed.get_world_size())
             th.distributed.barrier()
         sys_tracker.check('save embeddings')

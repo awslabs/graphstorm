@@ -26,7 +26,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
     """
 
     # TODO(zhengda) We only support full-graph inference for now.
-    def infer(self, loader, save_embeds_path):
+    def infer(self, loader, save_embed_path):
         """ Do inference
 
         The inference can do two things:
@@ -37,7 +37,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
         ----------
         loader : GSLinkPredictionDataLoader
             The mini-batch sampler for link prediction task.
-        save_embeds_path : str
+        save_embed_path : str
             The path where the GNN embeddings will be saved.
         """
         sys_tracker.check('start inferencing')
@@ -45,7 +45,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
                                        task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
 
-        save_gsgnn_embeddings(save_embeds_path, embs, self.rank, th.distributed.get_world_size())
+        save_gsgnn_embeddings(save_embed_path, embs, self.rank, th.distributed.get_world_size())
         th.distributed.barrier()
         sys_tracker.check('save embeddings')
 
@@ -65,4 +65,4 @@ class GSgnnLinkPredictionInfer(GSInfer):
         if self.rank == 0:
             decoder = self._model.decoder
             if isinstance(decoder, LinkPredictDistMultDecoder):
-                save_relation_embeddings(save_embeds_path, decoder)
+                save_relation_embeddings(save_embed_path, decoder)

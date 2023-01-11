@@ -45,9 +45,9 @@ def main(args):
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
-                                     remove_target_edge=config.remove_target_edge)
+                                     remove_target_edge_type=config.remove_target_edge_type)
 
-    infer.infer(dataloader, save_embeds_path=config.save_embeds_path,
+    infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_predict_path=config.save_predict_path,
                 mini_batch_infer=config.mini_batch_infer)
 

@@ -43,7 +43,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --mp-opt-level O1 --save-model-path none --save-embeds-path none --negative-sampler uniform"
+    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --mp-opt-level O1 --save-model-path none --save-embed-path none --negative-sampler uniform"
 ```
 
 train+validation+mixed-precision-O1-full-graph-infer
@@ -54,7 +54,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --mp-opt-level O1 --save-model-path none --save-embeds-path none --save-model-per-iters 0 --mini-batch-infer false"
+    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --mp-opt-level O1 --save-model-path none --save-embed-path none --save-model-per-iters 0 --mini-batch-infer false"
 ```
 
 train+validation+bert-cache
@@ -65,7 +65,7 @@ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --use-bert-cache true --refresh-cache true --mixed-precision false --save-model-path none --save-embeds-path none --negative-sampler localuniform"
+    "python3 gsgnn_nc.py --cf arxiv_nc_hf.yaml --use-bert-cache true --refresh-cache true --mixed-precision false --save-model-path none --save-embed-path none --negative-sampler localuniform"
 ```
 
  * arxiv_nc_nemb.yaml: train+validation+mixed-precision-O2+save-model+save-embeds+user-node-embedding
@@ -85,7 +85,7 @@ $ python3 $DGL_HOME/tools/launch.py \
     --part_config ogb_arxiv_origin_1p_4t/ogbn-arxiv.json \
     --extra_envs "LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/home/deepspeed/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH" \
     --ip_config ip_list.txt \
-    "python3 gsgnn_pure_gnn_nc.py --cf arxiv_nc_hf.yaml --part-config 'ogb_arxiv_origin_1p_4t/ogbn-arxiv.json' --fanout '10,15' --n-layers 2 --save-model-path './models/ogb_arxiv/train_val/ogb_arxiv_origin_1p_4t_model' --save-embeds-path './models/ogb_arxiv/train_val/ogb_arxiv_origin_1p_4t_emb'"
+    "python3 gsgnn_pure_gnn_nc.py --cf arxiv_nc_hf.yaml --part-config 'ogb_arxiv_origin_1p_4t/ogbn-arxiv.json' --fanout '10,15' --n-layers 2 --save-model-path './models/ogb_arxiv/train_val/ogb_arxiv_origin_1p_4t_model' --save-embed-path './models/ogb_arxiv/train_val/ogb_arxiv_origin_1p_4t_emb'"
 ```
 
  ## Use Huggingface Bert

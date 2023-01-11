@@ -81,7 +81,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         "--ssh_port 22 " \
         f"'python3 {cmd} --cf {yaml_path} --ip-config {ip_list} " \
         f"--part-config {graph_config} --restore-model-path {load_model_path} " \
-        f"--save-embeds-path {save_emb_path} {extra_args}'"
+        f"--save-embed-path {save_emb_path} {extra_args}'"
 
     def run(launch_cmd, state_q):
         try:

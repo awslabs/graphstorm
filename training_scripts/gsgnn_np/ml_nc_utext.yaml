@@ -28,7 +28,7 @@ gsf:
     restore_model_path: null
   output:
     save_model_path: ./models/movielen_100k/train_val/movielen_100k_utext_train_val_1p_4t_model
-    save_embeds_path: null
+    save_embed_path: null
     save_model_per_iters: 1000
   hyperparam:
     dropout: 0.

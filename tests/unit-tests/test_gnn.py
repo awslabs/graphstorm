@@ -135,11 +135,11 @@ def check_edge_prediction(model, data):
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
     dataloader1 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False,
-                                      remove_target_edge=False)
+                                      remove_target_edge_type=False)
     pred1, labels1 = edge_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnEdgeDataLoader(data, target_idx, fanout=[-1, -1],
                                       batch_size=10, device="cuda:0", train_task=False,
-                                      remove_target_edge=False)
+                                      remove_target_edge_type=False)
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())

@@ -22,7 +22,7 @@ gsf:
   input:
     restore_model_path: /data/gsgnn_lp_ml/
   output:
-    save_embeds_path: /data/gsgnn_lp_ml/infer-emb/
+    save_embed_path: /data/gsgnn_lp_ml/infer-emb/
   hyperparam:
     eval_batch_size: 1024
     bert_infer_bs: 128

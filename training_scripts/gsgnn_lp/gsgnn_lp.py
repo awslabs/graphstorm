@@ -76,11 +76,11 @@ def main(args):
                 mini_batch_infer=config.mini_batch_infer,
                 save_model_per_iters=config.save_model_per_iters)
 
-    if config.save_embeds_path is not None:
+    if config.save_embed_path is not None:
         best_model = trainer.get_best_model().to(device)
         assert best_model is not None, "Cannot get the best model from the trainer."
         embeddings = do_full_graph_inference(best_model, train_data, task_tracker=tracker)
-        save_embeddings(config.save_embeds_path, embeddings, gs.get_rank(),
+        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         th.distributed.get_world_size())
 
 def generate_parser():

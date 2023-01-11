@@ -35,15 +35,16 @@ class GSgnnEdgeDataLoader():
         A map for reverse edge type
     exclude_training_targets: bool
         Whether to exclude training edges during neighbor sampling
-    remove_target_edge: bool
+    remove_target_edge_type: bool
         Whether we will exclude all edges of the target edge type in message passing.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
-                 train_task=True, reverse_edge_types_map=None, remove_target_edge=True,
+                 train_task=True, reverse_edge_types_map=None,
+                 remove_target_edge_type=True,
                  exclude_training_targets=False):
         self._data = dataset
         self._device = device
-        if remove_target_edge:
+        if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
             # We need to duplicate this etype list.

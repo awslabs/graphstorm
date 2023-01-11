@@ -52,7 +52,7 @@ def main(args):
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                      batch_size=config.batch_size, device=device, train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
-                                     remove_target_edge=config.remove_target_edge,
+                                     remove_target_edge_type=config.remove_target_edge_type,
                                      exclude_training_targets=config.exclude_training_targets)
     val_dataloader = None
     test_dataloader = None
@@ -60,27 +60,27 @@ def main(args):
     fanout = config.eval_fanout if config.mini_batch_infer else []
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
-                                             batch_size=config.eval_batch_size,
-                                             device=device, train_task=False,
-                                             reverse_edge_types_map=config.reverse_edge_types_map,
-                                             remove_target_edge=config.remove_target_edge)
+            batch_size=config.eval_batch_size,
+            device=device, train_task=False,
+            reverse_edge_types_map=config.reverse_edge_types_map,
+            remove_target_edge_type=config.remove_target_edge_type)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
-                                              batch_size=config.eval_batch_size,
-                                              device=device, train_task=False,
-                                              reverse_edge_types_map=config.reverse_edge_types_map,
-                                              remove_target_edge=config.remove_target_edge)
+            batch_size=config.eval_batch_size,
+            device=device, train_task=False,
+            reverse_edge_types_map=config.reverse_edge_types_map,
+            remove_target_edge_type=config.remove_target_edge_type)
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
                 test_loader=test_dataloader, n_epochs=config.n_epochs,
                 save_model_path=config.save_model_path,
                 mini_batch_infer=config.mini_batch_infer,
                 save_model_per_iters=config.save_model_per_iters)
 
-    if config.save_embeds_path is not None:
+    if config.save_embed_path is not None:
         best_model = trainer.get_best_model().to(device)
         assert best_model is not None, "Cannot get the best model from the trainer."
         embeddings = do_full_graph_inference(best_model, train_data, task_tracker=tracker)
-        save_embeddings(config.save_embeds_path, embeddings, gs.get_rank(),
+        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         th.distributed.get_world_size())
 
 def generate_parser():
