@@ -44,3 +44,17 @@ Run the distributed link prediction on the OGBN-papers100M dataset inside the cl
 ```
 bash /graph-storm/tests/regression-tests/OGBN-papers100M/run_papers100M_nc.sh
 ```
+
+On 4 g4dn.metal instances, we have the following runtime speed.
+```
+construct training data: elapsed time: 34.325, mem (curr: 1.627, peak: 5.775, shared: 0.459, global curr: 9.573, global shared: 56.676) GB
+start training: elapsed time: 12.611, mem (curr: 2.924, peak: 5.775, shared: 0.704, global curr: 12.086, global shared: 56.693) GB
+predict: elapsed time: 2085.522, mem (curr: 40.422, peak: 40.422, shared: 37.309, global curr: 15.552, global shared: 70.172) GB
+evaluate: elapsed time: 0.240, mem (curr: 40.428, peak: 40.428, shared: 37.315, global curr: 15.568, global shared: 70.172) GB
+Epoch 0 take 1979.82s
+Step 590 | Validation accuracy: 0.6080
+Step 590 | Test accuracy: 0.5720
+Step 590 | Best Validation accuracy: 0.6080
+Step 590 | Best Test accuracy: 0.5720
+Step 590 | Best Iteration accuracy: 590.0000
+```

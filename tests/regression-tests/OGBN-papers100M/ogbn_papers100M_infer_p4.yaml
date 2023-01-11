@@ -27,11 +27,10 @@ gsf:
     n_hidden: 128
     mini_batch_infer: true
   input:
-    restore_model_path: null
+    restore_model_path: /data/ogbn-papers100M-model/epoch-0-iter-1000/
   output:
-    save_model_path: /data/ogbn-papers100M-model
-    save_embed_path: null
-    save_model_per_iters: 1000
+    save_model_path: null
+    save_embeds_path: /data/ogbn-papers100M-embs
   hyperparam:
     dropout: 0.
     lr: 0.001

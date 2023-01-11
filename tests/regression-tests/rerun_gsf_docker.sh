@@ -3,6 +3,7 @@ if [ ! -z $docker_id ]; then
         docker kill $docker_id
         docker rm $docker_id
 fi
+docker rm regression_test
 
 DATA_FOLDER=/home/ubuntu/workspace/gsf-data
 GS_HOME=/home/ubuntu/workspace/graph-storm

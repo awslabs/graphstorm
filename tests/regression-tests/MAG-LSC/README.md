@@ -45,4 +45,13 @@ Run the distributed link prediction on the MAG-LSC dataset inside the cluster of
 bash /graph-storm/tests/regression-tests/MAG-LSC/run_mag_lsc_nc.sh
 ```
 
+On 4 g4dn.metal instances, we have the following runtime speed.
+```
+construct training data: elapsed time: 27.939, mem (curr: 1.724, peak: 6.269, shared: 0.482, global curr: 12.350, global shared: 88.778) GB
+start training: elapsed time: 129.694, mem (curr: 2.972, peak: 6.269, shared: 0.729, global curr: 11.913, global shared: 131.661) GB
+predict: elapsed time: 501.442, mem (curr: 104.982, peak: 104.982, shared: 101.828, global curr: 16.479, global shared: 146.173) GB
+evaluate: elapsed time: 0.232, mem (curr: 104.988, peak: 104.988, shared: 101.835, global curr: 16.488, global shared: 146.173) GB
+Epoch 0 take 435.67s
+```
+
 Validation accuracy: 0.6656
