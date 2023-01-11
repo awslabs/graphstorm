@@ -32,5 +32,5 @@ Before running the command below, please collect all private IP addresses in the
 Note: please change `DATA_FOLDER` and `GS_HOME` in `rerun_gsf_docker.sh` script accordingly.
 
 ```
-bash $GS_HOME/tests/regression-tests/dist_run.sh ip_list.txt $GS_HOME/tests/regression-tests/rerun_gsf_docker.sh
+bash $GS_HOME/tests/regression-tests/dist_run.sh ip_list_p4.txt "bash $GS_HOME/tests/regression-tests/rerun_gsf_docker.sh"
 ```

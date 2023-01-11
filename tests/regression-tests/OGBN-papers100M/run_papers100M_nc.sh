@@ -17,4 +17,5 @@ python3 -u  ${LAUNCH_PATH} \
         --part_config ${PART_CONFIG} \
         --ip_config ${IP_CONFIG} \
         --ssh_port 2222 \
+        --graph_format csc,coo \
         "python3 gsgnn_np.py --cf ${TRAINING_CONFIG} --feat-name feat"
