@@ -1,3 +1,4 @@
+import os
 import dgl
 import torch as th
 import argparse
@@ -8,7 +9,6 @@ from graphstorm.data import MovieLens100kNCDataset
 from graphstorm.data import ConstructedGraphDataset
 from graphstorm.data import MAGLSCDataset
 from graphstorm.utils import sys_tracker
-from graphstorm.data.utils import save_maps
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Partition builtin graphs")
@@ -133,9 +133,9 @@ if __name__ == '__main__':
                                                                          return_mapping=True)
     sys_tracker.check('partition the graph')
     if args.save_mappings:
-        # TODO add something that is more scalable here as a saving method and not pickle.
+        # TODO add something that is more scalable here as a saving method
 
         # the new_node_mapping contains per entity type on the ith row the original node id for the ith node.
-        save_maps(args.output, "new_node_mapping", new_node_mapping)
+        th.save(new_node_mapping, os.path.join(args.output, "new_node_mapping.pt"))
         # the new_edge_mapping contains per edge type on the ith row the original edge id for the ith edge.
-        save_maps(args.output, "new_edge_mapping", new_edge_mapping)
+        th.save(new_edge_mapping, os.path.join(args.output, "new_edge_mapping.pt"))

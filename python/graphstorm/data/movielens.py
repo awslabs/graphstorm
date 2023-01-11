@@ -2,7 +2,7 @@
 """
 import os
 import csv
-import pickle
+import json
 
 import dgl
 import torch as th
@@ -63,9 +63,9 @@ class MovieLens100kNCDataset(GSgnnDataset):
         gname = self._name + '.bin'
         print("Save graph {} into {}".format(self._g, os.path.join(path, gname)))
         dgl.save_graphs(os.path.join(path, gname), [self._g])
-        ginfo = self._name + '.pkl'
-        with open(ginfo, 'wb') as f:
-            pickle.dump({"num_class": self._num_classes},f)
+        ginfo = self._name + '.json'
+        with open(ginfo, 'w', encoding="utf-8") as f:
+            json.dump({"num_class": self._num_classes},f)
 
     def load(self):
         # load from local storage
@@ -74,9 +74,9 @@ class MovieLens100kNCDataset(GSgnnDataset):
         g, _ = dgl.load_graphs(os.path.join(root_path, gname))
         print(g[0])
         self._g = g[0]
-        ginfo = self._name + '.pkl'
-        with open(ginfo, 'rb') as f:
-            info = pickle.load(f)
+        ginfo = self._name + '.json'
+        with open(ginfo, 'r', encoding="utf-8") as f:
+            info = json.load(f)
             self._num_classes = info["num_class"]
 
     def has_cache(self):
