@@ -131,6 +131,8 @@ class GSNodeInputLayer(GSLayer):
         -------
         a dict of Tensor: the node embeddings.
         """
+        assert isinstance(input_feats, dict), 'The input features should be in a dict.'
+        assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
         embs = {}
         for ntype in input_nodes:
             if ntype in input_feats:

@@ -66,6 +66,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         early_stop = False # used when early stop is True
         sys_tracker.check('start training')
         data = train_loader.data
+        g = data.g
         for epoch in range(n_epochs):
             model.train()
             t0 = time.time()
@@ -74,6 +75,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 total_steps += 1
                 batch_tic = time.time()
 
+                if not isinstance(input_nodes, dict):
+                    assert len(g.ntypes) == 1
+                    input_nodes = {g.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
                 lbl = data.get_labels(seeds, device)
                 blocks = [block.to(device) for block in blocks]

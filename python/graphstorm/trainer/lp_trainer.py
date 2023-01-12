@@ -70,6 +70,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 total_steps += 1
                 batch_tic = time.time()
 
+                if not isinstance(input_nodes, dict):
+                    assert len(pos_graph.ntypes) == 1
+                    input_nodes = {pos_graph.ntypes[0]: input_nodes}
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
