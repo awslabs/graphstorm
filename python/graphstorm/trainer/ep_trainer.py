@@ -78,6 +78,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 total_steps += 1
                 batch_tic = time.time()
 
+                if not isinstance(input_nodes, dict):
+                    assert len(batch_graph.ntypes) == 1
+                    input_nodes = {batch_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
