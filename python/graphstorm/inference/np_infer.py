@@ -53,6 +53,11 @@ class GSgnnNodePredictionInfer(GSInfer):
             pred = res[0]
             embs = res[1]
             label = res[2] if do_eval else None
+
+            # TODO support multiple ntypes
+            assert len(loader.data.eval_ntypes) == 1, \
+                "GraphStorm only support single target node type for training and inference"
+            embs = {loader.data.eval_ntypes[0]: embs}
         else:
             embs = do_full_graph_inference(self._model, loader.data,
                                            task_tracker=self.task_tracker)
