@@ -98,12 +98,16 @@ def node_mini_batch_gnn_predict(model, loader, return_label=False):
     """
     device = model.device
     data = loader.data
+    g = data.g
     preds = []
     embs = []
     labels = []
     model.eval()
     with th.no_grad():
         for input_nodes, seeds, blocks in loader:
+            if not isinstance(input_nodes, dict):
+                assert len(g.ntypes) == 1
+                input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, input_nodes)
