@@ -19,7 +19,7 @@ def get_killed_pids(ip, port, killed_pids):
     killed_pids = [str(pid) for pid in killed_pids]
     killed_pids = ','.join(killed_pids)
     ps_cmd = 'ssh ' + ip + ' \'ps -p {} -h\''.format(killed_pids)
-    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE)
+    res = subprocess.run(ps_cmd, shell=False, stdout=subprocess.PIPE)
     pids = []
     for p in res.stdout.decode('utf-8').split('\n'):
         l = p.split()
@@ -39,7 +39,7 @@ def kill_process(ip, port, pids):
         assert curr_pid != pid
         print('kill process {} on {}:{}'.format(pid, ip, port), flush=True)
         kill_cmd = 'ssh ' + ip + ' \'kill {}\''.format(pid)
-        subprocess.run(kill_cmd, shell=True)
+        subprocess.run(kill_cmd, shell=False)
         killed_pids.append(pid)
     # It's possible that some of the processes are not killed. Let's try again.
     for i in range(3):
@@ -51,7 +51,7 @@ def kill_process(ip, port, pids):
             for pid in killed_pids:
                 print('kill process {} on {}:{}'.format(pid, ip, port), flush=True)
                 kill_cmd = 'ssh ' + ip + ' \'kill -9 {}\''.format(pid)
-                subprocess.run(kill_cmd, shell=True)
+                subprocess.run(kill_cmd, shell=False)
 
 
 def cleanup_proc(get_all_remote_pids, conn):
@@ -91,7 +91,7 @@ def execute_remote(
 
     # thread func to run the job
     def run(ssh_cmd):
-        subprocess.check_call(ssh_cmd, shell=True)
+        subprocess.check_call(ssh_cmd, shell=False)
 
     thread = Thread(target=run, args=(ssh_cmd,))
     thread.setDaemon(True)
@@ -105,7 +105,7 @@ def get_remote_pids(ip, port, cmd_regex):
     curr_pid = os.getpid()
     # Here we want to get the python processes. We may get some ssh processes, so we should filter them out.
     ps_cmd = 'ssh ' + ip + ' \'ps -aux | grep python | grep -v StrictHostKeyChecking\''
-    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE)
+    res = subprocess.run(ps_cmd, shell=False, stdout=subprocess.PIPE)
     for p in res.stdout.decode('utf-8').split('\n'):
         l = p.split()
         if len(l) < 2:
@@ -117,7 +117,7 @@ def get_remote_pids(ip, port, cmd_regex):
 
     pid_str = ','.join([str(pid) for pid in pids])
     ps_cmd = 'ssh ' + ip + ' \'pgrep -P {}\''.format(pid_str)
-    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE)
+    res = subprocess.run(ps_cmd, shell=False, stdout=subprocess.PIPE)
     pids1 = res.stdout.decode('utf-8').split('\n')
     all_pids = []
     for pid in set(pids + pids1):

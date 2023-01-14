@@ -74,7 +74,7 @@ def run_job(input_args, image, unknowargs):
         base_job_name=prefix,
         hyperparameters=params,
         sagemaker_session=sess,
-        tags=[{"Key":"GraphStorm", "Value":"beta"},
+        tags=[{"Key":"GraphStorm", "Value":"oss"},
               {"Key":"GraphStorm_Task", "Value":"Training"}],
     )
 
@@ -85,19 +85,14 @@ def parse_args():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--version-tag", type=str,
-        default="sagemaker_v3",
-        help="Training image tag")
-    parser.add_argument("--training-ecr-repository", type=str,
-        default="graphlytics-pytorch-training-dev",
-        help="ECR repository")
-    parser.add_argument("--account-id", type=str,
-        help="AWS account number")
+    parser.add_argument("--image-url", type=str,
+        help="Training docker image")
     parser.add_argument("--role", type=str,
         help="SageMaker role")
     parser.add_argument("--instance-type", type=str,
         default=INSTANCE_TYPE,
         help="instance type used to train models")
+
     parser.add_argument("--instance-count", type=int,
         default=2,
         help="number of infernece instances")
@@ -121,7 +116,8 @@ def parse_args():
              "Do not store it with partitioned graph")
     parser.add_argument("--train-yaml-name", type=str,
         help="Training yaml config file name")
-    parser.add_argument("--enable-bert", type=bool, default=False,
+    parser.add_argument("--enable-bert",
+        type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
     parser.add_argument("--model-artifact-s3", type=str, default=None,
         help="S3 bucket to save model artifacts")
@@ -133,7 +129,6 @@ if __name__ == "__main__":
     args, unknownargs = arg_parser.parse_known_args()
     print(args)
 
-    train_image = f"{args.account_id}.dkr.ecr.{args.region}.amazonaws.com/" \
-        f"{args.training_ecr_repository}:{args.version_tag}"
+    train_image = args.image_url
 
     run_job(args, train_image, unknownargs)

@@ -56,33 +56,34 @@ def launch_train_task(task_type, num_gpus, graph_config,
     """
     assert not enable_bert, 'We do not support BERT+GNN right now.'
     if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        workspace = "/graph-storm/training_scripts/gsgnn_np"
+        workspace = "/opt/ml/code/graphstorm/training_scripts/gsgnn_np"
         cmd = "gsgnn_np.py"
     elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        workspace = "/graph-storm/training_scripts/gsgnn_ep"
+        workspace = "/opt/ml/code/graphstorm/training_scripts/gsgnn_ep"
         cmd = "gsgnn_ep.py"
     elif task_type == BUILTIN_TASK_LINK_PREDICTION:
-        workspace = "/graph-storm/training_scripts/gsgnn_lp"
+        workspace = "/opt/ml/code/graphstorm/training_scripts/gsgnn_lp"
         cmd = "gsgnn_lp.py"
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
     extra_args = " ".join(extra_args)
 
-    launch_cmd = "python3 ~/dgl/tools/launch.py " \
-        f"--workspace {workspace} " \
-        f"--num_trainers {num_gpus} " \
-        "--num_servers 1 " \
-        "--num_samplers 0 " \
-        f"--part_config {graph_config} " \
-        f"--ip_config {ip_list} " \
-        "--ssh_port 22 " \
-        f"'python3 {cmd} --cf {yaml_path} --ip-config {ip_list} " \
-        f"--part-config {graph_config} --save-model-path {save_model_path} {extra_args}'"
+    launch_cmd = ["python3", "/root/dgl/tools/launch.py",
+        "--workspace", f"{workspace}",
+        "--num_trainers", f"{num_gpus}",
+        "--num_servers", "1",
+        "--num_samplers", "0",
+        "--part_config", f"{graph_config}",
+        "--ip_config", f"{ip_list}",
+        "--extra_envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
+        "--ssh_port", "22",
+        f"python3 {cmd} --cf {yaml_path} --ip-config {ip_list} " \
+        f"--part-config {graph_config} --save-model-path {save_model_path} {extra_args}"]
 
     def run(launch_cmd, state_q):
         try:
-            subprocess.check_call(launch_cmd, shell=True)
+            subprocess.check_call(launch_cmd, shell=False)
             state_q.put(0)
         except subprocess.CalledProcessError as err:
             print(f"Called process error {err}")
@@ -115,7 +116,8 @@ def parse_train_args():
              "Do not store it with partitioned graph")
     parser.add_argument("--train-yaml-name", type=str,
         help="Training yaml config file name")
-    parser.add_argument("--enable-bert", type=bool, default=False,
+    parser.add_argument("--enable-bert",
+        type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
 
     return parser
@@ -141,8 +143,8 @@ def main():
 
     parser = parse_train_args()
     args, unknownargs = parser.parse_known_args()
-    print(args)
-    print(unknownargs)
+    print(f"Know args {args}")
+    print(f"Unknow args {unknownargs}")
 
     train_env = json.loads(os.environ['SM_TRAINING_ENV'])
     hosts = train_env['hosts']

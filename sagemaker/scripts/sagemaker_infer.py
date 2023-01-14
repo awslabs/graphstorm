@@ -58,34 +58,35 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     """
     assert not enable_bert, "BERT+GNN is not enabled right now."
     if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        workspace = "/graph-storm/inference_scripts/np_infer"
+        workspace = "/opt/ml/code/graphstorm/inference_scripts/np_infer"
         cmd = "np_infer_gnn.py"
     elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        workspace = "/graph-storm/inference_scripts/ep_infer"
+        workspace = "/opt/ml/code/graphstorm/inference_scripts/ep_infer"
         cmd = "ep_infer_gnn.py"
     elif task_type == BUILTIN_TASK_LINK_PREDICTION:
-        workspace = "/graph-storm/inference_scripts/lp_infer"
+        workspace = "/opt/ml/code/graphstorm/inference_scripts/lp_infer"
         cmd = "lp_infer_gnn.py"
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
     extra_args = " ".join(extra_args)
 
-    launch_cmd = "python3 ~/dgl/tools/launch.py " \
-        f"--workspace {workspace} " \
-        f"--num_trainers {num_gpus} " \
-        "--num_servers 1 " \
-        "--num_samplers 0 " \
-        f"--part_config {graph_config} " \
-        f"--ip_config {ip_list} " \
-        "--ssh_port 22 " \
-        f"'python3 {cmd} --cf {yaml_path} --ip-config {ip_list} " \
+    launch_cmd = ["python3", "/root/dgl/tools/launch.py",
+        "--workspace", f"{workspace}",
+        "--num_trainers", f"{num_gpus}",
+        "--num_servers", "1",
+        "--num_samplers", "0",
+        "--part_config", f"{graph_config}",
+        "--ip_config", f"{ip_list}",
+        "--extra_envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
+        "--ssh_port", "22",
+        f"python3 {cmd} --cf {yaml_path} --ip-config {ip_list} " \
         f"--part-config {graph_config} --restore-model-path {load_model_path} " \
-        f"--save-embed-path {save_emb_path} {extra_args}'"
+        f"--save-embed-path {save_emb_path} {extra_args}"]
 
     def run(launch_cmd, state_q):
         try:
-            subprocess.check_call(launch_cmd, shell=True)
+            subprocess.check_call(launch_cmd, shell=False)
             state_q.put(0)
         except subprocess.CalledProcessError as err:
             print(f"Called process error {err}")
@@ -122,7 +123,8 @@ def parse_train_args():
              "Do not store it with partitioned graph")
     parser.add_argument("--infer-yaml-name", type=str,
         help="Training yaml config file name")
-    parser.add_argument("--enable-bert", type=bool, default=False,
+    parser.add_argument("--enable-bert",
+        type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 bucket to load the saved model artifacts")
@@ -145,10 +147,7 @@ def main():
     assert 'SM_CHANNEL_TRAIN' in os.environ, \
         "SageMaker trainer should have the data path in os.environ."
     data_path = str(os.environ['SM_CHANNEL_TRAIN'])
-
-    assert 'SM_MODEL_DIR' in os.environ, \
-        "SageMaker trainer should have the model dir in os.environ."
-    model_path = str(os.environ['SM_MODEL_DIR'])
+    model_path = str(os.environ['SM_CHANNEL_MODEL'])
     output_path = '/opt/ml/checkpoints'
 
     # start the ssh server
@@ -212,7 +211,6 @@ def main():
     # remove tailing /
     emb_s3_path = args.emb_s3_path.rstrip('/')
     enable_bert = args.enable_bert
-    model_artifact_s3 = args.model_artifact_s3
     model_sub_path = args.model_sub_path
 
     ### Download Partitioned graph data
@@ -222,8 +220,15 @@ def main():
     yaml_path = utils.download_yaml(infer_yaml_s3, infer_yaml_name,
         data_path, sagemaker_session)
     # Download Saved model
-    model_path = utils.download_model(model_artifact_s3, model_sub_path,
-        data_path, sagemaker_session)
+    print(f"{model_path} {os.listdir(model_path)}")
+    subprocess.run(["tar", "-xvf", os.path.join(model_path, 'model.tar.gz'),
+        "-C", model_path], check=True)
+    print(f"{model_path} {os.listdir(model_path)}")
+    # model_path = utils.download_model(model_artifact_s3, model_sub_path,
+    #    data_path, sagemaker_session)
+    if model_sub_path is not None:
+        model_path = os.path.join(model_path, model_sub_path)
+
     graph_config_path = utils.download_graph(graph_data_s3, graph_name,
         host_rank, data_path, sagemaker_session)
 
