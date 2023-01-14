@@ -93,12 +93,12 @@ class GSNodeInputLayer(GSLayer):
             else:
                 part_policy = g.get_node_partition_policy(ntype)
                 if get_rank() == 0:
-                    print('Use sparse embeddings on node {}'.format(ntype))
+                    print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')
                 self.sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
                                 self.embed_size,
                                 embed_name + '_' + ntype,
                                 init_emb,
-                                part_policy)
+                                part_policy=part_policy)
 
     def has_dense_params(self):
         """ test if the module has dense parameters.

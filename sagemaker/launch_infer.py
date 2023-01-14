@@ -81,6 +81,7 @@ def run_job(input_args, image, unknowargs):
         role=role,
         instance_count=instance_count,
         instance_type=instance_type,
+        model_uri=model_artifact_s3,
         py_version="py3",
         base_job_name=prefix,
         hyperparameters=params,
@@ -94,14 +95,8 @@ def run_job(input_args, image, unknowargs):
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--version-tag", type=str,
-        default="sagemaker_v3",
-        help="Inferece image tag")
-    parser.add_argument("--inference-ecr-repository", type=str,
-        default="graphlytics-pytorch-training-dev",
-        help="ECR repository.")
-    parser.add_argument("--account-id", type=str,
-        help="AWS account number")
+    parser.add_argument("--image-url", type=str,
+        help="Training docker image")
     parser.add_argument("--role", type=str,
         help="SageMaker role")
     parser.add_argument("--instance-type", type=str,
@@ -130,7 +125,8 @@ def parse_args():
              "Do not store it with partitioned graph")
     parser.add_argument("--infer-yaml-name", type=str,
         help="Training yaml config file name")
-    parser.add_argument("--enable-bert", type=bool, default=False,
+    parser.add_argument("--enable-bert",
+        type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
     parser.add_argument("--emb-s3-path", type=str,
         help="S3 location to save node embeddings")
@@ -148,6 +144,6 @@ if __name__ == "__main__":
     args, unknownargs = arg_parser.parse_known_args()
     print(args)
 
-    infer_image = f"{args.account_id}.dkr.ecr.{args.region}.amazonaws.com/{args.inference_ecr_repository}:{args.version_tag}"
+    infer_image = args.image_url
 
     run_job(args, infer_image, unknownargs)
