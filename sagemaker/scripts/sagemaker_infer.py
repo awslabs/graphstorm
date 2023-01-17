@@ -224,8 +224,6 @@ def main():
     subprocess.run(["tar", "-xvf", os.path.join(model_path, 'model.tar.gz'),
         "-C", model_path], check=True)
     print(f"{model_path} {os.listdir(model_path)}")
-    # model_path = utils.download_model(model_artifact_s3, model_sub_path,
-    #    data_path, sagemaker_session)
     if model_sub_path is not None:
         model_path = os.path.join(model_path, model_sub_path)
 
