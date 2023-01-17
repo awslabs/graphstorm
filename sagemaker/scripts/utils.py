@@ -3,6 +3,7 @@
 
 import os
 import time
+import tarfile
 import shutil
 
 from sagemaker.s3 import S3Downloader
@@ -136,6 +137,41 @@ def download_yaml(yaml_s3, yaml_file_name, local_path, sagemaker_session):
         raise RuntimeError(f"Fail to download yaml file {yaml_file_s3}")
 
     return yaml_path
+
+def download_model(model_artifact_s3, model_sub_path, local_path, sagemaker_session):
+    """ download saved model artifact (model saved in training)
+
+    Parameters
+    ----------
+    model_artifact_s3: str
+        S3 uri storing the model
+    model_sub_path: str
+        Relative path to the trained model under <model_artifact_s3>
+    local_path: str
+        Path to store graph data
+    sagemaker_session: sagemaker.session.Session
+        sagemaker_session to run download
+
+    Return
+    ------
+    model_path: str
+        Path to model
+    """
+    try:
+        S3Downloader.download(model_artifact_s3, local_path,
+            sagemaker_session=sagemaker_session)
+    except Exception: # pylint: disable=broad-except
+        print(f"Can not download model artifact from {model_artifact_s3}.")
+        raise RuntimeError(f"Can not download model artifact from {model_artifact_s3}.")
+
+    # take tar file from the output path, untar and store everything in model_path
+    with tarfile.open(os.path.join(local_path, "model.tar.gz"), mode="r:gz") as t:
+        t.extractall(path=local_path)
+    print(os.listdir(local_path))
+    if model_sub_path is not None:
+        return os.path.join(local_path, model_sub_path)
+    else:
+        return local_path
 
 def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_session):
     """ download graph data
