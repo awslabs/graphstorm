@@ -14,7 +14,7 @@ NUM_TRAINERS=4
 NUM_SERVERS=1
 NUM_SAMPLERS=0
 echo "127.0.0.1" > ${WORKSPACE}/ip_list.txt
-IP_CONFIG=ip_list.txt
+IP_CONFIG=${WORKSPACE}/ip_list.txt
 
 
 python3  ${LAUNCH_PATH} \
@@ -30,4 +30,9 @@ python3  ${LAUNCH_PATH} \
         --ip-config ${IP_CONFIG} \
         --part-config ${PART_CONFIG} \
         --feat-name paper:feat \
-        --save-model-path ${SAVE_MODEL_PATH}"
+        --save-model-path ${SAVE_MODEL_PATH} \
+        --save-perf-results-path ${WORKSPACE}"
+
+python3  ${GSF_HOME}/tools/regression_tests_utils.py --graph_name ogbn-mag \
+                                                     --filepath ${WORKSPACE}/performance_results.json \
+                                                     --task_type link_prediction

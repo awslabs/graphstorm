@@ -23,8 +23,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save):
-        super(GSgnnEdgePredictionTrainer, self).__init__(model, rank, topk_model_to_save)
 
     def fit(self, train_loader, n_epochs,
             val_loader=None,
@@ -167,6 +165,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                           peak_mem_alloc_MB=th.cuda.max_memory_allocated(device) / 1024 / 1024,
                           best_epoch=best_epoch)
             self.log_params(output)
+
+            if self.save_perf_results_path is not None:
+                self.save_model_results_to_file(self.evaluator.best_test_score)
 
     def eval(self, model, val_loader, test_loader, mini_batch_infer, total_steps):
         """ do the model evaluation using validiation and test sets
