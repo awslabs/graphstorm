@@ -33,7 +33,8 @@ def main(args):
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     # TODO(zhengda) we should use a different way to get rank.
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+                                         topk_model_to_save=config.topk_model_to_save,
+                                         save_perf_results_path=config.save_perf_results_path)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path)
     trainer.setup_cuda(dev_id=config.local_rank)

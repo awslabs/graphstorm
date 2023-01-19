@@ -55,6 +55,24 @@ def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     os.makedirs(model_path, exist_ok=True)
     th.save(model_states, os.path.join(model_path, 'model.bin'))
 
+def save_model_results_json(conf, test_model_performance, save_perf_results_path):
+    """
+    This function writes the model configuration and the test metric results to a JSON file
+    Args:
+        conf: the model configuration
+        test_model_performance: the final best test metric
+
+    Returns:
+
+    """
+    model_results_and_conf = {"configuration": conf,
+                              "test-model-performance": test_model_performance}
+
+    if save_perf_results_path is not None:
+        json_path = os.path.join(save_perf_results_path, 'performance_results.json')
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(model_results_and_conf, f, ensure_ascii=False, indent=4)
+
 def save_sparse_embeds(model_path, embed_layer):
     """ save sparse embeddings if any
 

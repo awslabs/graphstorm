@@ -29,7 +29,7 @@ sh -u tests/regression-tests/lp/ogbn_mag_lp_regression_test.sh
 
 Regression performance:
 -----------------------
-In the opensource_gsf branch, the MAG link prediction performances much better than those in both M5GNN and the main branch. The best test mrr culd reach to >0.90 while this value in the main branch is less than 0.4.
+In the opensource_gsf branch, the MAG link prediction performans much better than those in both M5GNN and the GSF main branch. The best test mrr culd reach to >0.90 while this value in the main branch is less than 0.4.
 
 GSF Opensource results:
 -----------------------

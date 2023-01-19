@@ -14,6 +14,7 @@ gsf:
     part_config: ogb_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json
     verbose: false
     debug: false
+    save_perf_results_path: null
   gnn:
     model_encoder_type: rgat
     fanout: "4"

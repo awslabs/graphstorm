@@ -15,6 +15,7 @@ gsf:
     verbose: false
     no_validation: false
     debug: false
+    save_perf_results_path: null
   gnn:
     fanout: "15"
     n_layers: 1

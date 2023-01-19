@@ -156,6 +156,15 @@ class GSConfig:
         return False
 
     @property
+    def save_perf_results_path(self):
+        """ Save performance flag
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_save_perf_results_path"):
+            return self._save_perf_results_path
+        return None
+
+    @property
     def graph_name(self):
         """ Name of the graph
         """
@@ -1160,6 +1169,10 @@ def _add_gsgnn_basic_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Debug mode.")
+    group.add_argument("--save-perf-results-path",
+            type=str,
+            default=argparse.SUPPRESS,
+            help="Folder path to save performance results of model evaluation.")
 
     return parser
 

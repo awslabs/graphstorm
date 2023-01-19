@@ -14,6 +14,7 @@ gsf:
     part_config: ./test_ec_1p_4t/test.json
     verbose: false
     debug: false
+    save_perf_results_path: null
   gnn:
     model_encoder_type: rgcn
     fanout: "4"

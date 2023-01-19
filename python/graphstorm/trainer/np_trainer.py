@@ -152,6 +152,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                           peak_mem_alloc_MB=th.cuda.max_memory_allocated(device) / 1024 / 1024)
             self.log_params(output)
 
+            if self.save_perf_results_path is not None:
+                self.save_model_results_to_file(self.evaluator.best_test_score)
+
     def eval(self, model, val_loader, test_loader, mini_batch_infer, total_steps):
         """ do the model evaluation using validiation and test sets
 

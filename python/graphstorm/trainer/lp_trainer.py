@@ -150,6 +150,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                           best_epoch=best_epoch)
             self.log_params(output)
 
+            if self.save_perf_results_path is not None:
+                self.save_model_results_to_file(self.evaluator.best_test_score)
+
     def eval(self, model, data, total_steps):
         """ do the model evaluation using validiation and test sets
 
