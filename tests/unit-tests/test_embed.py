@@ -96,7 +96,7 @@ def test_input_layer3():
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
-    feat_size = get_feat_size(g, {'n0' : 'feat'})
+    feat_size = get_feat_size(g, {'n0' : ['feat']})
     layer = GSNodeInputLayer(g, feat_size, 2)
     assert len(layer.input_projs) == 1
     assert list(layer.input_projs.keys())[0] == 'n0'
@@ -146,12 +146,12 @@ def test_compute_embed():
     print('g has {} nodes of n0 and {} nodes of n1'.format(
         g.number_of_nodes('n0'), g.number_of_nodes('n1')))
 
-    feat_size = get_feat_size(g, {'n0' : 'feat'})
+    feat_size = get_feat_size(g, {'n0' : ['feat']})
     layer = GSNodeInputLayer(g, feat_size, 2)
     nn.init.eye_(layer.input_projs['n0'])
 
     embeds = compute_node_input_embeddings(g, 10, layer,
-                                           feat_field={'n0' : 'feat'})
+                                           feat_field={'n0' : ['feat']})
     assert len(embeds) == len(g.ntypes)
     assert_almost_equal(embeds['n0'][0:len(embeds['n1'])].numpy(),
             g.nodes['n0'].data['feat'][0:g.number_of_nodes('n0')].numpy())
@@ -159,7 +159,7 @@ def test_compute_embed():
             layer.sparse_embeds['n1'].weight[0:g.number_of_nodes('n1')].numpy())
     # Run it again to tigger the branch that access 'input_emb' directly.
     embeds = compute_node_input_embeddings(g, 10, layer,
-                                           feat_field={'n0' : 'feat'})
+                                           feat_field={'n0' : ['feat']})
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 

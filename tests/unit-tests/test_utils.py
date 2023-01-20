@@ -76,7 +76,7 @@ def test_topklist():
 
     # 3. test for each run and record results
     for epoch, val_score in enumerate(val_scores):
-        
+
         rank = 1
         for val in perf_list:
             if val >= val_score:
@@ -94,7 +94,7 @@ def test_topklist():
     return_val_list = [0, 1, 2, 3, 4, 5]
 
     for epoch, val_score in enumerate(val_scores):
-        
+
         rank = 1
         for val in perf_list:
             if val >= val_score:
@@ -117,19 +117,19 @@ def test_get_feat_size():
         assert ntype in g.ntypes
         assert feat_size[ntype] == g.nodes[ntype].data['feat'].shape[1]
 
-    feat_size = get_feat_size(g, {'n0': 'feat', 'n1': 'feat'})
+    feat_size = get_feat_size(g, {'n0': ['feat'], 'n1': ['feat']})
     assert len(feat_size) == len(g.ntypes)
     for ntype in feat_size:
         assert ntype in g.ntypes
         assert feat_size[ntype] == g.nodes[ntype].data['feat'].shape[1]
 
-    feat_size = get_feat_size(g, {'n0' : 'feat'})
+    feat_size = get_feat_size(g, {'n0' : ['feat']})
     assert len(feat_size) == len(g.ntypes)
     assert feat_size['n0'] == g.nodes['n0'].data['feat'].shape[1]
     assert feat_size['n1'] == 0
 
     try:
-        feat_size = get_feat_size(g, {'n0': 'feat', 'n1': 'feat1'})
+        feat_size = get_feat_size(g, {'n0': ['feat'], 'n1': ['feat1']})
     except:
         feat_size = None
     assert feat_size is None

@@ -151,7 +151,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgat"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": "test_feat",
+        "feat_name": ["test_feat"],
         "fanout": "10,20,30",
         "n_layers": 3,
         "n_hidden": 128,
@@ -164,7 +164,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": "test_feat",
+        "feat_name": ["test_feat"],
         "fanout": "a:10@b:10,a:10@b:10@c:20",
         "eval_fanout": "10,10",
         "n_layers": 2,
@@ -1141,7 +1141,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgat"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": "test_feat",
+        "feat_name": ["test_feat"],
         "fanout": "10,20,30",
         "n_layers": 3,
         "n_hidden": 128,
@@ -1154,7 +1154,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": "ntype0:feat_name",
+        "feat_name": ["ntype0:feat_name"],
         "fanout": "a:10@b:10,a:10@b:10@c:20",
         "eval_fanout": "10,10",
         "n_layers": 2,
@@ -1165,9 +1165,15 @@ def create_gnn_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": "ntype0:feat_name ntype1:fname",
+        "feat_name": ["ntype0:feat_name", "ntype1:fname"],
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["gnn"] = {
+        "feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
+    }
+    with open(os.path.join(tmp_path, file_name+"4.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["basic"] = {
@@ -1177,7 +1183,7 @@ def create_gnn_config(tmp_path, file_name):
         "n_layers": 2, # for encoder of lm, n_layers will always be 0
         "n_hidden": 128,
     }
-    with open(os.path.join(tmp_path, file_name+"4.yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name+"5.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # config for check default value
@@ -1191,7 +1197,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": "ntype0:feat_name ntype0:feat_name", # set feat_name twice
+        "feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
         "fanout": "error", # error fanout
         "eval_fanout": "error",
         "n_hidden": 0,
@@ -1202,7 +1208,7 @@ def create_gnn_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": {"ntype0":"feat_name"}, # not a string
+        "feat_name": {"ntype0":"feat_name"}, # not a list
         "fanout": "10,10", # error fanout
         "eval_fanout": "10,10",
         "n_hidden": 32,
@@ -1231,7 +1237,7 @@ def test_gnn_info():
         config = GSConfig(args)
         assert len(config.feat_name) == 1
         assert 'ntype0' in config.feat_name
-        assert config.feat_name['ntype0'] == "feat_name"
+        assert config.feat_name['ntype0'] == ["feat_name"]
         assert config.fanout[0]["a"] == 10
         assert config.fanout[0]["b"] == 10
         assert config.fanout[1]["a"] == 10
@@ -1248,10 +1254,21 @@ def test_gnn_info():
         assert len(config.feat_name) == 2
         assert 'ntype0' in config.feat_name
         assert 'ntype1' in config.feat_name
-        assert config.feat_name['ntype0'] == "feat_name"
-        assert config.feat_name['ntype1'] == "fname"
+        assert config.feat_name['ntype0'] == ["feat_name"]
+        assert config.feat_name['ntype1'] == ["fname"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test4.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert len(config.feat_name) == 2
+        assert 'ntype0' in config.feat_name
+        assert 'ntype1' in config.feat_name
+        assert len(config.feat_name['ntype0']) == 2
+        assert "feat_name" in config.feat_name['ntype0']
+        assert "fname" in config.feat_name['ntype0']
+        assert config.feat_name['ntype1'] == ["fname"]
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test5.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.n_layers == 0 # lm model does not need n layers
@@ -1358,4 +1375,3 @@ if __name__ == '__main__':
     test_node_regress_info()
     test_edge_class_info()
     test_lp_info()
-    test_lml_info()

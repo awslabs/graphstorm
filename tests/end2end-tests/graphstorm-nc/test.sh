@@ -106,12 +106,22 @@ python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_np
 
 error_and_exit $?
 
-rm -Rf /data/movielen_100k_multi_feat_nc
-cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_multi_feat_nc
-python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multi_feat_nc.py --path /data/movielen_100k_multi_feat_nc
+rm -Rf /data/movielen_100k_multi_node_feat_nc
+cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_multi_node_feat_nc
+python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multi_feat_nc.py --path /data/movielen_100k_multi_node_feat_nc
 
 echo "**************dataset: multi-feature MovieLens, RGCN layer: 1, node feat: generated feature, inference: mini-batch"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_np --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_feat_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 'python3 gsgnn_np.py --cf ml_nc.yaml --n-epochs 3 --part-config /data/movielen_100k_multi_feat_nc/movie-lens-100k.json --feat-name "user:feat1 movie:feat0"'
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_np --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_node_feat_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 'python3 gsgnn_np.py --cf ml_nc.yaml --n-epochs 3 --part-config /data/movielen_100k_multi_node_feat_nc/movie-lens-100k.json --feat-name user:feat1 movie:feat0'
+
+error_and_exit $?
+
+rm -Rf /data/movielen_100k_multi_feat_nc
+cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_multi_feat_nc
+# generate a dataset with user and movie have multiple node features
+python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multi_feat_nc.py --path /data/movielen_100k_multi_feat_nc --multi_feats=True
+
+echo "**************dataset: multi-feature MovieLens, RGCN layer: 1, node feat: generated feature, inference: mini-batch"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_np --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_multi_feat_nc/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 'python3 gsgnn_np.py --cf ml_nc.yaml --n-epochs 3 --part-config /data/movielen_100k_multi_feat_nc/movie-lens-100k.json --feat-name movie:feat0,feat1 user:feat2,feat3'
 
 error_and_exit $?
 

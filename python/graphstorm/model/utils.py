@@ -456,11 +456,25 @@ def get_feat_size(g, feat_names):
 
         if feat_name is None:
             feat_size[ntype] = 0
-        else:
+        elif isinstance(feat_name, str): # global feat_name
             # We force users to know which node type has node feature
             # This helps avoid unexpected training behavior.
             assert feat_name in g.nodes[ntype].data, \
                     f"Warning. The feature \"{feat_name}\" " \
                     f"does not exists for the node type \"{ntype}\"."
             feat_size[ntype] = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
+        else:
+            feat_size[ntype] = 0
+            for fname in feat_name:
+                # We force users to know which node type has node feature
+                # This helps avoid unexpected training behavior.
+                assert fname in g.nodes[ntype].data, \
+                        f"Warning. The feature \"{fname}\" " \
+                        f"does not exists for the node type \"{ntype}\"."
+                # TODO: we only allow an input node feature as a 2D tensor
+                # Support 1D or nD when required.
+                assert len(g.nodes[ntype].data[fname].shape) == 2, \
+                    "Input node features should be 2D tensors"
+                fsize = np.prod(g.nodes[ntype].data[fname].shape[1:])
+                feat_size[ntype] += fsize
     return feat_size
