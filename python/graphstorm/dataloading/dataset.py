@@ -33,7 +33,7 @@ def prepare_batch_input(g, input_nodes,
         Input nodes.
     dev: th.device
         Device to put output in.
-    feat_field: str or dict of str
+    feat_field: str or dict of list of str
         Fields to extract features
 
     Return:
@@ -44,11 +44,13 @@ def prepare_batch_input(g, input_nodes,
     feat = {}
     for ntype, nid in input_nodes.items():
         feat_name = None if feat_field is None else \
-            feat_field if isinstance(feat_field, str) \
+            [feat_field] if isinstance(feat_field, str) \
             else feat_field[ntype] if ntype in feat_field else None
 
         if feat_name is not None:
-            feat[ntype] = g.nodes[ntype].data[feat_name][nid].to(dev)
+            # concatenate multiple features together
+            feat[ntype] = th.cat([g.nodes[ntype].data[fname][nid].to(dev) \
+                for fname in feat_name], dim=1)
     return feat
 
 class GSgnnData():

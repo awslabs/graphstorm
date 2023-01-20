@@ -11,6 +11,10 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Generate graph")
     argparser.add_argument("--path", type=str, required=True,
                            help="Path to save the generated graph")
+    argparser.add_argument("--multi_feats",
+                           type=lambda x: (str(x).lower() in ['true', '1']),
+                           default=False,
+                           help="If true, generate multiple node feature for each node type")
     args = argparser.parse_args()
     for d in os.listdir(args.path):
         part_dir = os.path.join(args.path, d)
@@ -28,6 +32,9 @@ if __name__ == '__main__':
                     # have exactly different names.
                     new_data[name + str(i)] = data[name]
                     i += 1
+                    if args.multi_feats:
+                        new_data[name + str(i)] = data[name]
+                        i += 1
                 else:
                     new_data[name] = data[name]
             dgl.data.save_tensors(os.path.join(part_dir, 'node_feat.dgl'), new_data)
