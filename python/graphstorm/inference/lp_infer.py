@@ -26,7 +26,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
     """
 
     # TODO(zhengda) We only support full-graph inference for now.
-    def infer(self, loader, save_embed_path):
+    def infer(self, loader, save_embed_path, edge_mask_for_gnn_embeddings='train_mask'):
         """ Do inference
 
         The inference can do two things:
@@ -39,9 +39,14 @@ class GSgnnLinkPredictionInfer(GSInfer):
             The mini-batch sampler for link prediction task.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
+        edge_mask_for_gnn_embeddings : str
+            The mask that indicates the edges used for computing GNN embeddings. By default,
+            the dataloader uses the edges in the training graphs to compute GNN embeddings to
+            avoid information leak for link prediction.
         """
         sys_tracker.check('start inferencing')
         embs = do_full_graph_inference(self._model, loader.data,
+                                       edge_mask=edge_mask_for_gnn_embeddings,
                                        task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
 

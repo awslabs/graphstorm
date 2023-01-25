@@ -21,6 +21,7 @@ gsf:
     mp_opt_level: O2
     train_nodes: 0
     debug: false
+    evaluation_frequency: 500
   gnn:
     fanout: "20,15"
     n_layers: 2

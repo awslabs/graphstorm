@@ -35,7 +35,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             mini_batch_infer=True,      # pylint: disable=unused-argument
             save_model_path=None,
             save_model_per_iters=None,
-            save_perf_results_path=None):
+            save_perf_results_path=None,
+            edge_mask_for_gnn_embeddings='train_mask'):
         """ The fit function for link prediction.
 
         Parameters
@@ -57,6 +58,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             The number of iteration to train the model before saving the model.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
+        edge_mask_for_gnn_embeddings : str
+            The mask that indicates the edges used for computing GNN embeddings for model
+            evaluation. By default, we use the edges in the training graph to compute
+            GNN embeddings for evaluation.
         """
         if not mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
@@ -113,7 +118,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(model.module, data, total_steps)
+                    val_score = self.eval(model.module, data, total_steps,
+                                          edge_mask_for_gnn_embeddings)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -138,7 +144,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, data, total_steps)
+                val_score = self.eval(model.module, data, total_steps,
+                                      edge_mask_for_gnn_embeddings)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
@@ -167,7 +174,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, data, total_steps):
+    def eval(self, model, data, total_steps, edge_mask_for_gnn_embeddings):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -178,6 +185,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             The training dataset
         total_steps: int
             Total number of iterations.
+        edge_mask_for_gnn_embeddings : str
+            The mask that indicates the edges used for computing GNN embeddings.
 
         Returns
         -------
@@ -185,7 +194,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         """
         test_start = time.time()
         sys_tracker.check('before prediction')
-        emb = do_full_graph_inference(model, data, task_tracker=self.task_tracker)
+        emb = do_full_graph_inference(model, data,
+                                      edge_mask=edge_mask_for_gnn_embeddings,
+                                      task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         decoder = model.decoder
         val_score, test_score = self.evaluator.evaluate(emb, decoder, total_steps, model.device)

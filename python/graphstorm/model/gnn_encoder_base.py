@@ -56,7 +56,8 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         """
         return self._layers
 
-def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout, task_tracker=None):
+def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
+                   edge_mask=None, task_tracker=None):
     """Distributed inference of final representation over all node types.
 
     Parameters
@@ -71,6 +72,8 @@ def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout, task_tracker=
         The batch size for the GNN inference.
     fanout : int
         The fanout for computing the GNN embeddings in a GNN layer.
+    edge_mask : str
+        The edge mask indicates which edges are used to compute GNN embeddings.
     task_tracker : GSTaskTrackerAbc
         The task tracker.
 
@@ -100,7 +103,7 @@ def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout, task_tracker=
                                                 partition_book=g.get_partition_book(),
                                                 ntype=ntype, force_even=False)
             # need to provide the fanout as a list, the number of layers is one obviously here
-            sampler = dgl.dataloading.MultiLayerNeighborSampler([fanout])
+            sampler = dgl.dataloading.MultiLayerNeighborSampler([fanout], mask=edge_mask)
             dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
                                                             batch_size=batch_size,
                                                             shuffle=True,
