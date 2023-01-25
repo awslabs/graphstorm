@@ -394,8 +394,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         return self._loss_fn
 
-def do_full_graph_inference(model, data, batch_size=1024, task_tracker=None):
+def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_tracker=None):
     """ Do fullgraph inference
+
+    It may use some of the edges indicated by `edge_mask` to compute GNN embeddings.
 
     Parameters
     ----------
@@ -405,6 +407,8 @@ def do_full_graph_inference(model, data, batch_size=1024, task_tracker=None):
         The GraphStorm dataset
     batch_size : int
         The batch size for inferencing a GNN layer
+    edge_mask : str
+        The edge mask that indicates what edges are used to compute GNN embeddings.
     task_tracker: GSTaskTrackerAbc
         Task tracker
 
@@ -423,7 +427,8 @@ def do_full_graph_inference(model, data, batch_size=1024, task_tracker=None):
     th.distributed.barrier()
     model.eval()
     embeddings = dist_inference(data.g, model.gnn_encoder, node_embed,
-                                batch_size, -1, task_tracker=task_tracker)
+                                batch_size, -1, edge_mask=edge_mask,
+                                task_tracker=task_tracker)
     # TODO(zhengda) we should avoid getting rank from the graph.
     if get_rank() == 0:
         print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")

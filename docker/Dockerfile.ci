@@ -12,7 +12,7 @@ RUN apt-get install -y cmake
 RUN pip install torch==1.12.1+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
 
 # Install DGL
-RUN pip3 install dgl-cu113 -f https://data.dgl.ai/wheels/repo.html
+RUN pip3 install --pre dgl-cu113==0.10a221031 -f https://data.dgl.ai/wheels-test/repo.html
 
 # Install related Python packages
 RUN pip3 install ogb scipy pyarrow boto3 sklearn transformers

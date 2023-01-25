@@ -69,15 +69,14 @@ class GSgnnEdgeDataLoader():
                                                    reverse_edge_types_map,
                                                    train_task=train_task)
 
-    def _prepare_dataloader(self, g, train_idxs, fanout, batch_size,
+    def _prepare_dataloader(self, g, target_idxs, fanout, batch_size,
                             exclude_training_targets=False, reverse_edge_types_map=None,
                             train_task=True):
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
-
         # edge loader
         exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
-                                                    train_idxs,
+                                                    target_idxs,
                                                     sampler,
                                                     batch_size=batch_size,
                                                     shuffle=train_task,
@@ -134,9 +133,14 @@ class GSgnnLinkPredictionDataLoader():
         A map for reverse edge type
     exclude_training_targets: bool
         Whether to exclude training edges during neighbor sampling
+    edge_mask_for_gnn_embeddings : str
+        The mask that indicates the edges used for computing GNN embeddings. By default,
+        the dataloader uses the edges in the training graphs to compute GNN embeddings to
+        avoid information leak for link prediction.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
-                 train_task=True, reverse_edge_types_map=None, exclude_training_targets=False):
+                 train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
+                 edge_mask_for_gnn_embeddings='train_mask'):
         self._data = dataset
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
@@ -146,29 +150,42 @@ class GSgnnLinkPredictionDataLoader():
                 num_negative_edges, batch_size, device,
                 train_task=train_task,
                 exclude_training_targets=exclude_training_targets,
-                reverse_edge_types_map=reverse_edge_types_map)
+                reverse_edge_types_map=reverse_edge_types_map,
+                edge_mask_for_gnn_embeddings=edge_mask_for_gnn_embeddings)
 
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
         negative_sampler = dgl.dataloading.negative_sampler.Uniform(num_negative_edges)
         return negative_sampler
 
-    def _prepare_dataloader(self, g, train_idxs, fanout,
+    def _prepare_dataloader(self, g, target_idxs, fanout,
                             num_negative_edges, batch_size, device, train_task=True,
-                            exclude_training_targets=False, reverse_edge_types_map=None):
-        sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
+                            exclude_training_targets=False, reverse_edge_types_map=None,
+                            edge_mask_for_gnn_embeddings=None):
+        # The dataloader can only sample neighbors from the training graph.
+        # This can avoid information leak during the link prediction training.
+        # This avoids two types of information leak: it avoids sampling neighbors
+        # from the test graph during the training; it also avoid sampling neighbors
+        # from the test graph to generate embeddings for evaluating the model performance
+        # on the test set.
+        if edge_mask_for_gnn_embeddings is not None and \
+                any(edge_mask_for_gnn_embeddings in g.edges[etype].data for etype in g.etypes):
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout,
+                                                                mask=edge_mask_for_gnn_embeddings)
+        else:
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
-        if isinstance(train_idxs, dict):
-            for etype in train_idxs:
-                train_idxs[etype] = trim_data(train_idxs[etype], device)
+        if isinstance(target_idxs, dict):
+            for etype in target_idxs:
+                target_idxs[etype] = trim_data(target_idxs[etype], device)
         else:
-            train_idxs = trim_data(train_idxs, device)
+            target_idxs = trim_data(target_idxs, device)
         exclude = 'reverse_types' if exclude_training_targets else None
         reverse_etypes = reverse_edge_types_map if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
-                                                    train_idxs,
+                                                    target_idxs,
                                                     sampler,
                                                     batch_size=batch_size,
                                                     negative_sampler=negative_sampler,
@@ -373,22 +390,29 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
 
     """
 
-    def _prepare_dataloader(self, g, train_idxs, fanout, num_negative_edges,
+    def _prepare_dataloader(self, g, target_idxs, fanout, num_negative_edges,
                             batch_size, device, train_task=True,
                             exclude_training_targets=False,
-                            reverse_edge_types_map=None):
-        sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
+                            reverse_edge_types_map=None,
+                            edge_mask_for_gnn_embeddings=None):
+        # See the comment in GSgnnLinkPredictionDataLoader
+        if edge_mask_for_gnn_embeddings is not None and \
+                any(edge_mask_for_gnn_embeddings in g.edges[etype].data for etype in g.etypes):
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout,
+                                                                mask=edge_mask_for_gnn_embeddings)
+        else:
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
-        if isinstance(train_idxs, dict):
-            for etype in train_idxs:
-                train_idxs[etype] = trim_data(train_idxs[etype], device)
+        if isinstance(target_idxs, dict):
+            for etype in target_idxs:
+                target_idxs[etype] = trim_data(target_idxs[etype], device)
         else:
-            train_idxs = trim_data(train_idxs, device)
+            target_idxs = trim_data(target_idxs, device)
         exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = AllEtypeDistEdgeDataLoader(g,
-                                            train_idxs,
+                                            target_idxs,
                                             sampler,
                                             batch_size=batch_size,
                                             negative_sampler=negative_sampler,

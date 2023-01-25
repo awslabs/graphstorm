@@ -79,7 +79,9 @@ def main(args):
     if config.save_embed_path is not None:
         best_model = trainer.get_best_model().to(device)
         assert best_model is not None, "Cannot get the best model from the trainer."
-        embeddings = do_full_graph_inference(best_model, train_data, task_tracker=tracker)
+        # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
+        embeddings = do_full_graph_inference(best_model, train_data,
+                                             edge_mask="train_mask", task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         th.distributed.get_world_size())
 

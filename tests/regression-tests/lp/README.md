@@ -33,11 +33,9 @@ In the opensource_gsf branch, the MAG link prediction performans much better tha
 
 GSF Opensource results:
 -----------------------
-Train mrr: 0.9597, Val mrr: 0.9278, Test mrr: 0.8989, 
-Best val mrr: 0.9278, Best test mrr: 0.8989, Best iter: 3130
-
-Train mrr: 0.9697, Val mrr: 0.9443, Test mrr: 0.9182,
-Best val mrr: 0.9443, Best test mrr: 0.9182, Best iter: 6260
+Best val mrr: 0.3032, Best test mrr: 0.3403, Best iter: 3753
+Best val mrr: 0.3489, Best test mrr: 0.3866, Best iter: 7000
+Best val mrr: 0.3725, Best test mrr: 0.4047, Best iter: 13761
 
 GSF results:
 ------------

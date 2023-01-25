@@ -68,7 +68,6 @@ class GSgnnEdgePredictionInfer(GSInfer):
         if save_predict_path is not None:
             os.makedirs(save_predict_path, exist_ok=True)
             th.save(pred, os.path.join(save_predict_path, "predict-{}.pt".format(self.rank)))
-            print('after saving')
         th.distributed.barrier()
         sys_tracker.check('save predictions')
 
