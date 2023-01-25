@@ -7,7 +7,7 @@ $ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
 $ cd $GS_HOME/training_scripts/gsgnn_lp
 $ aws s3 cp --recursive s3://graphstorm-example/arxiv/ogbn-arxiv-raw/ ogbn-arxiv-raw/
-$ python3 -u $GS_HOME/tools/partition_graph_lp.py --dataset ogbn-arxiv --filepath ogbn-arxiv-raw --num_parts 2 --num_trainers_per_machine 4 --output ogb_arxiv_train_val_2p_4t
+$ python3 -u $GS_HOME/tools/partition_graph_lp.py --dataset ogbn-arxiv --filepath ogbn-arxiv-raw --num_parts 2 --num_trainers_per_machine 4 --output ogb_arxiv_train_val_2p_4t --edge_pct 0.9
 ```
 
 Upload partitioned data into S3

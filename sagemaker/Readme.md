@@ -3,16 +3,16 @@ Here we provide SageMaker integration for GraphStorm. We assume all data are sto
 
 ## How to build the docker image
 ```
-git clone git@ssh.gitlab.aws.dev:agml/graph-storm.git
-cp graphstorm/sagemaker/docker/changehostname.c ./
-cp graphstorm/sagemaker/docker/start_with_right_hostname.sh ./
+git clone https://github.com/awslabs/graphstorm
 
 docker build -f graphstorm/sagemaker/docker/Dockerfile . -t <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/graphstorm_train:sagemaker
 ```
 
 ## How to launch SageMaker task
+See sagemaker/examples for more detials. We provide example scripts for five different tasks include node classification, node regression, edge classification, edge regression and link prediction.
 
-### Link prediction
+## How to launch distribute ParMetis for GraphStorm
+We provide an script to launch distributed ParMetis pipeline. The input should be an S3 location storing data following the format as [TBD]. The output will be partitioned DGL graph.
 ```
-python3 graphstorm/sagemaker/launch_train.py  --version-tag sagemaker --training-ecr-repository graphstorm_train --account-id <ACCOUNT_ID> --region us-east-1 --role <ARN:ROLE> --graph-name ogbn-arxiv --graph-data-s3 <S3_PATH_TO_GRAPH_DATA> --task-type "link_prediction" --train-yaml-s3 <S3_PATH_TO_TRAINING_YAML_CONFIG> --train-yaml-name arxiv_lp_hf.yaml --n-layers 1 --n-hidden 128
+python3 graphstorm/sagemaker/launch_parmetis.py --graph-name <Graph_Name> --graph-data-s3 <S3_PATH_TO_INPUT_GRAPH > --num-parts <NUMBER_OF_PARTITIONS> --output-data-s3 <S3_PATH_TO_STORE_OUTPUT_GRAPH> --image-url <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/graphstorm_train:sagemaker --region <REGION> --role <ROLE>
 ```

@@ -45,6 +45,7 @@ RUN pip install --pre --no-cache-dir dgl-cu113 -f https://data.dgl.ai/wheels-tes
 
 # Install related Python packages
 RUN pip install --no-cache-dir ogb
+RUN pip install pydantic
 
 # Download DGL source code
 RUN cd /root; git clone --recursive https://github.com/dmlc/dgl.git
@@ -54,6 +55,7 @@ RUN cd /root; git clone --recursive https://github.com/dmlc/dgl.git
 COPY graphstorm /opt/ml/code/graphstorm/
 COPY graphstorm/sagemaker/scripts/utils.py /opt/ml/code/
 COPY graphstorm/sagemaker/scripts/sagemaker_infer.py /opt/ml/code/
+COPY graphstorm/sagemaker/scripts/sagemaker_parmetis.py /opt/ml/code/
 COPY graphstorm/sagemaker/scripts/sagemaker_train.py /opt/ml/code/
 
 ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
