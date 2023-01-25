@@ -1,8 +1,8 @@
 """Embedding layer implementation"""
 import torch as th
-
 from torch import nn
 from dgl.distributed import DistEmbedding, DistTensor, node_split
+
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
 from ..utils import get_rank
@@ -30,6 +30,12 @@ def init_emb(shape, dtype):
 
 class GSNodeInputLayer(GSLayer):
     """The input embedding layer for all nodes in a heterogeneous graph.
+
+    The input layer adds learnable embeddings on nodes if the nodes do not have features.
+    It adds a linear layer on nodes with node features and the linear layer projects the node
+    features to a specified dimension. A user can add learnable embeddings on the nodes
+    with node features. In this case, the input layer combines the node features with
+    the learnable embeddings and project them to the specified dimension.
 
     Parameters
     ----------

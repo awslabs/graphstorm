@@ -1,11 +1,73 @@
 """GNN model for edge prediction s in GraphStorm
 """
+import abc
 import torch as th
 import dgl
 
-from .gnn import GSgnnModel
+from .gnn import GSgnnModel, GSgnnModelBase
 
-class GSgnnEdgeModel(GSgnnModel):
+class GSgnnEdgeModelInterface:
+    """ The interface for GraphStorm edge prediction model.
+
+    This interface defines two main methods for training and inference.
+    """
+    @abc.abstractmethod
+    def forward(self, blocks, batch_graph, node_feats, edge_feats, labels):
+        """ The forward function for edge prediction.
+
+        This method is used for training. It takes a mini-batch, including
+        the graph structure, node features, edge features and edge labels and
+        computes the loss of the model in the mini-batch.
+
+        Parameters
+        ----------
+        blocks : list of DGLBlock
+            The message passing graph for computing GNN embeddings.
+        batch_graph : a DGLGraph
+            The graph where we run edge classification.
+        node_feats : dict of Tensors
+            The input node features of the message passing graphs.
+        edge_feats : dict of Tensors
+            The input edge features of the message passing graphs.
+        labels: dict of Tensor
+            The labels of the predicted edges.
+
+        Returns
+        -------
+        The loss of prediction.
+        """
+
+    @abc.abstractmethod
+    def predict(self, blocks, batch_graph, node_feats, edge_feats):
+        """ Make prediction on the edges.
+
+        Parameters
+        ----------
+        blocks : list of DGLBlock
+            The message passing graph for computing GNN embeddings.
+        batch_graph : a DGLGraph
+            The graph where we run edge classification.
+        node_feats : dict of Tensors
+            The node features of the message passing graphs.
+        edge_feats : dict of Tensors
+            The edge features of the message passing graphs.
+
+        Returns
+        -------
+        Tensor : the prediction results.
+        """
+
+class GSgnnEdgeModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
+                         GSgnnEdgeModelInterface):
+    """ The base class for edge-prediction GNN
+
+    When a user wants to define an edge prediction GNN model and train the model
+    in GraphStorm, the model class needs to inherit from this base class.
+    A user needs to implement some basic methods including `forward`, `predict`,
+    `save_model`, `restore_model` and `create_optimizer`.
+    """
+
+class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
     """ GraphStorm GNN model for edge prediction tasks
 
     Parameters
@@ -17,28 +79,13 @@ class GSgnnEdgeModel(GSgnnModel):
         super(GSgnnEdgeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
 
-    def forward(self, blocks, batch_graph, input_feats, input_nodes, labels):
+    def forward(self, blocks, batch_graph, node_feats, _, labels):
         """ The forward function for edge prediction.
 
-        Parameters
-        ----------
-        blocks : list of DGLBlock
-            The message passing graph for computing GNN embeddings.
-        batch_graph : a DGLGraph
-            The graph where we run edge classification.
-        input_feats : dict of Tensor
-            The input features of the message passing graphs.
-        input_nodes : dict of Tensor
-            The input nodes of the message passing graphs.
-        labels: dict of Tensor
-            The labels of the predicted edges.
-
-        Returns
-        -------
-        The loss of prediction.
+        This GNN model doesn't support edge features right now.
         """
         alpha_l2norm = self.alpha_l2norm
-        gnn_embs = self.compute_embed_step(blocks, input_feats, input_nodes)
+        gnn_embs = self.compute_embed_step(blocks, node_feats)
         # TODO(zhengda) we only support prediction on one edge type now
         assert len(labels) == 1, "We only support prediction on one edge type for now."
         target_etype = list(labels.keys())[0]
@@ -55,25 +102,10 @@ class GSgnnEdgeModel(GSgnnModel):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-    def predict(self, blocks, batch_graph, input_feats, input_nodes):
-        """ The forward function for edge prediction.
-
-        Parameters
-        ----------
-        blocks : list of DGLBlock
-            The message passing graph for computing GNN embeddings.
-        batch_graph : a DGLGraph
-            The graph where we run edge classification.
-        input_feats : dict
-            The input features of the message passing graphs.
-        input_nodes : dict
-            The input nodes of the message passing graphs.
-
-        Returns
-        -------
-        The prediction results.
+    def predict(self, blocks, batch_graph, node_feats, _):
+        """ Make prediction on edges.
         """
-        gnn_embs = self.compute_embed_step(blocks, input_feats, input_nodes)
+        gnn_embs = self.compute_embed_step(blocks, node_feats)
         return self.decoder.predict(batch_graph, gnn_embs)
 
 def edge_mini_batch_gnn_predict(model, loader, return_label=False):
@@ -83,7 +115,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_label=False):
     ----------
     model : GSgnnModel
         The GraphStorm GNN model
-    loader : GSgnnNodeDataLoader
+    loader : GSgnnEdgeDataLoader
         The GraphStorm dataloader
     return_label : bool
         Whether or not to return labels.
@@ -106,7 +138,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_label=False):
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
-            pred = model.predict(blocks, batch_graph, input_feats, input_nodes)
+            pred = model.predict(blocks, batch_graph, input_feats, None)
             preds.append(pred.cpu())
 
             if return_label:
@@ -139,7 +171,7 @@ def edge_mini_batch_predict(model, emb, loader, return_label=False):
         The GraphStorm GNN model
     emb : dict of Tensor
         The GNN embeddings
-    loader : GSgnnNodeDataLoader
+    loader : GSgnnEdgeDataLoader
         The GraphStorm dataloader
     return_label : bool
         Whether or not to return labels.

@@ -4,7 +4,8 @@ import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
 from ..model.node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
-from ..model.gnn import do_full_graph_inference
+from ..model.node_gnn import GSgnnNodeModelInterface
+from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
@@ -21,13 +22,18 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
     topk_model_to_save : int
         The top K model to save.
     """
+    def __init__(self, model, rank, topk_model_to_save=1):
+        super(GSgnnNodePredictionTrainer, self).__init__(model, rank, topk_model_to_save)
+        assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GSgnnModelBase), \
+                "The input model is not a node model. Please implement GSgnnNodeModelBase."
 
     def fit(self, train_loader, n_epochs,
             val_loader=None,
             test_loader=None,
             mini_batch_infer=True,
             save_model_path=None,
-            save_model_per_iters=None):
+            save_model_per_iters=-1,
+            save_perf_results_path=None):
         """ The fit function for node prediction.
 
         Parameters
@@ -47,11 +53,16 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             The path where the model is saved.
         save_model_per_iters : int
             The number of iteration to train the model before saving the model.
+        save_perf_results_path : str
+            The path of the file where the performance results are saved.
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
             assert val_loader is not None, \
                     "The evaluator is provided but validation set is not provided."
+        if not mini_batch_infer:
+            assert isinstance(self._model, GSgnnModel), \
+                    "Only GSgnnModel supports full-graph inference."
 
         model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
                                         output_device=self.dev_id)
@@ -85,7 +96,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     num_input_nodes += feats.shape[0]
 
                 t2 = time.time()
-                loss = model(blocks, input_feats, input_nodes, lbl)
+                # TODO(zhengda) we don't support edge features for now.
+                loss = model(blocks, input_feats, None, lbl)
 
                 t3 = time.time()
                 self.optimizer.zero_grad()
@@ -152,8 +164,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                           peak_mem_alloc_MB=th.cuda.max_memory_allocated(device) / 1024 / 1024)
             self.log_params(output)
 
-            if self.save_perf_results_path is not None:
-                self.save_model_results_to_file(self.evaluator.best_test_score)
+            if save_perf_results_path is not None:
+                self.save_model_results_to_file(self.evaluator.best_test_score,
+                                                save_perf_results_path)
 
     def eval(self, model, val_loader, test_loader, mini_batch_infer, total_steps):
         """ do the model evaluation using validiation and test sets

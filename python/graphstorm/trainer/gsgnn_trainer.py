@@ -3,6 +3,7 @@ import os
 import copy
 import torch as th
 
+from ..model import GSOptimizer
 from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
@@ -19,11 +20,17 @@ class GSgnnTrainer():
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save=1, save_perf_results_path=None):
+    def __init__(self, model, rank, topk_model_to_save=1):
         super(GSgnnTrainer, self).__init__()
         self._model = model
-        self._optimizer = model.get_optimizer()
-        assert self._optimizer is not None, "The model cannot provide an optimizer"
+        optimizer = model.create_optimizer()
+        assert optimizer is not None, "The model cannot provide an optimizer"
+        if not isinstance(optimizer, GSOptimizer):
+            if rank == 0:
+                print("Warining: the optimizer is not GSOptimizer. "
+                        + "Convert it to GSOptimizer.")
+            optimizer = GSOptimizer([optimizer])
+        self._optimizer = optimizer
         self._rank = rank
         self._dev_id = -1
         self._evaluator = None
@@ -34,7 +41,6 @@ class GSgnnTrainer():
         self._topklist = TopKList(topk_model_to_save)    # A list to store the top k best
                                                         # perf epoch+iteration for
                                                         # saving/removing models.
-        self.save_perf_results_path = save_perf_results_path
 
     def setup_cuda(self, dev_id):
         """ Set up the CUDA device of this trainer.
@@ -252,14 +258,14 @@ class GSgnnTrainer():
 
         return model_path
 
-    def save_model_results_to_file(self, test_model_performance):
+    def save_model_results_to_file(self, test_model_performance, save_perf_results_path):
         """Save model's performance results to a local JSON file.
         """
         # cast value to str to avoid serialization error from certain classes.
         conf = {k: str(v) for k, v in self.__dict__.items()}
         save_model_results_json(conf=conf,
                                 test_model_performance=test_model_performance,
-                                save_perf_results_path=self.save_perf_results_path)
+                                save_perf_results_path=save_perf_results_path)
 
     def print_info(self, epoch, i, num_input_nodes, compute_time):
         ''' Print basic information during training

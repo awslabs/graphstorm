@@ -1,5 +1,6 @@
 """GNN model in GraphStorm"""
 
+import abc
 import time
 import torch as th
 import dgl
@@ -28,7 +29,11 @@ class GSOptimizer():
     sparse_opts : list
         A list of optimizer objects for sparse model parameters.
     """
-    def __init__(self, dense_opts, sparse_opts):
+    def __init__(self, dense_opts, sparse_opts=None):
+        if sparse_opts is None:
+            sparse_opts = []
+        assert isinstance(dense_opts, list), "dense_opts should be a list."
+        assert isinstance(sparse_opts, list), "sparse_opts should be a list."
         self.dense_opts = dense_opts
         self.sparse_opts = sparse_opts
         all_opts = dense_opts + sparse_opts
@@ -66,15 +71,77 @@ class GSOptimizer():
         """ Move the optimizer to the specified device.
         """
         # Move the optimizer state to the specified device.
-        for state in self.dense_opts[0].state.values():
-            for k, v in state.items():
-                if isinstance(v, th.Tensor):
-                    state[k] = v.to(device)
+        # We only need to move the states of the dense optimizers.
+        # The states of the sparse optimizers should stay in CPU.
+        for opt in self.dense_opts:
+            for state in opt.state.values():
+                for k, v in state.items():
+                    if isinstance(v, th.Tensor):
+                        state[k] = v.to(device)
+
+class GSgnnModelBase(nn.Module):
+    """ GraphStorm GNN model base class
+
+    Any GNN model trained by GraphStorm should inherit from this class. It contains
+    some abstract methods that should be defined in the GNN model classes.
+    It also provides some utility methods.
+    """
+
+    @abc.abstractmethod
+    def restore_model(self, restore_model_path):
+        """Load saving checkpoints of a GNN model.
+
+        A user who implement this method should load the parameters of the GNN model.
+        This method does not need to load the optimizer state.
+
+        Parameters
+        ----------
+        restore_model_path : str
+            The path where we can restore the model.
+        """
+
+    @abc.abstractmethod
+    def save_model(self, model_path):
+        ''' Save the GNN model.
+
+        When saving a GNN model, we need to save the dense parameters and sparse parameters.
+
+        Parameters
+        ----------
+        model_path : str
+            The path where all model parameters and optimizer states are saved.
+        '''
+
+    @abc.abstractmethod
+    def create_optimizer(self):
+        """Create the optimizer that optimizes the model.
+
+        A user who defines a model should also define the optimizer for this model.
+        By using this method, a user can define the optimization algorithm,
+        the learning rate as well as any other hyperparameters.
+
+        A model may require multiple optimizers. For example, we should define
+        an optimizer for sparse embeddings and an optimizer for the dense parameters
+        of a GNN model. In this case, a user can use GSOptimizer to combine these
+        optimizers.
+        """
+
+    @property
+    def device(self):
+        """ The device where the model runs.
+
+        Here we assume that all model parameters are on the same device.
+        """
+        return next(self.parameters()).device
 
 # This class does not implement the nn.Module's forward abstract method. Because children classes
 # implement this, so disable here.
-class GSgnnModel(nn.Module):    # pylint: disable=abstract-method
+class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
     """ GraphStorm GNN model
+
+    This class provides a GraphStorm GNN model implementation split into five components:
+    node input encoder, edge input encoder, GNN encoder, decoder and loss function.
+    These components can be customized by a user.
     """
     def __init__(self):
         super(GSgnnModel, self).__init__()
@@ -240,12 +307,12 @@ class GSgnnModel(nn.Module):    # pylint: disable=abstract-method
         sparse_opts = [emb_optimizer] if emb_optimizer is not None else []
         self._optimizer = GSOptimizer(dense_opts=dense_opts, sparse_opts=sparse_opts)
 
-    def get_optimizer(self):
+    def create_optimizer(self):
         """the optimizer
         """
         return self._optimizer
 
-    def compute_embed_step(self, blocks, input_feats, input_nodes):
+    def compute_embed_step(self, blocks, input_feats):
         """ Compute the GNN embeddings on a mini-batch.
 
         This function is used for mini-batch inference.
@@ -256,8 +323,6 @@ class GSgnnModel(nn.Module):    # pylint: disable=abstract-method
             The message flow graphs for computing GNN embeddings.
         input_feats : dict of Tensors
             The input node features.
-        input_nodes : dict of Tensors
-            The input node IDs.
 
         Returns
         -------
@@ -265,7 +330,9 @@ class GSgnnModel(nn.Module):    # pylint: disable=abstract-method
         """
         device = blocks[0].device
         if self.node_input_encoder is not None:
-            embs = self.node_input_encoder(input_feats, input_nodes=input_nodes)
+            input_nodes = {ntype: blocks[0].srcnodes[ntype].data[dgl.NID].cpu() \
+                    for ntype in blocks[0].srctypes}
+            embs = self.node_input_encoder(input_feats, input_nodes)
             embs = {name: emb.to(device) for name, emb in embs.items()}
         else:
             embs = input_feats
@@ -327,14 +394,6 @@ class GSgnnModel(nn.Module):    # pylint: disable=abstract-method
         """
         return self._loss_fn
 
-    @property
-    def device(self):
-        """ The device where the model runs.
-
-        Here we assume that all model parameters are on the same device.
-        """
-        return next(self.parameters()).device
-
 def do_full_graph_inference(model, data, batch_size=1024, task_tracker=None):
     """ Do fullgraph inference
 
@@ -353,6 +412,7 @@ def do_full_graph_inference(model, data, batch_size=1024, task_tracker=None):
     -------
     dict of th.Tensor : node embeddings.
     """
+    assert isinstance(model, GSgnnModel), "Only GSgnnModel supports full-graph inference."
     node_embed = compute_node_input_embeddings(data.g,
                                                batch_size,
                                                model.node_input_encoder,
