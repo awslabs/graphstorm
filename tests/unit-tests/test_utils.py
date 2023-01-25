@@ -6,7 +6,7 @@ import tempfile
 import torch as th
 import numpy as np
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
-from graphstorm.model.utils import get_feat_size
+from graphstorm import get_feat_size
 
 from data_utils import generate_dummy_dist_graph
 

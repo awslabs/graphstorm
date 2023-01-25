@@ -7,7 +7,7 @@ import tempfile
 import dgl
 from graphstorm.model import GSNodeInputLayer
 from graphstorm.model.embed import compute_node_input_embeddings
-from graphstorm.model.utils import get_feat_size
+from graphstorm import get_feat_size
 
 from data_utils import generate_dummy_dist_graph
 

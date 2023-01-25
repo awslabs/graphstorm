@@ -153,7 +153,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
     def __init__(self,
                  g,
                  h_dim, out_dim,
-                 num_bases=0,
+                 num_bases=-1,
                  num_hidden_layers=1,
                  dropout=0,
                  use_self_loop=True,

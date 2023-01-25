@@ -1,3 +1,4 @@
+import numpy as np
 import dgl
 import torch as th
 
@@ -17,7 +18,6 @@ from .model.loss_func import LinkPredictLossFunc
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import DenseBiDecoder, MLPEdgeDecoder
 from .model.edge_decoder import LinkPredictDotDecoder, LinkPredictDistMultDecoder
-from .model.utils import get_feat_size
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config, backend):
@@ -35,6 +35,57 @@ def initialize(ip_config, backend):
     dgl.distributed.initialize(ip_config, net_type='socket')
     th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
+
+def get_feat_size(g, feat_names):
+    """ Get the feature's size on each node type in the input graph.
+
+    Parameters
+    ----------
+    g : DistGraph
+        The distributed graph.
+    feat_names : str or dict of str
+        The feature names.
+
+    Returns
+    -------
+    dict of int : the feature size for each node type.
+    """
+    feat_size = {}
+    for ntype in g.ntypes:
+        # user can specify the name of the field
+        if feat_names is None:
+            feat_name = None
+        elif isinstance(feat_names, dict) and ntype in feat_names:
+            feat_name = feat_names[ntype]
+        elif isinstance(feat_names, str):
+            feat_name = feat_names
+        else:
+            feat_name = None
+
+        if feat_name is None:
+            feat_size[ntype] = 0
+        elif isinstance(feat_name, str): # global feat_name
+            # We force users to know which node type has node feature
+            # This helps avoid unexpected training behavior.
+            assert feat_name in g.nodes[ntype].data, \
+                    f"Warning. The feature \"{feat_name}\" " \
+                    f"does not exists for the node type \"{ntype}\"."
+            feat_size[ntype] = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
+        else:
+            feat_size[ntype] = 0
+            for fname in feat_name:
+                # We force users to know which node type has node feature
+                # This helps avoid unexpected training behavior.
+                assert fname in g.nodes[ntype].data, \
+                        f"Warning. The feature \"{fname}\" " \
+                        f"does not exists for the node type \"{ntype}\"."
+                # TODO: we only allow an input node feature as a 2D tensor
+                # Support 1D or nD when required.
+                assert len(g.nodes[ntype].data[fname].shape) == 2, \
+                    "Input node features should be 2D tensors"
+                fsize = np.prod(g.nodes[ntype].data[fname].shape[1:])
+                feat_size[ntype] += fsize
+    return feat_size
 
 def create_builtin_node_gnn_model(g, config, train_task):
     """ Create a built-in GNN model for node prediction.

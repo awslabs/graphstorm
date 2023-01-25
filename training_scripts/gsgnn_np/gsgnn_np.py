@@ -30,10 +30,8 @@ def main(args):
                                     node_feat_field=config.feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
-    # TODO(zhengda) we should use a different way to get rank.
     trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save,
-                                         save_perf_results_path=config.save_perf_results_path)
+                                         topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path)
     trainer.setup_cuda(dev_id=config.local_rank)
@@ -67,7 +65,8 @@ def main(args):
                 test_loader=test_dataloader, n_epochs=config.n_epochs,
                 save_model_path=config.save_model_path,
                 mini_batch_infer=config.mini_batch_infer,
-                save_model_per_iters=config.save_model_per_iters)
+                save_model_per_iters=config.save_model_per_iters,
+                save_perf_results_path=config.save_perf_results_path)
 
     if config.save_embed_path is not None:
         best_model = trainer.get_best_model().to(device)
