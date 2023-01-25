@@ -38,9 +38,6 @@ if __name__ == '__main__':
                            + 'The format is "srcntype1,etype1,dstntype1:task1 srcntype2,etype2,dstntype2:task2". The possible values of tasks are "classify", "regression".')
     argparser.add_argument('--train_graph_only', action='store_true',
                            help='Only partition the training graph.')
-    argparser.add_argument('--retain_original_features',  type=lambda x: (str(x).lower() in ['true', '1']),
-                           default=False, help= "whether to use the original features or use the paper title or abstract"
-                                                "for the ogbn-arxiv dataset")
     argparser.add_argument('--edge_pct', type=float, default=1.0, help='Percent of edges for training')
     argparser.add_argument('--retain_etypes', nargs='+', type=str, default=[],
         help="The list of canonical etype that will be retained before partitioning the graph. This might be"
@@ -56,18 +53,15 @@ if __name__ == '__main__':
     # load graph data
     if args.dataset == 'ogbn-arxiv':
         dataset = OGBTextFeatDataset(args.filepath, args.dataset,
-                                     edge_pct=args.edge_pct,
-                                     retain_original_features=args.retain_original_features)
+                                     edge_pct=args.edge_pct)
     elif args.dataset == 'ogbn-products':
         dataset = OGBTextFeatDataset(args.filepath, args.dataset,
-                                     edge_pct=args.edge_pct,
-                                     retain_original_features=args.retain_original_features)
+                                     edge_pct=args.edge_pct)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath, edge_pct=args.edge_pct)
     elif args.dataset == 'ogbn-papers100M':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     edge_pct=args.edge_pct,
-                                     retain_original_features=args.retain_original_features)
+                                     edge_pct=args.edge_pct)
     elif args.dataset == 'mag-lsc':
         dataset = MAGLSCDataset(args.filepath, edge_pct=args.edge_pct)
     else:

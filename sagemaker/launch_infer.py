@@ -67,12 +67,25 @@ def run_job(input_args, image, unknowargs):
               "model-artifact-s3": model_artifact_s3,
               "model-sub-path": model_sub_path,
               "enable-bert": enable_bert}
-    print(unknowargs)
-    for i in range(len(unknowargs)//2):
-        # trim --
-        params[unknowargs[i*2][2:]] = unknowargs[i*2+1]
+    # We must handle cases like
+    # --target-etype query,clicks,asin query,search,asin
+    # --feat-name ntype0:feat0 ntype1:feat1
+    unknow_idx = 0
+    while unknow_idx < len(unknowargs):
+        print(unknowargs[unknow_idx])
+        assert unknowargs[unknow_idx].startswith("--")
+        sub_params = []
+        for i in range(unknow_idx+1, len(unknowargs)+1):
+            # end of loop or stand with --
+            if i == len(unknowargs) or \
+                unknowargs[i].startswith("--"):
+                break
+            sub_params.append(unknowargs[i])
+        params[unknowargs[unknow_idx][2:]] = ' '.join(sub_params)
+        unknow_idx = i
 
-    print(params)
+    print(f"Parameters {params}")
+    print(f"GraphStorm Parameters {unknowargs}")
 
     est = PyTorch(
         entry_point=os.path.basename(entry_point),

@@ -8,27 +8,20 @@ $ export PYTHONPATH=$GS_HOME/python/
 $ wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
 $ unzip ml-100k.zip
 $ rm ml-100k.zip
-$ python3 $GS_HOME/python/graphstorm/data/tools/preprocess_movielens.py \
-    --input_path ml-100k --output_path movielen-data-ec
+$ python3 $GS_HOME/tools/gen_movielens_dataset.py --filepath ./ --savepath movielen-data --max_sequence_length 64 --retain_original_features True --user_age_as_label true --edge_pct 0.9
 
 $ rm -R ml-100k
-$ python3 /$GS_HOME/tools/construct_graph.py --name movie-lens-100k \
-    --undirected \
-    --filepath movielen-data-ec \
-    --output movielen-data-ec-graph \
-    --dist_output movielen_100k_ec_2p_4t \
-    --elabel_fields "user,rating,movie:rate" \
-    --predict_etypes "user,rating,movie" \
-    --etask_types "user,rating,movie:classification" \
-    --num_dataset_workers 10 \
-    --hf_bert_model bert-base-uncased \
-    --ntext_fields "movie:title" \
+$ python3 -u $GS_HOME/tools/partition_graph_lp.py \
+    --dataset movie-lens-100k \
+    --filepath movielen-data \
     --num_parts 2 \
     --num_trainers_per_machine 4 \
+    --output movielen_100k_ec_2p_4t \
+    --elabel_fields "user,rating,movie:rate" \
+    --predict_etypes "user,rating,movie" \
+    --etask_types "user,rating,movie:classify" \
     --balance_train \
-    --balance_edges \
-    --generate_new_edge_split true \
-    --device 0
+    --balance_edges
 ```
 
 Upload partitioned data into S3

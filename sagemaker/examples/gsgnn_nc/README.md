@@ -5,8 +5,6 @@ Create partitioned data using arxiv dataset.
 ```
 $ GS_HOME=/graph-storm
 $ export PYTHONPATH=$GS_HOME/python/
-$ cd $GS_HOME/training_scripts/gsgnn_nc
-$ aws s3 cp --recursive s3://graphstorm-example/arxiv/ogbn-arxiv-raw/ ogbn-arxiv-raw/
 $ python3 $GS_HOME/tools/gen_ogbn_dataset.py --filepath ogbn-arxiv-raw/ --savepath ogbn-arxiv/
 $ python3 -u $GS_HOME/tools/partition_graph.py --dataset ogbn-arxiv --filepath ogbn-arxiv/ --num_parts 2 --num_trainers_per_machine 4 --output ogb_arxiv_nc_train_val_2p_4t
 ```

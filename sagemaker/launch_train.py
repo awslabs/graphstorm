@@ -55,9 +55,21 @@ def run_job(input_args, image, unknowargs):
               "train-yaml-s3": train_yaml_s3,
               "train-yaml-name": train_yaml_name,
               "enable-bert": enable_bert}
-    for i in range(len(unknowargs)//2):
-        # trim --
-        params[unknowargs[i*2][2:]] = unknowargs[i*2+1]
+    # We must handle cases like
+    # --target-etype query,clicks,asin query,search,asin
+    # --feat-name ntype0:feat0 ntype1:feat1
+    unknow_idx = 0
+    while unknow_idx < len(unknowargs):
+        assert unknowargs[unknow_idx].startswith("--")
+        sub_params = []
+        for i in range(unknow_idx+1, len(unknowargs)+1):
+            # end of loop or stand with --
+            if i == len(unknowargs) or \
+                unknowargs[i].startswith("--"):
+                break
+            sub_params.append(unknowargs[i])
+        params[unknowargs[unknow_idx][2:]] = ' '.join(sub_params)
+        unknow_idx = i
 
     print(f"Parameters {params}")
     print(f"GraphStorm Parameters {unknowargs}")

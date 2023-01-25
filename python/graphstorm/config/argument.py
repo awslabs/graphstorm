@@ -245,7 +245,7 @@ class GSConfig:
             It can be in following format:
             1)feat_name: global feature name, if a node has node feature,
             the corresponding feature name is <feat_name>
-            2)"ntype0:feat0 ntype1:feat1 ...": different node
+            2)["ntype0:feat0","ntype1:feat0,feat1",...]: different node
             types have different node features.
         """
         # pylint: disable=no-member
@@ -1184,10 +1184,11 @@ def _add_gnn_args(parser):
             help='Model type can either be gnn or lm to specify the model encoder')
     group.add_argument("--feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
-            "1)feat_name: global feature name, if a node has node feature,"
+            "1) '--feat-name feat_name': global feature name, "
+            "if a node has node feature,"
             "the corresponding feature name is <feat_name>"
-            "2)'ntype0:feat0,feat1 ntype1:feat0,feat1 ...': different node"
-            "types have different node features.")
+            "2)'--feat-name ntype0:feat0,feat1 ntype1:feat0,feat1 ...': "
+            "different node types have different node features.")
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
                  "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")

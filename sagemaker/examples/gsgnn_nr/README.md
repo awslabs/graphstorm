@@ -8,7 +8,7 @@ $ export PYTHONPATH=$GS_HOME/python/
 $ wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
 $ unzip ml-100k.zip
 $ rm ml-100k.zip
-$ python3 $GS_HOME/python/graphstorm/data/tools/preprocess_movielens_builtin.py --filepath ./ --savepath movielen-data --max_sequence_length 64 --retain_original_features False --user_age_as_label true
+$ python3 $GS_HOME/tools/gen_movielens_dataset.py --filepath ./ --savepath movielen-data --max_sequence_length 64 --retain_original_features True --user_age_as_label true
 
 $ python3 -u $GS_HOME/tools/partition_graph.py --dataset movie-lens-100k --filepath movielen-data --num_parts 2 --num_trainers_per_machine 4 --output movielen_100k_train_val_2p_4t --predict_ntypes movie,user
 ```
