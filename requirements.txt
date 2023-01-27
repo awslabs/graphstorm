@@ -1,0 +1,3 @@
+###### Requirements with Version Specifiers ######
+torch >= 1.11.0
+dgl >= 0.9
