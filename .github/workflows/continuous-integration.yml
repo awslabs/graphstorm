@@ -7,6 +7,14 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write
+  content: read
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
 
