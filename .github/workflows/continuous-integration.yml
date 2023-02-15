@@ -25,7 +25,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v1
       with:
         role-to-assume: arn:aws:iam::678790208956:role/github-oidc-role
-        role-duration-seconds: 14400
+        # role-duration-seconds: 14400
         aws-region: us-west-2
     - name: Checkout repository
       uses: actions/checkout@v3
