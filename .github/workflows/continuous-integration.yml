@@ -9,7 +9,7 @@ on:
 
 permissions:
   id-token: write
-  content: read
+  contents: read
 
 defaults:
   run:
@@ -28,9 +28,9 @@ jobs:
         role-duration-seconds: 14400
         aws-region: us-west-2
     - name: Checkout repository
-    - uses: actions/checkout@v3
+      uses: actions/checkout@v3
     - name: Set up Python 3.x
-    - uses: actions/setup-python@v4
+      uses: actions/setup-python@v4
       with:
           python-version: '3.x'
     - name: Install dependencies
