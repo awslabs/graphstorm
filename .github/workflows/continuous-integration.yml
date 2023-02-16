@@ -41,4 +41,4 @@ jobs:
     - name: Run python script
       shell: bash
       run: |
-        python3 ./submitJob.py --name actions_test --wait
+        python3 ./submitJob.py --name actions_test_2 --wait
