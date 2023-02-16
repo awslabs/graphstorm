@@ -12,8 +12,10 @@ from botocore.config import Config
 
 job_type_info = {
     'lint-check': {
-        'job_definition': 'graphstorm-definition-multi-gpu',
-        'job_queue': 'graphstorm-queue'
+        'job_definition': 'graphstorm-definition-v1',
+        'job_queue': 'graphstorm-queue-v1',
+        # 'job_definition': 'graphstorm-definition-multi-gpu',
+        # 'job_queue': 'graphstorm-queue'
     },
 }
 

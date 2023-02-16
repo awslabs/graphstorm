@@ -24,7 +24,7 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        role-to-assume: arn:aws:iam::678790208956:role/github-oidc-role
+        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
         # role-duration-seconds: 14400
         aws-region: us-west-2
     - name: Checkout repository
@@ -41,4 +41,4 @@ jobs:
     - name: Run python script
       shell: bash
       run: |
-        python3 ./submitJob.py --name actions_test_2 --wait
+        python3 ./submitJob.py --name test-jobs-actions --region us-east-1 --wait
