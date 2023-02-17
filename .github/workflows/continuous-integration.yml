@@ -48,7 +48,8 @@ jobs:
     - name: Run AWS Batch Job Submit Script
       shell: bash
       run: |
+        ls ${{ github.workspace }}
         pwd
         cd .. 
         pwd
-        
+        ls ${{ github.workspace }}
