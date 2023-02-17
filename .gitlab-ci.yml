@@ -1,0 +1,63 @@
+default:
+  image: 911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm_ci_nom5:v1.4
+
+stages:
+  - lint-unitest
+  - end2end
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+pytest:
+  stage: lint-unitest
+  tags:
+    - gpu
+  script:
+    - FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation
+    - python3 -m pip install pytest
+    - sh ./tests/unit-tests/prepare_test_data.sh
+    - export NCCL_IB_DISABLE=1; export NCCL_SHM_DISABLE=1; NCCL_NET=Socket NCCL_DEBUG=INFO python3 -m pytest ./tests/unit-tests -s
+
+lint:
+  stage: lint-unitest
+  tags:
+    - gpu
+  script:
+    - python3 -m pip install --upgrade prospector pip
+    - FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/data/*.py
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/dataloading/
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/config/
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/eval/
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/trainer/
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/inference/
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/tracker/
+    - pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
+    - pylint --rcfile=./tests/lint/pylintrc ./sagemaker/launch_train.py
+    - pylint --rcfile=./tests/lint/pylintrc ./sagemaker/scripts/*.py
+
+e2e:
+  stage: end2end
+  tags:
+    - gpu
+  script:
+    - sh ./tests/end2end-tests/setup.sh
+    - sh ./tests/end2end-tests/create_data.sh
+    - sh ./tests/end2end-tests/tools/test_mem_est.sh
+    - sh ./tests/end2end-tests/custom-gnn/run_test.sh
+    - sh ./tests/end2end-tests/graphstorm-nc/test.sh
+    - sh ./tests/end2end-tests/graphstorm-lp/test.sh
+    - sh ./tests/end2end-tests/graphstorm-ec/test.sh
+    - sh ./tests/end2end-tests/graphstorm-er/test.sh
+
+e2e_mgpu:
+  stage: end2end
+  tags:
+    - gpu
+  script:
+    - sh ./tests/end2end-tests/setup.sh
+    - sh ./tests/end2end-tests/create_data.sh
+    - sh ./tests/end2end-tests/graphstorm-lp/mgpu_test.sh
+    - sh ./tests/end2end-tests/graphstorm-nc/mgpu_test.sh
+    - sh ./tests/end2end-tests/graphstorm-ec/mgpu_test.sh
