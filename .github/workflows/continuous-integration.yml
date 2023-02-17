@@ -48,5 +48,7 @@ jobs:
     - name: Run AWS Batch Job Submit Script
       shell: bash
       run: |
-        ls
+        pwd
+        cd .. 
+        pwd
         
