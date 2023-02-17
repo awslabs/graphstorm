@@ -11,12 +11,16 @@ from botocore.config import Config
 
 
 job_type_info = {
-    'lint-check': {
+    'CI-PUSH': {
         'job_definition': 'graphstorm-definition-v1',
         'job_queue': 'graphstorm-queue-v1',
         # 'job_definition': 'graphstorm-definition-multi-gpu',
         # 'job_queue': 'graphstorm-queue'
     },
+    'CI-PULL': {
+        'job_definition': 'graphstorm-definition-v1',
+        'job_queue': 'graphstorm-queue-v1',
+    }
 }
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -27,7 +31,7 @@ parser.add_argument('--region', help='Default region when creating new connectio
                     default='us-east-1')
 parser.add_argument('--name', help='name of the job', type=str, default='dummy')
 parser.add_argument('--job-type', help='type of job to submit.', type=str,
-                    choices=job_type_info.keys(), default='lint-check')
+                    choices=job_type_info.keys(), default='CI-PULL')
 # parser.add_argument('--source-ref',
 #                     help='ref in AutoGluon main github. e.g. master, refs/pull/500/head',
 #                     type=str, default='master')
