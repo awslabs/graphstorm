@@ -48,4 +48,5 @@ jobs:
     - name: Run AWS Batch Job Submit Script
       shell: bash
       run: |
+        cd ..
         python3 submitJob.py --name CI-Test-'${{ github.ref }}' --wait
