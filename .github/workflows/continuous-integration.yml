@@ -1,0 +1,44 @@
+# Graphstorm CI - All tests executed sequentially
+
+name: continuous-integration
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+        # role-duration-seconds: 14400
+        aws-region: us-west-2
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v4
+      with:
+          python-version: '3.x'
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install boto3
+    - name: Run python script
+      shell: bash
+      run: |
+        python3 ./submitJob.py --name test-job-graphstorm --region us-east-1 --wait
