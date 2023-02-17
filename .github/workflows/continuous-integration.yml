@@ -41,4 +41,4 @@ jobs:
     - name: Run python script
       shell: bash
       run: |
-        python3 ./submitJob.py --name test-jobs-actions --region us-east-1 --wait
+        python3 ./submitJob.py --name test-job-graphstorm --region us-east-1 --wait
