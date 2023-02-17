@@ -45,7 +45,7 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-PUSH --name CI-Test-Push-'${{ github.event.number }}' --wait
+        python3 ./submitJob.py --job-type CI-PUSH --name CI-Test-Push-'${{ github.ref }}' --wait
     - name: Submit Job (for Pull Request)
       if: ${{ github.event_name == 'pull_request' }}
       shell: bash
