@@ -20,42 +20,44 @@ defaults:
 
 jobs:
 
-  # installing dependencies and configuring AWS Credentials run first followed by lint checks
-  runner_setup:
+#put lintcheck COMMAND here
+  lint_check:
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        aws-region: us-east-1
     - name: Checkout repository
       uses: actions/checkout@v3
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v4
+    - name: Check if changes beside docs
+      uses: dorny/paths-filter@v2
+      id: changes
       with:
-        python-version: '3.x'
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python -m pip install --upgrade pip
-        pip install boto3
+        filters: |
+          other_than_docs:
+            - '!(docs/**)**'
+    - name: Lint Check on AWS Batch
+      if: steps.changes.outputs.other_than_docs == 'true'
+      uses: ./.github/actions
+      with:
+        job-type: CI-CPU
+        job-name: Graphstorm-LintCheck
+        command: FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation && python3 -m pip install pytest && sh ./tests/unit-tests/prepare_test_data.sh && export NCCL_IB_DISABLE=1; export NCCL_SHM_DISABLE=1; NCCL_NET=Socket NCCL_DEBUG=INFO python3 -m pytest ./tests/unit-tests -s
+
+# put pytest COMMAND here
+  # pytest:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Checkout repository
+  #     uses: actions/checkout@v3
+  #   - name: Check if changes beside docs
+  #     uses: dorny/paths-filter@v2
+  #     id: changes
+  #     with:
+  #       filters: |
+  #         other_than_docs:
+  #           - '!(docs/**)**'
+  #   - name: Pytest on AWS Batch
+  #     if: steps.changes.outputs.other_than_docs == 'true'
+  #     uses: ./.github/actions
+
     
-  run_batch_job:
-    needs: runner_setup
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-PUSH --name CI-Test-Push-'${{ github.ref }}' --wait
-    - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-PULL --name CI-Test-Pull-'${{ github.event.number }}' --wait    
+
+
