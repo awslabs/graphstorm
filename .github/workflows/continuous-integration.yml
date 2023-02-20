@@ -48,7 +48,7 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-UnitTest-Push-'${{ github.ref }}' --command "${{ env.command-unit }}" --wait
+        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-UnitTest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-UNIT }}" --wait
         
     # - name: Submit Job (for Pull Request)
     # python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-E2E-Push-'${{ github.ref }}' --command 'sh ./tests/end2end-tests/setup.sh && sh ./tests/end2end-tests/create_data.sh && sh ./tests/end2end-tests/tools/test_mem_est.sh && sh ./tests/end2end-tests/custom-gnn/run_test.sh && sh ./tests/end2end-tests/graphstorm-nc/test.sh && sh ./tests/end2end-tests/graphstorm-lp/test.sh && sh ./tests/end2end-tests/graphstorm-ec/test.sh && sh ./tests/end2end-tests/graphstorm-er/test.sh' --wait
