@@ -35,7 +35,7 @@ jobs:
             - '!(docs/**)**'
     - name: Lint Check on AWS Batch
       if: steps.changes.outputs.other_than_docs == 'true'
-      uses: ./.github/actions
+      uses: ./.github/actions/
       with:
         job-type: CI-CPU
         job-name: Graphstorm-LintCheck
