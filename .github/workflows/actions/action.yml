@@ -1,9 +1,12 @@
-name: submit job to AWS Batch
+name: "submit job to AWS Batch"
+
 inputs:
-  command:
-    job-type: true
-    job-name: 
-    required: true
+    job-type:
+      required: true
+    job-name:
+      required: true
+    command:
+      required: true
 
 # installing dependencies and configuring AWS Credentials
 runs:
