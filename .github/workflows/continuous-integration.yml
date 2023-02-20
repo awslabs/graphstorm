@@ -19,7 +19,8 @@ defaults:
     shell: bash
 
 env:
-  COMMAND-UNIT: ls
+  COMMAND-PYTEST: pytest
+  COMMAND-LINT: lint
 
 jobs:
 
@@ -48,7 +49,8 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-UnitTest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-UNIT }}" --wait
+        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-PyTest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-PYTEST }}" --wait
+        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-LintTest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-LINT }}" --wait
         
     # - name: Submit Job (for Pull Request)
     # python3 -m pip install --upgrade prospector pip && FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/data/*.py && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/dataloading/ && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/config/ && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/eval/ && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/ && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/trainer/ && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/inference/ && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/tracker/ && pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py && pylint --rcfile=./tests/lint/pylintrc ./sagemaker/launch_train.py && pylint --rcfile=./tests/lint/pylintrc ./sagemaker/scripts/*.py
