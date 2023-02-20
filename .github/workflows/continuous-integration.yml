@@ -1,4 +1,4 @@
-# Graphstorm CI - All tests executed conditional and sequentially 
+# Graphstorm CI - All tests executed conditional & sequentially 
 
 name: continuous-integration
 
