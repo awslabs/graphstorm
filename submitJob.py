@@ -22,7 +22,7 @@ job_type_info = {
         'job_queue': 'graphstorm-queue-v1',
     },
     'CI-CPU-PUSH': {
-        'job_definition': 'temp-job-definition',
+        'job_definition': 'conditional-definition',
         'job_queue': 'graphstorm-queue-v1',
     },
     'CI-GPU-PUSH': {
