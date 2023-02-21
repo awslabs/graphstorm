@@ -18,8 +18,8 @@ defaults:
     shell: bash
 
 env:
-  COMMAND-PYTEST: chmod +x ./pytest_check.sh && ./pytest_check.sh
-  COMMAND-LINT: chmod +x ./lint_check.sh && ./lint_check.sh
+  COMMAND-PYTEST: ./pytest_check.sh
+  COMMAND-LINT: ./lint_check.sh
 
 jobs:
   pytest_check:
