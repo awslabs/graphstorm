@@ -12,7 +12,7 @@ from botocore.config import Config
 
 job_type_info = {
     'CI-CPU': {
-        'job_definition': 'trial-definition-cpu',
+        'job_definition': 'graphstorm-definition-cpu',
         'job_queue': 'graphstorm-queue-v2',
         # 'job_definition': 'graphstorm-definition-v1',
         # 'job_queue': 'graphstorm-queue-v1',
@@ -20,15 +20,15 @@ job_type_info = {
         # 'job_queue': 'graphstorm-queue'
     },
     'CI-GPU': {
-        'job_definition': 'trial-definition',
+        'job_definition': 'graphstorm-definition-gpu',
         'job_queue': 'graphstorm-queue-v1',
     },
     'CI-CPU-PUSH': {
-        'job_definition': 'trial-definition-cpu',
+        'job_definition': 'graphstorm-definition-cpu',
         'job_queue': 'graphstorm-queue-v2',
     },
     'CI-GPU-PUSH': {
-        'job_definition': 'trial-definition',
+        'job_definition': 'graphstorm-definition-gpu',
         'job_queue': 'graphstorm-queue-v1',
     }
 }
@@ -54,14 +54,6 @@ parser.add_argument('--timeout', help='job timeout in seconds', default=None, ty
 # parser.add_argument('--work-dir',
 #                     help='working directory inside the repo. e.g. scripts/preprocess',
 #                     type=str, default='scripts/preprocess')
-# parser.add_argument('--saved-output',
-#                     help='output to be saved, relative to working directory. '
-#                          'it can be either a single file or a directory',
-#                     type=str, default='None')
-# parser.add_argument('--remote',
-#                     help='git repo address. https://github.com/autogluon/autogluon',
-#                     type=str, default="https://github.com/autogluon/autogluon")
-
 
 args = parser.parse_args()
 
@@ -116,9 +108,6 @@ def main():
     parameters = {
         # 'SOURCE_REF': args.source_ref,
         # 'WORK_DIR': args.work_dir,
-        # 'SAVED_OUTPUT': args.saved_output,
-        # 'SAVE_PATH': args.save_path,
-        # 'REMOTE': args.remote,
         'COMMAND': f"\"{args.command}\"",  # wrap command with double quotation mark, so that batch can treat it as a single command
     }
     kwargs = dict(
