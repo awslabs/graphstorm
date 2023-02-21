@@ -21,7 +21,7 @@ env:
   COMMAND-PYTEST: chmod +x ./pytest_check.sh && ./pytest_check.sh
   COMMAND-LINT: chmod +x ./lint_check.sh && ./lint_check.sh
   COMMAND-E2E: chmod +x ./e2e_check.sh && ./e2e_check.sh
-  COMMAND-E2E-MGPU: chmod +x ./e2e_check_mgpu.sh && ./e2e_check_mgpu.sh
+  COMMAND-E2E-MGPU: chmod +x ./e2e_mgpu_check.sh && ./e2e_mgpu_check.sh
 jobs:
   pytest_check:
     runs-on: ubuntu-latest
@@ -104,7 +104,7 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-E2ETest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-COMMAND-E2E }}" --wait
+        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-E2ETest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-E2E }}" --wait
 
   e2e_mgpu_check:
     needs: [pytest_check, lint_check]
