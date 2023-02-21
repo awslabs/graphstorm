@@ -66,7 +66,6 @@ parser.add_argument('--timeout', help='job timeout in seconds', default=None, ty
 args = parser.parse_args()
 
 
-
 session = boto3.Session(profile_name=args.profile, region_name=args.region)
 config = Config(
     retries = dict(
