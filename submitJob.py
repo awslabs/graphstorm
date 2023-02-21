@@ -12,21 +12,23 @@ from botocore.config import Config
 
 job_type_info = {
     'CI-CPU': {
-        'job_definition': 'graphstorm-definition-v1',
-        'job_queue': 'graphstorm-queue-v1',
+        'job_definition': 'trial-definition-cpu',
+        'job_queue': 'graphstorm-queue-v2',
+        # 'job_definition': 'graphstorm-definition-v1',
+        # 'job_queue': 'graphstorm-queue-v1',
         # 'job_definition': 'graphstorm-definition-multi-gpu',
         # 'job_queue': 'graphstorm-queue'
     },
     'CI-GPU': {
-        'job_definition': 'graphstorm-definition-v1',
-        'job_queue': 'graphstorm-queue-v1',
-    },
-    'CI-CPU-PUSH': {
         'job_definition': 'trial-definition',
         'job_queue': 'graphstorm-queue-v1',
     },
+    'CI-CPU-PUSH': {
+        'job_definition': 'trial-definition-cpu',
+        'job_queue': 'graphstorm-queue-v2',
+    },
     'CI-GPU-PUSH': {
-        'job_definition': 'graphstorm-definition-v1',
+        'job_definition': 'trial-definition',
         'job_queue': 'graphstorm-queue-v1',
     }
 }
