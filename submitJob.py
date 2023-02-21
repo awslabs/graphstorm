@@ -63,7 +63,7 @@ parser.add_argument('--timeout', help='job timeout in seconds', default=None, ty
 
 args = parser.parse_args()
 
-# do not need safe to use script
+
 
 session = boto3.Session(profile_name=args.profile, region_name=args.region)
 config = Config(
