@@ -23,6 +23,10 @@ job_type_info = {
         'job_definition': 'graphstorm-definition-gpu',
         'job_queue': 'graphstorm-queue-v1',
     },
+    'CI-LINT': {
+        'job_definition': 'graphstorm-definition-lint',
+        'job_queue': 'graphstorm-queue-lint',
+    },
     'CI-CPU-PUSH': {
         'job_definition': 'graphstorm-definition-cpu',
         'job_queue': 'graphstorm-queue-v2',
@@ -30,6 +34,10 @@ job_type_info = {
     'CI-GPU-PUSH': {
         'job_definition': 'graphstorm-definition-gpu',
         'job_queue': 'graphstorm-queue-v1',
+    },
+    'CI-LINT-PUSH': {
+        'job_definition': 'graphstorm-definition-lint',
+        'job_queue': 'graphstorm-queue-lint',
     }
 }
 
