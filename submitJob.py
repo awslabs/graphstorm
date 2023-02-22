@@ -41,6 +41,7 @@ job_type_info = {
     }
 }
 
+
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('--profile', help='profile name of aws account.', type=str,
