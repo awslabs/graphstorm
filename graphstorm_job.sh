@@ -27,7 +27,7 @@ echo "Test Complete"
 exit
 
 
-# -----------Test for carriage removal-------------
+# -----------Test for carriage removal------------
 # pwd
 # echo *
 # echo "This is cmd with {} and $ outside"
