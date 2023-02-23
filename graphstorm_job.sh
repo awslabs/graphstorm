@@ -26,7 +26,6 @@ COMMAND=`sed -e 's/^"//' -e 's/"$//' <<<"$COMMAND"`
 echo "Test Complete"
 exit
 
-
 # -----------Test for carriage removal------------
 # pwd
 # echo *
