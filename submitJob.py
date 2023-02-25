@@ -11,12 +11,30 @@ from botocore.config import Config
 
 
 job_type_info = {
-    'lint-check': {
-        'job_definition': 'graphstorm-definition-v1',
-        'job_queue': 'graphstorm-queue-v1',
-        # 'job_definition': 'graphstorm-definition-multi-gpu',
-        # 'job_queue': 'graphstorm-queue'
+    'CI-CPU': {
+        'job_definition': 'graphstorm-definition-cpu',
+        'job_queue': 'graphstorm-queue-v2',
     },
+    'CI-GPU': {
+        'job_definition': 'graphstorm-definition-gpu',
+        'job_queue': 'graphstorm-queue-v1',
+    },
+    'CI-LINT': {
+        'job_definition': 'graphstorm-definition-lint',
+        'job_queue': 'graphstorm-queue-lint',
+    },
+    'CI-CPU-PUSH': {
+        'job_definition': 'graphstorm-definition-cpu',
+        'job_queue': 'graphstorm-queue-v2',
+    },
+    'CI-GPU-PUSH': {
+        'job_definition': 'graphstorm-definition-gpu',
+        'job_queue': 'graphstorm-queue-v1',
+    },
+    'CI-LINT-PUSH': {
+        'job_definition': 'graphstorm-definition-lint',
+        'job_queue': 'graphstorm-queue-lint',
+    }
 }
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -24,40 +42,25 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 parser.add_argument('--profile', help='profile name of aws account.', type=str,
                     default=None)
 parser.add_argument('--region', help='Default region when creating new connections', type=str,
-                    default='us-west-2')
+                    default='us-east-1')
 parser.add_argument('--name', help='name of the job', type=str, default='dummy')
 parser.add_argument('--job-type', help='type of job to submit.', type=str,
-                    choices=job_type_info.keys(), default='lint-check')
+                    choices=job_type_info.keys(), default='CI-CPU')
+parser.add_argument('--command', help='command to run', type=str,
+                    default='git rev-parse HEAD | tee stdout.log')
+parser.add_argument('--wait', help='block wait until the job completes. '
+                    'Non-zero exit code if job fails.', action='store_true')
+parser.add_argument('--timeout', help='job timeout in seconds', default=None, type=int)
+
 # parser.add_argument('--source-ref',
 #                     help='ref in AutoGluon main github. e.g. master, refs/pull/500/head',
 #                     type=str, default='master')
 # parser.add_argument('--work-dir',
 #                     help='working directory inside the repo. e.g. scripts/preprocess',
 #                     type=str, default='scripts/preprocess')
-# parser.add_argument('--saved-output',
-#                     help='output to be saved, relative to working directory. '
-#                          'it can be either a single file or a directory',
-#                     type=str, default='None')
-# parser.add_argument('--save-path',
-#                     help='s3 path where files are saved.',
-#                     type=str, default='batch/temp/{}'.format(datetime.now().isoformat()))
-# parser.add_argument('--command', help='command to run', type=str,
-#                     default='git rev-parse HEAD | tee stdout.log')
-# parser.add_argument('--remote',
-#                     help='git repo address. https://github.com/autogluon/autogluon',
-#                     type=str, default="https://github.com/autogluon/autogluon")
-# parser.add_argument('--safe-to-use-script',
-#                     help='whether the script changes from the actor is safe. We assume it is safe if the actor has write permission to our repo',
-#                     action='store_true')
-parser.add_argument('--wait', help='block wait until the job completes. '
-                    'Non-zero exit code if job fails.', action='store_true')
-parser.add_argument('--timeout', help='job timeout in seconds', default=None, type=int)
-
 
 args = parser.parse_args()
 
-# do not need safe to use script
-# not sure whether to use remote/command/save path/ work dir/ source ref
 
 session = boto3.Session(profile_name=args.profile, region_name=args.region)
 config = Config(
@@ -106,24 +109,16 @@ def main():
     jobDefinition = job_type_info[jobType]['job_definition']
     wait = args.wait
 
-    # safe_to_use_script = 'False'
-    # if args.safe_to_use_script:
-    #     safe_to_use_script = 'True'
-
-    # parameters = {
-    #     'SOURCE_REF': args.source_ref,
-    #     'WORK_DIR': args.work_dir,
-    #     'SAVED_OUTPUT': args.saved_output,
-    #     'SAVE_PATH': args.save_path,
-    #     'COMMAND': f"\"{args.command}\"",  # wrap command with double quotation mark, so that batch can treat it as a single command
-    #     'REMOTE': args.remote,
-    #     'SAFE_TO_USE_SCRIPT': safe_to_use_script,
-    # }
+    parameters = {
+        # 'SOURCE_REF': args.source_ref,
+        # 'WORK_DIR': args.work_dir,
+        'COMMAND': f"\"{args.command}\"",  # wrap command with double quotation mark, so that batch can treat it as a single command
+    }
     kwargs = dict(
         jobName=jobName,
         jobQueue=jobQueue,
         jobDefinition=jobDefinition,
-        # parameters=parameters,
+        parameters=parameters,
     )
     if args.timeout is not None:
         kwargs['timeout'] = {'attemptDurationSeconds': args.timeout}

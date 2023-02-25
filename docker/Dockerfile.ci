@@ -38,3 +38,15 @@ ENV SSHDIR $HOME/.ssh
 RUN mkdir -p ${SSHDIR}
 RUN ssh-keygen -t rsa -f ${SSHDIR}/id_rsa -N ''
 RUN cp ${SSHDIR}/id_rsa.pub ${SSHDIR}/authorized_keys
+
+# Below changes for Graphstorm CI/CD
+RUN pip3 install boto3
+
+RUN mkdir -p /graph-storm
+COPY graph-storm ./graph-storm
+COPY graphstorm_job.sh .
+
+RUN chmod u+x graphstorm_job.sh;
+ENV PYTHONPATH="/graph-storm/python/:${PYTHONPATH}"
+#Run this command in AWS Batch not here
+# CMD ["./graphstorm_job.sh"] 
