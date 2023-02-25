@@ -14,10 +14,6 @@ job_type_info = {
     'CI-CPU': {
         'job_definition': 'graphstorm-definition-cpu',
         'job_queue': 'graphstorm-queue-v2',
-        # 'job_definition': 'graphstorm-definition-v1',
-        # 'job_queue': 'graphstorm-queue-v1',
-        # 'job_definition': 'graphstorm-definition-multi-gpu',
-        # 'job_queue': 'graphstorm-queue'
     },
     'CI-GPU': {
         'job_definition': 'graphstorm-definition-gpu',

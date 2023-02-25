@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# This is the entrypoint script for AWS Batch
+# Description: 
+# This is the entry point script for AWS Batch
+# Batch will execute this file and all the commands in this shell script
+# These commands will be executed in a docker container running on EC2 instance and it's image is present in AWS ECR 
 date
 echo "Args: $@"
 env
@@ -17,7 +20,7 @@ COMMAND=$1
 # cd $WORK_DIR
 cd graph-storm/.github/workflow_scripts
 
-
+# Carriage removal
 COMMAND=`sed -e 's/^"//' -e 's/"$//' <<<"$COMMAND"`
 
 /bin/bash -o pipefail -c "$COMMAND"
@@ -25,30 +28,3 @@ COMMAND=`sed -e 's/^"//' -e 's/"$//' <<<"$COMMAND"`
 
 echo "Test Complete"
 exit
-
-
-# -----------Test for carriage removal-----------
-# pwd
-# echo *
-# echo "This is cmd with {} and $ outside"
-# echo ${COMMAND}
-
-# echo "This is cmd with $"
-# echo $COMMAND
-
-# echo "This is cmd with $ and quotes"
-# echo "$COMMAND"
-
-# echo "This is cmd without quotes and $"
-# echo COMMAND
-
-# echo "This is cmd with $ and without quotes"
-# echo "$COMMAND"
-
-# COMMAND=`sed -e 's/^"//' -e 's/"$//' <<<"$COMMAND"`
-# echo "This is new cmd without quotes"
-# echo $COMMAND
-
-# echo "This is new cmd with quotes"
-# echo "$COMMAND"
-
