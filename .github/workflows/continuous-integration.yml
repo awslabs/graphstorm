@@ -125,7 +125,7 @@ jobs:
         echo "Start submitting job - Push"  
         python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-E2ETest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-E2E }}" --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_request' }}
+      if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
