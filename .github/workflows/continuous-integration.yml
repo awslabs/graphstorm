@@ -8,6 +8,7 @@ on:
       - main
       - ci_dev
       - ci_temporary
+      - opensource_gsf
   pull_request_target:
     
 
