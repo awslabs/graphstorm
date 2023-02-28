@@ -29,4 +29,4 @@ jobs:
         run: semgrep ci
         env:
            # Add the rules that Semgrep uses by setting the SEMGREP_RULES environment variable. 
-           SEMGREP_RULES: p/default # more at semgrep.dev/explore
+           SEMGREP_RULES: p/default p/python p/owasp-top-ten
