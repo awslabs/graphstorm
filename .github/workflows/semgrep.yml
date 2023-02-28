@@ -34,7 +34,7 @@ jobs:
           pip install semgrep
           semgrep --version
 
-      # Period (.) to run scan in the current directory 
+      # Period (.) to run scan in the current directory to avoid blocking findings in the future use --exclude=+BLOCKING
       - name: Run Scan - 1 (Default Ruleset)
         run: semgrep --config=p/default .
       
@@ -42,5 +42,5 @@ jobs:
       - name: Run Scan - 2 (Ruleset for Python)
         run: semgrep --config=p/python .
       
-      - name: Run Scan - 3 (Ruleset CWE TOP 25 )
+      - name: Run Scan - 3 (Ruleset CWE TOP 25)
         run: semgrep --config=p/cwe-top-25 .
