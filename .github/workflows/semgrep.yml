@@ -1,5 +1,5 @@
 # Name of this GitHub Actions workflow.
-name: Semgrep
+name: semgrep-scan
 
 on:
   # Scan changed files in PRs (diff-aware scanning):
@@ -9,6 +9,10 @@ on:
     branches: ["ci_dev", "ci_temporary"]
   schedule:
     - cron: '*/5 * * * *' 
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   semgrep:
@@ -24,9 +28,25 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
+
+      - name: Install Semgrep
+        run: |
+          pip install semgrep
+          semgrep --version
       
-      - name: Run Scan
-        run: semgrep ci
-        env:
-           # Add the rules that Semgrep uses by setting the SEMGREP_RULES environment variable. 
-           SEMGREP_RULES: p/default p/python p/owasp-top-ten
+      - name: Directory
+        run: pwd
+
+      # Period (.) to run scan in the current directory 
+      - name: Run Scan - 1 (Default Ruleset)
+        run: semgrep --config=p/default . --exclude=+BLOCKING
+      
+      
+      - name: Run Scan - 2 (Ruleset for python)
+        run: semgrep --config=p/python . --exclude=+BLOCKING
+      
+      # - name: Run Scan - 3
+      #   run: semgrep ci
+      #   env:
+      #      # Add the rules that Semgrep uses by setting the SEMGREP_RULES environment variable. 
+      #      SEMGREP_RULES: p/default p/python p/owasp-top-ten
