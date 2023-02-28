@@ -33,20 +33,14 @@ jobs:
         run: |
           pip install semgrep
           semgrep --version
-      
-      - name: Directory
-        run: pwd
 
       # Period (.) to run scan in the current directory 
       - name: Run Scan - 1 (Default Ruleset)
-        run: semgrep --config=p/default . --exclude=+BLOCKING
+        run: semgrep --config=p/default .
       
       
-      - name: Run Scan - 2 (Ruleset for python)
-        run: semgrep --config=p/python . --exclude=+BLOCKING
+      - name: Run Scan - 2 (Ruleset for Python)
+        run: semgrep --config=p/python .
       
-      # - name: Run Scan - 3
-      #   run: semgrep ci
-      #   env:
-      #      # Add the rules that Semgrep uses by setting the SEMGREP_RULES environment variable. 
-      #      SEMGREP_RULES: p/default p/python p/owasp-top-ten
+      - name: Run Scan - 3 (Ruleset CWE TOP 25 )
+        run: semgrep --config=p/cwe-top-25 .
