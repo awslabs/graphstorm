@@ -1,4 +1,4 @@
-# script to submit jobs to AWS Batch, queues and definitions are already existing and set up
+# script to submit jobs to AWS Batch, queues and definitions are already existing and set up 
 import argparse
 import random
 import re
