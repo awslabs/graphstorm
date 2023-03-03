@@ -5,4 +5,4 @@
 * [Theodore Vasiloudis](https://github.com/thvasilo) from AWS
 * [Prateek M Desai](https://github.com/prateekdesai04) from AWS
 * [Israt Nisa](https://github.com/isratnisa) from AWS
-* [Vasileios Ioannidis] from AWS
+* [Vasileios Ioannidis](https://github.com/bioannidis) from AWS
