@@ -1,0 +1,36 @@
+---
+version: 1.0
+lm_model:
+  node_lm_models:
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - movie
+        - user
+gsf:
+  basic:
+    backend: gloo
+    num_gpus: 4
+    ip_config: ip_list.txt
+    part_config: movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json
+    verbose: false
+    debug: false
+  gnn:
+    model_encoder_type: lm
+    n_hidden: 128
+    mini_batch_infer: true
+  input:
+    restore_model_path: /data/gsgnn_lp_ml/
+  output:
+    save_embed_path: /data/gsgnn_lp_ml/infer-emb/
+  hyperparam:
+    eval_batch_size: 1024
+    bert_infer_bs: 128
+    no_validation: false
+  link_prediction:
+    train_etype:
+      - "user,rating,movie"
+    eval_etype:
+      - "user,rating,movie"

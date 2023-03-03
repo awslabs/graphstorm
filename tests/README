@@ -1,0 +1,7 @@
+# Graph-Storm Tests
+
+## Unit test
+Unit tests are under unit-tests/
+
+## End2end test
+End2end tests are under end2end-tests/
