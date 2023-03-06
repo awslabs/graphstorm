@@ -8,7 +8,7 @@ on:
   push:
     branches: ["ci_dev", "ci_temporary", "main", "opensource_gsf"]
   schedule:
-    - cron: '*/5 * * * *' 
+    - cron: '0 */6 * * *' 
 
 defaults:
   run:
@@ -47,4 +47,3 @@ jobs:
       - name: Run Scan - 4 (Ruleset CWE TOP 25)
         run: semgrep --config=p/cwe-top-25 .
 
-        
