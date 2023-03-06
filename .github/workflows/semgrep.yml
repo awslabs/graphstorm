@@ -6,7 +6,7 @@ on:
   pull_request: {}
   # Scan mainline branches and report all findings: 
   push:
-    branches: ["ci_dev", "ci_temporary"]
+    branches: ["ci_dev", "ci_temporary", "main", "opensource_gsf"]
   schedule:
     - cron: '*/5 * * * *' 
 
