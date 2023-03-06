@@ -167,3 +167,4 @@ jobs:
         python3 ./submitJob.py --job-type CI-GPU --name Graphstorm-E2E-MGPUTest-PR#-'${{ github.event.number }}' --command "${{ env.COMMAND-E2E-MGPU }}" --wait    
 
 
+
