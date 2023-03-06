@@ -51,7 +51,7 @@ parser.add_argument('--command', help='command to run', type=str,
                     default='git rev-parse HEAD | tee stdout.log')
 parser.add_argument('--wait', help='block wait until the job completes. '
                     'Non-zero exit code if job fails.', action='store_true')
-parser.add_argument('--timeout', help='job timeout in seconds', default=None, type=int)
+parser.add_argument('--timeout', help='job timeout in seconds', default=3600, type=int)
 
 # parser.add_argument('--source-ref',
 #                     help='ref in AutoGluon main github. e.g. master, refs/pull/500/head',
@@ -66,7 +66,7 @@ args = parser.parse_args()
 session = boto3.Session(profile_name=args.profile, region_name=args.region)
 config = Config(
     retries = dict(
-        max_attempts = 20
+        max_attempts = 5
     )
 )
 
