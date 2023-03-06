@@ -134,7 +134,7 @@ def main():
     startTime = 0
     logStreamName = None
     while wait:
-        time.sleep(random.randint(5, 10))
+        time.sleep(10)  # Wait for 10 seconds to fetch job data from batch service
         describeJobsResponse = batch.describe_jobs(jobs=[jobId])
         status = describeJobsResponse['jobs'][0]['status']
         if status == 'SUCCEEDED' or status == 'FAILED':
