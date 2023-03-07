@@ -9,9 +9,6 @@ gsf:
     ip_config: ip_list.txt
     part_config: null
     verbose: false
-    no_validation: false
-    mp_opt_level: O2
-    train_nodes: 0
     debug: false
     evaluation_frequency: 500
   gnn:
@@ -28,11 +25,9 @@ gsf:
   hyperparam:
     dropout: 0.
     lr: 0.0005
-    bert_tune_lr: 0.0001
     n_epochs: 20
     batch_size: 4000
     eval_batch_size: 4000
-    bert_infer_bs: 64
     wd_l2norm: 0
   rgcn:
     n_bases: -1
