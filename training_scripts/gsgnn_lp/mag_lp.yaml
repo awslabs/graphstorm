@@ -1,0 +1,48 @@
+---
+version: 1.0
+gsf:
+  basic:
+    model_encoder_type: rgcn
+    graph_name: ogbn-mag
+    backend: gloo
+    num_gpus: 4
+    ip_config: ip_list.txt
+    part_config: null
+    verbose: false
+    debug: false
+    evaluation_frequency: 500
+  gnn:
+    fanout: "20,15"
+    n_layers: 2
+    n_hidden: 256
+    mini_batch_infer: false
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: /data/ogbn-map-lp/model/
+    save_embeds_path: /data/ogbn-map-lp/embed/
+    save_model_per_iters: 1000
+  hyperparam:
+    dropout: 0.
+    lr: 0.0005
+    n_epochs: 20
+    batch_size: 4000
+    eval_batch_size: 4000
+    wd_l2norm: 0
+  rgcn:
+    n_bases: -1
+    use_self_loop: true
+    use_dot_product: true
+    self_loop_init: false
+    sparse_lr: 1e-2
+    use_node_embeddings: false
+  link_prediction:
+    num_negative_edges: 4
+    num_negative_edges_eval: 100
+    negative_sampler: joint
+    eval_etype:
+      - "author,writes,paper"
+    train_etype:
+      - "author,writes,paper"
+    exclude_training_targets: false
+    reverse_edge_types_map: []
