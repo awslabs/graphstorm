@@ -13,14 +13,14 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Create an ogb example dataset.
+    Tool to create the ogb example datasets.
 """
 import argparse
 
 from graphstorm.data.ogbn_datasets import OGBTextFeatDataset
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='query-asin')
+    parser = argparse.ArgumentParser(description='ogb')
     parser.add_argument("--filepath", type=str, default=None)
     parser.add_argument("--savepath", type=str, default=None)
     parser.add_argument("--edge_pct", type=float, default=1)
