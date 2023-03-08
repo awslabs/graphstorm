@@ -20,7 +20,7 @@ import argparse
 from graphstorm.data.ogbn_datasets import OGBTextFeatDataset
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='ogb')
+    parser = argparse.ArgumentParser(description='Tools to generate OGBN datasets')
     parser.add_argument("--filepath", type=str, default=None)
     parser.add_argument("--savepath", type=str, default=None)
     parser.add_argument("--edge_pct", type=float, default=1)
