@@ -34,7 +34,7 @@ bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ d
 
 There are three arguments of the `build_docker_oss4local.sh`:
 
-1. **path-to-graph-storm**(required), is the absolute path of the "graphstorm" folder, where you 
+1. **path-to-graphstorm**(required), is the absolute path of the "graphstorm" folder, where you 
 clone the GraphStorm source code. For example, the path could be "/code/graphstorm".
 2. **docker-name**(optional), is the assigned name of the to be built Docker image. Default is 
 "graphstorm".
