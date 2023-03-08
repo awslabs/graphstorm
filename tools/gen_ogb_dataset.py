@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser.add_argument("--max_sequence_length", type=int, default=512)
     parser.add_argument("--retain_original_features", type=lambda x: (str(x).lower() in ['true', '1']), default=True)
     args = parser.parse_args()
-    # only for test
+
     dataset = OGBTextFeatDataset(args.filepath,
                                  args.dataset,
                                  edge_pct=args.edge_pct,
