@@ -100,11 +100,15 @@ def lm_model_forward(input_nodes, lm_emb_cache, lm_models, lm_models_info, use_c
     """
     lm_feats = {}
     if use_cache:
+        # Get the device from lm_models
+        # The cached BERT embedding should be moved to the same device
+        # as lm_models.
+        dev = next(lm_models[0].parameters()).device
         # No bert training, Get cached LM embedding
         # Note: self.lm_emb_cache is initialized by calling warmup
         for ntype, idx in input_nodes.items():
             if ntype in lm_emb_cache:
-                lm_feats[ntype] = lm_emb_cache[ntype][idx]
+                lm_feats[ntype] = lm_emb_cache[ntype][idx].to(dev)
     else:
         # TODO: Release the bert cache properly
         #       This may need support from DistDGL
