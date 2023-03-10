@@ -405,7 +405,9 @@ def test_pure_lm_embed(num_train):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def test_lm_embed_warmup():
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_lm_embed_warmup(dev):
+    th.manual_seed(10)
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -436,30 +438,31 @@ def test_lm_embed_warmup():
 
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size,
                                       2, num_train=num_train)
+    layer = layer.to(dev)
     layer.freeze(g)
     assert len(layer.lm_emb_cache) > 0
     feat_field={'n0' : ['feat']}
     input_nodes = {"n0": th.arange(0, 10, dtype=th.int64)}
     layer.eval()
-    feat = prepare_batch_input(g, input_nodes, dev='cpu', feat_field=feat_field)
+    feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
     emb_0 = layer(feat, input_nodes)
 
     # we change the node feature
     def rand_init(m):
         if isinstance(m, th.nn.Embedding):
-            th.nn.init.uniform(m.weight.data)
+            th.nn.init.uniform(m.weight.data, b=10.)
     layer.lm_models[0].lm_model.apply(rand_init)
     # model has been freezed, still use bert cache.
-    feat = prepare_batch_input(g, input_nodes, dev='cpu', feat_field=feat_field)
+    feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
     emb_1 = layer(feat, input_nodes)
-    assert_almost_equal(emb_0['n0'].detach().numpy(), emb_1['n0'].detach().numpy(), decimal=6)
+    assert_almost_equal(emb_0['n0'].detach().cpu().numpy(), emb_1['n0'].detach().cpu().numpy(), decimal=6)
 
     # unfreeze the model, compute bert again
-    feat = prepare_batch_input(g, input_nodes, dev='cpu', feat_field=feat_field)
+    feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
     layer.unfreeze()
     emb_2 = layer(feat, input_nodes)
     with assert_raises(AssertionError):
-         assert_almost_equal(emb_0['n0'].detach().numpy(), emb_2['n0'].detach().numpy(), decimal=1)
+         assert_almost_equal(emb_0['n0'].detach().cpu().numpy(), emb_2['n0'].detach().cpu().numpy(), decimal=1)
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -482,5 +485,6 @@ if __name__ == '__main__':
     test_lm_embed(0)
     test_lm_embed(10)
 
-    test_lm_embed_warmup()
+    test_lm_embed_warmup('cpu')
+    test_lm_embed_warmup('cuda:0')
     test_lm_infer()
