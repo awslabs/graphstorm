@@ -56,13 +56,15 @@ if __name__ == '__main__':
         train_emb = []
         for f in train_emb_files:
             if f.startswith(f'{name}_emb.part'):
-                train_emb.append(th.load(os.path.join(args.train_embout, f)))
+                # Only work with torch 1.13+
+                train_emb.append(th.load(os.path.join(args.train_embout, f)), weights_only=True)
         train_emb = th.cat(train_emb, dim=0)
 
         infer_emb = []
         for f in info_emb_files:
             if f.startswith(f'{name}_emb.part'):
-                infer_emb.append(th.load(os.path.join(args.infer_embout, f)))
+                # Only work with torch 1.13+
+                infer_emb.append(th.load(os.path.join(args.infer_embout, f)), weights_only=True)
         infer_emb = th.cat(infer_emb, dim=0)
 
         assert train_emb.shape[0] == infer_emb.shape[0]
