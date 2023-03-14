@@ -9,10 +9,10 @@ RUN apt-get install -y python3-pip git wget psmisc
 RUN apt-get install -y cmake
 
 # Install Pytorch
-RUN pip install torch==1.12.1+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
+RUN pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
 
-# Install DGL v1.0
-RUN pip3 install --pre dgl -f https://data.dgl.ai/wheels/cu113/repo.html
+# Install DGL
+RUN pip3 install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
 
 # Install related Python packages
 RUN pip3 install ogb scipy pyarrow boto3 scikit-learn transformers

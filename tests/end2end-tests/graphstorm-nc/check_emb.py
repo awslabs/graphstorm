@@ -51,13 +51,16 @@ if __name__ == '__main__':
             print(ntype_files)
             ntype_files.sort()
 
-            feats = [th.load(os.path.join(args.emb_path, nfile)) for nfile in ntype_files]
+            # Only work with torch 1.13+
+            feats = [th.load(os.path.join(args.emb_path, nfile), weights_only=True) \
+                for nfile in ntype_files]
             feats = th.cat(feats, dim=0)
             assert feats.shape[0] == num_nodes
             assert feats.shape[1] == args.emb_size
     else:
         files.sort()
-        feats = [th.load(nfile) for nfile in files]
+        # Only work with torch 1.13+
+        feats = [th.load(nfile, weights_only=True) for nfile in files]
         feats = th.cat(feats, dim=0)
         assert feats.shape[0] == node_map.values()[0]
         assert feats.shape[1] == args.emb_size

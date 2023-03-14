@@ -158,7 +158,7 @@ def test_input_layer3():
 
 def test_compute_embed():
     # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
@@ -249,7 +249,7 @@ def create_lm_graph2():
 
 def test_lm_infer():
     # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
