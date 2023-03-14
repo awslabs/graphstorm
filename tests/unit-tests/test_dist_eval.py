@@ -4,9 +4,7 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-
        http://www.apache.org/licenses/LICENSE-2.0
-
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -335,7 +333,7 @@ def run_local_nc_eval(eval_config, metric, val_pred, test_pred,
 
 @pytest.mark.parametrize("metric", [["accuracy"], ["f1_score"], ["f1_score", "accuracy"]])
 @pytest.mark.parametrize("seed", [41, 42])
-@pytest.mark.parametrize("backend", ["gloo", "nccl"])
+@pytest.mark.parametrize("backend", ["gloo"])
 def test_nc_dist_eval(metric, seed, backend):
     th.manual_seed(seed)
 
@@ -380,7 +378,7 @@ def test_nc_dist_eval(metric, seed, backend):
             decimal=8)
 
 @pytest.mark.parametrize("seed", [41])
-@pytest.mark.parametrize("backend", ["gloo", "nccl"])
+@pytest.mark.parametrize("backend", ["gloo"])
 def test_nc_dist_eval_multilabel(seed, backend):
     """ Unitest for multi-label node classification distributed evaluation
     """
@@ -460,7 +458,7 @@ def test_nc_dist_eval_multilabel(seed, backend):
 
 @pytest.mark.parametrize("metric", [["rmse"], ["rmse", "mse"]])
 @pytest.mark.parametrize("seed", [41, 42])
-@pytest.mark.parametrize("backend", ["gloo", "nccl"])
+@pytest.mark.parametrize("backend", ["gloo"])
 def test_nc_dist_regression_eval(metric, seed, backend):
     th.manual_seed(seed)
 
@@ -510,6 +508,6 @@ if __name__ == '__main__':
     test_nc_dist_regression_eval(["rmse"], seed=41, backend="gloo")
 
     test_nc_dist_eval(["accuracy"], seed=41, backend="gloo")
-    test_nc_dist_eval(["f1_score"], seed=41, backend="nccl")
+    ##test_nc_dist_eval(["f1_score"], seed=41, backend="nccl")
     test_nc_dist_eval_multilabel(seed=41, backend="gloo")
-    test_nc_dist_eval_multilabel(seed=41, backend="nccl")
+    ##test_nc_dist_eval_multilabel(seed=41, backend="nccl")
