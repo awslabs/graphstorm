@@ -68,7 +68,7 @@ class EntityClassifier(GSLayer):
         """
         logits = th.matmul(inputs, self.decoder)
         # TODO(zhengda) we need to extend this to return probability of the prediction.
-        return logits if self._multilabel else logits, logits.argmax(dim=1)
+        return logits
 
     @property
     def in_dims(self):
