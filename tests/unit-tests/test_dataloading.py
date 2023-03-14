@@ -41,7 +41,7 @@ def get_nonzero(mask):
 
 def test_GSgnnEdgeData():
     # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
@@ -153,7 +153,7 @@ def test_GSgnnEdgeData():
 
 def test_GSgnnNodeData():
     # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
@@ -225,7 +225,7 @@ def test_GSgnnNodeData():
 @pytest.mark.parametrize("batch_size", [1, 10, 128])
 def test_GSgnnAllEtypeLinkPredictionDataLoader(batch_size):
     # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
@@ -263,7 +263,7 @@ def test_GSgnnAllEtypeLinkPredictionDataLoader(batch_size):
 
 def test_node_dataloader():
     # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
@@ -308,7 +308,7 @@ def test_node_dataloader():
 
 def test_edge_dataloader():
     # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
@@ -365,7 +365,7 @@ def test_edge_dataloader():
 
 def test_lp_dataloader():
     # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
@@ -415,7 +415,7 @@ def test_lp_dataloader():
 @pytest.mark.parametrize("batch_size", [1, 10, 128])
 @pytest.mark.parametrize("num_negative_edges", [1, 16, 128])
 def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
@@ -471,7 +471,7 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
 @pytest.mark.parametrize("batch_size", [1, 10, 128])
 @pytest.mark.parametrize("num_negative_edges", [1, 16, 128])
 def test_GSgnnLinkPredictionJointTestDataLoader(batch_size, num_negative_edges):
-    th.distributed.init_process_group(backend='nccl',
+    th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
