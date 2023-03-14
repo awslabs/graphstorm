@@ -307,12 +307,8 @@ def load_opt_state(model_path, dense_opts, sparse_opts):
         print("WARNING: torch.load() uses pickle module implicitly, " \
             "which is known to be insecure. It is possible to construct " \
             "malicious pickle data which will execute arbitrary code " \
-            "during unpickling. Only load data you trust or " \
-            "update torch to 1.13.0+")
-        checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
-    else:
-        checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'),
-                             weights_only=True)
+            "during unpickling. Only load data you trust")
+    checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
 
     assert len(dense_opts) == 1, "Currently, we only support one dense optimizer."
     dense_opts[0].load_state_dict(checkpoint['dense'])
