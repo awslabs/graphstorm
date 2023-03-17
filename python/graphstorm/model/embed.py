@@ -103,6 +103,23 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         """
         return None
 
+class DisableDeepCopy:
+    """ This is a wrapper class to disable deep copy on the object.
+
+    Parameters
+    ----------
+    obj : Object
+        Any Python object.
+    """
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __deepcopy__(self, memo):
+        """ Customize deep copy.
+
+        By overriding this method, we can disable deep copy on the object.
+        """
+        return self
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """The input encoder layer for all nodes in a heterogeneous graph.
@@ -160,11 +177,15 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     if get_rank() == 0:
                         print('Use sparse embeddings on node {}'.format(ntype))
                     part_policy = g.get_node_partition_policy(ntype)
-                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                                               self.embed_size,
-                                                               embed_name + '_' + ntype,
-                                                               init_emb,
-                                                               part_policy)
+                    # We don't want to have deep copy of distributed embeddings
+                    # because destroying DistEmbedding object locally will destroy
+                    # the distributed embeddings on the server.
+                    self._sparse_embeds[ntype] = DisableDeepCopy(
+                            DistEmbedding(g.number_of_nodes(ntype),
+                                          self.embed_size,
+                                          embed_name + '_' + ntype,
+                                          init_emb,
+                                          part_policy))
                     proj_matrix = nn.Parameter(th.Tensor(2 * self.embed_size, self.embed_size))
                     nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                     # nn.ParameterDict support this assignment operation if not None,
@@ -174,11 +195,15 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 part_policy = g.get_node_partition_policy(ntype)
                 if get_rank() == 0:
                     print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')
-                self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                self.embed_size,
-                                embed_name + '_' + ntype,
-                                init_emb,
-                                part_policy=part_policy)
+                # We don't want to have deep copy of distributed embeddings
+                # because destroying DistEmbedding object locally will destroy
+                # the distributed embeddings on the server.
+                self._sparse_embeds[ntype] = DisableDeepCopy(
+                        DistEmbedding(g.number_of_nodes(ntype),
+                                      self.embed_size,
+                                      embed_name + '_' + ntype,
+                                      init_emb,
+                                      part_policy=part_policy))
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
@@ -225,6 +250,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
         return embs
 
+    @property
+    def sparse_embeds(self):
+        embs = {}
+        for k, v in self._sparse_embeds.items():
+            embs[k] = v.obj
+        return embs
+
     def get_sparse_params(self):
         """ get the sparse parameters.
 
@@ -232,7 +264,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         -------
         list of Tensors: the sparse embeddings.
         """
-        if self.sparse_embeds is not None and len(self.sparse_embeds) > 0:
+        if self._sparse_embeds is not None and len(self._sparse_embeds) > 0:
             return list(self.sparse_embeds.values())
         else:
             return []

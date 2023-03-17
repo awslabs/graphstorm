@@ -16,6 +16,7 @@
     GNN model in GraphStorm
 """
 
+import copy
 import abc
 import time
 import torch as th
@@ -56,6 +57,18 @@ class GSOptimizer():
         assert len(all_opts) > 0, "Optimizer list need to be defined"
         for optimizer in all_opts:
             assert optimizer is not None
+
+    def __deepcopy__(self, memo):
+        """ Override deep copy.
+
+        The sparse optimizer contains many distributed tensors.
+        We don't want to have deep copy of the distributed tensors
+        because if a DistTensor object is destroyed, the data in the server
+        will be destroyed as well.
+        """
+        cp = copy.copy(self)
+        cp.dense_opts = copy.deepcopy(self.dense_opts)
+        return cp
 
     def zero_grad(self):
         """ Setting the gradient to zero
