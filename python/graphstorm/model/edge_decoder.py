@@ -294,8 +294,8 @@ class LinkPredictDotDecoder(GSLayerNoParam):
                 if g.num_edges(canonical_etype) == 0:
                     continue # the block might contain empty edge types
 
-                src_type, etype, dest_type = canonical_etype
-                u, v = g.edges(etype=etype)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
                 src_emb = h[src_type][u]
                 dest_emb = h[dest_type][v]
                 scores_etype = calc_dot_pos_score(src_emb, dest_emb)
@@ -495,8 +495,8 @@ class LinkPredictDistMultDecoder(GSLayer):
                 self.trained_rels[i] += 1
                 rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
                 rel_embedding = rel_embedding.unsqueeze(dim=1)
-                src_type, etype, dest_type = canonical_etype
-                u, v = g.edges(etype=etype)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
                 src_emb = h[src_type][u]
 
                 dest_emb = h[dest_type][v]
