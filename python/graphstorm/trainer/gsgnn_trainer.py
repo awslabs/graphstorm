@@ -258,7 +258,7 @@ class GSgnnTrainer():
             self.save_model(model, epoch, i, save_model_path)
 
             # If this is the best model
-            if score_rank == 1:
+            if score_rank == 1 and save_model_path is not None:
                 self._best_model_path = self._gen_model_path(save_model_path, epoch, i)
 
     def get_best_model(self):
