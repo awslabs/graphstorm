@@ -124,10 +124,15 @@ def main(args):
                 save_perf_results_path=config.save_perf_results_path)
 
     if config.save_embed_path is not None:
+        model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
         best_model_path = trainer.get_best_model()
         assert best_model_path is not None, "Cannot get the best model from the trainer."
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
+        # Preparing input layer for training or inference.
+        # The input layer can pre-compute node features in the preparing step if needed.
+        # For example pre-compute all BERT embeddings
+        model.prepare_input_encoder(train_data)
         # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
         embeddings = do_full_graph_inference(model, train_data,
                                              edge_mask="train_mask", task_tracker=tracker)
