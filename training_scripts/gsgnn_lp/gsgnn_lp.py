@@ -117,10 +117,12 @@ def main(args):
                 save_perf_results_path=config.save_perf_results_path)
 
     if config.save_embed_path is not None:
-        best_model = trainer.get_best_model().to(device)
-        assert best_model is not None, "Cannot get the best model from the trainer."
+        best_model_path = trainer.get_best_model()
+        assert best_model_path is not None, "Cannot get the best model from the trainer."
+        # TODO(zhengda) the model path has to be in a shared filesystem.
+        model.restore_model(best_model_path)
         # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
-        embeddings = do_full_graph_inference(best_model, train_data,
+        embeddings = do_full_graph_inference(model, train_data,
                                              edge_mask="train_mask", task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         th.distributed.get_world_size())

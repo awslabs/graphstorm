@@ -278,7 +278,6 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         pb = g.get_partition_book()
         if self.train_etypes is None:
             self._train_etypes = g.canonical_etypes
-        print(self.train_etypes)
         for canonical_etype in self.train_etypes:
             if 'train_mask' in g.edges[canonical_etype].data:
                 train_idx = dgl.distributed.edge_split(
