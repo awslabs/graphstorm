@@ -19,6 +19,9 @@ import torch as th
 def read_data_parquet(data_file):
     """ Read data from the parquet file.
 
+    A row of a multi-dimension data is stored as an object in Parquet.
+    We need to stack them to form a tensor.
+
     Parameters
     ----------
     data_file : str
@@ -43,6 +46,19 @@ def read_data_parquet(data_file):
     return data
 
 def write_data_parquet(data, data_file):
+    """ Write data in parquet files.
+
+    Normally, Parquet cannot support multi-dimension arrays.
+    This function splits a multi-dimensiion array into N arrays
+    (each row is an array) and store the arrays as objects in the parquet file.
+
+    Parameters
+    ----------
+    data : dict
+        The data to be saved to the Parquet file.
+    data_file : str
+        The file name of the Parquet file.
+    """
     df = {}
     for key in data:
         arr = data[key]
@@ -70,11 +86,32 @@ def parse_file_format(fmt):
 ############## The functions for parsing configurations #############
 
 class Tokenizer:
+    """ A wrapper to a tokenizer.
+
+    It is defined to process multiple strings.
+
+    Parameters
+    ----------
+    tokenizer : a tokenizer
+    max_seq_length : int
+        The maximal length of the tokenization results.
+    """
     def __init__(self, tokenizer, max_seq_length):
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
 
     def __call__(self, strs):
+        """ Tokenization function.
+
+        Parameters
+        ----------
+        strs : list of strings.
+            The text data to be tokenized.
+
+        Returns
+        -------
+        a dict of tokenization results.
+        """
         tokens = []
         att_masks = []
         type_ids = []
@@ -265,6 +302,8 @@ def get_in_files(in_files):
 
 def parse_node_data(i, in_file, feat_ops, node_id_col, label_conf,
                     read_file, return_dict):
+    """ Parse node data.
+    """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
@@ -275,6 +314,8 @@ def parse_node_data(i, in_file, feat_ops, node_id_col, label_conf,
 
 def parse_edge_data(i, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
                     node_id_map, label_conf, read_file, return_dict):
+    """ Parse edge data.
+    """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
@@ -298,6 +339,8 @@ def parse_edge_data(i, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
     return_dict[i] = (src_ids, dst_ids, feat_data)
 
 def create_id_map(ids):
+    """ Create ID map
+    """
     return {id1: i for i, id1 in enumerate(ids)}
 
 def process_node_data(process_confs, remap_id):
