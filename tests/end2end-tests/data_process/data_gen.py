@@ -18,9 +18,11 @@ def write_data_parquet(data, data_file):
     pq.write_table(table, data_file)
 
 node_id1 = np.random.randint(0, 1000000000, 10000)
+node_text = np.array([str(nid) for nid in node_id1])
 node_data1 = {
     'id': node_id1,
     'data': node_id1,
+    'text': node_text,
     'label': node_id1 % 100,
 }
 
@@ -92,6 +94,14 @@ node_conf = [
             {
                 "feature_col": "data",
                 "feature_name": "feat",
+            },
+            {
+                "feature_col": "text",
+                # tokenize_hf generates multiple features.
+                # It defines feature names itself.
+                "transform": {"name": "tokenize_hf",
+                              "bert_model": "bert-base-uncased",
+                              "max_seq_length": 16},
             },
         ],
         "labels":       [

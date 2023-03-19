@@ -69,6 +69,25 @@ def parse_file_format(fmt):
 
 ############## The functions for parsing configurations #############
 
+class Tokenizer:
+    def __init__(self, tokenizer, max_seq_length):
+        self.tokenizer = tokenizer
+        self.max_seq_length = max_seq_length
+
+    def __call__(self, strs):
+        tokens = []
+        att_masks = []
+        type_ids = []
+        for s in strs:
+            t = self.tokenizer(s, max_length=self.max_seq_length,
+                               truncation=True, padding='max_length', return_tensors='pt')
+            tokens.append(t['input_ids'])
+            att_masks.append(t['attention_mask'])
+            type_ids.append(t['token_type_ids'])
+        return {'token_ids': th.cat(tokens, dim=0),
+                'attention_mask': th.cat(att_masks, dim=0),
+                'token_type_ids': th.cat(type_ids, dim=0)}
+
 def parse_tokenize(op):
     """ Parse the tokenization configuration
 
@@ -86,20 +105,7 @@ def parse_tokenize(op):
     """
     tokenizer = BertTokenizer.from_pretrained(op['bert_model'])
     max_seq_length = int(op['max_seq_length'])
-    def tokenize(file_idx, strs):
-        tokens = []
-        att_masks = []
-        type_ids = []
-        for s in strs:
-            t = tokenizer(s, max_length=max_seq_length,
-                          truncation=True, padding='max_length', return_tensors='pt')
-            tokens.append(t['input_ids'])
-            att_masks.append(t['attention_mask'])
-            type_ids.append(t['token_type_ids'])
-        return {'token_ids': th.cat(tokens, dim=0),
-                'attention_mask': th.cat(att_masks, dim=0),
-                'token_type_ids': th.cat(type_ids, dim=0)}
-    return tokenize
+    return Tokenizer(tokenizer, max_seq_length)
 
 def parse_feat_ops(confs):
     """ Parse the configurations for processing the features
@@ -123,14 +129,16 @@ def parse_feat_ops(confs):
     """
     ops = []
     for feat in confs:
+        # TODO(zhengda) we will support data type in the future.
         dtype = None
         if 'transform' not in feat:
             transform = None
-        elif transform['name'] == 'tokenize_hf':
-            trasnform = parse_tokenize(transform)
+        elif feat['transform']['name'] == 'tokenize_hf':
+            transform = parse_tokenize(feat['transform'])
         else:
             raise ValueError('Unknown operation: {}'.format(transform['name']))
-        ops.append((feat['feature_col'], feat['feature_name'], dtype, transform))
+        feat_name = feat['feature_name'] if 'feature_name' in feat else None
+        ops.append((feat['feature_col'], feat_name, dtype, transform))
     return ops
 
 #################### The main function for processing #################
@@ -159,13 +167,17 @@ def process_features(data, ops):
         # If the transformation is defined on the feature.
         if op is not None:
             res = op(data[feat_col])
+            if isinstance(res, dict):
+                for key, val in res.items():
+                    new_data[key] = val
+            else:
+                new_data[feat_name] = res
         # If the required data type is defined on the feature.
         elif dtype is not None:
-            res = data[feat_col].astype(dtype)
+            new_data[feat_name] = data[feat_col].astype(dtype)
         # If no transformation is defined for the feature.
         else:
-            res = data[feat_col]
-        new_data[feat_name] = res
+            new_data[feat_name] = data[feat_col]
     return new_data
 
 def process_labels(data, label_confs):
