@@ -30,9 +30,12 @@ node_data2 = {
     'data': np.repeat(node_id2, 5).reshape(len(node_id2), 5),
 }
 
+src1 = node_data1['id'][np.random.randint(0, 10000, 100000)]
+dst1 = node_data2['id'][np.random.randint(0, 20000, 100000)]
 edge_data1 = {
-    'src': node_data1['id'][np.random.randint(0, 10000, 100000)],
-    'dst': node_data2['id'][np.random.randint(0, 20000, 100000)],
+    'src': src1,
+    'dst': dst1,
+    'label': (src1 + dst1) % 100,
 }
 edge_data2 = {
     'src': node_data1['id'][np.random.randint(0, 10000, 50000)],
@@ -107,18 +110,25 @@ edge_conf = [
         "relation":         ("node1", "relation1", "node2"),
         "format":           {"name": "parquet"},
         "files":            os.path.join(in_dir, "edge_data1_*.parquet"),
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+                "split_type":   [0.8, 0.2, 0.0],
+            },
+        ],
     },
     {
         "source_id_col":    "src",
         "dest_id_col":      "dst",
-        "relation":         ("node1", "relation1", "node1"),
+        "relation":         ("node1", "relation2", "node1"),
         "format":           {"name": "parquet"},
         "files":            os.path.join(in_dir, "edge_data2_*.parquet"),
     },
     {
         "source_id_col":    "src",
         "dest_id_col":      "dst",
-        "relation":         ("node2", "relation1", "node2"),
+        "relation":         ("node2", "relation3", "node2"),
         "format":           {"name": "parquet"},
         "files":            os.path.join(in_dir, "edge_data3_*.parquet"),
     },

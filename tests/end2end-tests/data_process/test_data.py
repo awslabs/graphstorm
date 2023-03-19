@@ -33,3 +33,8 @@ for i in range(data.shape[1]):
     assert np.all(data[:,i] == orig_ids)
 
 # Test the edge data
+src_ids, dst_ids = g.edges(etype=('node1', 'relation1', 'node2'))
+label = g.edges[('node1', 'relation1', 'node2')].data['label']
+src_ids = np.array([reverse_node1_map[src_id] for src_id in src_ids.numpy()])
+dst_ids = np.array([reverse_node2_map[dst_id] for dst_id in dst_ids.numpy()])
+assert np.all((src_ids + dst_ids) % 100 == label.numpy())
