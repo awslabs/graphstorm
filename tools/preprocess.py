@@ -271,17 +271,18 @@ def parse_edge_data(i, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
             feat_data[key] = val
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
-    if node_id_map is None:
+    assert node_id_map is not None
+    src_type, _, dst_type = edge_type
+    if src_type in node_id_map:
+        src_ids = np.array([node_id_map[src_type][sid] for sid in src_ids])
+    else:
         assert np.issubdtype(src_ids.dtype, np.integer), \
                 "The source node Ids have to be integer."
+    if dst_type in node_id_map:
+        dst_ids = np.array([node_id_map[dst_type][did] for did in dst_ids])
+    else:
         assert np.issubdtype(dst_ids.dtype, np.integer), \
                 "The destination node Ids have to be integer."
-    else:
-        src_type, _, dst_type = edge_type
-        src_ids = [node_id_map[src_type][sid] for sid in src_ids]
-        dst_ids = [node_id_map[dst_type][did] for did in dst_ids]
-        src_ids = np.array(src_ids)
-        dst_ids = np.array(dst_ids)
     return_dict[i] = (src_ids, dst_ids, feat_data)
 
 def create_id_map(ids):
@@ -369,16 +370,19 @@ def process_node_data(process_confs, remap_id):
         if np.issubdtype(type_node_id_map.dtype, np.integer) \
                 and np.all(type_node_id_map == np.arange(len(type_node_id_map))) \
                 and not remap_id:
+            num_nodes = len(type_node_id_map)
             type_node_id_map = None
         else:
+            num_nodes = len(type_node_id_map)
             type_node_id_map = create_id_map(type_node_id_map)
 
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
-            assert len(type_node_data[feat_name]) == len(type_node_id_map)
+            assert len(type_node_data[feat_name]) == num_nodes
 
         node_data[node_type] = type_node_data
-        node_id_map[node_type] = type_node_id_map
+        if type_node_id_map is not None:
+            node_id_map[node_type] = type_node_id_map
 
     return (node_id_map, node_data)
 

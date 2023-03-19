@@ -24,7 +24,7 @@ node_data1 = {
     'label': node_id1 % 100,
 }
 
-node_id2 = np.random.randint(0, 1000000000, 20000)
+node_id2 = np.arange(20000)
 node_data2 = {
     'id': node_id2,
     'data': np.repeat(node_id2, 5).reshape(len(node_id2), 5),
