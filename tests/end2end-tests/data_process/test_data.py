@@ -16,6 +16,8 @@ def read_data_parquet(data_file):
 g = dgl.load_graphs(os.path.join(out_dir, "test.dgl"))[0][0]
 node1_map = read_data_parquet(os.path.join(out_dir, "node1_id_remap.parquet"))
 reverse_node1_map = {val: key for key, val in zip(node1_map['orig'], node1_map['new'])}
+node3_map = read_data_parquet(os.path.join(out_dir, "node3_id_remap.parquet"))
+reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['new'])}
 
 # Test the first node data
 data = g.nodes['node1'].data['feat'].numpy()
@@ -35,7 +37,7 @@ assert data.shape[1] == 5
 for i in range(data.shape[1]):
     assert np.all(data[:,i] == orig_ids)
 
-# Test the edge data
+# Test the edge data of edge type 1
 src_ids, dst_ids = g.edges(etype=('node1', 'relation1', 'node2'))
 label = g.edges[('node1', 'relation1', 'node2')].data['label'].numpy()
 assert label.dtype == np.int32
@@ -47,3 +49,10 @@ assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['train_mask']) \
 assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['val_mask']) \
         == int(g.number_of_edges(('node1', 'relation1', 'node2')) * 0.2)
 assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['test_mask']) == 0
+
+# Test the edge data of edge type 3
+src_ids, dst_ids = g.edges(etype=('node2', 'relation3', 'node3'))
+feat = g.edges[('node2', 'relation3', 'node3')].data['feat'].numpy()
+src_ids = src_ids.numpy()
+dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()])
+assert np.all(src_ids + dst_ids == feat)

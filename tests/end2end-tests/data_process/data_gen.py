@@ -30,6 +30,12 @@ node_data2 = {
     'data': np.repeat(node_id2, 5).reshape(len(node_id2), 5),
 }
 
+node_id3 = np.random.randint(0, 1000000000, 5000)
+node_id3_str = np.array([str(nid) for nid in node_id3])
+node_data3 = {
+    'id': node_id3_str,
+}
+
 src1 = node_data1['id'][np.random.randint(0, 10000, 100000)]
 dst1 = node_data2['id'][np.random.randint(0, 20000, 100000)]
 edge_data1 = {
@@ -41,9 +47,13 @@ edge_data2 = {
     'src': node_data1['id'][np.random.randint(0, 10000, 50000)],
     'dst': node_data1['id'][np.random.randint(0, 10000, 50000)],
 }
+
+src3 = node_data2['id'][np.random.randint(0, 20000, 100000)]
+dst_idx = np.random.randint(0, 5000, 100000)
 edge_data3 = {
-    'src': node_data2['id'][np.random.randint(0, 20000, 100000)],
-    'dst': node_data2['id'][np.random.randint(0, 20000, 100000)],
+    'src': src3,
+    'dst': node_data3['id'][dst_idx],
+    'data': src3 + node_id3[dst_idx],
 }
 
 in_dir = '/tmp/test_data/'
@@ -63,6 +73,8 @@ for i, node_data in enumerate(split_data(node_data1, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
 for i, node_data in enumerate(split_data(node_data2, 10)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data2_{i}.parquet'))
+for i, node_data in enumerate(split_data(node_data3, 10)):
+    write_data_parquet(node_data, os.path.join(in_dir, f'node_data3_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data1_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data2, 10)):
@@ -102,6 +114,12 @@ node_conf = [
             },
         ],
     },
+    {
+        "node_id_col": "id",
+        "node_type": "node3",
+        "format": {"name": "parquet"},
+        "files": os.path.join(in_dir, "node_data3_*.parquet"),
+    },
 ]
 edge_conf = [
     {
@@ -128,9 +146,15 @@ edge_conf = [
     {
         "source_id_col":    "src",
         "dest_id_col":      "dst",
-        "relation":         ("node2", "relation3", "node2"),
+        "relation":         ("node2", "relation3", "node3"),
         "format":           {"name": "parquet"},
         "files":            os.path.join(in_dir, "edge_data3_*.parquet"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat",
+            },
+        ],
     },
 ]
 transform_conf = {
