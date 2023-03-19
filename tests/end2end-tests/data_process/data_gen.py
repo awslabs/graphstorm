@@ -13,22 +13,20 @@ def write_data_parquet(data, data_file):
         if len(arr.shape) == 1:
             df[key] = arr
         else:
-            for i in range(arr.shape[1]):
-                df[key + "@" + str(i)] = arr[:,i]
+            df[key] = [arr[i] for i in range(len(arr))]
     table = pa.Table.from_arrays(list(df.values()), names=list(df.keys()))
     pq.write_table(table, data_file)
 
 node_data1 = {
     'id': np.random.randint(0, 1000000000, 10000),
     'data': np.random.randint(0, 1000000000, 10000),
+    'label': np.random.randint(0, 100, 10000),
 }
-node_data1['data_id'] = copy.deepcopy(node_data1['id'])
 
 node_data2 = {
     'id': np.random.randint(0, 1000000000, 20000),
     'data': np.random.random((20000, 5)),
 }
-node_data2['data_id'] = copy.deepcopy(node_data2['id'])
 
 edge_data1 = {
     'src': node_data1['id'][np.random.randint(0, 10000, 100000)],
@@ -66,67 +64,65 @@ for i, edge_data in enumerate(split_data(edge_data2, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data2_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data3, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{i}.parquet'))
-node_id1 = {'id': np.sort(node_data1['id'])}
-node_id2 = {'id': np.sort(node_data2['id'])}
-write_data_parquet(node_id1, os.path.join(in_dir, 'node_id1.parquet'))
-write_data_parquet(node_id2, os.path.join(in_dir, 'node_id2.parquet'))
 
-transform_conf = [
+node_conf = [
     {
-        "in_format": {"name": "parquet"},
-        "out_format": {"name": "numpy"},
-        "type": "node_data",
-        "name": "node_data1",
-        "in_files": os.path.join(in_dir, "node_data1_*.parquet"),
-        "ops": {
-            "id": { "op": "create_id_map", "map_file": os.path.join(in_dir, "node_id1.npy") },
-            "data": { "op": "identity", },
-            "data_id" : { "op": "identity", },
-        }
+        "node_id_col": "id",
+        "node_type": "node1",
+        "format": {"name": "parquet"},
+        "files": os.path.join(in_dir, "node_data1_*.parquet"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat",
+            },
+        ],
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+                "split_type":   [0.8, 0.2, 0.0],
+            },
+        ],
     },
     {
-        "in_format": {"name": "parquet"},
-        "out_format": {"name": "numpy"},
-        "type": "node_data",
-        "name": "node_data2",
-        "in_files": os.path.join(in_dir, "node_data2_*.parquet"),
-        "ops": {
-            "id": { "op": "create_id_map", "map_file": os.path.join(in_dir, "node_id2.npy") },
-            "data_id": { "op": "identity", }
-        }
-    },
-    {
-        "in_format":{"name":  "parquet"},
-        "out_format": {"name": "csv", "delimiter": ",", "order": "src,dst", "format": "%d"},
-        "type": "edge",
-        "name": "node_data1:edge_data1:node_data2",
-        "in_files": os.path.join(in_dir, "edge_data1_*.parquet"),
-        "ops": {
-            "src": { "op": "map_id", "map_file": os.path.join(in_dir, "node_id1.npy") },
-            "dst": { "op": "map_id", "map_file": os.path.join(in_dir, "node_id2.npy") },
-        }
-    },
-    {
-        "in_format": {"name": "parquet"},
-        "out_format": {"name": "csv", "delimiter": ",", "order": "src,dst", "format": "%d"},
-        "type": "edge",
-        "name": "node_data1:edge_data2:node_data1",
-        "in_files": os.path.join(in_dir, "edge_data2_*.parquet"),
-        "ops": {
-            "src": { "op": "map_id", "map_file": os.path.join(in_dir, "node_id1.npy") },
-            "dst": { "op": "map_id", "map_file": os.path.join(in_dir, "node_id1.npy") },
-        }
-    },
-    {
-        "in_format": {"name": "parquet"},
-        "out_format": {"name": "csv", "delimiter": ",", "order": "src,dst", "format": "%d"},
-        "type": "edge",
-        "name": "node_data2:edge_data3:node_data2",
-        "in_files": os.path.join(in_dir, "edge_data3_*.parquet"),
-        "ops": {
-            "src": { "op": "map_id", "map_file": os.path.join(in_dir, "node_id2.npy") },
-            "dst": { "op": "map_id", "map_file": os.path.join(in_dir, "node_id2.npy") },
-        }
+        "node_id_col": "id",
+        "node_type": "node2",
+        "format": {"name": "parquet"},
+        "files": os.path.join(in_dir, "node_data2_*.parquet"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat",
+            },
+        ],
     },
 ]
+edge_conf = [
+    {
+        "source_id_col":    "src",
+        "dest_id_col":      "dst",
+        "relation":         ("node1", "relation1", "node2"),
+        "format":           {"name": "parquet"},
+        "files":            os.path.join(in_dir, "edge_data1_*.parquet"),
+    },
+    {
+        "source_id_col":    "src",
+        "dest_id_col":      "dst",
+        "relation":         ("node1", "relation1", "node1"),
+        "format":           {"name": "parquet"},
+        "files":            os.path.join(in_dir, "edge_data2_*.parquet"),
+    },
+    {
+        "source_id_col":    "src",
+        "dest_id_col":      "dst",
+        "relation":         ("node2", "relation1", "node2"),
+        "format":           {"name": "parquet"},
+        "files":            os.path.join(in_dir, "edge_data3_*.parquet"),
+    },
+]
+transform_conf = {
+    "node": node_conf,
+    "edge": edge_conf,
+}
 json.dump(transform_conf, open(os.path.join(in_dir, 'test_data_transform.conf'), 'w'), indent=4)

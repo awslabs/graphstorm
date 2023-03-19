@@ -3,6 +3,7 @@ from multiprocessing import Process
 import multiprocessing
 import glob
 import os
+import dgl
 import json
 import pyarrow.parquet as pq
 import pyarrow as pa
@@ -29,14 +30,30 @@ def read_data_parquet(data_file):
     """
     table = pq.read_table(data_file)
     pd = table.to_pandas()
-    return {key: np.array(pd[key]) for key in pd}
+    data = {}
+    for key in pd:
+        d = np.array(pd[key])
+        # For multi-dimension arrays, we split them by rows and
+        # save them as objects in parquet. We need to merge them
+        # together and store them in a tensor.
+        if d.dtype.hasobject:
+            d = [d[i] for i in range(len(d))]
+            d = np.stack(d)
+        data[key] = d
+    return data
 
-read_data_funcs = {
-    "parquet": read_data_parquet,
-}
+def parse_file_format(fmt):
+    """ Parse the file format blob
 
-def get_read_data_func(fmt):
-    return read_data_funcs[fmt['name']]
+    Parameters
+    ----------
+    fmt : dict
+        Describe the file format.
+    """
+    if fmt["name"] == "parquet":
+        return read_data_parquet
+    else:
+        raise ValueError('Unknown file format: {}'.format(fmt['name']))
 
 ############## The functions for parsing configurations #############
 
@@ -106,7 +123,7 @@ def parse_feat_ops(confs):
 
 #################### The main function for processing #################
 
-def process_data(data, ops):
+def process_features(data, ops):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
@@ -191,13 +208,13 @@ def get_in_files(in_files):
 
 def parse_node_data(i, in_file, feat_ops, node_id_col, read_file, return_dict):
     data = read_file(in_file)
-    data = process_data(i, data, feat_ops)
-    return_vals[i] = (data[node_id_col], data)
+    feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
+    return_dict[i] = (data[node_id_col], feat_data)
 
 def parse_edge_data(i, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
                     node_id_map, read_file, return_dict):
     data = read_file(in_file)
-    data = process_data(i, data, feat_ops)
+    feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
     if node_id_map is None:
@@ -209,9 +226,9 @@ def parse_edge_data(i, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
         src_type, _, dst_type = edge_type
         src_ids = [node_id_map[src_type][sid] for sid in src_ids]
         dst_ids = [node_id_map[dst_type][did] for did in dst_ids]
-        src_ids = np.concatenate(src_ids)
-        dst_ids = np.concatenate(dst_ids)
-    return_vals[i] = (src_ids, dst_ids, data)
+        src_ids = np.array(src_ids)
+        dst_ids = np.array(dst_ids)
+    return_dict[i] = (src_ids, dst_ids, feat_data)
 
 def create_id_map(ids):
     return {id1: i for i, id1 in enumerate(ids)}
@@ -261,6 +278,7 @@ def process_node_data(process_confs, remap_id):
     dict: node features.
     """
     node_data = {}
+    node_id_map = {}
     for process_conf in process_confs:
         node_id_col = process_conf['node_id_col']
         node_type = process_conf['node_type']
@@ -287,18 +305,21 @@ def process_node_data(process_confs, remap_id):
                 type_node_data[feat_name][i] = data[feat_name]
             type_node_id_map[i] = node_ids
 
-        for feat_name in type_node_data:
-            type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
         assert type_node_id_map[0] is not None
         type_node_id_map = np.concatenate(type_node_id_map)
+        # We don't need to create ID map if the node IDs are integers,
+        # all node Ids are in sequence start from 0 and
+        # the user doesn't force to remap node IDs.
         if np.issubdtype(type_node_id_map.dtype, np.integer) \
-                # If all node Ids are in sequence start from 0.
                 and np.all(type_node_id_map == np.arange(len(type_node_id_map))) \
-                # If the user doesn't force to remap node IDs.
                 and not remap_id:
             type_node_id_map = None
         else:
             type_node_id_map = create_id_map(type_node_id_map)
+
+        for feat_name in type_node_data:
+            type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
+            assert len(type_node_data[feat_name]) == len(type_node_id_map)
 
         node_data[node_type] = type_node_data
         node_id_map[node_type] = type_node_id_map
@@ -353,8 +374,10 @@ def process_edge_data(process_confs, node_id_map):
         src_id_col = process_conf['source_id_col']
         dst_id_col = process_conf['dest_id_col']
         edge_type = process_conf['relation']
-        feat_ops = parse_feat_ops(process_conf['features'])
-        feat_names = [feat_op['feature_name'] for feat_op in process_conf['features']]
+        feat_ops = parse_feat_ops(process_conf['features']) \
+                if 'features' in process_conf else None
+        feat_names = [feat_op['feature_name'] for feat_op in process_conf['features']] \
+                if feat_ops is not None else None
         q = []
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
@@ -369,18 +392,29 @@ def process_edge_data(process_confs, node_id_map):
             wait_process(q, num_processes)
         wait_all(q)
 
-        type_edges = [None] * len(return_dict)
-        type_edge_data = {feat_name: [None] * len(return_dict) \
-                for feat_name in feat_names}
-        for i, (part_edges, part_data) in return_dict.items():
-            type_edges[i] = part_edges
-            for feat_name in data:
+        type_src_ids = [None] * len(return_dict)
+        type_dst_ids = [None] * len(return_dict)
+        if feat_names is not None:
+            type_edge_data = {feat_name: [None] * len(return_dict) \
+                    for feat_name in feat_names}
+        else:
+            type_edge_data = {}
+        for i, (src_ids, dst_ids, part_data) in return_dict.items():
+            type_src_ids[i] = src_ids
+            type_dst_ids[i] = dst_ids
+            for feat_name in part_data:
                 type_edge_data[feat_name][i] = part_data[feat_name]
+
+        type_src_ids = np.concatenate(type_src_ids)
+        type_dst_ids = np.concatenate(type_dst_ids)
+        assert len(type_src_ids) == len(type_dst_ids)
 
         for feat_name in type_edge_data:
             type_edge_data[feat_name] = np.concatenate(type_edge_data[feat_name])
+            assert len(type_edge_data[feat_name]) == len(type_src_ids)
 
-        edges[edge_type] = type_edges
+        edge_type = tuple(edge_type)
+        edges[edge_type] = (type_src_ids, type_dst_ids)
         edge_data[edge_type] = type_edge_data
 
     return edges, edge_data
@@ -393,19 +427,26 @@ if __name__ == '__main__':
             help="The number of processes to process the data simulteneously.")
     argparser.add_argument("--output_dir", type=str, required=True,
             help="The path of the output data folder.")
+    argparser.add_argument("--graph_name", type=str, required=True,
+            help="The graph name")
     argparser.add_argument("--remap_node_id", type=bool, default=False,
             help="Whether or not to remap node IDs.")
     args = argparser.parse_args()
     num_processes = args.num_processes
     process_confs = json.load(open(args.conf_file, 'r'))
 
-    node_id_map, node_data = process_node_data(process_confs, args.remap_node_id)
-    edges, edge_data = process_edge_data(process_confs, node_id_map)
-    num_nodes = {ntype: len(node_data[ntype]) for ntype in node_data}
+    node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id)
+    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map)
+    num_nodes = {}
+    for ntype in node_data:
+        for feat_name in node_data[ntype]:
+            num_nodes[ntype] = len(node_data[ntype][feat_name])
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     for ntype in node_data:
         for name, data in node_data[ntype].items():
-            g.nodes[ntype].data[name] = data
+            g.nodes[ntype].data[name] = th.tensor(data)
     for etype in edge_data:
         for name, data in edge_data[etype].items():
-            g.edges[etype].data[name] = data
+            g.edges[etype].data[name] = th.tensor(data)
+
+    dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
