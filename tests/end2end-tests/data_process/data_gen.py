@@ -17,15 +17,17 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(df.values()), names=list(df.keys()))
     pq.write_table(table, data_file)
 
+node_id1 = np.random.randint(0, 1000000000, 10000)
 node_data1 = {
-    'id': np.random.randint(0, 1000000000, 10000),
-    'data': np.random.randint(0, 1000000000, 10000),
-    'label': np.random.randint(0, 100, 10000),
+    'id': node_id1,
+    'data': node_id1,
+    'label': node_id1 % 100,
 }
 
+node_id2 = np.random.randint(0, 1000000000, 20000)
 node_data2 = {
-    'id': np.random.randint(0, 1000000000, 20000),
-    'data': np.random.random((20000, 5)),
+    'id': node_id2,
+    'data': np.repeat(node_id2, 5).reshape(len(node_id2), 5),
 }
 
 edge_data1 = {
