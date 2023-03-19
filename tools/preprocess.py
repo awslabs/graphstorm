@@ -42,6 +42,18 @@ def read_data_parquet(data_file):
         data[key] = d
     return data
 
+def write_data_parquet(data, data_file):
+    df = {}
+    for key in data:
+        arr = data[key]
+        assert len(arr.shape) == 1 or len(arr.shape) == 2
+        if len(arr.shape) == 1:
+            df[key] = arr
+        else:
+            df[key] = [arr[i] for i in range(len(arr))]
+    table = pa.Table.from_arrays(list(df.values()), names=list(df.keys()))
+    pq.write_table(table, data_file)
+
 def parse_file_format(fmt):
     """ Parse the file format blob
 
@@ -156,6 +168,39 @@ def process_features(data, ops):
         new_data[feat_name] = res
     return new_data
 
+def process_labels(data, label_confs):
+    """ Process labels
+
+    Parameters
+    ----------
+    data : dict
+        The data stored as a dict.
+    label_conf : list of dict
+        The list of configs to construct labels.
+    """
+    assert len(label_confs) == 1
+    label_conf = label_confs[0]
+    label_col = label_conf['label_col']
+    label = data[label_conf['label_col']]
+    if label_conf['task_type'] == 'classification':
+        label = np.int32(label)
+    if 'split_type' in label_conf:
+        train_split, val_split, test_split = label_conf['split_type']
+        rand_idx = np.random.permutation(len(label))
+        train_idx = rand_idx[0:int(len(label) * train_split)]
+        val_idx = rand_idx[int(len(label) * train_split):int(len(label) * (train_split + val_split))]
+        test_idx = rand_idx[int(len(label) * (train_split + val_split)):]
+        train_mask = np.zeros((len(label),), dtype=np.int8)
+        val_mask = np.zeros((len(label),), dtype=np.int8)
+        test_mask = np.zeros((len(label),), dtype=np.int8)
+        train_mask[train_idx] = 1
+        val_mask[val_idx] = 1
+        test_mask[test_idx] = 1
+    return {label_col: label,
+            'train_mask': train_mask,
+            'val_mask': val_mask,
+            'test_mask': test_mask}
+
 ################### The functions for multiprocessing ###############
 
 def wait_process(q, max_proc):
@@ -206,15 +251,24 @@ def get_in_files(in_files):
     in_files.sort()
     return in_files
 
-def parse_node_data(i, in_file, feat_ops, node_id_col, read_file, return_dict):
+def parse_node_data(i, in_file, feat_ops, node_id_col, label_conf,
+                    read_file, return_dict):
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
+    if label_conf is not None:
+        label_data = process_labels(data, label_conf)
+        for key, val in label_data.items():
+            feat_data[key] = val
     return_dict[i] = (data[node_id_col], feat_data)
 
 def parse_edge_data(i, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
-                    node_id_map, read_file, return_dict):
+                    node_id_map, label_conf, read_file, return_dict):
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
+    if label_conf is not None:
+        label_data = process_labels(data, label_conf)
+        for key, val in label_data.items():
+            feat_data[key] = val
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
     if node_id_map is None:
@@ -289,19 +343,21 @@ def process_node_data(process_confs, remap_id):
         return_dict = manager.dict()
         read_file = parse_file_format(process_conf['format'])
         in_files = get_in_files(process_conf['files'])
+        label_conf = process_conf['labels'] if 'labels' in process_conf else None
         for i, in_file in enumerate(in_files):
             p = Process(target=parse_node_data, args=(i, in_file, feat_ops, node_id_col,
-                                                      read_file, return_dict))
+                                                      label_conf, read_file, return_dict))
             p.start()
             q.append(p)
             wait_process(q, num_processes)
         wait_all(q)
 
-        type_node_data = {feat_name: [None] * len(return_dict) \
-                for feat_name in feat_names}
         type_node_id_map = [None] * len(return_dict)
+        type_node_data = {}
         for i, (node_ids, data) in return_dict.items():
             for feat_name in data:
+                if feat_name not in type_node_data:
+                    type_node_data[feat_name] = [None] * len(return_dict)
                 type_node_data[feat_name][i] = data[feat_name]
             type_node_id_map[i] = node_ids
 
@@ -383,10 +439,12 @@ def process_edge_data(process_confs, node_id_map):
         return_dict = manager.dict()
         read_file = parse_file_format(process_conf['format'])
         in_files = get_in_files(process_conf['files'])
+        label_conf = process_conf['labels'] if 'labels' in process_conf else None
         for i, in_file in enumerate(in_files):
             p = Process(target=parse_edge_data, args=(i, in_file, feat_ops,
                                                       src_id_col, dst_id_col, edge_type,
-                                                      node_id_map, read_file, return_dict))
+                                                      node_id_map, label_conf,
+                                                      read_file, return_dict))
             p.start()
             q.append(p)
             wait_process(q, num_processes)
@@ -394,15 +452,13 @@ def process_edge_data(process_confs, node_id_map):
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
-        if feat_names is not None:
-            type_edge_data = {feat_name: [None] * len(return_dict) \
-                    for feat_name in feat_names}
-        else:
-            type_edge_data = {}
+        type_edge_data = {}
         for i, (src_ids, dst_ids, part_data) in return_dict.items():
             type_src_ids[i] = src_ids
             type_dst_ids[i] = dst_ids
             for feat_name in part_data:
+                if feat_name not in type_edge_data:
+                    type_edge_data[feat_name] = [None] * len(return_dict)
                 type_edge_data[feat_name][i] = part_data[feat_name]
 
         type_src_ids = np.concatenate(type_src_ids)
@@ -450,3 +506,8 @@ if __name__ == '__main__':
             g.edges[etype].data[name] = th.tensor(data)
 
     dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
+    for ntype in node_id_map:
+        map_data = {}
+        map_data["orig"] = np.array(list(node_id_map[ntype].keys()))
+        map_data["new"] = np.array(list(node_id_map[ntype].values()))
+        write_data_parquet(map_data, os.path.join(args.output_dir, ntype + "_id_remap.parquet"))
