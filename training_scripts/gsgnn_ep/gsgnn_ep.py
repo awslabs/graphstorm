@@ -16,6 +16,7 @@
     GSgnn edge prediction.
 """
 
+import os
 import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
