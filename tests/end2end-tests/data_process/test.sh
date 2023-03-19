@@ -17,18 +17,10 @@ error_and_exit () {
 
 python3 $GS_HOME/tests/end2end-tests/data_process/data_gen.py
 
-python3 $GS_HOME/tools/preprocess.py --num_processes 3 --conf_file /tmp/test_data/test_data_transform.conf
+python3 $GS_HOME/tools/construct_graph.py --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_out --graph_name test
 
 error_and_exit $?
 
 python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py
-
-error_and_exit $?
-
-python3 $GS_HOME/tools/gen_id_map.py --data_file "/tmp/test_data/edge_data1_*.parquet" --id_cols src,dst --out_dir /tmp/test_ids --group_size 2 --num_processes 2
-
-error_and_exit $?
-
-python3 tests/end2end-tests/data_process/test_id_map.py
 
 error_and_exit $?
