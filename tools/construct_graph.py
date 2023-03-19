@@ -337,8 +337,8 @@ def process_node_data(process_confs, remap_id):
     for process_conf in process_confs:
         node_id_col = process_conf['node_id_col']
         node_type = process_conf['node_type']
-        feat_ops = parse_feat_ops(process_conf['features'])
-        feat_names = [feat_op['feature_name'] for feat_op in process_conf['features']]
+        feat_ops = parse_feat_ops(process_conf['features']) \
+                if 'features' in process_conf else None
         q = []
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
@@ -380,7 +380,9 @@ def process_node_data(process_confs, remap_id):
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
             assert len(type_node_data[feat_name]) == num_nodes
 
-        node_data[node_type] = type_node_data
+        # Some node types don't have data.
+        if len(type_node_data) > 0:
+            node_data[node_type] = type_node_data
         if type_node_id_map is not None:
             node_id_map[node_type] = type_node_id_map
 
@@ -436,8 +438,6 @@ def process_edge_data(process_confs, node_id_map):
         edge_type = process_conf['relation']
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
-        feat_names = [feat_op['feature_name'] for feat_op in process_conf['features']] \
-                if feat_ops is not None else None
         q = []
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
@@ -475,7 +475,9 @@ def process_edge_data(process_confs, node_id_map):
 
         edge_type = tuple(edge_type)
         edges[edge_type] = (type_src_ids, type_dst_ids)
-        edge_data[edge_type] = type_edge_data
+        # Some edge types don't have edge data.
+        if len(type_edge_data) > 0:
+            edge_data[edge_type] = type_edge_data
 
     return edges, edge_data
 
@@ -498,9 +500,18 @@ if __name__ == '__main__':
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map)
     num_nodes = {}
-    for ntype in node_data:
-        for feat_name in node_data[ntype]:
-            num_nodes[ntype] = len(node_data[ntype][feat_name])
+    for ntype in set(list(node_data.keys()) + list(node_id_map.keys())):
+        # If a node type has Id map.
+        if ntype in node_id_map:
+            num_nodes[ntype] = len(node_id_map[ntype])
+        # If a node type has node data.
+        elif ntype in node_data:
+            for feat_name in node_data[ntype]:
+                num_nodes[ntype] = len(node_data[ntype][feat_name])
+                break
+        else:
+            # A node type must have either ID map or node data.
+            raise ValueError('Node type {} must have either ID map or node data'.format(ntype))
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     for ntype in node_data:
         for name, data in node_data[ntype].items():
