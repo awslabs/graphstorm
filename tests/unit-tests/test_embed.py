@@ -108,7 +108,8 @@ def test_input_layer2():
 
 # In this case, we use node feature on one node type and
 # use sparse embedding on the other node type.
-def test_input_layer3():
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_input_layer3(dev):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -123,18 +124,26 @@ def test_input_layer3():
     assert len(layer.input_projs) == 1
     assert list(layer.input_projs.keys())[0] == 'n0'
     assert len(layer.sparse_embeds) == 1
+    layer.set_device(dev)
+    layer = layer.to(dev)
+
     node_feat = {}
     node_embs = {}
     input_nodes = {}
     for ntype in g.ntypes:
         input_nodes[ntype] = np.arange(10)
     nn.init.eye_(layer.input_projs['n0'])
-    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']]
+    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
     node_embs['n1'] = layer.sparse_embeds['n1'].weight[input_nodes['n1']]
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
-    assert_almost_equal(embed['n0'].detach().numpy(), node_feat['n0'].detach().numpy())
-    assert_almost_equal(embed['n1'].detach().numpy(), node_embs['n1'].detach().numpy())
+    # check emb device
+    for _, emb in embed.items():
+        assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+    assert_almost_equal(embed['n0'].detach().cpu().numpy(),
+                        node_feat['n0'].detach().cpu().numpy())
+    assert_almost_equal(embed['n1'].detach().cpu().numpy(),
+                        node_embs['n1'].detach().cpu().numpy())
 
     # Test the case with errors.
     try:
@@ -147,12 +156,17 @@ def test_input_layer3():
     input_nodes['n0'] = np.arange(10)
     input_nodes['n1'] = np.zeros((0,))
     nn.init.eye_(layer.input_projs['n0'])
-    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']]
+    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
     node_embs['n1'] = layer.sparse_embeds['n1'].weight[input_nodes['n1']]
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
-    assert_almost_equal(embed['n0'].detach().numpy(), node_feat['n0'].detach().numpy())
-    assert_almost_equal(embed['n1'].detach().numpy(), node_embs['n1'].detach().numpy())
+    # check emb device
+    for _, emb in embed.items():
+        assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+    assert_almost_equal(embed['n0'].detach().cpu().numpy(),
+                        node_feat['n0'].detach().cpu().numpy())
+    assert_almost_equal(embed['n1'].detach().cpu().numpy(),
+                        node_embs['n1'].detach().cpu().numpy())
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -469,15 +483,11 @@ def test_lm_embed_warmup(dev):
 
 
 if __name__ == '__main__':
-    """
     test_input_layer1()
     test_input_layer2()
-    test_input_layer3()
+    test_input_layer3('cpu')
+    test_input_layer3('cuda:0')
     test_compute_embed()
-
-    test_lm_embed(0)
-    test_lm_embed(10)
-    """
 
     test_pure_lm_embed(0)
     test_pure_lm_embed(10)
