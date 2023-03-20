@@ -100,6 +100,8 @@ python3 ~/dgl/tools/launch.py \
         --save-perf-results-path /tmp/ogbn-mag/"
 ```
 
+## Limitation
+GraphStorm framework only works on GPU environments. It was only tested on AWS instances equipped with NVidia GPUs including P4, V100, A10 and A100.
 
 ## License
 This project is licensed under the Apache-2.0 License.
