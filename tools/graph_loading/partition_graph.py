@@ -32,7 +32,8 @@ if __name__ == '__main__':
     # dataset and file arguments
     argparser.add_argument("-d", "--dataset", type=str, required=True,
                            help="dataset to use")
-    argparser.add_argument("--filepath", type=str, default=None)
+    argparser.add_argument("--input_folder", type=str, default=None,
+                           help="The path of the input folder")
     # node arguments
     argparser.add_argument('--predict_ntype', type=str, help='The node type for making prediction'
                            + 'Currently only support one node type.')
@@ -97,22 +98,22 @@ if __name__ == '__main__':
 
     # load graph data
     if args.dataset == 'ogbn-arxiv':
-        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
+        dataset = OGBTextFeatDataset(args.input_folder, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features)
     elif args.dataset == 'ogbn-products':
-        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
+        dataset = OGBTextFeatDataset(args.input_folder, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features)
     elif args.dataset == 'ogbn-papers100m':
-        dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
+        dataset = OGBTextFeatDataset(args.input_folder, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features)
     elif args.dataset == 'movie-lens-100k':
-        dataset = MovieLens100kNCDataset(args.filepath)
+        dataset = MovieLens100kNCDataset(args.input_folder)
     elif args.dataset == 'movie-lens-100k-text':
-        dataset = MovieLens100kNCDataset(args.filepath, use_text_feat=True)
+        dataset = MovieLens100kNCDataset(args.input_folder, use_text_feat=True)
     else:
         constructed_graph = True
         print("Loading user defined dataset " + str(args.dataset))
-        dataset = ConstructedGraphDataset(args.dataset, args.filepath)
+        dataset = ConstructedGraphDataset(args.dataset, args.input_folder)
 
     # ------------------ Arguments sanity check ------------------
     # train and validation percentage check. Their sum should less or equal to 1.
