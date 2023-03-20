@@ -5,9 +5,9 @@ The GraphStorm is a graph machine learning (GML) framework for enterprise use ca
 
 ## Get Started
 ### Installation
-GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.12+, DGL 1.0 and transformers 4.3.0+.
+GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.13+, DGL 1.0 and transformers 4.3.0+.
 
-To install GraphStorm in your environment, you can clone the repository and run `python3 setup.py install` to install it. However, running GraphStorm in a distributed environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we highly recommend users to using Docker container to run GraphStorm. A guideline to build GraphStorm docker image and run it on Amazon EC2 can be found at [here](https://github.com/awslabs/graphstorm/tree/main/docker).
+To install GraphStorm in your environment, you can clone the repository and run `python3 setup.py install` to install it. However, running GraphStorm in a distributed environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we highly recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to run GraphStorm. A guideline to build GraphStorm docker image and run it on Amazon EC2 can be found at [here](https://github.com/awslabs/graphstorm/tree/main/docker).
 
 ### Run GraphStorm with OGB datasets
 
