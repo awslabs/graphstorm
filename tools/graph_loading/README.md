@@ -6,16 +6,16 @@ in the parquet format. We support three input formats: parquet, CSV and JSON.
 ```
 data_root_dir/
   |-- input_data.json
-  |-- node_type1/
+  |-- node1/
   |   |-- node_1_1.parquet
   |   |-- node_1_2.parquet
-  |-- node_type2/
+  |-- node2/
   |   |-- node_2_1.parquet
   |   |-- node_2_2.parquet
-  |-- edge_type1/
+  |-- edge1/
   |   |-- edge_1_1.parquet
   |   |-- edge_1_2.parquet
-  |-- edge_type2/
+  |-- edge2/
   |   |-- edge_2_1.parquet
   |   |-- edge_2_2.parquet
 ```
@@ -92,5 +92,22 @@ into files. The node ID map of each node type is saved in separate files.
 The command line below shows an example of how to use `construct_graph.py` to
 construct a DGL graph.
 ```
-python3 $GS_HOME/tools/graph_loading/construct_graph.py --conf_file test_data/test_data.json --num_processes 2 --output_dir /tmp/test_out --graph_name test
+python3 $GS_HOME/tools/graph_loading/construct_graph.py \
+			--conf_file test_data/test_data.json \
+			--num_processes 2 \
+			--output_dir /tmp/test_out \
+			--graph_name test
+```
+
+After constructing a DGL graph, we need to convert it to DistDGL graph format
+for training in GraphStorm. Below shows an example
+```
+python3 $GS_HOME/tools/graph_loading/partition_graph.py \
+			--dataset test \
+			--filepath /tmp/test_out/test.dgl \
+			--predict_ntype node1 \
+			--ntask_type classification \
+			--nlabel_field label \
+			--num_parts 1 \
+			--output /tmp/test_graph
 ```
