@@ -17,7 +17,7 @@ error_and_exit () {
 
 python3 $GS_HOME/tests/end2end-tests/data_process/data_gen.py
 
-python3 $GS_HOME/tools/construct_graph.py --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_out --graph_name test
+python3 $GS_HOME/tools/graph_loading/construct_graph.py --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_out --graph_name test
 
 error_and_exit $?
 
