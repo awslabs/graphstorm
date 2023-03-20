@@ -1,9 +1,11 @@
 ## GraphStorm
 The GraphStorm is a graph machine learning (GML) framework for enterprise use cases. It simplifies the development, training and deployment of GML models for industry-scale graphs. It provides scalable training and inference pipelines for various GML models and is optimized for extremely large graphs (measured in billons of nodes and edges). To help develop SOTA models, the framework allows very large degree of customization by providing a large collection of configurations for customizing model implementations and training pipelines as well as modularization in the training pipeline that allows users to replace every component in the pipeline.
 
+![GraphStorm architecture](https://github.com/awslabs/graphstorm/tree/Update-readme/tutorial/graphstorm_arch.jpg?raw=true)
+
 ## Get Started
 ### Installation
-GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.12+, DGL 1.0 and transformers 4.3.0+. 
+GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.12+, DGL 1.0 and transformers 4.3.0+.
 
 To install GraphStorm in your environment, you can clone the repository and run `python3 setup.py install` to install it. However, running GraphStorm in a distributed environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we highly recommend users to using Docker container to run GraphStorm. A guideline to build GraphStorm docker image and run it on Amazon EC2 can be found at [here](https://github.com/awslabs/graphstorm/tree/main/docker).
 
@@ -21,7 +23,7 @@ After running the container as a daemon, you need to connect to your container:
 ```docker container exec -it test /bin/bash```
 
 **Node classification on OGB arxiv graph**
-First, use the below command to download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for the node classification task. 
+First, use the below command to download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for the node classification task.
 
 ```python3 /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/ --retain_original_features true```
 
@@ -35,7 +37,7 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --output /tmp/ogbn_arxiv_nc_train_val_1p_4t
 ```
 
-GraphStorm distributed training relies on ssh to launch training jobs. These containers run ssh services in port 2222. Users need to collect the IP addresses of all machines and put all IP addresses in an ip_list.txt file, in which every row is an IP address. We suggest users to provide the ip_list.txt file’s absolute path in the launch script. If run GraphStorm training in a single machine, the ip_list.txt only contains one row as below. 
+GraphStorm distributed training relies on ssh to launch training jobs. These containers run ssh services in port 2222. Users need to collect the IP addresses of all machines and put all IP addresses in an ip_list.txt file, in which every row is an IP address. We suggest users to provide the ip_list.txt file’s absolute path in the launch script. If run GraphStorm training in a single machine, the ip_list.txt only contains one row as below.
 
 ```127.0.0.1```
 
@@ -95,7 +97,7 @@ python3 ~/dgl/tools/launch.py \
         --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
         --feat-name paper:feat \
         --save-model-path /tmp/ogbn-mag/ \
-        --save-perf-results-path /tmp/ogbn-mag/" 
+        --save-perf-results-path /tmp/ogbn-mag/"
 ```
 
 
