@@ -104,10 +104,10 @@ for training in GraphStorm. Below shows an example
 ```
 python3 $GS_HOME/tools/graph_loading/partition_graph.py \
 			--dataset test \
-			--filepath /tmp/test_out/test.dgl \
+			--filepath /tmp/test_out/ \
 			--predict_ntype node1 \
 			--ntask_type classification \
-			--nlabel_field label \
+			--nlabel_field node1:label \
 			--num_parts 1 \
-			--output /tmp/test_graph
+			--output /tmp/test_partitions
 ```
