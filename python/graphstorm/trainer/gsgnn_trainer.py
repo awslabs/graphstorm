@@ -74,7 +74,7 @@ class GSgnnTrainer():
         assert use_cuda, "Only support GPU training"
         th.cuda.set_device(dev_id)
         self._dev_id = dev_id
-        self._model = self._model.to(self.dev_id)
+        self._model = self._model.move_to_device(self.dev_id)
         self._optimizer.move_to_device(self._model.device)
 
     def setup_task_tracker(self, task_tracker):

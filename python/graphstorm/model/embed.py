@@ -57,6 +57,7 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         self.g = g
         # By default, there is no learnable embeddings (sparse_embeds)
         self._sparse_embeds = {}
+        self._device = th.device('cpu')
 
     def prepare(self, _):
         """ Preparing input layer for training or inference.
@@ -88,6 +89,13 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         """
         # By default, there is no sparse_embeds
         return []
+
+    def set_device(self, device):
+        """ Set the device whether the input layer is running
+
+            This is used by sparse embedding.
+        """
+        self._device = device
 
     @property
     def sparse_embeds(self):
@@ -206,7 +214,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 if self.use_node_embeddings:
                     assert ntype in self.sparse_embeds, \
                             f"We need sparse embedding for node type {ntype}"
-                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype]).to(emb.device)
+                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
                     concat_emb=th.cat((emb, node_emb),dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
             else: # nodes do not have input features
@@ -215,9 +223,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 if len(input_nodes[ntype]) == 0:
                     dtype = self.sparse_embeds[ntype].weight.dtype
                     embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
-                                           dtype=dtype)
+                                           device=self._device, dtype=dtype)
                     continue
-                emb = self.sparse_embeds[ntype](input_nodes[ntype])
+                emb = self.sparse_embeds[ntype](input_nodes[ntype], self._device)
             if self.activation is not None:
                 emb = self.activation(emb)
             emb = self.dropout(emb)

@@ -33,6 +33,11 @@ class MyGNNModel(gsmodel.GSgnnNodeModelBase):
         self._decoder = gsmodel.EntityClassifier(num_hidden, num_classes, multilabel=False)
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
 
+    def move_to_device(self, device):
+        self._node_input.set_device(device)
+
+        return self.to(device)
+
     def forward(self, blocks, node_feats, _, labels, input_nodes=None):
         input_nodes = {ntype: blocks[0].srcnodes[ntype].data[dgl.NID].cpu() \
                 for ntype in blocks[0].srctypes}
