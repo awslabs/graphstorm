@@ -78,6 +78,7 @@ def parse_file_format(fmt):
     fmt : dict
         Describe the file format.
     """
+    assert 'name' in fmt, "'name' field must be defined in the format."
     if fmt["name"] == "parquet":
         return read_data_parquet
     else:
@@ -170,11 +171,17 @@ def parse_feat_ops(confs):
         dtype = None
         if 'transform' not in feat:
             transform = None
-        elif feat['transform']['name'] == 'tokenize_hf':
-            transform = parse_tokenize(feat['transform'])
         else:
-            raise ValueError('Unknown operation: {}'.format(transform['name']))
+            transform = feat['transform']
+            assert 'name' in transform, \
+                    "'name' must be defined in the transformation field."
+            if transform['name'] == 'tokenize_hf':
+                transform = parse_tokenize(transform)
+            else:
+                raise ValueError('Unknown operation: {}'.format(transform['name']))
         feat_name = feat['feature_name'] if 'feature_name' in feat else None
+        assert 'feature_col' in feat, \
+                "'feature_col' must be defined in a feature field."
         ops.append((feat['feature_col'], feat_name, dtype, transform))
     return ops
 
@@ -229,8 +236,10 @@ def process_labels(data, label_confs):
     """
     assert len(label_confs) == 1
     label_conf = label_confs[0]
+    assert 'label_col' in label_conf, "'label_col' must be defined in the label field."
     label_col = label_conf['label_col']
     label = data[label_conf['label_col']]
+    assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     if label_conf['task_type'] == 'classification':
         label = np.int32(label)
     if 'split_type' in label_conf:
@@ -390,16 +399,24 @@ def process_node_data(process_confs, remap_id):
     node_data = {}
     node_id_map = {}
     for process_conf in process_confs:
+        assert 'node_id_col' in process_conf, \
+                "'node_id_col' must be defined for a node type."
         node_id_col = process_conf['node_id_col']
+        assert 'node_type' in process_conf, \
+                "'node_type' must be defined for a node type"
         node_type = process_conf['node_type']
+        assert 'format' in process_conf, \
+                "'format' must be defined for a node type"
+        read_file = parse_file_format(process_conf['format'])
+        assert 'files' in process_conf, \
+                "'files' must be defined for a node type"
+        in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
+        label_conf = process_conf['labels'] if 'labels' in process_conf else None
         q = []
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
-        read_file = parse_file_format(process_conf['format'])
-        in_files = get_in_files(process_conf['files'])
-        label_conf = process_conf['labels'] if 'labels' in process_conf else None
         for i, in_file in enumerate(in_files):
             p = Process(target=parse_node_data, args=(i, in_file, feat_ops, node_id_col,
                                                       label_conf, read_file, return_dict))
@@ -488,17 +505,27 @@ def process_edge_data(process_confs, node_id_map):
     edge_data = {}
 
     for process_conf in process_confs:
+        assert 'source_id_col' in process_conf, \
+                "'source_id_col' is not defined for an edge type."
         src_id_col = process_conf['source_id_col']
+        assert 'dest_id_col' in process_conf, \
+                "'dest_id_col' is not defined for an edge type."
         dst_id_col = process_conf['dest_id_col']
+        assert 'relation' in process_conf, \
+                "'relation' is not defined for an edge type."
         edge_type = process_conf['relation']
+        assert 'format' in process_conf, \
+                "'format' is not defined for an edge type."
+        read_file = parse_file_format(process_conf['format'])
+        assert 'files' in process_conf, \
+                "'files' is not defined for an edge type."
+        in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
+        label_conf = process_conf['labels'] if 'labels' in process_conf else None
         q = []
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
-        read_file = parse_file_format(process_conf['format'])
-        in_files = get_in_files(process_conf['files'])
-        label_conf = process_conf['labels'] if 'labels' in process_conf else None
         for i, in_file in enumerate(in_files):
             p = Process(target=parse_edge_data, args=(i, in_file, feat_ops,
                                                       src_id_col, dst_id_col, edge_type,
