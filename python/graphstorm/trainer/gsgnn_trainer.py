@@ -16,7 +16,6 @@
     GraphStorm trainer base
 """
 import os
-import copy
 import psutil
 import torch as th
 
@@ -261,7 +260,7 @@ class GSgnnTrainer():
             if score_rank == 1 and save_model_path is not None:
                 self._best_model_path = self._gen_model_path(save_model_path, epoch, i)
 
-    def get_best_model(self):
+    def get_best_model_path(self):
         """ Return the path of the best model.
         """
         return self._best_model_path

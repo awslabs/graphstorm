@@ -329,7 +329,7 @@ def main(args):
                 mini_batch_infer=True)
 
     # After training, get the best model from the trainer.
-    best_model_path = trainer.get_best_model()
+    best_model_path = trainer.get_best_model_path()
     assert best_model_path is not None, "Cannot get the best model from the trainer."
     assert os.path.exists(best_model_path), \
             f"The model path {best_model_path} does not exist." \

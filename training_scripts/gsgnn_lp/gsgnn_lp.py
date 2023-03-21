@@ -126,7 +126,7 @@ def main(args):
 
     if config.save_embed_path is not None:
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
-        best_model_path = trainer.get_best_model()
+        best_model_path = trainer.get_best_model_path()
         assert best_model_path is not None, "Cannot get the best model from the trainer."
         assert os.path.exists(best_model_path), \
                 f"The model path {best_model_path} does not exist." \
