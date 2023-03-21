@@ -16,6 +16,7 @@
     GSgnn edge prediction.
 """
 
+import os
 import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
@@ -96,18 +97,31 @@ def main(args):
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
     model.prepare_input_encoder(train_data)
+    if config.save_model_path is not None:
+        save_model_path = config.save_model_path
+    elif config.save_embed_path is not None:
+        # If we need to save embeddings, we need to save the model somewhere.
+        save_model_path = os.path.join(config.save_embed_path, "model")
+    else:
+        save_model_path = None
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
                 test_loader=test_dataloader, n_epochs=config.n_epochs,
-                save_model_path=config.save_model_path,
+                save_model_path=save_model_path,
                 mini_batch_infer=config.mini_batch_infer,
                 save_model_per_iters=config.save_model_per_iters,
                 save_perf_results_path=config.save_perf_results_path,
                 freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
 
     if config.save_embed_path is not None:
-        best_model = trainer.get_best_model().to(device)
-        assert best_model is not None, "Cannot get the best model from the trainer."
-        embeddings = do_full_graph_inference(best_model, train_data, task_tracker=tracker)
+        model = gs.create_builtin_edge_model(train_data.g, config, train_task=False)
+        best_model_path = trainer.get_best_model_path()
+        # TODO(zhengda) the model path has to be in a shared filesystem.
+        model.restore_model(best_model_path)
+        # Preparing input layer for training or inference.
+        # The input layer can pre-compute node features in the preparing step if needed.
+        # For example pre-compute all BERT embeddings
+        model.prepare_input_encoder(train_data)
+        embeddings = do_full_graph_inference(model, train_data, task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         th.distributed.get_world_size())
 
