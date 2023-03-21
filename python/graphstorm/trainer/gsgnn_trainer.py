@@ -263,6 +263,10 @@ class GSgnnTrainer():
     def get_best_model_path(self):
         """ Return the path of the best model.
         """
+        assert self._best_model_path is not None, "Cannot get the best model from the trainer."
+        assert os.path.exists(self._best_model_path), \
+                f"The model path {self._best_model_path} does not exist." \
+                + "Please make sure that the model is saved in a shared filesystem."
         return self._best_model_path
 
     def _gen_model_path(self, base_path, epoch, i):
