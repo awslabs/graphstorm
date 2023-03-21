@@ -128,6 +128,9 @@ def main(args):
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
         best_model_path = trainer.get_best_model()
         assert best_model_path is not None, "Cannot get the best model from the trainer."
+        assert os.path.exists(best_model_path), \
+                f"The model path {best_model_path} does not exist." \
+                + "Please make sure that the model is saved in a shared filesystem."
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
         # Preparing input layer for training or inference.
