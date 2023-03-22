@@ -133,8 +133,12 @@ def save_opt_state(model_path, dense_opts, sparse_opts):
             The optimizers for sparse embedding layer.
     """
     opt_states = {}
-    assert len(dense_opts) == 1, "We can only support one dense optimizer now."
-    opt_states['dense'] = dense_opts[0].state_dict()
+    assert len(dense_opts) <= 2, \
+        "Currently, we only support dense optimizers for general gnn and language model."
+    if 'dense' in dense_opts:
+        opt_states['dense'] = dense_opts['dense'].state_dict()
+    if 'lm' in opt_states:
+        opt_states['lm'] = dense_opts['lm'].state_dict()
     # TODO(zhengda) we need to change DGL to make it work.
     if len(sparse_opts) > 0:
         # TODO(xiangsx) Further discussion of whether we need to save the state of
@@ -310,8 +314,16 @@ def load_opt_state(model_path, dense_opts, sparse_opts):
             "during unpickling. Only load data you trust")
     checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
 
-    assert len(dense_opts) == 1, "Currently, we only support one dense optimizer."
-    dense_opts[0].load_state_dict(checkpoint['dense'])
+    assert len(dense_opts) <= 2, \
+        "Currently, we only support dense optimizers for general gnn and language model."
+    # Load general dense models like gnn and input projection matrix
+    if "dense" in checkpoint:
+        assert "dense" in dense_opts, "General dense parameters must exists in the model"
+        dense_opts["dense"].load_state_dict(checkpoint["dense"])
+    # Load language models.
+    if "lm" in checkpoint:
+        assert "lm" in dense_opts, "Language model parameters must exists in the model"
+        dense_opts["lm"].load_state_dict(checkpoint["lm"])
     # TODO(zhengda) we need to change DGL to make it work.
     if 'sparse' in checkpoint and len(sparse_opts) > 0:
         raise NotImplementedError('We cannot load the state of sparse optimizer')

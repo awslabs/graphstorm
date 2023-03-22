@@ -192,6 +192,25 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                 "(--model-encoder-type mlp) instead of GSLMNodeLMInputLayer " \
                 "(--model-encoder-type lm)"
 
+    def get_general_dense_parameters(self):
+        """ Get dense layers' parameters.
+
+        Returns
+        -------
+        list of Tensors: the dense parameters
+        """
+        # There is no dense parameters
+        return []
+
+    def get_lm_dense_parameters(self):
+        """ get the language model related parameters
+
+        Returns
+        -------
+        list of Tensors: the language model parameters.
+        """
+        return self.lm_models.parameters()
+
     def prepare(self, g):
         # If there is no trainable nodes, freeze Bert layer.
         if self.num_train == 0:
@@ -328,6 +347,26 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         self.lm_models = lm_models
         self.lm_models_info = lm_models_info
 
+    def get_general_dense_parameters(self):
+        """ Get dense layers' parameters.
+
+        Returns
+        -------
+        list of Tensors: the dense parameters
+        """
+        params = list(self.proj_matrix.parameters()) \
+            if self.proj_matrix is not None else []
+        params += list(self.input_projs.parameters())
+        return params
+
+    def get_lm_dense_parameters(self):
+        """ get the language model related parameters
+
+        Returns
+        -------
+        list of Tensors: the language model parameters.
+        """
+        return self.lm_models.parameters()
 
     def prepare(self, g):
         # If there is no trainable nodes, freeze Bert layer.

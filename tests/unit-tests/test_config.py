@@ -13,7 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
 import os, sys
 from pathlib import Path
 from tempfile import tempdir
@@ -51,6 +50,7 @@ def create_dummpy_config_obj():
             "output": {},
             "hyperparam": {
                 "lr": 0.01,
+                "lm_tune_lr": 0.0001,
                 "sparse_lr": 0.0001
             },
             "rgcn": {},
@@ -403,6 +403,7 @@ def create_train_config(tmp_path, file_name):
         "wd_l2norm": 0.1,
         "alpha_l2norm": 0.00001,
         "topk_model_to_save": 3,
+        "lm_tune_lr": 0.0001,
         "sparse_lr": 0.001,
         "use_node_embeddings": False,
         "use_self_loop": False,
@@ -420,6 +421,7 @@ def create_train_config(tmp_path, file_name):
         "n_epochs": -1,
         "batch_size": 0,
         "eval_batch_size": 0,
+        "lm_tune_lr": 0.,
         "sparse_lr": 0.,
         "use_node_embeddings": True,
         "use_self_loop": "error",
@@ -450,6 +452,7 @@ def test_train_info():
         assert config.alpha_l2norm == 0
         assert config.topk_model_to_save == math.inf
         config._lr = 0.01
+        assert config.lm_tune_lr == 0.01
         assert config.sparse_lr == 0.01
         assert config.use_node_embeddings == False
         assert config.use_self_loop == True
@@ -466,6 +469,7 @@ def test_train_info():
         assert config.wd_l2norm == 0.1
         assert config.alpha_l2norm == 0.00001
         assert config.topk_model_to_save == 3
+        assert config.lm_tune_lr == 0.0001
         assert config.sparse_lr == 0.001
         assert config.use_node_embeddings == False
         assert config.use_self_loop == False
@@ -480,6 +484,7 @@ def test_train_info():
         check_failure(config, "n_epochs")
         check_failure(config, "batch_size")
         check_failure(config, "eval_batch_size")
+        check_failure(config, "lm_tune_lr")
         check_failure(config, "sparse_lr")
         assert config.use_node_embeddings == True
         check_failure(config, "use_self_loop")

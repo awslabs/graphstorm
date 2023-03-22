@@ -40,19 +40,37 @@ class GSOptimizer():
 
     Parameters
     ----------
-    dense_opts : list
-        A list of optimizer objects for dense model parameters.
+    dense_opts : th.optim.Optimizer, list or dict
+        If th.optim.Optimizer or GSOptimizer, we assume there is a single
+        dense optimizer.
+        If list, only the first optimizer is treated as the single dense
+        optimizer, the rest optimizers are ignored.
+        If dict, we assume it has multiple optimizers, currently, we support
+        'dense' and 'lm'. The 'dense' usually includes input projection
+        weights, GNN weights, decoder weights, etc. 'lm' is for language
+        models.
     sparse_opts : list
         A list of optimizer objects for sparse model parameters.
     """
     def __init__(self, dense_opts, sparse_opts=None):
         if sparse_opts is None:
             sparse_opts = []
-        assert isinstance(dense_opts, list), "dense_opts should be a list."
+        if isinstance(dense_opts, th.optim.Optimizer):
+            # If dense_opts is a torch optimizer
+            dense_opts = {'dense': dense_opts}
+        elif isinstance(dense_opts, list):
+            # If dense_opts is a list, we assume it is for general dense models.
+            assert len(dense_opts) == 1, "GraphStorm only supports one dense optimizer"
+            dense_opts = {'dense': dense_opts[0]}
+
+        assert isinstance(dense_opts, dict), \
+            "dense_opts should be a dict of " \
+            "{'dense': dense_opt, 'lm':language_model_opt}"
         assert isinstance(sparse_opts, list), "sparse_opts should be a list."
         self.dense_opts = dense_opts
         self.sparse_opts = sparse_opts
-        all_opts = dense_opts + sparse_opts
+        all_opts = [dense_opts["dense"]] if "dense" in dense_opts else [] + \
+            [dense_opts["lm"]] if "lm" in dense_opts else []  + sparse_opts
         assert len(all_opts) > 0, "Optimizer list need to be defined"
         for optimizer in all_opts:
             assert optimizer is not None
@@ -60,14 +78,18 @@ class GSOptimizer():
     def zero_grad(self):
         """ Setting the gradient to zero
         """
-        all_opts = self.dense_opts + self.sparse_opts
+        all_opts = [self.dense_opts["dense"]] if "dense" in self.dense_opts else [] + \
+            [self.dense_opts["lm"]] if "lm" in self.dense_opts else [] + \
+            self.sparse_opts
         for optimizer in all_opts:
             optimizer.zero_grad()
 
     def step(self):
         """ Moving the optimizer
         """
-        all_opts = self.dense_opts + self.sparse_opts
+        all_opts = all_opts = [self.dense_opts["dense"]] if "dense" in self.dense_opts else [] + \
+            [self.dense_opts["lm"]] if "lm" in self.dense_opts else [] + \
+            self.sparse_opts
         for optimizer in all_opts:
             optimizer.step()
 
@@ -89,8 +111,14 @@ class GSOptimizer():
         # Move the optimizer state to the specified device.
         # We only need to move the states of the dense optimizers.
         # The states of the sparse optimizers should stay in CPU.
-        for opt in self.dense_opts:
-            for state in opt.state.values():
+        if "dense" in self.dense_opts:
+            for state in self.dense_opts["dense"].state.values():
+                for k, v in state.items():
+                    if isinstance(v, th.Tensor):
+                        state[k] = v.to(device)
+
+        if "lm" in self.dense_opts:
+            for state in self.dense_opts["lm"].state.values():
                 for k, v in state.items():
                     if isinstance(v, th.Tensor):
                         state[k] = v.to(device)
@@ -202,20 +230,38 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         self._optimizer = None
 
     def get_dense_params(self):
-        """retrieve the all dense layers' parameters as a parameter list.
+        """retrieve the all dense layers' parameters as a parameter list except for
+        language model related parameters.
 
-        TODO(zhengda) we don't need this. We only need to call self.parameters().
+        Returns
+        -------
+        list of Parameters: the dense parameters
         """
         params = []
         if self.gnn_encoder is not None and isinstance(self.gnn_encoder, nn.Module):
             params += list(self.gnn_encoder.parameters())
-        if self.node_input_encoder is not None and isinstance(self.node_input_encoder, nn.Module):
-            params += list(self.node_input_encoder.parameters())
+        if self.node_input_encoder is not None:
+            params += list(self.node_input_encoder.get_general_dense_parameters())
         # TODO(zhengda) we need to test a model with encoders on edge data.
-        if self.edge_input_encoder is not None and isinstance(self.edge_input_encoder, nn.Module):
-            params += list(self.edge_input_encoder.parameters())
+        if self.edge_input_encoder is not None:
+            params += list(self.edge_input_encoder.get_general_dense_parameters())
         if self.decoder is not None and isinstance(self.decoder, nn.Module):
             params += list(self.decoder.parameters())
+        return params
+
+    def get_lm_params(self):
+        """ get the language model related parameters
+
+        Returns
+        -------
+        list of Parameters: the language model parameters.
+        """
+        params = []
+        if self.node_input_encoder is not None:
+            params += list(self.node_input_encoder.get_lm_dense_parameters())
+        if self.edge_input_encoder is not None:
+            params += list(self.edge_input_encoder.get_lm_dense_parameters())
+
         return params
 
     def get_sparse_params(self):
@@ -366,33 +412,39 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # before all processes use the model.
         th.distributed.barrier()
 
-    def init_optimizer(self, lr, sparse_lr, weight_decay):
+    def init_optimizer(self, lr, sparse_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
 
         Parameters
         ----------
         lr : float
             The learning rate for dense parameters
+            The learning rate for general dense parameters
         sparse_lr : float
             The learning rate for sparse parameters
         weight_decay : float
             The weight decay for the optimizer.
+        lm_lr: float
+            Language model fine-tuning learning rate for
+            langauge model dense parameters.
         """
         sparse_params = self.get_sparse_params()
         if len(sparse_params) > 0:
             emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_lr)
         else:
             emb_optimizer = None
+
+        dense_opts = {} # if not train then the optimizers are not needed.
         dense_params = self.get_dense_params()
         if len(dense_params) > 0:
             optimizer = th.optim.Adam(self.get_dense_params(), lr=lr,
                                       weight_decay=weight_decay)
-        else:
-            # this may happen for link prediction with LM if the embedding layer is not specified.
-            optimizer = None
-
-        # if not train then the optimizers are not needed.
-        dense_opts = [optimizer] if optimizer is not None else []
+            dense_opts["dense"] = optimizer
+        lm_params = self.get_lm_params()
+        if len(lm_params) > 0:
+            lm_optimizer = th.optim.Adam(self.get_lm_params(), lr=lm_lr if lm_lr is not None else lr,
+                                         weight_decay=weight_decay)
+            dense_opts["lm"] = lm_optimizer
         sparse_opts = [emb_optimizer] if emb_optimizer is not None else []
         self._optimizer = GSOptimizer(dense_opts=dense_opts, sparse_opts=sparse_opts)
 

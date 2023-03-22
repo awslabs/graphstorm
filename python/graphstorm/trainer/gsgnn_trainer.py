@@ -45,7 +45,7 @@ class GSgnnTrainer():
             if rank == 0:
                 print("Warining: the optimizer is not GSOptimizer. "
                         + "Convert it to GSOptimizer.")
-            optimizer = GSOptimizer([optimizer])
+            optimizer = GSOptimizer(optimizer)
         self._optimizer = optimizer
         self._rank = rank
         self._dev_id = -1
