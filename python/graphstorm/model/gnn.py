@@ -388,6 +388,9 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                 # TODO(zhengda) we should load the sparse embeddings in parallel in the future.
                 print('Load Sparse embedding from ', restore_model_path)
                 load_sparse_embeds(restore_model_path, self.node_input_encoder)
+        # We need to make sure that the sparse embedding is completely loaded
+        # before all processes use the model.
+        th.distributed.barrier()
 
     def init_optimizer(self, lr, sparse_lr, weight_decay):
         """initialize the model's optimizers

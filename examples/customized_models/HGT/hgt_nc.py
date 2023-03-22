@@ -329,7 +329,9 @@ def main(args):
                 mini_batch_infer=True)
 
     # After training, get the best model from the trainer.
-    best_model = trainer.get_best_model()
+    best_model_path = trainer.get_best_model_path()
+    # TODO(zhengda) the model path has to be in a shared filesystem.
+    model.restore_model(best_model_path)
 
     # Create a dataset for inference.
     infer_data = GSgnnNodeInferData(config.graph_name, config.part_config,
@@ -338,7 +340,7 @@ def main(args):
                                     label_field=config.label_field)
 
     # Create an inference for a node task.
-    infer = GSgnnNodePredictionInfer(best_model, gs.get_rank())
+    infer = GSgnnNodePredictionInfer(model, gs.get_rank())
     infer.setup_cuda(dev_id=gs.get_rank())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
