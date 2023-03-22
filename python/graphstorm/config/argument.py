@@ -1449,13 +1449,6 @@ def _add_rgcn_args(parser):
     group = parser.add_argument_group(title="rgcn")
     group.add_argument("--n-bases", type=int, default=argparse.SUPPRESS,
             help="number of filter weight matrices, default: -1 [use all]")
-    group.add_argument(
-            '--self-loop-init',
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="if this is set then we will initialize all the parameters "
-                 "of the encoder as zero and the self_loop weight as identity. "
-                 "This is to bring the model close to the two tower")
     return parser
 
 def _add_node_classification_args(parser):

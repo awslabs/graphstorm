@@ -16,7 +16,6 @@
     GraphStorm trainer base
 """
 import os
-import copy
 import psutil
 import torch as th
 
@@ -52,7 +51,7 @@ class GSgnnTrainer():
         self._dev_id = -1
         self._evaluator = None
         self._task_tracker = None
-        self._best_model = None
+        self._best_model_path = None
 
         assert topk_model_to_save >= 0
         self._topklist = TopKList(topk_model_to_save)    # A list to store the top k best
@@ -242,9 +241,6 @@ class GSgnnTrainer():
             score_rank = 1
         else:
             score_rank = self.evaluator.get_val_score_rank(val_score)
-        # If this is the best model
-        if score_rank == 1:
-            self._best_model = copy.deepcopy(model.module).to("cpu")
 
         insert_success, (return_epoch, return_i) = self._topklist.insert(score_rank, (epoch, i))
 
@@ -260,10 +256,18 @@ class GSgnnTrainer():
             # save this epoch and iteration's model and node embeddings
             self.save_model(model, epoch, i, save_model_path)
 
-    def get_best_model(self):
-        """ Return the best model.
+            # If this is the best model
+            if score_rank == 1 and save_model_path is not None:
+                self._best_model_path = self._gen_model_path(save_model_path, epoch, i)
+
+    def get_best_model_path(self):
+        """ Return the path of the best model.
         """
-        return self._best_model
+        assert self._best_model_path is not None, "Cannot get the best model from the trainer."
+        assert os.path.exists(self._best_model_path), \
+                f"The model path {self._best_model_path} does not exist." \
+                + "Please make sure that the model is saved in a shared filesystem."
+        return self._best_model_path
 
     def _gen_model_path(self, base_path, epoch, i):
         """
