@@ -57,7 +57,6 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         self.g = g
         # By default, there is no learnable embeddings (sparse_embeds)
         self._sparse_embeds = {}
-        self._device = th.device('cpu')
 
     def prepare(self, _):
         """ Preparing input layer for training or inference.
@@ -89,13 +88,6 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         """
         # By default, there is no sparse_embeds
         return []
-
-    def set_device(self, device):
-        """ Set the device whether the input layer is running
-
-            This is used by sparse embedding.
-        """
-        self._device = device
 
     @property
     def sparse_embeds(self):
