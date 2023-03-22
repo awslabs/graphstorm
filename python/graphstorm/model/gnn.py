@@ -175,20 +175,6 @@ class GSgnnModelBase(nn.Module):
             Default: do nothing
         """
 
-    @abc.abstractmethod
-    def move_to_device(self, device):
-        """ Move current module to device
-
-        Parameters
-        ----------
-        device : th device
-            The device to move the current module to.
-
-        Return
-        ------
-        self
-        """
-
     @property
     def device(self):
         """ The device where the model runs.
@@ -214,18 +200,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         self._decoder = None
         self._loss_fn = None
         self._optimizer = None
-
-    def move_to_device(self, device):
-        if self._node_input_encoder is not None:
-            # if the node input encoder has sparse embedding(s)
-            # device must be provided
-            self._node_input_encoder.set_device(device)
-        if self._edge_input_encoder is not None:
-            # if the edge input encoder has sparse embedding(s)
-            # device must be provided
-            self._edge_input_encoder.set_device(device)
-
-        return self.to(device)
 
     def get_dense_params(self):
         """retrieve the all dense layers' parameters as a parameter list.
