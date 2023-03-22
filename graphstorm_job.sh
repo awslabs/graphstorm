@@ -18,6 +18,9 @@ git clone https://github.com/awslabs/graphstorm.git
 
 cd graphstorm
 
+echo "REMOTE: $REMOTE"
+echo "SOURCE-REF: $SOURCE_REF"
+
 if [ ! -z $REMOTE ]; then
     git remote set-url origin $REMOTE
 fi
