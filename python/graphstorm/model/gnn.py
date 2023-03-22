@@ -442,7 +442,8 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             dense_opts["dense"] = optimizer
         lm_params = self.get_lm_params()
         if len(lm_params) > 0:
-            lm_optimizer = th.optim.Adam(self.get_lm_params(), lr=lm_lr if lm_lr is not None else lr,
+            lm_optimizer = th.optim.Adam(self.get_lm_params(), \
+                                         lr=lm_lr if lm_lr is not None else lr,
                                          weight_decay=weight_decay)
             dense_opts["lm"] = lm_optimizer
         sparse_opts = [emb_optimizer] if emb_optimizer is not None else []
