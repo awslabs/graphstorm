@@ -113,8 +113,10 @@ def main():
     jobDefinition = job_type_info[jobType]['job_definition']
     wait = args.wait
 
+    # Printing actions parameters
     print("GitHub SourceRef: ", args.source_ref)
     print("GitHub Remote: ", args.remote)
+
     parameters = {
         # 'WORK_DIR': args.work_dir,
         'COMMAND': f"\"{args.command}\"",  # wrap command with double quotation mark, so that batch can treat it as a single command
