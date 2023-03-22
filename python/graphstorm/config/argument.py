@@ -1153,6 +1153,18 @@ class GSConfig:
         return 12.0
 
     @property
+    def lp_loss_func(self):
+        """ Link prediction loss function
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_lp_loss_func"):
+            assert self._lp_loss_func in BUILTIN_LP_LOSS_FUNCTION
+            return self._lp_loss_func
+        # By default, return None
+        # which means using the default evaluation metrics for different tasks.
+        return BUILTIN_LP_LOSS_CROSS_ENTROPY
+
+    @property
     def task_type(self):
         """ Task type
         """
