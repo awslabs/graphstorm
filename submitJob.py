@@ -53,9 +53,12 @@ parser.add_argument('--wait', help='block wait until the job completes. '
                     'Non-zero exit code if job fails.', action='store_true')
 parser.add_argument('--timeout', help='job timeout in seconds', default=3600, type=int)
 
-# parser.add_argument('--source-ref',
-#                     help='ref in AutoGluon main github. e.g. master, refs/pull/500/head',
-#                     type=str, default='master')
+parser.add_argument('--source-ref',
+                    help='ref in Graphstorm main github. e.g. master, refs/pull/500/head',
+                    type=str, default='main')
+parser.add_argument('--remote',
+                    help='git repo address. https://github.com/awslabs/graphstorm',
+                    type=str, default="https://github.com/awslabs/graphstorm")
 # parser.add_argument('--work-dir',
 #                     help='working directory inside the repo. e.g. scripts/preprocess',
 #                     type=str, default='scripts/preprocess')
@@ -110,10 +113,15 @@ def main():
     jobDefinition = job_type_info[jobType]['job_definition']
     wait = args.wait
 
+    # Printing actions parameters
+    print("GitHub SourceRef: ", args.source_ref)
+    print("GitHub Remote: ", args.remote)
+
     parameters = {
-        # 'SOURCE_REF': args.source_ref,
         # 'WORK_DIR': args.work_dir,
         'COMMAND': f"\"{args.command}\"",  # wrap command with double quotation mark, so that batch can treat it as a single command
+        'SOURCE_REF': args.source_ref,
+        'REMOTE': args.remote,
     }
     kwargs = dict(
         jobName=jobName,
@@ -163,4 +171,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-    
