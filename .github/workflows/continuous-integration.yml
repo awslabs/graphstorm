@@ -1,5 +1,5 @@
 # Graphstorm CI
-# Test execution order - lint -> pytest -> end2end, end2end_mgpu
+# Test execution order - [lint] -> [pytest] -> [end2end, end2end_mgpu]
 name: continuous-integration
 
 on:
