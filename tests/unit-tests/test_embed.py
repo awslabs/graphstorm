@@ -124,7 +124,6 @@ def test_input_layer3(dev):
     assert len(layer.input_projs) == 1
     assert list(layer.input_projs.keys())[0] == 'n0'
     assert len(layer.sparse_embeds) == 1
-    layer.set_device(dev)
     layer = layer.to(dev)
 
     node_feat = {}
@@ -133,6 +132,7 @@ def test_input_layer3(dev):
     for ntype in g.ntypes:
         input_nodes[ntype] = np.arange(10)
     nn.init.eye_(layer.input_projs['n0'])
+    nn.init.eye_(layer.proj_matrix['n1'])
     node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
     node_embs['n1'] = layer.sparse_embeds['n1'].weight[input_nodes['n1']]
     embed = layer(node_feat, input_nodes)
@@ -170,7 +170,9 @@ def test_input_layer3(dev):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def test_compute_embed():
+
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_compute_embed(dev):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -185,14 +187,16 @@ def test_compute_embed():
     feat_size = get_feat_size(g, {'n0' : ['feat']})
     layer = GSNodeEncoderInputLayer(g, feat_size, 2)
     nn.init.eye_(layer.input_projs['n0'])
+    nn.init.eye_(layer.proj_matrix['n1'])
+    layer.to(dev)
 
     embeds = compute_node_input_embeddings(g, 10, layer,
                                            feat_field={'n0' : ['feat']})
     assert len(embeds) == len(g.ntypes)
-    assert_almost_equal(embeds['n0'][0:len(embeds['n1'])].numpy(),
-            g.nodes['n0'].data['feat'][0:g.number_of_nodes('n0')].numpy())
-    assert_almost_equal(embeds['n1'][0:len(embeds['n1'])].numpy(),
-            layer.sparse_embeds['n1'].weight[0:g.number_of_nodes('n1')].numpy())
+    assert_almost_equal(embeds['n0'][0:len(embeds['n1'])].cpu().numpy(),
+            g.nodes['n0'].data['feat'][0:g.number_of_nodes('n0')].cpu().numpy())
+    assert_almost_equal(embeds['n1'][0:len(embeds['n1'])].cpu().numpy(),
+            layer.sparse_embeds['n1'].weight[0:g.number_of_nodes('n1')].cpu().numpy())
     # Run it again to tigger the branch that access 'input_emb' directly.
     embeds = compute_node_input_embeddings(g, 10, layer,
                                            feat_field={'n0' : ['feat']})
@@ -487,7 +491,8 @@ if __name__ == '__main__':
     test_input_layer2()
     test_input_layer3('cpu')
     test_input_layer3('cuda:0')
-    test_compute_embed()
+    test_compute_embed('cpu')
+    test_compute_embed('cuda:0')
 
     test_pure_lm_embed(0)
     test_pure_lm_embed(10)

@@ -381,7 +381,6 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
             self._eval_etypes = g.canonical_etypes
         # test_mask exists
         for canonical_etype in self.eval_etypes:
-            print(canonical_etype)
             if 'test_mask' in g.edges[canonical_etype].data:
                 test_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['test_mask'],

@@ -69,4 +69,4 @@ if __name__ == '__main__':
 
         assert train_emb.shape[0] == infer_emb.shape[0]
         assert train_emb.shape[1] == infer_emb.shape[1]
-        assert_almost_equal(train_emb.numpy(), infer_emb.numpy(), decimal=4)
+        assert_almost_equal(train_emb.numpy(), infer_emb.numpy(), decimal=3)

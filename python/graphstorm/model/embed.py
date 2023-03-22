@@ -151,7 +151,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.use_node_embeddings = use_node_embeddings
 
         # create weight embeddings for each node for each relation
-        self.proj_matrix = nn.ParameterDict() if self.use_node_embeddings else None
+        self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
         embed_name = 'embed'
         for ntype in g.ntypes:
@@ -166,7 +166,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
                     if get_rank() == 0:
-                        print('Use sparse embeddings on node {}'.format(ntype))
+                        print('Use additional sparse embeddings on node {}'.format(ntype))
                     part_policy = g.get_node_partition_policy(ntype)
                     self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
                                                                self.embed_size,
@@ -182,6 +182,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 part_policy = g.get_node_partition_policy(ntype)
                 if get_rank() == 0:
                     print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')
+                proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
+                nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
+                self.proj_matrix[ntype] = proj_matrix
                 self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
                                 self.embed_size,
                                 embed_name + '_' + ntype,
@@ -220,12 +223,14 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             else: # nodes do not have input features
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
+                device = self.proj_matrix[ntype].device
                 if len(input_nodes[ntype]) == 0:
                     dtype = self.sparse_embeds[ntype].weight.dtype
                     embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
-                                           device=self._device, dtype=dtype)
+                                           device=device, dtype=dtype)
                     continue
-                emb = self.sparse_embeds[ntype](input_nodes[ntype], self._device)
+                emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+                emb = emb @ self.proj_matrix[ntype]
             if self.activation is not None:
                 emb = self.activation(emb)
             emb = self.dropout(emb)
