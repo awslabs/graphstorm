@@ -1,15 +1,14 @@
 ## GraphStorm
 GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
 It simplifies the development, training and deployment of GML models for industry-scale graphs.
-It provides scalable graph loading, training and inference pipelines for various Graph Machine Learning (GML) models
+It provides scalable training and inference pipelines for various Graph Machine Learning (GML) models
 and is optimized for extremely large graphs (measured in billons of nodes and edges).
 GraphStorm provides a collection of built-in GML models and users can train a GML model
 with a single command without writing any code. To help develop SOTA models,
-GraphStorm provides a large collection of arguments to configure model implementations
+GraphStorm provides a large collection of configurations for customizing model implementations
 and training pipelines to improve model performance. GraphStorm also provides a programming
-interface to train any custom GML model in a distributed manner. In this case, users
-provide their own model implementations and use GraphStorm training pipeline to scale
-model training to massive graphs.
+interface to train any custom GML model in a distributed manner. Users
+provide their own model implementations and use GraphStorm training pipeline to scale.
 
 ![GraphStorm architecture](https://github.com/awslabs/graphstorm/blob/main/tutorial/graphstorm_arch.jpg?raw=true)
 
