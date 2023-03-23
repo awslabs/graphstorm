@@ -309,9 +309,31 @@ def get_in_files(in_files):
     in_files.sort()
     return in_files
 
-def parse_node_data(i, in_file, feat_ops, node_id_col, label_conf,
+def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
                     read_file, return_dict):
     """ Parse node data.
+
+    The function parses a node file that contains node IDs, features and labels
+    The node file is parsed according to users' configuration
+    and performs some feature transformation and save the result in
+    `return_dict`.
+
+    Parameters
+    ----------
+    file_idx : int
+        The index of the node file among all node files.
+    in_file : str
+        The path of the input node file.
+    feat_ops : dict
+        The operations run on the node features of the node file.
+    node_id_col : str
+        The column name that contains the node ID.
+    label_conf : dict
+        The configuration of labels.
+    read_file : callable
+        The function to read the node file
+    return_dict : dict
+        The dictionary that is shared among all processes and saves the parsed node data.
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
@@ -319,11 +341,39 @@ def parse_node_data(i, in_file, feat_ops, node_id_col, label_conf,
         label_data = process_labels(data, label_conf)
         for key, val in label_data.items():
             feat_data[key] = val
-    return_dict[i] = (data[node_id_col], feat_data)
+    return_dict[file_idx] = (data[node_id_col], feat_data)
 
-def parse_edge_data(i, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
+def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
                     node_id_map, label_conf, read_file, return_dict):
     """ Parse edge data.
+
+    The function parses an edge file that contains the source and destination node
+    IDs, edge features and potentially edge labels. The edge file is parsed
+    according to users' configuration and performs some feature transformation
+    and save the result in `return_dict`.
+
+    Parameters
+    ----------
+    file_idx : int
+        The index of the edge file among all node files.
+    in_file : str
+        The path of the input edge file.
+    feat_ops : dict
+        The operations run on the edge features of the edge file.
+    src_id_col : str
+        The column name that contains the source node ID.
+    dst_id_col : str
+        The column name that contains the destination node ID.
+    edge_type : tuple
+        The tuple that contains source node type, relation type and destination node type.
+    node_id_map : dict
+        Contains the ID mapping for every node type.
+    label_conf : dict
+        The configuration of labels.
+    read_file : callable
+        The function to read the node file
+    return_dict : dict
+        The dictionary that is shared among all processes and saves the parsed edge data.
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
@@ -345,10 +395,21 @@ def parse_edge_data(i, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
     else:
         assert np.issubdtype(dst_ids.dtype, np.integer), \
                 "The destination node Ids have to be integer."
-    return_dict[i] = (src_ids, dst_ids, feat_data)
+    return_dict[file_idx] = (src_ids, dst_ids, feat_data)
 
 def create_id_map(ids):
     """ Create ID map
+
+    This creates an ID map for the input IDs.
+
+    Parameters
+    ----------
+    ids : Numpy array
+        The input IDs
+
+    Returns
+    -------
+    dict : the key is the original ID and the value is the new ID.
     """
     return {id1: i for i, id1 in enumerate(ids)}
 
@@ -589,6 +650,8 @@ if __name__ == '__main__':
         # If a node type has node data.
         elif ntype in node_data:
             for feat_name in node_data[ntype]:
+                # Here we only need to look at the length of the first node features
+                # to get the number of nodes for the node type.
                 num_nodes[ntype] = len(node_data[ntype][feat_name])
                 break
         else:
