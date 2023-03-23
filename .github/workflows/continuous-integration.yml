@@ -1,5 +1,5 @@
 # Graphstorm CI
-# Test execution order - lint -> pytest -> end2end, end2end_mgpu
+# Test execution order - [lint] -> [pytest] -> [end2end, end2end_mgpu]
 name: continuous-integration
 
 on:
@@ -53,13 +53,21 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-LINT }}" --wait
+        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-Push-'${{ github.ref }}' \
+                               --command "${{ env.COMMAND-LINT }}" \
+                               --remote https://github.com/'${{ github.repository }}' \
+                               --source-ref '${{ github.ref }}' \
+                               --wait
     - name: Submit Job (for Pull Request)
       if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' --command "${{ env.COMMAND-LINT }}" --wait
+        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-LINT }}" \
+                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
+                               --source-ref '${{ github.event.pull_request.head.sha }}' \
+                               --wait
 
 
   pytest_check:
@@ -88,13 +96,21 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-PyTest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-PYTEST }}" --wait
+        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-PyTest-Push-'${{ github.ref }}' \
+                               --command "${{ env.COMMAND-PYTEST }}" \
+                               --remote https://github.com/'${{ github.repository }}' \
+                               --source-ref '${{ github.ref }}' \
+                               --wait
     - name: Submit Job (for Pull Request)
       if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-CPU --name Graphstorm-PyTest-PR#-'${{ github.event.number }}' --command "${{ env.COMMAND-PYTEST }}" --wait
+        python3 ./submitJob.py --job-type CI-CPU --name Graphstorm-PyTest-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-PYTEST }}" \
+                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
+                               --source-ref '${{ github.event.pull_request.head.sha }}' \
+                               --wait
 
 
   e2e_check:
@@ -123,13 +139,21 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-E2ETest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-E2E }}" --wait
+        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-E2ETest-Push-'${{ github.ref }}' \
+                               --command "${{ env.COMMAND-E2E }}" \
+                               --remote https://github.com/'${{ github.repository }}' \
+                               --source-ref '${{ github.ref }}' \
+                               --wait
     - name: Submit Job (for Pull Request)
       if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-CPU --name Graphstorm-E2ETest-PR#-'${{ github.event.number }}' --command "${{ env.COMMAND-E2E }}" --wait
+        python3 ./submitJob.py --job-type CI-CPU --name Graphstorm-E2ETest-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-E2E }}" \
+                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
+                               --source-ref '${{ github.event.pull_request.head.sha }}' \
+                               --wait
 
 
   e2e_mgpu_check:
@@ -158,13 +182,19 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-GPU-PUSH --name Graphstorm-E2E-MGPUTest-Push-'${{ github.ref }}' --command "${{ env.COMMAND-E2E-MGPU }}" --wait
+        python3 ./submitJob.py --job-type CI-GPU-PUSH --name Graphstorm-E2E-MGPUTest-Push-'${{ github.ref }}' \
+                               --command "${{ env.COMMAND-E2E-MGPU }}" \
+                               --remote https://github.com/'${{ github.repository }}' \
+                               --source-ref '${{ github.ref }}' \
+                               --wait
     - name: Submit Job (for Pull Request)
       if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-GPU --name Graphstorm-E2E-MGPUTest-PR#-'${{ github.event.number }}' --command "${{ env.COMMAND-E2E-MGPU }}" --wait    
-
-
+        python3 ./submitJob.py --job-type CI-GPU --name Graphstorm-E2E-MGPUTest-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-E2E-MGPU }}" \
+                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
+                               --source-ref '${{ github.event.pull_request.head.sha }}' \
+                               --wait    
 
