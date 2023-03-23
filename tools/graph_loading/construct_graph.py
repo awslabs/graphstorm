@@ -646,6 +646,7 @@ def save_dist_graph(g, graph_name, output_dir):
     output_dir : str
         The path of the output directory
     """
+    from dgl.distributed.graph_partition_book import _etype_tuple_to_str
     node_data = {}
     part_path = os.path.join(output_dir, 'part0')
     os.makedirs(part_path, mode=0o775, exist_ok=True)
@@ -665,7 +666,7 @@ def save_dist_graph(g, graph_name, output_dir):
     edge_feats = None   # This will trigger GC to free memory for storing edge features.
 
     ntypes = {ntype:g.get_ntype_id(ntype) for ntype in g.ntypes}
-    etypes = {etype:g.get_etype_id(etype) for etype in g.canonical_etypes}
+    etypes = {_etype_tuple_to_str(etype):g.get_etype_id(etype) for etype in g.canonical_etypes}
     node_map_val = {}
     edge_map_val = {}
     num_nodes = 0
@@ -674,7 +675,8 @@ def save_dist_graph(g, graph_name, output_dir):
         node_map_val[ntype] = [num_nodes, num_nodes + g.number_of_nodes(ntype)]
         num_nodes += g.number_of_nodes(ntype)
     for etype in g.canonical_etypes:
-        edge_map_val[etype] = [num_edges, num_edges + g.number_of_edges(etype)]
+        edge_map_val[_etype_tuple_to_str(etype)] = \
+                [num_edges, num_edges + g.number_of_edges(etype)]
         num_edges += g.number_of_edges(etype)
     # We store the graph structure in the homogeneous graph format.
     g = dgl.to_homogeneous(g)
@@ -689,7 +691,7 @@ def save_dist_graph(g, graph_name, output_dir):
                      'num_edges': g.number_of_edges(),
                      'part_method': "None",
                      'num_parts': 1,
-                     'halo_hops': 0,
+                     'halo_hops': 1,
                      'node_map': node_map_val,
                      'edge_map': edge_map_val,
                      'ntypes': ntypes,
