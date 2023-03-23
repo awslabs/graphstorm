@@ -4,7 +4,7 @@ It simplifies the development, training and deployment of GML models for industr
 It provides scalable graph loading, training and inference pipelines for various Graph Machine Learning (GML) models
 and is optimized for extremely large graphs (measured in billons of nodes and edges).
 GraphStorm provides a collection of built-in GML models and users can train a GML model
-with a single command line without writing any code. To help develop SOTA models,
+with a single command without writing any code. To help develop SOTA models,
 GraphStorm provides a large collection of arguments to configure model implementations
 and training pipelines to improve model performance. GraphStorm also provides a programming
 interface to train any custom GML models in a distributed manner. In this case, users
