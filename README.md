@@ -1,5 +1,5 @@
 ## GraphStorm
-The GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
+GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
 It simplifies the development, training and deployment of GML models for industry-scale graphs.
 It provides scalable graph loading, training and inference pipelines for various GML models
 and is optimized for extremely large graphs (measured in billons of nodes and edges).
