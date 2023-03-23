@@ -624,6 +624,79 @@ def process_edge_data(process_confs, node_id_map):
 
     return edges, edge_data
 
+def save_dist_graph(g, graph_name, output_dir):
+    """ Save the constructed graph in DistDGL format.
+
+    This function first converts the DGLGraph format to DistDGL graph format
+    in DGL v1.0 and save the result in the output directory.
+
+    To save memory consumption, it converts the format manually instead of
+    calling the graph partitioning function in DGL. It first saves the node
+    features and edge features in the DGL format and free the memory used
+    to store node/edge features. It then converts the DGL graph object
+    to the homogeneous graph format and adds the necessary node/edge field
+    to mimic the DistGraph object.
+
+    Parameters
+    ----------
+    g : DGLGraph
+        The constructed graph
+    graph_name : str
+        The graph name.
+    output_dir : str
+        The path of the output directory
+    """
+    node_data = {}
+    part_path = os.path.join(output_dir, 'part0')
+    os.makedirs(part_path, mode=0o775, exist_ok=True)
+    for ntype in g.ntypes:
+        for name in g.nodes[ntype].data:
+            node_data[ntype + '/' + name] = g.nodes[ntype].data[name]
+            # We should delete node data from the DGL graph object
+            del g.nodes[ntype].data[name]
+    dgl.data.utils.save_tensors(os.path.join(part_path, 'node_feat.dgl'), node_feats)
+    node_feats = None   # This will trigger GC to free memory for storing node features.
+    for etype in g.canonical_etypes:
+        for name in g.edges[etype].data:
+            edge_data[_etype_tuple_to_str(etype) + '/' + name] = g.edges[etype].data[name]
+            # We should delete edge data from the DGL graph object
+            del g.edges[etype].data[name]
+    dgl.data.utils.save_tensors(os.path.join(part_path, 'edge_feat.dgl'), edge_feats)
+    edge_feats = None   # This will trigger GC to free memory for storing edge features.
+
+    ntypes = {ntype:g.get_ntype_id(ntype) for ntype in g.ntypes}
+    etypes = {etype:g.get_etype_id(etype) for etype in g.canonical_etypes}
+    node_map_val = {}
+    edge_map_val = {}
+    num_nodes = 0
+    num_edges = 0
+    for ntype in g.ntypes:
+        node_map_val[ntype] = [num_nodes, num_nodes + g.number_of_nodes(ntype)]
+        num_nodes += g.number_of_nodes(ntype)
+    for etype in g.canonical_etypes:
+        edge_map_val[etype] = [num_edges, num_edges + g.number_of_edges(etype)]
+        num_edges += g.number_of_edges(etype)
+    # We store the graph structure in the homogeneous graph format.
+    g = dgl.to_homogeneous(g)
+    g.ndata['inner_node'] = th.ones(g.number_of_nodes(), dtype=th.uint8)
+    g.edata['inner_edge'] = th.ones(g.number_of_edges(), dtype=th.uint8)
+    g.ndata[dgl.NID] = th.arange(g.number_of_nodes(), dtype=th.int64)
+    g.edata[dgl.EID] = th.arange(g.number_of_edges(), dtype=th.int64)
+    dgl.save_graphs(os.path.join(part_path, "graph.dgl"), [g])
+
+    part_metadata = {'graph_name': graph_name,
+                     'num_nodes': g.number_of_nodes(),
+                     'num_edges': g.number_of_edges(),
+                     'part_method': "None",
+                     'num_parts': 1,
+                     'halo_hops': 0,
+                     'node_map': node_map_val,
+                     'edge_map': edge_map_val,
+                     'ntypes': ntypes,
+                     'etypes': etypes}
+    with open(os.path.join(output_dir, graph_name + '.json'), 'w') as outfile:
+        json.dump(part_metadata, outfile, sort_keys=True, indent=4)
+
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
     argparser.add_argument("--conf_file", type=str, required=True,
@@ -636,6 +709,8 @@ if __name__ == '__main__':
             help="The graph name")
     argparser.add_argument("--remap_node_id", type=bool, default=False,
             help="Whether or not to remap node IDs.")
+    argparser.add_argument("--output_format", type=str, default="DistDGL",
+            help="The output format of the constructed graph.")
     args = argparser.parse_args()
     num_processes = args.num_processes
     process_confs = json.load(open(args.conf_file, 'r'))
@@ -665,7 +740,12 @@ if __name__ == '__main__':
         for name, data in edge_data[etype].items():
             g.edges[etype].data[name] = th.tensor(data)
 
-    dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
+    if args.output_format == "DistDGL":
+        dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
+    elif args.output_format == "DGL":
+        save_dist_graph(g, args.graph_name, args.output_dir)
+    else:
+        raise ValueError('Unknown output format: {}'.format(args.output_format))
     for ntype in node_id_map:
         map_data = {}
         map_data["orig"] = np.array(list(node_id_map[ntype].keys()))

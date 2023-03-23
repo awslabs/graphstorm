@@ -82,32 +82,19 @@ Below shows an example that contains one node type and an edge type.
 }
 ```
 
-GraphStorm contains a script `construct_graph.py` that constructs a DGL graph
+GraphStorm contains a script `construct_graph.py` that constructs a graph
 from the user's input data with the format described above. The script will save
-the constructed graph in a file with the DGL graph format. If users' data have
+the constructed graph in a file with the DGL or DistDGL graph format. If users' data have
 string node IDs or the node IDs in the node files are not stored in an ascending order
 starting from 0, `construct_graph.py` will remap the node IDs and save the ID map
 into files. The node ID map of each node type is saved in separate files.
 
 The command line below shows an example of how to use `construct_graph.py` to
-construct a DGL graph.
+construct a graph and save it in DistDGL graph format directly.
 ```
 python3 $GS_HOME/tools/graph_loading/construct_graph.py \
 			--conf_file test_data/test_data.json \
 			--num_processes 2 \
 			--output_dir /tmp/test_out \
 			--graph_name test
-```
-
-After constructing a DGL graph, we need to convert it to DistDGL graph format
-for training in GraphStorm. Below shows an example
-```
-python3 $GS_HOME/tools/graph_loading/partition_graph.py \
-			--dataset test \
-			--filepath /tmp/test_out/ \
-			--predict_ntype node1 \
-			--ntask_type classification \
-			--nlabel_field node1:label \
-			--num_parts 1 \
-			--output /tmp/test_partitions
 ```
