@@ -637,6 +637,8 @@ def save_dist_graph(g, graph_name, output_dir):
     to the homogeneous graph format and adds the necessary node/edge field
     to mimic the DistGraph object.
 
+    Ideally, this function should be implemented in DGL.
+
     Parameters
     ----------
     g : DGLGraph
@@ -653,7 +655,7 @@ def save_dist_graph(g, graph_name, output_dir):
     for ntype in g.ntypes:
         data_names = []
         for name in g.nodes[ntype].data:
-            node_data[ntype + '/' + name] = g.nodes[ntype].data[name]
+            node_feats[ntype + '/' + name] = g.nodes[ntype].data[name]
             data_names.append(name)
         # We should delete node data from the DGL graph object
         for name in data_names:
@@ -666,7 +668,7 @@ def save_dist_graph(g, graph_name, output_dir):
     for etype in g.canonical_etypes:
         data_names = []
         for name in g.edges[etype].data:
-            edge_data[_etype_tuple_to_str(etype) + '/' + name] = g.edges[etype].data[name]
+            edge_feats[_etype_tuple_to_str(etype) + '/' + name] = g.edges[etype].data[name]
             data_names.append(name)
         # We should delete edge data from the DGL graph object
         for name in data_names:
@@ -692,8 +694,6 @@ def save_dist_graph(g, graph_name, output_dir):
     g = dgl.to_homogeneous(g)
     g.ndata['inner_node'] = th.ones(g.number_of_nodes(), dtype=th.uint8)
     g.edata['inner_edge'] = th.ones(g.number_of_edges(), dtype=th.uint8)
-    g.ndata[dgl.NID] = th.arange(g.number_of_nodes(), dtype=th.int64)
-    g.edata[dgl.EID] = th.arange(g.number_of_edges(), dtype=th.int64)
     graph_file = os.path.join(part_path, "graph.dgl")
     dgl.save_graphs(graph_file, [g])
 
