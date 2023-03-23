@@ -647,22 +647,32 @@ def save_dist_graph(g, graph_name, output_dir):
         The path of the output directory
     """
     from dgl.distributed.graph_partition_book import _etype_tuple_to_str
-    node_data = {}
+    node_feats = {}
     part_path = os.path.join(output_dir, 'part0')
     os.makedirs(part_path, mode=0o775, exist_ok=True)
     for ntype in g.ntypes:
+        data_names = []
         for name in g.nodes[ntype].data:
             node_data[ntype + '/' + name] = g.nodes[ntype].data[name]
-            # We should delete node data from the DGL graph object
+            data_names.append(name)
+        # We should delete node data from the DGL graph object
+        for name in data_names:
             del g.nodes[ntype].data[name]
-    dgl.data.utils.save_tensors(os.path.join(part_path, 'node_feat.dgl'), node_feats)
+    node_feat_file = os.path.join(part_path, 'node_feat.dgl')
+    dgl.data.utils.save_tensors(node_feat_file, node_feats)
     node_feats = None   # This will trigger GC to free memory for storing node features.
+
+    edge_feats = {}
     for etype in g.canonical_etypes:
+        data_names = []
         for name in g.edges[etype].data:
             edge_data[_etype_tuple_to_str(etype) + '/' + name] = g.edges[etype].data[name]
-            # We should delete edge data from the DGL graph object
+            data_names.append(name)
+        # We should delete edge data from the DGL graph object
+        for name in data_names:
             del g.edges[etype].data[name]
-    dgl.data.utils.save_tensors(os.path.join(part_path, 'edge_feat.dgl'), edge_feats)
+    edge_feat_file = os.path.join(part_path, 'edge_feat.dgl')
+    dgl.data.utils.save_tensors(edge_feat_file, edge_feats)
     edge_feats = None   # This will trigger GC to free memory for storing edge features.
 
     ntypes = {ntype:g.get_ntype_id(ntype) for ntype in g.ntypes}
@@ -672,11 +682,11 @@ def save_dist_graph(g, graph_name, output_dir):
     num_nodes = 0
     num_edges = 0
     for ntype in g.ntypes:
-        node_map_val[ntype] = [num_nodes, num_nodes + g.number_of_nodes(ntype)]
+        node_map_val[ntype] = [[num_nodes, num_nodes + g.number_of_nodes(ntype)]]
         num_nodes += g.number_of_nodes(ntype)
     for etype in g.canonical_etypes:
         edge_map_val[_etype_tuple_to_str(etype)] = \
-                [num_edges, num_edges + g.number_of_edges(etype)]
+                [[num_edges, num_edges + g.number_of_edges(etype)]]
         num_edges += g.number_of_edges(etype)
     # We store the graph structure in the homogeneous graph format.
     g = dgl.to_homogeneous(g)
@@ -684,18 +694,26 @@ def save_dist_graph(g, graph_name, output_dir):
     g.edata['inner_edge'] = th.ones(g.number_of_edges(), dtype=th.uint8)
     g.ndata[dgl.NID] = th.arange(g.number_of_nodes(), dtype=th.int64)
     g.edata[dgl.EID] = th.arange(g.number_of_edges(), dtype=th.int64)
-    dgl.save_graphs(os.path.join(part_path, "graph.dgl"), [g])
+    graph_file = os.path.join(part_path, "graph.dgl")
+    dgl.save_graphs(graph_file, [g])
 
-    part_metadata = {'graph_name': graph_name,
-                     'num_nodes': g.number_of_nodes(),
-                     'num_edges': g.number_of_edges(),
-                     'part_method': "None",
-                     'num_parts': 1,
-                     'halo_hops': 1,
-                     'node_map': node_map_val,
-                     'edge_map': edge_map_val,
-                     'ntypes': ntypes,
-                     'etypes': etypes}
+    part_metadata = {
+            'graph_name': graph_name,
+            'num_nodes': g.number_of_nodes(),
+            'num_edges': g.number_of_edges(),
+            'part_method': "None",
+            'num_parts': 1,
+            'halo_hops': 1,
+            'node_map': node_map_val,
+            'edge_map': edge_map_val,
+            'ntypes': ntypes,
+            'etypes': etypes,
+            'part-0': {
+                'node_feats': os.path.relpath(node_feat_file, output_dir),
+                'edge_feats': os.path.relpath(edge_feat_file, output_dir),
+                'part_graph': os.path.relpath(graph_file, output_dir),
+                }
+            }
     with open(os.path.join(output_dir, graph_name + '.json'), 'w') as outfile:
         json.dump(part_metadata, outfile, sort_keys=True, indent=4)
 
@@ -743,9 +761,9 @@ if __name__ == '__main__':
             g.edges[etype].data[name] = th.tensor(data)
 
     if args.output_format == "DistDGL":
-        dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
-    elif args.output_format == "DGL":
         save_dist_graph(g, args.graph_name, args.output_dir)
+    elif args.output_format == "DGL":
+        dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
     for ntype in node_id_map:
