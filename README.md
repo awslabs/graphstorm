@@ -7,7 +7,7 @@ GraphStorm provides a collection of built-in GML models and users can train a GM
 with a single command without writing any code. To help develop SOTA models,
 GraphStorm provides a large collection of arguments to configure model implementations
 and training pipelines to improve model performance. GraphStorm also provides a programming
-interface to train any custom GML models in a distributed manner. In this case, users
+interface to train any custom GML model in a distributed manner. In this case, users
 provides their own model implementations and use GraphStorm training pipeline to scale
 model training to massive graphs.
 
