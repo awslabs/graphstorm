@@ -103,7 +103,8 @@ def test_rgcn_node_prediction():
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+                                     train_ntypes=['n1'], label_field='label',
+                                     node_feat_field='feat')
     model = create_rgcn_node_model(np_data.g)
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
@@ -119,7 +120,8 @@ def test_rgat_node_prediction():
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+                                     train_ntypes=['n1'], label_field='label',
+                                     node_feat_field='feat')
     model = create_rgat_node_model(np_data.g)
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
@@ -169,7 +171,8 @@ def test_rgcn_edge_prediction():
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
         ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label')
+                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label',
+                                     node_feat_field='feat')
     model = create_rgcn_edge_model(ep_data.g)
     check_edge_prediction(model, ep_data)
     th.distributed.destroy_process_group()

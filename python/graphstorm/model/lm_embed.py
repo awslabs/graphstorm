@@ -99,11 +99,12 @@ def lm_model_forward(input_nodes, lm_emb_cache, lm_models, lm_models_info, use_c
         If true, use the embeddings in lm_emb_cache
     """
     lm_feats = {}
+
+    # Get the device from lm_models
+    # The cached BERT embedding should be moved to the same device
+    # as lm_models.
+    dev = next(lm_models[0].parameters()).device
     if use_cache:
-        # Get the device from lm_models
-        # The cached BERT embedding should be moved to the same device
-        # as lm_models.
-        dev = next(lm_models[0].parameters()).device
         # No bert training, Get cached LM embedding
         # Note: self.lm_emb_cache is initialized by calling warmup
         for ntype, idx in input_nodes.items():
@@ -121,7 +122,7 @@ def lm_model_forward(input_nodes, lm_emb_cache, lm_models, lm_models_info, use_c
                 if ntype in input_nodes:
                     input_ntypes.append(ntype)
                     input_lm_feats[ntype] = {
-                        fname: feat[input_nodes[ntype]] \
+                        fname: feat[input_nodes[ntype]].to(dev) \
                             for fname, feat in lm_node_feats[ntype].items()
                     }
 
