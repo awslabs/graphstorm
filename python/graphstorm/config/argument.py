@@ -544,8 +544,19 @@ class GSConfig:
             assert self._topk_model_to_save > 0, "Top K best model must > 0"
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
-            return self._topk_model_to_save
 
+            assert self.save_model_per_iters > 0, \
+                'save_model_per_iters should be larger than 0, ' \
+                'otherwise no model is going to be saved'
+            if self.evaluation_frequency != sys.maxsize:
+                if self.save_model_per_iters != self.evaluation_frequency:
+                    print('WARNING: save_model_per_iters' \
+                          f'({self.save_model_per_iters}) ' \
+                          'does not equal to evaluation_frequency' \
+                          f'({self.evaluation_frequency}).' \
+                          'GraphStorm will not try to save the best ' \
+                          'model after each evaluation cycle.')
+            return self._topk_model_to_save
         else:
             # By default saving all models
             return math.inf

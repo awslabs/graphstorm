@@ -402,6 +402,7 @@ def create_train_config(tmp_path, file_name):
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
         "alpha_l2norm": 0.00001,
+        'save_model_per_iters': 1000,
         "topk_model_to_save": 3,
         "sparse_lr": 0.001,
         "use_node_embeddings": False,
@@ -423,6 +424,7 @@ def create_train_config(tmp_path, file_name):
         "sparse_lr": 0.,
         "use_node_embeddings": True,
         "use_self_loop": "error",
+        "topk_model_to_save": 3,
         "enable_early_stop": True,
         "call_to_consider_early_stop": -1,
         "window_for_early_stop": 0,
@@ -486,6 +488,7 @@ def test_train_info():
         config._dropout = 1.0
         check_failure(config, "dropout")
         assert config.enable_early_stop == True
+        check_failure(config, "topk_model_to_save")
         check_failure(config, "call_to_consider_early_stop")
         check_failure(config, "window_for_early_stop")
 
