@@ -1,4 +1,4 @@
-""" Prepare ACM data for node classification task in GSF
+""" Prepare ACM data for node classification task in GraphStorm
 """
 
 import argparse
