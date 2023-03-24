@@ -14,7 +14,9 @@ import torch.nn as nn
 from dgl.data.utils import save_graphs
 
 
-def create_acm_graph(dowload_path='/tmp/ACM.mat', output_path=None):
+def create_acm_graph(dowload_path='/tmp/ACM.mat',
+                     dataset_name=None,
+                     output_path=None):
     """Create ACM graph data from URL downloading.
     1. Assign paper nodes with a random 256D feature;
     2. No edge features
@@ -67,7 +69,12 @@ def create_acm_graph(dowload_path='/tmp/ACM.mat', output_path=None):
     print(f'\n Paper nodes labels: {labels.shape}')
     
     # Save the graph for later partition
-    output_file_path = os.path.join(output_path, 'acm.dgl')
+    if dataset_name is None:
+        dataset_name = 'acm'
+    if output_file_path is None:
+        output_file_path = '/tmp'
+
+    output_file_path = os.path.join(output_path, dataset_name + '.dgl')
     print(f'Saving ACM data to {output_file_path} ......')
     save_graphs(output_file_path, [graph_acm], None)
     print(f'{output_file_path} saved.')
@@ -80,11 +87,14 @@ if __name__ == '__main__':
     
     parser.add_argument('--download-path', type=str, default='/tmp/ACM.mat',
                         help="The path of folder to store downloaded ACM raw data")
+    parser.add_argument('--dataset-name', type=str, default='acm',
+                        help="The given name of the graph. Default: \'acm\'")
     parser.add_argument('--output-path', type=str, required=True,
                         help="The path of folder to store processed ACM data in the JSON format")
 
     args = parser.parse_args()
         
-    graph = create_acm_graph(dowload_path=args.download_path, 
+    graph = create_acm_graph(dowload_path=args.download_path,
+                             dataset_name=args.args.dataset_name,
                              output_path=args.output_path)
     
