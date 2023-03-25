@@ -1,3 +1,22 @@
+"""
+    Copyright 2023 Contributors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    Generate example graph data using built-in datasets for node classifcation,
+    node regression, edge classification and edge regression.
+"""
+
 """ Preprocess the input data """
 from multiprocessing import Process
 import multiprocessing
@@ -62,7 +81,8 @@ def write_data_parquet(data, data_file):
     df = {}
     for key in data:
         arr = data[key]
-        assert len(arr.shape) == 1 or len(arr.shape) == 2
+        assert len(arr.shape) == 1 or len(arr.shape) == 2, \
+                "We can only write a vector or a matrix to a parquet file."
         if len(arr.shape) == 1:
             df[key] = arr
         else:
@@ -234,13 +254,15 @@ def process_labels(data, label_confs):
     label_conf : list of dict
         The list of configs to construct labels.
     """
-    assert len(label_confs) == 1
+    assert len(label_confs) == 1, "We only support one label per node/edge type."
     label_conf = label_confs[0]
     assert 'label_col' in label_conf, "'label_col' must be defined in the label field."
     label_col = label_conf['label_col']
     label = data[label_conf['label_col']]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     if label_conf['task_type'] == 'classification':
+        assert np.issubdtype(label.dtype, np.integer), \
+                "The labels for classification have to be integers."
         label = np.int32(label)
     if 'split_type' in label_conf:
         train_split, val_split, test_split = label_conf['split_type']
@@ -355,7 +377,7 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
     Parameters
     ----------
     file_idx : int
-        The index of the edge file among all node files.
+        The index of the edge file among all edge files.
     in_file : str
         The path of the input edge file.
     feat_ops : dict
@@ -460,6 +482,7 @@ def process_node_data(process_confs, remap_id):
     node_data = {}
     node_id_map = {}
     for process_conf in process_confs:
+        # each iteration is to process a node type.
         assert 'node_id_col' in process_conf, \
                 "'node_id_col' must be defined for a node type."
         node_id_col = process_conf['node_id_col']
@@ -495,7 +518,8 @@ def process_node_data(process_confs, remap_id):
                 type_node_data[feat_name][i] = data[feat_name]
             type_node_id_map[i] = node_ids
 
-        assert type_node_id_map[0] is not None
+        for i, id_map in enumerate(type_node_id_map):
+            assert type_node_id_map[i] is not None, f"We do not get ID map in part {i}."
         type_node_id_map = np.concatenate(type_node_id_map)
         # We don't need to create ID map if the node IDs are integers,
         # all node Ids are in sequence start from 0 and
@@ -566,6 +590,7 @@ def process_edge_data(process_confs, node_id_map):
     edge_data = {}
 
     for process_conf in process_confs:
+        # each iteration is to process an edge type.
         assert 'source_id_col' in process_conf, \
                 "'source_id_col' is not defined for an edge type."
         src_id_col = process_conf['source_id_col']
@@ -636,8 +661,13 @@ if __name__ == '__main__':
             help="The graph name")
     argparser.add_argument("--remap_node_id", type=bool, default=False,
             help="Whether or not to remap node IDs.")
+    argparser.add_argument("--add_reverse_edges", type=bool, default=False,
+            help="Add reverse edges.")
     argparser.add_argument("--output_format", type=str, default="DistDGL",
             help="The output format of the constructed graph.")
+    argparser.add_argument("--num_partitions", type=int, default=1,
+            help="The number of graph partitions. " + \
+                    "This is only valid if the output format is DistDGL.")
     args = argparser.parse_args()
     num_processes = args.num_processes
     process_confs = json.load(open(args.conf_file, 'r'))
@@ -659,6 +689,15 @@ if __name__ == '__main__':
         else:
             # A node type must have either ID map or node data.
             raise ValueError('Node type {} must have either ID map or node data'.format(ntype))
+    if args.add_reverse_edges:
+        edges1 = {}
+        for etype in edges:
+            e = edges[etype]
+            assert isinstance(e, tuple) and len(e) == 2
+            assert isinstance(etype, tuple) and len(etype) == 3
+            edges1[etype] = e
+            edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
+        edges = edges1
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     for ntype in node_data:
         for name, data in node_data[ntype].items():
@@ -668,7 +707,8 @@ if __name__ == '__main__':
             g.edges[etype].data[name] = th.tensor(data)
 
     if args.output_format == "DistDGL":
-        dgl.distributed.partition_graph(g, args.graph_name, 1, args.output_dir, part_method="None")
+        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
+                                        args.output_dir, part_method="None")
     elif args.output_format == "DGL":
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
