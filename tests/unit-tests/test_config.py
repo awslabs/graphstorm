@@ -402,6 +402,7 @@ def create_train_config(tmp_path, file_name):
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
         "alpha_l2norm": 0.00001,
+        "evaluation_frequency": 1000,
         'save_model_per_iters': 1000,
         "topk_model_to_save": 3,
         "sparse_lr": 0.001,
@@ -414,6 +415,22 @@ def create_train_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["hyperparam"] = {
+        "topk_model_to_save": 4,
+        "save_model_path": os.path.join(tmp_path, "save"),
+    }
+    with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["hyperparam"] = {
+        "evaluation_frequency": 1000,
+        'save_model_per_iters': 2000,
+        "topk_model_to_save": 5,
+        "save_model_path": os.path.join(tmp_path, "save"),
+    }
+    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
     # for failures
     yaml_object["gsf"]["hyperparam"] = {
         "dropout" : -1.0,
@@ -424,6 +441,8 @@ def create_train_config(tmp_path, file_name):
         "sparse_lr": 0.,
         "use_node_embeddings": True,
         "use_self_loop": "error",
+        "evaluation_frequency": 1000,
+        'save_model_per_iters': 700,
         "topk_model_to_save": 3,
         "enable_early_stop": True,
         "call_to_consider_early_stop": -1,
@@ -431,6 +450,15 @@ def create_train_config(tmp_path, file_name):
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["hyperparam"] = {
+        "evaluation_frequency": 1100,
+        'save_model_per_iters': 2000,
+        "topk_model_to_save": 3,
+        "save_model_path": os.path.join(tmp_path, "save"),
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 
@@ -475,6 +503,14 @@ def test_train_info():
         assert config.call_to_consider_early_stop == 0
         assert config.window_for_early_stop == 3
 
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test1.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.topk_model_to_save == 4
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test2.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.topk_model_to_save == 5
+
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "dropout")
@@ -491,6 +527,10 @@ def test_train_info():
         check_failure(config, "topk_model_to_save")
         check_failure(config, "call_to_consider_early_stop")
         check_failure(config, "window_for_early_stop")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail1.yaml'), local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "topk_model_to_save")
 
 def create_rgcn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
