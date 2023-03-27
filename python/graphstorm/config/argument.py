@@ -538,14 +538,40 @@ class GSConfig:
     @property
     def topk_model_to_save(self):
         """ the number of top k best validation performance model to save
+
+            If topk_model_to_save is set (save_model_per_iters is not set),
+            GraphStorm will try to save models after each epoch and keep at
+            most K models.
+            If save_model_per_iters is set, GraphStorm will try to save
+            models every #save_model_per_iters iterations and keep at
+            most K models.
+            By default, GraphStorm will save the latest K models unless
+            evaluation_frequency is set. When evaluation_frequency is set,
+            GraphStorm will evaluate the model performance every
+            #evaluation_frequency iterations. If at the same iteration,
+            #save_model_per_iters is reached, it will try to save the
+            best K model instead of the latest K model.
         """
         # pylint: disable=no-member
         if hasattr(self, "_topk_model_to_save"):
             assert self._topk_model_to_save > 0, "Top K best model must > 0"
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
-            return self._topk_model_to_save
 
+            if self.evaluation_frequency != sys.maxsize:
+                assert self.save_model_per_iters >= self.evaluation_frequency and \
+                    self.save_model_per_iters % self.evaluation_frequency == 0, \
+                    'FATAL: save_model_per_iters' \
+                          f'({self.save_model_per_iters}) ' \
+                          'does not equal to evaluation_frequency' \
+                          f'({self.evaluation_frequency}), or ' \
+                          f'save_model_per_iters ({self.save_model_per_iters}) ' \
+                          'is not divisible by evaluation_frequency ' \
+                          f'({self.evaluation_frequency}). ' \
+                          'GraphStorm can not guarentees that it will ' \
+                          'save the best model after evaluation cycles.'
+
+            return self._topk_model_to_save
         else:
             # By default saving all models
             return math.inf
@@ -696,7 +722,7 @@ class GSConfig:
         if hasattr(self, "_evaluation_frequency"):
             assert self._evaluation_frequency > 0, "evaluation_frequency should larger than 0"
             return self._evaluation_frequency
-        # set max value (Never save)
+        # set max value (Never do evaluation with in an epoch)
         return sys.maxsize
 
     @property

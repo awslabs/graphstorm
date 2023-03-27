@@ -168,8 +168,16 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 # Every n iterations, check to save the top k models. If has validation score,
                 # will save # the best top k. But if no validation, will either save
                 # the last k model or all models depends on the setting of top k
-                if save_model_per_iters > 0 and i % save_model_per_iters == 0 and i != 0:
-                    self.save_topk_models(model, epoch, i, val_score, save_model_path)
+                if save_model_per_iters > 0 and \
+                    total_steps % save_model_per_iters == 0 and \
+                    total_steps != 0:
+                    if self.evaluator is None or val_score is not None:
+                        # We will save the best model when
+                        # 1. There is no evaluation, we will keep the
+                        #    latest K models.
+                        # 2. There is evaluaiton, we need to follow the
+                        #    guidance of validation score.
+                        self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
                 # early_stop, exit current interation.
                 if early_stop is True:
