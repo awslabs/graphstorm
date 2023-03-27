@@ -671,6 +671,7 @@ def test_get_val_score_rank():
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     use_dot_product=config.use_dot_product,
                                     enable_early_stop=config.enable_early_stop)
+
     # For MRR, the bigger the better
     val_score = {"mrr": 0.47}
     assert evaluator.get_val_score_rank(val_score) == 1
@@ -694,4 +695,4 @@ if __name__ == '__main__':
     test_early_stop_cons_increase_judge()
     test_early_stop_evaluator()
     test_early_stop_lp_evaluator()
-    test_get_val_score_rank
+    test_get_val_score_rank()
