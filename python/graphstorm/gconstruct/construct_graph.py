@@ -186,6 +186,8 @@ def parse_feat_ops(confs):
     list of tuple : The operations
     """
     ops = []
+    assert isinstance(confs, list), \
+            "The feature configurations need to be in a list."
     for feat in confs:
         # TODO(zhengda) we will support data type in the future.
         dtype = None
@@ -266,6 +268,8 @@ def process_labels(data, label_confs):
         label = np.int32(label)
     if 'split_type' in label_conf:
         train_split, val_split, test_split = label_conf['split_type']
+        assert train_split + val_split + test_split <= 1, \
+                "The data split of training/val/test cannot be more than the entire dataset."
         rand_idx = np.random.permutation(len(label))
         train_idx = rand_idx[0:int(len(label) * train_split)]
         val_idx = rand_idx[int(len(label) * train_split):int(len(label) * (train_split + val_split))]
