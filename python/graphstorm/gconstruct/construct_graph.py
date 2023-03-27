@@ -17,21 +17,19 @@
     node regression, edge classification and edge regression.
 """
 
-""" Preprocess the input data """
-from multiprocessing import Process
 import multiprocessing
+from multiprocessing import Process
 import glob
 import os
-import dgl
 import json
+import argparse
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
-from functools import partial
-import argparse
 
 from transformers import BertTokenizer
 import torch as th
+import dgl
 
 ##################### The I/O functions ####################
 
@@ -51,10 +49,9 @@ def read_data_parquet(data_file):
     dict : map from data name to data.
     """
     table = pq.read_table(data_file)
-    pd = table.to_pandas()
     data = {}
-    for key in pd:
-        d = np.array(pd[key])
+    for key, val in table.to_pandas().items():
+        d = np.array(val)
         # For multi-dimension arrays, we split them by rows and
         # save them as objects in parquet. We need to merge them
         # together and store them in a tensor.
@@ -78,16 +75,16 @@ def write_data_parquet(data, data_file):
     data_file : str
         The file name of the Parquet file.
     """
-    df = {}
+    arr_dict = {}
     for key in data:
         arr = data[key]
         assert len(arr.shape) == 1 or len(arr.shape) == 2, \
                 "We can only write a vector or a matrix to a parquet file."
         if len(arr.shape) == 1:
-            df[key] = arr
+            arr_dict[key] = arr
         else:
-            df[key] = [arr[i] for i in range(len(arr))]
-    table = pa.Table.from_arrays(list(df.values()), names=list(df.keys()))
+            arr_dict[key] = [arr[i] for i in range(len(arr))]
+    table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
 def parse_file_format(fmt):
@@ -272,8 +269,10 @@ def process_labels(data, label_confs):
                 "The data split of training/val/test cannot be more than the entire dataset."
         rand_idx = np.random.permutation(len(label))
         train_idx = rand_idx[0:int(len(label) * train_split)]
-        val_idx = rand_idx[int(len(label) * train_split):int(len(label) * (train_split + val_split))]
-        test_idx = rand_idx[int(len(label) * (train_split + val_split)):]
+        val_start = int(len(label) * train_split)
+        val_end = int(len(label) * (train_split + val_split))
+        val_idx = rand_idx[val_start:val_end]
+        test_idx = rand_idx[val_end:]
         train_mask = np.zeros((len(label),), dtype=np.int8)
         val_mask = np.zeros((len(label),), dtype=np.int8)
         test_mask = np.zeros((len(label),), dtype=np.int8)
@@ -287,32 +286,32 @@ def process_labels(data, label_confs):
 
 ################### The functions for multiprocessing ###############
 
-def wait_process(q, max_proc):
+def wait_process(processes, max_proc):
     """ Wait for a process
 
     Parameters
     ----------
-    q : list of process
+    processes : list of process
         The list of processes
     max_proc : int
         The maximal number of processes to process the data together.
     """
-    if len(q) < max_proc:
+    if len(processes) < max_proc:
         return
-    q[0].join()
-    q.pop(0)
-    
-def wait_all(q):
+    processes[0].join()
+    processes.pop(0)
+
+def wait_all(processes):
     """ Wait for all processes
 
     Parameters
     ----------
-    q : list of processes
+    processes : list of processes
         The list of processes
     """
-    for p in q:
-        p.join()
-        
+    for proc in processes:
+        proc.join()
+
 def get_in_files(in_files):
     """ Get the input files.
 
@@ -439,7 +438,7 @@ def create_id_map(ids):
     """
     return {id1: i for i, id1 in enumerate(ids)}
 
-def process_node_data(process_confs, remap_id):
+def process_node_data(process_confs, remap_id, num_processes):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -477,6 +476,8 @@ def process_node_data(process_confs, remap_id):
         The configurations to process node data.
     remap_id: bool
         Whether or not to remap node IDs
+    num_processes: int
+        The number of processes to process the input files.
 
     Returns
     -------
@@ -502,16 +503,16 @@ def process_node_data(process_confs, remap_id):
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
-        q = []
+        processes = []
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
         for i, in_file in enumerate(in_files):
-            p = Process(target=parse_node_data, args=(i, in_file, feat_ops, node_id_col,
-                                                      label_conf, read_file, return_dict))
-            p.start()
-            q.append(p)
-            wait_process(q, num_processes)
-        wait_all(q)
+            proc = Process(target=parse_node_data, args=(i, in_file, feat_ops, node_id_col,
+                                                         label_conf, read_file, return_dict))
+            proc.start()
+            processes.append(proc)
+            wait_process(processes, num_processes)
+        wait_all(processes)
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -523,7 +524,7 @@ def process_node_data(process_confs, remap_id):
             type_node_id_map[i] = node_ids
 
         for i, id_map in enumerate(type_node_id_map):
-            assert type_node_id_map[i] is not None, f"We do not get ID map in part {i}."
+            assert id_map is not None, f"We do not get ID map in part {i}."
         type_node_id_map = np.concatenate(type_node_id_map)
         # We don't need to create ID map if the node IDs are integers,
         # all node Ids are in sequence start from 0 and
@@ -549,7 +550,7 @@ def process_node_data(process_confs, remap_id):
 
     return (node_id_map, node_data)
 
-def process_edge_data(process_confs, node_id_map):
+def process_edge_data(process_confs, node_id_map, num_processes):
     """ Process edge data
 
     The edge data of an edge type is defined as follows:
@@ -585,6 +586,8 @@ def process_edge_data(process_confs, node_id_map):
         The configurations to process edge data.
     node_id_map: dict
         The node ID map.
+    num_processes: int
+        The number of processes to process the input files.
 
     Returns
     -------
@@ -613,18 +616,18 @@ def process_edge_data(process_confs, node_id_map):
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
-        q = []
+        processes = []
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
         for i, in_file in enumerate(in_files):
-            p = Process(target=parse_edge_data, args=(i, in_file, feat_ops,
-                                                      src_id_col, dst_id_col, edge_type,
-                                                      node_id_map, label_conf,
-                                                      read_file, return_dict))
-            p.start()
-            q.append(p)
-            wait_process(q, num_processes)
-        wait_all(q)
+            proc = Process(target=parse_edge_data, args=(i, in_file, feat_ops,
+                                                         src_id_col, dst_id_col, edge_type,
+                                                         node_id_map, label_conf,
+                                                         read_file, return_dict))
+            proc.start()
+            processes.append(proc)
+            wait_process(processes, num_processes)
+        wait_all(processes)
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
@@ -653,31 +656,15 @@ def process_edge_data(process_confs, node_id_map):
 
     return edges, edge_data
 
-if __name__ == '__main__':
-    argparser = argparse.ArgumentParser("Preprocess graphs")
-    argparser.add_argument("--conf_file", type=str, required=True,
-            help="The configuration file.")
-    argparser.add_argument("--num_processes", type=int, default=1,
-            help="The number of processes to process the data simulteneously.")
-    argparser.add_argument("--output_dir", type=str, required=True,
-            help="The path of the output data folder.")
-    argparser.add_argument("--graph_name", type=str, required=True,
-            help="The graph name")
-    argparser.add_argument("--remap_node_id", action='store_true',
-            help="Whether or not to remap node IDs.")
-    argparser.add_argument("--add_reverse_edges", action='store_true',
-            help="Add reverse edges.")
-    argparser.add_argument("--output_format", type=str, default="DistDGL",
-            help="The output format of the constructed graph.")
-    argparser.add_argument("--num_partitions", type=int, default=1,
-            help="The number of graph partitions. " + \
-                    "This is only valid if the output format is DistDGL.")
-    args = argparser.parse_args()
-    num_processes = args.num_processes
-    process_confs = json.load(open(args.conf_file, 'r'))
+def process_graph(args):
+    """ Process the graph.
+    """
+    with open(args.conf_file, 'r', encoding="utf8") as json_file:
+        process_confs = json.load(json_file)
 
-    node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id)
-    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map)
+    node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
+                                               args.num_processes)
+    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map, args.num_processes)
     num_nodes = {}
     for ntype in set(list(node_data.keys()) + list(node_id_map.keys())):
         # If a node type has Id map.
@@ -704,11 +691,11 @@ if __name__ == '__main__':
         edges = edges1
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     for ntype in node_data:
-        for name, data in node_data[ntype].items():
-            g.nodes[ntype].data[name] = th.tensor(data)
+        for name, ndata in node_data[ntype].items():
+            g.nodes[ntype].data[name] = th.tensor(ndata)
     for etype in edge_data:
-        for name, data in edge_data[etype].items():
-            g.edges[etype].data[name] = th.tensor(data)
+        for name, edata in edge_data[etype].items():
+            g.edges[etype].data[name] = th.tensor(edata)
 
     if args.output_format == "DistDGL":
         dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
@@ -722,3 +709,24 @@ if __name__ == '__main__':
         map_data["orig"] = np.array(list(node_id_map[ntype].keys()))
         map_data["new"] = np.array(list(node_id_map[ntype].values()))
         write_data_parquet(map_data, os.path.join(args.output_dir, ntype + "_id_remap.parquet"))
+
+if __name__ == '__main__':
+    argparser = argparse.ArgumentParser("Preprocess graphs")
+    argparser.add_argument("--conf_file", type=str, required=True,
+                           help="The configuration file.")
+    argparser.add_argument("--num_processes", type=int, default=1,
+                           help="The number of processes to process the data simulteneously.")
+    argparser.add_argument("--output_dir", type=str, required=True,
+                           help="The path of the output data folder.")
+    argparser.add_argument("--graph_name", type=str, required=True,
+                           help="The graph name")
+    argparser.add_argument("--remap_node_id", action='store_true',
+                           help="Whether or not to remap node IDs.")
+    argparser.add_argument("--add_reverse_edges", action='store_true',
+                           help="Add reverse edges.")
+    argparser.add_argument("--output_format", type=str, default="DistDGL",
+                           help="The output format of the constructed graph.")
+    argparser.add_argument("--num_partitions", type=int, default=1,
+                           help="The number of graph partitions. " + \
+                                   "This is only valid if the output format is DistDGL.")
+    process_graph(argparser.parse_args())
