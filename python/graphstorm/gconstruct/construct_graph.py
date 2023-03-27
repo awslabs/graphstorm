@@ -663,9 +663,9 @@ if __name__ == '__main__':
             help="The path of the output data folder.")
     argparser.add_argument("--graph_name", type=str, required=True,
             help="The graph name")
-    argparser.add_argument("--remap_node_id", type=bool, default=False,
+    argparser.add_argument("--remap_node_id", action='store_true',
             help="Whether or not to remap node IDs.")
-    argparser.add_argument("--add_reverse_edges", type=bool, default=False,
+    argparser.add_argument("--add_reverse_edges", action='store_true',
             help="Add reverse edges.")
     argparser.add_argument("--output_format", type=str, default="DistDGL",
             help="The output format of the constructed graph.")
