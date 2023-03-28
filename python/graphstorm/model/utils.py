@@ -140,9 +140,9 @@ def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
 
     if len(dense_opts) == 1:
-        opt_states['dense'] = dense_opts.state_dict()
+        opt_states['dense'] = dense_opts[0].state_dict()
     if len(lm_opts) == 1:
-        opt_states['lm'] = lm_opts.state_dict()
+        opt_states['lm'] = lm_opts[0].state_dict()
     # TODO(zhengda) we need to change DGL to make it work.
     if len(sparse_opts) > 0:
         # TODO(xiangsx) Further discussion of whether we need to save the state of
