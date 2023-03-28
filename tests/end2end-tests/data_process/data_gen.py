@@ -37,7 +37,7 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(df.values()), names=list(df.keys()))
     pq.write_table(table, data_file)
 
-node_id1 = np.random.randint(0, 1000000000, 10000)
+node_id1 = np.unique(np.random.randint(0, 1000000000, 10000))
 node_text = np.array([str(nid) for nid in node_id1])
 node_data1 = {
     'id': node_id1,
@@ -52,7 +52,7 @@ node_data2 = {
     'data': np.repeat(node_id2, 5).reshape(len(node_id2), 5),
 }
 
-node_id3 = np.random.randint(0, 1000000000, 5000)
+node_id3 = np.unique(np.random.randint(0, 1000000000, 5000))
 node_id3_str = np.array([str(nid) for nid in node_id3])
 node_data3 = {
     'id': node_id3_str,
