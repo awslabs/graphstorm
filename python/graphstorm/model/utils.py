@@ -299,7 +299,7 @@ def load_sparse_embeds(model_path, embed_layer):
                 # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
                 sparse_emb._tensor[idx] = emb[idx]
 
-def load_opt_state(model_path, dense_opts, sparse_opts):
+def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
 
         Parameters
@@ -308,6 +308,8 @@ def load_opt_state(model_path, dense_opts, sparse_opts):
             The path of the model is saved.
         dense_opts: list of optimizers
             Optimzer for dense layers
+        lm_opts: list of optimizers
+            Optimzer for language models layers
         sparse_opts: list of optimizers
             Optimizer for sparse emb layer
     """
@@ -318,16 +320,18 @@ def load_opt_state(model_path, dense_opts, sparse_opts):
             "during unpickling. Only load data you trust")
     checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
 
-    assert len(dense_opts) <= 2, \
-        "Currently, we only support dense optimizers for general gnn and language model."
+    assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
+    assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
+
     # Load general dense models like gnn and input projection matrix
     if "dense" in checkpoint:
-        assert "dense" in dense_opts, "General dense parameters must exists in the model"
-        dense_opts["dense"].load_state_dict(checkpoint["dense"])
+        len(dense_opts) == 1, "General dense parameters must exists in the model"
+        dense_opts[0].load_state_dict(checkpoint["dense"])
     # Load language models.
     if "lm" in checkpoint:
-        assert "lm" in dense_opts, "Language model parameters must exists in the model"
-        dense_opts["lm"].load_state_dict(checkpoint["lm"])
+        len(lm_opts) == 1, "Language model parameters must exists in the model"
+        dense_opts[0].load_state_dict(checkpoint["lm"])
+
     # TODO(zhengda) we need to change DGL to make it work.
     if 'sparse' in checkpoint and len(sparse_opts) > 0:
         raise NotImplementedError('We cannot load the state of sparse optimizer')

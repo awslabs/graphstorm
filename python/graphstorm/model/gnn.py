@@ -94,14 +94,14 @@ class GSOptimizer():
     def load_opt_state(self, path, device=None):
         """ Load the optimizer states
         """
-        load_opt_state(path, self.dense_opts, self.sparse_opts)
+        load_opt_state(path, self.dense_opts, self.lm_opts, self.sparse_opts)
         if device is not None:
             self.move_to_device(device)
 
     def save_opt_state(self, path):
         """ Save the optimizer states.
         """
-        save_opt_state(path, self.dense_opts, self.sparse_opts)
+        save_opt_state(path, self.dense_opts, self.lm_opts, self.sparse_opts)
 
     def move_to_device(self, device):
         """ Move the optimizer to the specified device.
