@@ -325,11 +325,11 @@ def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
 
     # Load general dense models like gnn and input projection matrix
     if "dense" in checkpoint:
-        len(dense_opts) == 1, "General dense parameters must exists in the model"
+        assert len(dense_opts) == 1, "General dense parameters must exists in the model"
         dense_opts[0].load_state_dict(checkpoint["dense"])
     # Load language models.
     if "lm" in checkpoint:
-        len(lm_opts) == 1, "Language model parameters must exists in the model"
+        assert len(lm_opts) == 1, "Language model parameters must exists in the model"
         dense_opts[0].load_state_dict(checkpoint["lm"])
 
     # TODO(zhengda) we need to change DGL to make it work.
