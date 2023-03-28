@@ -446,7 +446,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_lr)
             sparse_opts = [emb_optimizer]
         else:
-            emb_optimizer = []
+            sparse_opts = []
 
         dense_params = self.get_dense_params()
         if len(dense_params) > 0:
