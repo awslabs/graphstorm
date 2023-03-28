@@ -119,7 +119,7 @@ def save_sparse_embeds(model_path, embed_layer):
 
             th.save(embs, os.path.join(model_path, f'{ntype}_sparse_emb.pt'))
 
-def save_opt_state(model_path, dense_opts, sparse_opts):
+def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Save the states of the optimizers.
 
         Parameters
@@ -127,18 +127,22 @@ def save_opt_state(model_path, dense_opts, sparse_opts):
         model_path : str
             The path of the folder where the model is saved.
             We save the optimizer states with the model.
-        dense_opts : list optimizer
+        dense_opts : list of optimizer
             The optimizers for dense model parameters.
+        lm_opts: list of optimizer
+            The optimizers for language model parameters.
         emb_opts : list of optimizer
             The optimizers for sparse embedding layer.
     """
     opt_states = {}
-    assert len(dense_opts) <= 2, \
-        "Currently, we only support dense optimizers for general gnn and language model."
-    if 'dense' in dense_opts:
-        opt_states['dense'] = dense_opts['dense'].state_dict()
-    if 'lm' in opt_states:
-        opt_states['lm'] = dense_opts['lm'].state_dict()
+
+    assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
+    assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
+
+    if len(dense_opts) == 1:
+        opt_states['dense'] = dense_opts.state_dict()
+    if len(lm_opts) == 1:
+        opt_states['lm'] = lm_opts.state_dict()
     # TODO(zhengda) we need to change DGL to make it work.
     if len(sparse_opts) > 0:
         # TODO(xiangsx) Further discussion of whether we need to save the state of

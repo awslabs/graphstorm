@@ -40,37 +40,39 @@ class GSOptimizer():
 
     Parameters
     ----------
-    dense_opts : th.optim.Optimizer, list or dict
-        If th.optim.Optimizer or GSOptimizer, we assume there is a single
-        dense optimizer.
-        If list, only the first optimizer is treated as the single dense
-        optimizer, the rest optimizers are ignored.
-        If dict, we assume it has multiple optimizers, currently, we support
-        'dense' and 'lm'. The 'dense' usually includes input projection
-        weights, GNN weights, decoder weights, etc. 'lm' is for language
-        models.
+    dense_opts : list of th.optim.Optimizer
+        Optimizer objects for dense model parameters.
+        TODO(xiangsx): we only retrieve the first item of the list as
+        we only support one dense optimizer.
+    lm_opts: list of th.optim.Optimizer
+        Optimizer objects for language model parameters.
+        TODO(xiangsx): we only retrieve the first item of the list as
+        we only support one language model optimizer.
+        Note: by default it is None.
     sparse_opts : list
         A list of optimizer objects for sparse model parameters.
+        Note: by default it is None. No sparse optimizer is used.
     """
-    def __init__(self, dense_opts, sparse_opts=None):
+    def __init__(self, dense_opts=None, lm_opts=None, sparse_opts=None):
+        if dense_opts is None:
+            # There will be no dense optimizer
+            # When doing graph-ware language model finetuning
+            dense_opts = []
+        if lm_opts is None:
+            # If language model is not used, there will be no lm optimizer
+            lm_opts = []
         if sparse_opts is None:
             sparse_opts = []
-        if isinstance(dense_opts, th.optim.Optimizer):
-            # If dense_opts is a torch optimizer
-            dense_opts = {'dense': dense_opts}
-        elif isinstance(dense_opts, list):
-            # If dense_opts is a list, we assume it is for general dense models.
-            assert len(dense_opts) == 1, "GraphStorm only supports one dense optimizer"
-            dense_opts = {'dense': dense_opts[0]}
-
-        assert isinstance(dense_opts, dict), \
-            "dense_opts should be a dict of " \
-            "{'dense': dense_opt, 'lm':language_model_opt}"
-        assert isinstance(sparse_opts, list), "sparse_opts should be a list."
+        assert isinstance(dense_opts, list), \
+            "dense_opts(dense model) should be a list or None."
+        assert isinstance(lm_opts, list), \
+            "lm_opts (language model optimizers) should be a list or None."
+        assert isinstance(sparse_opts, list), \
+            "sparse_opts should be a list or None."
         self.dense_opts = dense_opts
+        self.lm_opts = lm_opts
         self.sparse_opts = sparse_opts
-        all_opts = [dense_opts["dense"]] if "dense" in dense_opts else [] + \
-            [dense_opts["lm"]] if "lm" in dense_opts else []  + sparse_opts
+        all_opts = dense_opts + lm_opts + sparse_opts
         assert len(all_opts) > 0, "Optimizer list need to be defined"
         for optimizer in all_opts:
             assert optimizer is not None
@@ -78,18 +80,14 @@ class GSOptimizer():
     def zero_grad(self):
         """ Setting the gradient to zero
         """
-        all_opts = [self.dense_opts["dense"]] if "dense" in self.dense_opts else [] + \
-            [self.dense_opts["lm"]] if "lm" in self.dense_opts else [] + \
-            self.sparse_opts
+        all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
         for optimizer in all_opts:
             optimizer.zero_grad()
 
     def step(self):
         """ Moving the optimizer
         """
-        all_opts = all_opts = [self.dense_opts["dense"]] if "dense" in self.dense_opts else [] + \
-            [self.dense_opts["lm"]] if "lm" in self.dense_opts else [] + \
-            self.sparse_opts
+        all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
         for optimizer in all_opts:
             optimizer.step()
 
@@ -111,14 +109,14 @@ class GSOptimizer():
         # Move the optimizer state to the specified device.
         # We only need to move the states of the dense optimizers.
         # The states of the sparse optimizers should stay in CPU.
-        if "dense" in self.dense_opts:
-            for state in self.dense_opts["dense"].state.values():
+        for opt in self.dense_opts:
+            for state in opt.state.values():
                 for k, v in state.items():
                     if isinstance(v, th.Tensor):
                         state[k] = v.to(device)
 
-        if "lm" in self.dense_opts:
-            for state in self.dense_opts["lm"].state.values():
+        for opt in self.lm_opts:
+            for state in opt.state.values():
                 for k, v in state.items():
                     if isinstance(v, th.Tensor):
                         state[k] = v.to(device)
@@ -166,8 +164,23 @@ class GSgnnModelBase(nn.Module):
 
         A model may require multiple optimizers. For example, we should define
         an optimizer for sparse embeddings and an optimizer for the dense parameters
-        of a GNN model. In this case, a user can use GSOptimizer to combine these
+        of a GNN model. In this case, a user should use a GSOptimizer to combine these
         optimizers.
+
+        Example:
+        Case 1: if there is only one optimizer:
+            def create_optimizer(self):
+                # define torch.optim.Optimizer
+                return optimizer
+
+        Case 2: if there are both dense and sparse optimizers:
+            def create_optimizer(self):
+                dense = [dense_opt] # define torch.optim.Optimizer
+                sparse = [sparse_opt] # define dgl sparse Optimizer
+                optimizer = GSOptimizer(dense_opts=dense,
+                                        lm_opts=None,
+                                        sparse_opts=sparse)
+                return optimizer
         """
 
     #pylint: disable=unused-argument
@@ -431,23 +444,30 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         sparse_params = self.get_sparse_params()
         if len(sparse_params) > 0:
             emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_lr)
+            sparse_opts = [emb_optimizer]
         else:
-            emb_optimizer = None
+            emb_optimizer = []
 
-        dense_opts = {} # if not train then the optimizers are not needed.
         dense_params = self.get_dense_params()
         if len(dense_params) > 0:
             optimizer = th.optim.Adam(self.get_dense_params(), lr=lr,
                                       weight_decay=weight_decay)
-            dense_opts["dense"] = optimizer
+            dense_opts = [optimizer]
+        else:
+            dense_opts = []
+
         lm_params = self.get_lm_params()
         if len(lm_params) > 0:
             lm_optimizer = th.optim.Adam(self.get_lm_params(), \
                                          lr=lm_lr if lm_lr is not None else lr,
                                          weight_decay=weight_decay)
-            dense_opts["lm"] = lm_optimizer
-        sparse_opts = [emb_optimizer] if emb_optimizer is not None else []
-        self._optimizer = GSOptimizer(dense_opts=dense_opts, sparse_opts=sparse_opts)
+            lm_opts = [lm_optimizer]
+        else:
+            lm_opts = []
+
+        self._optimizer = GSOptimizer(dense_opts=dense_opts,
+                                      lm_opts=lm_opts,
+                                      sparse_opts=sparse_opts)
 
     def create_optimizer(self):
         """the optimizer
