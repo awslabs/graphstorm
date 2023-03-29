@@ -305,6 +305,11 @@ class GSConfig:
         if hasattr(self, "_freeze_lm_encoder_epochs"):
             assert self._freeze_lm_encoder_epochs >= 0, \
                 "Number of warmup epochs must be larger than or equal to 0"
+
+            assert self.model_encoder_type not in ["lm", "mlp"], \
+                "Encoder type lm (language model) and mlp (encoder layer only) " \
+                "do not work with language model warmup. It will cause torch " \
+                "DDP error"
             return self._freeze_lm_encoder_epochs
 
         return 0
