@@ -119,6 +119,8 @@ python3 check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/g
 
 error_and_exit $?
 
+rm -fr /data/gsgnn_ec/*
+
 echo "**************dataset: Generated MovieLens EC, RGCN layer: 1, node feat: generated feature and text feature, inference: full graph, exclude-training-targets: True, train_nodes 10"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_ec_1p_4t_text/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_ec_text.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_ec_1p_4t_text/movie-lens-100k-text.json --exclude-training-targets True --num-classes 6 --feat-name feat --mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_text/emb/ --save-model-path /data/gsgnn_ec_text/ --save-model-per-iter 1000" | tee train_log.txt
 
@@ -138,6 +140,8 @@ python3 check_infer.py --train_embout /data/gsgnn_ec_text/emb/ --infer_embout /d
 echo "**************dataset: Generated MovieLens EC, RGCN layer: 1, node feat: generated feature and text feature, inference: full graph, exclude-training-targets: True, train nodes: 0"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_ec_1p_4t_text/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_ec_text.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_ec_1p_4t_text/movie-lens-100k-text.json --exclude-training-targets True --num-classes 6 --feat-name feat --mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_text/emb/ --save-model-path /data/gsgnn_ec_text/ --save-model-per-iter 1000 --lm-train-nodes 0" | tee train_log.txt
 
+rm -fr /data/gsgnn_ec_text/*
+
 echo "**************dataset: Generated MovieLens EC, RGCN layer: 1, node feat: text feature, inference: full graph, exclude-training-targets: True, train_nodes 10"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_ec_1p_4t_text/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lm_ep.py --cf ml_lm_ec.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_ec_1p_4t_text/movie-lens-100k-text.json --exclude-training-targets True --num-classes 6 --feat-name feat --mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_lm/emb/ --save-model-path /data/gsgnn_ec_lm/ --save-model-per-iter 1000" | tee train_log.txt
 
@@ -154,3 +158,4 @@ error_and_exit $?
 cd $GS_HOME/tests/end2end-tests/
 python3 check_infer.py --train_embout /data/gsgnn_ec_lm/emb/ --infer_embout /data/gsgnn_ec_lm/infer-emb/
 
+rm -fr /data/gsgnn_ec_lm/*
