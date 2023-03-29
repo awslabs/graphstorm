@@ -1425,6 +1425,10 @@ def test_load_io_info():
 
 def create_lm_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "rgcn"
+    }
+
     yaml_object["gsf"]["lm"] = {
     }
 
@@ -1475,6 +1479,36 @@ def create_lm_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "lm"
+    }
+
+    # config for check default value
+    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["lm"] = {
+        "freeze_lm_encoder_epochs": 3,
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "mlp"
+    }
+
+    # config for check default value
+    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["lm"] = {
+        "freeze_lm_encoder_epochs": 3,
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail4.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
 def test_lm():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -1517,6 +1551,16 @@ def test_lm():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "node_lm_configs")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail3.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "freeze_lm_encoder_epochs")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail4.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "freeze_lm_encoder_epochs")
 
 def test_check_lm_config():
     import tempfile
