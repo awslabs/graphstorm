@@ -34,7 +34,7 @@ To send us a pull request, please:
 3. Ensure local tests pass.
 4. Commit to your fork using clear commit messages.
 5. Send us a pull request, answering any default questions in the pull request interface.
-6. **Do not** label your pull request as ***draft*** - we will not be able to merge the pull request in this case.
+6. Label your pull request to **draft** if you are actively updating the PR. With this tag, your PR will not trigger the CI pipeline. Remember to remove the **draft** tag once your PR is ready.
 7. Pay attention to any automated CI failures reported in the pull request, and stay involved in the conversation.
 
 GitHub provides additional document on [forking a repository](https://help.github.com/articles/fork-a-repo/) and
