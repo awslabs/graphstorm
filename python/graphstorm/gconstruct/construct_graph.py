@@ -535,8 +535,8 @@ def process_node_data(process_confs, remap_id, num_processes):
             num_nodes = len(type_node_id_map)
             type_node_id_map = None
         else:
-            num_nodes = len(type_node_id_map)
             type_node_id_map = create_id_map(type_node_id_map)
+            num_nodes = len(type_node_id_map)
 
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
