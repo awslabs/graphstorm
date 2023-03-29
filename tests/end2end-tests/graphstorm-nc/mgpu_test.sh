@@ -166,6 +166,8 @@ then
     exit -1
 fi
 
+rm -fr /data/gsgnn_nc_ml/*
+
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model save emb node"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_np/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_np.py --cf ml_nc_utext.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_text_train_val_1p_4t/movie-lens-100k-text.json --save-model-path /data/gsgnn_nc_ml_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --n-epochs 3" | tee train_log.txt
 
@@ -199,3 +201,5 @@ error_and_exit $?
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model save emb node, train_nodes 0"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_np/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_np.py --cf ml_nc_utext.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_text_train_val_1p_4t/movie-lens-100k-text.json --save-model-path /data/gsgnn_nc_ml_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --n-epochs 3 --lm-train-nodes 0" | tee train_log.txt
+
+rm -fr /data/gsgnn_nc_ml_text/*
