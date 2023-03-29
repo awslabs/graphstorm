@@ -132,3 +132,5 @@ cd $GS_HOME/tests/end2end-tests/
 python3 check_infer.py --train_embout /data/gsgnn_er/emb/ --infer_embout /data/gsgnn_er/infer-emb/
 
 error_and_exit $?
+
+rm -fr /data/gsgnn_er/*
