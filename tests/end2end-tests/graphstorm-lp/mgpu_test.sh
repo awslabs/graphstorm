@@ -198,6 +198,8 @@ then
 	exit -1
 fi
 
+rm -fr /data/gsgnn_lp_ml_dot/*
+
 echo "**************dataset: Movielens, RGCN layer 1, BERT nodes: movie, user , inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: true, save model"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lp.py --cf ml_lp_text.yaml --fanout '10' --n-layers 1 --mini-batch-infer false  --use-node-embeddings true --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --save-model-path /data/gsgnn_lp_ml_distmult_text/ --topk-model-to-save 1 --save-model-per-iter 1000 --save-embed-path /data/gsgnn_lp_ml_distmult_text/emb/ --use-dot-product False --train-etype user,rating,movie movie,rating-rev,user" | tee train_log.txt
 
@@ -228,6 +230,8 @@ then
     echo "DistMult inference outputs edge embedding"
     exit -1
 fi
+
+rm -fr /data/gsgnn_lp_ml_distmult_text/*
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT, inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: true, test_negative_sampler: joint"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lp.py --cf ml_lp.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --use-dot-product False --train-etype user,rating,movie movie,rating-rev,user"
@@ -269,6 +273,8 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_l
 
 error_and_exit $?
 
+rm -fr /data/gsgnn_lp_ml_distmult_all_etype/*
+
 rm train_log.txt
 echo "**************dataset: Movielens, Bert only, inference: full-graph, negative_sampler: joint, decoder: Dot, save model"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lm_lp.py --cf ml_lm_lp.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --save-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/ --topk-model-to-save 1 --save-model-per-iter 1000 --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/emb/ --use-dot-product True" | tee train_log.txt
@@ -294,6 +300,8 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_l
 
 error_and_exit $?
 
+rm -fr /data/gsgnn_lp_ml_lm_dot_all_etype/*
+
 rm train_log.txt
 echo "**************dataset: Movielens, input encoder with Bert, inference: full-graph, negative_sampler: joint, decoder: Dot, save model"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lm_lp.py --cf ml_lm_lp.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --save-model-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/ --topk-model-to-save 1 --save-model-per-iter 1000 --save-embed-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/emb/ --use-dot-product True --model-encoder-type mlp" | tee train_log.txt
@@ -318,3 +326,5 @@ error_and_exit $?
 python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_lmmlp_dot_all_etype/emb/ --infer_embout /data/gsgnn_lp_ml_lmmlp_dot_all_etype/infer-emb/ --link_prediction
 
 error_and_exit $?
+
+rm -fr /data/gsgnn_lp_ml_lmmlp_dot_all_etype/*
