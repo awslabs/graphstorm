@@ -17,8 +17,6 @@
     node regression, edge classification and edge regression.
 """
 
-import multiprocessing
-from multiprocessing import Process
 from functools import partial
 import glob
 import os
@@ -286,33 +284,7 @@ def process_labels(data, label_confs):
             'val_mask': val_mask,
             'test_mask': test_mask}
 
-################### The functions for multiprocessing ###############
-
-def wait_process(processes, max_proc):
-    """ Wait for a process
-
-    Parameters
-    ----------
-    processes : list of process
-        The list of processes
-    max_proc : int
-        The maximal number of processes to process the data together.
-    """
-    if len(processes) < max_proc:
-        return
-    processes[0].join()
-    processes.pop(0)
-
-def wait_all(processes):
-    """ Wait for all processes
-
-    Parameters
-    ----------
-    processes : list of processes
-        The list of processes
-    """
-    for proc in processes:
-        proc.join()
+################### The functions for processing files ###############
 
 def get_in_files(in_files):
     """ Get the input files.
