@@ -297,8 +297,14 @@ if __name__ == '__main__':
     else:
         balance_ntypes = None
 
-    dgl.distributed.partition_graph(g, args.dataset, args.num_parts, args.output,
-                                    part_method=args.part_method,
-                                    balance_ntypes=balance_ntypes,
-                                    balance_edges=args.balance_edges,
-                                    num_trainers_per_machine=args.num_trainers_per_machine)
+    node_mapping, edge_mapping = dgl.distributed.partition_graph(
+            g, args.dataset, args.num_parts, args.output,
+            part_method=args.part_method,
+            balance_ntypes=balance_ntypes,
+            balance_edges=args.balance_edges,
+            num_trainers_per_machine=args.num_trainers_per_machine,
+            return_mapping=True)
+    # node_mapping contains per entity type on the ith row the original node id for the ith node.
+    th.save(node_mapping, os.path.join(args.output, "node_mapping.pt"))
+    # edge_mapping contains per edge type on the ith row the original edge id for the ith edge.
+    th.save(edge_mapping, os.path.join(args.output, "edge_mapping.pt"))

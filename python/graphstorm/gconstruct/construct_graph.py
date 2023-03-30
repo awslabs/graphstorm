@@ -698,8 +698,15 @@ def process_graph(args):
             g.edges[etype].data[name] = th.tensor(edata)
 
     if args.output_format == "DistDGL":
-        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
-                                        args.output_dir, part_method="None")
+        node_mapping, edge_mapping = dgl.distributed.partition_graph(
+                g, args.graph_name, args.num_partitions,
+                args.output_dir, part_method="None")
+        # node_mapping contains per entity type on the ith row the original node id
+        # for the ith node.
+        th.save(node_mapping, os.path.join(args.output, "node_mapping.pt"))
+        # edge_mapping contains per edge type on the ith row the original edge id
+        # for the ith edge.
+        th.save(edge_mapping, os.path.join(args.output, "edge_mapping.pt"))
     elif args.output_format == "DGL":
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:

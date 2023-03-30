@@ -177,20 +177,20 @@ if __name__ == '__main__':
     sys_tracker.check("Finish processing the final graph")
     print(g)
     if args.balance_train and not args.train_graph_only:
-        balance_etypes = {target_et: g.edges[target_et].data['train_mask'] for target_et in target_etypes}
+        balance_etypes = {target_et: g.edges[target_et].data['train_mask'] \
+                for target_et in target_etypes}
     else:
         balance_etypes = None
 
-    new_node_mapping, new_edge_mapping = dgl.distributed.partition_graph(g, args.dataset, args.num_parts, args.output,
-                                                                         part_method=args.part_method,
-                                                                         balance_edges=args.balance_edges,
-                                                                         num_trainers_per_machine=args.num_trainers_per_machine,
-                                                                         return_mapping=True)
+    node_mapping, edge_mapping = dgl.distributed.partition_graph(
+            g, args.dataset,
+            args.num_parts, args.output,
+            part_method=args.part_method,
+            balance_edges=args.balance_edges,
+            num_trainers_per_machine=args.num_trainers_per_machine,
+            return_mapping=True)
     sys_tracker.check('partition the graph')
-    if args.save_mappings:
-        # TODO add something that is more scalable here as a saving method
-
-        # the new_node_mapping contains per entity type on the ith row the original node id for the ith node.
-        th.save(new_node_mapping, os.path.join(args.output, "new_node_mapping.pt"))
-        # the new_edge_mapping contains per edge type on the ith row the original edge id for the ith edge.
-        th.save(new_edge_mapping, os.path.join(args.output, "new_edge_mapping.pt"))
+    # node_mapping contains per entity type on the ith row the original node id for the ith node.
+    th.save(node_mapping, os.path.join(args.output, "node_mapping.pt"))
+    # edge_mapping contains per edge type on the ith row the original edge id for the ith edge.
+    th.save(edge_mapping, os.path.join(args.output, "edge_mapping.pt"))
