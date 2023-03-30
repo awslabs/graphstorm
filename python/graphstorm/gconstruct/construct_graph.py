@@ -28,7 +28,6 @@ import numpy as np
 
 from transformers import BertTokenizer
 import torch as th
-from torch.utils.data import Dataset
 import dgl
 
 ##################### The I/O functions ####################
@@ -313,8 +312,7 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
 
     The function parses a node file that contains node IDs, features and labels
     The node file is parsed according to users' configuration
-    and performs some feature transformation and save the result in
-    `return_dict`.
+    and performs some feature transformation.
 
     Parameters
     ----------
@@ -344,8 +342,7 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
 
     The function parses an edge file that contains the source and destination node
     IDs, edge features and potentially edge labels. The edge file is parsed
-    according to users' configuration and performs some feature transformation
-    and save the result in `return_dict`.
+    according to users' configuration and performs some feature transformation.
 
     Parameters
     ----------
