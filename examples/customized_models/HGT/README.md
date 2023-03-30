@@ -27,23 +27,24 @@ In order to plus users' own GNN models into the GraphStorm Framework, users need
 
 **Step 1: Prepare the ACM dataset for using the GraphStorm**
 ```shell
-python3 /graph-storm/examples/customized_models/HGT/acm_data.py --output-path /data
+python3 /graphstorm/examples/acm_data.py --output-path /data
 ```
 
 **Step 2: Partition the ACM graph into distributed format**
 ```shell
-python3 /graph-storm/tools/partition_graph.py \
+python3 /graphstorm/tools/partition_graph.py \
     --dataset acm\
     --filepath /data \
     --num_parts 1 \
     --predict_ntype paper \
+    --nlabel_field paper:label \
     --output /data/acm_nc
 ```
 
 **Step 3: Run the modified HGT model**
 ```shell
 python3 ~/dgl/tools/launch.py \
-    --workspace /graph-storm/examples/customized_models/HGT \
+    --workspace /graphstorm/examples/customized_models/HGT \
     --part_config /data/acm_nc/acm.json \
     --ip_config ip_list.txt \
     --num_trainers 2 \
