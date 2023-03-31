@@ -56,7 +56,7 @@ class GSgnnEdgeModelInterface:
         """
 
     @abc.abstractmethod
-    def predict(self, blocks, batch_graph, node_feats, edge_feats):
+    def predict(self, blocks, batch_graph, node_feats, edge_feats, input_nodes):
         """ Make prediction on the edges.
 
         Parameters
@@ -69,6 +69,8 @@ class GSgnnEdgeModelInterface:
             The node features of the message passing graphs.
         edge_feats : dict of Tensors
             The edge features of the message passing graphs.
+        input_nodes: dict of Tensors
+            The input nodes of a mini-batch.
 
         Returns
         -------
@@ -125,11 +127,15 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-    def predict(self, blocks, batch_graph, node_feats, _):
+    def predict(self, blocks, batch_graph, node_feats, _, input_nodes):
         """ Make prediction on edges.
         """
-        gnn_embs = self.compute_embed_step(blocks, node_feats)
-        return self.decoder.predict(batch_graph, gnn_embs)
+        if blocks is None or len(blocks) == 0:
+            # no GNN message passing in encoder
+            encode_embs = self.comput_input_embed(input_nodes, node_feats)
+        else:
+            encode_embs = self.compute_embed_step(blocks, node_feats)
+        return self.decoder.predict(batch_graph, encode_embs)
 
 def edge_mini_batch_gnn_predict(model, loader, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
