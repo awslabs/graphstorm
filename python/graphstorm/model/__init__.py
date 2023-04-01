@@ -25,7 +25,7 @@ from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
 from .node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
 from .edge_gnn import GSgnnEdgeModel, GSgnnEdgeModelBase
 from .edge_gnn import edge_mini_batch_gnn_predict, edge_mini_batch_predict
-from .lp_gnn import GSgnnLinkPredictionModelBase
+from .lp_gnn import GSgnnLinkPredictionModel, GSgnnLinkPredictionModelBase
 
 from .rgcn_encoder import RelationalGCNEncoder
 from .rgat_encoder import RelationalGATEncoder
