@@ -17,6 +17,7 @@
     node regression, edge classification and edge regression.
 """
 
+from functools import partial
 import multiprocessing
 from multiprocessing import Process
 import glob
@@ -309,7 +310,7 @@ def get_in_files(in_files):
     return in_files
 
 def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
-                    read_file, return_queue):
+                    read_file):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -331,8 +332,6 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
         The configuration of labels.
     read_file : callable
         The function to read the node file
-    return_dict : dict
-        The dictionary that is shared among all processes and saves the parsed node data.
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
@@ -340,10 +339,10 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
         label_data = process_labels(data, label_conf)
         for key, val in label_data.items():
             feat_data[key] = val
-    return_queue.put((file_idx, (data[node_id_col], feat_data)))
+    return (data[node_id_col], feat_data)
 
 def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
-                    node_id_map, label_conf, read_file, return_queue):
+                    node_id_map, label_conf, read_file):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
@@ -371,8 +370,6 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
         The configuration of labels.
     read_file : callable
         The function to read the node file
-    return_dict : dict
-        The dictionary that is shared among all processes and saves the parsed edge data.
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
@@ -394,7 +391,7 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
     else:
         assert np.issubdtype(dst_ids.dtype, np.integer), \
                 "The destination node Ids have to be integer."
-    return_queue.put((file_idx, (src_ids, dst_ids, feat_data)))
+    return (src_ids, dst_ids, feat_data)
 
 def create_id_map(ids):
     """ Create ID map
@@ -411,6 +408,28 @@ def create_id_map(ids):
     dict : the key is the original ID and the value is the new ID.
     """
     return {id1: i for i, id1 in enumerate(ids)}
+
+def worker_fn(task_queue, res_queue, user_parser):
+    while not task_queue.empty():
+        i, in_file = task_queue.get()
+        data = user_parser(i, in_file)
+        res_queue.put((i, data))
+
+class WorkerPool:
+    def __init__(self, in_files, num_processes, user_parser, res_queue):
+        self.processes = []
+        manager = multiprocessing.Manager()
+        self.task_queue = manager.Queue()
+        for i, in_file in enumerate(in_files):
+            self.task_queue.put((i, in_file))
+        for _ in range(num_processes):
+            proc = Process(target=worker_fn, args=(self.task_queue, res_queue, user_parser))
+            proc.start()
+            self.processes.append(proc)
+
+    def close(self):
+        for proc in self.processes:
+            proc.join()
 
 def process_node_data(process_confs, remap_id, num_processes):
     """ Process node data
@@ -477,21 +496,18 @@ def process_node_data(process_confs, remap_id, num_processes):
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
-        processes = []
         manager = multiprocessing.Manager()
         return_queue = manager.Queue()
         return_dict = {}
-        for i, in_file in enumerate(in_files):
-            proc = Process(target=parse_node_data, args=(i, in_file, feat_ops, node_id_col,
-                                                         label_conf, read_file, return_queue))
-            proc.start()
-            processes.append(proc)
-            if return_queue.full():
-                file_idx, vals = return_queue.get()
-                return_dict[file_idx] = vals
+        user_parser = partial(parse_node_data, feat_ops=feat_ops,
+                              node_id_col=node_id_col,
+                              label_conf=label_conf,
+                              read_file=read_file)
+        pool = WorkerPool(in_files, num_processes, user_parser, return_queue)
         while len(return_dict) < len(in_files):
             file_idx, vals= return_queue.get()
             return_dict[file_idx] = vals
+        pool.close()
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -599,19 +615,19 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         manager = multiprocessing.Manager()
         return_queue = manager.Queue()
         return_dict = {}
-        for i, in_file in enumerate(in_files):
-            proc = Process(target=parse_edge_data, args=(i, in_file, feat_ops,
-                                                         src_id_col, dst_id_col, edge_type,
-                                                         node_id_map, label_conf,
-                                                         read_file, return_queue))
-            proc.start()
-            processes.append(proc)
-            if return_queue.full():
-                file_idx, vals = return_queue.get()
-                return_dict[file_idx] = vals
+
+        user_parser = partial(parse_edge_data, feat_ops=feat_ops,
+                              src_id_col=src_id_col,
+                              dst_id_col=dst_id_col,
+                              edge_type=edge_type,
+                              node_id_map=node_id_map,
+                              label_conf=label_conf,
+                              read_file=read_file)
+        pool = WorkerPool(in_files, num_processes, user_parser, return_queue)
         while len(return_dict) < len(in_files):
             file_idx, vals= return_queue.get()
             return_dict[file_idx] = vals
+        pool.close()
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
