@@ -286,32 +286,6 @@ def process_labels(data, label_confs):
 
 ################### The functions for multiprocessing ###############
 
-def wait_process(processes, max_proc):
-    """ Wait for a process
-
-    Parameters
-    ----------
-    processes : list of process
-        The list of processes
-    max_proc : int
-        The maximal number of processes to process the data together.
-    """
-    if len(processes) < max_proc:
-        return
-    processes[0].join()
-    processes.pop(0)
-
-def wait_all(processes):
-    """ Wait for all processes
-
-    Parameters
-    ----------
-    processes : list of processes
-        The list of processes
-    """
-    for proc in processes:
-        proc.join()
-
 def get_in_files(in_files):
     """ Get the input files.
 
@@ -335,7 +309,7 @@ def get_in_files(in_files):
     return in_files
 
 def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
-                    read_file, return_dict):
+                    read_file, return_queue):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -366,10 +340,10 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
         label_data = process_labels(data, label_conf)
         for key, val in label_data.items():
             feat_data[key] = val
-    return_dict[file_idx] = (data[node_id_col], feat_data)
+    return_queue.put((file_idx, (data[node_id_col], feat_data)))
 
 def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
-                    node_id_map, label_conf, read_file, return_dict):
+                    node_id_map, label_conf, read_file, return_queue):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
@@ -420,7 +394,7 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
     else:
         assert np.issubdtype(dst_ids.dtype, np.integer), \
                 "The destination node Ids have to be integer."
-    return_dict[file_idx] = (src_ids, dst_ids, feat_data)
+    return_queue.put((file_idx, (src_ids, dst_ids, feat_data)))
 
 def create_id_map(ids):
     """ Create ID map
@@ -505,14 +479,19 @@ def process_node_data(process_confs, remap_id, num_processes):
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
         processes = []
         manager = multiprocessing.Manager()
-        return_dict = manager.dict()
+        return_queue = manager.Queue()
+        return_dict = {}
         for i, in_file in enumerate(in_files):
             proc = Process(target=parse_node_data, args=(i, in_file, feat_ops, node_id_col,
-                                                         label_conf, read_file, return_dict))
+                                                         label_conf, read_file, return_queue))
             proc.start()
             processes.append(proc)
-            wait_process(processes, num_processes)
-        wait_all(processes)
+            if return_queue.full():
+                file_idx, vals = return_queue.get()
+                return_dict[file_idx] = vals
+        while len(return_dict) < len(in_files):
+            file_idx, vals= return_queue.get()
+            return_dict[file_idx] = vals
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -618,16 +597,21 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
         processes = []
         manager = multiprocessing.Manager()
-        return_dict = manager.dict()
+        return_queue = manager.Queue()
+        return_dict = {}
         for i, in_file in enumerate(in_files):
             proc = Process(target=parse_edge_data, args=(i, in_file, feat_ops,
                                                          src_id_col, dst_id_col, edge_type,
                                                          node_id_map, label_conf,
-                                                         read_file, return_dict))
+                                                         read_file, return_queue))
             proc.start()
             processes.append(proc)
-            wait_process(processes, num_processes)
-        wait_all(processes)
+            if return_queue.full():
+                file_idx, vals = return_queue.get()
+                return_dict[file_idx] = vals
+        while len(return_dict) < len(in_files):
+            file_idx, vals= return_queue.get()
+            return_dict[file_idx] = vals
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
