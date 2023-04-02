@@ -26,6 +26,7 @@ import os
 import json
 import argparse
 import gc
+import queue
 
 import pyarrow.parquet as pq
 import pyarrow as pa
@@ -455,7 +456,7 @@ def worker_fn(task_queue, res_queue, user_parser):
             data = user_parser(in_file)
             res_queue.put((i, data))
             gc.collect()
-    except:
+    except queue.Empty:
         pass
 
 class WorkerPool:
