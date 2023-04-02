@@ -38,7 +38,7 @@ from graphstorm.utils import sys_tracker
 
 ##################### The I/O functions ####################
 
-def read_data_parquet(data_file):
+def read_data_parquet(data_file, data_fields):
     """ Read data from the parquet file.
 
     A row of a multi-dimension data is stored as an object in Parquet.
@@ -48,6 +48,8 @@ def read_data_parquet(data_file):
     ----------
     data_file : str
         The parquet file that contains the data
+    data_fields : list of str
+        The data fields to read from the data file.
 
     Returns
     -------
@@ -55,7 +57,10 @@ def read_data_parquet(data_file):
     """
     table = pq.read_table(data_file)
     data = {}
-    for key, val in table.to_pandas().items():
+    df_table = table.to_pandas()
+    for key in data_fields:
+        assert key in df_table, f"The data field {key} does not exist in the data file."
+        val = df_table[key]
         d = np.array(val)
         # For multi-dimension arrays, we split them by rows and
         # save them as objects in parquet. We need to merge them
@@ -92,17 +97,29 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
-def parse_file_format(fmt):
+def parse_file_format(conf, is_node):
     """ Parse the file format blob
 
     Parameters
     ----------
-    fmt : dict
-        Describe the file format.
+    conf : dict
+        Describe the config for the node type or edge type.
+    is_node : bool
+        Whether this is a node config or edge config
+
+    Returns
+    -------
+    callable : the function to read the data file.
     """
+    fmt = conf["format"]
     assert 'name' in fmt, "'name' field must be defined in the format."
     if fmt["name"] == "parquet":
-        return read_data_parquet
+        keys = ["node_id_col"] if is_node else ["source_id_col", "dest_id_col"]
+        if "features" in conf:
+            keys += [feat_conf["feature_col"] for feat_conf in conf["features"]]
+        if "labels" in conf:
+            keys += [label_conf["label_col"] for label_conf in conf["labels"]]
+        return partial(read_data_parquet, keys=keys)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
 
@@ -554,7 +571,7 @@ def process_node_data(process_confs, remap_id, num_processes):
         node_type = process_conf['node_type']
         assert 'format' in process_conf, \
                 "'format' must be defined for a node type"
-        read_file = parse_file_format(process_conf['format'])
+        read_file = parse_file_format(process_conf, True)
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
@@ -677,7 +694,7 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         edge_type = process_conf['relation']
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
-        read_file = parse_file_format(process_conf['format'])
+        read_file = parse_file_format(process_conf, False)
         assert 'files' in process_conf, \
                 "'files' is not defined for an edge type."
         in_files = get_in_files(process_conf['files'])
