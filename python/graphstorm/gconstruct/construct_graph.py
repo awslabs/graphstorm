@@ -56,7 +56,7 @@ def read_data_parquet(data_file):
         # For multi-dimension arrays, we split them by rows and
         # save them as objects in parquet. We need to merge them
         # together and store them in a tensor.
-        if d.dtype.hasobject:
+        if d.dtype.hasobject and isinstance(d[0], np.ndarray):
             d = [d[i] for i in range(len(d))]
             d = np.stack(d)
         data[key] = d
@@ -140,9 +140,9 @@ class Tokenizer:
             tokens.append(t['input_ids'])
             att_masks.append(t['attention_mask'])
             type_ids.append(t['token_type_ids'])
-        return {'token_ids': th.cat(tokens, dim=0),
-                'attention_mask': th.cat(att_masks, dim=0),
-                'token_type_ids': th.cat(type_ids, dim=0)}
+        return {'token_ids': th.cat(tokens, dim=0).numpy(),
+                'attention_mask': th.cat(att_masks, dim=0).numpy(),
+                'token_type_ids': th.cat(type_ids, dim=0).numpy()}
 
 def parse_tokenize(op):
     """ Parse the tokenization configuration
@@ -410,10 +410,14 @@ def create_id_map(ids):
     return {id1: i for i, id1 in enumerate(ids)}
 
 def worker_fn(task_queue, res_queue, user_parser):
-    while not task_queue.empty():
-        i, in_file = task_queue.get()
-        data = user_parser(i, in_file)
-        res_queue.put((i, data))
+    try:
+        while True:
+            # If the queue is empty, it will raise the Empty exception.
+            i, in_file = task_queue.get_nowait()
+            data = user_parser(i, in_file)
+            res_queue.put((i, data))
+    except Exception as e:
+        pass
 
 class WorkerPool:
     def __init__(self, in_files, num_processes, user_parser, res_queue):
@@ -664,7 +668,8 @@ def process_graph(args):
 
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
                                                args.num_processes)
-    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map, args.num_processes)
+    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
+                                         args.num_processes)
     num_nodes = {}
     for ntype in set(list(node_data.keys()) + list(node_id_map.keys())):
         # If a node type has Id map.
