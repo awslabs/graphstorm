@@ -759,10 +759,14 @@ def process_graph(args):
         process_confs = json.load(json_file)
 
     sys_tracker.set_rank(0)
+    num_processes_for_nodes = args.num_processes_for_nodes \
+            if args.num_processes_for_nodes is not None else args.num_processes
+    num_processes_for_edges = args.num_processes_for_edges \
+            if args.num_processes_for_edges is not None else args.num_processes
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
-                                               args.num_processes)
+                                               num_processes_for_nodes)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
-                                         args.num_processes)
+                                         num_processes_for_edges)
     num_nodes = {}
     for ntype in set(list(node_data.keys()) + list(node_id_map.keys())):
         # If a node type has Id map.
@@ -814,6 +818,10 @@ if __name__ == '__main__':
                            help="The configuration file.")
     argparser.add_argument("--num_processes", type=int, default=1,
                            help="The number of processes to process the data simulteneously.")
+    argparser.add_argument("--num_processes_for_nodes", type=int,
+                           help="The number of processes to process node data simulteneously.")
+    argparser.add_argument("--num_processes_for_edges", type=int,
+                           help="The number of processes to process edge data simulteneously.")
     argparser.add_argument("--output_dir", type=str, required=True,
                            help="The path of the output data folder.")
     argparser.add_argument("--graph_name", type=str, required=True,
