@@ -472,6 +472,8 @@ class WorkerPool:
 
     Parameters
     ----------
+    name : str or tuple of str
+        The name of the worker pool.
     in_files : list of str
         The input data files.
     num_processes : int
@@ -479,7 +481,8 @@ class WorkerPool:
     user_parser : callable
         The user-defined function to read and process the data files.
     """
-    def __init__(self, in_files, num_processes, user_parser):
+    def __init__(self, name, in_files, num_processes, user_parser):
+        self.name = name
         self.processes = []
         manager = multiprocessing.Manager()
         self.task_queue = manager.Queue()
@@ -503,7 +506,7 @@ class WorkerPool:
         while len(return_dict) < self.num_files:
             file_idx, vals= self.res_queue.get()
             return_dict[file_idx] = vals
-            sys_tracker.check(f'process data file: {file_idx}')
+            sys_tracker.check(f'process {self.name} data file: {file_idx}')
             gc.collect()
         return return_dict
 
@@ -584,7 +587,7 @@ def process_node_data(process_confs, remap_id, num_processes):
                               label_conf=label_conf,
                               read_file=read_file)
         start = time.time()
-        pool = WorkerPool(in_files, num_processes, user_parser)
+        pool = WorkerPool(node_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
         pool.close()
         print("Processing data files for node {} takes {:.3f} seconds".format(
@@ -710,7 +713,7 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                               label_conf=label_conf,
                               read_file=read_file)
         start = time.time()
-        pool = WorkerPool(in_files, num_processes, user_parser)
+        pool = WorkerPool(edge_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
         pool.close()
         print("Processing data files for edges of {} takes {:.3f} seconds".format(
