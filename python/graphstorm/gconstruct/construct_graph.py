@@ -17,6 +17,7 @@
     node regression, edge classification and edge regression.
 """
 
+import time
 from functools import partial
 import multiprocessing
 from multiprocessing import Process
@@ -507,11 +508,14 @@ def process_node_data(process_confs, remap_id, num_processes):
                               node_id_col=node_id_col,
                               label_conf=label_conf,
                               read_file=read_file)
+        start = time.time()
         pool = WorkerPool(in_files, num_processes, user_parser, return_queue)
         while len(return_dict) < len(in_files):
             file_idx, vals= return_queue.get()
             return_dict[file_idx] = vals
         pool.close()
+        print("Processing data files for node {} takes {:.3f} seconds".format(
+            node_type, time.time() - start))
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -525,6 +529,7 @@ def process_node_data(process_confs, remap_id, num_processes):
         for i, id_map in enumerate(type_node_id_map):
             assert id_map is not None, f"We do not get ID map in part {i}."
         type_node_id_map = np.concatenate(type_node_id_map)
+        print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         # We don't need to create ID map if the node IDs are integers,
         # all node Ids are in sequence start from 0 and
         # the user doesn't force to remap node IDs.
@@ -540,6 +545,8 @@ def process_node_data(process_confs, remap_id, num_processes):
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
             assert len(type_node_data[feat_name]) == num_nodes
+            print("node type {} has feature {} of {}".format(
+                node_type, feat_name, type_node_data[feat_name].shape))
 
         # Some node types don't have data.
         if len(type_node_data) > 0:
@@ -627,11 +634,14 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                               node_id_map=node_id_map,
                               label_conf=label_conf,
                               read_file=read_file)
+        start = time.time()
         pool = WorkerPool(in_files, num_processes, user_parser, return_queue)
         while len(return_dict) < len(in_files):
             file_idx, vals= return_queue.get()
             return_dict[file_idx] = vals
         pool.close()
+        print("Processing data files for edges of {} takes {:.3f} seconds".format(
+            edge_type, time.time() - start))
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
@@ -647,10 +657,13 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         type_src_ids = np.concatenate(type_src_ids)
         type_dst_ids = np.concatenate(type_dst_ids)
         assert len(type_src_ids) == len(type_dst_ids)
+        print(f"finish merging edges of {edge_type}")
 
         for feat_name in type_edge_data:
             type_edge_data[feat_name] = np.concatenate(type_edge_data[feat_name])
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
+            print("edge type {} has feature {} of {}".format(
+                edge_type, feat_name, type_edge_data[feat_name].shape))
 
         edge_type = tuple(edge_type)
         edges[edge_type] = (type_src_ids, type_dst_ids)
