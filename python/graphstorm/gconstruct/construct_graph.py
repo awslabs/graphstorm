@@ -38,7 +38,7 @@ from graphstorm.utils import sys_tracker
 
 ##################### The I/O functions ####################
 
-def read_data_parquet(data_file, data_fields):
+def read_data_parquet(data_file, data_fields=None):
     """ Read data from the parquet file.
 
     A row of a multi-dimension data is stored as an object in Parquet.
@@ -58,6 +58,8 @@ def read_data_parquet(data_file, data_fields):
     table = pq.read_table(data_file)
     data = {}
     df_table = table.to_pandas()
+    if data_fields is None:
+        data_fields = list(df_table.keys())
     for key in data_fields:
         assert key in df_table, f"The data field {key} does not exist in the data file."
         val = df_table[key]

@@ -34,6 +34,12 @@ def test_parquet():
     assert np.all(data1['data1'] == data['data1'])
     assert np.all(data1['data2'] == data['data2'])
 
+    data1 = read_data_parquet(tmpfile, data_fields=['data1'])
+    assert len(data1) == 1
+    assert "data1" in data1
+    assert "data2" not in data1
+    assert np.all(data1['data1'] == data['data1'])
+
 def test_feat_ops():
     from graphstorm.gconstruct import parse_feat_ops, process_features
 
