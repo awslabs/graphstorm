@@ -34,6 +34,8 @@ from transformers import BertTokenizer
 import torch as th
 import dgl
 
+from graphstorm.utils import sys_tracker
+
 ##################### The I/O functions ####################
 
 def read_data_parquet(data_file):
@@ -516,6 +518,7 @@ def process_node_data(process_confs, remap_id, num_processes):
             file_idx, vals= return_queue.get()
             return_dict[file_idx] = vals
             gc.collect()
+            sys_tracker.check(f'process node {node_type}: {file_idx}')
         pool.close()
         print("Processing data files for node {} takes {:.3f} seconds".format(
             node_type, time.time() - start))
@@ -546,6 +549,7 @@ def process_node_data(process_confs, remap_id, num_processes):
         else:
             type_node_id_map = create_id_map(type_node_id_map)
             num_nodes = len(type_node_id_map)
+        sys_tracker.check(f'Create node ID map of {node_type}')
 
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
@@ -553,6 +557,7 @@ def process_node_data(process_confs, remap_id, num_processes):
             print("node type {} has feature {} of {}".format(
                 node_type, feat_name, type_node_data[feat_name].shape))
             gc.collect()
+            sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
         # Some node types don't have data.
         if len(type_node_data) > 0:
@@ -560,6 +565,7 @@ def process_node_data(process_confs, remap_id, num_processes):
         if type_node_id_map is not None:
             node_id_map[node_type] = type_node_id_map
 
+    sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
 def process_edge_data(process_confs, node_id_map, num_processes):
@@ -640,12 +646,14 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                               node_id_map=node_id_map,
                               label_conf=label_conf,
                               read_file=read_file)
+        sys_tracker.check(f'before processing edge {edge_type}')
         start = time.time()
         pool = WorkerPool(in_files, num_processes, user_parser, return_queue)
         while len(return_dict) < len(in_files):
             file_idx, vals= return_queue.get()
             return_dict[file_idx] = vals
             gc.collect()
+            sys_tracker.check(f'process edge {edge_type}: {file_idx}')
         pool.close()
         print("Processing data files for edges of {} takes {:.3f} seconds".format(
             edge_type, time.time() - start))
@@ -689,6 +697,7 @@ def process_graph(args):
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
 
+    sys_tracker.set_rank(0)
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
                                                args.num_processes)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
