@@ -319,8 +319,7 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
 
     The function parses a node file that contains node IDs, features and labels
     The node file is parsed according to users' configuration
-    and performs some feature transformation and save the result in
-    `return_dict`.
+    and performs some feature transformation.
 
     Parameters
     ----------
@@ -336,6 +335,10 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
         The configuration of labels.
     read_file : callable
         The function to read the node file
+
+    Returns
+    -------
+    tuple : node ID array and a dict of node feature tensors.
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
@@ -351,8 +354,7 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
 
     The function parses an edge file that contains the source and destination node
     IDs, edge features and potentially edge labels. The edge file is parsed
-    according to users' configuration and performs some feature transformation
-    and save the result in `return_dict`.
+    according to users' configuration and performs some feature transformation.
 
     Parameters
     ----------
@@ -374,6 +376,10 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
         The configuration of labels.
     read_file : callable
         The function to read the node file
+
+    Returns
+    -------
+    a tuple : source ID vector, destination ID vector, a dict of edge feature tensors.
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
@@ -414,6 +420,18 @@ def create_id_map(ids):
     return {id1: i for i, id1 in enumerate(ids)}
 
 def worker_fn(task_queue, res_queue, user_parser):
+    """ The worker function in the worker pool
+
+    Parameters
+    ----------
+    task_queue : Queue
+        The queue that contains all tasks
+    res_queue : Queue
+        The queue that contains the processed data. This is used for
+        communication between the worker processes and the master process.
+    user_parser : callable
+        The user-defined function to read and process the data files.
+    """
     try:
         while True:
             # If the queue is empty, it will raise the Empty exception.
@@ -425,6 +443,25 @@ def worker_fn(task_queue, res_queue, user_parser):
         pass
 
 class WorkerPool:
+    """ A worker process pool
+
+    This worker process pool is specialized to process node/edge data.
+    It creates a set of worker processes, each of which runs a worker function.
+    It first adds all tasks in a queue and each worker gets a task from the queue
+    at a time until the workers process all tasks. It maintains a result queue
+    and each worker adds the processed results in the result queue.
+    To ensure the order of the data, each data file is associated with
+    a number and the processed data are ordered by that number.
+
+    Parameters
+    ----------
+    in_files : list of str
+        The input data files.
+    num_processes : int
+        The number of processes that run in parallel.
+    user_parser : callable
+        The user-defined function to read and process the data files.
+    """
     def __init__(self, in_files, num_processes, user_parser):
         self.processes = []
         manager = multiprocessing.Manager()
@@ -439,6 +476,12 @@ class WorkerPool:
             self.processes.append(proc)
 
     def get_data(self):
+        """ Get the processed data.
+
+        Returns
+        -------
+        a dict : key is the file index, the value is processed data.
+        """
         return_dict = {}
         while len(return_dict) < self.num_files:
             file_idx, vals= self.res_queue.get()
@@ -448,6 +491,8 @@ class WorkerPool:
         return return_dict
 
     def close(self):
+        """ Stop the process pool.
+        """
         for proc in self.processes:
             proc.join()
 
