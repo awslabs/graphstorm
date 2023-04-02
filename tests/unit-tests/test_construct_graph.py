@@ -49,7 +49,7 @@ def test_json():
     data["data1"] = np.random.rand(10, 3)
     data["data2"] = np.random.rand(10)
     write_data_json(data, tmpfile)
-    data1 = read_data_json(tmpfile)
+    data1 = read_data_json(tmpfile, ["data1", "data2"])
     assert len(data1) == 2
     assert "data1" in data1
     assert "data2" in data1
