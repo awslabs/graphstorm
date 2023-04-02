@@ -115,13 +115,13 @@ def parse_file_format(conf, is_node):
     """
     fmt = conf["format"]
     assert 'name' in fmt, "'name' field must be defined in the format."
+    keys = [conf["node_id_col"]] if is_node \
+            else [conf["source_id_col"], conf["dest_id_col"]]
+    if "features" in conf:
+        keys += [feat_conf["feature_col"] for feat_conf in conf["features"]]
+    if "labels" in conf:
+        keys += [label_conf["label_col"] for label_conf in conf["labels"]]
     if fmt["name"] == "parquet":
-        keys = [conf["node_id_col"]] if is_node \
-                else [conf["source_id_col"], conf["dest_id_col"]]
-        if "features" in conf:
-            keys += [feat_conf["feature_col"] for feat_conf in conf["features"]]
-        if "labels" in conf:
-            keys += [label_conf["label_col"] for label_conf in conf["labels"]]
         return partial(read_data_parquet, data_fields=keys)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
