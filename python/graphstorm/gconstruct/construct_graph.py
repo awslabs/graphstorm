@@ -28,6 +28,7 @@ import argparse
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
+import gc
 
 from transformers import BertTokenizer
 import torch as th
@@ -417,6 +418,7 @@ def worker_fn(task_queue, res_queue, user_parser):
             i, in_file = task_queue.get_nowait()
             data = user_parser(i, in_file)
             res_queue.put((i, data))
+            gc.collect()
     except Exception as e:
         pass
 
@@ -513,6 +515,7 @@ def process_node_data(process_confs, remap_id, num_processes):
         while len(return_dict) < len(in_files):
             file_idx, vals= return_queue.get()
             return_dict[file_idx] = vals
+            gc.collect()
         pool.close()
         print("Processing data files for node {} takes {:.3f} seconds".format(
             node_type, time.time() - start))
@@ -525,10 +528,12 @@ def process_node_data(process_confs, remap_id, num_processes):
                     type_node_data[feat_name] = [None] * len(return_dict)
                 type_node_data[feat_name][i] = data[feat_name]
             type_node_id_map[i] = node_ids
+        return_dict = None
 
         for i, id_map in enumerate(type_node_id_map):
             assert id_map is not None, f"We do not get ID map in part {i}."
         type_node_id_map = np.concatenate(type_node_id_map)
+        gc.collect()
         print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         # We don't need to create ID map if the node IDs are integers,
         # all node Ids are in sequence start from 0 and
@@ -547,6 +552,7 @@ def process_node_data(process_confs, remap_id, num_processes):
             assert len(type_node_data[feat_name]) == num_nodes
             print("node type {} has feature {} of {}".format(
                 node_type, feat_name, type_node_data[feat_name].shape))
+            gc.collect()
 
         # Some node types don't have data.
         if len(type_node_data) > 0:
@@ -639,6 +645,7 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         while len(return_dict) < len(in_files):
             file_idx, vals= return_queue.get()
             return_dict[file_idx] = vals
+            gc.collect()
         pool.close()
         print("Processing data files for edges of {} takes {:.3f} seconds".format(
             edge_type, time.time() - start))
@@ -653,10 +660,12 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                 if feat_name not in type_edge_data:
                     type_edge_data[feat_name] = [None] * len(return_dict)
                 type_edge_data[feat_name][i] = part_data[feat_name]
+        return_dict = None
 
         type_src_ids = np.concatenate(type_src_ids)
         type_dst_ids = np.concatenate(type_dst_ids)
         assert len(type_src_ids) == len(type_dst_ids)
+        gc.collect()
         print(f"finish merging edges of {edge_type}")
 
         for feat_name in type_edge_data:
@@ -664,6 +673,7 @@ def process_edge_data(process_confs, node_id_map, num_processes):
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
             print("edge type {} has feature {} of {}".format(
                 edge_type, feat_name, type_edge_data[feat_name].shape))
+            gc.collect()
 
         edge_type = tuple(edge_type)
         edges[edge_type] = (type_src_ids, type_dst_ids)
