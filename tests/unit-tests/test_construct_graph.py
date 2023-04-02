@@ -81,9 +81,9 @@ def test_feat_ops():
     assert tokens['token_ids'].shape == (2, 16)
     assert tokens['attention_mask'].shape == (2, 16)
     assert tokens['token_type_ids'].shape == (2, 16)
-    assert np.all(tokens['token_ids'].numpy() == tokens['token_ids'].numpy())
-    assert np.all(tokens['attention_mask'].numpy() == tokens['attention_mask'].numpy())
-    assert np.all(tokens['token_type_ids'].numpy() == tokens['token_type_ids'].numpy())
+    assert np.all(tokens['token_ids'][0] == tokens['token_ids'][1])
+    assert np.all(tokens['attention_mask'][0] == tokens['attention_mask'][1])
+    assert np.all(tokens['token_type_ids'][0] == tokens['token_type_ids'][1])
 
     data = {
         "test1": np.random.rand(2, 4),
