@@ -25,11 +25,11 @@ import glob
 import os
 import json
 import argparse
+import gc
+
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
-import gc
-
 from transformers import BertTokenizer
 import torch as th
 import dgl
@@ -330,7 +330,7 @@ def get_in_files(in_files):
     in_files.sort()
     return in_files
 
-def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
+def parse_node_data(in_file, feat_ops, node_id_col, label_conf,
                     read_file):
     """ Parse node data.
 
@@ -340,8 +340,6 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
 
     Parameters
     ----------
-    file_idx : int
-        The index of the node file among all node files.
     in_file : str
         The path of the input node file.
     feat_ops : dict
@@ -365,7 +363,7 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
             feat_data[key] = val
     return (data[node_id_col], feat_data)
 
-def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
+def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
                     node_id_map, label_conf, read_file):
     """ Parse edge data.
 
@@ -375,8 +373,6 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
 
     Parameters
     ----------
-    file_idx : int
-        The index of the edge file among all edge files.
     in_file : str
         The path of the input edge file.
     feat_ops : dict
@@ -453,10 +449,10 @@ def worker_fn(task_queue, res_queue, user_parser):
         while True:
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
-            data = user_parser(i, in_file)
+            data = user_parser(in_file)
             res_queue.put((i, data))
             gc.collect()
-    except Exception as e:
+    except:
         pass
 
 class WorkerPool:
