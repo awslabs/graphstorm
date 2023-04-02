@@ -504,7 +504,7 @@ def process_node_data(process_confs, remap_id, num_processes):
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
         manager = multiprocessing.Manager()
-        return_queue = manager.Queue(num_processes * 2)
+        return_queue = manager.Queue(8)
         return_dict = {}
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               node_id_col=node_id_col,
@@ -630,7 +630,7 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
         processes = []
         manager = multiprocessing.Manager()
-        return_queue = manager.Queue(num_processes * 2)
+        return_queue = manager.Queue(8)
         return_dict = {}
 
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
