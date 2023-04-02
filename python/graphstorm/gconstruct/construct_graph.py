@@ -425,16 +425,27 @@ def worker_fn(task_queue, res_queue, user_parser):
         pass
 
 class WorkerPool:
-    def __init__(self, in_files, num_processes, user_parser, res_queue):
+    def __init__(self, in_files, num_processes, user_parser):
         self.processes = []
         manager = multiprocessing.Manager()
         self.task_queue = manager.Queue()
+        self.res_queue = manager.Queue(8)
+        self.num_files = len(in_files)
         for i, in_file in enumerate(in_files):
             self.task_queue.put((i, in_file))
         for _ in range(num_processes):
-            proc = Process(target=worker_fn, args=(self.task_queue, res_queue, user_parser))
+            proc = Process(target=worker_fn, args=(self.task_queue, self.res_queue, user_parser))
             proc.start()
             self.processes.append(proc)
+
+    def get_data(self):
+        return_dict = {}
+        while len(return_dict) < self.num_files:
+            file_idx, vals= self.res_queue.get()
+            return_dict[file_idx] = vals
+            sys_tracker.check(f'process data file: {file_idx}')
+            gc.collect()
+        return return_dict
 
     def close(self):
         for proc in self.processes:
@@ -505,20 +516,14 @@ def process_node_data(process_confs, remap_id, num_processes):
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
-        manager = multiprocessing.Manager()
-        return_queue = manager.Queue(8)
-        return_dict = {}
+
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               node_id_col=node_id_col,
                               label_conf=label_conf,
                               read_file=read_file)
         start = time.time()
-        pool = WorkerPool(in_files, num_processes, user_parser, return_queue)
-        while len(return_dict) < len(in_files):
-            file_idx, vals= return_queue.get()
-            return_dict[file_idx] = vals
-            gc.collect()
-            sys_tracker.check(f'process node {node_type}: {file_idx}')
+        pool = WorkerPool(in_files, num_processes, user_parser)
+        return_dict = pool.get_data()
         pool.close()
         print("Processing data files for node {} takes {:.3f} seconds".format(
             node_type, time.time() - start))
@@ -634,10 +639,6 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
-        processes = []
-        manager = multiprocessing.Manager()
-        return_queue = manager.Queue(8)
-        return_dict = {}
 
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
                               src_id_col=src_id_col,
@@ -646,14 +647,9 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                               node_id_map=node_id_map,
                               label_conf=label_conf,
                               read_file=read_file)
-        sys_tracker.check(f'before processing edge {edge_type}')
         start = time.time()
-        pool = WorkerPool(in_files, num_processes, user_parser, return_queue)
-        while len(return_dict) < len(in_files):
-            file_idx, vals= return_queue.get()
-            return_dict[file_idx] = vals
-            gc.collect()
-            sys_tracker.check(f'process edge {edge_type}: {file_idx}')
+        pool = WorkerPool(in_files, num_processes, user_parser)
+        return_dict = pool.get_data()
         pool.close()
         print("Processing data files for edges of {} takes {:.3f} seconds".format(
             edge_type, time.time() - start))
