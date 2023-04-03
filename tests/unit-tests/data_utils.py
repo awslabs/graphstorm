@@ -163,6 +163,10 @@ def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy'):
                                               graph_name=graph_name)
 
 def create_lm_graph(tmpdirname):
+    """ Create a graph with textual feaures
+        Only n0 has a textual feature.
+        n1 does not have textual feature.
+    """
     bert_model_name = "bert-base-uncased"
     max_seq_length = 8
     lm_config = [{"lm_type": "bert",
@@ -187,6 +191,9 @@ def create_lm_graph(tmpdirname):
     return lm_config, feat_size, input_ids, attention_mask, g, part_config
 
 def create_lm_graph2(tmpdirname):
+    """ Create a graph with textual feaures
+        Both n0 and n1 have textual features.
+    """
     bert_model_name = "bert-base-uncased"
     max_seq_length = 8
     lm_config = [{"lm_type": "bert",

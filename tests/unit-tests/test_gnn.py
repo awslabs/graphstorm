@@ -110,6 +110,12 @@ def check_mlp_node_prediction(model, data):
     assert_equal(labels1.numpy(), labels2.numpy())
 
 def test_rgcn_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGCNLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -127,6 +133,12 @@ def test_rgcn_node_prediction():
     dgl.distributed.kvstore.close_kvstore()
 
 def test_rgat_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGATLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -193,6 +205,12 @@ def check_mlp_edge_prediction(model, data):
     assert_equal(labels1.numpy(), labels2.numpy())
 
 def test_rgcn_edge_prediction():
+    """ Test edge prediction logic correctness with a edge prediction model
+        composed of InputLayerEncoder + RGCNLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -222,6 +240,12 @@ def create_mlp_edge_model(g, lm_config):
     return model
 
 def test_mlp_edge_prediction():
+    """ Test edge prediction logic correctness with a edge prediction model
+        composed of InputLayerEncoder + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -252,6 +276,12 @@ def create_mlp_node_model(g, lm_config):
     return model
 
 def test_mlp_node_prediction():
+    """ Test node prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -282,6 +312,9 @@ def create_mlp_lp_model(g, lm_config):
 
 
 def test_mlp_link_prediction():
+    """ Test full graph inference logic with a link prediciton model
+        composed of InputLayerEncoder + Decoder
+    """
     #  initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -298,6 +331,8 @@ def test_mlp_link_prediction():
     embs = do_full_graph_inference(model, np_data)
     assert 'n0' in embs
     assert 'n1' in embs
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
 
 def create_ec_config(tmp_path, file_name):
     conf_object = {
@@ -329,6 +364,8 @@ def create_ec_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_edge_classification():
+    """ Test logic of building a edge classification model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -376,6 +413,8 @@ def create_er_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_edge_regression():
+    """ Test logic of building a edge regression model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -422,6 +461,8 @@ def create_nr_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_node_regression():
+    """ Test logic of building a node regression model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -469,6 +510,8 @@ def create_nc_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_node_classification():
+    """ Test logic of building a node classification model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -516,6 +559,8 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_link_prediction():
+    """ Test logic of building a link prediction model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
