@@ -456,22 +456,23 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
             feat_data[key] = val
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
-    assert node_id_map is not None
     src_type, _, dst_type = edge_type
-    if src_type in node_id_map:
-        src_ids = np.array([node_id_map[src_type][sid] for sid in src_ids])
-    else:
-        assert np.issubdtype(src_ids.dtype, np.integer), \
-                "The source node Ids have to be integer."
-    if dst_type in node_id_map:
-        dst_ids = np.array([node_id_map[dst_type][did] for did in dst_ids])
-    else:
-        assert np.issubdtype(dst_ids.dtype, np.integer), \
-                "The destination node Ids have to be integer."
+    src_ids = node_id_map[src_type](src_ids)
+    dst_ids = node_id_map[dst_type](dst_ids)
     return (src_ids, dst_ids, feat_data)
 
-def create_id_map(ids):
-    """ Create ID map
+def IdentityMap:
+    def __init__(self, size):
+        self._size = size
+
+    def __len__(self):
+        return self._size
+
+    def __call__(self, ids):
+        return ids
+
+def IdMap:
+    """ ID map
 
     This creates an ID map for the input IDs.
 
@@ -479,12 +480,15 @@ def create_id_map(ids):
     ----------
     ids : Numpy array
         The input IDs
-
-    Returns
-    -------
-    dict : the key is the original ID and the value is the new ID.
     """
-    return {id1: i for i, id1 in enumerate(ids)}
+    def __init__(self, ids):
+        self._ids = {id1: i for i, id1 in enumerate(ids)}
+
+    def __len__(self):
+        return len(self._ids)
+
+    def __call__(self, ids):
+        return np.array([self._ids[sid] for sid in src_ids])
 
 def worker_fn(task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -665,9 +669,9 @@ def process_node_data(process_confs, remap_id, num_processes):
                 and np.all(type_node_id_map == np.arange(len(type_node_id_map))) \
                 and not remap_id:
             num_nodes = len(type_node_id_map)
-            type_node_id_map = None
+            type_node_id_map = IdentityMap(num_nodes)
         else:
-            type_node_id_map = create_id_map(type_node_id_map)
+            type_node_id_map = IdMap(type_node_id_map)
             num_nodes = len(type_node_id_map)
         sys_tracker.check(f'Create node ID map of {node_type}')
 
@@ -826,21 +830,7 @@ def process_graph(args):
                                                num_processes_for_nodes)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
                                          num_processes_for_edges)
-    num_nodes = {}
-    for ntype in set(list(node_data.keys()) + list(node_id_map.keys())):
-        # If a node type has Id map.
-        if ntype in node_id_map:
-            num_nodes[ntype] = len(node_id_map[ntype])
-        # If a node type has node data.
-        elif ntype in node_data:
-            for feat_name in node_data[ntype]:
-                # Here we only need to look at the length of the first node features
-                # to get the number of nodes for the node type.
-                num_nodes[ntype] = len(node_data[ntype][feat_name])
-                break
-        else:
-            # A node type must have either ID map or node data.
-            raise ValueError('Node type {} must have either ID map or node data'.format(ntype))
+    num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
