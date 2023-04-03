@@ -57,7 +57,10 @@ def read_data_json(data_file, data_fields):
     dict : map from data name to data
     """
     with open(data_file, 'r', encoding="utf8") as json_file:
-        data_records = json.load(json_file)
+        data_records = []
+        for line in json_file.readlines():
+            record = json.loads(line)
+            data_records.append(record)
 
     data = {key: [] for key in data_fields}
     for record in data_records:
