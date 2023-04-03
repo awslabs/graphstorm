@@ -57,7 +57,10 @@ def read_data_json(data_file, data_fields):
     dict : map from data name to data
     """
     with open(data_file, 'r', encoding="utf8") as json_file:
-        data_records = json.load(json_file)
+        data_records = []
+        for line in json_file.readlines():
+            record = json.loads(line)
+            data_records.append(record)
 
     data = {key: [] for key in data_fields}
     for record in data_records:
@@ -801,8 +804,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
     return edges, edge_data
 
 def verify_confs(confs):
-    ntypes = set([conf['node_type'] for conf in confs["nodes"]])
-    etypes = [conf['relation'] for conf in confs["edges"]]
+    ntypes = set([conf['node_type'] for conf in confs["node"]])
+    etypes = [conf['relation'] for conf in confs["edge"]]
     for src_type, etype, dst_type in etypes:
         assert src_type in ntypes, f"source node type {src_type} does not exist."
         assert dst_type in ntypes, f"destination node type {dst_type} does not exist."
