@@ -799,6 +799,13 @@ def process_edge_data(process_confs, node_id_map, num_processes):
 
     return edges, edge_data
 
+def verify_confs(confs):
+    ntypes = set([conf['node_type'] for conf in confs["nodes"]])
+    etypes = [conf['relation'] for conf in confs["edges"]]
+    for src_type, etype, dst_type in etypes:
+        assert src_type in ntypes, f"source node type {src_type} does not exist."
+        assert dst_type in ntypes, f"destination node type {dst_type} does not exist."
+
 def process_graph(args):
     """ Process the graph.
     """
@@ -810,6 +817,7 @@ def process_graph(args):
             if args.num_processes_for_nodes is not None else args.num_processes
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
+    verify_confs(process_confs)
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
                                                num_processes_for_nodes)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
