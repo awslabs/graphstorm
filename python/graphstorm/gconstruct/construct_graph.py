@@ -462,6 +462,15 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
     return (src_ids, dst_ids, feat_data)
 
 def IdentityMap:
+    """ Identity map
+
+    This is an identity map. It doesn't do any mapping on IDs.
+
+    Parameters
+    ----------
+    size : int
+        The map size.
+    """
     def __init__(self, size):
         self._size = size
 
