@@ -461,7 +461,7 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
     dst_ids = node_id_map[dst_type](dst_ids)
     return (src_ids, dst_ids, feat_data)
 
-def IdentityMap:
+class IdentityMap:
     """ Identity map
 
     This is an identity map. It doesn't do any mapping on IDs.
@@ -480,7 +480,10 @@ def IdentityMap:
     def __call__(self, ids):
         return ids
 
-def IdMap:
+    def get_key_vals(self):
+        return None
+
+class IdMap:
     """ ID map
 
     This creates an ID map for the input IDs.
@@ -497,7 +500,10 @@ def IdMap:
         return len(self._ids)
 
     def __call__(self, ids):
-        return np.array([self._ids[sid] for sid in src_ids])
+        return np.array([self._ids[id_] for id_ in ids])
+
+    def get_key_vals(self):
+        return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
 
 def worker_fn(task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -864,10 +870,12 @@ def process_graph(args):
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
     for ntype in node_id_map:
-        map_data = {}
-        map_data["orig"] = np.array(list(node_id_map[ntype].keys()))
-        map_data["new"] = np.array(list(node_id_map[ntype].values()))
-        write_data_parquet(map_data, os.path.join(args.output_dir, ntype + "_id_remap.parquet"))
+        kv_pairs = node_id_map[ntype].get_key_vals()
+        if kv_pairs is not None:
+            map_data = {}
+            map_data["orig"], map_data["new"] = kv_pairs
+            write_data_parquet(map_data, os.path.join(args.output_dir,
+                                                      ntype + "_id_remap.parquet"))
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
