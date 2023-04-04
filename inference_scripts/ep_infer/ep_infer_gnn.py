@@ -29,19 +29,11 @@ def get_evaluator(config): # pylint: disable=unused-argument
     """
     if config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
-                                        config.eval_metric,
-                                        config.enable_early_stop,
-                                        config.call_to_consider_early_stop,
-                                        config.window_for_early_stop,
-                                        config.early_stop_strategy)
+                                        config.eval_metric)
     elif config.task_type == 'edge_classification':
         return GSgnnAccEvaluator(config.evaluation_frequency,
                                  config.eval_metric,
-                                 config.multilabel,
-                                 config.enable_early_stop,
-                                 config.call_to_consider_early_stop,
-                                 config.window_for_early_stop,
-                                 config.early_stop_strategy)
+                                 config.multilabel)
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
