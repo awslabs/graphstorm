@@ -8,7 +8,7 @@ on:
   push:
     branches: ["ci_dev", "ci_temporary", "main", "opensource_gsf"]
   schedule:
-    - cron: '0 */6 * * *' 
+    - cron: '0 */12 * * *' 
 
 defaults:
   run:
