@@ -1298,12 +1298,6 @@ class GSConfig:
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")
     group.add_argument(
-        "--job_name",
-        type=str,
-        default=argparse.SUPPRESS,
-        help="This is the path to store the output and TensorBoard results.",
-    )
-    group.add_argument(
         "--verbose",
         type=lambda x: (str(x).lower() in ['true', '1']),
         default=argparse.SUPPRESS,
