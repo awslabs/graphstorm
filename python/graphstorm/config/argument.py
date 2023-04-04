@@ -197,7 +197,7 @@ class GSConfig:
             # gradient checkpoint does not work with freeze_lm_encoder_epochs
             # When freeze_lm_encoder_epochs is set, turn off gradient checkpoint
             if self.freeze_lm_encoder_epochs > 0:
-                for i in range(len(self.node_lm_configs)):
+                for i, _ in enumerate(self.node_lm_configs):
                     if self.node_lm_configs[i]["gradient_checkpoint"]:
                         print("WARNING: freeze_lm_encoder_epochs can not work with " \
                               "gradient checkpoint. Turn gradient checkpoint to False")
