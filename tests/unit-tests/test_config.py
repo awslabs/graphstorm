@@ -1463,7 +1463,7 @@ def create_lm_config(tmp_path, file_name):
                              "node_types": ['a']}]
     }
 
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # This is not language model
@@ -1556,7 +1556,7 @@ def test_lm():
         assert config.node_lm_configs[0]['gradient_checkpoint'] == True
         assert len(config.node_lm_configs[0]['node_types']) == 1
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.freeze_lm_encoder_epochs == 0
