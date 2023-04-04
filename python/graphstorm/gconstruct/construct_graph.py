@@ -864,9 +864,12 @@ def process_graph(args):
         for name, edata in edge_data[etype].items():
             g.edges[etype].data[name] = th.tensor(edata)
 
-    if args.output_format == "DistDGL":
+    if args.output_format == "DistDGL" and args.num_partitions == 1:
         dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
                                         args.output_dir, part_method="None")
+    elif args.output_format == "DistDGL":
+        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
+                                        args.output_dir, part_method="metis")
     elif args.output_format == "DGL":
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
