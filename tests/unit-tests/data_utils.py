@@ -21,6 +21,12 @@ import dgl
 import numpy as np
 import torch as th
 import dgl.distributed as dist
+import tempfile
+
+from transformers import AutoTokenizer
+from graphstorm import get_feat_size
+from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
+from util import create_tokens
 
 
 def generate_mask(idx, length):
@@ -156,6 +162,73 @@ def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy'):
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
 
+def create_lm_graph(tmpdirname):
+    """ Create a graph with textual feaures
+        Only n0 has a textual feature.
+        n1 does not have textual feature.
+    """
+    bert_model_name = "bert-base-uncased"
+    max_seq_length = 8
+    lm_config = [{"lm_type": "bert",
+                  "model_name": bert_model_name,
+                  "gradient_checkpoint": True,
+                  "node_types": ["n0"]}]
+    # get the test dummy distributed graph
+    g, part_config = generate_dummy_dist_graph(tmpdirname)
+
+    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    input_text = ["Hello world!"]
+    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    input_ids, valid_len, attention_mask, _ = \
+        create_tokens(tokenizer=tokenizer,
+                      input_text=input_text,
+                      max_seq_length=max_seq_length,
+                      num_node=g.number_of_nodes('n0'))
+
+    g.nodes['n0'].data[TOKEN_IDX] = input_ids
+    g.nodes['n0'].data[VALID_LEN] = valid_len
+
+    return lm_config, feat_size, input_ids, attention_mask, g, part_config
+
+def create_lm_graph2(tmpdirname):
+    """ Create a graph with textual feaures
+        Both n0 and n1 have textual features.
+    """
+    bert_model_name = "bert-base-uncased"
+    max_seq_length = 8
+    lm_config = [{"lm_type": "bert",
+                  "model_name": bert_model_name,
+                  "gradient_checkpoint": True,
+                  "attention_probs_dropout_prob": 0,
+                  "hidden_dropout_prob":0,
+                  "node_types": ["n0", "n1"]}]
+
+    # get the test dummy distributed graph
+    g, create_lm_graph = generate_dummy_dist_graph(tmpdirname)
+
+    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    input_text = ["Hello world!"]
+    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    input_ids0, valid_len0, attention_mask0, _ = \
+        create_tokens(tokenizer=tokenizer,
+                      input_text=input_text,
+                      max_seq_length=max_seq_length,
+                      num_node=g.number_of_nodes('n0'))
+
+    g.nodes['n0'].data[TOKEN_IDX] = input_ids0
+    g.nodes['n0'].data[ATT_MASK_IDX] = valid_len0
+
+    input_text = ["Hello Aamzon!"]
+    input_ids1, valid_len1, attention_mask1, _ = \
+        create_tokens(tokenizer=tokenizer,
+                      input_text=input_text,
+                      max_seq_length=max_seq_length,
+                      num_node=g.number_of_nodes('n1'))
+    g.nodes['n1'].data[TOKEN_IDX] = input_ids1
+    g.nodes['n1'].data[VALID_LEN] = valid_len1
+
+    return lm_config, feat_size, input_ids0, attention_mask0, \
+        input_ids1, attention_mask1, g, create_lm_graph
 
 """ For self tests"""
 if __name__ == '__main__':

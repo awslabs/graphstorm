@@ -53,7 +53,7 @@ class GSgnnNodeModelInterface:
         """
 
     @abc.abstractmethod
-    def predict(self, blocks, node_feats, edge_feats):
+    def predict(self, blocks, node_feats, edge_feats, input_nodes):
         """ Make prediction on the nodes with GNN.
 
         Parameters
@@ -64,6 +64,8 @@ class GSgnnNodeModelInterface:
             The node features of the message passing graphs.
         edge_feats : dict of Tensors
             The edge features of the message passing graphs.
+        input_nodes: dict of Tensors
+            The input nodes of a mini-batch.
 
         Returns
         -------
@@ -123,15 +125,19 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-    def predict(self, blocks, node_feats, _):
+    def predict(self, blocks, node_feats, _, input_nodes):
         """ Make prediction on the nodes with GNN.
         """
-        gnn_embs = self.compute_embed_step(blocks, node_feats)
+        if blocks is None or len(blocks) == 0:
+            # no GNN message passing in encoder
+            encode_embs = self.comput_input_embed(input_nodes, node_feats)
+        else:
+            encode_embs = self.compute_embed_step(blocks, node_feats)
         # TODO(zhengda) we only support node prediction on one node type.
-        assert len(gnn_embs) == 1, 'There are {} node types: {}'.format(len(gnn_embs),
-                                                                        list(gnn_embs.keys()))
-        target_ntype = list(gnn_embs.keys())[0]
-        return self.decoder.predict(gnn_embs[target_ntype]), gnn_embs[target_ntype]
+        assert len(encode_embs) == 1, \
+            f'There are {len(encode_embs)} node types: {list(encode_embs.keys())}'
+        target_ntype = list(encode_embs.keys())[0]
+        return self.decoder.predict(encode_embs[target_ntype]), encode_embs[target_ntype]
 
 def node_mini_batch_gnn_predict(model, loader, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
@@ -165,7 +171,7 @@ def node_mini_batch_gnn_predict(model, loader, return_label=False):
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
-            pred, emb = model.predict(blocks, input_feats, None)
+            pred, emb = model.predict(blocks, input_feats, None, input_nodes)
             preds.append(pred.cpu())
             embs.append(emb.cpu())
 
