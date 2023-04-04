@@ -1482,10 +1482,6 @@ def create_lm_config(tmp_path, file_name):
         "lm_train_nodes": -2,
         "lm_infer_batchszie": -1,
         "freeze_lm_encoder_epochs": -1,
-        "node_lm_configs": {"lm_type": "bert",
-                             "model_name": "bert-base-uncased",
-                             "gradient_checkpoint": False,
-                             "node_types": ['a']}
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
@@ -1578,12 +1574,15 @@ def test_lm():
         check_failure(config, "lm_train_nodes")
         check_failure(config, "lm_infer_batchszie")
         check_failure(config, "freeze_lm_encoder_epochs")
-        check_failure(config, "node_lm_configs")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail2.yaml'),
                          local_rank=0)
-        config = GSConfig(args)
-        check_failure(config, "node_lm_configs")
+        has_error = False
+        try:
+            config = GSConfig(args)
+        except:
+            has_error = True
+        assert has_error
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail3.yaml'),
                          local_rank=0)
