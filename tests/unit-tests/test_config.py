@@ -1549,20 +1549,20 @@ def test_lm():
         config = GSConfig(args)
         assert config.lm_train_nodes == 10
         assert config.lm_infer_batchszie == 64
-        assert config.freeze_lm_encoder_epochs == 3
+        assert config.freeze_lm_encoder_epochs == 0
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
         assert config.node_lm_configs[0]['lm_type'] == "bert"
-        assert config.node_lm_configs[0]['gradient_checkpoint'] == False
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == True
         assert len(config.node_lm_configs[0]['node_types']) == 1
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.freeze_lm_encoder_epochs == 0
+        assert config.freeze_lm_encoder_epochs == 3
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
-        assert config.node_lm_configs[0]['gradient_checkpoint'] == True
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test3.yaml'),
                          local_rank=0)
