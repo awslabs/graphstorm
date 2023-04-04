@@ -1440,7 +1440,7 @@ def create_lm_config(tmp_path, file_name):
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
         "lm_infer_batchszie": 64,
-        "freeze_lm_encoder_epochs": 3,
+        "freeze_lm_encoder_epochs": 0,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
                              "gradient_checkpoint": True,
@@ -1452,11 +1452,11 @@ def create_lm_config(tmp_path, file_name):
 
     # With language model configured for ode type 'a'
     # There is a conflict between freeze_lm_encoder_epochs and gradient_checkpoint
-    # gradient_checkpoint will be set to False
+    # gradient_checkpoint will be set to False if freeze_lm_encoder_epochs > 0
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
         "lm_infer_batchszie": 64,
-        "freeze_lm_encoder_epochs": 0,
+        "freeze_lm_encoder_epochs": 3,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
                              "gradient_checkpoint": True,
@@ -1553,7 +1553,7 @@ def test_lm():
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
         assert config.node_lm_configs[0]['lm_type'] == "bert"
-        assert config.node_lm_configs[0]['gradient_checkpoint'] == True
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == False
         assert len(config.node_lm_configs[0]['node_types']) == 1
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test2.yaml'),
@@ -1562,7 +1562,7 @@ def test_lm():
         assert config.freeze_lm_encoder_epochs == 0
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
-        assert config.node_lm_configs[0]['gradient_checkpoint'] == False
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test3.yaml'),
                          local_rank=0)
