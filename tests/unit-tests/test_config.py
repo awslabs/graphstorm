@@ -1429,26 +1429,44 @@ def create_lm_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
 
+    # config for check default value
     yaml_object["gsf"]["lm"] = {
     }
 
-    # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # With language model configured for ode type 'a'
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
         "lm_infer_batchszie": 64,
         "freeze_lm_encoder_epochs": 3,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
-                             "gradient_checkpoint": False,
+                             "gradient_checkpoint": True,
                              "node_types": ['a']}]
     }
 
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # With language model configured for ode type 'a'
+    # There is a conflict between freeze_lm_encoder_epochs and gradient_checkpoint
+    # gradient_checkpoint will be set to False
+    yaml_object["gsf"]["lm"] = {
+        "lm_train_nodes": 10,
+        "lm_infer_batchszie": 64,
+        "freeze_lm_encoder_epochs": 0,
+        "node_lm_configs": [{"lm_type": "bert",
+                             "model_name": "bert-base-uncased",
+                             "gradient_checkpoint": True,
+                             "node_types": ['a']}]
+    }
+
+    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # This is not language model
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": -1,
         "lm_infer_batchszie": 1,
@@ -1456,9 +1474,10 @@ def create_lm_config(tmp_path, file_name):
         "node_lm_configs": None
     }
 
-    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # Invalid value for lm_train_nodes, lm_infer_batchszie and freeze_lm_encoder_epochs
     yaml_object["gsf"]["output"] = {
         "lm_train_nodes": -2,
         "lm_infer_batchszie": -1,
@@ -1472,6 +1491,7 @@ def create_lm_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # "node_lm_configs" should not be an empty list
     yaml_object["gsf"]["output"] = {
         "node_lm_configs": []
     }
@@ -1479,30 +1499,32 @@ def create_lm_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # config for check default value with gsf encoder type lm
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "lm"
     }
 
-    # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # freeze_lm_encoder_epochs does not work with model_encoder_type lm
     yaml_object["gsf"]["lm"] = {
         "freeze_lm_encoder_epochs": 3,
     }
     with open(os.path.join(tmp_path, file_name+"_fail3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # config for check default value with gsf encoder type mlp
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "mlp"
     }
 
-    # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # freeze_lm_encoder_epochs does not work with model_encoder_type mlp
     yaml_object["gsf"]["lm"] = {
         "freeze_lm_encoder_epochs": 3,
     }
@@ -1530,8 +1552,19 @@ def test_lm():
         assert config.freeze_lm_encoder_epochs == 3
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
+        assert config.node_lm_configs[0]['lm_type'] == "bert"
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == True
+        assert len(config.node_lm_configs[0]['node_types']) == 1
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test2.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert config.freeze_lm_encoder_epochs == 0
+        assert config.node_lm_configs is not None
+        assert len(config.node_lm_configs) == 1
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == False
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test3.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.lm_train_nodes == -1
