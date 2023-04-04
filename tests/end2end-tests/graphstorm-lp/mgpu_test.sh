@@ -301,8 +301,9 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_l
 error_and_exit $?
 
 rm -fr /data/gsgnn_lp_ml_lm_dot_all_etype/*
-
 rm train_log.txt
+
+
 echo "**************dataset: Movielens, input encoder with Bert, inference: full-graph, negative_sampler: joint, decoder: Dot, save model"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lm_lp.py --cf ml_lm_lp.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --save-model-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/ --topk-model-to-save 1 --save-model-per-iter 1000 --save-embed-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/emb/ --use-dot-product True --model-encoder-type mlp" | tee train_log.txt
 

@@ -84,6 +84,16 @@ def create_rgat_node_model(g):
     return model
 
 def check_node_prediction(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnNodeModel with GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnNodeModel
+        Node model
+    data: GSgnnNodeTrainData
+        Train data
+    """
     g = data.g
     embs = do_full_graph_inference(model, data)
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
@@ -97,6 +107,16 @@ def check_node_prediction(model, data):
     assert_equal(labels1.numpy(), labels2.numpy())
 
 def check_mlp_node_prediction(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnNodeModel without GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnNodeModel
+        Node model
+    data: GSgnnNodeTrainData
+        Train data
+    """
     g = data.g
     embs = do_full_graph_inference(model, data)
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
@@ -175,6 +195,16 @@ def create_rgcn_edge_model(g):
     return model
 
 def check_edge_prediction(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnEdgeModel with GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnEdgeModel
+        Node model
+    data: GSgnnEdgeTrainData
+        Train data
+    """
     g = data.g
     embs = do_full_graph_inference(model, data)
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
@@ -190,6 +220,16 @@ def check_edge_prediction(model, data):
     assert_equal(labels1.numpy(), labels2.numpy())
 
 def check_mlp_edge_prediction(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnEdgeModel without GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnEdgeModel
+        Node model
+    data: GSgnnEdgeTrainData
+        Train data
+    """
     g = data.g
     embs = do_full_graph_inference(model, data)
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
@@ -228,6 +268,19 @@ def test_rgcn_edge_prediction():
     dgl.distributed.kvstore.close_kvstore()
 
 def create_mlp_edge_model(g, lm_config):
+    """ Create a GSgnnEdgeModel with only an input encoder and a decoder.
+
+    Parameters
+    ----------
+    g: dgl.DistGraph
+        Input graph.
+    lm_config:
+        Language model config
+
+    Return
+    ------
+    GSgnnEdgeModel
+    """
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
@@ -265,6 +318,19 @@ def test_mlp_edge_prediction():
     dgl.distributed.kvstore.close_kvstore()
 
 def create_mlp_node_model(g, lm_config):
+    """ Create a GSgnnNodeModel with only an input encoder and a decoder.
+
+    Parameters
+    ----------
+    g: dgl.DistGraph
+        Input graph.
+    lm_config:
+        Language model config
+
+    Return
+    ------
+    GSgnnNodeModel
+    """
     model = GSgnnNodeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
@@ -301,6 +367,19 @@ def test_mlp_node_prediction():
     dgl.distributed.kvstore.close_kvstore()
 
 def create_mlp_lp_model(g, lm_config):
+    """ Create a GSgnnLinkPredictionModel with only an input encoder and a decoder.
+
+    Parameters
+    ----------
+    g: dgl.DistGraph
+        Input graph.
+    lm_config:
+        Language model config
+
+    Return
+    ------
+    GSgnnLinkPredictionModel
+    """
     model = GSgnnLinkPredictionModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
