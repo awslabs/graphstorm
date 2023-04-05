@@ -106,7 +106,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-def lp_mini_batch_predict(model, emb, loader, device):
+async def lp_mini_batch_predict(model, emb, loader, device):
     """ Perform mini-batch prediction.
 
         This function follows full-grain GNN embedding inference.
@@ -133,7 +133,7 @@ def lp_mini_batch_predict(model, emb, loader, device):
     decoder = model.decoder
     with th.no_grad():
         scores = {}
-        for pos_neg_tuple, neg_sample_type in loader:
+        async for pos_neg_tuple, neg_sample_type in loader:
             score = \
                 decoder.calc_test_scores(
                     emb, pos_neg_tuple, neg_sample_type, device)

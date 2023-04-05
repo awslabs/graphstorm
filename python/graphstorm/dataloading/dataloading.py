@@ -499,7 +499,7 @@ class GSgnnLinkPredictionTestDataLoader():
         negative_sampler = GlobalUniform(num_negative_edges)
         return negative_sampler
 
-    def __iter__(self):
+    def __aiter__(self):
         self._reinit_dataset()
         return self
 
@@ -516,11 +516,12 @@ class GSgnnLinkPredictionTestDataLoader():
         self._current_pos[etype] += self._batch_size
         return pos_neg_tuple, end_of_etype
 
-    def __next__(self):
+    async def __anext__(self):
         if len(self.remaining_etypes) == 0:
-            raise StopIteration
+            raise StopAsyncIteration
 
         curr_etype = self.remaining_etypes[0]
+        # cur_iter, end_of_etype = await self._next_data(curr_etype)
         cur_iter, end_of_etype = self._next_data(curr_etype)
         if end_of_etype:
             self.remaining_etypes.pop(0)

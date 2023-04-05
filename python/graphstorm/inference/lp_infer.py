@@ -17,6 +17,7 @@
 """
 import time
 import torch as th
+import asyncio
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
@@ -78,7 +79,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
             test_start = time.time()
             device = th.device(f"cuda:{self.dev_id}") \
                 if self.dev_id >= 0 else th.device("cpu")
-            test_scores = lp_mini_batch_predict(self._model, embs, loader, device)
+            test_scores = asyncio.run(lp_mini_batch_predict(self._model, embs, loader, device))
             val_mrr, test_mrr = self.evaluator.evaluate(None, test_scores, 0)
             sys_tracker.check('run evaluation')
             if self.rank == 0:
