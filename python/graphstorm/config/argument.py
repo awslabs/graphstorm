@@ -112,6 +112,8 @@ class GSConfig:
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
+        # We do argument check as early as possible to prevent config bugs.
+        self.handle_argument_conflicts()
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
@@ -186,6 +188,22 @@ class GSConfig:
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
                 print(f"Overriding Argument: {arg_key}")
+
+    def handle_argument_conflicts(self):
+        """Check and resolve argument conflicts
+        """
+        # 1. language model conflicts
+        if self.node_lm_configs is not None:
+            # gradient checkpoint does not work with freeze_lm_encoder_epochs
+            # When freeze_lm_encoder_epochs is set, turn off gradient checkpoint
+            if self.freeze_lm_encoder_epochs > 0:
+                for i, _ in enumerate(self.node_lm_configs):
+                    if self.node_lm_configs[i]["gradient_checkpoint"]:
+                        print("WARNING: freeze_lm_encoder_epochs can not work with " \
+                              "gradient checkpoint. Turn gradient checkpoint to False")
+                        self.node_lm_configs[i]["gradient_checkpoint"] = False
+
+        # TODO(xiangsx): Add more check
 
     ###################### Environment Info ######################
     @property
@@ -305,6 +323,12 @@ class GSConfig:
         if hasattr(self, "_freeze_lm_encoder_epochs"):
             assert self._freeze_lm_encoder_epochs >= 0, \
                 "Number of warmup epochs must be larger than or equal to 0"
+
+            assert self._freeze_lm_encoder_epochs == 0 or \
+                self.model_encoder_type not in ["lm", "mlp"], \
+                "Encoder type lm (language model) and mlp (encoder layer only) " \
+                "do not work with language model warmup. It will cause torch " \
+                "DDP error"
             return self._freeze_lm_encoder_epochs
 
         return 0
