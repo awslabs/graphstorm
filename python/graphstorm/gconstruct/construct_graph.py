@@ -590,7 +590,7 @@ def process_node_data(process_confs, remap_id, num_processes):
         pool = WorkerPool(node_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
         pool.close()
-        print("Processing data files for node {} takes {:.3f} seconds".format(
+        print(f"Processing data files for node {node_type} takes {time.time() - start:.3f} seconds"
             node_type, time.time() - start))
 
         type_node_id_map = [None] * len(return_dict)
