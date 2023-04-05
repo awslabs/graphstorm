@@ -85,7 +85,9 @@ def write_data_json(data, data_file):
             for i, val in enumerate(data[key]):
                 records[i][key] = val.tolist()
     with open(data_file, 'w', encoding="utf8") as json_file:
-        json.dump(records, json_file)
+        for record in records:
+            record = json.dumps(record)
+            json_file.write(record + "\n")
 
 def read_data_parquet(data_file, data_fields=None):
     """ Read data from a parquet file.

@@ -23,7 +23,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
 
-from graphstorm.gconstruct import write_data_parquet, read_data_parquet
+from graphstorm.gconstruct import write_data_parquet, write_data_json
 
 node_id1 = np.unique(np.random.randint(0, 1000000000, 10000))
 node_text = np.array([str(nid) for nid in node_id1])
