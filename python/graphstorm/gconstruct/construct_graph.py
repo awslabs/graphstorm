@@ -593,8 +593,8 @@ def process_node_data(process_confs, remap_id, num_processes):
         pool = WorkerPool(node_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
         pool.close()
-        print(f"Processing data files for node {node_type} takes {time.time() - start:.3f} seconds"
-            node_type, time.time() - start))
+        dur = time.time() - start
+        print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -627,9 +627,8 @@ def process_node_data(process_confs, remap_id, num_processes):
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
             assert len(type_node_data[feat_name]) == num_nodes
-            print(f"node type {node_type} has feature {feat_name} " \
-                     f"of {type_node_data[feat_name].shape}"
-                node_type, feat_name, type_node_data[feat_name].shape))
+            feat_shape = type_node_data[feat_name].shape
+            print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
@@ -720,8 +719,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         pool = WorkerPool(edge_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
         pool.close()
-        print("Processing data files for edges of {} takes {:.3f} seconds".format(
-            edge_type, time.time() - start))
+        dur = time.time() - start
+        print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
@@ -744,8 +743,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         for feat_name in type_edge_data:
             type_edge_data[feat_name] = np.concatenate(type_edge_data[feat_name])
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
-            print("edge type {} has feature {} of {}".format(
-                edge_type, feat_name, type_edge_data[feat_name].shape))
+            feat_shape = type_edge_data[feat_name].shape
+            print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
 
         edge_type = tuple(edge_type)
