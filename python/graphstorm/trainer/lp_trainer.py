@@ -88,9 +88,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         if not mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
+        # with freeze_input_layer_epochs is 0, computation graph will not be changed.
+        static_graph = True if freeze_input_layer_epochs == 0 else False
         model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
                                         output_device=self.dev_id,
-                                        static_graph=True)
+                                        static_graph=static_graph)
         device = model.device
         data = train_loader.data
 
