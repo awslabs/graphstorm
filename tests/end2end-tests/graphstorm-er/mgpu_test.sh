@@ -26,7 +26,7 @@ error_and_exit () {
 echo "**************dataset: ML edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_er.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --save-embed-path /data/gsgnn_er/emb/ --save-model-path /data/gsgnn_er/ --topk-model-to-save 1 --save-model-per-iter 1000 --n-epochs 3" | tee train_log.txt
 
-error_and_exit $?
+error_and_exit ${PIPESTATUS[0]}
 
 # check prints
 cnt=$(grep "save_embed_path: /data/gsgnn_er/emb/" train_log.txt | wc -l)
@@ -91,7 +91,7 @@ echo "The best model is saved in epoch $best_epoch"
 echo "**************dataset: ML edge regression, do inference on saved model"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 ep_infer_gnn.py --cf ml_er_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --mini-batch-infer false --save-embed-path /data/gsgnn_er/infer-emb/ --restore-model-path /data/gsgnn_er/epoch-$best_epoch/" | tee log.txt
 
-error_and_exit $?
+error_and_exit ${PIPESTATUS[0]}
 
 cnt=$(grep "| Test rmse" log.txt | wc -l)
 if test $cnt -ne 1
