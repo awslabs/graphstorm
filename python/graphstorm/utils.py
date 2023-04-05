@@ -183,6 +183,13 @@ class SysTracker:
 
         return cls._instance
 
+    def set_rank(self, rank):
+        """ Manually set rank.
+
+        This can be used if the system is not initialized correctly.
+        """
+        self._rank = rank
+
     def check(self, name):
         """ Check the system metrics.
         """
