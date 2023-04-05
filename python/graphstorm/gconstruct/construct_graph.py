@@ -150,7 +150,7 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
-def parse_file_format(conf, is_node):
+def _parse_file_format(conf, is_node):
     """ Parse the file format blob
 
     Parameters
@@ -178,6 +178,9 @@ def parse_file_format(conf, is_node):
         return partial(read_data_json, data_fields=keys)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
+
+parse_node_file_format = partial(_parse_file_format, is_node=True)
+parse_edge_file_format = partial(_parse_file_format, is_node=False)
 
 ############## The functions for parsing configurations #############
 
@@ -645,7 +648,7 @@ def process_node_data(process_confs, remap_id, num_processes):
         node_type = process_conf['node_type']
         assert 'format' in process_conf, \
                 "'format' must be defined for a node type"
-        read_file = parse_file_format(process_conf, True)
+        read_file = parse_node_file_format(process_conf)
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
@@ -769,7 +772,7 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         edge_type = process_conf['relation']
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
-        read_file = parse_file_format(process_conf, False)
+        read_file = parse_edge_file_format(process_conf)
         assert 'files' in process_conf, \
                 "'files' is not defined for an edge type."
         in_files = get_in_files(process_conf['files'])
