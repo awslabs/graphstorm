@@ -17,23 +17,29 @@
     node regression, edge classification and edge regression.
 """
 
+import time
+from functools import partial
 import multiprocessing
 from multiprocessing import Process
 import glob
 import os
 import json
 import argparse
+import gc
+import queue
+
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
-
 from transformers import BertTokenizer
 import torch as th
 import dgl
 
+from graphstorm.utils import sys_tracker
+
 ##################### The I/O functions ####################
 
-def read_data_parquet(data_file):
+def read_data_parquet(data_file, data_fields=None):
     """ Read data from the parquet file.
 
     A row of a multi-dimension data is stored as an object in Parquet.
@@ -43,6 +49,8 @@ def read_data_parquet(data_file):
     ----------
     data_file : str
         The parquet file that contains the data
+    data_fields : list of str
+        The data fields to read from the data file.
 
     Returns
     -------
@@ -50,12 +58,17 @@ def read_data_parquet(data_file):
     """
     table = pq.read_table(data_file)
     data = {}
-    for key, val in table.to_pandas().items():
+    df_table = table.to_pandas()
+    if data_fields is None:
+        data_fields = list(df_table.keys())
+    for key in data_fields:
+        assert key in df_table, f"The data field {key} does not exist in the data file."
+        val = df_table[key]
         d = np.array(val)
         # For multi-dimension arrays, we split them by rows and
         # save them as objects in parquet. We need to merge them
         # together and store them in a tensor.
-        if d.dtype.hasobject:
+        if d.dtype.hasobject and isinstance(d[0], np.ndarray):
             d = [d[i] for i in range(len(d))]
             d = np.stack(d)
         data[key] = d
@@ -87,19 +100,35 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
-def parse_file_format(fmt):
+def _parse_file_format(conf, is_node):
     """ Parse the file format blob
 
     Parameters
     ----------
-    fmt : dict
-        Describe the file format.
+    conf : dict
+        Describe the config for the node type or edge type.
+    is_node : bool
+        Whether this is a node config or edge config
+
+    Returns
+    -------
+    callable : the function to read the data file.
     """
+    fmt = conf["format"]
     assert 'name' in fmt, "'name' field must be defined in the format."
+    keys = [conf["node_id_col"]] if is_node \
+            else [conf["source_id_col"], conf["dest_id_col"]]
+    if "features" in conf:
+        keys += [feat_conf["feature_col"] for feat_conf in conf["features"]]
+    if "labels" in conf:
+        keys += [label_conf["label_col"] for label_conf in conf["labels"]]
     if fmt["name"] == "parquet":
-        return read_data_parquet
+        return partial(read_data_parquet, data_fields=keys)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
+
+parse_node_file_format = partial(_parse_file_format, is_node=True)
+parse_edge_file_format = partial(_parse_file_format, is_node=False)
 
 ############## The functions for parsing configurations #############
 
@@ -139,9 +168,9 @@ class Tokenizer:
             tokens.append(t['input_ids'])
             att_masks.append(t['attention_mask'])
             type_ids.append(t['token_type_ids'])
-        return {'token_ids': th.cat(tokens, dim=0),
-                'attention_mask': th.cat(att_masks, dim=0),
-                'token_type_ids': th.cat(type_ids, dim=0)}
+        return {'token_ids': th.cat(tokens, dim=0).numpy(),
+                'attention_mask': th.cat(att_masks, dim=0).numpy(),
+                'token_type_ids': th.cat(type_ids, dim=0).numpy()}
 
 def parse_tokenize(op):
     """ Parse the tokenization configuration
@@ -286,32 +315,6 @@ def process_labels(data, label_confs):
 
 ################### The functions for multiprocessing ###############
 
-def wait_process(processes, max_proc):
-    """ Wait for a process
-
-    Parameters
-    ----------
-    processes : list of process
-        The list of processes
-    max_proc : int
-        The maximal number of processes to process the data together.
-    """
-    if len(processes) < max_proc:
-        return
-    processes[0].join()
-    processes.pop(0)
-
-def wait_all(processes):
-    """ Wait for all processes
-
-    Parameters
-    ----------
-    processes : list of processes
-        The list of processes
-    """
-    for proc in processes:
-        proc.join()
-
 def get_in_files(in_files):
     """ Get the input files.
 
@@ -334,19 +337,16 @@ def get_in_files(in_files):
     in_files.sort()
     return in_files
 
-def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
-                    read_file, return_dict):
+def parse_node_data(in_file, feat_ops, node_id_col, label_conf,
+                    read_file):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
     The node file is parsed according to users' configuration
-    and performs some feature transformation and save the result in
-    `return_dict`.
+    and performs some feature transformation.
 
     Parameters
     ----------
-    file_idx : int
-        The index of the node file among all node files.
     in_file : str
         The path of the input node file.
     feat_ops : dict
@@ -357,8 +357,10 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
         The configuration of labels.
     read_file : callable
         The function to read the node file
-    return_dict : dict
-        The dictionary that is shared among all processes and saves the parsed node data.
+
+    Returns
+    -------
+    tuple : node ID array and a dict of node feature tensors.
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
@@ -366,21 +368,18 @@ def parse_node_data(file_idx, in_file, feat_ops, node_id_col, label_conf,
         label_data = process_labels(data, label_conf)
         for key, val in label_data.items():
             feat_data[key] = val
-    return_dict[file_idx] = (data[node_id_col], feat_data)
+    return (data[node_id_col], feat_data)
 
-def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_type,
-                    node_id_map, label_conf, read_file, return_dict):
+def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
+                    node_id_map, label_conf, read_file):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
     IDs, edge features and potentially edge labels. The edge file is parsed
-    according to users' configuration and performs some feature transformation
-    and save the result in `return_dict`.
+    according to users' configuration and performs some feature transformation.
 
     Parameters
     ----------
-    file_idx : int
-        The index of the edge file among all edge files.
     in_file : str
         The path of the input edge file.
     feat_ops : dict
@@ -397,8 +396,10 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
         The configuration of labels.
     read_file : callable
         The function to read the node file
-    return_dict : dict
-        The dictionary that is shared among all processes and saves the parsed edge data.
+
+    Returns
+    -------
+    a tuple : source ID vector, destination ID vector, a dict of edge feature tensors.
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
@@ -420,7 +421,7 @@ def parse_edge_data(file_idx, in_file, feat_ops, src_id_col, dst_id_col, edge_ty
     else:
         assert np.issubdtype(dst_ids.dtype, np.integer), \
                 "The destination node Ids have to be integer."
-    return_dict[file_idx] = (src_ids, dst_ids, feat_data)
+    return (src_ids, dst_ids, feat_data)
 
 def create_id_map(ids):
     """ Create ID map
@@ -437,6 +438,86 @@ def create_id_map(ids):
     dict : the key is the original ID and the value is the new ID.
     """
     return {id1: i for i, id1 in enumerate(ids)}
+
+def worker_fn(task_queue, res_queue, user_parser):
+    """ The worker function in the worker pool
+
+    Parameters
+    ----------
+    task_queue : Queue
+        The queue that contains all tasks
+    res_queue : Queue
+        The queue that contains the processed data. This is used for
+        communication between the worker processes and the master process.
+    user_parser : callable
+        The user-defined function to read and process the data files.
+    """
+    try:
+        while True:
+            # If the queue is empty, it will raise the Empty exception.
+            i, in_file = task_queue.get_nowait()
+            data = user_parser(in_file)
+            res_queue.put((i, data))
+            gc.collect()
+    except queue.Empty:
+        pass
+
+class WorkerPool:
+    """ A worker process pool
+
+    This worker process pool is specialized to process node/edge data.
+    It creates a set of worker processes, each of which runs a worker function.
+    It first adds all tasks in a queue and each worker gets a task from the queue
+    at a time until the workers process all tasks. It maintains a result queue
+    and each worker adds the processed results in the result queue.
+    To ensure the order of the data, each data file is associated with
+    a number and the processed data are ordered by that number.
+
+    Parameters
+    ----------
+    name : str or tuple of str
+        The name of the worker pool.
+    in_files : list of str
+        The input data files.
+    num_processes : int
+        The number of processes that run in parallel.
+    user_parser : callable
+        The user-defined function to read and process the data files.
+    """
+    def __init__(self, name, in_files, num_processes, user_parser):
+        self.name = name
+        self.processes = []
+        manager = multiprocessing.Manager()
+        self.task_queue = manager.Queue()
+        self.res_queue = manager.Queue(8)
+        self.num_files = len(in_files)
+        for i, in_file in enumerate(in_files):
+            self.task_queue.put((i, in_file))
+        for _ in range(num_processes):
+            proc = Process(target=worker_fn, args=(self.task_queue, self.res_queue, user_parser))
+            proc.start()
+            self.processes.append(proc)
+
+    def get_data(self):
+        """ Get the processed data.
+
+        Returns
+        -------
+        a dict : key is the file index, the value is processed data.
+        """
+        return_dict = {}
+        while len(return_dict) < self.num_files:
+            file_idx, vals= self.res_queue.get()
+            return_dict[file_idx] = vals
+            sys_tracker.check(f'process {self.name} data file: {file_idx}')
+            gc.collect()
+        return return_dict
+
+    def close(self):
+        """ Stop the process pool.
+        """
+        for proc in self.processes:
+            proc.join()
 
 def process_node_data(process_confs, remap_id, num_processes):
     """ Process node data
@@ -496,23 +577,24 @@ def process_node_data(process_confs, remap_id, num_processes):
         node_type = process_conf['node_type']
         assert 'format' in process_conf, \
                 "'format' must be defined for a node type"
-        read_file = parse_file_format(process_conf['format'])
+        read_file = parse_node_file_format(process_conf)
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
-        processes = []
-        manager = multiprocessing.Manager()
-        return_dict = manager.dict()
-        for i, in_file in enumerate(in_files):
-            proc = Process(target=parse_node_data, args=(i, in_file, feat_ops, node_id_col,
-                                                         label_conf, read_file, return_dict))
-            proc.start()
-            processes.append(proc)
-            wait_process(processes, num_processes)
-        wait_all(processes)
+
+        user_parser = partial(parse_node_data, feat_ops=feat_ops,
+                              node_id_col=node_id_col,
+                              label_conf=label_conf,
+                              read_file=read_file)
+        start = time.time()
+        pool = WorkerPool(node_type, in_files, num_processes, user_parser)
+        return_dict = pool.get_data()
+        pool.close()
+        dur = time.time() - start
+        print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -522,10 +604,13 @@ def process_node_data(process_confs, remap_id, num_processes):
                     type_node_data[feat_name] = [None] * len(return_dict)
                 type_node_data[feat_name][i] = data[feat_name]
             type_node_id_map[i] = node_ids
+        return_dict = None
 
         for i, id_map in enumerate(type_node_id_map):
             assert id_map is not None, f"We do not get ID map in part {i}."
         type_node_id_map = np.concatenate(type_node_id_map)
+        gc.collect()
+        print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         # We don't need to create ID map if the node IDs are integers,
         # all node Ids are in sequence start from 0 and
         # the user doesn't force to remap node IDs.
@@ -537,10 +622,15 @@ def process_node_data(process_confs, remap_id, num_processes):
         else:
             type_node_id_map = create_id_map(type_node_id_map)
             num_nodes = len(type_node_id_map)
+        sys_tracker.check(f'Create node ID map of {node_type}')
 
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
             assert len(type_node_data[feat_name]) == num_nodes
+            feat_shape = type_node_data[feat_name].shape
+            print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
+            gc.collect()
+            sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
         # Some node types don't have data.
         if len(type_node_data) > 0:
@@ -548,6 +638,7 @@ def process_node_data(process_confs, remap_id, num_processes):
         if type_node_id_map is not None:
             node_id_map[node_type] = type_node_id_map
 
+    sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
 def process_edge_data(process_confs, node_id_map, num_processes):
@@ -609,25 +700,27 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         edge_type = process_conf['relation']
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
-        read_file = parse_file_format(process_conf['format'])
+        read_file = parse_edge_file_format(process_conf)
         assert 'files' in process_conf, \
                 "'files' is not defined for an edge type."
         in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
-        processes = []
-        manager = multiprocessing.Manager()
-        return_dict = manager.dict()
-        for i, in_file in enumerate(in_files):
-            proc = Process(target=parse_edge_data, args=(i, in_file, feat_ops,
-                                                         src_id_col, dst_id_col, edge_type,
-                                                         node_id_map, label_conf,
-                                                         read_file, return_dict))
-            proc.start()
-            processes.append(proc)
-            wait_process(processes, num_processes)
-        wait_all(processes)
+
+        user_parser = partial(parse_edge_data, feat_ops=feat_ops,
+                              src_id_col=src_id_col,
+                              dst_id_col=dst_id_col,
+                              edge_type=edge_type,
+                              node_id_map=node_id_map,
+                              label_conf=label_conf,
+                              read_file=read_file)
+        start = time.time()
+        pool = WorkerPool(edge_type, in_files, num_processes, user_parser)
+        return_dict = pool.get_data()
+        pool.close()
+        dur = time.time() - start
+        print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
@@ -639,14 +732,20 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                 if feat_name not in type_edge_data:
                     type_edge_data[feat_name] = [None] * len(return_dict)
                 type_edge_data[feat_name][i] = part_data[feat_name]
+        return_dict = None
 
         type_src_ids = np.concatenate(type_src_ids)
         type_dst_ids = np.concatenate(type_dst_ids)
         assert len(type_src_ids) == len(type_dst_ids)
+        gc.collect()
+        print(f"finish merging edges of {edge_type}")
 
         for feat_name in type_edge_data:
             type_edge_data[feat_name] = np.concatenate(type_edge_data[feat_name])
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
+            feat_shape = type_edge_data[feat_name].shape
+            print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")
+            gc.collect()
 
         edge_type = tuple(edge_type)
         edges[edge_type] = (type_src_ids, type_dst_ids)
@@ -662,9 +761,15 @@ def process_graph(args):
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
 
+    sys_tracker.set_rank(0)
+    num_processes_for_nodes = args.num_processes_for_nodes \
+            if args.num_processes_for_nodes is not None else args.num_processes
+    num_processes_for_edges = args.num_processes_for_edges \
+            if args.num_processes_for_edges is not None else args.num_processes
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
-                                               args.num_processes)
-    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map, args.num_processes)
+                                               num_processes_for_nodes)
+    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
+                                         num_processes_for_edges)
     num_nodes = {}
     for ntype in set(list(node_data.keys()) + list(node_id_map.keys())):
         # If a node type has Id map.
@@ -716,6 +821,10 @@ if __name__ == '__main__':
                            help="The configuration file.")
     argparser.add_argument("--num_processes", type=int, default=1,
                            help="The number of processes to process the data simulteneously.")
+    argparser.add_argument("--num_processes_for_nodes", type=int,
+                           help="The number of processes to process node data simulteneously.")
+    argparser.add_argument("--num_processes_for_edges", type=int,
+                           help="The number of processes to process edge data simulteneously.")
     argparser.add_argument("--output_dir", type=str, required=True,
                            help="The path of the output data folder.")
     argparser.add_argument("--graph_name", type=str, required=True,
