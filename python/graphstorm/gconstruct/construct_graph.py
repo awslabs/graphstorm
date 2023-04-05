@@ -215,8 +215,8 @@ class Tokenizer:
             t = self.tokenizer(s, max_length=self.max_seq_length,
                                truncation=True, padding='max_length', return_tensors='pt')
             tokens.append(t['input_ids'])
-            att_masks.append(t['attention_mask'])
-            type_ids.append(t['token_type_ids'])
+            att_masks.append(t['attention_mask'].to(th.int8))
+            type_ids.append(t['token_type_ids'].to(th.int8))
         return {'token_ids': th.cat(tokens, dim=0).numpy(),
                 'attention_mask': th.cat(att_masks, dim=0).numpy(),
                 'token_type_ids': th.cat(type_ids, dim=0).numpy()}
@@ -798,11 +798,13 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
 
+        id_map = {edge_type[0]: node_id_map[edge_type[0]],
+                  edge_type[2]: node_id_map[edge_type[2]]}
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
                               src_id_col=src_id_col,
                               dst_id_col=dst_id_col,
                               edge_type=edge_type,
-                              node_id_map=node_id_map,
+                              node_id_map=id_map,
                               label_conf=label_conf,
                               read_file=read_file)
         start = time.time()
