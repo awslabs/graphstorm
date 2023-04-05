@@ -58,16 +58,16 @@ node_data3 = {
     'id': node_id3_str,
 }
 
-src1 = node_data1['id'][np.random.randint(0, 10000, 100000)]
-dst1 = node_data2['id'][np.random.randint(0, 20000, 100000)]
+src1 = node_data1['id'][np.random.randint(0, 9999, 100000)]
+dst1 = node_data2['id'][np.random.randint(0, 19999, 100000)]
 edge_data1 = {
     'src': src1,
     'dst': dst1,
     'label': (src1 + dst1) % 100,
 }
 edge_data2 = {
-    'src': node_data1['id'][np.random.randint(0, 10000, 50000)],
-    'dst': node_data1['id'][np.random.randint(0, 10000, 50000)],
+    'src': node_data1['id'][np.random.randint(0, 9999, 50000)],
+    'dst': node_data1['id'][np.random.randint(0, 9999, 50000)],
 }
 
 src3 = node_data2['id'][np.random.randint(0, 20000, 100000)]
