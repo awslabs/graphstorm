@@ -624,7 +624,8 @@ def process_node_data(process_confs, remap_id, num_processes):
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
             assert len(type_node_data[feat_name]) == num_nodes
-            print("node type {} has feature {} of {}".format(
+            print(f"node type {node_type} has feature {feat_name} " \
+                     f"of {type_node_data[feat_name].shape}"
                 node_type, feat_name, type_node_data[feat_name].shape))
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
