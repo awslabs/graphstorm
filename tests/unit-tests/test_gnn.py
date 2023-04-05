@@ -29,6 +29,8 @@ import dgl
 from graphstorm.config import GSConfig
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
+from graphstorm.model import GSLMNodeEncoderInputLayer
+from graphstorm.model import GSgnnLinkPredictionModel
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.edge_decoder import DenseBiDecoder, MLPEdgeDecoder, LinkPredictDotDecoder
@@ -43,6 +45,7 @@ from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_g
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
 from data_utils import generate_dummy_dist_graph
+from data_utils import create_lm_graph
 
 def create_rgcn_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
@@ -81,6 +84,16 @@ def create_rgat_node_model(g):
     return model
 
 def check_node_prediction(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnNodeModel with GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnNodeModel
+        Node model
+    data: GSgnnNodeTrainData
+        Train data
+    """
     g = data.g
     embs = do_full_graph_inference(model, data)
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
@@ -93,7 +106,36 @@ def check_node_prediction(model, data):
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 
+def check_mlp_node_prediction(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnNodeModel without GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnNodeModel
+        Node model
+    data: GSgnnNodeTrainData
+        Train data
+    """
+    g = data.g
+    embs = do_full_graph_inference(model, data)
+    target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
+    dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
+                                      batch_size=10, device="cuda:0", train_task=False)
+    pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
+    dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
+                                      batch_size=10, device="cuda:0", train_task=False)
+    pred2, emb2, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
+    assert_equal(labels1.numpy(), labels2.numpy())
+
 def test_rgcn_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGCNLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -111,6 +153,12 @@ def test_rgcn_node_prediction():
     dgl.distributed.kvstore.close_kvstore()
 
 def test_rgat_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGATLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -147,6 +195,16 @@ def create_rgcn_edge_model(g):
     return model
 
 def check_edge_prediction(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnEdgeModel with GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnEdgeModel
+        Node model
+    data: GSgnnEdgeTrainData
+        Train data
+    """
     g = data.g
     embs = do_full_graph_inference(model, data)
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
@@ -161,7 +219,38 @@ def check_edge_prediction(model, data):
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 
+def check_mlp_edge_prediction(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnEdgeModel without GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnEdgeModel
+        Node model
+    data: GSgnnEdgeTrainData
+        Train data
+    """
+    g = data.g
+    embs = do_full_graph_inference(model, data)
+    target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
+    dataloader1 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
+                                      batch_size=10, device="cuda:0", train_task=False,
+                                      remove_target_edge_type=False)
+    pred1, labels1 = edge_mini_batch_predict(model, embs, dataloader1, return_label=True)
+    dataloader2 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
+                                      batch_size=10, device="cuda:0", train_task=False,
+                                      remove_target_edge_type=False)
+    pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
+    assert_equal(labels1.numpy(), labels2.numpy())
+
 def test_rgcn_edge_prediction():
+    """ Test edge prediction logic correctness with a edge prediction model
+        composed of InputLayerEncoder + RGCNLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -175,6 +264,152 @@ def test_rgcn_edge_prediction():
                                      node_feat_field='feat')
     model = create_rgcn_edge_model(ep_data.g)
     check_edge_prediction(model, ep_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def create_mlp_edge_model(g, lm_config):
+    """ Create a GSgnnEdgeModel with only an input encoder and a decoder.
+
+    Parameters
+    ----------
+    g: dgl.DistGraph
+        Input graph.
+    lm_config:
+        Language model config
+
+    Return
+    ------
+    GSgnnEdgeModel
+    """
+    model = GSgnnEdgeModel(alpha_l2norm=0)
+
+    feat_size = get_feat_size(g, 'feat')
+
+    encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
+    model.set_node_input_encoder(encoder)
+
+    model.set_decoder(MLPEdgeDecoder(model.node_input_encoder.out_dims,
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1")))
+    return model
+
+def test_mlp_edge_prediction():
+    """ Test edge prediction logic correctness with a edge prediction model
+        composed of InputLayerEncoder + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                        train_etypes=[('n0', 'r1', 'n1')], label_field='label',
+                                        node_feat_field='feat')
+        g.edges['r1'].data['label']= ep_data.g.edges['r1'].data['label']
+    model = create_mlp_edge_model(g, lm_config)
+    assert model.gnn_encoder is None
+    check_mlp_edge_prediction(model, ep_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def create_mlp_node_model(g, lm_config):
+    """ Create a GSgnnNodeModel with only an input encoder and a decoder.
+
+    Parameters
+    ----------
+    g: dgl.DistGraph
+        Input graph.
+    lm_config:
+        Language model config
+
+    Return
+    ------
+    GSgnnNodeModel
+    """
+    model = GSgnnNodeModel(alpha_l2norm=0)
+
+    feat_size = get_feat_size(g, 'feat')
+
+    encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
+    model.set_node_input_encoder(encoder)
+
+    model.set_decoder(EntityClassifier(model.node_input_encoder.out_dims, 3, False))
+    return model
+
+def test_mlp_node_prediction():
+    """ Test node prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                        train_ntypes=['n1'],
+                                        label_field='label',
+                                        node_feat_field='feat')
+        g.nodes['n1'].data['label'] = np_data.g.nodes['n1'].data['label']
+    model = create_mlp_node_model(g, lm_config)
+    assert model.gnn_encoder is None
+    check_mlp_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def create_mlp_lp_model(g, lm_config):
+    """ Create a GSgnnLinkPredictionModel with only an input encoder and a decoder.
+
+    Parameters
+    ----------
+    g: dgl.DistGraph
+        Input graph.
+    lm_config:
+        Language model config
+
+    Return
+    ------
+    GSgnnLinkPredictionModel
+    """
+    model = GSgnnLinkPredictionModel(alpha_l2norm=0)
+
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
+    model.set_node_input_encoder(encoder)
+
+    model.set_decoder(LinkPredictDotDecoder(model.node_input_encoder.out_dims))
+    return model
+
+
+def test_mlp_link_prediction():
+    """ Test full graph inference logic with a link prediciton model
+        composed of InputLayerEncoder + Decoder
+    """
+    #  initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
+        np_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                        train_etypes=[('n0', 'r1', 'n1')],
+                                        eval_etypes=[('n0', 'r1', 'n1')],
+                                        node_feat_field='feat')
+    model = create_mlp_lp_model(g, lm_config)
+    assert model.gnn_encoder is None
+    embs = do_full_graph_inference(model, np_data)
+    assert 'n0' in embs
+    assert 'n1' in embs
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -208,6 +443,8 @@ def create_ec_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_edge_classification():
+    """ Test logic of building a edge classification model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -255,6 +492,8 @@ def create_er_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_edge_regression():
+    """ Test logic of building a edge regression model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -301,6 +540,8 @@ def create_nr_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_node_regression():
+    """ Test logic of building a node regression model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -348,6 +589,8 @@ def create_nc_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_node_classification():
+    """ Test logic of building a node classification model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -395,6 +638,8 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def test_link_prediction():
+    """ Test logic of building a link prediction model
+    """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -424,3 +669,7 @@ if __name__ == '__main__':
     test_node_classification()
     test_node_regression()
     test_link_prediction()
+
+    test_mlp_edge_prediction()
+    test_mlp_node_prediction()
+    test_mlp_link_prediction()
