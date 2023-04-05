@@ -86,7 +86,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     "Only GSgnnModel supports full-graph inference."
 
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
-        static_graph = True if freeze_input_layer_epochs == 0 else False
+        static_graph = freeze_input_layer_epochs == 0
         model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
                                         output_device=self.dev_id,
                                         static_graph=static_graph)
