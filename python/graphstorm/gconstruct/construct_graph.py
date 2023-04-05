@@ -459,8 +459,16 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
     src_type, _, dst_type = edge_type
-    src_ids = node_id_map[src_type](src_ids)
-    dst_ids = node_id_map[dst_type](dst_ids)
+    try:
+        src_ids = node_id_map[src_type](src_ids)
+    except KeyError as e:
+        print(f"Process {edge_type}. Cannot find node ID of source node type {src_type}")
+        raise e
+    try:
+        dst_ids = node_id_map[dst_type](dst_ids)
+    except KeyError as e:
+        print(f"Process {edge_type}. Cannot find node ID of destination node type {dst_type}")
+        raise e
     return (src_ids, dst_ids, feat_data)
 
 class IdentityMap:
@@ -502,6 +510,20 @@ class IdMap:
         return len(self._ids)
 
     def __call__(self, ids):
+        for id_ in self._ids:
+            # If the data type of the key is string, the input Ids should also be strings.
+            if isinstance(id_, str):
+                assert isinstance(ids[0], str), \
+                        "The key of ID map is string, input IDs should also be strings."
+            elif isinstance(id_, int) or np.issubdtype(id_.dtype, np.integer):
+                # If the data type of the key is integer, the input Ids should
+                # also be integers.
+                assert np.issubdtype(ids.dtype, np.integer), \
+                        "The key of ID map is integer, input IDs should also be integers. " \
+                        + f"But get {type(ids[0])}."
+            else:
+                raise ValueError(f"Unsupported key data type: {type(id_)}")
+            break
         return np.array([self._ids[id_] for id_ in ids])
 
     def get_key_vals(self):
