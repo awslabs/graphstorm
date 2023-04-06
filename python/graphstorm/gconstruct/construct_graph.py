@@ -489,6 +489,8 @@ class IdentityMap:
         return ids, np.arange(len(ids))
 
     def get_key_vals(self):
+        """ Get the key value pairs.
+        """
         return None
 
 class IdMap:
@@ -532,6 +534,12 @@ class IdMap:
         return np.array(new_ids), np.array(idx)
 
     def get_key_vals(self):
+        """ Get the key value pairs.
+
+        Returns
+        -------
+        tuple of tensors : a tenor with keys and a tensor with values.
+        """
         return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
 
 def worker_fn(task_queue, res_queue, user_parser):
@@ -861,9 +869,9 @@ def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_e
 def verify_confs(confs):
     """ Verify the configuration of the input data.
     """
-    ntypes = set([conf['node_type'] for conf in confs["node"]])
+    ntypes = {conf['node_type'] for conf in confs["node"]}
     etypes = [conf['relation'] for conf in confs["edge"]]
-    for src_type, etype, dst_type in etypes:
+    for src_type, _, dst_type in etypes:
         assert src_type in ntypes, f"source node type {src_type} does not exist."
         assert dst_type in ntypes, f"destination node type {dst_type} does not exist."
 
