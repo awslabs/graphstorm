@@ -218,8 +218,8 @@ class Tokenizer:
             t = self.tokenizer(s, max_length=self.max_seq_length,
                                truncation=True, padding='max_length', return_tensors='pt')
             tokens.append(t['input_ids'])
-            att_masks.append(t['attention_mask'])
-            type_ids.append(t['token_type_ids'])
+            att_masks.append(t['attention_mask'].to(th.int8))
+            type_ids.append(t['token_type_ids'].to(th.int8))
         return {'token_ids': th.cat(tokens, dim=0).numpy(),
                 'attention_mask': th.cat(att_masks, dim=0).numpy(),
                 'token_type_ids': th.cat(type_ids, dim=0).numpy()}
@@ -462,16 +462,16 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
     src_type, _, dst_type = edge_type
-    if src_type in node_id_map:
-        src_ids = np.array([node_id_map[src_type][sid] for sid in src_ids])
-    else:
-        assert np.issubdtype(src_ids.dtype, np.integer), \
-                "The source node Ids have to be integer."
-    if dst_type in node_id_map:
-        dst_ids = np.array([node_id_map[dst_type][did] for did in dst_ids])
-    else:
-        assert np.issubdtype(dst_ids.dtype, np.integer), \
-                "The destination node Ids have to be integer."
+    try:
+        src_ids = node_id_map[src_type](src_ids)
+    except KeyError as e:
+        print(f"Process {edge_type}. Cannot find node ID of source node type {src_type}")
+        raise e
+    try:
+        dst_ids = node_id_map[dst_type](dst_ids)
+    except KeyError as e:
+        print(f"Process {edge_type}. Cannot find node ID of destination node type {dst_type}")
+        raise e
     return (src_ids, dst_ids, feat_data)
 
 class IdentityMap:
@@ -513,90 +513,24 @@ class IdMap:
         return len(self._ids)
 
     def __call__(self, ids):
+        for id_ in self._ids:
+            # If the data type of the key is string, the input Ids should also be strings.
+            if isinstance(id_, str):
+                assert isinstance(ids[0], str), \
+                        "The key of ID map is string, input IDs should also be strings."
+            elif isinstance(id_, int) or np.issubdtype(id_.dtype, np.integer):
+                # If the data type of the key is integer, the input Ids should
+                # also be integers.
+                assert np.issubdtype(ids.dtype, np.integer), \
+                        "The key of ID map is integer, input IDs should also be integers. " \
+                        + f"But get {type(ids[0])}."
+            else:
+                raise ValueError(f"Unsupported key data type: {type(id_)}")
+            break
         return np.array([self._ids[id_] for id_ in ids])
 
     def get_key_vals(self):
         return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
-
-def worker_fn(task_queue, res_queue, user_parser):
-    """ The worker function in the worker pool
-
-    Parameters
-    ----------
-    task_queue : Queue
-        The queue that contains all tasks
-    res_queue : Queue
-        The queue that contains the processed data. This is used for
-        communication between the worker processes and the master process.
-    user_parser : callable
-        The user-defined function to read and process the data files.
-    """
-    try:
-        while True:
-            # If the queue is empty, it will raise the Empty exception.
-            i, in_file = task_queue.get_nowait()
-            data = user_parser(in_file)
-            res_queue.put((i, data))
-            gc.collect()
-    except queue.Empty:
-        pass
-
-class WorkerPool:
-    """ A worker process pool
-
-    This worker process pool is specialized to process node/edge data.
-    It creates a set of worker processes, each of which runs a worker function.
-    It first adds all tasks in a queue and each worker gets a task from the queue
-    at a time until the workers process all tasks. It maintains a result queue
-    and each worker adds the processed results in the result queue.
-    To ensure the order of the data, each data file is associated with
-    a number and the processed data are ordered by that number.
-
-    Parameters
-    ----------
-    name : str or tuple of str
-        The name of the worker pool.
-    in_files : list of str
-        The input data files.
-    num_processes : int
-        The number of processes that run in parallel.
-    user_parser : callable
-        The user-defined function to read and process the data files.
-    """
-    def __init__(self, name, in_files, num_processes, user_parser):
-        self.name = name
-        self.processes = []
-        manager = multiprocessing.Manager()
-        self.task_queue = manager.Queue()
-        self.res_queue = manager.Queue(8)
-        self.num_files = len(in_files)
-        for i, in_file in enumerate(in_files):
-            self.task_queue.put((i, in_file))
-        for _ in range(num_processes):
-            proc = Process(target=worker_fn, args=(self.task_queue, self.res_queue, user_parser))
-            proc.start()
-            self.processes.append(proc)
-
-    def get_data(self):
-        """ Get the processed data.
-
-        Returns
-        -------
-        a dict : key is the file index, the value is processed data.
-        """
-        return_dict = {}
-        while len(return_dict) < self.num_files:
-            file_idx, vals= self.res_queue.get()
-            return_dict[file_idx] = vals
-            sys_tracker.check(f'process {self.name} data file: {file_idx}')
-            gc.collect()
-        return return_dict
-
-    def close(self):
-        """ Stop the process pool.
-        """
-        for proc in self.processes:
-            proc.join()
 
 def worker_fn(task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -867,11 +801,13 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
 
+        id_map = {edge_type[0]: node_id_map[edge_type[0]],
+                  edge_type[2]: node_id_map[edge_type[2]]}
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
                               src_id_col=src_id_col,
                               dst_id_col=dst_id_col,
                               edge_type=edge_type,
-                              node_id_map=node_id_map,
+                              node_id_map=id_map,
                               label_conf=label_conf,
                               read_file=read_file)
         start = time.time()
@@ -955,9 +891,12 @@ def process_graph(args):
         for name, edata in edge_data[etype].items():
             g.edges[etype].data[name] = th.tensor(edata)
 
-    if args.output_format == "DistDGL":
+    if args.output_format == "DistDGL" and args.num_partitions == 1:
         dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
                                         args.output_dir, part_method="None")
+    elif args.output_format == "DistDGL":
+        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
+                                        args.output_dir, part_method="metis")
     elif args.output_format == "DGL":
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
