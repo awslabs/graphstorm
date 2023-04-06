@@ -158,7 +158,60 @@ def test_id_map():
     except:
         pass
 
+def test_map_node_ids():
+    from graphstorm.gconstruct.construct_graph import IdMap
+    from graphstorm.gconstruct.construct_graph import map_node_ids
+    str_src_ids = np.array([str(i) for i in range(10)])
+    str_dst_ids = np.array([str(i) for i in range(15)])
+    id_map = {"src": IdMap(str_src_ids),
+              "dst": IdMap(str_dst_ids)}
+
+    # Test the case that both source node IDs and destination node IDs exist.
+    src_ids = np.array([str(random.random() % len(str_src_ids)) for _ in range(15)])
+    dst_ids = np.array([str(random.random() % len(str_dst_ids)) for _ in range(15)])
+    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                            id_map, False)
+    assert len(new_src_ids) == len(src_ids)
+    assert len(new_dst_ids) == len(dst_ids)
+    for src_id1, src_id2 in zip(new_src_ids, src_ids):
+        assert src_id1 == int(src_ids2)
+    for dst_id1, dst_id2 in zip(new_dst_ids, dst_ids):
+        assert dst_id1 == int(dst_ids2)
+
+    # Test the case that source node IDs don't exist.
+    src_ids = np.array([str(random.random() % 1000) for _ in range(15)])
+    dst_ids = np.array([str(random.random() % len(str_dst_ids)) for _ in range(15)])
+    try:
+        new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                                id_map, False)
+        raise ValueError("fail")
+    except:
+        pass
+    # Test the case that source node IDs don't exist and we skip non exist edges.
+    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                            id_map, True)
+    num_valid = sum([int(id_) < len(str_src_ids) for id_ in src_ids])
+    assert len(new_src_ids) == num_valid
+    assert len(new_dst_ids) == num_valid
+
+    # Test the case that destination node IDs don't exist.
+    src_ids = np.array([str(random.random() % len(str_src_ids)) for _ in range(15)])
+    dst_ids = np.array([str(random.random() % 1000) for _ in range(15)])
+    try:
+        new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                                id_map, False)
+        raise ValueError("fail")
+    except:
+        pass
+    # Test the case that destination node IDs don't exist and we skip non exist edges.
+    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                            id_map, True)
+    num_valid = sum([int(id_) < len(str_src_ids) for id_ in src_ids])
+    assert len(new_src_ids) == num_valid
+    assert len(new_dst_ids) == num_valid
+
 if __name__ == '__main__':
+    test_map_node_ids()
     test_id_map()
     test_parquet()
     test_feat_ops()
