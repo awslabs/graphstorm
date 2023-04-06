@@ -64,8 +64,15 @@ def main(args):
             'Supported test negative samplers include '
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
 
+    # Increase eval batch size to maximize reuse of node embeddings, and also increase
+    # network and GPU efficiency
+    avail_cuda_mem = th.cuda.get_device_properties(0).total_memory - th.cuda.memory_reserved(0)
+    req_cuda_mem_per_edge = config.num_negative_edges_eval * config._n_hidden * 4 * 2
+    max_eval_batch_size = max(int(avail_cuda_mem * .5 / req_cuda_mem_per_edge), \
+        config.eval_batch_size)  # Use 50% of GPU memory
+
     dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
-                                     batch_size=config.eval_batch_size,
+                                     batch_size=max_eval_batch_size,
                                      num_negative_edges=config.num_negative_edges_eval)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
