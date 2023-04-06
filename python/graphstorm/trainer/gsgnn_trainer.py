@@ -20,6 +20,7 @@ import psutil
 import torch as th
 
 from ..model import GSOptimizer
+from ..model import GSgnnModel
 from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
@@ -38,6 +39,7 @@ class GSgnnTrainer():
     """
     def __init__(self, model, rank, topk_model_to_save=1):
         super(GSgnnTrainer, self).__init__()
+        assert isinstance(model, GSgnnModel), "model must be a GSgnnModel"
         self._model = model
         optimizer = model.create_optimizer()
         assert optimizer is not None, "The model cannot provide an optimizer"
