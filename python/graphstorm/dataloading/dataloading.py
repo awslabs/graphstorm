@@ -503,7 +503,7 @@ class GSgnnLinkPredictionTestDataLoader():
         self._reinit_dataset()
         return self
 
-    def _next_data(self, etype):
+    async def _next_data(self, etype):
         """ Get postive edges for the next iteration for a specific edge type
         """
         g = self._data.g
@@ -522,7 +522,7 @@ class GSgnnLinkPredictionTestDataLoader():
 
         curr_etype = self.remaining_etypes[0]
         # cur_iter, end_of_etype = await self._next_data(curr_etype)
-        cur_iter, end_of_etype = self._next_data(curr_etype)
+        cur_iter, end_of_etype = await self._next_data(curr_etype)
         if end_of_etype:
             self.remaining_etypes.pop(0)
 
