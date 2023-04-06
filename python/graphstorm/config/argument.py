@@ -287,6 +287,19 @@ class GSConfig:
         return False
 
     ###################### language model support #########################
+    # Bert related
+    @property
+    def lm_tune_lr(self):
+        """ Learning rate for BERT model(s)
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_lm_tune_lr"):
+            lm_tune_lr = float(self._lm_tune_lr)
+            assert lm_tune_lr > 0.0, "Bert tune learning rate must > 0.0"
+            return lm_tune_lr
+
+        return self.lr
+
     @property
     def lm_train_nodes(self):
         """ Number of tunable LM model nodes
@@ -1322,12 +1335,6 @@ class GSConfig:
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")
     group.add_argument(
-        "--job_name",
-        type=str,
-        default=argparse.SUPPRESS,
-        help="This is the path to store the output and TensorBoard results.",
-    )
-    group.add_argument(
         "--verbose",
         type=lambda x: (str(x).lower() in ['true', '1']),
         default=argparse.SUPPRESS,
@@ -1480,6 +1487,8 @@ def _add_hyperparam_args(parser):
 
 def _add_lm_model_args(parser):
     group = parser.add_argument_group(title="lm model")
+    group.add_argument("--lm-tune-lr", type=float, default=argparse.SUPPRESS,
+            help="learning rate for fine-tuning language model")
     group.add_argument("--lm-train-nodes", type=int, default=argparse.SUPPRESS,
             help="number of nodes used in LM model fine-tuning")
     group.add_argument("--lm-infer-batchszie", type=int, default=argparse.SUPPRESS,

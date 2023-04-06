@@ -79,8 +79,26 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         Default action: Do nothing
         """
 
+    def get_general_dense_parameters(self):
+        """ Get dense layers' parameters.
+
+        Returns
+        -------
+        list of Tensors: the dense parameters
+        """
+        return self.parameters()
+
+    def get_lm_dense_parameters(self):
+        """ Get the language model related parameters
+        Returns
+        -------
+        list of Tensors: the language model parameters.
+        """
+        # By default, there is no language model
+        return []
+
     def get_sparse_params(self):
-        """ get the sparse parameters.
+        """ Get the sparse parameters.
 
         Returns
         -------
