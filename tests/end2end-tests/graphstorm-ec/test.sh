@@ -78,7 +78,7 @@ error_and_exit $?
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch early stop"
 python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_ec.yaml --num-gpus 1 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --enable-early-stop True --call-to-consider-early-stop 2 -e 30 --window-for-early-stop 3 --evaluation-frequency 100 --lr 0.01" | tee exec.log
 
-error_and_exit $?
+error_and_exit ${PIPESTATUS[0]}
 
 # check early stop
 cnt=$(cat exec.log | grep "Evaluation step" | wc -l)

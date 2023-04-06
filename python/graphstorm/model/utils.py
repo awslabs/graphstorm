@@ -119,7 +119,7 @@ def save_sparse_embeds(model_path, embed_layer):
 
             th.save(embs, os.path.join(model_path, f'{ntype}_sparse_emb.pt'))
 
-def save_opt_state(model_path, dense_opts, sparse_opts):
+def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Save the states of the optimizers.
 
         Parameters
@@ -127,14 +127,22 @@ def save_opt_state(model_path, dense_opts, sparse_opts):
         model_path : str
             The path of the folder where the model is saved.
             We save the optimizer states with the model.
-        dense_opts : list optimizer
+        dense_opts : list of optimizer
             The optimizers for dense model parameters.
+        lm_opts: list of optimizer
+            The optimizers for language model parameters.
         emb_opts : list of optimizer
             The optimizers for sparse embedding layer.
     """
     opt_states = {}
-    assert len(dense_opts) == 1, "We can only support one dense optimizer now."
-    opt_states['dense'] = dense_opts[0].state_dict()
+
+    assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
+    assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
+
+    if len(dense_opts) == 1:
+        opt_states['dense'] = dense_opts[0].state_dict()
+    if len(lm_opts) == 1:
+        opt_states['lm'] = lm_opts[0].state_dict()
     # TODO(zhengda) we need to change DGL to make it work.
     if len(sparse_opts) > 0:
         # TODO(xiangsx) Further discussion of whether we need to save the state of
@@ -291,7 +299,7 @@ def load_sparse_embeds(model_path, embed_layer):
                 # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
                 sparse_emb._tensor[idx] = emb[idx]
 
-def load_opt_state(model_path, dense_opts, sparse_opts):
+def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
 
         Parameters
@@ -300,6 +308,8 @@ def load_opt_state(model_path, dense_opts, sparse_opts):
             The path of the model is saved.
         dense_opts: list of optimizers
             Optimzer for dense layers
+        lm_opts: list of optimizers
+            Optimzer for language models layers
         sparse_opts: list of optimizers
             Optimizer for sparse emb layer
     """
@@ -310,8 +320,18 @@ def load_opt_state(model_path, dense_opts, sparse_opts):
             "during unpickling. Only load data you trust")
     checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
 
-    assert len(dense_opts) == 1, "Currently, we only support one dense optimizer."
-    dense_opts[0].load_state_dict(checkpoint['dense'])
+    assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
+    assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
+
+    # Load general dense models like gnn and input projection matrix
+    if "dense" in checkpoint:
+        assert len(dense_opts) == 1, "General dense parameters must exists in the model"
+        dense_opts[0].load_state_dict(checkpoint["dense"])
+    # Load language models.
+    if "lm" in checkpoint:
+        assert len(lm_opts) == 1, "Language model parameters must exists in the model"
+        dense_opts[0].load_state_dict(checkpoint["lm"])
+
     # TODO(zhengda) we need to change DGL to make it work.
     if 'sparse' in checkpoint and len(sparse_opts) > 0:
         raise NotImplementedError('We cannot load the state of sparse optimizer')

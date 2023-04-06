@@ -13,7 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
 import os, sys
 from pathlib import Path
 from tempfile import tempdir
@@ -51,6 +50,7 @@ def create_dummpy_config_obj():
             "output": {},
             "hyperparam": {
                 "lr": 0.01,
+                "lm_tune_lr": 0.0001,
                 "sparse_lr": 0.0001
             },
             "rgcn": {},
@@ -405,6 +405,7 @@ def create_train_config(tmp_path, file_name):
         "evaluation_frequency": 1000,
         'save_model_per_iters': 1000,
         "topk_model_to_save": 3,
+        "lm_tune_lr": 0.0001,
         "sparse_lr": 0.001,
         "use_node_embeddings": False,
         "use_self_loop": False,
@@ -438,6 +439,7 @@ def create_train_config(tmp_path, file_name):
         "n_epochs": -1,
         "batch_size": 0,
         "eval_batch_size": 0,
+        "lm_tune_lr": 0.,
         "sparse_lr": 0.,
         "use_node_embeddings": True,
         "use_self_loop": "error",
@@ -480,6 +482,7 @@ def test_train_info():
         assert config.alpha_l2norm == 0
         assert config.topk_model_to_save == math.inf
         config._lr = 0.01
+        assert config.lm_tune_lr == 0.01
         assert config.sparse_lr == 0.01
         assert config.use_node_embeddings == False
         assert config.use_self_loop == True
@@ -496,6 +499,7 @@ def test_train_info():
         assert config.wd_l2norm == 0.1
         assert config.alpha_l2norm == 0.00001
         assert config.topk_model_to_save == 3
+        assert config.lm_tune_lr == 0.0001
         assert config.sparse_lr == 0.001
         assert config.use_node_embeddings == False
         assert config.use_self_loop == False
@@ -518,6 +522,7 @@ def test_train_info():
         check_failure(config, "n_epochs")
         check_failure(config, "batch_size")
         check_failure(config, "eval_batch_size")
+        check_failure(config, "lm_tune_lr")
         check_failure(config, "sparse_lr")
         assert config.use_node_embeddings == True
         check_failure(config, "use_self_loop")
@@ -1425,26 +1430,48 @@ def test_load_io_info():
 
 def create_lm_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["lm"] = {
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "rgcn"
     }
 
     # config for check default value
+    yaml_object["gsf"]["lm"] = {
+    }
+
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # With language model configured for ode type 'a'
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
         "lm_infer_batchszie": 64,
-        "freeze_lm_encoder_epochs": 3,
+        "freeze_lm_encoder_epochs": 0,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
-                             "gradient_checkpoint": False,
+                             "gradient_checkpoint": True,
                              "node_types": ['a']}]
     }
 
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # With language model configured for ode type 'a'
+    # There is a conflict between freeze_lm_encoder_epochs and gradient_checkpoint
+    # gradient_checkpoint will be set to False if freeze_lm_encoder_epochs > 0
+    yaml_object["gsf"]["lm"] = {
+        "lm_train_nodes": 10,
+        "lm_infer_batchszie": 64,
+        "freeze_lm_encoder_epochs": 3,
+        "node_lm_configs": [{"lm_type": "bert",
+                             "model_name": "bert-base-uncased",
+                             "gradient_checkpoint": True,
+                             "node_types": ['a']}]
+    }
+
+    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # This is not language model
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": -1,
         "lm_infer_batchszie": 1,
@@ -1452,27 +1479,57 @@ def create_lm_config(tmp_path, file_name):
         "node_lm_configs": None
     }
 
-    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # Invalid value for lm_train_nodes, lm_infer_batchszie and freeze_lm_encoder_epochs
     yaml_object["gsf"]["output"] = {
         "lm_train_nodes": -2,
         "lm_infer_batchszie": -1,
         "freeze_lm_encoder_epochs": -1,
-        "node_lm_configs": {"lm_type": "bert",
-                             "model_name": "bert-base-uncased",
-                             "gradient_checkpoint": False,
-                             "node_types": ['a']}
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # "node_lm_configs" should not be an empty list
     yaml_object["gsf"]["output"] = {
         "node_lm_configs": []
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # config for check default value with gsf encoder type lm
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "lm"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # freeze_lm_encoder_epochs does not work with model_encoder_type lm
+    yaml_object["gsf"]["lm"] = {
+        "freeze_lm_encoder_epochs": 3,
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # config for check default value with gsf encoder type mlp
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "mlp"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # freeze_lm_encoder_epochs does not work with model_encoder_type mlp
+    yaml_object["gsf"]["lm"] = {
+        "freeze_lm_encoder_epochs": 3,
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail4.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 def test_lm():
@@ -1493,11 +1550,22 @@ def test_lm():
         config = GSConfig(args)
         assert config.lm_train_nodes == 10
         assert config.lm_infer_batchszie == 64
+        assert config.freeze_lm_encoder_epochs == 0
+        assert config.node_lm_configs is not None
+        assert len(config.node_lm_configs) == 1
+        assert config.node_lm_configs[0]['lm_type'] == "bert"
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == True
+        assert len(config.node_lm_configs[0]['node_types']) == 1
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test2.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
         assert config.freeze_lm_encoder_epochs == 3
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == False
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test2.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test3.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.lm_train_nodes == -1
@@ -1511,12 +1579,25 @@ def test_lm():
         check_failure(config, "lm_train_nodes")
         check_failure(config, "lm_infer_batchszie")
         check_failure(config, "freeze_lm_encoder_epochs")
-        check_failure(config, "node_lm_configs")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail2.yaml'),
                          local_rank=0)
+        has_error = False
+        try:
+            config = GSConfig(args)
+        except:
+            has_error = True
+        assert has_error
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail3.yaml'),
+                         local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "node_lm_configs")
+        check_failure(config, "freeze_lm_encoder_epochs")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail4.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "freeze_lm_encoder_epochs")
 
 def test_check_lm_config():
     import tempfile

@@ -88,9 +88,12 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         if not mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
+        # with freeze_input_layer_epochs is 0, computation graph will not be changed.
+        static_graph = freeze_input_layer_epochs == 0
         model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
                                         output_device=self.dev_id,
-                                        static_graph=True)
+                                        find_unused_parameters=True,
+                                        static_graph=static_graph)
         device = model.device
         data = train_loader.data
 
@@ -113,6 +116,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         for epoch in range(n_epochs):
             model.train()
             t0 = time.time()
+
+            if freeze_input_layer_epochs <= epoch:
+                self._model.unfreeze_input_encoder()
+            # TODO(xiangsx) Support unfreezing gnn encoder and decoder
+
             for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(train_loader):
                 total_steps += 1
                 batch_tic = time.time()
@@ -128,10 +136,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     num_input_nodes += nodes.shape[0]
 
                 t2 = time.time()
-                if freeze_input_layer_epochs <= i:
-                    self._model.unfreeze_input_encoder()
-                # TODO(xiangsx) Support unfreezing gnn encoder and decoder
-
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
                              input_feats, None, input_nodes)
