@@ -123,7 +123,7 @@ def test_id_map():
     id_map = IdMap(str_ids)
 
     # Test the case that all Ids exist in the map.
-    rand_ids = np.array([str(random.random() % len(str_ids)) for _ in range(5)])
+    rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
     remap_ids, idx = id_map(rand_ids)
     assert len(idx) == len(rand_ids)
     assert np.issubdtype(remap_ids.dtype, np.integer)
@@ -152,7 +152,7 @@ def test_id_map():
     str_ids = np.array([i for i in range(10)])
     id_map = IdMap(str_ids)
     try:
-        rand_ids = np.array([str(random.random() % len(str_ids)) for _ in range(5)])
+        rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
         remap_ids, idx = id_map(rand_ids)
         raise ValueError("fails")
     except:
