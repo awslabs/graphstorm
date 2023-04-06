@@ -486,7 +486,7 @@ class IdentityMap:
         return self._size
 
     def __call__(self, ids):
-        return ids
+        return ids, np.arange(len(ids))
 
     def get_key_vals(self):
         return None
