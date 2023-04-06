@@ -329,3 +329,57 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_l
 error_and_exit $?
 
 rm -fr /data/gsgnn_lp_ml_lmmlp_dot_all_etype/*
+
+echo "**************dataset: Movielens, Bert only, inference: full-graph, negative_sampler: joint, decoder: Dot, save model, with lm-lr"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lm_lp.py --cf ml_lm_lp.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --save-model-path /data/gsgnn_lp_ml_lm_tune_lr_dot_all_etype/ --topk-model-to-save 1 --save-model-per-iter 1000 --save-embed-path /data/gsgnn_lp_ml_lm_tune_lr_dot_all_etype/emb/ --use-dot-product True --lm-tune-lr 0.0001" | tee train_log.txt
+
+error_and_exit ${PIPESTATUS[0]}
+
+cnt=$(ls -l /data/gsgnn_lp_ml_lm_tune_lr_dot_all_etype/ | grep epoch | wc -l)
+if test $cnt != 1
+then
+    echo "The number of save models $cnt is not equal to the specified topk 1"
+    exit -1
+fi
+
+best_epoch_dot=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch_dot"
+
+echo "**************dataset: Movielens, Bert only, do inference on saved model, decoder: Dot, eval_etype: None, with lm-lr"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/lp_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 lp_infer_lm.py --cf ml_lm_lp_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --save-embed-path /data/gsgnn_lp_ml_lm_tune_lr_dot_all_etype/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_lm_tune_lr_dot_all_etype/epoch-$best_epoch_dot/ --use-dot-product True --no-validation True"
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_lm_tune_lr_dot_all_etype/emb/ --infer_embout /data/gsgnn_lp_ml_lm_tune_lr_dot_all_etype/infer-emb/ --link_prediction
+
+error_and_exit $?
+
+rm -fr /data/gsgnn_lp_ml_lm_tune_lr_dot_all_etype/*
+
+rm train_log.txt
+echo "**************dataset: Movielens, input encoder with Bert, inference: full-graph, negative_sampler: joint, decoder: Dot, save model, with lm-lr"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_lm_lp.py --cf ml_lm_lp.yaml --num-gpus $NUM_TRAINERS --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --save-model-path /data/gsgnn_lp_ml_lmmlp_tune_lr_dot_all_etype/ --topk-model-to-save 1 --save-model-per-iter 1000 --save-embed-path /data/gsgnn_lp_ml_lmmlp_tune_lr_dot_all_etype/emb/ --use-dot-product True --model-encoder-type mlp --lm-tune-lr 0.0001" | tee train_log.txt
+
+error_and_exit ${PIPESTATUS[0]}
+
+cnt=$(ls -l /data/gsgnn_lp_ml_lmmlp_tune_lr_dot_all_etype/ | grep epoch | wc -l)
+if test $cnt != 1
+then
+    echo "The number of save models $cnt is not equal to the specified topk 1"
+    exit -1
+fi
+
+best_epoch_dot=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch_dot"
+
+echo "**************dataset: Movielens, input encoder with Bert, do inference on saved model, decoder: Dot, eval_etype: None, with lm-lr"
+python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/inference_scripts/lp_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 "python3 lp_infer_lm.py --cf ml_lm_lp_infer.yaml --num-gpus $NUM_INFO_TRAINERS --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --save-embed-path /data/gsgnn_lp_ml_lmmlp_tune_lr_dot_all_etype/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_lmmlp_tune_lr_dot_all_etype/epoch-$best_epoch_dot/ --use-dot-product True --no-validation True --model-encoder-type mlp"
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_lmmlp_tune_lr_dot_all_etype/emb/ --infer_embout /data/gsgnn_lp_ml_lmmlp_tune_lr_dot_all_etype/infer-emb/ --link_prediction
+
+error_and_exit $?
+
+
+rm -fr /data/gsgnn_lp_ml_lmmlp_tune_lr_dot_all_etype/*

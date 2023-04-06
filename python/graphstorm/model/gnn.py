@@ -27,6 +27,7 @@ from .utils import save_model as save_gsgnn_model
 from .utils import save_opt_state, load_opt_state
 from .utils import save_sparse_embeds, load_sparse_embeds
 from .embed import compute_node_input_embeddings
+from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_inference
 from ..utils import get_rank
@@ -40,19 +41,39 @@ class GSOptimizer():
 
     Parameters
     ----------
-    dense_opts : list
-        A list of optimizer objects for dense model parameters.
+    dense_opts : list of th.optim.Optimizer
+        Optimizer objects for dense model parameters.
+        TODO(xiangsx): we only retrieve the first item of the list as
+        we only support one dense optimizer.
+    lm_opts: list of th.optim.Optimizer
+        Optimizer objects for language model parameters.
+        TODO(xiangsx): we only retrieve the first item of the list as
+        we only support one language model optimizer.
+        Note: by default it is None.
     sparse_opts : list
         A list of optimizer objects for sparse model parameters.
+        Note: by default it is None. No sparse optimizer is used.
     """
-    def __init__(self, dense_opts, sparse_opts=None):
+    def __init__(self, dense_opts=None, lm_opts=None, sparse_opts=None):
+        if dense_opts is None:
+            # There will be no dense optimizer
+            # When doing graph-ware language model finetuning
+            dense_opts = []
+        if lm_opts is None:
+            # If language model is not used, there will be no lm optimizer
+            lm_opts = []
         if sparse_opts is None:
             sparse_opts = []
-        assert isinstance(dense_opts, list), "dense_opts should be a list."
-        assert isinstance(sparse_opts, list), "sparse_opts should be a list."
+        assert isinstance(dense_opts, list), \
+            "dense_opts(dense model) should be a list or None."
+        assert isinstance(lm_opts, list), \
+            "lm_opts (language model optimizers) should be a list or None."
+        assert isinstance(sparse_opts, list), \
+            "sparse_opts should be a list or None."
         self.dense_opts = dense_opts
+        self.lm_opts = lm_opts
         self.sparse_opts = sparse_opts
-        all_opts = dense_opts + sparse_opts
+        all_opts = dense_opts + lm_opts + sparse_opts
         assert len(all_opts) > 0, "Optimizer list need to be defined"
         for optimizer in all_opts:
             assert optimizer is not None
@@ -60,28 +81,28 @@ class GSOptimizer():
     def zero_grad(self):
         """ Setting the gradient to zero
         """
-        all_opts = self.dense_opts + self.sparse_opts
+        all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
         for optimizer in all_opts:
             optimizer.zero_grad()
 
     def step(self):
         """ Moving the optimizer
         """
-        all_opts = self.dense_opts + self.sparse_opts
+        all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
         for optimizer in all_opts:
             optimizer.step()
 
     def load_opt_state(self, path, device=None):
         """ Load the optimizer states
         """
-        load_opt_state(path, self.dense_opts, self.sparse_opts)
+        load_opt_state(path, self.dense_opts, self.lm_opts, self.sparse_opts)
         if device is not None:
             self.move_to_device(device)
 
     def save_opt_state(self, path):
         """ Save the optimizer states.
         """
-        save_opt_state(path, self.dense_opts, self.sparse_opts)
+        save_opt_state(path, self.dense_opts, self.lm_opts, self.sparse_opts)
 
     def move_to_device(self, device):
         """ Move the optimizer to the specified device.
@@ -90,6 +111,12 @@ class GSOptimizer():
         # We only need to move the states of the dense optimizers.
         # The states of the sparse optimizers should stay in CPU.
         for opt in self.dense_opts:
+            for state in opt.state.values():
+                for k, v in state.items():
+                    if isinstance(v, th.Tensor):
+                        state[k] = v.to(device)
+
+        for opt in self.lm_opts:
             for state in opt.state.values():
                 for k, v in state.items():
                     if isinstance(v, th.Tensor):
@@ -138,8 +165,23 @@ class GSgnnModelBase(nn.Module):
 
         A model may require multiple optimizers. For example, we should define
         an optimizer for sparse embeddings and an optimizer for the dense parameters
-        of a GNN model. In this case, a user can use GSOptimizer to combine these
+        of a GNN model. In this case, a user should use a GSOptimizer to combine these
         optimizers.
+
+        Example:
+        Case 1: if there is only one optimizer:
+            def create_optimizer(self):
+                # define torch.optim.Optimizer
+                return optimizer
+
+        Case 2: if there are both dense and sparse optimizers:
+            def create_optimizer(self):
+                dense = [dense_opt] # define torch.optim.Optimizer
+                sparse = [sparse_opt] # define dgl sparse Optimizer
+                optimizer = GSOptimizer(dense_opts=dense,
+                                        lm_opts=None,
+                                        sparse_opts=sparse)
+                return optimizer
         """
 
     #pylint: disable=unused-argument
@@ -202,20 +244,44 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         self._optimizer = None
 
     def get_dense_params(self):
-        """retrieve the all dense layers' parameters as a parameter list.
+        """retrieve the all dense layers' parameters as a parameter list except for
+        language model related parameters.
 
-        TODO(zhengda) we don't need this. We only need to call self.parameters().
+        Returns
+        -------
+        list of Parameters: the dense parameters
         """
         params = []
         if self.gnn_encoder is not None and isinstance(self.gnn_encoder, nn.Module):
             params += list(self.gnn_encoder.parameters())
-        if self.node_input_encoder is not None and isinstance(self.node_input_encoder, nn.Module):
-            params += list(self.node_input_encoder.parameters())
+        if self.node_input_encoder is not None:
+            assert isinstance(self.node_input_encoder, GSNodeInputLayer), \
+                "node_input_encoder must be a GSNodeInputLayer"
+            params += list(self.node_input_encoder.get_general_dense_parameters())
         # TODO(zhengda) we need to test a model with encoders on edge data.
-        if self.edge_input_encoder is not None and isinstance(self.edge_input_encoder, nn.Module):
-            params += list(self.edge_input_encoder.parameters())
+        if self.edge_input_encoder is not None:
+            assert False, "edge_input_encoder not supported"
+            params += list(self.edge_input_encoder.get_general_dense_parameters())
         if self.decoder is not None and isinstance(self.decoder, nn.Module):
             params += list(self.decoder.parameters())
+        return params
+
+    def get_lm_params(self):
+        """ get the language model related parameters
+
+        Returns
+        -------
+        list of Parameters: the language model parameters.
+        """
+        params = []
+        if self.node_input_encoder is not None:
+            assert isinstance(self.node_input_encoder, GSNodeInputLayer), \
+                "node_input_encoder must be a GSNodeInputLayer"
+            params += list(self.node_input_encoder.get_lm_dense_parameters())
+        if self.edge_input_encoder is not None:
+            assert False, "edge_input_encoder not supported"
+            params += list(self.edge_input_encoder.get_lm_dense_parameters())
+
         return params
 
     def get_sparse_params(self):
@@ -366,35 +432,49 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # before all processes use the model.
         th.distributed.barrier()
 
-    def init_optimizer(self, lr, sparse_lr, weight_decay):
+    def init_optimizer(self, lr, sparse_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
 
         Parameters
         ----------
         lr : float
             The learning rate for dense parameters
+            The learning rate for general dense parameters
         sparse_lr : float
             The learning rate for sparse parameters
         weight_decay : float
             The weight decay for the optimizer.
+        lm_lr: float
+            Language model fine-tuning learning rate for
+            langauge model dense parameters.
         """
         sparse_params = self.get_sparse_params()
         if len(sparse_params) > 0:
             emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_lr)
+            sparse_opts = [emb_optimizer]
         else:
-            emb_optimizer = None
+            sparse_opts = []
+
         dense_params = self.get_dense_params()
         if len(dense_params) > 0:
             optimizer = th.optim.Adam(self.get_dense_params(), lr=lr,
                                       weight_decay=weight_decay)
+            dense_opts = [optimizer]
         else:
-            # this may happen for link prediction with LM if the embedding layer is not specified.
-            optimizer = None
+            dense_opts = []
 
-        # if not train then the optimizers are not needed.
-        dense_opts = [optimizer] if optimizer is not None else []
-        sparse_opts = [emb_optimizer] if emb_optimizer is not None else []
-        self._optimizer = GSOptimizer(dense_opts=dense_opts, sparse_opts=sparse_opts)
+        lm_params = self.get_lm_params()
+        if len(lm_params) > 0:
+            lm_optimizer = th.optim.Adam(self.get_lm_params(), \
+                                         lr=lm_lr if lm_lr is not None else lr,
+                                         weight_decay=weight_decay)
+            lm_opts = [lm_optimizer]
+        else:
+            lm_opts = []
+
+        self._optimizer = GSOptimizer(dense_opts=dense_opts,
+                                      lm_opts=lm_opts,
+                                      sparse_opts=sparse_opts)
 
     def create_optimizer(self):
         """the optimizer
