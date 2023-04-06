@@ -805,6 +805,9 @@ def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_e
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None
 
+        # We don't need to copy all node ID maps to the worker processes.
+        # Only the node ID maps of the source node type and destination node type
+        # are sufficient.
         id_map = {edge_type[0]: node_id_map[edge_type[0]],
                   edge_type[2]: node_id_map[edge_type[2]]}
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
