@@ -56,6 +56,7 @@ class MyGNNModel(gsmodel.GSgnnNodeModelBase):
     def predict(self, blocks, node_feats, _):
         input_nodes = {ntype: blocks[0].srcnodes[ntype].data[dgl.NID].cpu() \
                 for ntype in blocks[0].srctypes}
+        device = blocks[0].device
         embs = self._node_input(node_feats, input_nodes)
         embs = {name: emb.to(device) for name, emb in embs.items()}
         embs = self._gnn(blocks, embs)
