@@ -47,11 +47,7 @@ def main(args):
             GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                 infer_data,
                                 config.num_negative_edges_eval,
-                                config.use_dot_product,
-                                config.enable_early_stop,
-                                config.call_to_consider_early_stop,
-                                config.window_for_early_stop,
-                                config.early_stop_strategy))
+                                config.use_dot_product))
         assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
