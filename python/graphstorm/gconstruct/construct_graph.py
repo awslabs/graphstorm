@@ -462,8 +462,16 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
     src_type, _, dst_type = edge_type
-    src_ids = node_id_map[src_type](src_ids)
-    dst_ids = node_id_map[dst_type](dst_ids)
+    if src_type in node_id_map:
+        src_ids = np.array([node_id_map[src_type][sid] for sid in src_ids])
+    else:
+        assert np.issubdtype(src_ids.dtype, np.integer), \
+                "The source node Ids have to be integer."
+    if dst_type in node_id_map:
+        dst_ids = np.array([node_id_map[dst_type][did] for did in dst_ids])
+    else:
+        assert np.issubdtype(dst_ids.dtype, np.integer), \
+                "The destination node Ids have to be integer."
     return (src_ids, dst_ids, feat_data)
 
 class IdentityMap:
@@ -509,6 +517,86 @@ class IdMap:
 
     def get_key_vals(self):
         return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
+
+def worker_fn(task_queue, res_queue, user_parser):
+    """ The worker function in the worker pool
+
+    Parameters
+    ----------
+    task_queue : Queue
+        The queue that contains all tasks
+    res_queue : Queue
+        The queue that contains the processed data. This is used for
+        communication between the worker processes and the master process.
+    user_parser : callable
+        The user-defined function to read and process the data files.
+    """
+    try:
+        while True:
+            # If the queue is empty, it will raise the Empty exception.
+            i, in_file = task_queue.get_nowait()
+            data = user_parser(in_file)
+            res_queue.put((i, data))
+            gc.collect()
+    except queue.Empty:
+        pass
+
+class WorkerPool:
+    """ A worker process pool
+
+    This worker process pool is specialized to process node/edge data.
+    It creates a set of worker processes, each of which runs a worker function.
+    It first adds all tasks in a queue and each worker gets a task from the queue
+    at a time until the workers process all tasks. It maintains a result queue
+    and each worker adds the processed results in the result queue.
+    To ensure the order of the data, each data file is associated with
+    a number and the processed data are ordered by that number.
+
+    Parameters
+    ----------
+    name : str or tuple of str
+        The name of the worker pool.
+    in_files : list of str
+        The input data files.
+    num_processes : int
+        The number of processes that run in parallel.
+    user_parser : callable
+        The user-defined function to read and process the data files.
+    """
+    def __init__(self, name, in_files, num_processes, user_parser):
+        self.name = name
+        self.processes = []
+        manager = multiprocessing.Manager()
+        self.task_queue = manager.Queue()
+        self.res_queue = manager.Queue(8)
+        self.num_files = len(in_files)
+        for i, in_file in enumerate(in_files):
+            self.task_queue.put((i, in_file))
+        for _ in range(num_processes):
+            proc = Process(target=worker_fn, args=(self.task_queue, self.res_queue, user_parser))
+            proc.start()
+            self.processes.append(proc)
+
+    def get_data(self):
+        """ Get the processed data.
+
+        Returns
+        -------
+        a dict : key is the file index, the value is processed data.
+        """
+        return_dict = {}
+        while len(return_dict) < self.num_files:
+            file_idx, vals= self.res_queue.get()
+            return_dict[file_idx] = vals
+            sys_tracker.check(f'process {self.name} data file: {file_idx}')
+            gc.collect()
+        return return_dict
+
+    def close(self):
+        """ Stop the process pool.
+        """
+        for proc in self.processes:
+            proc.join()
 
 def worker_fn(task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -664,8 +752,8 @@ def process_node_data(process_confs, remap_id, num_processes):
         pool = WorkerPool(node_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
         pool.close()
-        print(f"Processing data files for node {node_type} takes {time.time() - start:.3f} seconds"
-            node_type, time.time() - start))
+        dur = time.time() - start
+        print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -698,9 +786,8 @@ def process_node_data(process_confs, remap_id, num_processes):
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
             assert len(type_node_data[feat_name]) == num_nodes
-            print(f"node type {node_type} has feature {feat_name} " \
-                     f"of {type_node_data[feat_name].shape}"
-                node_type, feat_name, type_node_data[feat_name].shape))
+            feat_shape = type_node_data[feat_name].shape
+            print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
@@ -791,8 +878,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         pool = WorkerPool(edge_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
         pool.close()
-        print("Processing data files for edges of {} takes {:.3f} seconds".format(
-            edge_type, time.time() - start))
+        dur = time.time() - start
+        print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
@@ -815,8 +902,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         for feat_name in type_edge_data:
             type_edge_data[feat_name] = np.concatenate(type_edge_data[feat_name])
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
-            print("edge type {} has feature {} of {}".format(
-                edge_type, feat_name, type_edge_data[feat_name].shape))
+            feat_shape = type_edge_data[feat_name].shape
+            print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
 
         edge_type = tuple(edge_type)

@@ -31,6 +31,7 @@ from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 
 
 from data_utils import generate_dummy_dist_graph
+from data_utils import create_lm_graph, create_lm_graph2
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
@@ -203,75 +204,15 @@ def test_compute_embed(dev):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def create_lm_graph():
-    bert_model_name = "bert-base-uncased"
-    max_seq_length = 8
-    lm_config = [{"lm_type": "bert",
-                  "model_name": bert_model_name,
-                  "gradient_checkpoint": True,
-                  "node_types": ["n0"]}]
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        g, _ = generate_dummy_dist_graph(tmpdirname)
-
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
-    input_text = ["Hello world!"]
-    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
-    input_ids, valid_len, attention_mask, _ = \
-        create_tokens(tokenizer=tokenizer,
-                      input_text=input_text,
-                      max_seq_length=max_seq_length,
-                      num_node=g.number_of_nodes('n0'))
-
-    g.nodes['n0'].data[TOKEN_IDX] = input_ids
-    g.nodes['n0'].data[VALID_LEN] = valid_len
-
-    return lm_config, feat_size, input_ids, attention_mask, g
-
-def create_lm_graph2():
-    bert_model_name = "bert-base-uncased"
-    max_seq_length = 8
-    lm_config = [{"lm_type": "bert",
-                  "model_name": bert_model_name,
-                  "gradient_checkpoint": True,
-                  "attention_probs_dropout_prob": 0,
-                  "hidden_dropout_prob":0,
-                  "node_types": ["n0", "n1"]}]
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        g, _ = generate_dummy_dist_graph(tmpdirname)
-
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
-    input_text = ["Hello world!"]
-    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
-    input_ids0, valid_len0, attention_mask0, _ = \
-        create_tokens(tokenizer=tokenizer,
-                      input_text=input_text,
-                      max_seq_length=max_seq_length,
-                      num_node=g.number_of_nodes('n0'))
-
-    g.nodes['n0'].data[TOKEN_IDX] = input_ids0
-    g.nodes['n0'].data[ATT_MASK_IDX] = valid_len0
-
-    input_text = ["Hello Aamzon!"]
-    input_ids1, valid_len1, attention_mask1, _ = \
-        create_tokens(tokenizer=tokenizer,
-                      input_text=input_text,
-                      max_seq_length=max_seq_length,
-                      num_node=g.number_of_nodes('n1'))
-    g.nodes['n1'].data[TOKEN_IDX] = input_ids1
-    g.nodes['n1'].data[VALID_LEN] = valid_len1
-
-    return lm_config, feat_size, input_ids0, attention_mask0, \
-        input_ids1, attention_mask1, g
-
 def test_lm_infer():
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    lm_config, feat_size, input_ids, attention_mask, g = create_lm_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
     # during infer, no bert emb cache is used.
     assert len(layer.lm_emb_cache) == 0
@@ -304,7 +245,9 @@ def test_lm_embed(num_train):
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    lm_config, feat_size, input_ids, attention_mask, g = create_lm_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
 
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=num_train)
     layer.warmup(g)
@@ -348,7 +291,9 @@ def test_lm_embed(num_train):
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    lm_config, feat_size, input_ids, attention_mask, g = create_lm_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 128, num_train=num_train)
     layer.prepare(g)
     if num_train == 0:
@@ -379,7 +324,8 @@ def test_pure_lm_embed(num_train):
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    lm_config, _, _, _, g = create_lm_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, _, _, _, g, _ = create_lm_graph(tmpdirname)
 
     # GSPureLMNodeInputLayer will fail as not all ntypes in g have text feature
     has_error = False
@@ -389,8 +335,9 @@ def test_pure_lm_embed(num_train):
         has_error = True
     assert has_error
 
-    lm_config, feat_size, input_ids0, attention_mask0, \
-        input_ids1, attention_mask1, g = create_lm_graph2()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids0, attention_mask0, \
+            input_ids1, attention_mask1, g, _ = create_lm_graph2(tmpdirname)
     layer = GSPureLMNodeInputLayer(g, lm_config, num_train=num_train)
     layer.prepare(g)
     if num_train == 0:
