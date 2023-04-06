@@ -23,7 +23,19 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
 
-from graphstorm.gconstruct import write_data_parquet, read_data_parquet
+def write_data_parquet(data, data_file):
+    """ Write data to a parquet file.
+    """
+    df = {}
+    for key in data:
+        arr = data[key]
+        assert len(arr.shape) == 1 or len(arr.shape) == 2
+        if len(arr.shape) == 1:
+            df[key] = arr
+        else:
+            df[key] = [arr[i] for i in range(len(arr))]
+    table = pa.Table.from_arrays(list(df.values()), names=list(df.keys()))
+    pq.write_table(table, data_file)
 
 node_id1 = np.unique(np.random.randint(0, 1000000000, 10000))
 node_text = np.array([str(nid) for nid in node_id1])
@@ -44,8 +56,6 @@ node_id3 = np.unique(np.random.randint(0, 1000000000, 5000))
 node_id3_str = np.array([str(nid) for nid in node_id3])
 node_data3 = {
     'id': node_id3_str,
-    'data': np.repeat(node_id3, 5).reshape(len(node_id3), 5),
-    'data1': node_id3,
 }
 
 src1 = node_data1['id'][np.random.randint(0, 9999, 100000)]
@@ -86,7 +96,7 @@ for i, node_data in enumerate(split_data(node_data1, 5)):
 for i, node_data in enumerate(split_data(node_data2, 10)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data2_{i}.parquet'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
-    write_data_json(node_data, os.path.join(in_dir, f'node_data3_{i}.json'))
+    write_data_parquet(node_data, os.path.join(in_dir, f'node_data3_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data1_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data2, 10)):
@@ -137,14 +147,8 @@ node_conf = [
     {
         "node_id_col": "id",
         "node_type": "node3",
-        "format": {"name": "json"},
-        "files": os.path.join(in_dir, "node_data3_*.json"),
-        "features": [
-            {
-                "feature_col": "data",
-                "feature_name": "feat",
-            },
-        ],
+        "format": {"name": "parquet"},
+        "files": os.path.join(in_dir, "node_data3_*.parquet"),
     },
 ]
 edge_conf = [

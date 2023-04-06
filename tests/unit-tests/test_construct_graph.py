@@ -40,22 +40,6 @@ def test_parquet():
     assert "data2" not in data1
     assert np.all(data1['data1'] == data['data1'])
 
-def test_json():
-    from graphstorm.gconstruct import write_data_json, read_data_json
-    handle, tmpfile = tempfile.mkstemp()
-    os.close(handle)
-
-    data = {}
-    data["data1"] = np.random.rand(10, 3)
-    data["data2"] = np.random.rand(10)
-    write_data_json(data, tmpfile)
-    data1 = read_data_json(tmpfile, ["data1", "data2"])
-    assert len(data1) == 2
-    assert "data1" in data1
-    assert "data2" in data1
-    assert np.all(data1['data1'] == data['data1'])
-    assert np.all(data1['data2'] == data['data2'])
-
 def test_feat_ops():
     from graphstorm.gconstruct import parse_feat_ops, process_features
 
@@ -133,7 +117,6 @@ def test_label():
     assert np.sum(res['test_mask']) == 1
 
 if __name__ == '__main__':
-    test_json()
     test_parquet()
     test_feat_ops()
     test_label()
