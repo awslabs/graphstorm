@@ -392,7 +392,7 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     """
     src_type, _, dst_type = edge_type
     try:
-        src_ids, idx = node_id_map[src_type](src_ids)
+        new_src_ids, idx = node_id_map[src_type](src_ids)
         # If some of the source nodes don't exist in the node set.
         if len(idx) != len(src_ids):
             bool_mask = np.ones(len(src_ids), dtype=bool)
@@ -402,11 +402,12 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
             else:
                 raise ValueError(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
             dst_ids = dst_ids[idx]
+        src_ids = new_src_ids
     except KeyError as e:
         print(f"Process {edge_type}. Cannot find node ID of source node type {src_type}")
         raise e
     try:
-        dst_ids, idx = node_id_map[dst_type](dst_ids)
+        new_dst_ids, idx = node_id_map[dst_type](dst_ids)
         # If some of the dest nodes don't exist in the node set.
         if len(idx) != len(dst_ids):
             bool_mask = np.ones(len(dst_ids), dtype=bool)
@@ -415,6 +416,9 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
                 print(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
             else:
                 raise ValueError(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
+            # We need to remove the source nodes as well.
+            src_ids = src_ids[idx]
+        dst_ids = new_dst_ids
     except KeyError as e:
         print(f"Process {edge_type}. Cannot find node ID of destination node type {dst_type}")
         raise e
