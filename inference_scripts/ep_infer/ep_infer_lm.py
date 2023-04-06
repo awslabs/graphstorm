@@ -30,19 +30,11 @@ def get_evaluator(config): # pylint: disable=unused-argument
     """
     if config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
-                                        config.eval_metric,
-                                        config.enable_early_stop,
-                                        config.call_to_consider_early_stop,
-                                        config.window_for_early_stop,
-                                        config.early_stop_strategy)
+                                        config.eval_metric)
     elif config.task_type == 'edge_classification':
         return GSgnnAccEvaluator(config.evaluation_frequency,
                                  config.eval_metric,
-                                 config.multilabel,
-                                 config.enable_early_stop,
-                                 config.call_to_consider_early_stop,
-                                 config.window_for_early_stop,
-                                 config.early_stop_strategy)
+                                 config.multilabel)
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
@@ -67,12 +59,10 @@ def main(args):
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
     device = 'cuda:%d' % infer.dev_id
-    fanout = config.eval_fanout if config.mini_batch_infer else []
-    dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=fanout,
+    dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=[],
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
-                                     reverse_edge_types_map=config.reverse_edge_types_map,
-                                     remove_target_edge_type=config.remove_target_edge_type)
+                                     remove_target_edge_type=False)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
