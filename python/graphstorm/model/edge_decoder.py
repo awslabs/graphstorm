@@ -229,7 +229,7 @@ class MLPEdgeDecoder(GSLayer):
         return out
 
     def predict(self, g, h):
-        """predict function for this decoder
+        """Predict function for this decoder
 
         Parameters
         ----------
@@ -252,8 +252,6 @@ class MLPEdgeDecoder(GSLayer):
             out = th.matmul(h, self.decoder)
             if self.regression:
                 out = self.regression_head(out)
-            elif self.multilabel:
-                out = out.argmax(dim=1)
         return out
 
     @property
