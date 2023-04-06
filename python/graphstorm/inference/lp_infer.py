@@ -16,8 +16,8 @@
     Infer wrapper for link predicion.
 """
 import time
-import torch as th
 import asyncio
+import torch as th
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
