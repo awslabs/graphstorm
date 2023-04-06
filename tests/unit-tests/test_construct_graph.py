@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import random
 import os
 import tempfile
 import numpy as np
@@ -116,7 +117,49 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
+def test_id_map():
+    from graphstorm.gconstruct.construct_graph import IdMap
+    str_ids = np.array([str(i) for i in range(10)])
+    id_map = IdMap(str_ids)
+
+    # Test the case that all Ids exist in the map.
+    rand_ids = np.array([str(random.random() % len(str_ids)) for _ in range(5)])
+    remap_ids, idx = id_map(rand_ids)
+    assert len(idx) == len(rand_ids)
+    assert np.issubdtype(remap_ids.dtype, np.integer)
+    assert len(remap_ids) == len(rand_ids)
+    for id1, id2 in zip(remap_ids, rand_ids):
+        assert id1 == int(id2)
+
+    # Test the case that some of the Ids don't exist.
+    rand_ids1 = np.concatenate([rand_ids, np.array(["11", "15", "20"])])
+    remap_ids, idx = id_map(rand_ids1)
+    assert len(remap_ids) == len(rand_ids)
+    assert len(remap_ids) == len(idx)
+    assert np.sum(idx >= len(rand_ids)) == 0
+    for id1, id2 in zip(remap_ids, rand_ids):
+        assert id1 == int(id2)
+
+    # Test the case that the ID array of integer type
+    try:
+        rand_ids = np.random.randint(10, size=5)
+        remap_ids, idx = id_map(rand_ids)
+        raise ValueError("fails")
+    except:
+        pass
+
+    # Test the case that the ID map has integer keys.
+    str_ids = np.array([i for i in range(10)])
+    id_map = IdMap(str_ids)
+    try:
+        rand_ids = np.array([str(random.random() % len(str_ids)) for _ in range(5)])
+        remap_ids, idx = id_map(rand_ids)
+        raise ValueError("fails")
+    except:
+        pass
+
 if __name__ == '__main__':
+    test_id_map()
     test_parquet()
     test_feat_ops()
     test_label()
