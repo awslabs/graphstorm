@@ -39,56 +39,8 @@ from graphstorm.utils import sys_tracker
 
 ##################### The I/O functions ####################
 
-def read_data_json(data_file, data_fields):
-    """ Read data from a JSON file.
-
-    Each row of the JSON file represents a data record. The function tries
-    to extract a set of values from the data record.
-
-    Parameters
-    ----------
-    data_file : str
-        The JSON file that contains the data.
-    data_fields : list of str
-        The data fields that we will read data from a data record.
-
-    Returns
-    -------
-    dict : map from data name to data
-    """
-    with open(data_file, 'r', encoding="utf8") as json_file:
-        data_records = []
-        for line in json_file.readlines():
-            record = json.loads(line)
-            data_records.append(record)
-
-    data = {key: [] for key in data_fields}
-    for record in data_records:
-        for key in data_fields:
-            data[key].append(record[key])
-    for key in data:
-        data[key] = np.array(data[key])
-    return data
-
-def write_data_json(data, data_file):
-    """ Write data to a json file.
-    """
-    records = []
-    for key in data:
-        if len(records) == 0:
-            records = [{} for _ in range(len(data[key]))]
-        assert len(records) == len(data[key])
-        if data[key].shape == 1:
-            for i, val in enumerate(data[key]):
-                records[i][key] = val
-        else:
-            for i, val in enumerate(data[key]):
-                records[i][key] = val.tolist()
-    with open(data_file, 'w', encoding="utf8") as json_file:
-        json.dump(records, json_file)
-
 def read_data_parquet(data_file, data_fields=None):
-    """ Read data from a parquet file.
+    """ Read data from the parquet file.
 
     A row of a multi-dimension data is stored as an object in Parquet.
     We need to stack them to form a tensor.
@@ -172,8 +124,6 @@ def _parse_file_format(conf, is_node):
         keys += [label_conf["label_col"] for label_conf in conf["labels"]]
     if fmt["name"] == "parquet":
         return partial(read_data_parquet, data_fields=keys)
-    elif fmt["name"] == "json":
-        return partial(read_data_json, data_fields=keys)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
 
