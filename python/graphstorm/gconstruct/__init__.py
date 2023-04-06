@@ -16,8 +16,8 @@
     Initial to import dataloading and dataset classes
 """
 
-from .construct_graph import read_data_parquet, write_data_parquet
-from .construct_graph import read_data_json, write_data_json
+from .construct_graph import read_data_parquet
+from .construct_graph import write_data_parquet
 from .construct_graph import parse_feat_ops
 from .construct_graph import process_features
 from .construct_graph import process_labels
