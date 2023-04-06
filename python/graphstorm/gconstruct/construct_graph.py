@@ -370,8 +370,58 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf,
             feat_data[key] = val
     return (data[node_id_col], feat_data)
 
+def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
+    """ Map node IDs of source and destination nodes of edges.
+
+    Parameters
+    ----------
+    src_ids : tensor
+        The source nodes.
+    dst_ids : tensor
+        The destination nodes.
+    edge_type : tuple
+        It contains source node type, relation type, destination node type.
+    node_id_map : dict
+        The key is the node type and value is IdMap or IdentityMap.
+    skip_nonexist_edges : bool
+        Whether or not to skip edges that don't exist.
+
+    Returns
+    -------
+    tuple of tensors : the remapped source and destination node IDs.
+    """
+    src_type, _, dst_type = edge_type
+    try:
+        src_ids, idx = node_id_map[src_type](src_ids)
+        # If some of the source nodes don't exist in the node set.
+        if len(idx) != len(src_ids):
+            bool_mask = np.ones(len(src_ids), dtype=bool)
+            bool_mask[idx] = False
+            if skip_nonexist_edges:
+                print(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
+            else:
+                raise ValueError(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
+            dst_ids = dst_ids[idx]
+    except KeyError as e:
+        print(f"Process {edge_type}. Cannot find node ID of source node type {src_type}")
+        raise e
+    try:
+        dst_ids, idx = node_id_map[dst_type](dst_ids)
+        # If some of the dest nodes don't exist in the node set.
+        if len(idx) != len(dst_ids):
+            bool_mask = np.ones(len(dst_ids), dtype=bool)
+            bool_mask[idx] = False
+            if skip_nonexist_edges:
+                print(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
+            else:
+                raise ValueError(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
+    except KeyError as e:
+        print(f"Process {edge_type}. Cannot find node ID of destination node type {dst_type}")
+        raise e
+    return src_ids, dst_ids
+
 def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
-                    node_id_map, label_conf, read_file):
+                    node_id_map, label_conf, read_file, skip_nonexist_edges):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
@@ -396,6 +446,8 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
         The configuration of labels.
     read_file : callable
         The function to read the node file
+    skip_nonexist_edges : bool
+        Whether or not to skip edges that don't exist.
 
     Returns
     -------
@@ -409,17 +461,8 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
             feat_data[key] = val
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
-    src_type, _, dst_type = edge_type
-    try:
-        src_ids = node_id_map[src_type](src_ids)
-    except KeyError as e:
-        print(f"Process {edge_type}. Cannot find node ID of source node type {src_type}")
-        raise e
-    try:
-        dst_ids = node_id_map[dst_type](dst_ids)
-    except KeyError as e:
-        print(f"Process {edge_type}. Cannot find node ID of destination node type {dst_type}")
-        raise e
+    src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
+                                    skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
 class IdentityMap:
@@ -475,7 +518,14 @@ class IdMap:
             else:
                 raise ValueError(f"Unsupported key data type: {type(id_)}")
             break
-        return np.array([self._ids[id_] for id_ in ids])
+
+        new_ids = []
+        idx = []
+        for i, id_ in enumerate(ids):
+            if id_ in self._ids:
+                new_ids.append(self._ids[id_])
+                idx.append(i)
+        return np.array(new_ids), np.array(idx)
 
     def get_key_vals(self):
         return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
@@ -682,7 +732,7 @@ def process_node_data(process_confs, remap_id, num_processes):
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
-def process_edge_data(process_confs, node_id_map, num_processes):
+def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_edges):
     """ Process edge data
 
     The edge data of an edge type is defined as follows:
@@ -720,6 +770,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         The node ID map.
     num_processes: int
         The number of processes to process the input files.
+    skip_nonexist_edges : bool
+        Whether or not to skip edges that don't exist.
 
     Returns
     -------
@@ -757,7 +809,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
                               edge_type=edge_type,
                               node_id_map=id_map,
                               label_conf=label_conf,
-                              read_file=read_file)
+                              read_file=read_file,
+                              skip_nonexist_edges=skip_nonexist_edges)
         start = time.time()
         pool = WorkerPool(edge_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
@@ -820,7 +873,7 @@ def process_graph(args):
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
                                                num_processes_for_nodes)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
-                                         num_processes_for_edges)
+                                         num_processes_for_edges, args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.add_reverse_edges:
         edges1 = {}
@@ -880,4 +933,6 @@ if __name__ == '__main__':
     argparser.add_argument("--num_partitions", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
+    argparser.add_argument("--skip_nonexist_edges", action='store_true',
+                           help="Skip edges that whose endpoint nodes don't exist.")
     process_graph(argparser.parse_args())
