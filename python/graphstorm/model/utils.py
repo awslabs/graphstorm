@@ -110,6 +110,15 @@ def _get_sparse_emb_range(num_embs, local_rank, world_size):
 def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
     """ save sparse embeddings if any
 
+        Sparse embeddings are stored as:
+        $model_path/ntype0/sparse_emb_0.pt
+                           ...
+                           sparse_emb_N.pt
+        $model_path/ntype1/sparse_emb_0.pt
+                           ...
+                           sparse_emb_N.pt
+        ...
+
         Parameters
         ----------
         model_path: str
@@ -296,6 +305,15 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
 
 def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
     """load sparse embeddings if any
+
+        Sparse embeddings are stored as:
+        $model_path/ntype0/sparse_emb_0.pt
+                           ...
+                           sparse_emb_N.pt
+        $model_path/ntype1/sparse_emb_0.pt
+                           ...
+                           sparse_emb_N.pt
+        ...
 
         Parameters
         ----------
