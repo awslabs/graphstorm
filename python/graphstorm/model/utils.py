@@ -19,6 +19,7 @@ import os
 import math
 import json
 import shutil
+import errno
 
 import torch as th
 from torch import nn
@@ -152,8 +153,14 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
 
             embs = th.cat(embs, dim=0)
             emb_path = os.path.join(model_path, ntype)
-            if not os.path.exists(emb_path):
-                os.mkdir(emb_path)
+            try:
+                if not os.path.exists(emb_path):
+                    os.mkdir(emb_path)
+            except OSError as e:
+                # if directory exists, ignore the error
+                if e.errno != errno.EEXIST:
+                    raise
+
             th.save(embs, os.path.join(emb_path,
                                        f'sparse_emb_{local_rank}.pt'))
 
