@@ -130,7 +130,7 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
         assert local_rank < world_size
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
             num_embs = embed_layer.g.number_of_nodes(ntype)
-            start, end = _get_sparse_emb_range(len(num_embs), local_rank, world_size)
+            start, end = _get_sparse_emb_range(num_embs, local_rank, world_size)
             # collect sparse_emb in a iterative way
             embs = []
             batch_size = 10240
@@ -142,7 +142,10 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                 embs.append(sparse_emb._tensor[idx])
 
             embs = th.cat(embs, dim=0)
-            th.save(embs, os.path.join(os.path.join(model_path, ntype),
+            emb_path = os.path.join(model_path, ntype)
+            if not os.path.exists(emb_path):
+                os.mkdir(emb_path)
+            th.save(embs, os.path.join(emb_path,
                                        f'sparse_emb_{local_rank}.pt'))
 
 def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
@@ -322,21 +325,18 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
             for i in range(math.ceil(num_files/world_size)):
                 file_idx = i * world_size + local_rank
                 if file_idx < num_files:
-                    emb = th.load(os.path.join(ntype_path, f'sparse_emb_{local_rank}.pt'))
+                    emb = th.load(os.path.join(ntype_path, f'sparse_emb_{file_idx}.pt'))
                     # Get the target idx range for sparse_emb_{local_rank}.pt
-                    start, end = _get_sparse_emb_range(len(num_embs),
+                    start, end = _get_sparse_emb_range(num_embs,
                                                        local_rank=file_idx,
                                                        world_size=num_files)
 
-
                     # write sparse_emb back in an iterative way
                     batch_size = 10240
-                    # TODO: dgl.distributed.DistEmbedding should provide emb.shape
-                    num_embs = embed_layer.g.number_of_nodes(ntype)
-                    idxs = th.split(th.arange(start=start, end=end), batch_size, dim=0)
+                    idxs = th.split(th.arange(end - start), batch_size, dim=0)
                     for idx in idxs:
                         # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-                        sparse_emb._tensor[idx] = emb[idx]
+                        sparse_emb._tensor[start+idx] = emb[idx]
 
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
             num_embs = embed_layer.g.number_of_nodes(ntype)

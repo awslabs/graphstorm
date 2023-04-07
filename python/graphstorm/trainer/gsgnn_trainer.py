@@ -39,7 +39,6 @@ class GSgnnTrainer():
     """
     def __init__(self, model, rank, topk_model_to_save=1):
         super(GSgnnTrainer, self).__init__()
-        assert isinstance(model, GSgnnModel), "model must be a GSgnnModel"
         self._model = model
         optimizer = model.create_optimizer()
         assert optimizer is not None, "The model cannot provide an optimizer"
@@ -189,6 +188,9 @@ class GSgnnTrainer():
         '''
         th.distributed.barrier()
         if save_model_path is not None:
+            assert isinstance(model.module, GSgnnModel), \
+                "Please make sure the model derives from GSgnnModel, " \
+                "which provides a scalable model saving implementation."
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
             model.module.save_model(save_model_path)
             self.optimizer.save_opt_state(save_model_path)
