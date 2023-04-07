@@ -424,13 +424,12 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             # TODO(zhengda) we need to load edge_input_encoder.
             load_gsgnn_model(restore_model_path, self.gnn_encoder,
                              self.node_input_encoder, self.decoder)
-            if get_rank() == 0:
-                # TODO(zhengda) we should load the sparse embeddings in parallel in the future.
-                print('Load Sparse embedding from ', restore_model_path)
-                load_sparse_embeds(restore_model_path,
-                                   self.node_input_encoder,
-                                   get_rank(),
-                                   th.distributed.get_world_size())
+
+            print('Load Sparse embedding from ', restore_model_path)
+            load_sparse_embeds(restore_model_path,
+                                self.node_input_encoder,
+                                get_rank(),
+                                th.distributed.get_world_size())
         # We need to make sure that the sparse embedding is completely loaded
         # before all processes use the model.
         th.distributed.barrier()
