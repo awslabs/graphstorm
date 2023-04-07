@@ -117,7 +117,7 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
-def check_id_map_exist(id_map):
+def check_id_map_exist(id_map, str_ids):
     # Test the case that all Ids exist in the map.
     rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
     remap_ids, idx = id_map.map_id(rand_ids)
@@ -127,7 +127,7 @@ def check_id_map_exist(id_map):
     for id1, id2 in zip(remap_ids, rand_ids):
         assert id1 == int(id2)
 
-def check_id_map_not_exist(id_map):
+def check_id_map_not_exist(id_map, str_ids):
     # Test the case that some of the Ids don't exist.
     rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
     rand_ids1 = np.concatenate([rand_ids, np.array(["11", "15", "20"])])
@@ -138,7 +138,7 @@ def check_id_map_not_exist(id_map):
     for id1, id2 in zip(remap_ids, rand_ids):
         assert id1 == int(id2)
 
-def check_id_map_dtype_not_match(id_map):
+def check_id_map_dtype_not_match(id_map, str_ids):
     from graphstorm.gconstruct.construct_graph import IdMap
     # Test the case that the ID array of integer type
     try:
@@ -164,9 +164,9 @@ def test_id_map():
     str_ids = np.array([str(i) for i in range(10)])
     id_map = IdMap(str_ids)
 
-    check_id_map_exist(id_map)
-    check_id_map_not_exist(id_map)
-    check_id_map_dtype_not_match(id_map)
+    check_id_map_exist(id_map, str_ids)
+    check_id_map_not_exist(id_map, str_ids)
+    check_id_map_dtype_not_match(id_map, str_ids)
 
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
