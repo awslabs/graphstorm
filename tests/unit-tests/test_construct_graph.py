@@ -124,7 +124,7 @@ def test_id_map():
 
     # Test the case that all Ids exist in the map.
     rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
-    remap_ids, idx = id_map(rand_ids)
+    remap_ids, idx = id_map.map_id(rand_ids)
     assert len(idx) == len(rand_ids)
     assert np.issubdtype(remap_ids.dtype, np.integer)
     assert len(remap_ids) == len(rand_ids)
@@ -133,7 +133,7 @@ def test_id_map():
 
     # Test the case that some of the Ids don't exist.
     rand_ids1 = np.concatenate([rand_ids, np.array(["11", "15", "20"])])
-    remap_ids, idx = id_map(rand_ids1)
+    remap_ids, idx = id_map.map_id(rand_ids1)
     assert len(remap_ids) == len(rand_ids)
     assert len(remap_ids) == len(idx)
     assert np.sum(idx >= len(rand_ids)) == 0
@@ -143,7 +143,7 @@ def test_id_map():
     # Test the case that the ID array of integer type
     try:
         rand_ids = np.random.randint(10, size=5)
-        remap_ids, idx = id_map(rand_ids)
+        remap_ids, idx = id_map.map_id(rand_ids)
         raise ValueError("fails")
     except:
         pass
@@ -153,7 +153,7 @@ def test_id_map():
     id_map = IdMap(str_ids)
     try:
         rand_ids = np.array([str(random.randint(0, len(str_ids))) for _ in range(5)])
-        remap_ids, idx = id_map(rand_ids)
+        remap_ids, idx = id_map.map_id(rand_ids)
         raise ValueError("fails")
     except:
         pass

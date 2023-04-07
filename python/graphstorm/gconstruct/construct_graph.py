@@ -398,7 +398,7 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     tuple of tensors : the remapped source and destination node IDs.
     """
     src_type, _, dst_type = edge_type
-    new_src_ids, idx = node_id_map[src_type](src_ids)
+    new_src_ids, idx = node_id_map[src_type].map_id(src_ids)
     # If some of the source nodes don't exist in the node set.
     if len(idx) != len(src_ids):
         bool_mask = np.ones(len(src_ids), dtype=bool)
@@ -410,7 +410,7 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
         dst_ids = dst_ids[idx]
     src_ids = new_src_ids
 
-    new_dst_ids, idx = node_id_map[dst_type](dst_ids)
+    new_dst_ids, idx = node_id_map[dst_type].map_id(dst_ids)
     # If some of the dest nodes don't exist in the node set.
     if len(idx) != len(dst_ids):
         bool_mask = np.ones(len(dst_ids), dtype=bool)
@@ -485,7 +485,20 @@ class IdentityMap:
     def __len__(self):
         return self._size
 
-    def __call__(self, ids):
+    def map_id(self, ids):
+        """ Map the input IDs to the new IDs.
+
+        This is identity map, so we don't need to do anything.
+
+        Parameters
+        ----------
+        ids : tensor
+            The input IDs
+
+        Returns
+        -------
+        tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
+        """
         return ids, np.arange(len(ids))
 
     def get_key_vals(self):
@@ -509,7 +522,18 @@ class IdMap:
     def __len__(self):
         return len(self._ids)
 
-    def __call__(self, ids):
+    def map_id(self, ids):
+        """ Map the input IDs to the new IDs.
+
+        Parameters
+        ----------
+        ids : tensor
+            The input IDs
+
+        Returns
+        -------
+        tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
+        """
         for id_ in self._ids:
             # If the data type of the key is string, the input Ids should also be strings.
             if isinstance(id_, str):
