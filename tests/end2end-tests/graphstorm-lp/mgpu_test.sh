@@ -79,6 +79,20 @@ then
     exit -1
 fi
 
+cnt=$(ls -l /data/gsgnn_lp_ml_dot/user/ | grep epoch | wc -l)
+if test $cnt != 4
+then
+    echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_lp_ml_dot/movie/ | grep epoch | wc -l)
+if test $cnt != 4
+then
+    echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
+    exit -1
+fi
+
 cnt=$(ls -l /data/gsgnn_lp_ml_dot/ | grep epoch | wc -l)
 if test $cnt != 1
 then
@@ -98,6 +112,20 @@ cnt=$(ls -l /data/gsgnn_lp_ml_distmult/ | grep epoch | wc -l)
 if test $cnt != 1
 then
     echo "The number of save models $cnt is not equal to the specified topk 1"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_lp_ml_distmult/user/ | grep epoch | wc -l)
+if test $cnt != 4
+then
+    echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_lp_ml_distmult/movie/ | grep epoch | wc -l)
+if test $cnt != 4
+then
+    echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
     exit -1
 fi
 
