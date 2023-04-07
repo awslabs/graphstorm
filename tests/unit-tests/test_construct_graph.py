@@ -118,6 +118,7 @@ def test_label():
     assert np.sum(res['test_mask']) == 1
 
 def test_id_map():
+    # This tests all cases in IdMap.
     from graphstorm.gconstruct.construct_graph import IdMap
     str_ids = np.array([str(i) for i in range(10)])
     id_map = IdMap(str_ids)
@@ -159,6 +160,7 @@ def test_id_map():
         pass
 
 def test_map_node_ids():
+    # This tests all cases in map_node_ids.
     from graphstorm.gconstruct.construct_graph import IdMap
     from graphstorm.gconstruct.construct_graph import map_node_ids
     str_src_ids = np.array([str(i) for i in range(10)])
