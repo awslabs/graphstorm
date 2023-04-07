@@ -45,8 +45,8 @@ if __name__ == '__main__':
         ntype_files = os.listdir(os.path.join(args.emb_path, ntype))
 
         # Only work with torch 1.13+
-        feats = [th.load(os.path.join(args.emb_path, nfile), weights_only=True) \
-            for nfile in ntype_files]
+        feats = [th.load(os.path.join(os.path.join(args.emb_path, ntype), nfile),
+                         weights_only=True) for nfile in ntype_files]
         feats = th.cat(feats, dim=0)
         assert feats.shape[0] == num_nodes
         assert feats.shape[1] == args.emb_size
