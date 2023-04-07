@@ -153,14 +153,7 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
 
             embs = th.cat(embs, dim=0)
             emb_path = os.path.join(model_path, ntype)
-            try:
-                if not os.path.exists(emb_path):
-                    os.mkdir(emb_path)
-            except OSError as e:
-                # if directory exists, ignore the error
-                if e.errno != errno.EEXIST:
-                    raise
-
+            os.makedirs(emb_path, exist_ok=True)
             th.save(embs, os.path.join(emb_path,
                                        f'sparse_emb_{local_rank}.pt'))
 
