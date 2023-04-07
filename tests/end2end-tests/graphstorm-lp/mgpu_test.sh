@@ -89,14 +89,14 @@ fi
 best_epoch_dot=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
 echo "The best model is saved in epoch $best_epoch_dot"
 
-cnt=$(ls -l /data/gsgnn_lp_ml_dot/epoch-$best_epoch_dot/user/ | grep epoch | wc -l)
+cnt=$(ls /data/gsgnn_lp_ml_dot/epoch-$best_epoch_dot/user/ | wc -l)
 if test $cnt != 4
 then
     echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_lp_ml_dot/epoch-$best_epoch_dot/movie/ | grep epoch | wc -l)
+cnt=$(ls /data/gsgnn_lp_ml_dot/epoch-$best_epoch_dot/movie/ | wc -l)
 if test $cnt != 4
 then
     echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
@@ -118,14 +118,14 @@ fi
 best_epoch_distmult=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
 echo "The best model is saved in epoch $best_epoch_distmult"
 
-cnt=$(ls -l /data/gsgnn_lp_ml_distmult/epoch-$best_epoch_distmult/user/ | grep epoch | wc -l)
+cnt=$(ls /data/gsgnn_lp_ml_distmult/epoch-$best_epoch_distmult/user/ | wc -l)
 if test $cnt != 4
 then
     echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_lp_ml_distmult/epoch-$best_epoch_distmult/movie/ | grep epoch | wc -l)
+cnt=$(ls /data/gsgnn_lp_ml_distmult/epoch-$best_epoch_distmult/movie/ | wc -l)
 if test $cnt != 4
 then
     echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
