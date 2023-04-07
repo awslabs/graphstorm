@@ -117,12 +117,7 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
-def test_id_map():
-    # This tests all cases in IdMap.
-    from graphstorm.gconstruct.construct_graph import IdMap
-    str_ids = np.array([str(i) for i in range(10)])
-    id_map = IdMap(str_ids)
-
+def check_id_map_exist(id_map):
     # Test the case that all Ids exist in the map.
     rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
     remap_ids, idx = id_map.map_id(rand_ids)
@@ -132,7 +127,9 @@ def test_id_map():
     for id1, id2 in zip(remap_ids, rand_ids):
         assert id1 == int(id2)
 
+def check_id_map_not_exist(id_map):
     # Test the case that some of the Ids don't exist.
+    rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
     rand_ids1 = np.concatenate([rand_ids, np.array(["11", "15", "20"])])
     remap_ids, idx = id_map.map_id(rand_ids1)
     assert len(remap_ids) == len(rand_ids)
@@ -141,6 +138,8 @@ def test_id_map():
     for id1, id2 in zip(remap_ids, rand_ids):
         assert id1 == int(id2)
 
+def check_id_map_dtype_not_match(id_map):
+    from graphstorm.gconstruct.construct_graph import IdMap
     # Test the case that the ID array of integer type
     try:
         rand_ids = np.random.randint(10, size=5)
@@ -159,16 +158,19 @@ def test_id_map():
     except:
         pass
 
-def test_map_node_ids():
-    # This tests all cases in map_node_ids.
+def test_id_map():
+    # This tests all cases in IdMap.
     from graphstorm.gconstruct.construct_graph import IdMap
-    from graphstorm.gconstruct.construct_graph import map_node_ids
-    str_src_ids = np.array([str(i) for i in range(10)])
-    str_dst_ids = np.array([str(i) for i in range(15)])
-    id_map = {"src": IdMap(str_src_ids),
-              "dst": IdMap(str_dst_ids)}
+    str_ids = np.array([str(i) for i in range(10)])
+    id_map = IdMap(str_ids)
 
+    check_id_map_exist(id_map)
+    check_id_map_not_exist(id_map)
+    check_id_map_dtype_not_match(id_map)
+
+def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
+    from graphstorm.gconstruct.construct_graph import map_node_ids
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
     new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
@@ -180,6 +182,8 @@ def test_map_node_ids():
     for dst_id1, dst_id2 in zip(new_dst_ids, dst_ids):
         assert dst_id1 == int(dst_id2)
 
+def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
+    from graphstorm.gconstruct.construct_graph import map_node_ids
     # Test the case that source node IDs don't exist.
     src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
@@ -196,6 +200,8 @@ def test_map_node_ids():
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
 
+def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
+    from graphstorm.gconstruct.construct_graph import map_node_ids
     # Test the case that destination node IDs don't exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
@@ -211,6 +217,17 @@ def test_map_node_ids():
     num_valid = sum([int(id_) < len(str_dst_ids) for id_ in dst_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+
+def test_map_node_ids():
+    # This tests all cases in map_node_ids.
+    from graphstorm.gconstruct.construct_graph import IdMap
+    str_src_ids = np.array([str(i) for i in range(10)])
+    str_dst_ids = np.array([str(i) for i in range(15)])
+    id_map = {"src": IdMap(str_src_ids),
+              "dst": IdMap(str_dst_ids)}
+    check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map)
+    check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map)
+    check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
 
 if __name__ == '__main__':
     test_map_node_ids()
