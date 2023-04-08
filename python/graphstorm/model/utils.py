@@ -19,7 +19,6 @@ import os
 import math
 import json
 import shutil
-import errno
 
 import torch as th
 from torch import nn
