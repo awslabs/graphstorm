@@ -562,7 +562,7 @@ class IdMap:
 
         Returns
         -------
-        tuple of tensors : The first tensor contains the keys and the second the corresponding values.
+        tuple of tensors : The first one has keys and the second has corresponding values.
         """
         return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
 
