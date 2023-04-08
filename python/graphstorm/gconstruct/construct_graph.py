@@ -548,7 +548,7 @@ class IdMap:
 
         # If the input ID exists in the ID map, map it to a new ID
         # and keep its location in the input ID array.
-        # otherwise, skip the ID.
+        # Otherwise, skip the ID.
         new_ids = []
         idx = []
         for i, id_ in enumerate(ids):
