@@ -388,7 +388,7 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     edge_type : tuple
         It contains source node type, relation type, destination node type.
     node_id_map : dict
-        The key is the node type and value is IdMap or IdentityMap.
+        The key is the node type and value is IdMap or NoopMap.
     skip_nonexist_edges : bool
         Whether or not to skip edges whose endpoint nodes don't exist.
 
@@ -466,8 +466,8 @@ def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexi
                                     skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
-class IdentityMap:
-    """ Identity map
+class NoopMap:
+    """ It doesn't map IDs.
 
     This is an identity map. It doesn't do any mapping on IDs.
 
@@ -504,7 +504,7 @@ class IdentityMap:
         return None
 
 class IdMap:
-    """ ID map
+    """ Map an ID to a new ID.
 
     This creates an ID map for the input IDs.
 
@@ -745,7 +745,7 @@ def process_node_data(process_confs, remap_id, num_processes):
                 and np.all(type_node_id_map == np.arange(len(type_node_id_map))) \
                 and not remap_id:
             num_nodes = len(type_node_id_map)
-            type_node_id_map = IdentityMap(num_nodes)
+            type_node_id_map = NoopMap(num_nodes)
         else:
             type_node_id_map = IdMap(type_node_id_map)
             num_nodes = len(type_node_id_map)
@@ -890,8 +890,10 @@ def verify_confs(confs):
     ntypes = {conf['node_type'] for conf in confs["node"]}
     etypes = [conf['relation'] for conf in confs["edge"]]
     for src_type, _, dst_type in etypes:
-        assert src_type in ntypes, f"source node type {src_type} does not exist."
-        assert dst_type in ntypes, f"destination node type {dst_type} does not exist."
+        assert src_type in ntypes, \
+                f"source node type {src_type} does not exist. Please check your input data."
+        assert dst_type in ntypes, \
+                f"dest node type {dst_type} does not exist. Please check your input data."
 
 def process_graph(args):
     """ Process the graph.
