@@ -949,26 +949,28 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     output_dir : str
         The directory where we will save the partitioned results.
     """
-    for ntype in node_data:
+    from dgl.distributed.graph_partition_book import _etype_tuple_to_str
+    for ntype in g.ntypes:
         g.nodes[ntype].data['orig_id'] = th.arange(g.number_of_nodes(ntype))
-    for etype in edge_data:
+    for etype in g.canonical_etypes:
         g.edges[etype].data['orig_id'] = th.arange(g.number_of_edges(etype))
     dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
                                     part_method="None" if num_partitions == 1 else "metis")
     for i in range(num_partitions):
-        part_dir = os.path.join(output_dir, "part-" + str(i))
-        data = dgl.utils.data.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
-        for ntype in g.ntypes:
+        part_dir = os.path.join(output_dir, "part" + str(i))
+        data = dgl.data.utils.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
+        print(data.keys())
+        for ntype in node_data:
             orig_ids = data[ntype + "/orig_id"]
             del data[ntype + "/orig_id"]
             for name, ndata in node_data[ntype].items():
                 data[ntype + "/" + name] = th.tensor(ndata[orig_ids])
         dgl.data.utils.save_tensors(os.path.join(part_dir, "node_feat.dgl"), data)
 
-        data = dgl.utils.data.load_tensors(os.path.join(part_dir, "edge_feat.dgl"))
-        for etype in g.canonical_etypes:
+        data = dgl.data.utils.load_tensors(os.path.join(part_dir, "edge_feat.dgl"))
+        for etype in edge_data:
             orig_ids = data[_etype_tuple_to_str(etype) + '/orig_id']
-            del = data[_etype_tuple_to_str(etype) + '/orig_id']
+            del data[_etype_tuple_to_str(etype) + '/orig_id']
             for name, edata in edge_data[etype].items():
                 data[_etype_tuple_to_str(etype) + "/" + name] = th.tensor(edata[orig_ids])
         dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), data)
@@ -1009,7 +1011,8 @@ def process_graph(args):
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
 
     if args.output_format == "DistDGL":
-        partition_graph(g, args.graph_name, args.num_partitions, args.output_dir)
+        partition_graph(g, node_data, edge_data, args.graph_name,
+                        args.num_partitions, args.output_dir)
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
