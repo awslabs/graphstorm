@@ -966,7 +966,6 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     for i in range(num_partitions):
         part_dir = os.path.join(output_dir, "part" + str(i))
         data = dgl.data.utils.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
-        print(data.keys())
         for ntype in node_data:
             orig_ids = data[ntype + "/orig_id"]
             del data[ntype + "/orig_id"]
