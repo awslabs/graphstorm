@@ -646,7 +646,9 @@ class WorkerPool:
         for proc in self.processes:
             proc.join()
 
-def process_node_data(process_confs, remap_id, num_processes):
+def process_node_data(process_confs, remap_id, num_processes,
+                      ext_mem_workspace=None,
+                      ext_mem_feat_size=64):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -753,6 +755,17 @@ def process_node_data(process_confs, remap_id, num_processes):
 
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
+            # If we allow to store features in external memory, we store node features
+            # that have large feature dimensions in a file and use memmap to access
+            # the array.
+            if ext_mem_workspace is not None \
+                    and np.prod(type_node_data[feat_name].shape[1:]) >= ext_mem_feat_size:
+                tensor_path = os.path.join(ext_mem_workspace, ntype + "_" + feat_name + ".npy")
+                np.save(tensor_path, type_node_data[feat_name])
+                type_node_data[feat_name] = np.memmap(tensor_path,
+                                                      type_node_data[feat_name].dtype,
+                                                      mode="r", order='C',
+                                                      shape=type_node_data[feat_name].shape)
             assert len(type_node_data[feat_name]) == num_nodes
             feat_shape = type_node_data[feat_name].shape
             print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
@@ -768,7 +781,10 @@ def process_node_data(process_confs, remap_id, num_processes):
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
-def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_edges):
+def process_edge_data(process_confs, node_id_map, num_processes,
+                      skip_nonexist_edges=False,
+                      ext_mem_workspace=None,
+                      ext_mem_feat_size=64):
     """ Process edge data
 
     The edge data of an edge type is defined as follows:
@@ -871,6 +887,19 @@ def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_e
 
         for feat_name in type_edge_data:
             type_edge_data[feat_name] = np.concatenate(type_edge_data[feat_name])
+            # If we allow to store features in external memory, we store edge features
+            # that have large feature dimensions in a file and use memmap to access
+            # the array.
+            if ext_mem_workspace is not None \
+                    and np.prod(type_edge_data[feat_name].shape[1:]) >= ext_mem_feat_size:
+                tensor_path = os.path.join(ext_mem_workspace,
+                                           etype[0] + "-" + etype[1] + '-' + etype[2]
+                                           + "_" + feat_name + ".npy")
+                np.save(tensor_path, type_edge_data[feat_name])
+                type_edge_data[feat_name] = np.memmap(tensor_path,
+                                                      type_edge_data[feat_name].dtype,
+                                                      mode="r", order='C',
+                                                      shape=type_edge_data[feat_name].shape)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
             feat_shape = type_edge_data[feat_name].shape
             print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")
@@ -895,6 +924,55 @@ def verify_confs(confs):
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
 
+def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_dir):
+    """ Partition a graph
+
+    This takes advantage of the graph partition function in DGL.
+    To save memory consumption for graph partition. We only pass the graph object
+    with the graph structure to DGL's graph partition function.
+    We will split the node/edge feature tensors based on the graph partition results.
+    By doing so, we can keep the node/edge features in external memory to further
+    save memory.
+
+    Parameters
+    ----------
+    g : DGLGraph
+        The full graph object.
+    node_data : dict of tensors
+        The node feature tensors.
+    edge_data : dict of tensors
+        The edge feature tensors.
+    graph_name : str
+        The graph name.
+    num_partitions : int
+        The number of partitions.
+    output_dir : str
+        The directory where we will save the partitioned results.
+    """
+    for ntype in node_data:
+        g.nodes[ntype].data['orig_id'] = th.arange(g.number_of_nodes(ntype))
+    for etype in edge_data:
+        g.edges[etype].data['orig_id'] = th.arange(g.number_of_edges(etype))
+    dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
+                                    part_method="None" if num_partitions == 1 else "metis")
+    for i in range(num_partitions):
+        part_dir = os.path.join(output_dir, "part-" + str(i))
+        data = dgl.utils.data.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
+        for ntype in g.ntypes:
+            orig_ids = data[ntype + "/orig_id"]
+            del data[ntype + "/orig_id"]
+            for name, ndata in node_data[ntype].items():
+                data[ntype + "/" + name] = th.tensor(ndata[orig_ids])
+        dgl.data.utils.save_tensors(os.path.join(part_dir, "node_feat.dgl"), data)
+
+        data = dgl.utils.data.load_tensors(os.path.join(part_dir, "edge_feat.dgl"))
+        for etype in g.canonical_etypes:
+            orig_ids = data[_etype_tuple_to_str(etype) + '/orig_id']
+            del = data[_etype_tuple_to_str(etype) + '/orig_id']
+            for name, edata in edge_data[etype].items():
+                data[_etype_tuple_to_str(etype) + "/" + name] = th.tensor(edata[orig_ids])
+        dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), data)
+
 def process_graph(args):
     """ Process the graph.
     """
@@ -907,10 +985,17 @@ def process_graph(args):
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
     verify_confs(process_confs)
+    # We only store data to external memory if we partition a graph for distributed training.
+    ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
-                                               num_processes_for_nodes)
+                                               num_processes_for_nodes,
+                                               ext_mem_workspace=ext_mem_workspace,
+                                               ext_mem_feat_size=args.ext_mem_feat_size)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
-                                         num_processes_for_edges, args.skip_nonexist_edges)
+                                         num_processes_for_edges,
+                                         skip_nonexist_edges=args.skip_nonexist_edges,
+                                         ext_mem_workspace=ext_mem_workspace,
+                                         ext_mem_feat_size=args.ext_mem_feat_size)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.add_reverse_edges:
         edges1 = {}
@@ -922,20 +1007,16 @@ def process_graph(args):
             edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    for ntype in node_data:
-        for name, ndata in node_data[ntype].items():
-            g.nodes[ntype].data[name] = th.tensor(ndata)
-    for etype in edge_data:
-        for name, edata in edge_data[etype].items():
-            g.edges[etype].data[name] = th.tensor(edata)
 
-    if args.output_format == "DistDGL" and args.num_partitions == 1:
-        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
-                                        args.output_dir, part_method="None")
-    elif args.output_format == "DistDGL":
-        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
-                                        args.output_dir, part_method="metis")
+    if args.output_format == "DistDGL":
+        partition_graph(g, args.graph_name, args.num_partitions, args.output_dir)
     elif args.output_format == "DGL":
+        for ntype in node_data:
+            for name, ndata in node_data[ntype].items():
+                g.nodes[ntype].data[name] = th.tensor(ndata)
+        for etype in edge_data:
+            for name, edata in edge_data[etype].items():
+                g.edges[etype].data[name] = th.tensor(edata)
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
@@ -972,4 +1053,9 @@ if __name__ == '__main__':
                                    "This is only valid if the output format is DistDGL.")
     argparser.add_argument("--skip_nonexist_edges", action='store_true',
                            help="Skip edges that whose endpoint nodes don't exist.")
+    argparser.add_argument("--ext_mem_workspace", type=str,
+                           help="The directory where we can store data during graph construction.")
+    argparser.add_argument("--ext_mem_feat_size", type=int, default=64,
+                           help="The minimal number of feature dimensions that features " + \
+                                   "can be stored in external memory.")
     process_graph(argparser.parse_args())
