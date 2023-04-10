@@ -1035,7 +1035,9 @@ def process_graph(args):
             edges1[etype] = e
             edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
+        sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
         partition_graph(g, node_data, edge_data, args.graph_name,
