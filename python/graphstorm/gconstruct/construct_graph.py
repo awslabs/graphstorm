@@ -647,6 +647,23 @@ class WorkerPool:
             proc.join()
 
 def convert2ext_mem(arr, ext_mem_workspace, name):
+    """ Convert a Numpy array to an external-memory Numpy array.
+
+    Parameters
+    ----------
+    arr : Numpy array
+        The input array.
+    ext_mem_workspace : str
+        The path of the directory where the array will be stored.
+    name : str
+        The name of the external memory array.
+
+    Returns
+    -------
+    Numpy array : the Numpy array stored in external memory.
+    """
+    # We need to create the workspace directory if it doesn't exist.
+    os.makedirs(ext_mem_workspace, exist_ok=True)
     tensor_path = os.path.join(ext_mem_workspace, name + ".npy")
     em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=arr.shape)
     em_arr[:] = arr[:]
