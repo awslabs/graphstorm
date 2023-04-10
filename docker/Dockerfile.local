@@ -15,7 +15,7 @@ RUN pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.o
 RUN pip3 install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
 
 # Install related Python packages
-RUN pip3 install ogb scipy pyarrow boto3 scikit-learn transformers
+RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers
 
 # Install other dependencies
 RUN apt-get install -y cython3 libicu-dev
