@@ -760,7 +760,7 @@ def process_node_data(process_confs, remap_id, num_processes,
             # the array.
             if ext_mem_workspace is not None \
                     and np.prod(type_node_data[feat_name].shape[1:]) >= ext_mem_feat_size:
-                tensor_path = os.path.join(ext_mem_workspace, ntype + "_" + feat_name + ".npy")
+                tensor_path = os.path.join(ext_mem_workspace, node_type + "_" + feat_name + ".npy")
                 np.save(tensor_path, type_node_data[feat_name])
                 type_node_data[feat_name] = np.memmap(tensor_path,
                                                       type_node_data[feat_name].dtype,
@@ -892,9 +892,9 @@ def process_edge_data(process_confs, node_id_map, num_processes,
             # the array.
             if ext_mem_workspace is not None \
                     and np.prod(type_edge_data[feat_name].shape[1:]) >= ext_mem_feat_size:
+                etype_str = edge_type[0] + "-" + edge_type[1] + "-" + edge_type[2]
                 tensor_path = os.path.join(ext_mem_workspace,
-                                           etype[0] + "-" + etype[1] + '-' + etype[2]
-                                           + "_" + feat_name + ".npy")
+                                           etype_str + "_" + feat_name + ".npy")
                 np.save(tensor_path, type_edge_data[feat_name])
                 type_edge_data[feat_name] = np.memmap(tensor_path,
                                                       type_edge_data[feat_name].dtype,

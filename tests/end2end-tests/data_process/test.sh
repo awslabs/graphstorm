@@ -38,7 +38,7 @@ error_and_exit $?
 
 # Test the DistDGL graph format with external memory support.
 echo "********* Test the DistDGL graph format ********"
-python3 -m graphstorm.gconstruct.construct_graph --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_partition2 --graph_name test --ext_mem_workspace /tmp
+python3 -m graphstorm.gconstruct.construct_graph --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_partition2 --graph_name test --ext_mem_workspace /tmp --ext_mem_feat_size 2
 
 error_and_exit $?
 
