@@ -101,10 +101,16 @@ def _get_sparse_emb_range(num_embs, local_rank, world_size):
         world_size : int
             World size in a distributed env.
     """
+    assert local_rank < world_size, \
+        "local rank {local_rank} shold be smaller than world size {world_size}"
     # Get corresponding data range
-    start = local_rank * (num_embs // world_size)
-    end = (local_rank + 1) * (num_embs // world_size)
-    end = num_embs if local_rank + 1 == world_size else end
+    if num_embs < world_size:
+        start = local_rank if local_rank < num_embs else num_embs
+        end = local_rank + 1 if local_rank < num_embs else num_embs
+    else:
+        start = local_rank * math.ceil(num_embs / world_size)
+        end = (local_rank + 1) * math.ceil(num_embs / world_size)
+        end = num_embs if local_rank + 1 == world_size else end
     return start, end
 
 def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
@@ -331,6 +337,8 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
         if isinstance(embed_layer, DistributedDataParallel) else embed_layer
 
     if len(embed_layer.sparse_embeds) > 0:
+        assert local_rank >= 0
+        assert world_size > 0
         def load_sparse_emb(num_embs, ntype_path):
             num_files = len(os.listdir(ntype_path))
             # Suppose a sparse embedding is trained and saved using N trainers (GPUs).
