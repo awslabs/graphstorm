@@ -327,7 +327,7 @@ def process_features(data, ops):
             new_data[feat_name] = data[feat_col]
     return new_data
 
-def process_labels(data, label_confs):
+def process_labels(data, label_confs, is_node):
     """ Process labels
 
     Parameters
@@ -336,17 +336,35 @@ def process_labels(data, label_confs):
         The data stored as a dict.
     label_conf : list of dict
         The list of configs to construct labels.
+    is_node : bool
+        Whether or not to process labels on nodes.
+
+    Returns
+    -------
+    dict :
     """
     assert len(label_confs) == 1, "We only support one label per node/edge type."
     label_conf = label_confs[0]
-    assert 'label_col' in label_conf, "'label_col' must be defined in the label field."
-    label_col = label_conf['label_col']
-    label = data[label_conf['label_col']]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     if label_conf['task_type'] == 'classification':
         assert np.issubdtype(label.dtype, np.integer), \
                 "The labels for classification have to be integers."
+        assert 'label_col' in label_conf, \
+                "'label_col' must be defined in the label field."
+        label_col = label_conf['label_col']
+        label = data[label_col]
         label = np.int32(label)
+    elif label_conf['task_type'] == 'regression':
+        assert 'label_col' in label_conf, \
+                "'label_col' must be defined in the label field."
+        label_col = label_conf['label_col']
+        label = data[label_col]
+    else:
+        assert label_conf['task_type'] == 'link_prediction', \
+                "The task type must be classification, regression or link_prediction."
+        assert is_node, "link_prediction task must be defined on edges."
+        label_col = label = None
+
     if 'split_type' in label_conf:
         train_split, val_split, test_split = label_conf['split_type']
         assert train_split + val_split + test_split <= 1, \
@@ -363,10 +381,15 @@ def process_labels(data, label_confs):
         train_mask[train_idx] = 1
         val_mask[val_idx] = 1
         test_mask[test_idx] = 1
-    return {label_col: label,
-            'train_mask': train_mask,
-            'val_mask': val_mask,
-            'test_mask': test_mask}
+    if label_col is None:
+        return {'train_mask': train_mask,
+                'val_mask': val_mask,
+                'test_mask': test_mask}
+    else:
+        return {label_col: label,
+                'train_mask': train_mask,
+                'val_mask': val_mask,
+                'test_mask': test_mask}
 
 ################### The functions for multiprocessing ###############
 
