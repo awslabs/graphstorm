@@ -646,6 +646,12 @@ class WorkerPool:
         for proc in self.processes:
             proc.join()
 
+def convert2ext_mem(arr, ext_mem_workspace, name):
+    tensor_path = os.path.join(ext_mem_workspace, name + ".npy")
+    em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=arr.shape)
+    em_arr[:] = arr[:]
+    return em_arr
+
 def process_node_data(process_confs, remap_id, num_processes,
                       ext_mem_workspace=None,
                       ext_mem_feat_size=64):
@@ -764,12 +770,9 @@ def process_node_data(process_confs, remap_id, num_processes,
             # the array.
             if ext_mem_workspace is not None \
                     and np.prod(type_node_data[feat_name].shape[1:]) >= ext_mem_feat_size:
-                tensor_path = os.path.join(ext_mem_workspace, node_type + "_" + feat_name + ".npy")
-                np.save(tensor_path, type_node_data[feat_name])
-                type_node_data[feat_name] = np.memmap(tensor_path,
-                                                      type_node_data[feat_name].dtype,
-                                                      mode="r", order='C',
-                                                      shape=type_node_data[feat_name].shape)
+                type_node_data[feat_name] = convert2ext_mem(type_node_data[feat_name],
+                                                            ext_mem_workspace,
+                                                            node_type + "_" + feat_name)
             assert len(type_node_data[feat_name]) == num_nodes
             feat_shape = type_node_data[feat_name].shape
             print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
@@ -901,13 +904,9 @@ def process_edge_data(process_confs, node_id_map, num_processes,
             if ext_mem_workspace is not None \
                     and np.prod(type_edge_data[feat_name].shape[1:]) >= ext_mem_feat_size:
                 etype_str = edge_type[0] + "-" + edge_type[1] + "-" + edge_type[2]
-                tensor_path = os.path.join(ext_mem_workspace,
-                                           etype_str + "_" + feat_name + ".npy")
-                np.save(tensor_path, type_edge_data[feat_name])
-                type_edge_data[feat_name] = np.memmap(tensor_path,
-                                                      type_edge_data[feat_name].dtype,
-                                                      mode="r", order='C',
-                                                      shape=type_edge_data[feat_name].shape)
+                type_edge_data[feat_name] = convert2ext_mem(type_edge_data[feat_name],
+                                                            ext_mem_workspace,
+                                                            etype_str + "_" + feat_name)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
             feat_shape = type_edge_data[feat_name].shape
             print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")

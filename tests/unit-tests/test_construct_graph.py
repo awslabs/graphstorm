@@ -229,7 +229,18 @@ def test_map_node_ids():
     check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map)
     check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
 
+def test_convert2ext_mem():
+    from graphstorm.gconstruct.construct_graph import convert2ext_mem
+    arr = np.array([str(i) for i in range(10)])
+    em_arr = convert2ext_mem(arr, "/tmp", "test1")
+    assert np.all(arr == em_arr)
+
+    arr = np.random.uniform(size=(1000, 10))
+    em_arr = convert2ext_mem(arr, "/tmp", "test2")
+    assert np.all(arr == em_arr)
+
 if __name__ == '__main__':
+    test_convert2ext_mem()
     test_map_node_ids()
     test_id_map()
     test_parquet()

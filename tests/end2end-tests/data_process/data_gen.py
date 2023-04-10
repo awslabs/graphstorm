@@ -75,7 +75,8 @@ dst_idx = np.random.randint(0, 5000, 100000)
 edge_data3 = {
     'src': src3,
     'dst': node_data3['id'][dst_idx],
-    'data': np.repeat(src3 + node_id3[dst_idx], 5).reshape(len(src3), 5),
+    'data': src3 + node_id3[dst_idx],
+    'data1': np.repeat(src3 + node_id3[dst_idx], 5).reshape(len(src3), 5),
 }
 
 in_dir = '/tmp/test_data/'
