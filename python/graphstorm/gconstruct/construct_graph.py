@@ -341,7 +341,7 @@ def process_labels(data, label_confs, is_node):
 
     Returns
     -------
-    dict :
+    dict of tensors : labels (optional) and train/validation/test masks.
     """
     assert len(label_confs) == 1, "We only support one label per node/edge type."
     label_conf = label_confs[0]
@@ -442,7 +442,7 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
-        label_data = process_labels(data, label_conf)
+        label_data = process_labels(data, label_conf, True)
         for key, val in label_data.items():
             feat_data[key] = val
     return (data[node_id_col], feat_data)
@@ -533,7 +533,7 @@ def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexi
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
-        label_data = process_labels(data, label_conf)
+        label_data = process_labels(data, label_conf, False)
         for key, val in label_data.items():
             feat_data[key] = val
     src_ids = data[src_id_col]
