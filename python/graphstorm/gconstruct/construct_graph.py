@@ -688,6 +688,10 @@ def process_node_data(process_confs, remap_id, num_processes,
         Whether or not to remap node IDs
     num_processes: int
         The number of processes to process the input files.
+    ext_mem_workspace : str
+        The path of the directory where we can store data during graph construction.
+    ext_mem_feat_size : int
+        The minimal feature size that the feature can be stored on disks.
 
     Returns
     -------
@@ -824,6 +828,10 @@ def process_edge_data(process_confs, node_id_map, num_processes,
         The number of processes to process the input files.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
+    ext_mem_workspace : str
+        The path of the directory where we can store data during graph construction.
+    ext_mem_feat_size : int
+        The minimal feature size that the feature can be stored on disks.
 
     Returns
     -------
