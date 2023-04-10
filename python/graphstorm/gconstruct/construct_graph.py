@@ -978,8 +978,10 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         g.nodes[ntype].data['orig_id'] = th.arange(g.number_of_nodes(ntype))
     for etype in g.canonical_etypes:
         g.edges[etype].data['orig_id'] = th.arange(g.number_of_edges(etype))
+    sys_tracker.check('Before partitioning starts')
     dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
                                     part_method="None" if num_partitions == 1 else "metis")
+    sys_tracker.check('Graph partitioning')
     for i in range(num_partitions):
         part_dir = os.path.join(output_dir, "part" + str(i))
         data = dgl.data.utils.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
@@ -988,6 +990,7 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
             del data[ntype + "/orig_id"]
             for name, ndata in node_data[ntype].items():
                 data[ntype + "/" + name] = th.tensor(ndata[orig_ids])
+            sys_tracker.check(f'Get node data of node {ntype} in partition {i}')
         dgl.data.utils.save_tensors(os.path.join(part_dir, "node_feat.dgl"), data)
 
         data = dgl.data.utils.load_tensors(os.path.join(part_dir, "edge_feat.dgl"))
@@ -996,6 +999,7 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
             del data[_etype_tuple_to_str(etype) + '/orig_id']
             for name, edata in edge_data[etype].items():
                 data[_etype_tuple_to_str(etype) + "/" + name] = th.tensor(edata[orig_ids])
+            sys_tracker.check(f'Get edge data of edge {etype} in partition {i}')
         dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), data)
 
 def process_graph(args):
