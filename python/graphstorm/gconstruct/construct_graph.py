@@ -166,8 +166,10 @@ class Tokenizer:
             t = self.tokenizer(s, max_length=self.max_seq_length,
                                truncation=True, padding='max_length', return_tensors='pt')
             tokens.append(t['input_ids'])
-            att_masks.append(t['attention_mask'])
-            type_ids.append(t['token_type_ids'])
+            # The masks are small integers. We can use int4 or int8 to store them.
+            # This can signficantly reduce memory consumption.
+            att_masks.append(t['attention_mask'].to(th.int8))
+            type_ids.append(t['token_type_ids'].to(th.int8))
         return {'token_ids': th.cat(tokens, dim=0).numpy(),
                 'attention_mask': th.cat(att_masks, dim=0).numpy(),
                 'token_type_ids': th.cat(type_ids, dim=0).numpy()}
@@ -337,8 +339,7 @@ def get_in_files(in_files):
     in_files.sort()
     return in_files
 
-def parse_node_data(in_file, feat_ops, node_id_col, label_conf,
-                    read_file):
+def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -370,8 +371,59 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf,
             feat_data[key] = val
     return (data[node_id_col], feat_data)
 
-def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
-                    node_id_map, label_conf, read_file):
+def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
+    """ Map node IDs of source and destination nodes of edges.
+
+    In the ID mapping, we need to handle multiple errors in the input data:
+    1) we handle the case that endpoint nodes of edges don't exist;
+    2) we handle the case that the data type of node IDs of the endpoint nodes don't
+    match the data type of the keys of the ID map.
+
+    Parameters
+    ----------
+    src_ids : tensor
+        The source nodes.
+    dst_ids : tensor
+        The destination nodes.
+    edge_type : tuple
+        It contains source node type, relation type, destination node type.
+    node_id_map : dict
+        The key is the node type and value is IdMap or NoopMap.
+    skip_nonexist_edges : bool
+        Whether or not to skip edges whose endpoint nodes don't exist.
+
+    Returns
+    -------
+    tuple of tensors : the remapped source and destination node IDs.
+    """
+    src_type, _, dst_type = edge_type
+    new_src_ids, orig_locs = node_id_map[src_type].map_id(src_ids)
+    # If some of the source nodes don't exist in the node set.
+    if len(orig_locs) != len(src_ids):
+        bool_mask = np.ones(len(src_ids), dtype=bool)
+        bool_mask[orig_locs] = False
+        if skip_nonexist_edges:
+            print(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
+        else:
+            raise ValueError(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
+        dst_ids = dst_ids[orig_locs]
+    src_ids = new_src_ids
+
+    new_dst_ids, orig_locs = node_id_map[dst_type].map_id(dst_ids)
+    # If some of the dest nodes don't exist in the node set.
+    if len(orig_locs) != len(dst_ids):
+        bool_mask = np.ones(len(dst_ids), dtype=bool)
+        bool_mask[orig_locs] = False
+        if skip_nonexist_edges:
+            print(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
+        else:
+            raise ValueError(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
+        # We need to remove the source nodes as well.
+        src_ids = src_ids[orig_locs]
+    dst_ids = new_dst_ids
+    return src_ids, dst_ids
+
+def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexist_edges):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
@@ -384,23 +436,24 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
         The path of the input edge file.
     feat_ops : dict
         The operations run on the edge features of the edge file.
-    src_id_col : str
-        The column name that contains the source node ID.
-    dst_id_col : str
-        The column name that contains the destination node ID.
-    edge_type : tuple
-        The tuple that contains source node type, relation type and destination node type.
     node_id_map : dict
         Contains the ID mapping for every node type.
-    label_conf : dict
-        The configuration of labels.
     read_file : callable
         The function to read the node file
+    conf : dict
+        The configuration for parsing edge data.
+    skip_nonexist_edges : bool
+        Whether or not to skip edges that don't exist.
 
     Returns
     -------
     a tuple : source ID vector, destination ID vector, a dict of edge feature tensors.
     """
+    src_id_col = conf['source_id_col']
+    dst_id_col = conf['dest_id_col']
+    edge_type = conf['relation']
+    label_conf = conf['labels'] if 'labels' in conf else None
+
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
@@ -409,22 +462,49 @@ def parse_edge_data(in_file, feat_ops, src_id_col, dst_id_col, edge_type,
             feat_data[key] = val
     src_ids = data[src_id_col]
     dst_ids = data[dst_id_col]
-    assert node_id_map is not None
-    src_type, _, dst_type = edge_type
-    if src_type in node_id_map:
-        src_ids = np.array([node_id_map[src_type][sid] for sid in src_ids])
-    else:
-        assert np.issubdtype(src_ids.dtype, np.integer), \
-                "The source node Ids have to be integer."
-    if dst_type in node_id_map:
-        dst_ids = np.array([node_id_map[dst_type][did] for did in dst_ids])
-    else:
-        assert np.issubdtype(dst_ids.dtype, np.integer), \
-                "The destination node Ids have to be integer."
+    src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
+                                    skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
-def create_id_map(ids):
-    """ Create ID map
+class NoopMap:
+    """ It doesn't map IDs.
+
+    This is an identity map. It doesn't do any mapping on IDs.
+
+    Parameters
+    ----------
+    size : int
+        The map size.
+    """
+    def __init__(self, size):
+        self._size = size
+
+    def __len__(self):
+        return self._size
+
+    def map_id(self, ids):
+        """ Map the input IDs to the new IDs.
+
+        This is identity map, so we don't need to do anything.
+
+        Parameters
+        ----------
+        ids : tensor
+            The input IDs
+
+        Returns
+        -------
+        tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
+        """
+        return ids, np.arange(len(ids))
+
+    def get_key_vals(self):
+        """ Get the key value pairs.
+        """
+        return None
+
+class IdMap:
+    """ Map an ID to a new ID.
 
     This creates an ID map for the input IDs.
 
@@ -432,12 +512,59 @@ def create_id_map(ids):
     ----------
     ids : Numpy array
         The input IDs
-
-    Returns
-    -------
-    dict : the key is the original ID and the value is the new ID.
     """
-    return {id1: i for i, id1 in enumerate(ids)}
+    def __init__(self, ids):
+        self._ids = {id1: i for i, id1 in enumerate(ids)}
+
+    def __len__(self):
+        return len(self._ids)
+
+    def map_id(self, ids):
+        """ Map the input IDs to the new IDs.
+
+        Parameters
+        ----------
+        ids : tensor
+            The input IDs
+
+        Returns
+        -------
+        tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
+        """
+        for id_ in self._ids:
+            # If the data type of the key is string, the input Ids should also be strings.
+            if isinstance(id_, str):
+                assert isinstance(ids[0], str), \
+                        "The key of ID map is string, input IDs should also be strings."
+            elif isinstance(id_, int) or np.issubdtype(id_.dtype, np.integer):
+                # If the data type of the key is integer, the input Ids should
+                # also be integers.
+                assert np.issubdtype(ids.dtype, np.integer), \
+                        "The key of ID map is integer, input IDs should also be integers. " \
+                        + f"But get {type(ids[0])}."
+            else:
+                raise ValueError(f"Unsupported key data type: {type(id_)}")
+            break
+
+        # If the input ID exists in the ID map, map it to a new ID
+        # and keep its location in the input ID array.
+        # Otherwise, skip the ID.
+        new_ids = []
+        idx = []
+        for i, id_ in enumerate(ids):
+            if id_ in self._ids:
+                new_ids.append(self._ids[id_])
+                idx.append(i)
+        return np.array(new_ids), np.array(idx)
+
+    def get_key_vals(self):
+        """ Get the key value pairs.
+
+        Returns
+        -------
+        tuple of tensors : The first one has keys and the second has corresponding values.
+        """
+        return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
 
 def worker_fn(task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -618,9 +745,9 @@ def process_node_data(process_confs, remap_id, num_processes):
                 and np.all(type_node_id_map == np.arange(len(type_node_id_map))) \
                 and not remap_id:
             num_nodes = len(type_node_id_map)
-            type_node_id_map = None
+            type_node_id_map = NoopMap(num_nodes)
         else:
-            type_node_id_map = create_id_map(type_node_id_map)
+            type_node_id_map = IdMap(type_node_id_map)
             num_nodes = len(type_node_id_map)
         sys_tracker.check(f'Create node ID map of {node_type}')
 
@@ -641,7 +768,7 @@ def process_node_data(process_confs, remap_id, num_processes):
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
-def process_edge_data(process_confs, node_id_map, num_processes):
+def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_edges):
     """ Process edge data
 
     The edge data of an edge type is defined as follows:
@@ -679,6 +806,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         The node ID map.
     num_processes: int
         The number of processes to process the input files.
+    skip_nonexist_edges : bool
+        Whether or not to skip edges that don't exist.
 
     Returns
     -------
@@ -691,10 +820,8 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         # each iteration is to process an edge type.
         assert 'source_id_col' in process_conf, \
                 "'source_id_col' is not defined for an edge type."
-        src_id_col = process_conf['source_id_col']
         assert 'dest_id_col' in process_conf, \
                 "'dest_id_col' is not defined for an edge type."
-        dst_id_col = process_conf['dest_id_col']
         assert 'relation' in process_conf, \
                 "'relation' is not defined for an edge type."
         edge_type = process_conf['relation']
@@ -706,15 +833,17 @@ def process_edge_data(process_confs, node_id_map, num_processes):
         in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
-        label_conf = process_conf['labels'] if 'labels' in process_conf else None
 
+        # We don't need to copy all node ID maps to the worker processes.
+        # Only the node ID maps of the source node type and destination node type
+        # are sufficient.
+        id_map = {edge_type[0]: node_id_map[edge_type[0]],
+                  edge_type[2]: node_id_map[edge_type[2]]}
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
-                              src_id_col=src_id_col,
-                              dst_id_col=dst_id_col,
-                              edge_type=edge_type,
-                              node_id_map=node_id_map,
-                              label_conf=label_conf,
-                              read_file=read_file)
+                              node_id_map=id_map,
+                              read_file=read_file,
+                              conf=process_conf,
+                              skip_nonexist_edges=skip_nonexist_edges)
         start = time.time()
         pool = WorkerPool(edge_type, in_files, num_processes, user_parser)
         return_dict = pool.get_data()
@@ -755,6 +884,17 @@ def process_edge_data(process_confs, node_id_map, num_processes):
 
     return edges, edge_data
 
+def verify_confs(confs):
+    """ Verify the configuration of the input data.
+    """
+    ntypes = {conf['node_type'] for conf in confs["node"]}
+    etypes = [conf['relation'] for conf in confs["edge"]]
+    for src_type, _, dst_type in etypes:
+        assert src_type in ntypes, \
+                f"source node type {src_type} does not exist. Please check your input data."
+        assert dst_type in ntypes, \
+                f"dest node type {dst_type} does not exist. Please check your input data."
+
 def process_graph(args):
     """ Process the graph.
     """
@@ -766,25 +906,12 @@ def process_graph(args):
             if args.num_processes_for_nodes is not None else args.num_processes
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
+    verify_confs(process_confs)
     node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
                                                num_processes_for_nodes)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
-                                         num_processes_for_edges)
-    num_nodes = {}
-    for ntype in set(list(node_data.keys()) + list(node_id_map.keys())):
-        # If a node type has Id map.
-        if ntype in node_id_map:
-            num_nodes[ntype] = len(node_id_map[ntype])
-        # If a node type has node data.
-        elif ntype in node_data:
-            for feat_name in node_data[ntype]:
-                # Here we only need to look at the length of the first node features
-                # to get the number of nodes for the node type.
-                num_nodes[ntype] = len(node_data[ntype][feat_name])
-                break
-        else:
-            # A node type must have either ID map or node data.
-            raise ValueError('Node type {} must have either ID map or node data'.format(ntype))
+                                         num_processes_for_edges, args.skip_nonexist_edges)
+    num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
@@ -802,18 +929,23 @@ def process_graph(args):
         for name, edata in edge_data[etype].items():
             g.edges[etype].data[name] = th.tensor(edata)
 
-    if args.output_format == "DistDGL":
+    if args.output_format == "DistDGL" and args.num_partitions == 1:
         dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
                                         args.output_dir, part_method="None")
+    elif args.output_format == "DistDGL":
+        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
+                                        args.output_dir, part_method="metis")
     elif args.output_format == "DGL":
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
     for ntype in node_id_map:
-        map_data = {}
-        map_data["orig"] = np.array(list(node_id_map[ntype].keys()))
-        map_data["new"] = np.array(list(node_id_map[ntype].values()))
-        write_data_parquet(map_data, os.path.join(args.output_dir, ntype + "_id_remap.parquet"))
+        kv_pairs = node_id_map[ntype].get_key_vals()
+        if kv_pairs is not None:
+            map_data = {}
+            map_data["orig"], map_data["new"] = kv_pairs
+            write_data_parquet(map_data, os.path.join(args.output_dir,
+                                                      ntype + "_id_remap.parquet"))
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
@@ -838,4 +970,6 @@ if __name__ == '__main__':
     argparser.add_argument("--num_partitions", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
+    argparser.add_argument("--skip_nonexist_edges", action='store_true',
+                           help="Skip edges that whose endpoint nodes don't exist.")
     process_graph(argparser.parse_args())
