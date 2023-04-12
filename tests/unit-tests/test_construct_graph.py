@@ -32,6 +32,7 @@ from graphstorm.gconstruct.construct_graph import map_node_ids
 from graphstorm.gconstruct.construct_graph import IdMap
 from graphstorm.gconstruct.construct_graph import ExtMemArrayConverter
 from graphstorm.gconstruct.construct_graph import partition_graph
+from graphstorm.gconstruct.construct_graph import process_labels
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -127,21 +128,51 @@ def test_feat_ops():
     assert "token_type_ids" in proc_res
 
 def test_label():
-    data = {
-        "label": np.random.randint(5, size=10),
-    }
-    label_conf = [
-        {
-            "label_col": "label",
-            "task_type": "classification",
-            "split_type": [0.8, 0.1, 0.1],
-        },
-    ]
-    res = process_labels(data, label_conf)
-    np.testing.assert_array_equal(res['label'], data['label'])
-    assert res['train_mask'].shape == (len(data['label']),)
-    assert res['val_mask'].shape == (len(data['label']),)
-    assert res['test_mask'].shape == (len(data['label']),)
+    def check_split(res):
+        assert len(res) == 4
+        assert 'label' in res
+        assert 'train_mask' in res
+        assert 'val_mask' in res
+        assert 'test_mask' in res
+        assert res['train_mask'].shape == (len(data['label']),)
+        assert res['val_mask'].shape == (len(data['label']),)
+        assert res['test_mask'].shape == (len(data['label']),)
+        assert np.sum(res['train_mask']) == 8
+        assert np.sum(res['val_mask']) == 1
+        assert np.sum(res['test_mask']) == 1
+
+    # Check classification
+    data = {'label' : np.random.uniform(size=10) * 10}
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'split_type': [0.8, 0.1, 0.1]}
+    res = process_labels(data, [conf], True)
+    def check_classification(res):
+        check_split(res)
+        assert np.issubdtype(res['label'].dtype, np.integer)
+    check_classification(res)
+    res = process_labels(data, [conf], False)
+    check_classification(res)
+
+    # Check regression
+    conf = {'task_type': 'regression',
+            'label_col': 'label',
+            'split_type': [0.8, 0.1, 0.1]}
+    res = process_labels(data, [conf], True)
+    def check_regression(res):
+        check_split(res)
+    check_regression(res)
+    res = process_labels(data, [conf], False)
+    check_regression(res)
+
+    # Check link prediction
+    conf = {'task_type': 'link_prediction',
+            'split_type': [0.8, 0.1, 0.1]}
+    res = process_labels(data, [conf], False)
+    assert len(res) == 3
+    assert 'train_mask' in res
+    assert 'val_mask' in res
+    assert 'test_mask' in res
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
@@ -328,57 +359,7 @@ def test_partition_graph():
             assert name in edata2
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
-def test_process_labels():
-    from graphstorm.gconstruct.construct_graph import process_labels
-    data = {'label' : np.random.uniform(size=10) * 10}
-
-    def check_split(res):
-        assert len(res) == 4
-        assert 'label' in res
-        assert 'train_mask' in res
-        assert np.sum(res['train_mask']) == 8
-        assert 'val_mask' in res
-        assert np.sum(res['val_mask']) == 1
-        assert 'test_mask' in res
-        assert np.sum(res['test_mask']) == 1
-
-    # Check classification
-    conf = {'task_type': 'classification',
-            'label_col': 'label',
-            'split_type': [0.8, 0.1, 0.1]}
-    res = process_labels(data, [conf], True)
-    def check_classification(res):
-        check_split(res)
-        assert np.issubdtype(res['label'].dtype, np.integer)
-    check_classification(res)
-    res = process_labels(data, [conf], True)
-    check_classification(res)
-
-    # Check regression
-    conf = {'task_type': 'regression',
-            'label_col': 'label',
-            'split_type': [0.8, 0.1, 0.1]}
-    res = process_labels(data, [conf], True)
-    def check_regression(res):
-        check_split(res)
-    check_regression(res)
-    res = process_labels(data, [conf], True)
-    check_regression(res)
-
-    # Check link prediction
-    conf = {'task_type': 'link_prediction',
-            'split_type': [0.8, 0.1, 0.1]}
-    res = process_labels(data, [conf], False)
-    assert len(res) == 3
-    assert 'train_mask' in res
-    assert np.sum(res['train_mask']) == 8
-    assert 'val_mask' in res
-    assert np.sum(res['val_mask']) == 1
-    assert 'test_mask' in res
-    assert np.sum(res['test_mask']) == 1
-
 if __name__ == '__main__':
-    test_process_labels()
     test_json()
     test_partition_graph()
     test_convert2ext_mem()
