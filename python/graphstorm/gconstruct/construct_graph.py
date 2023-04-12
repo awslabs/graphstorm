@@ -933,7 +933,7 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
             # If we allow to store features in external memory, we store edge features
             # that have large feature dimensions in a file and use memmap to access
             # the array.
-            etype_str = edge_type[0] + "-" + edge_type[1] + "-" + edge_type[2]
+            etype_str = "-".join(edge_type)
             type_edge_data[feat_name] = convert2ext_mem(type_edge_data[feat_name],
                                                         etype_str + "_" + feat_name)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
