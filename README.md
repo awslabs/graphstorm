@@ -10,7 +10,7 @@ and training pipelines to improve model performance. GraphStorm also provides a 
 interface to train any custom GML model in a distributed manner. Users
 provide their own model implementations and use GraphStorm training pipeline to scale.
 
-![GraphStorm architecture](https://github.com/awslabs/graphstorm/blob/main/tutorial/graphstorm_arch.jpg?raw=true)
+![GraphStorm architecture](https://github.com/awslabs/graphstorm/blob/main/tutorial/graphstorm_arch.png?raw=true)
 
 ## Get Started
 ### Installation
