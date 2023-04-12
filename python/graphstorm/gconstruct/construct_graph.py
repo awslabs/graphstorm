@@ -415,7 +415,7 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
         bool_mask = np.ones(len(dst_ids), dtype=bool)
         bool_mask[orig_locs] = False
         if skip_nonexist_edges:
-            print(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
+            print(f"dest nodes of {dst_type} do not exist: {dst_ids[bool_mask]}")
         else:
             raise ValueError(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
         # We need to remove the source nodes as well.

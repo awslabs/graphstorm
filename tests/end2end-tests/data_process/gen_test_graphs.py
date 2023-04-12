@@ -63,9 +63,9 @@ def generate_data(args):
     n_dfs_dict = {}
     # -------- build node1 table ---------
     # create node id strings 
-    ids = np.random.choice(np.arange(NUM_NTYPE1 * factor * 2), NUM_NTYPE1 * factor, replace=False)
-    # n1_ids = ['n1id-' + str(i) for i in ids]
-    n1_ids = ids
+    n1ids = np.random.choice(np.arange(NUM_NTYPE1 * factor * 2), NUM_NTYPE1 * factor, replace=False)
+    n1_ids = ['n1id-' + str(i) for i in n1ids]
+    # n1_ids = ids
     # create two feature columns
     f1 = np.random.randn(NUM_NTYPE1 * factor)
     f2 = np.random.randint(0, 10, size=NUM_NTYPE1 * factor)
@@ -77,9 +77,9 @@ def generate_data(args):
 
     # -------- build node2 table ---------
     # create node id strings
-    ids = np.random.choice(np.arange(NUM_NTYPE2 * factor * 2), NUM_NTYPE2 * factor, replace=False)
-    # n2_ids = ['n2id-' + str(i) for i in ids]
-    n2_ids = ids
+    n2ids = np.random.choice(np.arange(NUM_NTYPE2 * factor * 2), NUM_NTYPE2 * factor, replace=False)
+    n2_ids = ['n2id-' + str(i) for i in n2ids]
+    # n2_ids = ids
     # create three feaure columns
     f1 = np.random.randn(NUM_NTYPE2 * factor)
     f2 = np.random.randint(0, 2, size=NUM_NTYPE2 * factor)
@@ -93,31 +93,27 @@ def generate_data(args):
 
     # -------- build node3 table ---------
     # create node id strings
-    ids = np.random.choice(np.arange(NUM_NTYPE3 * factor * 2), NUM_NTYPE3 * factor, replace=False)
-    # n3_ids = ['n3id-' + str(i) for i in ids]
-    n3_ids = ids
+    n3ids = np.random.choice(np.arange(NUM_NTYPE3 * factor * 2), NUM_NTYPE3 * factor, replace=False)
+    n3_ids = ['n3id-' + str(i) for i in n3ids]
+    # n3_ids = ids
     # create the node 3 pandas dataframe
     n3_df = pd.DataFrame({'node3-id': n3_ids})
     n_dfs_dict['n2'] = n3_df
     
     e_dfs_dict = {}
     # -------- build edge1 between node1 and node2 ---------
-    src_ids = np.random.choice(n1_ids, NUM_ETYPE1 * factor + 100, replace=True)
-    dst_ids = np.random.choice(n2_ids, NUM_ETYPE1 * factor + 100, replace=True)
-    # e1_df = pd.DataFrame({'src_nid': src_ids,
-    #                       'dst_nid': dst_ids})
-    e1_df = pd.DataFrame({'src_id': src_ids,
-                          'dst_id': dst_ids})
+    e1_src_ids = np.random.choice(n1_ids, NUM_ETYPE1 * factor + 100, replace=True)
+    e1_dst_ids = np.random.choice(n2_ids, NUM_ETYPE1 * factor + 100, replace=True)
+    e1_df = pd.DataFrame({'src_id': e1_src_ids,
+                          'dst_id': e1_dst_ids})
     e1_df = e1_df.drop_duplicates().iloc[ :NUM_ETYPE1 * factor]
     e_dfs_dict[('n0', 'e0', 'n1')] = e1_df
 
     # -------- build edge2 between node1 and node3 ---------
-    src_ids = np.random.choice(n1_ids, NUM_ETYPE2 * factor + 100, replace=True)
-    dst_ids = np.random.choice(n3_ids, NUM_ETYPE2 * factor + 100, replace=True)
-    # e2_df = pd.DataFrame({'src_nid': src_ids,
-    #                       'dst_nid': dst_ids})
-    e2_df = pd.DataFrame({'src_id': src_ids,
-                          'dst_id': dst_ids})
+    e2_src_ids = np.random.choice(n1_ids, NUM_ETYPE2 * factor + 100, replace=True)
+    e2_dst_ids = np.random.choice(n3_ids, NUM_ETYPE2 * factor + 100, replace=True)
+    e2_df = pd.DataFrame({'src_id': e2_src_ids,
+                          'dst_id': e2_dst_ids})
     e2_df = e2_df.drop_duplicates().iloc[ :NUM_ETYPE2 * factor]
     # elabels = np.random.randint(0, 2, int(e2_df.shape[0] * 0.5))      # labels for half edges
     # e2_df['f1-label'] = np.nan
@@ -158,7 +154,7 @@ def split_files(n_dfs_dict, e_dfs_dict, split_policy='no_split'):
     elif split_policy == 'random_split':
         for ntype, n_df in n_dfs_dict.items():
             num_splits = np.random.choice([1,2,3], 1)[0]
-            split_interval = n_df.shape[0] // num_splits
+            split_interval = n_df.shape[0] // num_splits + 1
             n_df_splits = []
             for i in range(num_splits):
                 start_pt = i * split_interval
@@ -169,7 +165,7 @@ def split_files(n_dfs_dict, e_dfs_dict, split_policy='no_split'):
         
         for etype, e_df in e_dfs_dict.items():
             num_splits = np.random.choice([1,2,3], 1)[0]
-            split_interval = e_df.shape[0] // num_splits
+            split_interval = e_df.shape[0] // num_splits + 1
             e_df_splits = []
             for i in range(num_splits):
                 start_pt = i * split_interval
@@ -241,12 +237,11 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = 'feat'     # Is this name used to the data[feature_name] ?
                 feat_dict['data_type'] = str(n_df[col].dtype)   # what are the supported options, e.g., int64, object?
-                # feat_dict['transform'] = dict()         # what are the supported options?
                 feat_cols.append(feat_dict)
             else:
                 label_dict['label_col'] = col
                 label_dict['task_type'] = 'classification'
-                label_dict['split_pct'] = [0.2, 0.1, 0.1]
+                label_dict['split_type'] = [0.2, 0.1, 0.1]
                 label_cols.append(label_dict)
         if feat_cols:
             n_dict['features'] = feat_cols
@@ -254,7 +249,7 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
             n_dict['labels'] = label_cols
         n_list.append(n_dict)
 
-    data_json['nodes'] = n_list
+    data_json['node'] = n_list
 
     e_list = []
     for etype, e_df_splits in e_split_dict.items():
@@ -273,13 +268,12 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
             elif col.endswith('-label'):
                 label_dict['label_col'] = col
                 label_dict['task_type'] = 'classification'
-                label_dict['split_pct'] = [0.2, 0.2, 0.6]
+                label_dict['split_type'] = [0.2, 0.2, 0.6]
                 label_list.append(label_dict)
             else:
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = 'feat'
                 feat_dict['data_type'] = str(e_df[col].dtype)
-                # feat_dict['transform'] = dict()
                 feat_list.append(feat_dict)
 
         if feat_list:
@@ -295,7 +289,7 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
         
         e_list.append(e_dict)
 
-    data_json['edges'] = e_list
+    data_json['edge'] = e_list
 
     return data_json
     
