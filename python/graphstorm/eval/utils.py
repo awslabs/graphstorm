@@ -226,9 +226,12 @@ def calc_ranking(pos_score, neg_score):
         -------
         ranking of positive scores: th.Tensor
     """
+    # [1024], [1024, 20]
+    # print("pos score size", pos_score.shape, "neg", neg_score.shape)
     pos_score = pos_score.view(-1, 1)
     # perturb object
     scores = th.cat([pos_score, neg_score], dim=1)
+    # print("score cat size", len(scores))
     scores = th.sigmoid(scores)
     _, indices = th.sort(scores, dim=1, descending=True)
     indices = th.nonzero(indices == 0)
@@ -275,10 +278,8 @@ def gen_mrr_score(ranking):
         -------
         link prediction eval metrics: list of dict
     """
-    logs = []
-    for rank in ranking:
-        logs.append(1.0 / rank)
-    metrics = {"mrr": th.tensor(sum(log for log in logs) / len(logs))}
+    logs = th.div(1.0, ranking)
+    metrics = {"mrr": th.tensor(th.div(th.sum(logs),len(logs)))}
     return metrics
 
 
