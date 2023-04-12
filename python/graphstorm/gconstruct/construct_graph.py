@@ -646,32 +646,55 @@ class WorkerPool:
         for proc in self.processes:
             proc.join()
 
-def convert2ext_mem(arr, ext_mem_workspace, name):
+class ExtMemArrayConverter:
     """ Convert a Numpy array to an external-memory Numpy array.
 
     Parameters
     ----------
-    arr : Numpy array
-        The input array.
     ext_mem_workspace : str
         The path of the directory where the array will be stored.
-    name : str
-        The name of the external memory array.
-
-    Returns
-    -------
-    Numpy array : the Numpy array stored in external memory.
+    ext_mem_feat_size : int
+        The threshold of the feature size that triggers storing data on disks.
     """
-    # We need to create the workspace directory if it doesn't exist.
-    os.makedirs(ext_mem_workspace, exist_ok=True)
-    tensor_path = os.path.join(ext_mem_workspace, name + ".npy")
-    em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=arr.shape)
-    em_arr[:] = arr[:]
-    return em_arr
+    def __init__(self, ext_mem_workspace, ext_mem_feat_size):
+        self._ext_mem_workspace = ext_mem_workspace
+        self._ext_mem_feat_size = ext_mem_feat_size
+        self._tensor_files = []
 
-def process_node_data(process_confs, remap_id, num_processes,
-                      ext_mem_workspace=None,
-                      ext_mem_feat_size=64):
+    def cleanup(self):
+        """ Clean up the converter.
+        """
+        for tensor_file in self._tensor_files:
+            os.remove(tensor_file)
+
+    def __call__(self, arr, name):
+        """ Convert a Numpy array.
+
+        Parameters
+        ----------
+        arr : Numpy array
+            The input array.
+        name : str
+            The name of the external memory array.
+
+        Returns
+        -------
+        Numpy array : the Numpy array stored in external memory.
+        """
+        # If external memory workspace is not initialized or the feature size is smaller
+        # than a threshold, we don't do anything.
+        if self._ext_mem_workspace is None or np.prod(arr.shape[1:]) < self._ext_mem_feat_size:
+            return arr
+
+        # We need to create the workspace directory if it doesn't exist.
+        os.makedirs(self._ext_mem_workspace, exist_ok=True)
+        tensor_path = os.path.join(self._ext_mem_workspace, name + ".npy")
+        self._tensor_files.append(tensor_path)
+        em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=arr.shape)
+        em_arr[:] = arr[:]
+        return em_arr
+
+def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -707,14 +730,12 @@ def process_node_data(process_confs, remap_id, num_processes,
     ----------
     process_confs: list of dicts
         The configurations to process node data.
+    convert2ext_mem : ExtMemArrayConverter
+        A callable to convert a Numpy array to external-memory Numpy array.
     remap_id: bool
         Whether or not to remap node IDs
     num_processes: int
         The number of processes to process the input files.
-    ext_mem_workspace : str
-        The path of the directory where we can store data during graph construction.
-    ext_mem_feat_size : int
-        The threshold of the feature size that triggers storing data on disks.
 
     Returns
     -------
@@ -785,11 +806,8 @@ def process_node_data(process_confs, remap_id, num_processes,
             # If we allow to store features in external memory, we store node features
             # that have large feature dimensions in a file and use memmap to access
             # the array.
-            if ext_mem_workspace is not None \
-                    and np.prod(type_node_data[feat_name].shape[1:]) >= ext_mem_feat_size:
-                type_node_data[feat_name] = convert2ext_mem(type_node_data[feat_name],
-                                                            ext_mem_workspace,
-                                                            node_type + "_" + feat_name)
+            type_node_data[feat_name] = convert2ext_mem(type_node_data[feat_name],
+                                                        node_type + "_" + feat_name)
             assert len(type_node_data[feat_name]) == num_nodes
             feat_shape = type_node_data[feat_name].shape
             print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
@@ -805,10 +823,9 @@ def process_node_data(process_confs, remap_id, num_processes,
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
-def process_edge_data(process_confs, node_id_map, num_processes,
-                      skip_nonexist_edges=False,
-                      ext_mem_workspace=None,
-                      ext_mem_feat_size=64):
+def process_edge_data(process_confs, node_id_map, convert2ext_mem,
+                      num_processes=1,
+                      skip_nonexist_edges=False):
     """ Process edge data
 
     The edge data of an edge type is defined as follows:
@@ -844,14 +861,12 @@ def process_edge_data(process_confs, node_id_map, num_processes,
         The configurations to process edge data.
     node_id_map: dict
         The node ID map.
+    convert2ext_mem : ExtMemArrayConverter
+        A callable to convert a Numpy array to external-memory Numpy array.
     num_processes: int
         The number of processes to process the input files.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
-    ext_mem_workspace : str
-        The path of the directory where we can store data during graph construction.
-    ext_mem_feat_size : int
-        The minimal feature size that the feature can be stored on disks.
 
     Returns
     -------
@@ -918,12 +933,9 @@ def process_edge_data(process_confs, node_id_map, num_processes,
             # If we allow to store features in external memory, we store edge features
             # that have large feature dimensions in a file and use memmap to access
             # the array.
-            if ext_mem_workspace is not None \
-                    and np.prod(type_edge_data[feat_name].shape[1:]) >= ext_mem_feat_size:
-                etype_str = edge_type[0] + "-" + edge_type[1] + "-" + edge_type[2]
-                type_edge_data[feat_name] = convert2ext_mem(type_edge_data[feat_name],
-                                                            ext_mem_workspace,
-                                                            etype_str + "_" + feat_name)
+            etype_str = edge_type[0] + "-" + edge_type[1] + "-" + edge_type[2]
+            type_edge_data[feat_name] = convert2ext_mem(type_edge_data[feat_name],
+                                                        etype_str + "_" + feat_name)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
             feat_shape = type_edge_data[feat_name].shape
             print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")
@@ -1024,15 +1036,14 @@ def process_graph(args):
     verify_confs(process_confs)
     # We only store data to external memory if we partition a graph for distributed training.
     ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
-    node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
-                                               num_processes_for_nodes,
-                                               ext_mem_workspace=ext_mem_workspace,
-                                               ext_mem_feat_size=args.ext_mem_feat_size)
+    convert2ext_mem = ExtMemArrayConverter(ext_mem_workspace, args.ext_mem_feat_size)
+    node_id_map, node_data = process_node_data(process_confs['node'], convert2ext_mem,
+                                               args.remap_node_id,
+                                               num_processes=num_processes_for_nodes)
     edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
-                                         num_processes_for_edges,
-                                         skip_nonexist_edges=args.skip_nonexist_edges,
-                                         ext_mem_workspace=ext_mem_workspace,
-                                         ext_mem_feat_size=args.ext_mem_feat_size)
+                                         convert2ext_mem,
+                                         num_processes=num_processes_for_edges,
+                                         skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.add_reverse_edges:
         edges1 = {}
@@ -1067,6 +1078,7 @@ def process_graph(args):
             map_data["orig"], map_data["new"] = kv_pairs
             write_data_parquet(map_data, os.path.join(args.output_dir,
                                                       ntype + "_id_remap.parquet"))
+    convert2ext_mem.cleanup()
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")

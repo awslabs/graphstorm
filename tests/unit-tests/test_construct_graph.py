@@ -232,13 +232,17 @@ def test_map_node_ids():
     check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
 
 def test_convert2ext_mem():
-    arr = np.array([str(i) for i in range(10)])
-    em_arr = convert2ext_mem(arr, "/tmp", "test1")
-    np.testing.assert_array_equal(arr, em_arr)
+    converters = [ExtMemArrayConverter(None, 0),
+                  ExtMemArrayConverter("/tmp", 2)]
+    for converter in converters:
+        arr = np.array([str(i) for i in range(10)])
+        em_arr = converter(arr, "test1")
+        np.testing.assert_array_equal(arr, em_arr)
 
-    arr = np.random.uniform(size=(1000, 10))
-    em_arr = convert2ext_mem(arr, "/tmp", "test2")
-    np.testing.assert_array_equal(arr, em_arr)
+        arr = np.random.uniform(size=(1000, 10))
+        em_arr = converter(arr, "test2")
+        np.testing.assert_array_equal(arr, em_arr)
+        converter.cleanup()
 
 if __name__ == '__main__':
     test_convert2ext_mem()
