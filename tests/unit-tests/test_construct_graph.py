@@ -42,14 +42,14 @@ def test_parquet():
     assert len(data1) == 2
     assert "data1" in data1
     assert "data2" in data1
-    assert np.all(data1['data1'] == data['data1'])
-    assert np.all(data1['data2'] == data['data2'])
+    np.testing.assert_array_equal(data1['data1'], data['data1'])
+    np.testing.assert_array_equal(data1['data2'], data['data2'])
 
     data1 = read_data_parquet(tmpfile, data_fields=['data1'])
     assert len(data1) == 1
     assert "data1" in data1
     assert "data2" not in data1
-    assert np.all(data1['data1'] == data['data1'])
+    np.testing.assert_array_equal(data1['data1'], data['data1'])
 
 def test_feat_ops():
 
@@ -91,16 +91,16 @@ def test_feat_ops():
     assert tokens['token_ids'].shape == (2, 16)
     assert tokens['attention_mask'].shape == (2, 16)
     assert tokens['token_type_ids'].shape == (2, 16)
-    assert np.all(tokens['token_ids'][0] == tokens['token_ids'][1])
-    assert np.all(tokens['attention_mask'][0] == tokens['attention_mask'][1])
-    assert np.all(tokens['token_type_ids'][0] == tokens['token_type_ids'][1])
+    np.testing.assert_array_equal(tokens['token_ids'][0], tokens['token_ids'][1])
+    np.testing.assert_array_equal(tokens['attention_mask'][0], tokens['attention_mask'][1])
+    np.testing.assert_array_equal(tokens['token_type_ids'][0], tokens['token_type_ids'][1])
 
     data = {
         "test1": np.random.rand(2, 4),
         "test3": ["hello world", "hello world"],
     }
     proc_res = process_features(data, res2)
-    assert np.all(data['test1'] == proc_res['test2'])
+    np.testing.assert_array_equal(data['test1'], proc_res['test2'])
     assert "token_ids" in proc_res
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
@@ -117,7 +117,7 @@ def test_label():
         },
     ]
     res = process_labels(data, label_conf)
-    assert np.all(res['label'] == data['label'])
+    np.testing.assert_array_equal(res['label'], data['label'])
     assert res['train_mask'].shape == (len(data['label']),)
     assert res['val_mask'].shape == (len(data['label']),)
     assert res['test_mask'].shape == (len(data['label']),)
@@ -234,11 +234,11 @@ def test_map_node_ids():
 def test_convert2ext_mem():
     arr = np.array([str(i) for i in range(10)])
     em_arr = convert2ext_mem(arr, "/tmp", "test1")
-    assert np.all(arr == em_arr)
+    np.testing.assert_array_equal(arr, em_arr)
 
     arr = np.random.uniform(size=(1000, 10))
     em_arr = convert2ext_mem(arr, "/tmp", "test2")
-    assert np.all(arr == em_arr)
+    np.testing.assert_array_equal(arr, em_arr)
 
 if __name__ == '__main__':
     test_convert2ext_mem()
