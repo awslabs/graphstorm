@@ -127,7 +127,7 @@ node_conf = [
             {
                 "label_col":    "label",
                 "task_type":    "classification",
-                "split_type":   [0.8, 0.2, 0.0],
+                "split_pct":   [0.8, 0.2, 0.0],
             },
         ],
     },
@@ -167,7 +167,7 @@ edge_conf = [
             {
                 "label_col":    "label",
                 "task_type":    "classification",
-                "split_type":   [0.8, 0.2, 0.0],
+                "split_pct":   [0.8, 0.2, 0.0],
             },
         ],
     },
@@ -193,7 +193,7 @@ edge_conf = [
     },
 ]
 transform_conf = {
-    "node": node_conf,
-    "edge": edge_conf,
+    "nodes": node_conf,
+    "edges": edge_conf,
 }
 json.dump(transform_conf, open(os.path.join(in_dir, 'test_data_transform.conf'), 'w'), indent=4)

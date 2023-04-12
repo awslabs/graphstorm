@@ -115,6 +115,8 @@ def generate_data(args):
     e2_df = pd.DataFrame({'src_id': e2_src_ids,
                           'dst_id': e2_dst_ids})
     e2_df = e2_df.drop_duplicates().iloc[ :NUM_ETYPE2 * factor]
+    
+    # [TODO] James: Keep these commented codes for later test after construct graph fix this issue.
     # elabels = np.random.randint(0, 2, int(e2_df.shape[0] * 0.5))      # labels for half edges
     # e2_df['f1-label'] = np.nan
     # e_idx = np.random.randint(0, e2_df.shape[0], int(e2_df.shape[0] * 0.5))
@@ -220,28 +222,28 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
     n_list = []
     for ntype, n_df_splits in n_split_dict.items():
         n_dict = {}
-        n_dict['node_type'] = ntype                        # what is this node_type for?
-        n_dict['format'] = generate_format_dict(format)    # besides csv, what other two's options?
+        n_dict['node_type'] = ntype
+        n_dict['format'] = generate_format_dict(format)
         _, file_paths = generate_file_paths(ntype, n_df_splits, format, output_path)
         n_dict['files'] = file_paths
 
-        n_df = n_df_splits[0]                         # only retrieve the first split dataframe
+        n_df = n_df_splits[0]
         feat_cols = []
         label_cols = []
         for col in n_df.columns:
             label_dict = {}
             feat_dict = {}
             if col.endswith('-id'):
-                n_dict['node_id_col'] = col       # node id column
+                n_dict['node_id_col'] = col
             elif not col.endswith('-label'):
                 feat_dict['feature_col'] = col
-                feat_dict['feature_name'] = 'feat'     # Is this name used to the data[feature_name] ?
-                feat_dict['data_type'] = str(n_df[col].dtype)   # what are the supported options, e.g., int64, object?
+                feat_dict['feature_name'] = 'feat'
+                feat_dict['data_type'] = str(n_df[col].dtype)
                 feat_cols.append(feat_dict)
             else:
                 label_dict['label_col'] = col
                 label_dict['task_type'] = 'classification'
-                label_dict['split_type'] = [0.2, 0.1, 0.1]
+                label_dict['split_pct'] = [0.2, 0.1, 0.1]
                 label_cols.append(label_dict)
         if feat_cols:
             n_dict['features'] = feat_cols
@@ -249,7 +251,7 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
             n_dict['labels'] = label_cols
         n_list.append(n_dict)
 
-    data_json['node'] = n_list
+    data_json['nodes'] = n_list
 
     e_list = []
     for etype, e_df_splits in e_split_dict.items():
@@ -268,7 +270,7 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
             elif col.endswith('-label'):
                 label_dict['label_col'] = col
                 label_dict['task_type'] = 'classification'
-                label_dict['split_type'] = [0.2, 0.2, 0.6]
+                label_dict['split_pct'] = [0.2, 0.2, 0.6]
                 label_list.append(label_dict)
             else:
                 feat_dict['feature_col'] = col
@@ -289,7 +291,7 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
         
         e_list.append(e_dict)
 
-    data_json['edge'] = e_list
+    data_json['edges'] = e_list
 
     return data_json
     
