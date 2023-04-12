@@ -19,8 +19,18 @@ import tempfile
 import numpy as np
 import graphstorm as gs
 
+from graphstorm.gconstruct import write_data_parquet, read_data_parquet
+from graphstorm.gconstruct import parse_feat_ops, process_features
+from graphstorm.gconstruct import process_labels
+from graphstorm.gconstruct.construct_graph import IdMap
+from graphstorm.gconstruct.construct_graph import IdMap
+from graphstorm.gconstruct.construct_graph import map_node_ids
+from graphstorm.gconstruct.construct_graph import map_node_ids
+from graphstorm.gconstruct.construct_graph import map_node_ids
+from graphstorm.gconstruct.construct_graph import IdMap
+from graphstorm.gconstruct.construct_graph import convert2ext_mem
+
 def test_parquet():
-    from graphstorm.gconstruct import write_data_parquet, read_data_parquet
     handle, tmpfile = tempfile.mkstemp()
     os.close(handle)
 
@@ -42,7 +52,6 @@ def test_parquet():
     assert np.all(data1['data1'] == data['data1'])
 
 def test_feat_ops():
-    from graphstorm.gconstruct import parse_feat_ops, process_features
 
     feat_op1 = [{
         "feature_col": "test1",
@@ -97,7 +106,6 @@ def test_feat_ops():
     assert "token_type_ids" in proc_res
 
 def test_label():
-    from graphstorm.gconstruct import process_labels
     data = {
         "label": np.random.randint(5, size=10),
     }
@@ -139,7 +147,6 @@ def check_id_map_not_exist(id_map, str_ids):
         assert id1 == int(id2)
 
 def check_id_map_dtype_not_match(id_map, str_ids):
-    from graphstorm.gconstruct.construct_graph import IdMap
     # Test the case that the ID array of integer type
     try:
         rand_ids = np.random.randint(10, size=5)
@@ -160,7 +167,6 @@ def check_id_map_dtype_not_match(id_map, str_ids):
 
 def test_id_map():
     # This tests all cases in IdMap.
-    from graphstorm.gconstruct.construct_graph import IdMap
     str_ids = np.array([str(i) for i in range(10)])
     id_map = IdMap(str_ids)
 
@@ -170,7 +176,6 @@ def test_id_map():
 
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
-    from graphstorm.gconstruct.construct_graph import map_node_ids
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
     new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
@@ -183,7 +188,6 @@ def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
         assert dst_id1 == int(dst_id2)
 
 def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
-    from graphstorm.gconstruct.construct_graph import map_node_ids
     # Test the case that source node IDs don't exist.
     src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
@@ -201,7 +205,6 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
     assert len(new_dst_ids) == num_valid
 
 def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
-    from graphstorm.gconstruct.construct_graph import map_node_ids
     # Test the case that destination node IDs don't exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
@@ -220,7 +223,6 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
 
 def test_map_node_ids():
     # This tests all cases in map_node_ids.
-    from graphstorm.gconstruct.construct_graph import IdMap
     str_src_ids = np.array([str(i) for i in range(10)])
     str_dst_ids = np.array([str(i) for i in range(15)])
     id_map = {"src": IdMap(str_src_ids),
@@ -230,7 +232,6 @@ def test_map_node_ids():
     check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
 
 def test_convert2ext_mem():
-    from graphstorm.gconstruct.construct_graph import convert2ext_mem
     arr = np.array([str(i) for i in range(10)])
     em_arr = convert2ext_mem(arr, "/tmp", "test1")
     assert np.all(arr == em_arr)
