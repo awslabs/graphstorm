@@ -54,6 +54,8 @@ def test_parquet():
     assert "data2" not in data1
     np.testing.assert_array_equal(data1['data1'], data['data1'])
 
+    os.remove(tmpfile)
+
 def test_json():
     from graphstorm.gconstruct import write_data_json, read_data_json
     handle, tmpfile = tempfile.mkstemp()
