@@ -42,8 +42,9 @@ from graphstorm.utils import sys_tracker
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
 
-    Each row of the JSON file represents a data record. The function tries
-    to extract a set of values from the data record.
+    Each row of the JSON file represents a data record. Each JSON object
+    is single-level dict without any nested dict structure.
+    The function tries to extract a set of values from the data record.
 
     Parameters
     ----------
