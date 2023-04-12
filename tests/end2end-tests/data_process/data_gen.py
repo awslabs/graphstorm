@@ -25,6 +25,14 @@ import numpy as np
 
 from graphstorm.gconstruct import write_data_parquet, write_data_json
 
+# Here we construct a graph with multiple node types and edge types
+# to test the graph construction pipeline. To test the pipeline
+# in a comprehensive way, we store node data in multiple cases:
+# 1) different formats, 2) with or without node features, 3) with or
+# without labels, 4) features of different types, 5) node features
+# with different dimensions.
+# We create multiple edges in a similar way.
+
 node_id1 = np.unique(np.random.randint(0, 1000000000, 10000))
 node_text = np.array([str(nid) for nid in node_id1])
 node_data1 = {
