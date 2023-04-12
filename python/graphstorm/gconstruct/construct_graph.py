@@ -661,9 +661,7 @@ class ExtMemArrayConverter:
         self._ext_mem_feat_size = ext_mem_feat_size
         self._tensor_files = []
 
-    def cleanup(self):
-        """ Clean up the converter.
-        """
+    def __del__(self):
         for tensor_file in self._tensor_files:
             os.remove(tensor_file)
 
@@ -1090,7 +1088,6 @@ def process_graph(args):
             map_data["orig"], map_data["new"] = kv_pairs
             write_data_parquet(map_data, os.path.join(args.output_dir,
                                                       ntype + "_id_remap.parquet"))
-    convert2ext_mem.cleanup()
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
