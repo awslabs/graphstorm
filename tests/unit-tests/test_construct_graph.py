@@ -269,7 +269,8 @@ def test_partition_graph():
     node_data1 = []
     edge_data1 = []
     with tempfile.TemporaryDirectory() as tmpdirname:
-        partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname)
+        partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
+                        part_method="random")
         for i in range(num_parts):
             part_dir = os.path.join(tmpdirname, "part" + str(i))
             node_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
