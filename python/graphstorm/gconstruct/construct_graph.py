@@ -714,7 +714,7 @@ def process_node_data(process_confs, remap_id, num_processes,
     ext_mem_workspace : str
         The path of the directory where we can store data during graph construction.
     ext_mem_feat_size : int
-        The minimal feature size that the feature can be stored on disks.
+        The threshold of the feature size that triggers storing data on disks.
 
     Returns
     -------
@@ -985,7 +985,11 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     for i in range(num_partitions):
         part_dir = os.path.join(output_dir, "part" + str(i))
         data = dgl.data.utils.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
+        # Get the node features for the partition and save the node features in node_feat.dgl.
         for ntype in node_data:
+            # We store the original node IDs as a node feature when we partition the graph.
+            # We can get the original node IDs from the node features and now
+            # we use them to retrieve the right node features.
             orig_ids = data[ntype + "/orig_id"]
             del data[ntype + "/orig_id"]
             for name, ndata in node_data[ntype].items():
@@ -994,7 +998,11 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         dgl.data.utils.save_tensors(os.path.join(part_dir, "node_feat.dgl"), data)
 
         data = dgl.data.utils.load_tensors(os.path.join(part_dir, "edge_feat.dgl"))
+        # Get the edge features for the partition and save the edge features in edge_feat.dgl.
         for etype in edge_data:
+            # We store the original edge IDs as a edge feature when we partition the graph.
+            # We can get the original edge IDs from the edge features and now
+            # we use them to retrieve the right edge features.
             orig_ids = data[_etype_tuple_to_str(etype) + '/orig_id']
             del data[_etype_tuple_to_str(etype) + '/orig_id']
             for name, edata in edge_data[etype].items():
