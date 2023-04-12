@@ -226,12 +226,9 @@ def calc_ranking(pos_score, neg_score):
         -------
         ranking of positive scores: th.Tensor
     """
-    # [1024], [1024, 20]
-    # print("pos score size", pos_score.shape, "neg", neg_score.shape)
     pos_score = pos_score.view(-1, 1)
     # perturb object
     scores = th.cat([pos_score, neg_score], dim=1)
-    # print("score cat size", len(scores))
     scores = th.sigmoid(scores)
     _, indices = th.sort(scores, dim=1, descending=True)
     indices = th.nonzero(indices == 0)
