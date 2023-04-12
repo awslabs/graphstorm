@@ -134,7 +134,7 @@ def test_label():
         {
             "label_col": "label",
             "task_type": "classification",
-            "split_type": [0.8, 0.1, 0.1],
+            "split_pct": [0.8, 0.1, 0.1],
         },
     ]
     res = process_labels(data, label_conf)
