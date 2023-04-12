@@ -67,6 +67,23 @@ def read_data_json(data_file, data_fields):
         data[key] = np.array(data[key])
     return data
 
+def write_data_json(data, data_file):
+    """ Write data to a json file.
+    """
+    records = []
+    for key in data:
+        if len(records) == 0:
+            records = [{} for _ in range(len(data[key]))]
+        assert len(records) == len(data[key])
+        if data[key].shape == 1:
+            for i, val in enumerate(data[key]):
+                records[i][key] = val
+        else:
+            for i, val in enumerate(data[key]):
+                records[i][key] = val.tolist()
+    with open(data_file, 'w', encoding="utf8") as json_file:
+        json.dump(records, json_file)
+
 def read_data_parquet(data_file, data_fields=None):
     """ Read data from a parquet file.
 
