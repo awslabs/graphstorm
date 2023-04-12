@@ -960,7 +960,8 @@ def verify_confs(confs):
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
 
-def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_dir):
+def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_dir,
+                    part_method=None):
     """ Partition a graph
 
     This takes advantage of the graph partition function in DGL.
@@ -984,6 +985,8 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         The number of partitions.
     output_dir : str
         The directory where we will save the partitioned results.
+    part_method : str (optional)
+        The partition algorithm used to partition the graph.
     """
     from dgl.distributed.graph_partition_book import _etype_tuple_to_str
     for ntype in g.ntypes:
@@ -991,8 +994,13 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     for etype in g.canonical_etypes:
         g.edges[etype].data['orig_id'] = th.arange(g.number_of_edges(etype))
     sys_tracker.check('Before partitioning starts')
+    if part_method is None:
+        part_method = "None" if num_partitions == 1 else "metis"
     dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
-                                    part_method="None" if num_partitions == 1 else "metis")
+                                    part_method=part_method,
+                                    # TODO(zhengda) we need to enable balancing node types.
+                                    balance_ntypes=None,
+                                    balance_edges=True)
     sys_tracker.check('Graph partitioning')
     for i in range(num_partitions):
         part_dir = os.path.join(output_dir, "part" + str(i))

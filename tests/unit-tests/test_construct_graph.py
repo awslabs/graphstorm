@@ -28,7 +28,7 @@ from graphstorm.gconstruct.construct_graph import map_node_ids
 from graphstorm.gconstruct.construct_graph import map_node_ids
 from graphstorm.gconstruct.construct_graph import map_node_ids
 from graphstorm.gconstruct.construct_graph import IdMap
-from graphstorm.gconstruct.construct_graph import convert2ext_mem
+from graphstorm.gconstruct.construct_graph import ExtMemArrayConverter
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -232,6 +232,7 @@ def test_map_node_ids():
     check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
 
 def test_convert2ext_mem():
+    # This is to verify the correctness of ExtMemArrayConverter
     converters = [ExtMemArrayConverter(None, 0),
                   ExtMemArrayConverter("/tmp", 2)]
     for converter in converters:
@@ -244,7 +245,69 @@ def test_convert2ext_mem():
         np.testing.assert_array_equal(arr, em_arr)
         converter.cleanup()
 
+def test_partition_graph():
+    # This is to verify the correctness of partition_graph.
+    # This function does some manual node/edge feature constructions for each partition.
+    num_nodes = {'node1': 100,
+                 'node2': 200,
+                 'node3': 300}
+    edges = {('node1', 'rel1', 'node2'): (np.random.randint(num_nodes['node1'], 100),
+                                          np.random.randint(num_nodes['node2'], 100)),
+             ('node1', 'rel2', 'node3'): (np.random.randint(num_nodes['node1'], 200),
+                                          np.random.randint(num_nodes['node3'], 200))}
+    node_data = {'node1': {'feat': np.random.uniform(size=(num_nodes['node1'], 10))},
+                 'node2': {'feat': np.random.uniform(size=(num_nodes['node1'],))}}
+    edge_data = {('node1', 'rel1', 'node2'): {'feat': np.random.uniform(size=(100, 10))}}
+    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+
+    # Partition the graph with our own partition_graph.
+    dgl.random.seed(0)
+    num_parts = 2
+    node_data1 = []
+    edge_data1 = []
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname)
+        for i in range(num_parts):
+            part_dir = os.path.join(tmpdirname, "part" + str(i))
+            node_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir),
+                                                          'node_feat.dgl'))
+            edge_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir),
+                                                          'edge_feat.dgl'))
+
+    # Partition the graph with DGL's partition_graph.
+    dgl.random.seed(0)
+    node_data2 = []
+    edge_data2 = []
+    for ntype in node_data:
+        for name in node_data[ntype]:
+            g.nodes[ntype].data[name] = node_data[ntype][name]
+    for etype in edge_data:
+        for name in edge_data[etype]:
+            g.edges[etype].data[name] = edge_data[etype][name]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        dgl.distributed.partition_graph(g, 'test', num_parts, out_path=tmpdirname,
+                                        part_method='random')
+        for i in range(num_parts):
+            part_dir = os.path.join(tmpdirname, "part" + str(i))
+            node_data2.append(dgl.data.utils.load_tensors(os.path.join(part_dir),
+                                                          'node_feat.dgl'))
+            edge_data2.append(dgl.data.utils.load_tensors(os.path.join(part_dir),
+                                                          'edge_feat.dgl'))
+
+    # Verify the correctness.
+    for ndata1, ndata2 in zip(node_data1, node_data2):
+        assert len(ndata1) == len(ndata2)
+        for name in ndata1:
+            assert name in ndata2
+            np.testing.assert_array_equal(ndata1[name].numpy(), ndata2[name].numpy())
+    for edata1, edata2 in zip(edge_data1, edge_data2):
+        assert len(edata1) == len(edata2)
+        for name in edata1:
+            assert name in edata2
+            np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
+
 if __name__ == '__main__':
+    test_partition_graph()
     test_convert2ext_mem()
     test_map_node_ids()
     test_id_map()
