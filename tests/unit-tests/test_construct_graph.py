@@ -246,7 +246,6 @@ def test_convert2ext_mem():
         arr = np.random.uniform(size=(1000, 10))
         em_arr = converter(arr, "test2")
         np.testing.assert_array_equal(arr, em_arr)
-        converter.cleanup()
 
 def test_partition_graph():
     # This is to verify the correctness of partition_graph.
