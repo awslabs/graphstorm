@@ -161,7 +161,7 @@ def test_label():
     check_classification(res)
 
     # Check classification with integer labels.
-    data = {'label' : np.random.uniform(size=10) * 10}
+    data = {'label' : np.random.randint(3, size=10)}
     res = process_labels(data, [conf], True)
     check_classification(res)
 
