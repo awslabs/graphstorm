@@ -24,6 +24,7 @@ from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved
 from graphstorm import get_feat_size
 
 from data_utils import generate_dummy_dist_graph
+from graphstorm.eval.utils import gen_mrr_score
 
 def helper_save_embedding(tmpdirname):
     random_emb = th.rand((103, 12))
@@ -160,8 +161,7 @@ def test_gen_mrr_score():
         logs.append(1.0 / rank)
     metrics = {"mrr": th.tensor(sum(log for log in logs) / len(logs))}
 
-    logs_opti = th.div(1.0, ranking)
-    metrics_opti = {"mrr": th.tensor(th.div(th.sum(logs_opti),len(logs_opti)))}
+    metrics_opti = gen_mrr_score(ranking)
 
     assert th.isclose(metrics['mrr'], metrics_opti['mrr'])  # Default tolerance: 1e-08
 
