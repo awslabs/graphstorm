@@ -608,6 +608,9 @@ class GSgnnLPEvaluator():
         """
         GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
+        Note: Make sure each trainer will get the same validation scores.
+        The early stop and model saving progress rely on certain scores.
+
         Parameters
         ----------
         val_scores: dict of (list, list)
