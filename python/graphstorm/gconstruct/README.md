@@ -50,7 +50,7 @@ Below shows an example that contains one node type and an edge type.
 				{
 					"label_col":    "<column name>",
 					"task_type":    "<task type: e.g., classification>",
-					"split_type":   [0.8, 0.2, 0.0],
+					"split_pct":   [0.8, 0.2, 0.0],
 				},
 			],
 		}
@@ -74,7 +74,7 @@ Below shows an example that contains one node type and an edge type.
 				{
 					"label_col":    "<column name>",
 					"task_type":    "<task type: e.g., classification>",
-					"split_type":   [0.8, 0.2, 0.0],
+					"split_pct":   [0.8, 0.2, 0.0],
 				},
 			],
 		}
