@@ -26,6 +26,9 @@
         4. One node type has labels for only a small number of nodes.
         5. One edge type has labels for some edges.
         6. Another edge type is used to do LP task.
+        
+    This code should be used for regression test with different variances, such as graph sizes,
+    split policies, and different data file formats.
 """
 
 import os
@@ -350,9 +353,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate dummy graphs for pipeline test.')
     parser.add_argument('--graph-name', type=str, default='dummy',
                         help='The name for the generated graph. Default is \'dummy\'')
-    parser.add_argument('--data-format', type=str, default='csv',
+    parser.add_argument('--data-format', type=str, default='parquet',
                         help='Saved data format. Optioins: \'csv\', \'parquet\', \'json\'. \
-                            default: \'csv\'')
+                            default: \'parquet\'')
     parser.add_argument('--split-policy', type=str, default='no_split', 
                         choices=['no_split', 'random_split'],
                         help='How to split nodes/edge files. \
