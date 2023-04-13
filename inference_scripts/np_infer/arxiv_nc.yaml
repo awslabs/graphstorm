@@ -1,0 +1,31 @@
+---
+version: 1.0
+gsf:
+  basic:
+    model_encoder_type: rgcn
+    graph_name: ogbn-arxiv
+    backend: gloo
+    num_gpus: 4
+    verbose: false
+    debug: false
+  gnn:
+    fanout: "15,10"
+    n_layers: 2
+    n_hidden: 128
+    mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_predict_path: null
+  hyperparam:
+    eval_batch_size: 1024
+  rgcn:
+    n_bases: -1
+    use_self_loop: true
+    sparse_lr: 1e-2
+    use_node_embeddings: false
+  node_classification:
+    predict_ntype: "node"
+    label_field: "labels"
+    multilabel: false
+    num_classes: 40

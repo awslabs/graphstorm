@@ -147,7 +147,7 @@ def test_label():
         assert np.issubdtype(res['label'].dtype, np.integer)
     conf = {'task_type': 'classification',
             'label_col': 'label',
-            'split_type': [0.8, 0.1, 0.1]}
+            'split_pct': [0.8, 0.1, 0.1]}
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, [conf], True)
     check_classification(res)
@@ -168,7 +168,7 @@ def test_label():
     # Check regression
     conf = {'task_type': 'regression',
             'label_col': 'label',
-            'split_type': [0.8, 0.1, 0.1]}
+            'split_pct': [0.8, 0.1, 0.1]}
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, [conf], True)
     def check_regression(res):
@@ -185,7 +185,7 @@ def test_label():
 
     # Check link prediction
     conf = {'task_type': 'link_prediction',
-            'split_type': [0.8, 0.1, 0.1]}
+            'split_pct': [0.8, 0.1, 0.1]}
     res = process_labels(data, [conf], False)
     assert len(res) == 3
     assert 'train_mask' in res
