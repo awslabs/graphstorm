@@ -347,8 +347,8 @@ def process_labels(data, label_confs):
         assert np.issubdtype(label.dtype, np.integer), \
                 "The labels for classification have to be integers."
         label = np.int32(label)
-    if 'split_type' in label_conf:
-        train_split, val_split, test_split = label_conf['split_type']
+    if 'split_pct' in label_conf:
+        train_split, val_split, test_split = label_conf['split_pct']
         assert train_split + val_split + test_split <= 1, \
                 "The data split of training/val/test cannot be more than the entire dataset."
         rand_idx = np.random.permutation(len(label))
@@ -468,9 +468,9 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
         bool_mask = np.ones(len(dst_ids), dtype=bool)
         bool_mask[orig_locs] = False
         if skip_nonexist_edges:
-            print(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
+            print(f"dest nodes of {dst_type} do not exist: {dst_ids[bool_mask]}")
         else:
-            raise ValueError(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
+            raise ValueError(f"dest nodes of {dst_type} do not exist: {dst_ids[bool_mask]}")
         # We need to remove the source nodes as well.
         src_ids = src_ids[orig_locs]
     dst_ids = new_dst_ids
@@ -898,7 +898,7 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
             {
                 "label_col":    "<column name>",
                 "task_type":    "<task type: e.g., classification>",
-                "split_type":   [0.8, 0.2, 0.0],
+                "split_pct":   [0.8, 0.2, 0.0],
                 "custom_train": "<the file with node IDs in the train set>",
                 "custom_valid": "<the file with node IDs in the validation set>",
                 "custom_test":  "<the file with node IDs in the test set>",
@@ -1003,8 +1003,8 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
 def verify_confs(confs):
     """ Verify the configuration of the input data.
     """
-    ntypes = {conf['node_type'] for conf in confs["node"]}
-    etypes = [conf['relation'] for conf in confs["edge"]]
+    ntypes = {conf['node_type'] for conf in confs["nodes"]}
+    etypes = [conf['relation'] for conf in confs["edges"]]
     for src_type, _, dst_type in etypes:
         assert src_type in ntypes, \
                 f"source node type {src_type} does not exist. Please check your input data."
@@ -1100,10 +1100,10 @@ def process_graph(args):
     # We only store data to external memory if we partition a graph for distributed training.
     ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
     convert2ext_mem = ExtMemArrayConverter(ext_mem_workspace, args.ext_mem_feat_size)
-    node_id_map, node_data = process_node_data(process_confs['node'], convert2ext_mem,
+    node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
                                                args.remap_node_id,
                                                num_processes=num_processes_for_nodes)
-    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
+    edges, edge_data = process_edge_data(process_confs['edges'], node_id_map,
                                          convert2ext_mem,
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
