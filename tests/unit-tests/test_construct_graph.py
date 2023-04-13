@@ -142,27 +142,45 @@ def test_label():
         assert np.sum(res['test_mask']) == 1
 
     # Check classification
-    data = {'label' : np.random.uniform(size=10) * 10}
-    conf = {'task_type': 'classification',
-            'label_col': 'label',
-            'split_type': [0.8, 0.1, 0.1]}
-    res = process_labels(data, [conf], True)
     def check_classification(res):
         check_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'split_type': [0.8, 0.1, 0.1]}
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, [conf], True)
     check_classification(res)
     res = process_labels(data, [conf], False)
+    check_classification(res)
+
+    # Check classification with invalid labels.
+    data = {'label' : np.random.uniform(size=10) * 13}
+    data['label'][0, 3, 4] = np.NAN
+    res = process_labels(data, [conf], True)
+    check_classification(res)
+
+    # Check classification with integer labels.
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, [conf], True)
     check_classification(res)
 
     # Check regression
     conf = {'task_type': 'regression',
             'label_col': 'label',
             'split_type': [0.8, 0.1, 0.1]}
+    data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, [conf], True)
     def check_regression(res):
         check_split(res)
     check_regression(res)
     res = process_labels(data, [conf], False)
+    check_regression(res)
+
+    # Check regression with invalid labels.
+    data = {'label' : np.random.uniform(size=10) * 13}
+    data['label'][0, 3, 4] = np.NAN
+    res = process_labels(data, [conf], True)
     check_regression(res)
 
     # Check link prediction

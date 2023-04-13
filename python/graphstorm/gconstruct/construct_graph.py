@@ -327,6 +327,26 @@ def process_features(data, ops):
             new_data[feat_name] = data[feat_col]
     return new_data
 
+def get_valid_label_index(label):
+    """ Get the index of the samples with valid labels.
+
+    Some of the samples may not have labels. We require users to use
+    NaN to indicate the invalid labels.
+
+    Parameters
+    ----------
+    label : Numpy array
+        The labels of the samples.
+
+    Returns
+    -------
+    Numpy array : the index of the samples with valid labels in the list.
+    """
+    if np.issubdtype(label.dtype, np.floating):
+        return np.isnan(label).nonzero()
+    else:
+        return np.arange(len(label))
+
 def process_labels(data, label_confs, is_node):
     """ Process labels
 
@@ -347,10 +367,12 @@ def process_labels(data, label_confs, is_node):
     label_conf = label_confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     if label_conf['task_type'] == 'classification':
-        assert np.issubdtype(label.dtype, np.integer), \
+        assert np.issubdtype(label.dtype, np.integer) \
+                or np.issubdtype(label.dtype, np.floating), \
                 "The labels for classification have to be integers."
         assert 'label_col' in label_conf, \
                 "'label_col' must be defined in the label field."
+        valid_label_idx = get_valid_label_index(label)
         label_col = label_conf['label_col']
         label = data[label_col]
         label = np.int32(label)
@@ -359,17 +381,22 @@ def process_labels(data, label_confs, is_node):
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
         label = data[label_col]
+        valid_label_idx = get_valid_label_index(label)
     else:
         assert label_conf['task_type'] == 'link_prediction', \
                 "The task type must be classification, regression or link_prediction."
         assert is_node, "link_prediction task must be defined on edges."
         label_col = label = None
+        valid_label_idx = None
 
     if 'split_type' in label_conf:
         train_split, val_split, test_split = label_conf['split_type']
         assert train_split + val_split + test_split <= 1, \
                 "The data split of training/val/test cannot be more than the entire dataset."
-        rand_idx = np.random.permutation(len(label))
+        if valid_label_idx is None:
+            rand_idx = np.random.permutation(len(label))
+        else:
+            rand_idx = np.random.permutation(valid_label_idx)
         train_idx = rand_idx[0:int(len(label) * train_split)]
         val_start = int(len(label) * train_split)
         val_end = int(len(label) * (train_split + val_split))
