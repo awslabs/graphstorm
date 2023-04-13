@@ -153,8 +153,21 @@ def test_get_feat_size():
         feat_size = None
     assert feat_size is None
 
+def test_gen_mrr_score():
+    ranking = th.rand(500)
+    logs = []
+    for rank in ranking:
+        logs.append(1.0 / rank)
+    metrics = {"mrr": th.tensor(sum(log for log in logs) / len(logs))}
+
+    logs_opti = th.div(1.0, ranking)
+    metrics_opti = {"mrr": th.tensor(th.div(th.sum(logs_opti),len(logs_opti)))}
+
+    assert th.isclose(metrics['mrr'], metrics_opti['mrr'])  # Default tolerance: 1e-08
+
 if __name__ == '__main__':
     test_get_feat_size()
     test_save_embeddings()
     test_remove_saved_models()
     test_topklist()
+    test_gen_mrr_score()
