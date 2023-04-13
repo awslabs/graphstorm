@@ -155,8 +155,8 @@ def test_label():
     check_classification(res)
 
     # Check classification with invalid labels.
-    data = {'label' : np.random.uniform(size=10) * 13}
-    data['label'][0, 3, 4] = np.NAN
+    data = {'label' : np.random.uniform(size=13) * 10}
+    data['label'][[0, 3, 4]] = np.NAN
     res = process_labels(data, [conf], True)
     check_classification(res)
 
@@ -178,14 +178,15 @@ def test_label():
     check_regression(res)
 
     # Check regression with invalid labels.
-    data = {'label' : np.random.uniform(size=10) * 13}
-    data['label'][0, 3, 4] = np.NAN
+    data = {'label' : np.random.uniform(size=13) * 10}
+    data['label'][[0, 3, 4]] = np.NAN
     res = process_labels(data, [conf], True)
     check_regression(res)
 
     # Check link prediction
     conf = {'task_type': 'link_prediction',
             'split_pct': [0.8, 0.1, 0.1]}
+    data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, [conf], False)
     assert len(res) == 3
     assert 'train_mask' in res
