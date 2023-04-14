@@ -344,8 +344,11 @@ def get_valid_label_index(label):
     """
     if np.issubdtype(label.dtype, np.floating):
         return np.isnan(label).nonzero()
-    else:
+    elif np.issubdtype(label.dtype, np.integer):
         return np.arange(len(label))
+    else:
+        raise ValueError("GraphStorm only supports label data of integers and float." + \
+                         f"This label data has data type of {label.dtype}.")
 
 def process_labels(data, label_confs, is_node):
     """ Process labels
