@@ -400,11 +400,15 @@ def process_labels(data, label_confs, is_node):
             rand_idx = np.random.permutation(len(label))
         else:
             rand_idx = np.random.permutation(valid_label_idx)
-        train_idx = rand_idx[0:int(len(label) * train_split)]
-        val_start = int(len(label) * train_split)
-        val_end = int(len(label) * (train_split + val_split))
+        num_train = int(len(label) * train_split)
+        num_val = int(len(label) * val_split)
+        num_test = int(len(label) * test_split)
+        val_start = num_train
+        val_end = num_train + num_val
+        test_end = num_train + num_val + num_test
+        train_idx = rand_idx[0:num_train]
         val_idx = rand_idx[val_start:val_end]
-        test_idx = rand_idx[val_end:]
+        test_idx = rand_idx[val_end:test_end]
         train_mask = np.zeros((len(label),), dtype=np.int8)
         val_mask = np.zeros((len(label),), dtype=np.int8)
         test_mask = np.zeros((len(label),), dtype=np.int8)

@@ -165,6 +165,15 @@ def test_label():
     res = process_labels(data, [conf], True)
     check_classification(res)
 
+    # Check classification with integer labels.
+    # Data split doesn't use all labeled samples.
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'split_pct': [0.4, 0.05, 0.05]}
+    data = {'label' : np.random.randint(3, size=20)}
+    res = process_labels(data, [conf], True)
+    check_classification(res)
+
     # Check regression
     conf = {'task_type': 'regression',
             'label_col': 'label',
