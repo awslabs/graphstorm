@@ -32,6 +32,7 @@ from graphstorm.gconstruct.construct_graph import map_node_ids
 from graphstorm.gconstruct.construct_graph import IdMap
 from graphstorm.gconstruct.construct_graph import ExtMemArrayConverter
 from graphstorm.gconstruct.construct_graph import partition_graph
+from graphstorm.gconstruct.construct_graph import process_labels
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -127,21 +128,89 @@ def test_feat_ops():
     assert "token_type_ids" in proc_res
 
 def test_label():
-    data = {
-        "label": np.random.randint(5, size=10),
-    }
-    label_conf = [
-        {
-            "label_col": "label",
-            "task_type": "classification",
-            "split_pct": [0.8, 0.1, 0.1],
-        },
-    ]
-    res = process_labels(data, label_conf)
-    np.testing.assert_array_equal(res['label'], data['label'])
-    assert res['train_mask'].shape == (len(data['label']),)
-    assert res['val_mask'].shape == (len(data['label']),)
-    assert res['test_mask'].shape == (len(data['label']),)
+    def check_split(res):
+        assert len(res) == 4
+        assert 'label' in res
+        assert 'train_mask' in res
+        assert 'val_mask' in res
+        assert 'test_mask' in res
+        assert res['train_mask'].shape == (len(data['label']),)
+        assert res['val_mask'].shape == (len(data['label']),)
+        assert res['test_mask'].shape == (len(data['label']),)
+        assert np.sum(res['train_mask']) == 8
+        assert np.sum(res['val_mask']) == 1
+        assert np.sum(res['test_mask']) == 1
+        assert np.sum(res['train_mask'] + res['val_mask'] + res['test_mask']) == 10
+
+    def check_integer(label, res):
+        train_mask = res['train_mask'] == 1
+        val_mask = res['val_mask'] == 1
+        test_mask = res['test_mask'] == 1
+        assert np.all(np.logical_and(label[train_mask] >= 0, label[train_mask] <= 10))
+        assert np.all(np.logical_and(label[val_mask] >= 0, label[val_mask] <= 10))
+        assert np.all(np.logical_and(label[test_mask] >= 0, label[test_mask] <= 10))
+
+    # Check classification
+    def check_classification(res):
+        check_split(res)
+        assert np.issubdtype(res['label'].dtype, np.integer)
+        check_integer(res['label'], res)
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'split_pct': [0.8, 0.1, 0.1]}
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, [conf], True)
+    check_classification(res)
+    res = process_labels(data, [conf], False)
+    check_classification(res)
+
+    # Check classification with invalid labels.
+    data = {'label' : np.random.uniform(size=13) * 10}
+    data['label'][[0, 3, 4]] = np.NAN
+    res = process_labels(data, [conf], True)
+    check_classification(res)
+
+    # Check classification with integer labels.
+    data = {'label' : np.random.randint(10, size=10)}
+    res = process_labels(data, [conf], True)
+    check_classification(res)
+
+    # Check classification with integer labels.
+    # Data split doesn't use all labeled samples.
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'split_pct': [0.4, 0.05, 0.05]}
+    data = {'label' : np.random.randint(3, size=20)}
+    res = process_labels(data, [conf], True)
+    check_classification(res)
+
+    # Check regression
+    conf = {'task_type': 'regression',
+            'label_col': 'label',
+            'split_pct': [0.8, 0.1, 0.1]}
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, [conf], True)
+    def check_regression(res):
+        check_split(res)
+    check_regression(res)
+    res = process_labels(data, [conf], False)
+    check_regression(res)
+
+    # Check regression with invalid labels.
+    data = {'label' : np.random.uniform(size=13) * 10}
+    data['label'][[0, 3, 4]] = np.NAN
+    res = process_labels(data, [conf], True)
+    check_regression(res)
+
+    # Check link prediction
+    conf = {'task_type': 'link_prediction',
+            'split_pct': [0.8, 0.1, 0.1]}
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, [conf], False)
+    assert len(res) == 3
+    assert 'train_mask' in res
+    assert 'val_mask' in res
+    assert 'test_mask' in res
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1

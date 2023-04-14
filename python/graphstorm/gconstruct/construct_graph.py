@@ -327,7 +327,30 @@ def process_features(data, ops):
             new_data[feat_name] = data[feat_col]
     return new_data
 
-def process_labels(data, label_confs):
+def get_valid_label_index(label):
+    """ Get the index of the samples with valid labels.
+
+    Some of the samples may not have labels. We require users to use
+    NaN to indicate the invalid labels.
+
+    Parameters
+    ----------
+    label : Numpy array
+        The labels of the samples.
+
+    Returns
+    -------
+    Numpy array : the index of the samples with valid labels in the list.
+    """
+    if np.issubdtype(label.dtype, np.floating):
+        return np.logical_not(np.isnan(label)).nonzero()[0]
+    elif np.issubdtype(label.dtype, np.integer):
+        return np.arange(len(label))
+    else:
+        raise ValueError("GraphStorm only supports label data of integers and float." + \
+                         f"This label data has data type of {label.dtype}.")
+
+def process_labels(data, label_confs, is_node):
     """ Process labels
 
     Parameters
@@ -336,37 +359,78 @@ def process_labels(data, label_confs):
         The data stored as a dict.
     label_conf : list of dict
         The list of configs to construct labels.
+    is_node : bool
+        Whether or not to process labels on nodes.
+
+    Returns
+    -------
+    dict of tensors : labels (optional) and train/validation/test masks.
     """
     assert len(label_confs) == 1, "We only support one label per node/edge type."
     label_conf = label_confs[0]
-    assert 'label_col' in label_conf, "'label_col' must be defined in the label field."
-    label_col = label_conf['label_col']
-    label = data[label_conf['label_col']]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     if label_conf['task_type'] == 'classification':
-        assert np.issubdtype(label.dtype, np.integer), \
+        assert 'label_col' in label_conf, \
+                "'label_col' must be defined in the label field."
+        label_col = label_conf['label_col']
+        label = data[label_col]
+        assert np.issubdtype(label.dtype, np.integer) \
+                or np.issubdtype(label.dtype, np.floating), \
                 "The labels for classification have to be integers."
+        valid_label_idx = get_valid_label_index(label)
         label = np.int32(label)
+        num_samples = len(label)
+    elif label_conf['task_type'] == 'regression':
+        assert 'label_col' in label_conf, \
+                "'label_col' must be defined in the label field."
+        label_col = label_conf['label_col']
+        label = data[label_col]
+        valid_label_idx = get_valid_label_index(label)
+        num_samples = len(label)
+    else:
+        assert label_conf['task_type'] == 'link_prediction', \
+                "The task type must be classification, regression or link_prediction."
+        assert not is_node, "link_prediction task must be defined on edges."
+        label_col = label = None
+        valid_label_idx = None
+        # Any column in the data can define the number of samples in the data.
+        for val in data.values():
+            num_samples = len(val)
+            break
+
     if 'split_pct' in label_conf:
         train_split, val_split, test_split = label_conf['split_pct']
         assert train_split + val_split + test_split <= 1, \
                 "The data split of training/val/test cannot be more than the entire dataset."
-        rand_idx = np.random.permutation(len(label))
-        train_idx = rand_idx[0:int(len(label) * train_split)]
-        val_start = int(len(label) * train_split)
-        val_end = int(len(label) * (train_split + val_split))
+        if valid_label_idx is None:
+            rand_idx = np.random.permutation(num_samples)
+        else:
+            rand_idx = np.random.permutation(valid_label_idx)
+        num_labels = len(rand_idx)
+        num_train = int(num_labels * train_split)
+        num_val = int(num_labels * val_split)
+        num_test = int(num_labels * test_split)
+        val_start = num_train
+        val_end = num_train + num_val
+        test_end = num_train + num_val + num_test
+        train_idx = rand_idx[0:num_train]
         val_idx = rand_idx[val_start:val_end]
-        test_idx = rand_idx[val_end:]
-        train_mask = np.zeros((len(label),), dtype=np.int8)
-        val_mask = np.zeros((len(label),), dtype=np.int8)
-        test_mask = np.zeros((len(label),), dtype=np.int8)
+        test_idx = rand_idx[val_end:test_end]
+        train_mask = np.zeros((num_samples,), dtype=np.int8)
+        val_mask = np.zeros((num_samples,), dtype=np.int8)
+        test_mask = np.zeros((num_samples,), dtype=np.int8)
         train_mask[train_idx] = 1
         val_mask[val_idx] = 1
         test_mask[test_idx] = 1
-    return {label_col: label,
-            'train_mask': train_mask,
-            'val_mask': val_mask,
-            'test_mask': test_mask}
+    if label_col is None:
+        return {'train_mask': train_mask,
+                'val_mask': val_mask,
+                'test_mask': test_mask}
+    else:
+        return {label_col: label,
+                'train_mask': train_mask,
+                'val_mask': val_mask,
+                'test_mask': test_mask}
 
 ################### The functions for multiprocessing ###############
 
@@ -419,7 +483,7 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
-        label_data = process_labels(data, label_conf)
+        label_data = process_labels(data, label_conf, True)
         for key, val in label_data.items():
             feat_data[key] = val
     return (data[node_id_col], feat_data)
@@ -510,7 +574,7 @@ def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexi
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
-        label_data = process_labels(data, label_conf)
+        label_data = process_labels(data, label_conf, False)
         for key, val in label_data.items():
             feat_data[key] = val
     src_ids = data[src_id_col]
