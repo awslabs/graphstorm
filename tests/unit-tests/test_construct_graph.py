@@ -140,11 +140,21 @@ def test_label():
         assert np.sum(res['train_mask']) == 8
         assert np.sum(res['val_mask']) == 1
         assert np.sum(res['test_mask']) == 1
+        assert np.sum(res['train_mask'] + res['val_mask'] + res['test_mask']) == 10
+
+    def check_integer(label, res):
+        train_mask = res['train_mask'] == 1
+        val_mask = res['val_mask'] == 1
+        test_mask = res['test_mask'] == 1
+        assert np.all(np.logical_and(label[train_mask] >= 0, label[train_mask] <= 10))
+        assert np.all(np.logical_and(label[val_mask] >= 0, label[val_mask] <= 10))
+        assert np.all(np.logical_and(label[test_mask] >= 0, label[test_mask] <= 10))
 
     # Check classification
     def check_classification(res):
         check_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
+        check_integer(res['label'], res)
     conf = {'task_type': 'classification',
             'label_col': 'label',
             'split_pct': [0.8, 0.1, 0.1]}
@@ -155,13 +165,13 @@ def test_label():
     check_classification(res)
 
     # Check classification with invalid labels.
-    data = {'label' : np.random.uniform(size=10) * 13}
-    data['label'][0, 3, 4] = np.NAN
+    data = {'label' : np.random.uniform(size=13) * 10}
+    data['label'][[0, 3, 4]] = np.NAN
     res = process_labels(data, [conf], True)
     check_classification(res)
 
     # Check classification with integer labels.
-    data = {'label' : np.random.randint(3, size=10)}
+    data = {'label' : np.random.randint(10, size=10)}
     res = process_labels(data, [conf], True)
     check_classification(res)
 
@@ -187,14 +197,15 @@ def test_label():
     check_regression(res)
 
     # Check regression with invalid labels.
-    data = {'label' : np.random.uniform(size=10) * 13}
-    data['label'][0, 3, 4] = np.NAN
+    data = {'label' : np.random.uniform(size=13) * 10}
+    data['label'][[0, 3, 4]] = np.NAN
     res = process_labels(data, [conf], True)
     check_regression(res)
 
     # Check link prediction
     conf = {'task_type': 'link_prediction',
             'split_pct': [0.8, 0.1, 0.1]}
+    data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, [conf], False)
     assert len(res) == 3
     assert 'train_mask' in res
