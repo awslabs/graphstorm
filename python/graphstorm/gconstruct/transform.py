@@ -79,9 +79,17 @@ class Tokenizer(FeatTransform):
             # This can signficantly reduce memory consumption.
             att_masks.append(t['attention_mask'].to(th.int8))
             type_ids.append(t['token_type_ids'].to(th.int8))
-        return {self.feat_name + '_token_ids': th.cat(tokens, dim=0).numpy(),
-                self.feat_name + '_attention_mask': th.cat(att_masks, dim=0).numpy(),
-                self.feat_name + '_token_type_ids': th.cat(type_ids, dim=0).numpy()}
+        if self.feat_name is not None:
+            token_id_name = self.feat_name + '_token_ids'
+            atten_mask_name = self.feat_name + '_attention_mask'
+            token_type_id_name = self.feat_name + '_token_type_ids'
+        else:
+            token_id_name = 'token_ids'
+            atten_mask_name = 'atten_mask_name'
+            token_type_id_name = 'token_type_ids'
+        return {token_id_name: th.cat(tokens, dim=0).numpy(),
+                atten_mask_name: th.cat(att_masks, dim=0).numpy(),
+                token_type_id_name: th.cat(type_ids, dim=0).numpy()}
 
 class Noop(FeatTransform):
     def __init__(self, col_name, feat_name):
@@ -240,9 +248,17 @@ class LabelProcessor:
         train_mask[train_idx] = 1
         val_mask[val_idx] = 1
         test_mask[test_idx] = 1
-        return {self.label_name + '_train_mask': train_mask,
-                self.label_name + '_val_mask': val_mask,
-                self.label_name + '_test_mask': test_mask}
+        if self.label_name is not None:
+            train_mask_name = self.label_name + '_train_mask'
+            val_mask_name = self.label_name + '_val_mask'
+            test_mask_name = self.label_name + '_test_mask'
+        else:
+            train_mask_name = 'train_mask'
+            val_mask_name = 'val_mask'
+            test_mask_name = 'test_mask'
+        return {train_mask_name: train_mask,
+                val_mask_name: val_mask,
+                test_mask_name: test_mask}
 
 class ClassificationProcessor:
     def __init__(self, col_name, label_name):
