@@ -7,30 +7,39 @@ in the parquet format.
 
 The JSON file that describes the graph data defines where to get node data
 and edge data to construct a graph. Below shows an example of such a JSON file.
-In the highest level, it contains two fields: "nodes" and "edges".
+In the highest level, it contains two fields: `nodes` and `edges`.
 
-"nodes" contains a list of node types and the information of a node type
+`nodes` contains a list of node types and the information of a node type
 is stored in a dictionary. A node dictionary contains multiple fields and
 most fields are optional:
-* "node_type" specifies the node type. This field is mandatory.
-* "files" specifies the input files for the node data. This field is mandatory.
+* `node_type` specifies the node type. This field is mandatory.
+* `files` specifies the input files for the node data. This field is mandatory.
 There are multiple options to specify the input files.
 For a single input file, it contains the path of a single file.
 For multiple files, it contains the path of a directory
 (all files in the directory are considered as the input files),
 the path of files with a wildcard, or a list of file paths.
-* "node_id_col" specifies the column that contains the node IDs. This field is optional.
-* "format" specifies the input file format. This field is optional.
+* `node_id_col` specifies the column that contains the node IDs. This field is optional.
+* `format` specifies the input file format. This field is optional.
 If this is not provided, the input file format is determined by the extension name of the input files.
 Currently, the pipeline supports two formats: parquet and JSON.
 The detailed format information is specified in the format section.
-* "features" is a list of dictionaries that define how to get node/edge features
-and transform features. This is optional. A feature directionary is defined below.
-* "labels" is a list of dictionaries that define where to get node/edge labels
-and how to split nodes/edges into training/validation/test set. This is optional.
-A label directionary is defined below.
+* `features` is a list of dictionaries that define how to get features
+and transform features. This is optional. The format of a feature directionary
+is defined below.
+* `labels` is a list of dictionaries that define where to get labels
+and how to split the data into training/validation/test set. This is optional.
+The format of a label directionary is defined below.
 
-Similarly, "edges" contains a list of edge types.
+Similarly, `edges` contains a list of edge types and the information of
+an edge type is stored in a dictionary. An edge dictionary also contains
+the same fields of `files`, `format`, `features` and `labels` as nodes.
+In addition, it contains the following fields:
+* `source_id_col` specifies the column name of the source node IDs.
+* `dest_id_col` specifies the column name of the destination node IDs.
+* `relation` is a list of three elements that contains the node type of
+the source nodes, the relation type of the edges and the node type of
+the destination nodes.
 
 A feature dictionary is defined:
 * 
@@ -68,7 +77,7 @@ Below shows an example that contains one node type and an edge type.
 		{
 			"source_id_col":    "<column name>",
 			"dest_id_col":      "<column name>",
-			"relation":         ["<src type>", "<relation type>", "<dest type>"],
+			"relation":         ["<src node type>", "<relation type>", "<dest node type>"],
 			"format":           {"name": "csv", "separator": ","},
 			"files":            ["<paths to files>", ...],
 			"features":         [
