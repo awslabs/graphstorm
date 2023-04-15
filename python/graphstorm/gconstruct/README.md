@@ -1,34 +1,43 @@
-To load a user-defined graph to GraphStorm, a user needs to format their data as follows.
-Specifially, each node/edge type should be stored in separate folders. The data associated
+To load a user-defined graph to GraphStorm, a user needs to provide a JSON file to describe
+their data. Users need to store the node/edge data of different types in separate files.
+The data associated
 with a node/edge type can be stored in multiple files. Below shows an example of the graph
 data with two node types and two edge types. In this example, the node/edge data are stored
-in the parquet format. We support three input formats: parquet, CSV and JSON.
-```
-data_root_dir/
-  |-- input_data.json
-  |-- node1/
-  |   |-- node_1_1.parquet
-  |   |-- node_1_2.parquet
-  |-- node2/
-  |   |-- node_2_1.parquet
-  |   |-- node_2_2.parquet
-  |-- edge1/
-  |   |-- edge_1_1.parquet
-  |   |-- edge_1_2.parquet
-  |-- edge2/
-  |   |-- edge_2_1.parquet
-  |   |-- edge_2_2.parquet
-```
+in the parquet format.
 
-The graph data folder should contains a JSON file that describes the graph data.
-It defines where to get node data
-and edge data to construct a graph. "nodes" contains a list of node types and
-it contains a blob for each node type. Similarly, "edges" contains a list of
-edge types and each blob defines an edge type.
-Inside a blob, it contains the "features" field that defines where to get
-node/edge features and how to transform features if specified. It contains
-the "labels" field that defines where to get node/edge labels and how
-to split nodes/edges into training/validation/test set if specified.
+The JSON file that describes the graph data defines where to get node data
+and edge data to construct a graph. Below shows an example of such a JSON file.
+In the highest level, it contains two fields: "nodes" and "edges".
+
+"nodes" contains a list of node types and the information of a node type
+is stored in a dictionary. A node dictionary contains multiple fields and
+most fields are optional:
+* "node_type" specifies the node type. This field is mandatory.
+* "files" specifies the input files for the node data. This field is mandatory.
+There are multiple options to specify the input files.
+For a single input file, it contains the path of a single file.
+For multiple files, it contains the path of a directory
+(all files in the directory are considered as the input files),
+the path of files with a wildcard, or a list of file paths.
+* "node_id_col" specifies the column that contains the node IDs. This field is optional.
+* "format" specifies the input file format. This field is optional.
+If this is not provided, the input file format is determined by the extension name of the input files.
+Currently, the pipeline supports two formats: parquet and JSON.
+The detailed format information is specified in the format section.
+* "features" is a list of dictionaries that define how to get node/edge features
+and transform features. This is optional. A feature directionary is defined below.
+* "labels" is a list of dictionaries that define where to get node/edge labels
+and how to split nodes/edges into training/validation/test set. This is optional.
+A label directionary is defined below.
+
+Similarly, "edges" contains a list of edge types.
+
+A feature dictionary is defined:
+* 
+
+A label dictionary is defined:
+*
+
 Below shows an example that contains one node type and an edge type.
 ```
 {
@@ -59,7 +68,7 @@ Below shows an example that contains one node type and an edge type.
 		{
 			"source_id_col":    "<column name>",
 			"dest_id_col":      "<column name>",
-			"relation":         "<src type, relation type, dest type>",
+			"relation":         ["<src type>", "<relation type>", "<dest type>"],
 			"format":           {"name": "csv", "separator": ","},
 			"files":            ["<paths to files>", ...],
 			"features":         [
@@ -98,3 +107,8 @@ python3 -m graphstorm.gconstruct.construct_graph \
 			--output_dir /tmp/test_out \
 			--graph_name test
 ```
+
+## Input formats
+
+## Feature transformation
+
