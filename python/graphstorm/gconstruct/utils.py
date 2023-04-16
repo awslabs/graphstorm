@@ -26,6 +26,8 @@ import numpy as np
 import dgl
 import torch as th
 
+from ..utils import sys_tracker
+
 def worker_fn(task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
 
