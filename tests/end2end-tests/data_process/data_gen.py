@@ -23,7 +23,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
 
-from graphstorm.gconstruct import write_data_parquet, write_data_json
+from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json
 
 # Here we construct a graph with multiple node types and edge types
 # to test the graph construction pipeline. To test the pipeline

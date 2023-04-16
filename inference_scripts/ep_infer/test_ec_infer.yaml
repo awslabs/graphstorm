@@ -9,7 +9,6 @@ lm_model:
 gsf:
   basic:
     backend: gloo
-    num_gpus: 2
     ip_config: ip_list.txt
     part_config: test_multilabel_ec_1p_4t/multilabel-ec-test.json
     verbose: false

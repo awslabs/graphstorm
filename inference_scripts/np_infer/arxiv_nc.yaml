@@ -5,7 +5,6 @@ gsf:
     model_encoder_type: rgcn
     graph_name: ogbn-arxiv
     backend: gloo
-    num_gpus: 4
     verbose: false
     debug: false
   gnn:

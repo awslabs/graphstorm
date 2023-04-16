@@ -63,7 +63,6 @@ def create_basic_config(tmp_path, file_name):
     yaml_object["gsf"]["basic"] = {
         "debug" : True,
         "backend": "gloo",
-        "num_gpus": 1,
         "ip_config": os.path.join(tmp_path, "ip.txt"),
         "part_config": os.path.join(tmp_path, "part.json"),
         "model_encoder_type": "rgat",
@@ -83,7 +82,6 @@ def create_basic_config(tmp_path, file_name):
 
     # config for check default value
     yaml_object["gsf"]["basic"] = {
-        "num_gpus": 1,
         "ip_config": os.path.join(tmp_path, "ip.txt"),
         "part_config": os.path.join(tmp_path, "part.json"),
     }
@@ -94,7 +92,6 @@ def create_basic_config(tmp_path, file_name):
     # config for wrong values
     yaml_object["gsf"]["basic"] = {
         "backend": "error",
-        "num_gpus": 0,
         "evaluation_frequency": 0,
         "model_encoder_type": "abc"
     }
@@ -121,7 +118,6 @@ def test_load_basic_info():
         # success load
         assert config.debug == True
         assert config.backend == "gloo"
-        assert config.num_gpus == 1
         assert config.ip_config == os.path.join(Path(tmpdirname), "ip.txt")
         assert config.part_config == os.path.join(Path(tmpdirname), "part.json")
         assert config.verbose == False
@@ -149,7 +145,6 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "backend")
-        check_failure(config, "num_gpus")
         check_failure(config, "ip_config")
         check_failure(config, "part_config")
         check_failure(config, "evaluation_frequency")
