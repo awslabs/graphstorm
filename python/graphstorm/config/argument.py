@@ -243,19 +243,6 @@ class GSConfig:
         return "gloo"
 
     @property
-    def num_gpus(self):
-        """ Number of gpus per instance
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_num_gpus"):
-            assert self._num_gpus > 0
-            return self._num_gpus
-
-        # TODO(xiangsx): Need to support CPU training
-        assert False, "GPU is required"
-        return 0
-
-    @property
     def ip_config(self):
         """ IP config of instances in a cluster
         """

@@ -5,7 +5,6 @@ gsf:
     model_encoder_type: rgcn
     graph_name: acm
     backend: gloo
-    num_gpus: 4
     ip_config: ip_list.txt
     part_config: /data/acm_nc/acm.json
     verbose: false
