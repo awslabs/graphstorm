@@ -19,11 +19,10 @@ For a single input file, it contains the path of a single file.
 For multiple files, it contains the path of a directory
 (all files in the directory are considered as the input files),
 the path of files with a wildcard, or a list of file paths.
-* `node_id_col` specifies the column that contains the node IDs. This field is optional.
-* `format` specifies the input file format. This field is optional.
-If this is not provided, the input file format is determined by the extension name of the input files.
+* `format` specifies the input file format. This field is mandatory.
 Currently, the pipeline supports two formats: parquet and JSON.
 The detailed format information is specified in the format section.
+* `node_id_col` specifies the column that contains the node IDs. This field is optional.
 * `features` is a list of dictionaries that define how to get features
 and transform features. This is optional. The format of a feature directionary
 is defined below.
@@ -42,10 +41,20 @@ the source nodes, the relation type of the edges and the node type of
 the destination nodes.
 
 A feature dictionary is defined:
-* 
+* `feature_col` specifies the column name in the input file that contains the feature.
+* `feature_name` specifies the prefix of the column features.
+* `transform` specifies the actual feature transformation. This is a dictionary
+and its `name` field indicates the feature transformation. Each transformation
+has its own argument. The list of feature transformations supported by the pipeline
+are listed in the section of Feature Transformation.
 
 A label dictionary is defined:
-*
+* `task_type` specifies the task defined on the nodes or edges. The field is mandatory.
+Currently, its value can be `classification`, `regression` and `link_prediction`.
+* `label_col` specifies the column name in the input file that contains the label.
+This has to be specified for classification and regression tasks.
+* `split_pct` specifies how to split the data into training/validation/test.
+This is optional. If it's not specified, all data will be used for training.
 
 Below shows an example that contains one node type and an edge type.
 ```
@@ -60,7 +69,6 @@ Below shows an example that contains one node type and an edge type.
 				{
 					"feature_col":  ["<column name>", ...],
 					"feature_name": "<feature name>",
-					"data_type":    "<feature data type>",
 					"transform":    {"name": "<operator name>", ...}
 				},
 			],
@@ -84,7 +92,6 @@ Below shows an example that contains one node type and an edge type.
 				{
 					"feature_col":  ["<column name>", ...],
 					"feature_name": "<feature name>",
-					"data_type":    "<feature data type>",
 					"transform":    {"name": "<operator name>", ...}
 				},
 			],
