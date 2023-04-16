@@ -16,7 +16,6 @@
     Infer wrapper for edge classification and regression.
 """
 import time
-import os
 import torch as th
 
 from .graphstorm_infer import GSInfer
