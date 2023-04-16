@@ -16,6 +16,7 @@
     Generate example graph data using built-in datasets for node classifcation,
     node regression, edge classification and edge regression.
 """
+import numpy as np
 
 class NoopMap:
     """ It doesn't map IDs.

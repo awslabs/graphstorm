@@ -16,6 +16,15 @@
     Generate example graph data using built-in datasets for node classifcation,
     node regression, edge classification and edge regression.
 """
+import os
+import multiprocessing
+from multiprocessing import Process
+import queue
+import gc
+
+import numpy as np
+import dgl
+import torch as th
 
 def worker_fn(task_queue, res_queue, user_parser):
     """ The worker function in the worker pool

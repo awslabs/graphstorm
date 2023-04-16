@@ -19,17 +19,12 @@
 
 import time
 from functools import partial
-import multiprocessing
-from multiprocessing import Process
-import glob
 import os
 import json
 import argparse
 import gc
-import queue
 
 import numpy as np
-from transformers import BertTokenizer
 import torch as th
 import dgl
 

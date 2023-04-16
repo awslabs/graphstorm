@@ -16,6 +16,9 @@
     Generate example graph data using built-in datasets for node classifcation,
     node regression, edge classification and edge regression.
 """
+from transformers import BertTokenizer
+import torch as th
+import numpy as np
 
 class Tokenizer:
     """ A wrapper to a tokenizer.

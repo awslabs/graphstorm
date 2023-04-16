@@ -16,9 +16,13 @@
     Generate example graph data using built-in datasets for node classifcation,
     node regression, edge classification and edge regression.
 """
+from functools import partial
+import glob
+import json
 
 import pyarrow.parquet as pq
 import pyarrow as pa
+import numpy as np
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
