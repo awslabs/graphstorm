@@ -22,16 +22,29 @@ import torch as th
 from transformers import BertTokenizer
 
 class FeatTransform:
+    """ The base class for feature transformation.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    """
     def __init__(self, col_name, feat_name):
         self._col_name = col_name
         self._feat_name = feat_name
 
     @property
     def col_name(self):
+        """ The name of the column that contains the feature.
+        """
         return self._col_name
 
     @property
     def feat_name(self):
+        """ The feature name.
+        """
         return self._feat_name
 
 class Tokenizer(FeatTransform):
@@ -92,10 +105,30 @@ class Tokenizer(FeatTransform):
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
 
 class Noop(FeatTransform):
+    """ This doesn't transform the feature.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    """
     def __init__(self, col_name, feat_name):
         super(Noop, self).__init__(col_name, feat_name)
 
     def __call__(self, feats):
+        """ This transforms the features.
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
         assert isinstance(feats, np.ndarray), \
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
@@ -261,10 +294,23 @@ class LabelProcessor:
                 test_mask_name: test_mask}
 
 class ClassificationProcessor:
-    def __init__(self, col_name, label_name):
-        super(ClassificationProcessor, self).__init__(col_name, label_name)
+    """ Process the label for the classification task.
+    """
 
     def __call__(self, data):
+        """ Process the label for classification.
+
+        This performs data split on the nodes/edges and generates training/validation/test masks.
+
+        Parameters
+        ----------
+        data : dict of Tensors
+            All data associated with nodes/edges of a node/edge type.
+
+        Returns
+        -------
+        dict of Tensors : it contains the labels as well as training/val/test splits.
+        """
         assert self.col_name in data, f"The label column {self.col_name} does not exist."
         label = data[self.col_name]
         assert np.issubdtype(label.dtype, np.integer) \
@@ -278,10 +324,23 @@ class ClassificationProcessor:
         return res
 
 class RegressionProcessor:
-    def __init__(self, ):
-        pass
+    """ Process the label for the regression task.
+    """
 
     def __call__(self, data):
+        """ Process the label for regression.
+
+        This performs data split on the nodes/edges and generates training/validation/test masks.
+
+        Parameters
+        ----------
+        data : dict of Tensors
+            All data associated with nodes/edges of a node/edge type.
+
+        Returns
+        -------
+        dict of Tensors : it contains the labels as well as training/val/test splits.
+        """
         assert self.col_name in data, f"The label column {self.col_name} does not exist."
         label = data[self.col_name]
         valid_label_idx = get_valid_label_index(label)
@@ -292,10 +351,23 @@ class RegressionProcessor:
         return res
 
 class LinkPredictionProcessor:
-    def __init__(self, ):
-        pass
+    """ Process the label for the link prediction task.
+    """
 
     def __call__(self, data):
+        """ Process the label for link prediction.
+
+        This performs data split on the edges and generates training/validation/test masks.
+
+        Parameters
+        ----------
+        data : dict of Tensors
+            All data associated with nodes/edges of a node/edge type.
+
+        Returns
+        -------
+        dict of Tensors : it contains training/val/test splits for link prediction.
+        """
         # Any column in the data can define the number of samples in the data.
         assert len(data) > 0, "The edge data is empty."
         for val in data.values():
@@ -306,6 +378,19 @@ class LinkPredictionProcessor:
         return self.data_split(permute_idx, len(label))
 
 def parse_label_ops(confs, is_node):
+    """ Parse the configurations to generate the label processor.
+
+    Parameters
+    ----------
+    confs : dict
+        Contain the configuration for labels.
+    is_node : bool
+        Whether the configurations are defined for nodes.
+
+    Returns
+    -------
+    list of LabelProcessor : the label processors generated from the configurations.
+    """
     assert len(confs) == 1, "We only support one label per node/edge type."
     label_conf = confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
