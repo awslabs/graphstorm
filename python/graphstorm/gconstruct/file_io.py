@@ -51,6 +51,8 @@ def read_data_json(data_file, data_fields):
     data = {key: [] for key in data_fields}
     for record in data_records:
         for key in data_fields:
+            assert key in record, \
+                    f"The data field {key} does not exist in the record {record} of {data_file}."
             data[key].append(record[key])
     for key in data:
         data[key] = np.array(data[key])
@@ -98,7 +100,7 @@ def read_data_parquet(data_file, data_fields=None):
     if data_fields is None:
         data_fields = list(df_table.keys())
     for key in data_fields:
-        assert key in df_table, f"The data field {key} does not exist in the data file."
+        assert key in df_table, f"The data field {key} does not exist in {data_file}."
         val = df_table[key]
         d = np.array(val)
         # For multi-dimension arrays, we split them by rows and
@@ -183,9 +185,19 @@ def get_in_files(in_files):
     -------
     a list of str : the full name of input files.
     """
+    # If the input file has a wildcard, get all files that matches the input file name.
     if '*' in in_files:
         in_files = glob.glob(in_files)
+    # This is a directory
+    elif not isinstance(in_files, list) and os.path.isdir(in_files):
+        in_files = os.listdir(in_files)
+    # This is a single file.
     elif not isinstance(in_files, list):
         in_files = [in_files]
+
+    # Verify the existence of the input files.
+    for in_file in in_files:
+        assert os.path.isfile(in_file), \
+                f"The input file {in_file} does not exist or is not a file."
     in_files.sort()
     return in_files
