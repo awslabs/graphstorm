@@ -21,6 +21,7 @@ import torch as th
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
+from ..model.utils import save_prediction_results
 from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
@@ -90,8 +91,7 @@ class GSgnnNodePredictionInfer(GSInfer):
         sys_tracker.check('save embeddings')
 
         if save_predict_path is not None:
-            os.makedirs(save_predict_path, exist_ok=True)
-            th.save(pred, os.path.join(save_predict_path, "predict-{}.pt".format(self.rank)))
+            save_prediction_results(pred, save_predict_path, self.rank)
         th.distributed.barrier()
         sys_tracker.check('save predictions')
 
