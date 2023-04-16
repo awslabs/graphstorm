@@ -24,7 +24,7 @@ import torch as th
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
-from graphstorm.gconstruct.transform import process_labels
+from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import ExtMemArrayConverter, partition_graph
 
@@ -50,6 +50,7 @@ def test_parquet():
     np.testing.assert_array_equal(data1['data1'], data['data1'])
 
     os.remove(tmpfile)
+    # TODO verify if a field does not exist.
 
 def test_json():
     handle, tmpfile = tempfile.mkstemp()
@@ -65,6 +66,7 @@ def test_json():
     assert "data2" in data1
     assert np.all(data1['data1'] == data['data1'])
     assert np.all(data1['data2'] == data['data2'])
+    # TODO verify if a field does not exist.
 
 def test_feat_ops():
 
@@ -120,25 +122,28 @@ def test_feat_ops():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
+    # TODO The feature name is not defined.
+
 def test_label():
     def check_split(res):
         assert len(res) == 4
         assert 'label' in res
-        assert 'train_mask' in res
-        assert 'val_mask' in res
-        assert 'test_mask' in res
-        assert res['train_mask'].shape == (len(data['label']),)
-        assert res['val_mask'].shape == (len(data['label']),)
-        assert res['test_mask'].shape == (len(data['label']),)
-        assert np.sum(res['train_mask']) == 8
-        assert np.sum(res['val_mask']) == 1
-        assert np.sum(res['test_mask']) == 1
-        assert np.sum(res['train_mask'] + res['val_mask'] + res['test_mask']) == 10
+        assert 'label_train_mask' in res
+        assert 'label_val_mask' in res
+        assert 'label_test_mask' in res
+        assert res['label_train_mask'].shape == (len(data['label']),)
+        assert res['label_val_mask'].shape == (len(data['label']),)
+        assert res['label_test_mask'].shape == (len(data['label']),)
+        assert np.sum(res['label_train_mask']) == 8
+        assert np.sum(res['label_val_mask']) == 1
+        assert np.sum(res['label_test_mask']) == 1
+        assert np.sum(res['label_train_mask'] + res['label_val_mask'] \
+                + res['label_test_mask']) == 10
 
     def check_integer(label, res):
-        train_mask = res['train_mask'] == 1
-        val_mask = res['val_mask'] == 1
-        test_mask = res['test_mask'] == 1
+        train_mask = res['label_train_mask'] == 1
+        val_mask = res['label_val_mask'] == 1
+        test_mask = res['label_test_mask'] == 1
         assert np.all(np.logical_and(label[train_mask] >= 0, label[train_mask] <= 10))
         assert np.all(np.logical_and(label[val_mask] >= 0, label[val_mask] <= 10))
         assert np.all(np.logical_and(label[test_mask] >= 0, label[test_mask] <= 10))
@@ -151,21 +156,25 @@ def test_label():
     conf = {'task_type': 'classification',
             'label_col': 'label',
             'split_pct': [0.8, 0.1, 0.1]}
+    ops = parse_label_ops([conf], True)
     data = {'label' : np.random.uniform(size=10) * 10}
-    res = process_labels(data, [conf], True)
+    res = process_labels(data, ops)
     check_classification(res)
-    res = process_labels(data, [conf], False)
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
-    res = process_labels(data, [conf], True)
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with integer labels.
     data = {'label' : np.random.randint(10, size=10)}
-    res = process_labels(data, [conf], True)
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with integer labels.
@@ -173,33 +182,40 @@ def test_label():
     conf = {'task_type': 'classification',
             'label_col': 'label',
             'split_pct': [0.4, 0.05, 0.05]}
+    ops = parse_label_ops([conf], True)
     data = {'label' : np.random.randint(3, size=20)}
-    res = process_labels(data, [conf], True)
+    res = process_labels(data, ops)
     check_classification(res)
+
+    # TODO split_pct is not specified.
 
     # Check regression
     conf = {'task_type': 'regression',
             'label_col': 'label',
             'split_pct': [0.8, 0.1, 0.1]}
+    ops = parse_label_ops([conf], True)
     data = {'label' : np.random.uniform(size=10) * 10}
-    res = process_labels(data, [conf], True)
+    res = process_labels(data, ops)
     def check_regression(res):
         check_split(res)
     check_regression(res)
-    res = process_labels(data, [conf], False)
+    ops = parse_label_ops([conf], False)
+    res = process_labels(data, ops)
     check_regression(res)
 
     # Check regression with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
-    res = process_labels(data, [conf], True)
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
     check_regression(res)
 
     # Check link prediction
     conf = {'task_type': 'link_prediction',
             'split_pct': [0.8, 0.1, 0.1]}
+    ops = parse_label_ops([conf], False)
     data = {'label' : np.random.uniform(size=10) * 10}
-    res = process_labels(data, [conf], False)
+    res = process_labels(data, ops)
     assert len(res) == 3
     assert 'train_mask' in res
     assert 'val_mask' in res
@@ -390,7 +406,11 @@ def test_partition_graph():
             assert name in edata2
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
+def test_get_in_files():
+    pass
+
 if __name__ == '__main__':
+    test_get_in_files()
     test_json()
     test_partition_graph()
     test_convert2ext_mem()

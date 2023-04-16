@@ -241,7 +241,6 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
             elif not col.endswith('-label'):
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = 'feat'
-                feat_dict['data_type'] = str(n_df[col].dtype)
                 feat_cols.append(feat_dict)
             else:
                 label_dict['label_col'] = col
@@ -278,7 +277,6 @@ def generate_json_file(n_split_dict, e_split_dict, format='parquet', output_path
             else:
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = 'feat'
-                feat_dict['data_type'] = str(e_df[col].dtype)
                 feat_list.append(feat_dict)
 
         if feat_list:
