@@ -549,7 +549,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # to all trainers.
         if get_rank() == 0:
             save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder, self.decoder)
-            
+
         # Saving sparse embedding is done in a distributed way.
         if get_rank() == 0:
             # Need to create embedding path and chmod to 0o777 first

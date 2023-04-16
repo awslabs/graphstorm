@@ -69,7 +69,7 @@ def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
 
     os.makedirs(model_path, exist_ok=True)
     # [04/16]: Assume this method is called by rank 0 who can perform chmod
-    os.chmod(model_path, 0o777)    
+    os.chmod(model_path, 0o777)
     th.save(model_states, os.path.join(model_path, 'model.bin'))
 
 def save_model_results_json(conf, test_model_performance, save_perf_results_path):
@@ -626,7 +626,7 @@ def create_sparse_embeds_path(model_path, embed_layer):
         if isinstance(embed_layer, DistributedDataParallel) else embed_layer
 
     if len(embed_layer.sparse_embeds) > 0:
-        for ntype, sparse_emb in embed_layer.sparse_embeds.items():
+        for ntype, _ in embed_layer.sparse_embeds.items():
             emb_path = os.path.join(model_path, ntype)
             os.makedirs(emb_path, exist_ok=True)
             # [04/16]: Assume this method is called by rank 0 who can perform chmod
