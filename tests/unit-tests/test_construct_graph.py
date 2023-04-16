@@ -21,18 +21,11 @@ import graphstorm as gs
 import dgl
 import torch as th
 
-from graphstorm.gconstruct import write_data_parquet, read_data_parquet
-from graphstorm.gconstruct import parse_feat_ops, process_features
-from graphstorm.gconstruct import process_labels
-from graphstorm.gconstruct.construct_graph import IdMap
-from graphstorm.gconstruct.construct_graph import IdMap
-from graphstorm.gconstruct.construct_graph import map_node_ids
-from graphstorm.gconstruct.construct_graph import map_node_ids
-from graphstorm.gconstruct.construct_graph import map_node_ids
-from graphstorm.gconstruct.construct_graph import IdMap
-from graphstorm.gconstruct.construct_graph import ExtMemArrayConverter
-from graphstorm.gconstruct.construct_graph import partition_graph
-from graphstorm.gconstruct.construct_graph import process_labels
+from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
+from graphstorm.gconstruct.transform import parse_feat_ops, process_features
+from graphstorm.gconstruct.transform import process_labels
+from graphstorm.gconstruct.id_map import IdMap, map_node_ids
+from graphstorm.gconstruct.utils import ExtMemArrayConverter, partition_graph
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
