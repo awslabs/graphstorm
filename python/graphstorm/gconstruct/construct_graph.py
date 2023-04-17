@@ -63,7 +63,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_ops is not None:
-        label_data = process_labels(data, label_ops, True)
+        label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
             feat_data[key] = val
     return (data[node_id_col], feat_data)
@@ -104,7 +104,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_ops is not None:
-        label_data = process_labels(data, label_ops, False)
+        label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
             feat_data[key] = val
     src_ids = data[src_id_col]
