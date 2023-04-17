@@ -422,7 +422,7 @@ def process_labels(data, label_processors):
     ----------
     data : dict
         The data stored as a dict.
-    label_conf : list of LabelProcessor
+    label_processors : list of LabelProcessor
         The list of operations to construct labels.
 
     Returns

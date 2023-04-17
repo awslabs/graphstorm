@@ -69,7 +69,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     return (data[node_id_col], feat_data)
 
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
-                    conf, skip_nonexist_edges): # pylint: disable=too-many-function-args
+                    conf, skip_nonexist_edges):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
