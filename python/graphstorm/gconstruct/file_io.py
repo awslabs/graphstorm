@@ -178,6 +178,8 @@ def _parse_file_format(conf, is_node):
         return partial(read_data_parquet, data_fields=keys)
     elif fmt["name"] == "json":
         return partial(read_data_json, data_fields=keys)
+    elif fmt["name"] == "hdf5":
+        return partial(read_data_hdf5, data_fields=keys)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
 
