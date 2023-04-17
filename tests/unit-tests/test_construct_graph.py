@@ -147,35 +147,36 @@ def test_feat_ops():
     assert "test4_attention_mask" in proc_res
     assert "test4_token_type_ids" in proc_res
 
-def test_label():
-    def check_split(res):
-        assert len(res) == 4
-        assert 'label' in res
-        assert 'label_train_mask' in res
-        assert 'label_val_mask' in res
-        assert 'label_test_mask' in res
-        assert res['label_train_mask'].shape == (len(data['label']),)
-        assert res['label_val_mask'].shape == (len(data['label']),)
-        assert res['label_test_mask'].shape == (len(data['label']),)
-        assert np.sum(res['label_train_mask']) == 8
-        assert np.sum(res['label_val_mask']) == 1
-        assert np.sum(res['label_test_mask']) == 1
-        assert np.sum(res['label_train_mask'] + res['label_val_mask'] \
-                + res['label_test_mask']) == 10
+def verify_split(res):
+    assert len(res) == 4
+    assert 'label' in res
+    assert 'label_train_mask' in res
+    assert 'label_val_mask' in res
+    assert 'label_test_mask' in res
+    assert res['label_train_mask'].shape == (len(data['label']),)
+    assert res['label_val_mask'].shape == (len(data['label']),)
+    assert res['label_test_mask'].shape == (len(data['label']),)
+    assert np.sum(res['label_train_mask']) == 8
+    assert np.sum(res['label_val_mask']) == 1
+    assert np.sum(res['label_test_mask']) == 1
+    assert np.sum(res['label_train_mask'] + res['label_val_mask'] \
+            + res['label_test_mask']) == 10
 
-    def check_integer(label, res):
-        train_mask = res['label_train_mask'] == 1
-        val_mask = res['label_val_mask'] == 1
-        test_mask = res['label_test_mask'] == 1
-        assert np.all(np.logical_and(label[train_mask] >= 0, label[train_mask] <= 10))
-        assert np.all(np.logical_and(label[val_mask] >= 0, label[val_mask] <= 10))
-        assert np.all(np.logical_and(label[test_mask] >= 0, label[test_mask] <= 10))
+def verify_integer(label, res):
+    train_mask = res['label_train_mask'] == 1
+    val_mask = res['label_val_mask'] == 1
+    test_mask = res['label_test_mask'] == 1
+    assert np.all(np.logical_and(label[train_mask] >= 0, label[train_mask] <= 10))
+    assert np.all(np.logical_and(label[val_mask] >= 0, label[val_mask] <= 10))
+    assert np.all(np.logical_and(label[test_mask] >= 0, label[test_mask] <= 10))
+
+def check_classification():
+    def check_classification(res):
+        verify_split(res)
+        assert np.issubdtype(res['label'].dtype, np.integer)
+        verify_integer(res['label'], res)
 
     # Check classification
-    def check_classification(res):
-        check_split(res)
-        assert np.issubdtype(res['label'].dtype, np.integer)
-        check_integer(res['label'], res)
     conf = {'task_type': 'classification',
             'label_col': 'label',
             'split_pct': [0.8, 0.1, 0.1]}
@@ -183,7 +184,7 @@ def test_label():
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     check_classification(res)
-    ops = parse_label_ops([conf], True)
+    ops = parse_label_ops([conf], False)
     res = process_labels(data, ops)
     check_classification(res)
 
@@ -220,7 +221,28 @@ def test_label():
     assert np.sum(res['label_val_mask']) == 0
     assert np.sum(res['label_test_mask']) == 0
 
-    # Check regression
+def check_multilabel_classification():
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'split_pct': [0.8, 0.1, 0.1]}
+    ops = parse_label_ops([conf], True)
+    data = {'label' : np.random.uniform(size=(10, 5)) * 10}
+    res = process_labels(data, ops)
+    check_classification(res)
+    ops = parse_label_ops([conf], False)
+    res = process_labels(data, ops)
+    check_classification(res)
+
+    # Check classification with invalid labels.
+    data = {'label' : np.random.uniform(size=(13, 5)) * 10}
+    data['label'][[0, 3, 4],:] = np.NAN
+    data['label'][1, 1] = np.NAN
+    data['label'][2, 2] = np.NAN
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    check_classification(res)
+
+def check_regression():
     conf = {'task_type': 'regression',
             'label_col': 'label',
             'split_pct': [0.8, 0.1, 0.1]}
@@ -228,7 +250,7 @@ def test_label():
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     def check_regression(res):
-        check_split(res)
+        verify_split(res)
     check_regression(res)
     ops = parse_label_ops([conf], False)
     res = process_labels(data, ops)
@@ -241,6 +263,7 @@ def test_label():
     res = process_labels(data, ops)
     check_regression(res)
 
+def check_link_prediction():
     # Check link prediction
     conf = {'task_type': 'link_prediction',
             'split_pct': [0.8, 0.1, 0.1]}
@@ -254,6 +277,12 @@ def test_label():
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
+
+def test_label():
+    check_classification()
+    check_multilabel_classification()
+    check_regression()
+    check_link_prediction()
 
 def check_id_map_exist(id_map, str_ids):
     # Test the case that all Ids exist in the map.

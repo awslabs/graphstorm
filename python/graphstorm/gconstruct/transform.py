@@ -211,8 +211,15 @@ def get_valid_label_index(label):
     -------
     Numpy array : the index of the samples with valid labels in the list.
     """
-    if np.issubdtype(label.dtype, np.floating):
+    # If the label is stored in floating point values and it's a vector.
+    if np.issubdtype(label.dtype, np.floating) and np.prod(label.shape) == len(label):
         return np.logical_not(np.isnan(label)).nonzero()[0]
+    # If the label is stored in a floating point matrix.
+    elif np.issubdtype(label.dtype, np.floating):
+        assert len(label.shape) == 2, \
+                "The labels for multi-label classification need to be stored in a matrix."
+        # Test which row has valid values.
+        return (np.isnan(label).sum(axis=1) < label.shape[1]).nonzero()[0]
     elif np.issubdtype(label.dtype, np.integer):
         return np.arange(len(label))
     else:
@@ -410,11 +417,12 @@ def parse_label_ops(confs, is_node):
                     "'label_col' must be defined in the label field."
             label_col = label_conf['label_col']
             ops.append(RegressionProcessor(label_col, label_col, split_pct))
-        else:
-            assert task_type == 'link_prediction', \
-                    "The task type must be classification, regression or link_prediction."
+        elif task_type == 'link_prediction':
             assert not is_node, "link_prediction task must be defined on edges."
             ops.append(LinkPredictionProcessor(None, None, split_pct))
+        else:
+            raise ValueError("The task type must be classification, " \
+                    + "regression or link_prediction.")
     return ops
 
 def process_labels(data, label_processors):
