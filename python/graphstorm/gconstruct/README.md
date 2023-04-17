@@ -43,6 +43,8 @@ A feature dictionary is defined:
 * `feature_col` specifies the column name in the input file that contains the feature.
 * `feature_name` specifies the prefix of the column features. This is optional.
 If `feature_name` is not provided, `feature_col` is used as the feature name.
+If the feature transformation generates multiple tensors, `feature_name` becomes
+the prefix of the names of the generated tensors.
 * `transform` specifies the actual feature transformation. This is a dictionary
 and its `name` field indicates the feature transformation. Each transformation
 has its own argument. The list of feature transformations supported by the pipeline
@@ -56,6 +58,11 @@ This has to be specified for classification and regression tasks.
 `label_col` is used as the label name.
 * `split_pct` specifies how to split the data into training/validation/test.
 This is optional. If it's not specified, all data will be used for training.
+The pipeline constructs three additional vectors indicating
+the training/validation/test masks. For classification and regression tasks,
+the names of the mask tensors are "`label_col`_train_mask", "`label_col`_val_mask"
+and "`label_col`_test_mask". For link prediction, the names of the mask tensors
+are "train_mask", "val_mask" and "test_mask".
 
 Below shows an example that contains one node type and an edge type.
 ```
