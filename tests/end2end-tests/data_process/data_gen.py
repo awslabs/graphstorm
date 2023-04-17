@@ -42,6 +42,10 @@ node_data1 = {
     'label': node_id1 % 100,
 }
 
+node_data1_2 = {
+    'data': node_id1,
+}
+
 node_id2 = np.arange(20000)
 node_data2 = {
     'id': node_id2,
@@ -92,6 +96,7 @@ def split_data(data, num):
 
 for i, node_data in enumerate(split_data(node_data1, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
+write_data_hdf5(node_data1_2, os.path.join(in_dir, f'node_data1_2.hdf5'))
 for i, node_data in enumerate(split_data(node_data2, 10)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data2_{i}.parquet'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
@@ -128,6 +133,17 @@ node_conf = [
                 "label_col":    "label",
                 "task_type":    "classification",
                 "split_pct":   [0.8, 0.2, 0.0],
+            },
+        ],
+    },
+    {
+        "node_type": "node1",
+        "format": {"name": "hdf5"},
+        "files": os.path.join(in_dir, "node_data1_2.hdf5"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat1",
             },
         ],
     },
