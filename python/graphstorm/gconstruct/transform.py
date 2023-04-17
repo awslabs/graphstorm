@@ -176,7 +176,7 @@ def parse_feat_ops(confs):
                 assert 'max_seq_length' in conf, \
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
                 max_seq_length = int(conf['max_seq_length'])
-                return Tokenizer(feat['feature_col'], feat_name, tokenizer, max_seq_length)
+                transform = Tokenizer(feat['feature_col'], feat_name, tokenizer, max_seq_length)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
@@ -247,6 +247,18 @@ class LabelProcessor:
         self._label_name = label_name
         self._split_pct = split_pct
 
+    @property
+    def col_name(self):
+        """ The column name that contains the label.
+        """
+        return self._label_name
+
+    @property
+    def label_name(self):
+        """ The label name.
+        """
+        return self._label_name
+
     def data_split(self, get_valid_idx, num_samples):
         """ Split the data
 
@@ -293,7 +305,7 @@ class LabelProcessor:
                 val_mask_name: val_mask,
                 test_mask_name: test_mask}
 
-class ClassificationProcessor:
+class ClassificationProcessor(LabelProcessor):
     """ Process the label for the classification task.
     """
 
@@ -323,7 +335,7 @@ class ClassificationProcessor:
         res[self.label_name] = np.int32(label)
         return res
 
-class RegressionProcessor:
+class RegressionProcessor(LabelProcessor):
     """ Process the label for the regression task.
     """
 
@@ -350,7 +362,7 @@ class RegressionProcessor:
         res[self.label_name] = label
         return res
 
-class LinkPredictionProcessor:
+class LinkPredictionProcessor(LabelProcessor):
     """ Process the label for the link prediction task.
     """
 
@@ -375,7 +387,7 @@ class LinkPredictionProcessor:
             break
         def permute_idx():
             return np.random.permutation(num_samples)
-        return self.data_split(permute_idx, len(label))
+        return self.data_split(permute_idx, num_samples)
 
 def parse_label_ops(confs, is_node):
     """ Parse the configurations to generate the label processor.

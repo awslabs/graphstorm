@@ -25,6 +25,7 @@ from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
+from graphstorm.gconstruct.transform import Noop
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import ExtMemArrayConverter, partition_graph
 
@@ -69,18 +70,15 @@ def test_json():
     # TODO verify if a field does not exist.
 
 def test_feat_ops():
-
     feat_op1 = [{
         "feature_col": "test1",
         "feature_name": "test2",
     }]
     res1 = parse_feat_ops(feat_op1)
     assert len(res1) == 1
-    assert len(res1[0]) == 4
-    assert res1[0][0] == feat_op1[0]["feature_col"]
-    assert res1[0][1] == feat_op1[0]["feature_name"]
-    assert res1[0][2] is None   # dtype is always None for now.
-    assert res1[0][3] is None   # There is not transformation.
+    assert res1[0].col_name == feat_op1[0]["feature_col"]
+    assert res1[0].feat_name == feat_op1[0]["feature_name"]
+    assert isinstance(res1[0], Noop)
 
     feat_op2 = [
         {
@@ -98,19 +96,20 @@ def test_feat_ops():
     ]
     res2 = parse_feat_ops(feat_op2)
     assert len(res2) == 2
-    assert len(res2[0]) == 4
-    assert res2[1][0] == feat_op2[1]["feature_col"]
-    assert res2[1][1] == feat_op2[1]["feature_name"]
-    assert res2[1][2] is None   # dtype is always None for now.
-    op = res2[1][3]
+    assert res2[1].col_name == feat_op2[1]["feature_col"]
+    assert res2[1].feat_name == feat_op2[1]["feature_name"]
+    op = res2[1]
     tokens = op(["hello world", "hello world"])
     assert len(tokens) == 3
-    assert tokens['token_ids'].shape == (2, 16)
-    assert tokens['attention_mask'].shape == (2, 16)
-    assert tokens['token_type_ids'].shape == (2, 16)
-    np.testing.assert_array_equal(tokens['token_ids'][0], tokens['token_ids'][1])
-    np.testing.assert_array_equal(tokens['attention_mask'][0], tokens['attention_mask'][1])
-    np.testing.assert_array_equal(tokens['token_type_ids'][0], tokens['token_type_ids'][1])
+    assert tokens['test4_token_ids'].shape == (2, 16)
+    assert tokens['test4_attention_mask'].shape == (2, 16)
+    assert tokens['test4_token_type_ids'].shape == (2, 16)
+    np.testing.assert_array_equal(tokens['test4_token_ids'][0],
+                                  tokens['test4_token_ids'][1])
+    np.testing.assert_array_equal(tokens['test4_attention_mask'][0],
+                                  tokens['test4_attention_mask'][1])
+    np.testing.assert_array_equal(tokens['test4_token_type_ids'][0],
+                                  tokens['test4_token_type_ids'][1])
 
     data = {
         "test1": np.random.rand(2, 4),
@@ -118,9 +117,9 @@ def test_feat_ops():
     }
     proc_res = process_features(data, res2)
     np.testing.assert_array_equal(data['test1'], proc_res['test2'])
-    assert "token_ids" in proc_res
-    assert "attention_mask" in proc_res
-    assert "token_type_ids" in proc_res
+    assert "test4_token_ids" in proc_res
+    assert "test4_attention_mask" in proc_res
+    assert "test4_token_type_ids" in proc_res
 
     # TODO The feature name is not defined.
 
