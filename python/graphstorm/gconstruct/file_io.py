@@ -23,6 +23,7 @@ import json
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
+import h5py
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
@@ -135,6 +136,21 @@ def write_data_parquet(data, data_file):
             arr_dict[key] = [arr[i] for i in range(len(arr))]
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
+
+def read_data_hdf5(data_file, data_fields=None):
+    data = {}
+    with h5py.File(data_file, "r") as f:
+        data_fields = data_fields if data_fields is not None else f.keys()
+        for name in data_fields:
+            assert name in f, f"The data field {name} does not exist in the hdf5 file."
+            data[name] = f[name]
+    return data
+
+def write_data_hdf5(data, data_file):
+    with h5py.File(data_file, "w") as f:
+        for key, val in data.items():
+            arr = f.create_dataset(key, val.shape, dtype=val.dtype)
+            arr[:] = val
 
 def _parse_file_format(conf, is_node):
     """ Parse the file format blob
