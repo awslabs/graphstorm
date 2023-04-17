@@ -66,7 +66,8 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
         label_data = process_labels(data, label_conf, True)
         for key, val in label_data.items():
             feat_data[key] = val
-    return (data[node_id_col], feat_data)
+    node_ids = data[node_id_col] if node_id_col in data else None
+    return (node_ids, feat_data)
 
 def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexist_edges):
     """ Parse edge data.
@@ -206,7 +207,8 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
             assert all([id_map is None for id_map in type_node_id_map])
             type_node_id_map = None
         gc.collect()
-        print(f"node type {node_type} has {len(type_node_id_map)} nodes")
+        if type_node_id_map is not None:
+            print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         # We don't need to create ID map if the node IDs are integers,
         # all node Ids are in sequence start from 0 and
         # the user doesn't force to remap node IDs.

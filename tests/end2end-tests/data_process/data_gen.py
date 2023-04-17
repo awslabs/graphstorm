@@ -24,6 +24,7 @@ import pyarrow as pa
 import numpy as np
 
 from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json
+from graphstorm.gconstruct.file_io import write_data_hdf5
 
 # Here we construct a graph with multiple node types and edge types
 # to test the graph construction pipeline. To test the pipeline
