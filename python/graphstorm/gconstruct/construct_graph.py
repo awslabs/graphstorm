@@ -167,12 +167,15 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
         assert 'node_type' in process_conf, \
                 "'node_type' must be defined for a node type"
         node_type = process_conf['node_type']
-        assert 'format' in process_conf, \
-                "'format' must be defined for a node type"
-        read_file = parse_node_file_format(process_conf)
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
+        assert 'format' in process_conf, \
+                "'format' must be defined for a node type"
+        # If there is only one file, we don't need to concatenate the data.
+        # Potentially, we don't need to read the data in memory if the input
+        # format supports it. Currently, only HDF5 supports this.
+        read_file = parse_node_file_format(process_conf, in_mem=len(in_files) > 1)
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_conf = process_conf['labels'] if 'labels' in process_conf else None

@@ -137,13 +137,13 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
-def read_data_hdf5(data_file, data_fields=None):
+def read_data_hdf5(data_file, data_fields=None, in_mem=True):
     data = {}
     with h5py.File(data_file, "r") as f:
         data_fields = data_fields if data_fields is not None else f.keys()
         for name in data_fields:
             assert name in f, f"The data field {name} does not exist in the hdf5 file."
-            data[name] = f[name][:]
+            data[name] = f[name][:] if in_mem else f[name]
     return data
 
 def write_data_hdf5(data, data_file):
@@ -152,7 +152,7 @@ def write_data_hdf5(data, data_file):
             arr = f.create_dataset(key, val.shape, dtype=val.dtype)
             arr[:] = val
 
-def _parse_file_format(conf, is_node):
+def _parse_file_format(conf, is_node, in_mem):
     """ Parse the file format blob
 
     Parameters
@@ -161,6 +161,8 @@ def _parse_file_format(conf, is_node):
         Describe the config for the node type or edge type.
     is_node : bool
         Whether this is a node config or edge config
+    in_mem : bool
+        Whether or not to read the data in memory.
 
     Returns
     -------
@@ -183,7 +185,7 @@ def _parse_file_format(conf, is_node):
     elif fmt["name"] == "json":
         return partial(read_data_json, data_fields=keys)
     elif fmt["name"] == "hdf5":
-        return partial(read_data_hdf5, data_fields=keys)
+        return partial(read_data_hdf5, data_fields=keys, in_mem=in_mem)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
 
