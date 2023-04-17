@@ -392,28 +392,30 @@ def parse_label_ops(confs, is_node):
     -------
     list of LabelProcessor : the label processors generated from the configurations.
     """
-    assert len(confs) == 1, "We only support one label per node/edge type."
-    label_conf = confs[0]
-    assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
-    task_type = label_conf['task_type']
-    # By default, we use all labels for training.
-    split_pct = label_conf['split_pct'] if 'split_pct' in label_conf else [1, 0, 0]
+    ops = []
+    for label_conf in confs:
+        label_conf = confs[0]
+        assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
+        task_type = label_conf['task_type']
+        # By default, we use all labels for training.
+        split_pct = label_conf['split_pct'] if 'split_pct' in label_conf else [1, 0, 0]
 
-    if task_type == 'classification':
-        assert 'label_col' in label_conf, \
-                "'label_col' must be defined in the label field."
-        label_col = label_conf['label_col']
-        return [ClassificationProcessor(label_col, label_col, split_pct)]
-    elif task_type == 'regression':
-        assert 'label_col' in label_conf, \
-                "'label_col' must be defined in the label field."
-        label_col = label_conf['label_col']
-        return [RegressionProcessor(label_col, label_col, split_pct)]
-    else:
-        assert task_type == 'link_prediction', \
-                "The task type must be classification, regression or link_prediction."
-        assert not is_node, "link_prediction task must be defined on edges."
-        return [LinkPredictionProcessor(None, None, split_pct)]
+        if task_type == 'classification':
+            assert 'label_col' in label_conf, \
+                    "'label_col' must be defined in the label field."
+            label_col = label_conf['label_col']
+            ops.append(ClassificationProcessor(label_col, label_col, split_pct))
+        elif task_type == 'regression':
+            assert 'label_col' in label_conf, \
+                    "'label_col' must be defined in the label field."
+            label_col = label_conf['label_col']
+            ops.append(RegressionProcessor(label_col, label_col, split_pct))
+        else:
+            assert task_type == 'link_prediction', \
+                    "The task type must be classification, regression or link_prediction."
+            assert not is_node, "link_prediction task must be defined on edges."
+            ops.append(LinkPredictionProcessor(None, None, split_pct))
+    return ops
 
 def process_labels(data, label_processors):
     """ Process labels
@@ -429,5 +431,10 @@ def process_labels(data, label_processors):
     -------
     dict of tensors : labels (optional) and train/validation/test masks.
     """
-    assert len(label_processors) == 1, "We only support one label per node/edge type."
-    return label_processors[0](data)
+    res = {}
+    for op in label_processors:
+        res1 = op(data)
+        for key, val in res1:
+            assert key not in res, f"The label name {key} already exists."
+            res[key] = val
+    return res
