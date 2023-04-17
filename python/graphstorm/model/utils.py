@@ -159,8 +159,12 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                 embs.append(sparse_emb._tensor[idx])
 
             embs = th.cat(embs, dim=0)
-            emb_path = os.path.join(model_path, ntype, f'sparse_emb_{local_rank}.pt')
-            th.save(embs, emb_path)
+            # This makedirs may cause folder permission error in the distributed mode.
+            # In distributed mode, please call the create_sparse_embeds_path() method first before
+            # save sparse embeddings.
+            emb_path = os.makedirs(os.path.join(model_path, ntype), exist_ok=True)
+            emb_file_path = os.path.join(emb_path, f'sparse_emb_{local_rank}.pt')
+            th.save(embs, emb_file_path)
 
 def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Save the states of the optimizers.
