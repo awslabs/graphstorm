@@ -246,6 +246,28 @@ def check_multilabel_classification():
     res = process_labels(data, ops)
     verify_classification(res)
 
+    # Test the case with two labels.
+    conf = [
+            {
+                'task_type': 'classification',
+                'label_col': 'label1',
+                'split_pct': [0.8, 0.1, 0.1]
+            },
+            {
+                'task_type': 'classification',
+                'label_col': 'label2',
+                'split_pct': [0.8, 0.1, 0.1]
+            }
+    ]
+    ops = parse_label_ops(conf, True)
+    data = {'label1' : np.random.uniform(size=(10, 5)) * 10,
+            'label2' : np.random.uniform(size=(10,)) * 10}
+    res = process_labels(data, ops)
+    assert 'label1' in res
+    assert 'label2' in res
+    assert np.issubdtype(res['label1'].dtype, np.integer)
+    assert np.issubdtype(res['label2'].dtype, np.integer)
+
 def check_regression():
     conf = {'task_type': 'regression',
             'label_col': 'label',
