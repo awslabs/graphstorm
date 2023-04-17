@@ -19,6 +19,8 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
+from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
@@ -106,6 +108,56 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
+def get_embs(emb, pos_neg_tuple, neg_sample_type):
+    """ Fetch node embeddings for mini-batch prediction.
+
+        Parameters
+        ----------
+        emb: dict of Tensor
+            Node embeddings.
+        pos_neg_tuple: dict of tuple
+            Positive and negative edges stored in a tuple:
+            tuple(positive source, negative source,
+            postive destination, negatve destination).
+            The positive edges: (positive source, positive desitnation)
+            The negative edges: (positive source, negative desitnation) and
+                                (negative source, positive desitnation)
+        neg_sample_type: str
+            Describe how negative samples are sampled.
+                Uniform: For each positive edge, we sample K negative edges
+                Joint: For one batch of positive edges, we sample
+                       K negative edges
+
+        Return
+        ------
+        tuple of tensors
+            node embeddings stored in a tuple:
+            tuple(positive source embeddings, negative source embeddings,
+            postive destination embeddings, negatve destination embeddings).
+    """
+    assert isinstance(pos_neg_tuple, dict) and len(pos_neg_tuple) == 1, \
+    "DotDecoder is only applicable to link prediction task with " \
+    "single target training edge type"
+
+    canonical_etype = list(pos_neg_tuple.keys())[0]
+    pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[canonical_etype]
+    utype, _, vtype = canonical_etype
+
+    pos_src_emb = emb[utype][pos_src]
+    pos_dst_emb = emb[vtype][pos_dst]
+    if neg_src is not None:
+        neg_src_emb = emb[utype][neg_src.reshape(-1,)]
+    if neg_dst is not None:
+        if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+            neg_dst_emb = emb[vtype][neg_dst.reshape(-1,)]
+        elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
+            neg_dst_emb = emb[vtype][neg_dst]
+        else:
+            assert False, f"Unknow negative sample type {neg_sample_type}"
+
+    return (pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb)
+
+
 def lp_mini_batch_predict(model, emb, loader, device):
     """ Perform mini-batch prediction.
 
@@ -134,9 +186,10 @@ def lp_mini_batch_predict(model, emb, loader, device):
     with th.no_grad():
         scores = {}
         for pos_neg_tuple, neg_sample_type in loader:
+            batch_embs = get_embs(emb, pos_neg_tuple, neg_sample_type)
             score = \
                 decoder.calc_test_scores(
-                    emb, pos_neg_tuple, neg_sample_type, device)
+                    batch_embs, pos_neg_tuple, neg_sample_type, device)
             for canonical_etype, s in score.items():
                 # We do not concatenate pos scores/neg scores
                 # into a single pos score tensor/neg score tensor

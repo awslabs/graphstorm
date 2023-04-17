@@ -304,13 +304,13 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             scores=th.cat(scores)
             return scores
 
-    def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
+    def calc_test_scores(self, batch_emb, pos_neg_tuple, neg_sample_type, device):
         """ Compute scores for positive edges and negative edges
 
         Parameters
         ----------
-        emb: dict of Tensor
-            Node embeddings.
+        batch_emb: Tuple of tensors
+            Node embeddings stored in a tuple
         pos_neg_tuple: dict of tuple
             Positive and negative edges stored in a tuple:
             tuple(positive source, negative source,
@@ -336,16 +336,17 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             "DotDecoder is only applicable to link prediction task with " \
             "single target training edge type"
         canonical_etype = list(pos_neg_tuple.keys())[0]
-        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[canonical_etype]
-        utype, _, vtype = canonical_etype
-        pos_src_emb = emb[utype][pos_src].to(device)
-        pos_dst_emb = emb[vtype][pos_dst].to(device)
+        _, neg_src, _, neg_dst = pos_neg_tuple[canonical_etype]
+        pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb = batch_emb
+
+        pos_src_emb = pos_src_emb.to(device)
+        pos_dst_emb = pos_dst_emb.to(device)
 
         scores = {}
         pos_scores = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
         neg_scores = []
         if neg_src is not None:
-            neg_src_emb = emb[utype][neg_src.reshape(-1,)].to(device)
+            neg_src_emb = neg_src_emb.to(device)
             if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
                 neg_src_emb = neg_src_emb.reshape(
                     neg_src.shape[0], neg_src.shape[1], -1)
@@ -372,8 +373,8 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             neg_scores.append(neg_score)
 
         if neg_dst is not None:
+            neg_dst_emb = neg_dst_emb.to(device)
             if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-                neg_dst_emb = emb[vtype][neg_dst.reshape(-1,)].to(device)
                 neg_dst_emb = neg_dst_emb.reshape(
                     neg_dst.shape[0], neg_dst.shape[1], -1)
                 # uniform sampled negative samples
@@ -381,7 +382,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
                     pos_src_emb.shape[0], 1, pos_src_emb.shape[1])
                 neg_score = calc_dot_pos_score(pos_src_emb, neg_dst_emb)
             elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
-                neg_dst_emb = emb[vtype][neg_dst].to(device)
+                # neg_dst_emb = neg_dst_emb.to(device)
                 # joint sampled negative samples
                 assert len(pos_src_emb.shape) == 2, \
                     "For joint negative sampler, in evaluation " \
