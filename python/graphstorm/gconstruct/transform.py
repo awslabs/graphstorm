@@ -442,7 +442,7 @@ def process_labels(data, label_processors):
     res = {}
     for op in label_processors:
         res1 = op(data)
-        for key, val in res1:
+        for key, val in res1.items():
             assert key not in res, f"The label name {key} already exists."
             res[key] = val
     return res
