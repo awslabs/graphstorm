@@ -162,7 +162,8 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
             # This makedirs may cause folder permission error in the distributed mode.
             # In distributed mode, please call the create_sparse_embeds_path() method first before
             # save sparse embeddings.
-            emb_path = os.makedirs(os.path.join(model_path, ntype), exist_ok=True)
+            emb_path = os.path.join(model_path, ntype)
+            os.makedirs(emb_path, exist_ok=True)
             emb_file_path = os.path.join(emb_path, f'sparse_emb_{local_rank}.pt')
             th.save(embs, emb_file_path)
 
