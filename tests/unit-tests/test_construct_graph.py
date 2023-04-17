@@ -50,8 +50,14 @@ def test_parquet():
     assert "data2" not in data1
     np.testing.assert_array_equal(data1['data1'], data['data1'])
 
+    # verify if a field does not exist.
+    try:
+        data1 = read_data_parquet(tmpfile, data_fields=['data1', 'data3'])
+        assert False, "This shouldn't happen."
+    except:
+        pass
+
     os.remove(tmpfile)
-    # TODO verify if a field does not exist.
 
 def test_json():
     handle, tmpfile = tempfile.mkstemp()
@@ -67,9 +73,18 @@ def test_json():
     assert "data2" in data1
     assert np.all(data1['data1'] == data['data1'])
     assert np.all(data1['data2'] == data['data2'])
-    # TODO verify if a field does not exist.
+
+    # Test the case that some field doesn't exist.
+    try:
+        data1 = read_data_json(tmpfile, ["data1", "data3"])
+        assert False, "This shouldn't happen"
+    except:
+        pass
+
+    os.remove(tmpfile)
 
 def test_feat_ops():
+    # Just get the features without transformation.
     feat_op1 = [{
         "feature_col": "test1",
         "feature_name": "test2",
@@ -80,6 +95,17 @@ def test_feat_ops():
     assert res1[0].feat_name == feat_op1[0]["feature_name"]
     assert isinstance(res1[0], Noop)
 
+    # When the feature name is not specified.
+    feat_op1 = [{
+        "feature_col": "test1",
+    }]
+    res1 = parse_feat_ops(feat_op1)
+    assert len(res1) == 1
+    assert res1[0].col_name == feat_op1[0]["feature_col"]
+    assert res1[0].feat_name == feat_op1[0]["feature_col"]
+    assert isinstance(res1[0], Noop)
+
+    # Test more complex cases.
     feat_op2 = [
         {
             "feature_col": "test1",
@@ -120,8 +146,6 @@ def test_feat_ops():
     assert "test4_token_ids" in proc_res
     assert "test4_attention_mask" in proc_res
     assert "test4_token_type_ids" in proc_res
-
-    # TODO The feature name is not defined.
 
 def test_label():
     def check_split(res):
@@ -186,7 +210,15 @@ def test_label():
     res = process_labels(data, ops)
     check_classification(res)
 
-    # TODO split_pct is not specified.
+    # split_pct is not specified.
+    conf = {'task_type': 'classification',
+            'label_col': 'label'}
+    ops = parse_label_ops([conf], True)
+    data = {'label' : np.random.randint(3, size=20)}
+    res = process_labels(data, ops)
+    assert np.sum(res['label_train_mask']) == 20
+    assert np.sum(res['label_val_mask']) == 0
+    assert np.sum(res['label_test_mask']) == 0
 
     # Check regression
     conf = {'task_type': 'regression',
@@ -405,11 +437,7 @@ def test_partition_graph():
             assert name in edata2
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
-def test_get_in_files():
-    pass
-
 if __name__ == '__main__':
-    test_get_in_files()
     test_json()
     test_partition_graph()
     test_convert2ext_mem()
