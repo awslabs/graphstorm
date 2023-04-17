@@ -106,16 +106,7 @@ class Tokenizer(FeatTransform):
 
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
-
-    Parameters
-    ----------
-    col_name : str
-        The name of the column that contains the feature.
-    feat_name : str
-        The feature name used in the constructed graph.
     """
-    def __init__(self, col_name, feat_name):
-        super(Noop, self).__init__(col_name, feat_name)
 
     def __call__(self, feats):
         """ This transforms the features.
@@ -162,8 +153,6 @@ def parse_feat_ops(confs):
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
-        # TODO(zhengda) we will support data type in the future.
-        dtype = None
         if 'transform' not in feat:
             transform = Noop(feat['feature_col'], feat_name)
         else:

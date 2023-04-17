@@ -188,9 +188,6 @@ def get_in_files(in_files):
     # If the input file has a wildcard, get all files that matches the input file name.
     if '*' in in_files:
         in_files = glob.glob(in_files)
-    # This is a directory
-    elif not isinstance(in_files, list) and os.path.isdir(in_files):
-        in_files = os.listdir(in_files)
     # This is a single file.
     elif not isinstance(in_files, list):
         in_files = [in_files]

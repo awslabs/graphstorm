@@ -69,7 +69,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     return (data[node_id_col], feat_data)
 
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
-                    conf, skip_nonexist_edges):
+                    conf, skip_nonexist_edges): # pylint: disable=too-many-function-args
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
@@ -180,7 +180,8 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
         in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
-        label_ops = parse_label_ops(process_conf['labels']) if 'labels' in process_conf else None
+        label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
+                if 'labels' in process_conf else None
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,
@@ -311,7 +312,8 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
-        label_ops = parse_label_ops(process_conf['labels']) if 'labels' in process_conf else None
+        label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
+                if 'labels' in process_conf else None
 
         # We don't need to copy all node ID maps to the worker processes.
         # Only the node ID maps of the source node type and destination node type
