@@ -143,7 +143,7 @@ def read_data_hdf5(data_file, data_fields=None):
         data_fields = data_fields if data_fields is not None else f.keys()
         for name in data_fields:
             assert name in f, f"The data field {name} does not exist in the hdf5 file."
-            data[name] = f[name]
+            data[name] = f[name][:]
     return data
 
 def write_data_hdf5(data, data_file):

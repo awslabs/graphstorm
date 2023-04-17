@@ -23,6 +23,7 @@ import torch as th
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
+from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import process_labels
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
