@@ -556,7 +556,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             create_sparse_embeds_path(model_path, self.node_input_encoder)
         # make sure rank 0 create the folder and change permission first
         th.distributed.barrier()
-        
+
         save_sparse_embeds(model_path,
                            self.node_input_encoder,
                            get_rank(),
