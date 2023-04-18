@@ -19,325 +19,22 @@
 
 import time
 from functools import partial
-import multiprocessing
-from multiprocessing import Process
-import glob
 import os
 import json
 import argparse
 import gc
-import queue
 
-import pyarrow.parquet as pq
-import pyarrow as pa
 import numpy as np
-from transformers import BertTokenizer
 import torch as th
 import dgl
 
-from graphstorm.utils import sys_tracker
-
-##################### The I/O functions ####################
-
-def read_data_parquet(data_file, data_fields=None):
-    """ Read data from the parquet file.
-
-    A row of a multi-dimension data is stored as an object in Parquet.
-    We need to stack them to form a tensor.
-
-    Parameters
-    ----------
-    data_file : str
-        The parquet file that contains the data
-    data_fields : list of str
-        The data fields to read from the data file.
-
-    Returns
-    -------
-    dict : map from data name to data.
-    """
-    table = pq.read_table(data_file)
-    data = {}
-    df_table = table.to_pandas()
-    if data_fields is None:
-        data_fields = list(df_table.keys())
-    for key in data_fields:
-        assert key in df_table, f"The data field {key} does not exist in the data file."
-        val = df_table[key]
-        d = np.array(val)
-        # For multi-dimension arrays, we split them by rows and
-        # save them as objects in parquet. We need to merge them
-        # together and store them in a tensor.
-        if d.dtype.hasobject and isinstance(d[0], np.ndarray):
-            d = [d[i] for i in range(len(d))]
-            d = np.stack(d)
-        data[key] = d
-    return data
-
-def write_data_parquet(data, data_file):
-    """ Write data in parquet files.
-
-    Normally, Parquet cannot support multi-dimension arrays.
-    This function splits a multi-dimensiion array into N arrays
-    (each row is an array) and store the arrays as objects in the parquet file.
-
-    Parameters
-    ----------
-    data : dict
-        The data to be saved to the Parquet file.
-    data_file : str
-        The file name of the Parquet file.
-    """
-    arr_dict = {}
-    for key in data:
-        arr = data[key]
-        assert len(arr.shape) == 1 or len(arr.shape) == 2, \
-                "We can only write a vector or a matrix to a parquet file."
-        if len(arr.shape) == 1:
-            arr_dict[key] = arr
-        else:
-            arr_dict[key] = [arr[i] for i in range(len(arr))]
-    table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
-    pq.write_table(table, data_file)
-
-def _parse_file_format(conf, is_node):
-    """ Parse the file format blob
-
-    Parameters
-    ----------
-    conf : dict
-        Describe the config for the node type or edge type.
-    is_node : bool
-        Whether this is a node config or edge config
-
-    Returns
-    -------
-    callable : the function to read the data file.
-    """
-    fmt = conf["format"]
-    assert 'name' in fmt, "'name' field must be defined in the format."
-    keys = [conf["node_id_col"]] if is_node \
-            else [conf["source_id_col"], conf["dest_id_col"]]
-    if "features" in conf:
-        keys += [feat_conf["feature_col"] for feat_conf in conf["features"]]
-    if "labels" in conf:
-        keys += [label_conf["label_col"] for label_conf in conf["labels"]]
-    if fmt["name"] == "parquet":
-        return partial(read_data_parquet, data_fields=keys)
-    else:
-        raise ValueError('Unknown file format: {}'.format(fmt['name']))
-
-parse_node_file_format = partial(_parse_file_format, is_node=True)
-parse_edge_file_format = partial(_parse_file_format, is_node=False)
-
-############## The functions for parsing configurations #############
-
-class Tokenizer:
-    """ A wrapper to a tokenizer.
-
-    It is defined to process multiple strings.
-
-    Parameters
-    ----------
-    tokenizer : a tokenizer
-    max_seq_length : int
-        The maximal length of the tokenization results.
-    """
-    def __init__(self, tokenizer, max_seq_length):
-        self.tokenizer = tokenizer
-        self.max_seq_length = max_seq_length
-
-    def __call__(self, strs):
-        """ Tokenization function.
-
-        Parameters
-        ----------
-        strs : list of strings.
-            The text data to be tokenized.
-
-        Returns
-        -------
-        a dict of tokenization results.
-        """
-        tokens = []
-        att_masks = []
-        type_ids = []
-        for s in strs:
-            t = self.tokenizer(s, max_length=self.max_seq_length,
-                               truncation=True, padding='max_length', return_tensors='pt')
-            tokens.append(t['input_ids'])
-            # The masks are small integers. We can use int4 or int8 to store them.
-            # This can signficantly reduce memory consumption.
-            att_masks.append(t['attention_mask'].to(th.int8))
-            type_ids.append(t['token_type_ids'].to(th.int8))
-        return {'token_ids': th.cat(tokens, dim=0).numpy(),
-                'attention_mask': th.cat(att_masks, dim=0).numpy(),
-                'token_type_ids': th.cat(type_ids, dim=0).numpy()}
-
-def parse_tokenize(op):
-    """ Parse the tokenization configuration
-
-    The parser returns a function that tokenizes text with HuggingFace tokenizer.
-    The tokenization function returns a dict of three Pytorch tensors.
-
-    Parameters
-    ----------
-    op : dict
-        The configuration for the operation.
-
-    Returns
-    -------
-    callable : a function to process the data.
-    """
-    tokenizer = BertTokenizer.from_pretrained(op['bert_model'])
-    max_seq_length = int(op['max_seq_length'])
-    return Tokenizer(tokenizer, max_seq_length)
-
-def parse_feat_ops(confs):
-    """ Parse the configurations for processing the features
-
-    The feature transformation:
-    {
-        "feature_col":  ["<column name>", ...],
-        "feature_name": "<feature name>",
-        "data_type":    "<feature data type>",
-        "transform":    {"name": "<operator name>", ...}
-    }
-
-    Parameters
-    ----------
-    confs : list
-        A list of feature transformations.
-
-    Returns
-    -------
-    list of tuple : The operations
-    """
-    ops = []
-    assert isinstance(confs, list), \
-            "The feature configurations need to be in a list."
-    for feat in confs:
-        # TODO(zhengda) we will support data type in the future.
-        dtype = None
-        if 'transform' not in feat:
-            transform = None
-        else:
-            transform = feat['transform']
-            assert 'name' in transform, \
-                    "'name' must be defined in the transformation field."
-            if transform['name'] == 'tokenize_hf':
-                transform = parse_tokenize(transform)
-            else:
-                raise ValueError('Unknown operation: {}'.format(transform['name']))
-        feat_name = feat['feature_name'] if 'feature_name' in feat else None
-        assert 'feature_col' in feat, \
-                "'feature_col' must be defined in a feature field."
-        ops.append((feat['feature_col'], feat_name, dtype, transform))
-    return ops
-
-#################### The main function for processing #################
-
-def process_features(data, ops):
-    """ Process the data with the specified operations.
-
-    This function runs the input operations on the corresponding data
-    and returns the processed results.
-
-    Parameters
-    ----------
-    data : dict
-        The data stored as a dict.
-    ops : list of tuples
-        The operations. Each tuple contains two elements. The first element
-        is the data name and the second element is a Python function
-        to process the data.
-
-    Returns
-    -------
-    dict : the key is the data name, the value is the processed data.
-    """
-    new_data = {}
-    for feat_col, feat_name, dtype, op in ops:
-        # If the transformation is defined on the feature.
-        if op is not None:
-            res = op(data[feat_col])
-            if isinstance(res, dict):
-                for key, val in res.items():
-                    new_data[key] = val
-            else:
-                new_data[feat_name] = res
-        # If the required data type is defined on the feature.
-        elif dtype is not None:
-            new_data[feat_name] = data[feat_col].astype(dtype)
-        # If no transformation is defined for the feature.
-        else:
-            new_data[feat_name] = data[feat_col]
-    return new_data
-
-def process_labels(data, label_confs):
-    """ Process labels
-
-    Parameters
-    ----------
-    data : dict
-        The data stored as a dict.
-    label_conf : list of dict
-        The list of configs to construct labels.
-    """
-    assert len(label_confs) == 1, "We only support one label per node/edge type."
-    label_conf = label_confs[0]
-    assert 'label_col' in label_conf, "'label_col' must be defined in the label field."
-    label_col = label_conf['label_col']
-    label = data[label_conf['label_col']]
-    assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
-    if label_conf['task_type'] == 'classification':
-        assert np.issubdtype(label.dtype, np.integer), \
-                "The labels for classification have to be integers."
-        label = np.int32(label)
-    if 'split_type' in label_conf:
-        train_split, val_split, test_split = label_conf['split_type']
-        assert train_split + val_split + test_split <= 1, \
-                "The data split of training/val/test cannot be more than the entire dataset."
-        rand_idx = np.random.permutation(len(label))
-        train_idx = rand_idx[0:int(len(label) * train_split)]
-        val_start = int(len(label) * train_split)
-        val_end = int(len(label) * (train_split + val_split))
-        val_idx = rand_idx[val_start:val_end]
-        test_idx = rand_idx[val_end:]
-        train_mask = np.zeros((len(label),), dtype=np.int8)
-        val_mask = np.zeros((len(label),), dtype=np.int8)
-        test_mask = np.zeros((len(label),), dtype=np.int8)
-        train_mask[train_idx] = 1
-        val_mask[val_idx] = 1
-        test_mask[test_idx] = 1
-    return {label_col: label,
-            'train_mask': train_mask,
-            'val_mask': val_mask,
-            'test_mask': test_mask}
-
-################### The functions for multiprocessing ###############
-
-def get_in_files(in_files):
-    """ Get the input files.
-
-    The input file string may contains a wildcard. This function
-    gets all files that meet the requirement.
-
-    Parameters
-    ----------
-    in_files : a str or a list of str
-        The input files.
-
-    Returns
-    -------
-    a list of str : the full name of input files.
-    """
-    if '*' in in_files:
-        in_files = glob.glob(in_files)
-    elif not isinstance(in_files, list):
-        in_files = [in_files]
-    in_files.sort()
-    return in_files
+from ..utils import sys_tracker
+from .file_io import parse_node_file_format, parse_edge_file_format
+from .file_io import get_in_files, write_data_parquet
+from .transform import parse_feat_ops, process_features
+from .transform import process_labels
+from .id_map import NoopMap, IdMap, map_node_ids
+from .utils import WorkerPool, ExtMemArrayConverter, partition_graph
 
 def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
     """ Parse node data.
@@ -366,62 +63,10 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
-        label_data = process_labels(data, label_conf)
+        label_data = process_labels(data, label_conf, True)
         for key, val in label_data.items():
             feat_data[key] = val
     return (data[node_id_col], feat_data)
-
-def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
-    """ Map node IDs of source and destination nodes of edges.
-
-    In the ID mapping, we need to handle multiple errors in the input data:
-    1) we handle the case that endpoint nodes of edges don't exist;
-    2) we handle the case that the data type of node IDs of the endpoint nodes don't
-    match the data type of the keys of the ID map.
-
-    Parameters
-    ----------
-    src_ids : tensor
-        The source nodes.
-    dst_ids : tensor
-        The destination nodes.
-    edge_type : tuple
-        It contains source node type, relation type, destination node type.
-    node_id_map : dict
-        The key is the node type and value is IdMap or NoopMap.
-    skip_nonexist_edges : bool
-        Whether or not to skip edges whose endpoint nodes don't exist.
-
-    Returns
-    -------
-    tuple of tensors : the remapped source and destination node IDs.
-    """
-    src_type, _, dst_type = edge_type
-    new_src_ids, orig_locs = node_id_map[src_type].map_id(src_ids)
-    # If some of the source nodes don't exist in the node set.
-    if len(orig_locs) != len(src_ids):
-        bool_mask = np.ones(len(src_ids), dtype=bool)
-        bool_mask[orig_locs] = False
-        if skip_nonexist_edges:
-            print(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
-        else:
-            raise ValueError(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
-        dst_ids = dst_ids[orig_locs]
-    src_ids = new_src_ids
-
-    new_dst_ids, orig_locs = node_id_map[dst_type].map_id(dst_ids)
-    # If some of the dest nodes don't exist in the node set.
-    if len(orig_locs) != len(dst_ids):
-        bool_mask = np.ones(len(dst_ids), dtype=bool)
-        bool_mask[orig_locs] = False
-        if skip_nonexist_edges:
-            print(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
-        else:
-            raise ValueError(f"dest nodes of {src_type} do not exist: {dst_ids[bool_mask]}")
-        # We need to remove the source nodes as well.
-        src_ids = src_ids[orig_locs]
-    dst_ids = new_dst_ids
-    return src_ids, dst_ids
 
 def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexist_edges):
     """ Parse edge data.
@@ -457,7 +102,7 @@ def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexi
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_conf is not None:
-        label_data = process_labels(data, label_conf)
+        label_data = process_labels(data, label_conf, False)
         for key, val in label_data.items():
             feat_data[key] = val
     src_ids = data[src_id_col]
@@ -466,187 +111,7 @@ def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexi
                                     skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
-class NoopMap:
-    """ It doesn't map IDs.
-
-    This is an identity map. It doesn't do any mapping on IDs.
-
-    Parameters
-    ----------
-    size : int
-        The map size.
-    """
-    def __init__(self, size):
-        self._size = size
-
-    def __len__(self):
-        return self._size
-
-    def map_id(self, ids):
-        """ Map the input IDs to the new IDs.
-
-        This is identity map, so we don't need to do anything.
-
-        Parameters
-        ----------
-        ids : tensor
-            The input IDs
-
-        Returns
-        -------
-        tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
-        """
-        return ids, np.arange(len(ids))
-
-    def get_key_vals(self):
-        """ Get the key value pairs.
-        """
-        return None
-
-class IdMap:
-    """ Map an ID to a new ID.
-
-    This creates an ID map for the input IDs.
-
-    Parameters
-    ----------
-    ids : Numpy array
-        The input IDs
-    """
-    def __init__(self, ids):
-        self._ids = {id1: i for i, id1 in enumerate(ids)}
-
-    def __len__(self):
-        return len(self._ids)
-
-    def map_id(self, ids):
-        """ Map the input IDs to the new IDs.
-
-        Parameters
-        ----------
-        ids : tensor
-            The input IDs
-
-        Returns
-        -------
-        tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
-        """
-        for id_ in self._ids:
-            # If the data type of the key is string, the input Ids should also be strings.
-            if isinstance(id_, str):
-                assert isinstance(ids[0], str), \
-                        "The key of ID map is string, input IDs should also be strings."
-            elif isinstance(id_, int) or np.issubdtype(id_.dtype, np.integer):
-                # If the data type of the key is integer, the input Ids should
-                # also be integers.
-                assert np.issubdtype(ids.dtype, np.integer), \
-                        "The key of ID map is integer, input IDs should also be integers. " \
-                        + f"But get {type(ids[0])}."
-            else:
-                raise ValueError(f"Unsupported key data type: {type(id_)}")
-            break
-
-        # If the input ID exists in the ID map, map it to a new ID
-        # and keep its location in the input ID array.
-        # Otherwise, skip the ID.
-        new_ids = []
-        idx = []
-        for i, id_ in enumerate(ids):
-            if id_ in self._ids:
-                new_ids.append(self._ids[id_])
-                idx.append(i)
-        return np.array(new_ids), np.array(idx)
-
-    def get_key_vals(self):
-        """ Get the key value pairs.
-
-        Returns
-        -------
-        tuple of tensors : The first one has keys and the second has corresponding values.
-        """
-        return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
-
-def worker_fn(task_queue, res_queue, user_parser):
-    """ The worker function in the worker pool
-
-    Parameters
-    ----------
-    task_queue : Queue
-        The queue that contains all tasks
-    res_queue : Queue
-        The queue that contains the processed data. This is used for
-        communication between the worker processes and the master process.
-    user_parser : callable
-        The user-defined function to read and process the data files.
-    """
-    try:
-        while True:
-            # If the queue is empty, it will raise the Empty exception.
-            i, in_file = task_queue.get_nowait()
-            data = user_parser(in_file)
-            res_queue.put((i, data))
-            gc.collect()
-    except queue.Empty:
-        pass
-
-class WorkerPool:
-    """ A worker process pool
-
-    This worker process pool is specialized to process node/edge data.
-    It creates a set of worker processes, each of which runs a worker function.
-    It first adds all tasks in a queue and each worker gets a task from the queue
-    at a time until the workers process all tasks. It maintains a result queue
-    and each worker adds the processed results in the result queue.
-    To ensure the order of the data, each data file is associated with
-    a number and the processed data are ordered by that number.
-
-    Parameters
-    ----------
-    name : str or tuple of str
-        The name of the worker pool.
-    in_files : list of str
-        The input data files.
-    num_processes : int
-        The number of processes that run in parallel.
-    user_parser : callable
-        The user-defined function to read and process the data files.
-    """
-    def __init__(self, name, in_files, num_processes, user_parser):
-        self.name = name
-        self.processes = []
-        manager = multiprocessing.Manager()
-        self.task_queue = manager.Queue()
-        self.res_queue = manager.Queue(8)
-        self.num_files = len(in_files)
-        for i, in_file in enumerate(in_files):
-            self.task_queue.put((i, in_file))
-        for _ in range(num_processes):
-            proc = Process(target=worker_fn, args=(self.task_queue, self.res_queue, user_parser))
-            proc.start()
-            self.processes.append(proc)
-
-    def get_data(self):
-        """ Get the processed data.
-
-        Returns
-        -------
-        a dict : key is the file index, the value is processed data.
-        """
-        return_dict = {}
-        while len(return_dict) < self.num_files:
-            file_idx, vals= self.res_queue.get()
-            return_dict[file_idx] = vals
-            sys_tracker.check(f'process {self.name} data file: {file_idx}')
-            gc.collect()
-        return return_dict
-
-    def close(self):
-        """ Stop the process pool.
-        """
-        for proc in self.processes:
-            proc.join()
-
-def process_node_data(process_confs, remap_id, num_processes):
+def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -682,6 +147,8 @@ def process_node_data(process_confs, remap_id, num_processes):
     ----------
     process_confs: list of dicts
         The configurations to process node data.
+    convert2ext_mem : ExtMemArrayConverter
+        A callable to convert a Numpy array to external-memory Numpy array.
     remap_id: bool
         Whether or not to remap node IDs
     num_processes: int
@@ -696,6 +163,8 @@ def process_node_data(process_confs, remap_id, num_processes):
     node_id_map = {}
     for process_conf in process_confs:
         # each iteration is to process a node type.
+        # TODO(zhengda) we need to make it optional to support
+        # multiple node dictionaries for one node type.
         assert 'node_id_col' in process_conf, \
                 "'node_id_col' must be defined for a node type."
         node_id_col = process_conf['node_id_col']
@@ -753,6 +222,11 @@ def process_node_data(process_confs, remap_id, num_processes):
 
         for feat_name in type_node_data:
             type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
+            # If we allow to store features in external memory, we store node features
+            # that have large feature dimensions in a file and use memmap to access
+            # the array.
+            type_node_data[feat_name] = convert2ext_mem(type_node_data[feat_name],
+                                                        node_type + "_" + feat_name)
             assert len(type_node_data[feat_name]) == num_nodes
             feat_shape = type_node_data[feat_name].shape
             print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
@@ -768,7 +242,9 @@ def process_node_data(process_confs, remap_id, num_processes):
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
-def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_edges):
+def process_edge_data(process_confs, node_id_map, convert2ext_mem,
+                      num_processes=1,
+                      skip_nonexist_edges=False):
     """ Process edge data
 
     The edge data of an edge type is defined as follows:
@@ -790,7 +266,7 @@ def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_e
             {
                 "label_col":    "<column name>",
                 "task_type":    "<task type: e.g., classification>",
-                "split_type":   [0.8, 0.2, 0.0],
+                "split_pct":   [0.8, 0.2, 0.0],
                 "custom_train": "<the file with node IDs in the train set>",
                 "custom_valid": "<the file with node IDs in the validation set>",
                 "custom_test":  "<the file with node IDs in the test set>",
@@ -804,6 +280,8 @@ def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_e
         The configurations to process edge data.
     node_id_map: dict
         The node ID map.
+    convert2ext_mem : ExtMemArrayConverter
+        A callable to convert a Numpy array to external-memory Numpy array.
     num_processes: int
         The number of processes to process the input files.
     skip_nonexist_edges : bool
@@ -871,6 +349,12 @@ def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_e
 
         for feat_name in type_edge_data:
             type_edge_data[feat_name] = np.concatenate(type_edge_data[feat_name])
+            # If we allow to store features in external memory, we store edge features
+            # that have large feature dimensions in a file and use memmap to access
+            # the array.
+            etype_str = "-".join(edge_type)
+            type_edge_data[feat_name] = convert2ext_mem(type_edge_data[feat_name],
+                                                        etype_str + "_" + feat_name)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
             feat_shape = type_edge_data[feat_name].shape
             print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")
@@ -887,8 +371,8 @@ def process_edge_data(process_confs, node_id_map, num_processes, skip_nonexist_e
 def verify_confs(confs):
     """ Verify the configuration of the input data.
     """
-    ntypes = {conf['node_type'] for conf in confs["node"]}
-    etypes = [conf['relation'] for conf in confs["edge"]]
+    ntypes = {conf['node_type'] for conf in confs["nodes"]}
+    etypes = [conf['relation'] for conf in confs["edges"]]
     for src_type, _, dst_type in etypes:
         assert src_type in ntypes, \
                 f"source node type {src_type} does not exist. Please check your input data."
@@ -907,10 +391,16 @@ def process_graph(args):
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
     verify_confs(process_confs)
-    node_id_map, node_data = process_node_data(process_confs['node'], args.remap_node_id,
-                                               num_processes_for_nodes)
-    edges, edge_data = process_edge_data(process_confs['edge'], node_id_map,
-                                         num_processes_for_edges, args.skip_nonexist_edges)
+    # We only store data to external memory if we partition a graph for distributed training.
+    ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
+    convert2ext_mem = ExtMemArrayConverter(ext_mem_workspace, args.ext_mem_feat_size)
+    node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
+                                               args.remap_node_id,
+                                               num_processes=num_processes_for_nodes)
+    edges, edge_data = process_edge_data(process_confs['edges'], node_id_map,
+                                         convert2ext_mem,
+                                         num_processes=num_processes_for_edges,
+                                         skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.add_reverse_edges:
         edges1 = {}
@@ -921,21 +411,20 @@ def process_graph(args):
             edges1[etype] = e
             edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
+        sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    for ntype in node_data:
-        for name, ndata in node_data[ntype].items():
-            g.nodes[ntype].data[name] = th.tensor(ndata)
-    for etype in edge_data:
-        for name, edata in edge_data[etype].items():
-            g.edges[etype].data[name] = th.tensor(edata)
+    sys_tracker.check('Construct DGL graph')
 
-    if args.output_format == "DistDGL" and args.num_partitions == 1:
-        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
-                                        args.output_dir, part_method="None")
-    elif args.output_format == "DistDGL":
-        dgl.distributed.partition_graph(g, args.graph_name, args.num_partitions,
-                                        args.output_dir, part_method="metis")
+    if args.output_format == "DistDGL":
+        partition_graph(g, node_data, edge_data, args.graph_name,
+                        args.num_partitions, args.output_dir)
     elif args.output_format == "DGL":
+        for ntype in node_data:
+            for name, ndata in node_data[ntype].items():
+                g.nodes[ntype].data[name] = th.tensor(ndata)
+        for etype in edge_data:
+            for name, edata in edge_data[etype].items():
+                g.edges[etype].data[name] = th.tensor(edata)
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
@@ -972,4 +461,9 @@ if __name__ == '__main__':
                                    "This is only valid if the output format is DistDGL.")
     argparser.add_argument("--skip_nonexist_edges", action='store_true',
                            help="Skip edges that whose endpoint nodes don't exist.")
+    argparser.add_argument("--ext_mem_workspace", type=str,
+                           help="The directory where we can store data during graph construction.")
+    argparser.add_argument("--ext_mem_feat_size", type=int, default=64,
+                           help="The minimal number of feature dimensions that features " + \
+                                   "can be stored in external memory.")
     process_graph(argparser.parse_args())

@@ -5,11 +5,8 @@ gsf:
     model_encoder_type: rgcn
     graph_name: ogbn-mag
     backend: gloo
-    ip_config: ip_list.txt
-    part_config: null
     verbose: false
     debug: false
-    evaluation_frequency: 1000
   gnn:
     fanout: "20,15"
     n_layers: 2
@@ -18,16 +15,9 @@ gsf:
   input:
     restore_model_path: null
   output:
-    save_model_path: /data/ogbn-map-lp/model/
-    save_embeds_path: /data/ogbn-map-lp/embed/
-    save_model_per_iters: 1000
+    save_embeds_path: null
   hyperparam:
-    dropout: 0.
-    lr: 0.0005
-    n_epochs: 20
-    batch_size: 4000
     eval_batch_size: 4000
-    wd_l2norm: 0
   rgcn:
     n_bases: -1
     use_self_loop: true

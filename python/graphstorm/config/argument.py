@@ -243,19 +243,6 @@ class GSConfig:
         return "gloo"
 
     @property
-    def num_gpus(self):
-        """ Number of gpus per instance
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_num_gpus"):
-            assert self._num_gpus > 0
-            return self._num_gpus
-
-        # TODO(xiangsx): Need to support CPU training
-        assert False, "GPU is required"
-        return 0
-
-    @property
     def ip_config(self):
         """ IP config of instances in a cluster
         """
@@ -595,7 +582,9 @@ class GSConfig:
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
 
-            if self.evaluation_frequency != sys.maxsize:
+            if self.evaluation_frequency != sys.maxsize and self.save_model_per_iters > 0:
+                # save model within an epoch need to collaborate with evaluation
+                # within an epoch
                 assert self.save_model_per_iters >= self.evaluation_frequency and \
                     self.save_model_per_iters % self.evaluation_frequency == 0, \
                     'FATAL: save_model_per_iters' \
