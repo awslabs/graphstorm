@@ -544,7 +544,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             The path where all model parameters and optimizer states are saved.
         '''
         start_save_t = time.time()
-        # Only rank0 save dense model parameters
+        # Only rank 0 save dense model parameters
         # We assume the model is written into a shared filesystem accessable
         # to all trainers.
         if get_rank() == 0:
@@ -554,7 +554,9 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if get_rank() == 0:
             # Need to create embedding path and chmod to 0o777 first
             create_sparse_embeds_path(model_path, self.node_input_encoder)
-
+        # make sure rank 0 create the folder and change permission first
+        th.distributed.barrier()
+        
         save_sparse_embeds(model_path,
                            self.node_input_encoder,
                            get_rank(),

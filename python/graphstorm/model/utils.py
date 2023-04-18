@@ -26,6 +26,8 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
+from ..utils import get_rank
+
 
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
@@ -69,7 +71,8 @@ def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
 
     os.makedirs(model_path, exist_ok=True)
     # [04/16]: Assume this method is called by rank 0 who can perform chmod
-    os.chmod(model_path, 0o777)
+    assert get_rank() == 0, "Only can rank 0 process change folders mode."
+    os.chmod(model_path, 0o767)
     th.save(model_states, os.path.join(model_path, 'model.bin'))
 
 def save_model_results_json(conf, test_model_performance, save_perf_results_path):
@@ -159,9 +162,10 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                 embs.append(sparse_emb._tensor[idx])
 
             embs = th.cat(embs, dim=0)
-            # This makedirs may cause folder permission error in the distributed mode.
-            # In distributed mode, please call the create_sparse_embeds_path() method first before
-            # save sparse embeddings.
+            # In distributed mode where uses an NFS folder, directly call this makedirs method to
+            # create spare embedding path will cause folder permission error that prevents
+            # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
+            # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
             emb_path = os.path.join(model_path, ntype)
             os.makedirs(emb_path, exist_ok=True)
             emb_file_path = os.path.join(emb_path, f'sparse_emb_{local_rank}.pt')
@@ -237,7 +241,9 @@ def save_embeddings(model_path, embeddings, local_rank, world_size):
     os.makedirs(model_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
     if local_rank == 0:
-        os.chmod(model_path, 0o777)
+        os.chmod(model_path, 0o767)
+    # make sure the model_path permission is changed before other process start to save
+    th.distributed.barrier()
 
     assert local_rank < world_size
     def get_data_range(num_embs):
@@ -290,7 +296,7 @@ def save_prediction_results(predictions, prediction_path, local_rank):
     os.makedirs(prediction_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
     if local_rank == 0:
-        os.chmod(prediction_path, 0o777)
+        os.chmod(prediction_path, 0o767)
     th.save(predictions, os.path.join(prediction_path, "predict-{}.pt".format(local_rank)))
 
 def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
@@ -635,4 +641,5 @@ def create_sparse_embeds_path(model_path, embed_layer):
             emb_path = os.path.join(model_path, ntype)
             os.makedirs(emb_path, exist_ok=True)
             # [04/16]: Assume this method is called by rank 0 who can perform chmod
-            os.chmod(emb_path, 0o777)
+            assert get_rank() == 0, "Only can the rank 0 process can change folders mode."
+            os.chmod(emb_path, 0o767)
