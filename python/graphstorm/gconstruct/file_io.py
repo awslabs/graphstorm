@@ -140,6 +140,28 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
+class HDF5Array:
+    def __init__(self, arr, f):
+        self._arr = arr
+        self._f = f
+
+    def __len__(self):
+        return self._arr.shape[0]
+
+    def __getitem__(self, idx):
+        return self._arr[idx]
+
+    def __del__(self):
+        return self._f.close()
+
+    @property
+    def shape(self):
+        return self._arr.shape
+
+    @property
+    def dtype(self):
+        return self._arr.dtype
+
 def read_data_hdf5(data_file, data_fields=None, in_mem=True):
     """ Read the data from a HDF5 file.
 
@@ -159,11 +181,11 @@ def read_data_hdf5(data_file, data_fields=None, in_mem=True):
     dict : map from data name to data.
     """
     data = {}
-    with h5py.File(data_file, "r") as f:
-        data_fields = data_fields if data_fields is not None else f.keys()
-        for name in data_fields:
-            assert name in f, f"The data field {name} does not exist in the hdf5 file."
-            data[name] = f[name][:] if in_mem else f[name]
+    f = h5py.File(data_file, "r")
+    data_fields = data_fields if data_fields is not None else f.keys()
+    for name in data_fields:
+        assert name in f, f"The data field {name} does not exist in the hdf5 file."
+        data[name] = f[name][:] if in_mem else HDF5Array(f[name], f)
     return data
 
 def write_data_hdf5(data, data_file):

@@ -21,6 +21,8 @@ import numpy as np
 import torch as th
 from transformers import BertTokenizer
 
+from .file_io import HDF5Array
+
 class FeatTransform:
     """ The base class for feature transformation.
 
@@ -115,7 +117,7 @@ class Noop(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        assert isinstance(feats, np.ndarray), \
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \

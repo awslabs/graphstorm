@@ -204,7 +204,10 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
 
         for i, id_map in enumerate(type_node_id_map):
             assert id_map is not None, f"We do not get ID map in part {i}."
-        type_node_id_map = np.concatenate(type_node_id_map)
+        if len(type_node_id_map) > 1:
+            type_node_id_map = np.concatenate(type_node_id_map)
+        else:
+            type_node_id_map = type_node_id_map[0]
         gc.collect()
         print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         # We don't need to create ID map if the node IDs are integers,
@@ -299,15 +302,15 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         assert 'relation' in process_conf, \
                 "'relation' is not defined for an edge type."
         edge_type = process_conf['relation']
+        assert 'files' in process_conf, \
+                "'files' is not defined for an edge type."
+        in_files = get_in_files(process_conf['files'])
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
         # If there is only one file, we don't need to concatenate the data.
         # Potentially, we don't need to read the data in memory if the input
         # format supports it. Currently, only HDF5 supports this.
         read_file = parse_edge_file_format(process_conf, in_mem=len(in_files) > 1)
-        assert 'files' in process_conf, \
-                "'files' is not defined for an edge type."
-        in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
