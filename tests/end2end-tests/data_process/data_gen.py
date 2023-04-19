@@ -43,10 +43,6 @@ node_data1 = {
     'label': node_id1 % 100,
 }
 
-node_data1_2 = {
-    'data': node_id1,
-}
-
 node_id2 = np.arange(20000)
 node_data2 = {
     'id': node_id2,
