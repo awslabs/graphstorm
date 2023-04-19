@@ -32,11 +32,11 @@ from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files, write_data_parquet
 from .transform import parse_feat_ops, process_features
-from .transform import process_labels
+from .transform import parse_label_ops, process_labels
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import WorkerPool, ExtMemArrayConverter, partition_graph
 
-def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
+def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -47,12 +47,12 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
     ----------
     in_file : str
         The path of the input node file.
-    feat_ops : dict
+    feat_ops : dict of FeatTransform
         The operations run on the node features of the node file.
+    label_ops : dict of LabelProcessor
+        The operations run on the node labels of the node file.
     node_id_col : str
         The column name that contains the node ID.
-    label_conf : dict
-        The configuration of labels.
     read_file : callable
         The function to read the node file
 
@@ -62,14 +62,15 @@ def parse_node_data(in_file, feat_ops, node_id_col, label_conf, read_file):
     """
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
-    if label_conf is not None:
-        label_data = process_labels(data, label_conf, True)
+    if label_ops is not None:
+        label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
             feat_data[key] = val
     node_ids = data[node_id_col] if node_id_col in data else None
     return (node_ids, feat_data)
 
-def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexist_edges):
+def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
+                    conf, skip_nonexist_edges):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
@@ -80,8 +81,10 @@ def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexi
     ----------
     in_file : str
         The path of the input edge file.
-    feat_ops : dict
+    feat_ops : dict of FeatTransform
         The operations run on the edge features of the edge file.
+    label_ops : dict of LabelProcessor
+        The operations run on the node labels of the edge file.
     node_id_map : dict
         Contains the ID mapping for every node type.
     read_file : callable
@@ -98,12 +101,11 @@ def parse_edge_data(in_file, feat_ops, node_id_map, read_file, conf, skip_nonexi
     src_id_col = conf['source_id_col']
     dst_id_col = conf['dest_id_col']
     edge_type = conf['relation']
-    label_conf = conf['labels'] if 'labels' in conf else None
 
     data = read_file(in_file)
     feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
-    if label_conf is not None:
-        label_data = process_labels(data, label_conf, False)
+    if label_ops is not None:
+        label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
             feat_data[key] = val
     src_ids = data[src_id_col]
@@ -128,7 +130,6 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
             {
                 "feature_col":  ["<column name>", ...],
                 "feature_name": "<feature name>",
-                "data_type":    "<feature data type>",
                 "transform":    {"name": "<operator name>", ...}
             },
         ],
@@ -137,9 +138,6 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                 "label_col":    "<column name>",
                 "task_type":    "<task type: e.g., classification>",
                 "split_type":   [0.8, 0.2, 0.0],
-                "custom_train": "<the file with node IDs in the train set>",
-                "custom_valid": "<the file with node IDs in the validation set>",
-                "custom_test":  "<the file with node IDs in the test set>",
             },
         ],
     }
@@ -178,12 +176,13 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
         read_file = parse_node_file_format(process_conf, in_mem=len(in_files) > 1)
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
-        label_conf = process_conf['labels'] if 'labels' in process_conf else None
+        label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
+                if 'labels' in process_conf else None
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
+                              label_ops=label_ops,
                               node_id_col=node_id_col,
-                              label_conf=label_conf,
                               read_file=read_file)
         start = time.time()
         pool = WorkerPool(node_type, in_files, num_processes, user_parser)
@@ -283,7 +282,6 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
             {
                 "feature_col":  ["<column name>", ...],
                 "feature_name": "<feature name>",
-                "data_type":    "<feature data type>",
                 "transform":    {"name": "<operator name>", ...}
             },
         ],
@@ -292,9 +290,6 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
                 "label_col":    "<column name>",
                 "task_type":    "<task type: e.g., classification>",
                 "split_pct":   [0.8, 0.2, 0.0],
-                "custom_train": "<the file with node IDs in the train set>",
-                "custom_valid": "<the file with node IDs in the validation set>",
-                "custom_test":  "<the file with node IDs in the test set>",
             },
         ],
     }
@@ -339,6 +334,8 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
+        label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
+                if 'labels' in process_conf else None
 
         # We don't need to copy all node ID maps to the worker processes.
         # Only the node ID maps of the source node type and destination node type
@@ -346,6 +343,7 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         id_map = {edge_type[0]: node_id_map[edge_type[0]],
                   edge_type[2]: node_id_map[edge_type[2]]}
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
+                              label_ops=label_ops,
                               node_id_map=id_map,
                               read_file=read_file,
                               conf=process_conf,
@@ -401,7 +399,10 @@ def verify_confs(confs):
     """
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
     etypes = [conf['relation'] for conf in confs["edges"]]
-    for src_type, _, dst_type in etypes:
+    for etype in etypes:
+        assert len(etype) == 3, \
+                "The edge type must be (source node type, relation type, dest node type)."
+        src_type, _, dst_type = etype
         assert src_type in ntypes, \
                 f"source node type {src_type} does not exist. Please check your input data."
         assert dst_type in ntypes, \
