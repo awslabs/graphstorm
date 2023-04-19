@@ -86,7 +86,7 @@ os.makedirs(out_dir, exist_ok=True)
 def split_data(data, num):
     new_data_list = [{} for _ in range(num)]
     for key, val in data.items():
-        for i, val in enumerate(np.split(val, num)):
+        for i, val in enumerate(np.array_split(val, num)):
             new_data_list[i][key] = val
     return new_data_list
 
