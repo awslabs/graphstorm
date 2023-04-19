@@ -142,7 +142,7 @@ them in a matrix.
 
 For JSON format, each line of the JSON file is a JSON object. The JSON object can only
 have one level. The value of each field can only be primitive values, such as integers,
-strings and floating points, or a list of primitive values.
+strings and floating points, or a list of integers or floating points.
 
 ## Feature transformation
 Currently, the graph construction pipeline only supports one feature transformation:

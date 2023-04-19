@@ -93,12 +93,12 @@ class Tokenizer(FeatTransform):
             att_masks.append(t['attention_mask'].to(th.int8))
             type_ids.append(t['token_type_ids'].to(th.int8))
         if self.feat_name is not None:
-            token_id_name = self.feat_name + '_token_ids'
+            token_id_name = self.feat_name + '_input_ids'
             atten_mask_name = self.feat_name + '_attention_mask'
             token_type_id_name = self.feat_name + '_token_type_ids'
         else:
-            token_id_name = 'token_ids'
-            atten_mask_name = 'atten_mask_name'
+            token_id_name = 'input_ids'
+            atten_mask_name = 'attention_mask'
             token_type_id_name = 'token_type_ids'
         return {token_id_name: th.cat(tokens, dim=0).numpy(),
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
@@ -240,7 +240,7 @@ class LabelProcessor:
     def col_name(self):
         """ The column name that contains the label.
         """
-        return self._label_name
+        return self._col_name
 
     @property
     def label_name(self):
@@ -316,7 +316,7 @@ class ClassificationProcessor(LabelProcessor):
         label = data[self.col_name]
         assert np.issubdtype(label.dtype, np.integer) \
                 or np.issubdtype(label.dtype, np.floating), \
-                "The labels for classification have to be integers."
+                "The labels for classification have to be integers or floating points."
         valid_label_idx = get_valid_label_index(label)
         def permute_idx():
             return np.random.permutation(valid_label_idx)
