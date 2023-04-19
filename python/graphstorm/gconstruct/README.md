@@ -16,7 +16,7 @@ most fields are optional:
 * `files` specifies the input files for the node data. This field is mandatory.
 There are multiple options to specify the input files.
 For a single input file, it contains the path of a single file.
-For multiple files, it contains the path of files with a wildcard,
+For multiple files, it contains the paths of files with a wildcard,
 or a list of file paths.
 * `format` specifies the input file format. This field is mandatory.
 Currently, the pipeline supports two formats: parquet and JSON.
