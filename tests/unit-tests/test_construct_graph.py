@@ -127,15 +127,15 @@ def test_feat_ops():
     op = res2[1]
     tokens = op(["hello world", "hello world"])
     assert len(tokens) == 3
-    assert tokens['test4_token_ids'].shape == (2, 16)
-    assert tokens['test4_attention_mask'].shape == (2, 16)
-    assert tokens['test4_token_type_ids'].shape == (2, 16)
-    np.testing.assert_array_equal(tokens['test4_token_ids'][0],
-                                  tokens['test4_token_ids'][1])
-    np.testing.assert_array_equal(tokens['test4_attention_mask'][0],
-                                  tokens['test4_attention_mask'][1])
-    np.testing.assert_array_equal(tokens['test4_token_type_ids'][0],
-                                  tokens['test4_token_type_ids'][1])
+    assert tokens['input_ids'].shape == (2, 16)
+    assert tokens['attention_mask'].shape == (2, 16)
+    assert tokens['token_type_ids'].shape == (2, 16)
+    np.testing.assert_array_equal(tokens['input_ids'][0],
+                                  tokens['input_ids'][1])
+    np.testing.assert_array_equal(tokens['attention_mask'][0],
+                                  tokens['attention_mask'][1])
+    np.testing.assert_array_equal(tokens['token_type_ids'][0],
+                                  tokens['token_type_ids'][1])
 
     data = {
         "test1": np.random.rand(2, 4),
@@ -143,30 +143,29 @@ def test_feat_ops():
     }
     proc_res = process_features(data, res2)
     np.testing.assert_array_equal(data['test1'], proc_res['test2'])
-    assert "test4_token_ids" in proc_res
-    assert "test4_attention_mask" in proc_res
-    assert "test4_token_type_ids" in proc_res
+    assert "input_ids" in proc_res
+    assert "attention_mask" in proc_res
+    assert "token_type_ids" in proc_res
 
 def test_label():
     def check_split(res):
         assert len(res) == 4
         assert 'label' in res
-        assert 'label_train_mask' in res
-        assert 'label_val_mask' in res
-        assert 'label_test_mask' in res
-        assert res['label_train_mask'].shape == (len(data['label']),)
-        assert res['label_val_mask'].shape == (len(data['label']),)
-        assert res['label_test_mask'].shape == (len(data['label']),)
-        assert np.sum(res['label_train_mask']) == 8
-        assert np.sum(res['label_val_mask']) == 1
-        assert np.sum(res['label_test_mask']) == 1
-        assert np.sum(res['label_train_mask'] + res['label_val_mask'] \
-                + res['label_test_mask']) == 10
+        assert 'train_mask' in res
+        assert 'val_mask' in res
+        assert 'test_mask' in res
+        assert res['train_mask'].shape == (len(data['label']),)
+        assert res['val_mask'].shape == (len(data['label']),)
+        assert res['test_mask'].shape == (len(data['label']),)
+        assert np.sum(res['train_mask']) == 8
+        assert np.sum(res['val_mask']) == 1
+        assert np.sum(res['test_mask']) == 1
+        assert np.sum(res['train_mask'] + res['val_mask'] + res['test_mask']) == 10
 
     def check_integer(label, res):
-        train_mask = res['label_train_mask'] == 1
-        val_mask = res['label_val_mask'] == 1
-        test_mask = res['label_test_mask'] == 1
+        train_mask = res['train_mask'] == 1
+        val_mask = res['val_mask'] == 1
+        test_mask = res['test_mask'] == 1
         assert np.all(np.logical_and(label[train_mask] >= 0, label[train_mask] <= 10))
         assert np.all(np.logical_and(label[val_mask] >= 0, label[val_mask] <= 10))
         assert np.all(np.logical_and(label[test_mask] >= 0, label[test_mask] <= 10))
@@ -214,11 +213,11 @@ def test_label():
     conf = {'task_type': 'classification',
             'label_col': 'label'}
     ops = parse_label_ops([conf], True)
-    data = {'label' : np.random.randint(3, size=20)}
+    data = {'label' : np.random.randint(3, size=10)}
     res = process_labels(data, ops)
-    assert np.sum(res['label_train_mask']) == 20
-    assert np.sum(res['label_val_mask']) == 0
-    assert np.sum(res['label_test_mask']) == 0
+    assert np.sum(res['train_mask']) == 8
+    assert np.sum(res['val_mask']) == 1
+    assert np.sum(res['test_mask']) == 1
 
     # Check regression
     conf = {'task_type': 'regression',
