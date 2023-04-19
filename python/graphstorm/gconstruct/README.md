@@ -57,12 +57,12 @@ Currently, its value can be `classification`, `regression` and `link_prediction`
 This has to be specified for classification and regression tasks.
 `label_col` is used as the label name.
 * `split_pct` specifies how to split the data into training/validation/test.
-This is optional. If it's not specified, all data will be used for training.
+This is optional. If it's not specified, the data is split into 80% for training
+10% for validation and 10% for testing.
 The pipeline constructs three additional vectors indicating
 the training/validation/test masks. For classification and regression tasks,
-the names of the mask tensors are "`label_col`_train_mask", "`label_col`_val_mask"
-and "`label_col`_test_mask". For link prediction, the names of the mask tensors
-are "train_mask", "val_mask" and "test_mask".
+the names of the mask tensors are "train_mask", "val_mask"
+and "test_mask"
 
 Below shows an example that contains one node type and an edge type.
 ```

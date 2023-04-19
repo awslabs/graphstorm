@@ -387,7 +387,12 @@ def parse_label_ops(confs, is_node):
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
     # By default, we use all labels for training.
-    split_pct = label_conf['split_pct'] if 'split_pct' in label_conf else [1, 0, 0]
+    if 'split_pct' in label_conf:
+        split_pct = label_conf['split_pct']
+    else:
+        print("'split_pct' is not found. " + \
+                "Use the default data split: train(80%), valid(10%), test(10%).")
+        split_pct = [0.8, 0.1, 0.1]
 
     if task_type == 'classification':
         assert 'label_col' in label_conf, \
