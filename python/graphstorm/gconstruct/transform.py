@@ -92,14 +92,9 @@ class Tokenizer(FeatTransform):
             # This can signficantly reduce memory consumption.
             att_masks.append(t['attention_mask'].to(th.int8))
             type_ids.append(t['token_type_ids'].to(th.int8))
-        if self.feat_name is not None:
-            token_id_name = self.feat_name + '_input_ids'
-            atten_mask_name = self.feat_name + '_attention_mask'
-            token_type_id_name = self.feat_name + '_token_type_ids'
-        else:
-            token_id_name = 'input_ids'
-            atten_mask_name = 'attention_mask'
-            token_type_id_name = 'token_type_ids'
+        token_id_name = 'input_ids'
+        atten_mask_name = 'attention_mask'
+        token_type_id_name = 'token_type_ids'
         return {token_id_name: th.cat(tokens, dim=0).numpy(),
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
@@ -282,14 +277,9 @@ class LabelProcessor:
         train_mask[train_idx] = 1
         val_mask[val_idx] = 1
         test_mask[test_idx] = 1
-        if self.label_name is not None:
-            train_mask_name = self.label_name + '_train_mask'
-            val_mask_name = self.label_name + '_val_mask'
-            test_mask_name = self.label_name + '_test_mask'
-        else:
-            train_mask_name = 'train_mask'
-            val_mask_name = 'val_mask'
-            test_mask_name = 'test_mask'
+        train_mask_name = 'train_mask'
+        val_mask_name = 'val_mask'
+        test_mask_name = 'test_mask'
         return {train_mask_name: train_mask,
                 val_mask_name: val_mask,
                 test_mask_name: test_mask}
