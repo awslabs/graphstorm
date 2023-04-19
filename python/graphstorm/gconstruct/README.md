@@ -146,7 +146,7 @@ strings and floating points, or a list of primitive values.
 
 ## Feature transformation
 Currently, the graph construction pipeline only supports one feature transformation:
-tokenize the text string with HuggingFace tokenizer.
+tokenize the text string with a HuggingFace tokenizer.
 
 For HuggingFace tokenizer, the `name` field in the feature transformation dictionary
 is `tokenize_hf`. The dict should contain two additional fields. `bert_model`
