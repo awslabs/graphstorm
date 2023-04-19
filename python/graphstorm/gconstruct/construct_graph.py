@@ -34,7 +34,7 @@ from .file_io import get_in_files, write_data_parquet
 from .transform import parse_feat_ops, process_features
 from .transform import parse_label_ops, process_labels
 from .id_map import NoopMap, IdMap, map_node_ids
-from .utils import WorkerPool, ExtMemArrayConverter, partition_graph
+from .utils import multiprocessing_data_read, ExtMemArrayConverter, partition_graph
 
 def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     """ Parse node data.
@@ -188,9 +188,7 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                               node_id_col=node_id_col,
                               read_file=read_file)
         start = time.time()
-        pool = WorkerPool(node_type, in_files, num_processes, user_parser)
-        return_dict = pool.get_data()
-        pool.close()
+        return_dict = multiprocessing_data_read(in_files, num_processes, user_parser)
         dur = time.time() - start
         print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
 
@@ -327,9 +325,7 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
                               conf=process_conf,
                               skip_nonexist_edges=skip_nonexist_edges)
         start = time.time()
-        pool = WorkerPool(edge_type, in_files, num_processes, user_parser)
-        return_dict = pool.get_data()
-        pool.close()
+        return_dict = multiprocessing_data_read(in_files, num_processes, user_parser)
         dur = time.time() - start
         print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
 
