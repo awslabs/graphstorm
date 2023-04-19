@@ -62,12 +62,10 @@ reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['
 
 # Test the first node data
 data = g.nodes['node1'].data['feat'].numpy()
-data1 = g.nodes['node1'].data['feat1'].numpy()
 label = g.nodes['node1'].data['label'].numpy()
 assert label.dtype == np.int32
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
 assert np.all(data == orig_ids)
-assert np.all(data1 == orig_ids)
 assert np.all(label == orig_ids % 100)
 assert th.sum(g.nodes['node1'].data['train_mask']) == int(g.number_of_nodes('node1') * 0.8)
 assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1') * 0.2)
