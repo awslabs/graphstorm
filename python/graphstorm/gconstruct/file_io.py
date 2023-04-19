@@ -199,12 +199,8 @@ def _parse_file_format(conf, is_node, in_mem):
     """
     fmt = conf["format"]
     assert 'name' in fmt, "'name' field must be defined in the format."
-    if is_node and "node_id_col" in conf:
-        keys = [conf["node_id_col"]]
-    elif is_node:
-        keys = []
-    else:
-        keys = [conf["source_id_col"], conf["dest_id_col"]]
+    keys = [conf["node_id_col"]] if is_node \
+            else [conf["source_id_col"], conf["dest_id_col"]]
     if "features" in conf:
         keys += [feat_conf["feature_col"] for feat_conf in conf["features"]]
     if "labels" in conf:
