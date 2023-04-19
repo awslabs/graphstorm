@@ -138,6 +138,23 @@ def write_data_parquet(data, data_file):
     pq.write_table(table, data_file)
 
 def read_data_hdf5(data_file, data_fields=None, in_mem=True):
+    """ Read the data from a HDF5 file.
+
+    If `in_mem` is False, we don't read data into memory.
+
+    Parameters
+    ----------
+    data_file : str
+        The parquet file that contains the data
+    data_fields : list of str
+        The data fields to read from the data file.
+    in_mem : bool
+        Whether to read the data into memory.
+
+    Returns
+    -------
+    dict : map from data name to data.
+    """
     data = {}
     with h5py.File(data_file, "r") as f:
         data_fields = data_fields if data_fields is not None else f.keys()
@@ -147,6 +164,15 @@ def read_data_hdf5(data_file, data_fields=None, in_mem=True):
     return data
 
 def write_data_hdf5(data, data_file):
+    """ Write data into a HDF5 file.
+
+    Parameters
+    ----------
+    data : dict
+        The data to be saved to the Parquet file.
+    data_file : str
+        The file name of the Parquet file.
+    """
     with h5py.File(data_file, "w") as f:
         for key, val in data.items():
             arr = f.create_dataset(key, val.shape, dtype=val.dtype)
