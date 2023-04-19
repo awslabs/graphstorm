@@ -141,6 +141,18 @@ def write_data_parquet(data, data_file):
     pq.write_table(table, data_file)
 
 class HDF5Array:
+    """ This is an array wrapper class for HDF5 array.
+
+    The main purpose of this class is to make sure that we can close
+    the HDF5 files when the array is destroyed.
+
+    Parameters
+    ----------
+    arr : HDF5 dataset
+        The array-like object for accessing the HDF5 file.
+    hdf5_f : HDF5 file handle
+        The handle to access the HDF5 file.
+    """
     def __init__(self, arr, f):
         self._arr = arr
         self._f = f
@@ -152,14 +164,22 @@ class HDF5Array:
         return self._arr[idx]
 
     def __del__(self):
+        """ Destroy the object.
+
+        When the array is destroyed, we need to close the file automatically.
+        """
         return self._f.close()
 
     @property
     def shape(self):
+        """ The shape of the HDF5 array.
+        """
         return self._arr.shape
 
     @property
     def dtype(self):
+        """ The data type of the HDF5 array.
+        """
         return self._arr.dtype
 
 def read_data_hdf5(data_file, data_fields=None, in_mem=True):
