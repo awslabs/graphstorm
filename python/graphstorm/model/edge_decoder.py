@@ -332,9 +332,6 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             Return a dictionary of edge type to
             (positive scores, negative scores)
         """
-        assert isinstance(pos_neg_tuple, dict) and len(pos_neg_tuple) == 1, \
-            "DotDecoder is only applicable to link prediction task with " \
-            "single target training edge type"
         canonical_etype = list(pos_neg_tuple.keys())[0]
         _, neg_src, _, neg_dst = pos_neg_tuple[canonical_etype]
         pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb = batch_emb
