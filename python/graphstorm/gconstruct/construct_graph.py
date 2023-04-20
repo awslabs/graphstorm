@@ -456,7 +456,7 @@ def process_graph(args):
                     g.nodes[ntype].data[name] = th.tensor(ndata)
         for etype in edge_data:
             for name, edata in edge_data[etype].items():
-                if isinstance(ndata, HDF5Array):
+                if isinstance(edata, HDF5Array):
                     g.edges[etype].data[name] = edata.to_tensor()
                 else:
                     g.edges[etype].data[name] = th.tensor(edata)

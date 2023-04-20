@@ -184,6 +184,8 @@ class HDF5Array:
         return self._arr[idx]
 
     def to_tensor(self):
+        """ Return Pytorch tensor.
+        """
         arr = self._arr[:]
         return th.tensor(arr)
 
