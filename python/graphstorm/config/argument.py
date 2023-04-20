@@ -1566,6 +1566,8 @@ def _add_edge_classification_args(parser):
 
 def _add_link_prediction_args(parser):
     group = parser.add_argument_group(title="link prediction")
+    group.add_argument("--lp-decoder-type", type=str, default=argparse.SUPPRESS,
+            help="Link prediction decoder type.")
     group.add_argument("--num-negative-edges", type=int, default=argparse.SUPPRESS,
             help="Number of edges consider for the negative batch of edges.")
     group.add_argument("--num-negative-edges-eval", type=int, default=argparse.SUPPRESS,
@@ -1599,11 +1601,6 @@ def _add_link_prediction_args(parser):
                     "--reverse-edge-types-map query,adds,rev-adds,asin or"
                     "--reverse-edge-types-map query,adds,rev-adds,asin "
                     "query,clicks,rev-clicks,asin")
-    group.add_argument(
-            "--use-dot-product",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="This suggest to use the dot product loss function instead of distmult")
     group.add_argument(
             "--gamma",
             type=float,
