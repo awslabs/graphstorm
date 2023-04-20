@@ -1,14 +1,12 @@
 .. _distributed-sagemaker:
 
-Use Customer Data Tutorial
-==========================
+[Under construction]
 
-Get OGBN Data
--------------
-.
+Use GraphStorm in SageMaker
+============================
 
-Partition Graph
----------------
+Setup SageMaker
+-----------------
 
 
 Launch Training

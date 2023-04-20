@@ -1,7 +1,3 @@
-.. graphstorm documentation master file, created by
-   sphinx-quickstart on Sat Apr 15 22:37:29 2023.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 Welcome to GraphStorm Documentation and Tutorials
 ==================================================
@@ -40,7 +36,11 @@ Welcome to GraphStorm Documentation and Tutorials
    :hidden:
    :glob:
 
-GraphStorm, or GraphStorm Framework (GSF), is the next generation Graph Machine Learning (GML) framework for enterprise use cases, e.g. Search, Recommendation, CTR (Click Throughput Rate) boosting, etc. GraphStorm simplifies the development, training and deployment of GML models for industry-scale graphs that contain hundreds of billions of edges by providing easy-to-use and scalable graph data processing, training and inference pipelines for various GML models, particularly Graph Neural Network(GNN) models, and downstream tasks. 
+GraphStorm is a graph machine learning (GML) framework for enterprise use cases. It simplifies the development, training and deployment of GML models for industry-scale graphs
+by providing scalable training and inference pipelines of Graph Machine Learning (GML) models for extremely large graphs (measured in billons of nodes and edges).
+GraphStorm provides a collection of built-in GML models and users can train a GML model with a single command without writing any code. To help develop SOTA models,
+GraphStorm provides a large collection of configurations for customizing model implementations and training pipelines to improve model performance. GraphStorm also provides a programming
+interface to train any custom GML model in a distributed manner. Users provide their own model implementations and use GraphStorm training pipeline to scale.
 
 Getting Started
 ----------------
