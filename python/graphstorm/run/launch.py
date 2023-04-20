@@ -756,14 +756,12 @@ def get_argument_parser():
     )
     parser.add_argument(
         "--inference",
-        type=bool,
         action="store_true",
         help="Inidcate that it is a inference task. \
               Used with built-in training/inference scripts"
     )
     parser.add_argument(
         "--lm_encoder_only",
-        type=bool,
         action="store_true",
         help="Inidcate that the model is using language model + decoder only. \
             No GNN is involved, only graph structure. \
