@@ -34,7 +34,7 @@ from .file_io import get_in_files, write_data_parquet
 from .transform import parse_feat_ops, process_features
 from .transform import parse_label_ops, process_labels
 from .id_map import NoopMap, IdMap, map_node_ids
-from .utils import WorkerPool, ExtMemArrayConverter, partition_graph
+from .utils import multiprocessing_data_read, ExtMemArrayConverter, partition_graph
 
 def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     """ Parse node data.
@@ -185,9 +185,7 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                               node_id_col=node_id_col,
                               read_file=read_file)
         start = time.time()
-        pool = WorkerPool(node_type, in_files, num_processes, user_parser)
-        return_dict = pool.get_data()
-        pool.close()
+        return_dict = multiprocessing_data_read(in_files, num_processes, user_parser)
         dur = time.time() - start
         print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
 
@@ -204,7 +202,10 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
         # Construct node Id map.
         if type_node_id_map[0] is not None:
             assert all(id_map is not None for id_map in type_node_id_map)
-            type_node_id_map = np.concatenate(type_node_id_map)
+            if len(type_node_id_map) > 1:
+                type_node_id_map = np.concatenate(type_node_id_map)
+            else:
+                type_node_id_map = type_node_id_map[0]
         else:
             assert all(id_map is None for id_map in type_node_id_map)
             type_node_id_map = None
@@ -323,15 +324,15 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         assert 'relation' in process_conf, \
                 "'relation' is not defined for an edge type."
         edge_type = process_conf['relation']
+        assert 'files' in process_conf, \
+                "'files' is not defined for an edge type."
+        in_files = get_in_files(process_conf['files'])
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
         # If there is only one file, we don't need to concatenate the data.
         # Potentially, we don't need to read the data in memory if the input
         # format supports it. Currently, only HDF5 supports this.
         read_file = parse_edge_file_format(process_conf, in_mem=len(in_files) > 1)
-        assert 'files' in process_conf, \
-                "'files' is not defined for an edge type."
-        in_files = get_in_files(process_conf['files'])
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
@@ -349,9 +350,7 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
                               conf=process_conf,
                               skip_nonexist_edges=skip_nonexist_edges)
         start = time.time()
-        pool = WorkerPool(edge_type, in_files, num_processes, user_parser)
-        return_dict = pool.get_data()
-        pool.close()
+        return_dict = multiprocessing_data_read(in_files, num_processes, user_parser)
         dur = time.time() - start
         print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
 

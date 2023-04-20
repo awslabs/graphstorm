@@ -51,10 +51,9 @@ def worker_fn(task_queue, res_queue, user_parser):
     except queue.Empty:
         pass
 
-class WorkerPool:
-    """ A worker process pool
+def multiprocessing_data_read(in_files, num_processes, user_parser):
+    """ Read data from multiple files with multiprocessing.
 
-    This worker process pool is specialized to process node/edge data.
     It creates a set of worker processes, each of which runs a worker function.
     It first adds all tasks in a queue and each worker gets a task from the queue
     at a time until the workers process all tasks. It maintains a result queue
@@ -62,51 +61,50 @@ class WorkerPool:
     To ensure the order of the data, each data file is associated with
     a number and the processed data are ordered by that number.
 
+    If there are only one input file, it reads the data from the input file in the main process.
+
     Parameters
     ----------
-    name : str or tuple of str
-        The name of the worker pool.
     in_files : list of str
         The input data files.
     num_processes : int
         The number of processes that run in parallel.
     user_parser : callable
         The user-defined function to read and process the data files.
+
+    Returns
+    -------
+    a dict : key is the file index, the value is processed data.
     """
-    def __init__(self, name, in_files, num_processes, user_parser):
-        self.name = name
-        self.processes = []
+    if num_processes > 0 and len(in_files) > 1:
+        processes = []
         manager = multiprocessing.Manager()
-        self.task_queue = manager.Queue()
-        self.res_queue = manager.Queue(8)
-        self.num_files = len(in_files)
+        task_queue = manager.Queue()
+        res_queue = manager.Queue(8)
+        num_files = len(in_files)
         for i, in_file in enumerate(in_files):
-            self.task_queue.put((i, in_file))
+            task_queue.put((i, in_file))
         for _ in range(num_processes):
-            proc = Process(target=worker_fn, args=(self.task_queue, self.res_queue, user_parser))
+            proc = Process(target=worker_fn, args=(task_queue, res_queue, user_parser))
             proc.start()
-            self.processes.append(proc)
+            processes.append(proc)
 
-    def get_data(self):
-        """ Get the processed data.
-
-        Returns
-        -------
-        a dict : key is the file index, the value is processed data.
-        """
         return_dict = {}
-        while len(return_dict) < self.num_files:
-            file_idx, vals= self.res_queue.get()
+        while len(return_dict) < num_files:
+            file_idx, vals= res_queue.get()
             return_dict[file_idx] = vals
-            sys_tracker.check(f'process {self.name} data file: {file_idx}')
+            sys_tracker.check(f'process data file: {file_idx}')
             gc.collect()
-        return return_dict
 
-    def close(self):
-        """ Stop the process pool.
-        """
-        for proc in self.processes:
+        for proc in processes:
             proc.join()
+
+        return return_dict
+    else:
+        return_dict = {}
+        for i, in_file in enumerate(in_files):
+            return_dict[i] = user_parser(in_file)
+        return return_dict
 
 class ExtMemArrayConverter:
     """ Convert a Numpy array to an external-memory Numpy array.
