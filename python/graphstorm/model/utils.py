@@ -72,9 +72,9 @@ def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     os.makedirs(model_path, exist_ok=True)
     # [04/16]: Assume this method is called by rank 0 who can perform chmod
     assert get_rank() == 0, "Only can rank 0 process change folders mode."
-    # mode 767 means rwx-rw-rwx: 
-    #     - owner of the folder can read, write, and execute; 
-    #     - owner' group can read, write; 
+    # mode 767 means rwx-rw-rwx:
+    #     - owner of the folder can read, write, and execute;
+    #     - owner' group can read, write;
     #     - others can read, write, and execute.
     os.chmod(model_path, 0o767)
     th.save(model_states, os.path.join(model_path, 'model.bin'))
@@ -245,9 +245,9 @@ def save_embeddings(model_path, embeddings, local_rank, world_size):
     os.makedirs(model_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
     if local_rank == 0:
-        # mode 767 means rwx-rw-rwx: 
-        #     - owner of the folder can read, write, and execute; 
-        #     - owner' group can read, write; 
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
         #     - others can read, write, and execute.
         os.chmod(model_path, 0o767)
     # make sure the model_path permission is changed before other process start to save
@@ -304,9 +304,9 @@ def save_prediction_results(predictions, prediction_path, local_rank):
     os.makedirs(prediction_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
     if local_rank == 0:
-        # mode 767 means rwx-rw-rwx: 
-        #     - owner of the folder can read, write, and execute; 
-        #     - owner' group can read, write; 
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
         #     - others can read, write, and execute.
         os.chmod(prediction_path, 0o767)
     # make sure the prediction_path permission is changed before other process start to save
@@ -657,8 +657,8 @@ def create_sparse_embeds_path(model_path, embed_layer):
             os.makedirs(emb_path, exist_ok=True)
             # [04/16]: Assume this method is called by rank 0 who can perform chmod
             assert get_rank() == 0, "Only can the rank 0 process can change folders mode."
-            # mode 767 means rwx-rw-rwx: 
-            #     - owner of the folder can read, write, and execute; 
-            #     - owner' group can read, write; 
+            # mode 767 means rwx-rw-rwx:
+            #     - owner of the folder can read, write, and execute;
+            #     - owner' group can read, write;
             #     - others can read, write, and execute.
             os.chmod(emb_path, 0o767)
