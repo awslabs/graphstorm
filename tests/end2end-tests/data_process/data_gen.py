@@ -97,6 +97,7 @@ def split_data(data, num):
 
 for i, node_data in enumerate(split_data(node_data1, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
+write_data_hdf5(node_data1_2, os.path.join(in_dir, f'node_data1_2.hdf5'))
 write_data_hdf5(node_data2, os.path.join(in_dir, f'node_data2.hdf5'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
     write_data_json(node_data, os.path.join(in_dir, f'node_data3_{i}.json'))

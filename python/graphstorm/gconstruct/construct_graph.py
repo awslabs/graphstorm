@@ -206,12 +206,11 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                 type_node_id_map = np.concatenate(type_node_id_map)
             else:
                 type_node_id_map = type_node_id_map[0]
+            print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         else:
             assert all(id_map is None for id_map in type_node_id_map)
             type_node_id_map = None
         gc.collect()
-        if type_node_id_map is not None:
-            print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         # We don't need to create ID map if the node IDs are integers,
         # all node Ids are in sequence start from 0 and
         # the user doesn't force to remap node IDs.
@@ -249,7 +248,8 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
         # If we didn't see the node data for this node type before.
         if len(type_node_data) > 0 and node_type not in node_data:
             node_data[node_type] = type_node_data
-        # If we have seen the node data for this node type before.
+        # If we have seen the node data for this node type before
+        # because there are multiple blocks that contain data for the same node type.
         elif len(type_node_data) > 0:
             for key, val in type_node_data.items():
                 # Make sure the node data has duplicated names.
