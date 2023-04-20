@@ -1,4 +1,4 @@
-.. _use-own-data:
+.. _distributed-sagemaker:
 
 Use Customer Data Tutorial
 ==========================
