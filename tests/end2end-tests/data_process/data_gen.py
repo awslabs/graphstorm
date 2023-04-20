@@ -24,6 +24,7 @@ import pyarrow as pa
 import numpy as np
 
 from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json
+from graphstorm.gconstruct.file_io import write_data_hdf5
 
 # Here we construct a graph with multiple node types and edge types
 # to test the graph construction pipeline. To test the pipeline
@@ -86,14 +87,13 @@ os.makedirs(out_dir, exist_ok=True)
 def split_data(data, num):
     new_data_list = [{} for _ in range(num)]
     for key, val in data.items():
-        for i, val in enumerate(np.split(val, num)):
+        for i, val in enumerate(np.array_split(val, num)):
             new_data_list[i][key] = val
     return new_data_list
 
 for i, node_data in enumerate(split_data(node_data1, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
-for i, node_data in enumerate(split_data(node_data2, 10)):
-    write_data_parquet(node_data, os.path.join(in_dir, f'node_data2_{i}.parquet'))
+write_data_hdf5(node_data2, os.path.join(in_dir, f'node_data2.hdf5'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
     write_data_json(node_data, os.path.join(in_dir, f'node_data3_{i}.json'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
@@ -134,8 +134,8 @@ node_conf = [
     {
         "node_id_col": "id",
         "node_type": "node2",
-        "format": {"name": "parquet"},
-        "files": os.path.join(in_dir, "node_data2_*.parquet"),
+        "format": {"name": "hdf5"},
+        "files": os.path.join(in_dir, "node_data2.hdf5"),
         "features": [
             {
                 "feature_col": "data",

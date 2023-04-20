@@ -19,10 +19,12 @@
 from functools import partial
 import glob
 import json
+import os
 
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
+import h5py
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
@@ -51,6 +53,8 @@ def read_data_json(data_file, data_fields):
     data = {key: [] for key in data_fields}
     for record in data_records:
         for key in data_fields:
+            assert key in record, \
+                    f"The data field {key} does not exist in the record {record} of {data_file}."
             data[key].append(record[key])
     for key in data:
         data[key] = np.array(data[key])
@@ -98,7 +102,7 @@ def read_data_parquet(data_file, data_fields=None):
     if data_fields is None:
         data_fields = list(df_table.keys())
     for key in data_fields:
-        assert key in df_table, f"The data field {key} does not exist in the data file."
+        assert key in df_table, f"The data field {key} does not exist in {data_file}."
         val = df_table[key]
         d = np.array(val)
         # For multi-dimension arrays, we split them by rows and
@@ -136,7 +140,90 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
-def _parse_file_format(conf, is_node):
+class HDF5Array:
+    """ This is an array wrapper class for HDF5 array.
+
+    The main purpose of this class is to make sure that we can close
+    the HDF5 files when the array is destroyed.
+
+    Parameters
+    ----------
+    arr : HDF5 dataset
+        The array-like object for accessing the HDF5 file.
+    hdf5_f : HDF5 file handle
+        The handle to access the HDF5 file.
+    """
+    def __init__(self, arr, f):
+        self._arr = arr
+        self._f = f
+
+    def __len__(self):
+        return self._arr.shape[0]
+
+    def __getitem__(self, idx):
+        return self._arr[idx]
+
+    def __del__(self):
+        """ Destroy the object.
+
+        When the array is destroyed, we need to close the file automatically.
+        """
+        return self._f.close()
+
+    @property
+    def shape(self):
+        """ The shape of the HDF5 array.
+        """
+        return self._arr.shape
+
+    @property
+    def dtype(self):
+        """ The data type of the HDF5 array.
+        """
+        return self._arr.dtype
+
+def read_data_hdf5(data_file, data_fields=None, in_mem=True):
+    """ Read the data from a HDF5 file.
+
+    If `in_mem` is False, we don't read data into memory.
+
+    Parameters
+    ----------
+    data_file : str
+        The parquet file that contains the data
+    data_fields : list of str
+        The data fields to read from the data file.
+    in_mem : bool
+        Whether to read the data into memory.
+
+    Returns
+    -------
+    dict : map from data name to data.
+    """
+    data = {}
+    f = h5py.File(data_file, "r")
+    data_fields = data_fields if data_fields is not None else f.keys()
+    for name in data_fields:
+        assert name in f, f"The data field {name} does not exist in the hdf5 file."
+        data[name] = f[name][:] if in_mem else HDF5Array(f[name], f)
+    return data
+
+def write_data_hdf5(data, data_file):
+    """ Write data into a HDF5 file.
+
+    Parameters
+    ----------
+    data : dict
+        The data to be saved to the Parquet file.
+    data_file : str
+        The file name of the Parquet file.
+    """
+    with h5py.File(data_file, "w") as f:
+        for key, val in data.items():
+            arr = f.create_dataset(key, val.shape, dtype=val.dtype)
+            arr[:] = val
+
+def _parse_file_format(conf, is_node, in_mem):
     """ Parse the file format blob
 
     Parameters
@@ -145,6 +232,8 @@ def _parse_file_format(conf, is_node):
         Describe the config for the node type or edge type.
     is_node : bool
         Whether this is a node config or edge config
+    in_mem : bool
+        Whether or not to read the data in memory.
 
     Returns
     -------
@@ -162,6 +251,8 @@ def _parse_file_format(conf, is_node):
         return partial(read_data_parquet, data_fields=keys)
     elif fmt["name"] == "json":
         return partial(read_data_json, data_fields=keys)
+    elif fmt["name"] == "hdf5":
+        return partial(read_data_hdf5, data_fields=keys, in_mem=in_mem)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
 
@@ -183,9 +274,16 @@ def get_in_files(in_files):
     -------
     a list of str : the full name of input files.
     """
+    # If the input file has a wildcard, get all files that matches the input file name.
     if '*' in in_files:
         in_files = glob.glob(in_files)
+    # This is a single file.
     elif not isinstance(in_files, list):
         in_files = [in_files]
+
+    # Verify the existence of the input files.
+    for in_file in in_files:
+        assert os.path.isfile(in_file), \
+                f"The input file {in_file} does not exist or is not a file."
     in_files.sort()
     return in_files
