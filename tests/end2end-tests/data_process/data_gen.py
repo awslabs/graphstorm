@@ -110,6 +110,17 @@ for i, edge_data in enumerate(split_data(edge_data3, 10)):
 
 node_conf = [
     {
+        "node_type": "node1",
+        "format": {"name": "hdf5"},
+        "files": os.path.join(in_dir, "node_data1_2.hdf5"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat1",
+            },
+        ],
+    },
+    {
         "node_id_col": "id",
         "node_type": "node1",
         "format": {"name": "parquet"},
@@ -133,17 +144,6 @@ node_conf = [
                 "label_col":    "label",
                 "task_type":    "classification",
                 "split_pct":   [0.8, 0.2, 0.0],
-            },
-        ],
-    },
-    {
-        "node_type": "node1",
-        "format": {"name": "hdf5"},
-        "files": os.path.join(in_dir, "node_data1_2.hdf5"),
-        "features": [
-            {
-                "feature_col": "data",
-                "feature_name": "feat1",
             },
         ],
     },
