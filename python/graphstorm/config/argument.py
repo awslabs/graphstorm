@@ -42,6 +42,9 @@ from .config import SUPPORTED_TASK_TRACKER
 
 from .config import SUPPORTED_TASKS
 
+from .config import BUILTIN_LP_DISTMULT_DECODER
+from .config import SUPPORTED_LP_DECODER
+
 from .utils import get_graph_name
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
@@ -1113,16 +1116,21 @@ class GSConfig:
         return 1000
 
     @property
-    def use_dot_product(self):
-        """ Whether use the dot product loss function instead of distmult
+    def lp_decoder_type(self):
+        """ Type of link prediction decoder
+
+
         """
         # pylint: disable=no-member
-        if hasattr(self, "_use_dot_product"):
-            assert self._use_dot_product in [True, False]
-            return self._use_dot_product
+        if hasattr(self, "_lp_decoder_type"):
+            decoder_type = self._lp_decoder_type.lower()
+            assert decoder_type in SUPPORTED_LP_DECODER, \
+                f"Link prediction decoder {self._lp_decoder_type} not supported. " \
+                f"GraphStorm only supports {SUPPORTED_LP_DECODER}"
+            return decoder_type
 
-        # Set default value to False
-        return False
+        # Set default value to distmult
+        return BUILTIN_LP_DISTMULT_DECODER
 
     @property
     def train_etype(self):
