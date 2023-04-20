@@ -1204,7 +1204,7 @@ class GSConfig:
     def gamma(self):
         """ Gamma for DistMult
         """
-        assert self.use_dot_product is False, \
+        assert self.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER, \
             "Only used with DistMult"
         if hasattr(self, "_gamma"):
             return float(self._gamma)
