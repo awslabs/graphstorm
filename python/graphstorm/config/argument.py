@@ -207,15 +207,6 @@ class GSConfig:
 
     ###################### Environment Info ######################
     @property
-    def debug(self):
-        """ Debug flag
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_debug"):
-            return self._debug
-        return False
-
-    @property
     def save_perf_results_path(self):
         """ Save performance flag
         """
@@ -1341,10 +1332,6 @@ def _add_gsgnn_basic_args(parser):
             help='The file for IP configuration')
     group.add_argument('--part-config', type=str, default=argparse.SUPPRESS,
             help='The path to the partition config file')
-    group.add_argument("--debug",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="Debug mode.")
     group.add_argument("--save-perf-results-path",
             type=str,
             default=argparse.SUPPRESS,

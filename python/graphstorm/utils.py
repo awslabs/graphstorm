@@ -167,10 +167,10 @@ class SysTracker:
 
     It tracks the runtime and memory consumption.
     """
-    def __init__(self, debug=True):
+    def __init__(self, verbose=True):
         self._checkpoints = []
         self._rank = dgl.distributed.rpc.get_rank()
-        self._debug = debug
+        self._verbose = verbose
 
     # This is to create only one instance.
     _instance = None
@@ -201,7 +201,7 @@ class SysTracker:
         # We need to get the right rank
         if self._rank < 0:
             self._rank = dgl.distributed.rpc.get_rank()
-        if len(self._checkpoints) >= 2 and self._debug and self._rank == 0:
+        if len(self._checkpoints) >= 2 and self._verbose and self._rank == 0:
             checkpoint1 = self._checkpoints[-2]
             checkpoint2 = self._checkpoints[-1]
             print("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, shared: {:.3f}, \
