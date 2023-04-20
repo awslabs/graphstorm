@@ -342,7 +342,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         scores = {}
         pos_scores = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
         neg_scores = []
-        if neg_src is not None:
+        if neg_src_emb.shape[0] != 0:
             neg_src_emb = neg_src_emb.to(device)
             if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
                 neg_src_emb = neg_src_emb.reshape(
@@ -369,7 +369,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             assert len(neg_score.shape) == 2
             neg_scores.append(neg_score)
 
-        if neg_dst is not None:
+        if neg_dst_emb.shape[0] != 0:
             neg_dst_emb = neg_dst_emb.to(device)
             if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
                 neg_dst_emb = neg_dst_emb.reshape(

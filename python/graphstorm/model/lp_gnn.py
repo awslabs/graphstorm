@@ -167,7 +167,6 @@ def get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale):
             neg_dst_emb = emb[vtype][neg_dst]
         else:
             assert False, f"Unknow negative sample type {neg_sample_type}"
-
     return (pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb)
 
 
@@ -198,20 +197,20 @@ def lp_mini_batch_predict(model, emb, loader, device):
     decoder = model.decoder
     with th.no_grad():
         scores = {}
+        count = 0
         for pos_neg_tuple, neg_sample_type in loader:
             # TODO(IN): Find a scaling factor based on CPU mem and network throughput
             scale = 5
             canonical_etype = list(pos_neg_tuple.keys())[0]
             pos_src, neg_src, _, _ = pos_neg_tuple[canonical_etype]
+
             eval_batch_size = pos_src.shape[0]
             neg_sample_size = neg_src.shape[0]
             batch_emb = get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale)
             pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb = batch_emb
-            # TODO(IN): Check if neg src/dst is None
+            b_st = nb_st = 0
             for s in range(scale):
-                b_st = s * eval_batch_size
-                nb_st = s * neg_sample_size
-                if b_st > eval_batch_size * scale: break
+                if b_st > pos_src_emb.shape[0]: break
                 batch_emb = (pos_src_emb[b_st: b_st + eval_batch_size],
                     pos_dst_emb[b_st: b_st + eval_batch_size],
                     neg_src_emb[nb_st: nb_st + neg_sample_size],
@@ -227,4 +226,6 @@ def lp_mini_batch_predict(model, emb, loader, device):
                         scores[canonical_etype].append(s)
                     else:
                         scores[canonical_etype] = [s]
+                b_st += eval_batch_size
+                nb_st += neg_sample_size
     return scores
