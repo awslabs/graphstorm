@@ -6,7 +6,6 @@ gsf:
     graph_name: ogbn-mag
     backend: gloo
     verbose: false
-    debug: false
   gnn:
     fanout: "20,15"
     n_layers: 2

@@ -8,7 +8,6 @@ gsf:
     ip_config: ip_list.txt
     part_config: null
     verbose: false
-    debug: false
     evaluation_frequency: 1000
   gnn:
     fanout: "20,15"
