@@ -24,6 +24,7 @@ import os
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
+import torch as th
 import h5py
 
 def read_data_json(data_file, data_fields):
@@ -140,6 +141,27 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
+class HDF5Handle:
+    """ HDF5 file handle
+
+    This is to reference the HDF5 handle and close it when no one
+    uses the HDF5 file.
+
+    Parameters
+    ----------
+    f : HDF5 file handle
+        The handle to access the HDF5 file.
+    fname : str
+        The path of the file.
+    """
+    def __init__(self, f, fname):
+        self._f = f
+        self._fname = fname
+
+    def __del__(self):
+        return self._f.close()
+
+
 class HDF5Array:
     """ This is an array wrapper class for HDF5 array.
 
@@ -150,12 +172,10 @@ class HDF5Array:
     ----------
     arr : HDF5 dataset
         The array-like object for accessing the HDF5 file.
-    hdf5_f : HDF5 file handle
-        The handle to access the HDF5 file.
     """
-    def __init__(self, arr, f):
+    def __init__(self, arr, handle):
         self._arr = arr
-        self._f = f
+        self._handle = handle
 
     def __len__(self):
         return self._arr.shape[0]
@@ -163,12 +183,9 @@ class HDF5Array:
     def __getitem__(self, idx):
         return self._arr[idx]
 
-    def __del__(self):
-        """ Destroy the object.
-
-        When the array is destroyed, we need to close the file automatically.
-        """
-        return self._f.close()
+    def to_tensor(self):
+        arr = self._arr[:]
+        return th.tensor(arr)
 
     @property
     def shape(self):
@@ -202,10 +219,11 @@ def read_data_hdf5(data_file, data_fields=None, in_mem=True):
     """
     data = {}
     f = h5py.File(data_file, "r")
+    handle = HDF5Handle(f, data_file)
     data_fields = data_fields if data_fields is not None else f.keys()
     for name in data_fields:
         assert name in f, f"The data field {name} does not exist in the hdf5 file."
-        data[name] = f[name][:] if in_mem else HDF5Array(f[name], f)
+        data[name] = f[name][:] if in_mem else HDF5Array(f[name], handle)
     return data
 
 def write_data_hdf5(data, data_file):

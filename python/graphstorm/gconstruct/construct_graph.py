@@ -31,6 +31,7 @@ import dgl
 from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files, write_data_parquet
+from .file_io import HDF5Array
 from .transform import parse_feat_ops, process_features
 from .transform import parse_label_ops, process_labels
 from .id_map import NoopMap, IdMap, map_node_ids
@@ -449,10 +450,16 @@ def process_graph(args):
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
-                g.nodes[ntype].data[name] = th.tensor(ndata)
+                if isinstance(ndata, HDF5Array):
+                    g.nodes[ntype].data[name] = ndata.to_tensor()
+                else:
+                    g.nodes[ntype].data[name] = th.tensor(ndata)
         for etype in edge_data:
             for name, edata in edge_data[etype].items():
-                g.edges[etype].data[name] = th.tensor(edata)
+                if isinstance(ndata, HDF5Array):
+                    g.edges[etype].data[name] = edata.to_tensor()
+                else:
+                    g.edges[etype].data[name] = th.tensor(edata)
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
