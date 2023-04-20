@@ -23,6 +23,7 @@ import torch as th
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
+from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop
@@ -78,6 +79,35 @@ def test_json():
     try:
         data1 = read_data_json(tmpfile, ["data1", "data3"])
         assert False, "This shouldn't happen"
+    except:
+        pass
+
+    os.remove(tmpfile)
+
+def test_hdf5():
+    handle, tmpfile = tempfile.mkstemp()
+    os.close(handle)
+
+    data = {}
+    data["data1"] = np.random.rand(10, 3)
+    data["data2"] = np.random.rand(10)
+    write_data_hdf5(data, tmpfile)
+    data1 = read_data_hdf5(tmpfile)
+    assert len(data1) == 2
+    assert "data1" in data1
+    assert "data2" in data1
+    np.testing.assert_array_equal(data1['data1'], data['data1'])
+    np.testing.assert_array_equal(data1['data2'], data['data2'])
+
+    data1 = read_data_hdf5(tmpfile, data_fields=['data1'])
+    assert len(data1) == 1
+    assert "data1" in data1
+    assert "data2" not in data1
+    np.testing.assert_array_equal(data1['data1'], data['data1'])
+
+    try:
+        data1 = read_data_hdf5(tmpfile, data_fields=['data1', "data3"])
+        assert False, "This should not happen."
     except:
         pass
 
@@ -437,6 +467,7 @@ def test_partition_graph():
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
 if __name__ == '__main__':
+    test_hdf5()
     test_json()
     test_partition_graph()
     test_convert2ext_mem()
