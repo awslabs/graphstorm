@@ -1069,6 +1069,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": ["query,exactmatch,rev-exactmatch,asin"],
         "gamma": 2.0,
         "lp_loss_func": BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
+        "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
         "eval_metric": "MRR",
         "lp_decoder_type": "dot_product",
     }
@@ -1138,7 +1139,7 @@ def test_lp_info():
         assert config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
         assert config.num_negative_edges == 16
         assert config.num_negative_edges_eval == 1000
-        assert config.lp_decoder_type == BUILTIN_LP_DOT_DECODER
+        assert config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
         assert config.train_etype == None
         assert config.eval_etype == None
         assert config.separate_eval == False
@@ -1155,7 +1156,7 @@ def test_lp_info():
         assert config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
         assert config.num_negative_edges == 4
         assert config.num_negative_edges_eval == 100
-        assert config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
+        assert config.lp_decoder_type == BUILTIN_LP_DOT_DECODER
         assert len(config.train_etype) == 1
         assert config.train_etype[0] == ("query", "exactmatch", "asin")
         assert len(config.eval_etype) == 1
