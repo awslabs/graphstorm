@@ -151,12 +151,9 @@ class HDF5Handle:
     ----------
     f : HDF5 file handle
         The handle to access the HDF5 file.
-    fname : str
-        The path of the file.
     """
-    def __init__(self, f, fname):
+    def __init__(self, f):
         self._f = f
-        self._fname = fname
 
     def __del__(self):
         return self._f.close()
