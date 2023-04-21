@@ -103,7 +103,7 @@ python3 -m graphstorm.run.launch \
         --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
         --ip-config /tmp/ogbn-mag-lp/ip_list.txt \
         --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
-        --feat-name paper:feat \
+        --node-feat-name paper:feat \
         --save-model-path /tmp/ogbn-mag/ \
         --save-perf-results-path /tmp/ogbn-mag/"
 ```

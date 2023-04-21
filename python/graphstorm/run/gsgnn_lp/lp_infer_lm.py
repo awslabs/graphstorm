@@ -36,7 +36,7 @@ def main(args):
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
                                     eval_etypes=config.eval_etype,
-                                    node_feat_field=config.feat_name)
+                                    node_feat_field=config.node_feat_name)
     model = gs.create_builtin_lp_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.

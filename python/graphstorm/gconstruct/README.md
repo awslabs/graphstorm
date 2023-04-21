@@ -22,6 +22,8 @@ or a list of file paths.
 Currently, the pipeline supports two formats: parquet and JSON.
 The detailed format information is specified in the format section.
 * `node_id_col` specifies the column that contains the node IDs. This field is optional.
+If a node type contains multiple blocks to specify the node data, only
+one of the blocks require to specify the node ID column.
 * `features` is a list of dictionaries that define how to get features
 and transform features. This is optional. The format of a feature directionary
 is defined below.

@@ -419,7 +419,7 @@ def create_ec_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
             },
             "gnn": {
                 "n_layers": 1,
@@ -471,7 +471,7 @@ def create_er_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
                 "model_encoder_type": "rgat",
             },
             "gnn": {
@@ -520,7 +520,7 @@ def create_nr_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
                 "model_encoder_type": "rgat",
             },
             "gnn": {
@@ -568,7 +568,7 @@ def create_nc_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
                 "model_encoder_type": "rgat",
             },
             "gnn": {
@@ -617,7 +617,7 @@ def create_lp_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
                 "model_encoder_type": "rgat",
             },
             "gnn": {

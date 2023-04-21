@@ -161,7 +161,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgat"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["test_feat"],
+        "node_feat_name": ["test_feat"],
         "fanout": "10,20,30",
         "n_layers": 3,
         "n_hidden": 128,
@@ -174,7 +174,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["test_feat"],
+        "node_feat_name": ["test_feat"],
         "fanout": "a:10@b:10,a:10@b:10@c:20",
         "eval_fanout": "10,10",
         "n_layers": 2,
@@ -231,7 +231,7 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name == "test_feat"
+        assert config.node_feat_name == "test_feat"
         assert config.fanout == [10,20,30]
         assert config.eval_fanout == [-1, -1, -1]
         assert config.n_layers == 3
@@ -241,7 +241,7 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name == "test_feat"
+        assert config.node_feat_name == "test_feat"
         assert config.fanout[0]["a"] == 10
         assert config.fanout[0]["b"] == 10
         assert config.fanout[1]["a"] == 10
@@ -260,7 +260,7 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name is None
+        assert config.node_feat_name is None
         assert config.n_layers == 0 # lm model does not need n layers
         assert config.n_hidden == 0 # lm model may not need n hidden
         assert config.mini_batch_infer == True
@@ -1217,7 +1217,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgat"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["test_feat"],
+        "node_feat_name": ["test_feat"],
         "fanout": "10,20,30",
         "n_layers": 3,
         "n_hidden": 128,
@@ -1230,7 +1230,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["ntype0:feat_name"],
+        "node_feat_name": ["ntype0:feat_name"],
         "fanout": "a:10@b:10,a:10@b:10@c:20",
         "eval_fanout": "10,10",
         "n_layers": 2,
@@ -1241,13 +1241,13 @@ def create_gnn_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["ntype0:feat_name", "ntype1:fname"],
+        "node_feat_name": ["ntype0:feat_name,feat_name2", "ntype1:fname"],
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
+        "node_feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
     }
     with open(os.path.join(tmp_path, file_name+"4.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1273,7 +1273,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
+        "node_feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
         "fanout": "error", # error fanout
         "eval_fanout": "error",
         "n_hidden": 0,
@@ -1284,7 +1284,7 @@ def create_gnn_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": {"ntype0":"feat_name"}, # not a list
+        "node_feat_name": {"ntype0":"feat_name"}, # not a list
         "fanout": "10,10", # error fanout
         "eval_fanout": "10,10",
         "n_hidden": 32,
@@ -1301,7 +1301,7 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name == "test_feat"
+        assert config.node_feat_name == "test_feat"
         assert config.fanout == [10,20,30]
         assert config.eval_fanout == [-1, -1, -1]
         assert config.n_layers == 3
@@ -1311,9 +1311,9 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert len(config.feat_name) == 1
-        assert 'ntype0' in config.feat_name
-        assert config.feat_name['ntype0'] == ["feat_name"]
+        assert len(config.node_feat_name) == 1
+        assert 'ntype0' in config.node_feat_name
+        assert config.node_feat_name['ntype0'] == ["feat_name"]
         assert config.fanout[0]["a"] == 10
         assert config.fanout[0]["b"] == 10
         assert config.fanout[1]["a"] == 10
@@ -1327,22 +1327,22 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test3.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert len(config.feat_name) == 2
-        assert 'ntype0' in config.feat_name
-        assert 'ntype1' in config.feat_name
-        assert config.feat_name['ntype0'] == ["feat_name"]
-        assert config.feat_name['ntype1'] == ["fname"]
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert 'ntype1' in config.node_feat_name
+        assert config.node_feat_name['ntype0'] == ["feat_name", "feat_name2"]
+        assert config.node_feat_name['ntype1'] == ["fname"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test4.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert len(config.feat_name) == 2
-        assert 'ntype0' in config.feat_name
-        assert 'ntype1' in config.feat_name
-        assert len(config.feat_name['ntype0']) == 2
-        assert "feat_name" in config.feat_name['ntype0']
-        assert "fname" in config.feat_name['ntype0']
-        assert config.feat_name['ntype1'] == ["fname"]
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert 'ntype1' in config.node_feat_name
+        assert len(config.node_feat_name['ntype0']) == 2
+        assert "feat_name" in config.node_feat_name['ntype0']
+        assert "fname" in config.node_feat_name['ntype0']
+        assert config.node_feat_name['ntype1'] == ["fname"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test5.yaml'),
                          local_rank=0)
@@ -1352,7 +1352,7 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name is None
+        assert config.node_feat_name is None
         assert config.n_layers == 0 # lm model does not need n layers
         check_failure(config, "n_hidden") # lm model may not need n hidden
         assert config.mini_batch_infer == True
@@ -1362,7 +1362,7 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "feat_name")
+        check_failure(config, "node_feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
         check_failure(config, "n_hidden")
@@ -1372,7 +1372,7 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "feat_name")
+        check_failure(config, "node_feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
 

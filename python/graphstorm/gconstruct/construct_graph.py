@@ -31,6 +31,7 @@ import dgl
 from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files, write_data_parquet
+from .file_io import HDF5Array
 from .transform import parse_feat_ops, process_features
 from .transform import parse_label_ops, process_labels
 from .id_map import NoopMap, IdMap, map_node_ids
@@ -66,7 +67,8 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
             feat_data[key] = val
-    return (data[node_id_col], feat_data)
+    node_ids = data[node_id_col] if node_id_col in data else None
+    return (node_ids, feat_data)
 
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                     conf, skip_nonexist_edges):
@@ -161,11 +163,6 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
     node_id_map = {}
     for process_conf in process_confs:
         # each iteration is to process a node type.
-        # TODO(zhengda) we need to make it optional to support
-        # multiple node dictionaries for one node type.
-        assert 'node_id_col' in process_conf, \
-                "'node_id_col' must be defined for a node type."
-        node_id_col = process_conf['node_id_col']
         assert 'node_type' in process_conf, \
                 "'node_type' must be defined for a node type"
         node_type = process_conf['node_type']
@@ -182,6 +179,7 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
                 if 'labels' in process_conf else None
+        node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,
@@ -202,46 +200,70 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
             type_node_id_map[i] = node_ids
         return_dict = None
 
-        for i, id_map in enumerate(type_node_id_map):
-            assert id_map is not None, f"We do not get ID map in part {i}."
-        if len(type_node_id_map) > 1:
-            type_node_id_map = np.concatenate(type_node_id_map)
+        # Construct node Id map.
+        if type_node_id_map[0] is not None:
+            assert all(id_map is not None for id_map in type_node_id_map)
+            if len(type_node_id_map) > 1:
+                type_node_id_map = np.concatenate(type_node_id_map)
+            else:
+                type_node_id_map = type_node_id_map[0]
+            print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         else:
-            type_node_id_map = type_node_id_map[0]
+            assert all(id_map is None for id_map in type_node_id_map)
+            type_node_id_map = None
         gc.collect()
-        print(f"node type {node_type} has {len(type_node_id_map)} nodes")
         # We don't need to create ID map if the node IDs are integers,
         # all node Ids are in sequence start from 0 and
         # the user doesn't force to remap node IDs.
-        if np.issubdtype(type_node_id_map.dtype, np.integer) \
+        if type_node_id_map is not None \
+                and np.issubdtype(type_node_id_map.dtype, np.integer) \
                 and np.all(type_node_id_map == np.arange(len(type_node_id_map))) \
                 and not remap_id:
-            num_nodes = len(type_node_id_map)
-            type_node_id_map = NoopMap(num_nodes)
-        else:
+            type_node_id_map = NoopMap(len(type_node_id_map))
+        elif type_node_id_map is not None:
             type_node_id_map = IdMap(type_node_id_map)
-            num_nodes = len(type_node_id_map)
         sys_tracker.check(f'Create node ID map of {node_type}')
 
         for feat_name in type_node_data:
-            type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
+            # If the node data does not provide node IDs, this node data has to be stored
+            # in a single file.
+            if type_node_id_map is None:
+                assert len(type_node_data[feat_name]) == 1
+            if len(type_node_data[feat_name]) > 1:
+                type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
+            else:
+                type_node_data[feat_name] = type_node_data[feat_name][0]
             # If we allow to store features in external memory, we store node features
             # that have large feature dimensions in a file and use memmap to access
             # the array.
             type_node_data[feat_name] = convert2ext_mem(type_node_data[feat_name],
                                                         node_type + "_" + feat_name)
-            assert len(type_node_data[feat_name]) == num_nodes
             feat_shape = type_node_data[feat_name].shape
             print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
-        # Some node types don't have data.
-        if len(type_node_data) > 0:
+        # If we didn't see the node data for this node type before.
+        if len(type_node_data) > 0 and node_type not in node_data:
             node_data[node_type] = type_node_data
+        # If we have seen the node data for this node type before
+        # because there are multiple blocks that contain data for the same node type.
+        elif len(type_node_data) > 0:
+            for key, val in type_node_data.items():
+                # Make sure the node data has duplicated names.
+                assert key not in node_data[node_type], \
+                        f"The node data {key} has exist in node type {node_type}."
+                node_data[node_type][key] = val
         if type_node_id_map is not None:
+            assert node_type not in node_id_map, \
+                    f"The ID map of node type {node_type} has existed."
             node_id_map[node_type] = type_node_id_map
 
+    for node_type in node_data:
+        assert node_type in node_id_map, \
+                f"The input files do not contain node Ids for node type {node_type}."
+        for data in node_data[node_type].values():
+            assert len(data) == len(node_id_map[node_type])
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
@@ -427,10 +449,16 @@ def process_graph(args):
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
-                g.nodes[ntype].data[name] = th.tensor(ndata)
+                if isinstance(ndata, HDF5Array):
+                    g.nodes[ntype].data[name] = ndata.to_tensor()
+                else:
+                    g.nodes[ntype].data[name] = th.tensor(ndata)
         for etype in edge_data:
             for name, edata in edge_data[etype].items():
-                g.edges[etype].data[name] = th.tensor(edata)
+                if isinstance(edata, HDF5Array):
+                    g.edges[etype].data[name] = edata.to_tensor()
+                else:
+                    g.edges[etype].data[name] = th.tensor(edata)
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
