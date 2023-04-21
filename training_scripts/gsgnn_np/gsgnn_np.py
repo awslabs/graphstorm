@@ -54,7 +54,7 @@ def main(args):
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.predict_ntype,
-                                    node_feat_field=config.feat_name,
+                                    node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(),
