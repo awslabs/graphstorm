@@ -450,7 +450,7 @@ def create_train_config(tmp_path, file_name):
         'save_model_per_iters': 700,
         "topk_model_to_save": 3,
         "enable_early_stop": True,
-        "call_to_consider_early_stop": -1,
+        "early_stop_burnin_rounds": -1,
         "window_for_early_stop": 0,
     }
 
@@ -507,7 +507,7 @@ def test_train_info():
         assert config.use_node_embeddings == False
         assert config.use_self_loop == False
         assert config.enable_early_stop == True
-        assert config.call_to_consider_early_stop == 0
+        assert config.early_stop_burnin_rounds == 0
         assert config.window_for_early_stop == 3
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test1.yaml'), local_rank=0)
@@ -541,7 +541,7 @@ def test_train_info():
         check_failure(config, "dropout")
         assert config.enable_early_stop == True
         check_failure(config, "topk_model_to_save")
-        check_failure(config, "call_to_consider_early_stop")
+        check_failure(config, "early_stop_burnin_rounds")
         check_failure(config, "window_for_early_stop")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail1.yaml'), local_rank=0)

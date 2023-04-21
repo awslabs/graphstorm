@@ -759,16 +759,16 @@ class GSConfig:
 
     ### control early stop ###
     @property
-    def call_to_consider_early_stop(self):
-        """ Burning period calls to start considering early stop
+    def early_stop_burnin_rounds(self):
+        """ Burnin rounds before to start early stop
         """
         # pylint: disable=no-member
-        if hasattr(self, "_call_to_consider_early_stop"):
-            assert isinstance(self._call_to_consider_early_stop, int), \
-                "call_to_consider_early_stop should be an integer"
-            assert self._call_to_consider_early_stop >= 0, \
-                "call_to_consider_early_stop should be larger than or equal to 0"
-            return self._call_to_consider_early_stop
+        if hasattr(self, "_early_stop_burnin_rounds"):
+            assert isinstance(self._early_stop_burnin_rounds, int), \
+                "early_stop_burnin_rounds should be an integer"
+            assert self._early_stop_burnin_rounds >= 0, \
+                "early_stop_burnin_rounds should be larger than or equal to 0"
+            return self._early_stop_burnin_rounds
 
         return 0
 
@@ -781,7 +781,7 @@ class GSConfig:
             assert isinstance(self._window_for_early_stop, int), \
                 "window_for_early_stop should be an integer"
             assert self._window_for_early_stop > 0, \
-                "call_to_consider_early_stop should be larger than 0"
+                "early_stop_rounds should be larger than 0"
             return self._window_for_early_stop
 
         # at least 3 iterations
@@ -1455,9 +1455,9 @@ def _add_hyperparam_args(parser):
             help="If no-validation is set to True, "
                  "there will be no evaluation during training.")
     # early stop
-    group.add_argument("--call-to-consider-early-stop",
+    group.add_argument("--early-stop-burnin-rounds",
             type=int, default=argparse.SUPPRESS,
-            help="burning period call to start considering early stop")
+            help="burnin rounds before to start early stop")
     group.add_argument("--window-for-early-stop",
             type=int, default=argparse.SUPPRESS,
             help="the number of latest validation scores to average deciding on early stop")
