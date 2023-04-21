@@ -6,7 +6,6 @@ gsf:
     ip_config: ip_list.txt
     part_config: movielen_100k_ec_2p_4t/movie-lens-100k.json
     verbose: false
-    debug: false
     save_perf_results_path: null
   gnn:
     model_encoder_type: rgcn

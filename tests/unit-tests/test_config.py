@@ -63,7 +63,6 @@ def create_dummpy_config_obj():
 def create_basic_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
-        "debug" : True,
         "backend": "gloo",
         "ip_config": os.path.join(tmp_path, "ip.txt"),
         "part_config": os.path.join(tmp_path, "part.json"),
@@ -118,7 +117,6 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         # success load
-        assert config.debug == True
         assert config.backend == "gloo"
         assert config.ip_config == os.path.join(Path(tmpdirname), "ip.txt")
         assert config.part_config == os.path.join(Path(tmpdirname), "part.json")
@@ -136,7 +134,6 @@ def test_load_basic_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.debug == False
         assert config.backend == "gloo"
         assert config.evaluation_frequency == sys.maxsize
         assert config.no_validation == False
