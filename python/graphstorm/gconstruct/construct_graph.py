@@ -219,11 +219,9 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                 and np.issubdtype(type_node_id_map.dtype, np.integer) \
                 and np.all(type_node_id_map == np.arange(len(type_node_id_map))) \
                 and not remap_id:
-            num_nodes = len(type_node_id_map)
-            type_node_id_map = NoopMap(num_nodes)
+            type_node_id_map = NoopMap(len(type_node_id_map))
         elif type_node_id_map is not None:
             type_node_id_map = IdMap(type_node_id_map)
-            num_nodes = len(type_node_id_map)
         sys_tracker.check(f'Create node ID map of {node_type}')
 
         for feat_name in type_node_data:
@@ -240,7 +238,6 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
             # the array.
             type_node_data[feat_name] = convert2ext_mem(type_node_data[feat_name],
                                                         node_type + "_" + feat_name)
-            assert len(type_node_data[feat_name]) == num_nodes
             feat_shape = type_node_data[feat_name].shape
             print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
@@ -252,7 +249,7 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
         # If we have seen the node data for this node type before
         # because there are multiple blocks that contain data for the same node type.
         elif len(type_node_data) > 0:
-            for key, val in type_node_data.items():
+            for key, val in type_node_data.items(): 
                 # Make sure the node data has duplicated names.
                 assert key not in node_data[node_type], \
                         f"The node data {key} has exist in node type {node_type}."
@@ -265,6 +262,8 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
     for node_type in node_data:
         assert node_type in node_id_map, \
                 f"The input files do not contain node Ids for node type {node_type}."
+        for data in node_data[node_type].values():
+            assert len(data) == len(node_id_map[node_type])
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
