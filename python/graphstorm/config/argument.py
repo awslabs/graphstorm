@@ -1063,21 +1063,21 @@ class GSConfig:
 
     ### Link Prediction specific ###
     @property
-    def negative_sampler(self):
+    def train_negative_sampler(self):
         """ The algorithm of sampling negative edges for link prediction
         """
         # pylint: disable=no-member
-        if hasattr(self, "_negative_sampler"):
-            return self._negative_sampler
+        if hasattr(self, "_train_negative_sampler"):
+            return self._train_negative_sampler
         return BUILTIN_LP_UNIFORM_NEG_SAMPLER
 
     @property
-    def test_negative_sampler(self):
+    def eval_negative_sampler(self):
         """ The algorithm of sampling negative edges for link prediction
         """
         # pylint: disable=no-member
-        if hasattr(self, "_test_negative_sampler"):
-            return self._test_negative_sampler
+        if hasattr(self, "_eval_negative_sampler"):
+            return self._eval_negative_sampler
 
         # use Joint neg for efficiency
         return BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -1563,10 +1563,10 @@ def _add_link_prediction_args(parser):
                  "batch of edges for the model evaluation. "
                  "If the MRR saturates at high values or has "
                  "large variance increase this number.")
-    group.add_argument("--negative-sampler", type=str, default=argparse.SUPPRESS,
-            help="The algorithm of sampling negative edges for link prediction.")
-    group.add_argument("--test-negative-sampler", type=str, default=argparse.SUPPRESS,
-            help="The algorithm of sampling negative edges for link prediction testing")
+    group.add_argument("--train-negative-sampler", type=str, default=argparse.SUPPRESS,
+            help="The algorithm of sampling negative edges for link prediction.training ")
+    group.add_argument("--eval-negative-sampler", type=str, default=argparse.SUPPRESS,
+            help="The algorithm of sampling negative edges for link prediction evaluation")
     group.add_argument('--eval-etype', nargs='+', type=str, default=argparse.SUPPRESS)
     group.add_argument('--train-etype', nargs='+', type=str, default=argparse.SUPPRESS,
             help="The list of canonical etype that will be added as"
