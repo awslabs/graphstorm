@@ -249,7 +249,7 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
         # If we have seen the node data for this node type before
         # because there are multiple blocks that contain data for the same node type.
         elif len(type_node_data) > 0:
-            for key, val in type_node_data.items(): 
+            for key, val in type_node_data.items():
                 # Make sure the node data has duplicated names.
                 assert key not in node_data[node_type], \
                         f"The node data {key} has exist in node type {node_type}."
