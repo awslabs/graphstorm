@@ -42,6 +42,9 @@ from .config import SUPPORTED_TASK_TRACKER
 
 from .config import SUPPORTED_TASKS
 
+from .config import BUILTIN_LP_DISTMULT_DECODER
+from .config import SUPPORTED_LP_DECODER
+
 from .utils import get_graph_name
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
@@ -1104,16 +1107,21 @@ class GSConfig:
         return 1000
 
     @property
-    def use_dot_product(self):
-        """ Whether use the dot product loss function instead of distmult
+    def lp_decoder_type(self):
+        """ Type of link prediction decoder
+
+
         """
         # pylint: disable=no-member
-        if hasattr(self, "_use_dot_product"):
-            assert self._use_dot_product in [True, False]
-            return self._use_dot_product
+        if hasattr(self, "_lp_decoder_type"):
+            decoder_type = self._lp_decoder_type.lower()
+            assert decoder_type in SUPPORTED_LP_DECODER, \
+                f"Link prediction decoder {self._lp_decoder_type} not supported. " \
+                f"GraphStorm only supports {SUPPORTED_LP_DECODER}"
+            return decoder_type
 
-        # Set default value to False
-        return False
+        # Set default value to distmult
+        return BUILTIN_LP_DISTMULT_DECODER
 
     @property
     def train_etype(self):
@@ -1187,7 +1195,7 @@ class GSConfig:
     def gamma(self):
         """ Gamma for DistMult
         """
-        assert self.use_dot_product is False, \
+        assert self.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER, \
             "Only used with DistMult"
         if hasattr(self, "_gamma"):
             return float(self._gamma)
@@ -1545,6 +1553,8 @@ def _add_edge_classification_args(parser):
 
 def _add_link_prediction_args(parser):
     group = parser.add_argument_group(title="link prediction")
+    group.add_argument("--lp-decoder-type", type=str, default=argparse.SUPPRESS,
+            help="Link prediction decoder type.")
     group.add_argument("--num-negative-edges", type=int, default=argparse.SUPPRESS,
             help="Number of edges consider for the negative batch of edges.")
     group.add_argument("--num-negative-edges-eval", type=int, default=argparse.SUPPRESS,
@@ -1578,11 +1588,6 @@ def _add_link_prediction_args(parser):
                     "--reverse-edge-types-map query,adds,rev-adds,asin or"
                     "--reverse-edge-types-map query,adds,rev-adds,asin "
                     "query,clicks,rev-clicks,asin")
-    group.add_argument(
-            "--use-dot-product",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="This suggest to use the dot product loss function instead of distmult")
     group.add_argument(
             "--gamma",
             type=float,

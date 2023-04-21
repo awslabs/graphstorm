@@ -31,7 +31,6 @@ gsf:
   rgcn:
     n_bases: -1
     use_self_loop: true
-    use_dot_product: true
     use_node_embeddings: false
   edge_regression:
     target_etype:

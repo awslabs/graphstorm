@@ -28,6 +28,8 @@ from graphstorm.config.config import BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+from graphstorm.config import BUILTIN_LP_DOT_DECODER
+from graphstorm.config import BUILTIN_LP_DISTMULT_DECODER
 
 def check_failure(config, field):
     has_error = False
@@ -1064,8 +1066,9 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": ["query,exactmatch,rev-exactmatch,asin"],
         "gamma": 2.0,
         "lp_loss_func": BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
+        "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
         "eval_metric": "MRR",
-        "use_dot_product": True,
+        "lp_decoder_type": "dot_product",
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
@@ -1093,9 +1096,9 @@ def create_lp_config(tmp_path, file_name):
         "exclude_training_targets": "error",
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
-        "use_dot_product": "false",
+        "lp_decoder_type": "transe",
     }
-    # config for check default value
+    # config for check error value
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
@@ -1133,7 +1136,7 @@ def test_lp_info():
         assert config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
         assert config.num_negative_edges == 16
         assert config.num_negative_edges_eval == 1000
-        assert config.use_dot_product == False
+        assert config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
         assert config.train_etype == None
         assert config.eval_etype == None
         assert config.separate_eval == False
@@ -1150,7 +1153,7 @@ def test_lp_info():
         assert config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
         assert config.num_negative_edges == 4
         assert config.num_negative_edges_eval == 100
-        assert config.use_dot_product == True
+        assert config.lp_decoder_type == BUILTIN_LP_DOT_DECODER
         assert len(config.train_etype) == 1
         assert config.train_etype[0] == ("query", "exactmatch", "asin")
         assert len(config.eval_etype) == 1
@@ -1160,7 +1163,7 @@ def test_lp_info():
         assert len(config.reverse_edge_types_map) == 1
         assert config.reverse_edge_types_map[("query", "exactmatch","asin")] == \
             ("asin", "rev-exactmatch","query")
-        check_failure(config, "gamma") # use_dot_product == True
+        check_failure(config, "gamma") # dot product
         assert config.lp_loss_func == BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
@@ -1190,7 +1193,7 @@ def test_lp_info():
         check_failure(config, "exclude_training_targets")
         check_failure(config, "reverse_edge_types_map")
         check_failure(config, "lp_loss_func")
-        check_failure(config, "use_dot_product")
+        check_failure(config, "lp_decoder_type")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
