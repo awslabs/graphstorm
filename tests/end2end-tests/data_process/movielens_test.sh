@@ -1,7 +1,14 @@
 #!/bin/bash
 
+service ssh restart
+
 GS_HOME=$(pwd)
+DGL_HOME=/root/dgl
+NUM_TRAINERS=1
 export PYTHONPATH=$GS_HOME/python/
+cd $GS_HOME/training_scripts/gsgnn_ep
+
+echo "127.0.0.1" > ip_list.txt
 
 error_and_exit () {
 	# check exec status of launch.py
@@ -16,7 +23,7 @@ error_and_exit () {
 
 # Test the DistDGL graph format.
 echo "********* Test the DistDGL graph format ********"
-python3 -m graphstorm.gconstruct.construct_graph --conf_file $GS_HOME/tests/end2end-tests/data_process/movielens.json --num_processes 1 --output_dir /tmp/movielens --graph_name ml
+python3 -m graphstorm.gconstruct.construct_graph --conf_file $GS_HOME/tests/end2end-tests/data_process/movielens.json --num_processes 1 --output_dir /tmp/movielens --graph_name ml --add_reverse_edges
 
 error_and_exit $?
 
