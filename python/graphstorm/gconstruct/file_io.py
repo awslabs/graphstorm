@@ -218,7 +218,7 @@ def read_data_hdf5(data_file, data_fields=None, in_mem=True):
     """
     data = {}
     f = h5py.File(data_file, "r")
-    handle = HDF5Handle(f, data_file)
+    handle = HDF5Handle(f)
     data_fields = data_fields if data_fields is not None else f.keys()
     for name in data_fields:
         assert name in f, f"The data field {name} does not exist in the hdf5 file."
