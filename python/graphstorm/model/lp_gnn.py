@@ -198,7 +198,6 @@ def lp_mini_batch_predict(model, emb, loader, device):
     decoder = model.decoder
     with th.no_grad():
         scores = {}
-        count = 0
         for pos_neg_tuple, neg_sample_type in loader:
             # Value of scale is heuristically chosen. Numbers can be found
             # at this PR: https://github.com/awslabs/graphstorm/pull/101
@@ -212,7 +211,8 @@ def lp_mini_batch_predict(model, emb, loader, device):
             pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb = batch_emb
             b_st = nb_st = 0
             for s in range(scale):
-                if b_st > pos_src_emb.shape[0]: break
+                if b_st > pos_src_emb.shape[0]:
+                    break
                 batch_emb = (pos_src_emb[b_st: b_st + eval_batch_size],
                     pos_dst_emb[b_st: b_st + eval_batch_size],
                     neg_src_emb[nb_st: nb_st + neg_sample_size],
