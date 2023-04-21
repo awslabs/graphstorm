@@ -27,6 +27,7 @@ from graphstorm.eval.evaluator import early_stop_avg_increase_judge
 from graphstorm.eval.evaluator import early_stop_cons_increase_judge
 from graphstorm.config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from graphstorm.config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
+from graphstorm.config import BUILTIN_LP_DOT_DECODER
 
 from util import Dummy
 
@@ -62,7 +63,7 @@ def test_mrr_lp_evaluator():
 
     config = Dummy({
             "num_negative_edges_eval": 10,
-            "use_dot_product": True,
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 100,
             "enable_early_stop": False,
         })
@@ -84,7 +85,7 @@ def test_mrr_lp_evaluator():
     lp = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                              train_data,
                              num_negative_edges_eval=config.num_negative_edges_eval,
-                             use_dot_product=config.use_dot_product,
+                             lp_decoder_type=config.lp_decoder_type,
                              enable_early_stop=config.enable_early_stop)
     val_s = lp.compute_score(val_scores)
     test_s = lp.compute_score(test_scores)
@@ -136,7 +137,7 @@ def test_mrr_lp_evaluator():
         lp = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                  train_data,
                                  num_negative_edges_eval=config. num_negative_edges_eval,
-                                 use_dot_product=config.use_dot_product,
+                                 lp_decoder_type=config.lp_decoder_type,
                                  enable_early_stop=config.enable_early_stop)
 
         mock_compute_score.side_effect = [
@@ -181,7 +182,7 @@ def test_mrr_lp_evaluator():
         lp = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                  train_data,
                                  num_negative_edges_eval=config.num_negative_edges_eval,
-                                 use_dot_product=config.use_dot_product,
+                                 lp_decoder_type=config.lp_decoder_type,
                                  enable_early_stop=config.enable_early_stop)
 
         mock_compute_score.side_effect = [
@@ -209,7 +210,7 @@ def test_mrr_lp_evaluator():
     lp = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                              train_data,
                              num_negative_edges_eval=config.num_negative_edges_eval,
-                             use_dot_product=config.use_dot_product,
+                             lp_decoder_type=config.lp_decoder_type,
                              enable_early_stop=config.enable_early_stop)
     assert lp.do_eval(120, epoch_end=True) is True
     assert lp.do_eval(200) is True
@@ -218,7 +219,7 @@ def test_mrr_lp_evaluator():
 
     config3 = Dummy({
             "num_negative_edges_eval": 10,
-            "use_dot_product": True,
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 0,
             "enable_early_stop": False,
         })
@@ -229,7 +230,7 @@ def test_mrr_lp_evaluator():
     lp = GSgnnMrrLPEvaluator(config3.evaluation_frequency,
                              train_data,
                              num_negative_edges_eval=config3.num_negative_edges_eval,
-                             use_dot_product=config3.use_dot_product,
+                             lp_decoder_type=config3.lp_decoder_type,
                              enable_early_stop=config3.enable_early_stop)
     assert lp.do_eval(120, epoch_end=True) is True
     assert lp.do_eval(200) is False
@@ -514,14 +515,14 @@ def test_early_stop_lp_evaluator():
 
     config = Dummy({
             "num_negative_edges_eval": 10,
-            "use_dot_product": True,
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 100,
             "enable_early_stop": False,
         })
     evaluator = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
-                                    use_dot_product=config.use_dot_product,
+                                    lp_decoder_type=config.lp_decoder_type,
                                     enable_early_stop=config.enable_early_stop)
     for _ in range(10):
         # always return false
@@ -529,7 +530,7 @@ def test_early_stop_lp_evaluator():
 
     config = Dummy({
             "num_negative_edges_eval": 10,
-            "use_dot_product": True,
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 100,
             "enable_early_stop": True,
             "call_to_consider_early_stop": 5,
@@ -539,7 +540,7 @@ def test_early_stop_lp_evaluator():
     evaluator = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
-                                    use_dot_product=config.use_dot_product,
+                                    lp_decoder_type=config.lp_decoder_type,
                                     enable_early_stop=config.enable_early_stop,
                                     call_to_consider_early_stop=config.call_to_consider_early_stop,
                                     window_for_early_stop=config.window_for_early_stop,
@@ -559,7 +560,7 @@ def test_early_stop_lp_evaluator():
 
     config = Dummy({
             "num_negative_edges_eval": 10,
-            "use_dot_product": True,
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 100,
             "enable_early_stop": True,
             "call_to_consider_early_stop": 5,
@@ -569,7 +570,7 @@ def test_early_stop_lp_evaluator():
     evaluator = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
-                                    use_dot_product=config.use_dot_product,
+                                    lp_decoder_type=config.lp_decoder_type,
                                     enable_early_stop=config.enable_early_stop,
                                     call_to_consider_early_stop=config.call_to_consider_early_stop,
                                     window_for_early_stop=config.window_for_early_stop,
@@ -660,7 +661,7 @@ def test_get_val_score_rank():
 
     config = Dummy({
             "num_negative_edges_eval": 10,
-            "use_dot_product": True,
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 100,
             "enable_early_stop": False,
             "eval_metric": ["mrr"]
@@ -669,7 +670,7 @@ def test_get_val_score_rank():
     evaluator = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
-                                    use_dot_product=config.use_dot_product,
+                                    lp_decoder_type=config.lp_decoder_type,
                                     enable_early_stop=config.enable_early_stop)
 
     # For MRR, the bigger the better

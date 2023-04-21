@@ -60,7 +60,7 @@ def main(args):
             GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                 train_data,
                                 config.num_negative_edges_eval,
-                                config.use_dot_product,
+                                config.lp_decoder_type,
                                 config.enable_early_stop,
                                 config.call_to_consider_early_stop,
                                 config.window_for_early_stop,

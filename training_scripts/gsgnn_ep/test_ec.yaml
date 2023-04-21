@@ -12,7 +12,6 @@ gsf:
     ip_config: ip_list.txt
     part_config: ./test_ec_1p_4t/test.json
     verbose: false
-    debug: false
     save_perf_results_path: null
   gnn:
     model_encoder_type: rgcn
@@ -39,7 +38,6 @@ gsf:
   rgcn:
     n_bases: -1
     use_self_loop: true
-    use_dot_product: true
     sparse_lr: 1e-2
     use_node_embeddings: false
   edge_classification:

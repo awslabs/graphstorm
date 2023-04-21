@@ -6,7 +6,6 @@ gsf:
     ip_config: ip_list.txt
     part_config: movielen_100k_train_val_1p_4t/movie-lens-100k.json
     verbose: false
-    debug: false
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
@@ -23,6 +22,6 @@ gsf:
   rgcn:
     n_bases: -1
     use_self_loop: true
-    use_dot_product: true
+    lp_decoder_type: "dot_product"
     sparse_lr: 1e-2
     use_node_embeddings: false

@@ -769,8 +769,8 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         The processed dataset
     num_negative_edges_eval: int
         Number of negative edges sampled for each positive edge in evalation.
-    use_dot_product: bool
-        If it is set to true, use the dot product loss function instead of DistMult.
+    lp_decoder_type: str
+        Link prediction decoder type.
     enable_early_stop: bool
         Set true to enable early stop.
     call_to_consider_early_stop: int
@@ -782,7 +782,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, evaluation_frequency, data,
-                 num_negative_edges_eval, use_dot_product,
+                 num_negative_edges_eval, lp_decoder_type,
                  enable_early_stop=False,
                  call_to_consider_early_stop=0,
                  window_for_early_stop=3,
@@ -795,7 +795,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         self.val_idxs = data.val_idxs
         self.test_idxs = data.test_idxs
         self.num_negative_edges_eval = num_negative_edges_eval
-        self.use_dot_product = use_dot_product
+        self.lp_decoder_type = lp_decoder_type
 
         self.metrics_obj = LinkPredictionMetrics()
 
