@@ -12,7 +12,6 @@ gsf:
     ip_config: ip_list.txt
     part_config: test_multilabel_ec_1p_4t/multilabel-ec-test.json
     verbose: false
-    debug: false
   gnn:
     model_encoder_type: rgcn
     fanout: "4"

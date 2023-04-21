@@ -26,6 +26,8 @@ from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
+from .config import BUILTIN_LP_DOT_DECODER
+from .config import BUILTIN_LP_DISTMULT_DECODER
 from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder
@@ -309,9 +311,9 @@ def create_builtin_lp_model(g, config, train_task):
         else len(g.canonical_etypes) # train_etype is None, every etype is used for training
     # For backword compatibility, we add this check.
     # if train etype is 1, There is no need to use DistMult
-    assert num_train_etype > 1 or config.use_dot_product, \
+    assert num_train_etype > 1 or config.lp_decoder_type == BUILTIN_LP_DOT_DECODER, \
             "If number of train etype is 1, please use dot product"
-    if config.use_dot_product:
+    if config.lp_decoder_type == BUILTIN_LP_DOT_DECODER:
         # if the training set only contains one edge type or it is specified in the arguments,
         # we use dot product as the score function.
         if get_rank() == 0:
@@ -320,7 +322,7 @@ def create_builtin_lp_model(g, config, train_task):
         decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
                                             if model.gnn_encoder is not None \
                                             else model.node_input_encoder.out_dims)
-    else:
+    elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
             print("Using distmult objective for supervision")
         decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
@@ -328,6 +330,8 @@ def create_builtin_lp_model(g, config, train_task):
                                                 if model.gnn_encoder is not None \
                                                 else model.node_input_encoder.out_dims,
                                              config.gamma)
+    else:
+        raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)
     model.set_loss_func(LinkPredictLossFunc())
     if train_task:

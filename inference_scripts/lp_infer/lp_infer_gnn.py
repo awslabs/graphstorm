@@ -46,7 +46,7 @@ def main(args):
             GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                 infer_data,
                                 config.num_negative_edges_eval,
-                                config.use_dot_product))
+                                config.lp_decoder_type))
         assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
