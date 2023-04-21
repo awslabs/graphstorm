@@ -149,7 +149,8 @@ def get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale):
 
     for _ in range(scale):
         pos_neg_tuple, _ = next(loader, (None, None))
-        if pos_neg_tuple is None: break
+        if pos_neg_tuple is None:
+            break
         pos_src_, neg_src_, pos_dst_, neg_dst_ = pos_neg_tuple[canonical_etype]
         pos_src = th.cat((pos_src, pos_src_), dim=0)
         neg_src = th.cat((neg_src, neg_src_), dim=0)
@@ -199,8 +200,9 @@ def lp_mini_batch_predict(model, emb, loader, device):
         scores = {}
         count = 0
         for pos_neg_tuple, neg_sample_type in loader:
-            # TODO(IN): Find a scaling factor based on CPU mem and network throughput
-            scale = 5
+            # Value of scale is heuristically chosen. Numbers can be found
+            # at this PR: https://github.com/awslabs/graphstorm/pull/101
+            scale = 100
             canonical_etype = list(pos_neg_tuple.keys())[0]
             pos_src, neg_src, _, _ = pos_neg_tuple[canonical_etype]
 
