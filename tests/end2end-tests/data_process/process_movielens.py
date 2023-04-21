@@ -7,7 +7,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 
 # process user data
-user = pandas.read_csv('u.user', delimiter='|', header=None,
+user = pandas.read_csv('/data/ml-100k/u.user', delimiter='|', header=None,
         names=["id", "age", "gender", "occupation", "zipcode"])
 
 age = np.array(user['age'])
@@ -26,7 +26,7 @@ for x, y in zip(np.arange(len(occupation)), occupation):
 
 feat = np.concatenate([age, gender, occ_one_hot], axis=1)
 
-with h5py.File("user.hdf5", "w") as f:
+with h5py.File("/data/ml-100k/user.hdf5", "w") as f:
     ids = user['id']
     arr = f.create_dataset("id", ids.shape, dtype=ids.dtype)
     arr[:] = ids
@@ -34,7 +34,8 @@ with h5py.File("user.hdf5", "w") as f:
     arr[:] = feat
 
 # process movie data
-movie = pandas.read_csv('u.item', delimiter='|', encoding="ISO-8859-1", header=None)
+movie = pandas.read_csv('/data/ml-100k/u.item', delimiter='|',
+        encoding="ISO-8859-1", header=None)
 title = movie[1]
 attrs = []
 for i in range(5, 24):
@@ -56,9 +57,9 @@ def write_data_parquet(data, data_file):
     pq.write_table(table, data_file)
 
 movie_data = {'id': ids, 'feat': attrs, 'title': title}
-write_data_parquet(movie_data, 'movie.parquet')
+write_data_parquet(movie_data, '/data/ml-100k/movie.parquet')
 
 # process edges
-edges = pandas.read_csv('u.data', delimiter='\t', header=None)
+edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
 edge_data = {'src_id': edges[0], 'dst_id': edges[1], 'rate': edges[2]}
-write_data_parquet(edge_data, 'edges.parquet')
+write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
