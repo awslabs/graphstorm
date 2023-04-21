@@ -12,7 +12,6 @@ gsf:
     no_validation: false
     mp_opt_level: O2
     train_nodes: 10
-    debug: false
     alpha_l2norm: 0.
   gnn:
     fanout: "50,50"
