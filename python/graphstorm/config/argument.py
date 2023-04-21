@@ -378,7 +378,7 @@ class GSConfig:
         """ User defined node feature name
 
             It can be in following format:
-            1)feat_name: global feature name, if a node has node feature,
+            1) [feat_name]: global feature name, if a node has node feature,
             the corresponding feature name is <feat_name>
             2)["ntype0:feat0","ntype1:feat0,feat1",...]: different node
             types have different node features.
@@ -1122,6 +1122,43 @@ class GSConfig:
 
         # Set default value to distmult
         return BUILTIN_LP_DISTMULT_DECODER
+
+    @property
+    def lp_edge_weight_for_loss(self):
+        """ The edge data fields that stores the edge weights used
+            in computing link prediction loss
+
+            The edge_weight can be in following format:
+            1) [weight_name]: global weight name, if an edge has weight,
+            the corresponding weight name is <weight_name>
+            2) ["src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...]:
+            different edge types have different edge weights.
+
+            By default, it is none.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_lp_edge_weight_for_loss"):
+            edge_weights = self._lp_edge_weight_for_loss
+            if len(edge_weights) == 1 and \
+                ":" not in edge_weights[0]:
+                # global feat_name
+                return edge_weights[0]
+
+            # per edge type feature
+            weight_dict = {}
+            for weight_name in edge_weights:
+                weight_info = weight_name.split(":")
+                etype = tuple(weight_info[0].split(","))
+                if etype in weight_dict:
+                    assert False, \
+                        f"You already specify the weight names of {etype}" \
+                        f"as {weight_dict[etype]}"
+                assert isinstance(weight_info[1], str), \
+                    f"Feature name of {etype} should be a string not {weight_info[1]}"
+                weight_dict[etype] = weight_info[1]
+            return weight_dict
+
+        return None
 
     @property
     def train_etype(self):
