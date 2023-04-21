@@ -27,6 +27,7 @@ from numpy.testing import assert_almost_equal, assert_equal
 import dgl
 
 from graphstorm.config import GSConfig
+from graphstorm.config import BUILTIN_LP_DOT_DECODER
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer
@@ -630,7 +631,7 @@ def create_lp_config(tmp_path, file_name):
             },
             "link_prediction": {
                 "train_etype": ["n0,r0,n1"],
-                "use_dot_product": True
+                "lp_decoder_type": BUILTIN_LP_DOT_DECODER
             },
         }
     }

@@ -26,6 +26,8 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
+from ..utils import get_rank
+
 
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
@@ -68,6 +70,13 @@ def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
         model_states['decoder'] = decoder.state_dict()
 
     os.makedirs(model_path, exist_ok=True)
+    # [04/16]: Assume this method is called by rank 0 who can perform chmod
+    assert get_rank() == 0, "Only can rank 0 process change folders mode."
+    # mode 767 means rwx-rw-rwx:
+    #     - owner of the folder can read, write, and execute;
+    #     - owner' group can read, write;
+    #     - others can read, write, and execute.
+    os.chmod(model_path, 0o767)
     th.save(model_states, os.path.join(model_path, 'model.bin'))
 
 def save_model_results_json(conf, test_model_performance, save_perf_results_path):
@@ -157,10 +166,14 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                 embs.append(sparse_emb._tensor[idx])
 
             embs = th.cat(embs, dim=0)
+            # In distributed mode where uses an NFS folder, directly call this makedirs method to
+            # create spare embedding path will cause folder permission error that prevents
+            # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
+            # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
             emb_path = os.path.join(model_path, ntype)
             os.makedirs(emb_path, exist_ok=True)
-            th.save(embs, os.path.join(emb_path,
-                                       f'sparse_emb_{local_rank}.pt'))
+            emb_file_path = os.path.join(emb_path, f'sparse_emb_{local_rank}.pt')
+            th.save(embs, emb_file_path)
 
 def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Save the states of the optimizers.
@@ -215,8 +228,6 @@ def save_relation_embeddings(emb_path, decoder):
         json.dump(et2id_map, f, ensure_ascii=False, indent=4)
     th.save(relembs, os.path.join(emb_path, "rel_emb.pt"))
 
-
-
 def save_embeddings(model_path, embeddings, local_rank, world_size):
     """ Save embeddings in a distributed way
 
@@ -232,6 +243,16 @@ def save_embeddings(model_path, embeddings, local_rank, world_size):
             World size in a distributed env.
     """
     os.makedirs(model_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if local_rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(model_path, 0o767)
+    # make sure the model_path permission is changed before other process start to save
+    th.distributed.barrier()
+
     assert local_rank < world_size
     def get_data_range(num_embs):
         # Get corresponding data range
@@ -267,6 +288,31 @@ def save_embeddings(model_path, embeddings, local_rank, world_size):
     if local_rank == 0:
         with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(emb_info))
+
+def save_prediction_results(predictions, prediction_path, local_rank):
+    """ Save node and edge predictions to the given path
+
+        Parameters
+        ----------
+        prediction_path: tensor
+            The tensor of predictions
+        prediction_path: str
+            The path of the prediction is saved.
+        local_rank : int
+            Local rank
+    """
+    os.makedirs(prediction_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if local_rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(prediction_path, 0o767)
+    # make sure the prediction_path permission is changed before other process start to save
+    th.distributed.barrier()
+
+    th.save(predictions, os.path.join(prediction_path, "predict-{}.pt".format(local_rank)))
 
 def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ Load a complete gnn model.
@@ -412,6 +458,7 @@ def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     # TODO(zhengda) we need to change DGL to make it work.
     if 'sparse' in checkpoint and len(sparse_opts) > 0:
         raise NotImplementedError('We cannot load the state of sparse optimizer')
+
 
 def remove_saved_models(model_path):
     """ For only save the Top k best performaned models to save disk spaces, need this function to
@@ -581,3 +628,37 @@ class TopKList():
                 self.toplist = first_part + [val] + last_part
 
         return insert_success, return_val
+
+
+def create_sparse_embeds_path(model_path, embed_layer):
+    """ create sparse embeddings save path by the rank 0
+        The folders are like:
+
+        $model_path/ntype0/
+        $model_path/ntype1/
+        ...
+
+        Parameters
+        ----------
+        model_path: str
+            The path of the model is saved.
+        embed_layer: model
+            A (distributed) model of embedding layers.
+    """
+    if embed_layer is None:
+        return
+
+    embed_layer = embed_layer.module \
+        if isinstance(embed_layer, DistributedDataParallel) else embed_layer
+
+    if len(embed_layer.sparse_embeds) > 0:
+        for ntype, _ in embed_layer.sparse_embeds.items():
+            emb_path = os.path.join(model_path, ntype)
+            os.makedirs(emb_path, exist_ok=True)
+            # [04/16]: Assume this method is called by rank 0 who can perform chmod
+            assert get_rank() == 0, "Only can the rank 0 process can change folders mode."
+            # mode 767 means rwx-rw-rwx:
+            #     - owner of the folder can read, write, and execute;
+            #     - owner' group can read, write;
+            #     - others can read, write, and execute.
+            os.chmod(emb_path, 0o767)
