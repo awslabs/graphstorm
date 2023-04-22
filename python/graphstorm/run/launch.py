@@ -308,7 +308,6 @@ def wrap_udf_in_torch_dist_launcher(
     #     python -m torch.distributed.launch [DIST TORCH ARGS] path/to/dist_trainer.py arg0 arg1
     udf_command = " ".join(udf_command)
     new_udf_command = f"{python_bin} {torch_dist_cmd} {udf_command}"
-    print(new_udf_command)
 
     return new_udf_command
 
@@ -493,6 +492,9 @@ def update_udf_command(udf_command, args):
     udf_command.append("--part-config")
     udf_command.append(args.part_config)
 
+    udf_command.append("--verbose")
+    udf_command.append(args.verbose)
+
     return udf_command
 
 def get_available_port(ip):
@@ -640,6 +642,9 @@ def submit_jobs(args, udf_command):
             )
         )
 
+        if args.verbose:
+            print(torch_dist_udf_command)
+
     # Start a cleanup process dedicated for cleaning up remote training jobs.
     conn1, conn2 = multiprocessing.Pipe()
     func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
@@ -682,6 +687,12 @@ def get_argument_parser():
         help="Optional. When issuing commands (via ssh) to cluster, use the provided username in the ssh cmd. "
         "Example: If you provide --ssh_username=bob, then the ssh command will be like: 'ssh bob@1.2.3.4 CMD' "
         "instead of 'ssh 1.2.3.4 CMD'",
+    )
+    parser.add_argument(
+        "--verbose",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help="Print more information.",
     )
     parser.add_argument(
         "--workspace",
@@ -806,10 +817,8 @@ def check_input_arguments(args):
         args.num_omp_threads = max(
             multiprocessing.cpu_count() // 2 // args.num_trainers, 1
         )
-        print(
-            "The number of OMP threads per trainer is set to",
-            args.num_omp_threads,
-        )
+        if args.verbose:
+            print(f"The number of OMP threads per trainer is set to {args.num_omp_threads}")
     else:
         assert args.num_omp_threads > 0, \
             "The number of OMP threads per trainer should be larger than 0"
