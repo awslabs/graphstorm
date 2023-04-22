@@ -676,6 +676,7 @@ def submit_jobs(args, udf_command):
     state_q = queue.Queue()
     tot_num_clients = args.num_trainers * (1 + args.num_samplers) * len(hosts)
 
+    udf_command = update_udf_command(udf_command, args)
     # launch server tasks
     server_cmd = f"{sys.executable} {' '.join(udf_command)}" \
         if sys.executable is not None and sys.executable != "" \
@@ -713,7 +714,6 @@ def submit_jobs(args, udf_command):
             )
         )
 
-    udf_command = update_udf_command(udf_command, args)
     # launch client tasks
     client_env_vars = construct_dgl_client_env_vars(
         num_samplers=args.num_samplers,
