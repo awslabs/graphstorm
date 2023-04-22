@@ -1065,6 +1065,7 @@ class GSConfig:
     @property
     def train_negative_sampler(self):
         """ The algorithm of sampling negative edges for link prediction
+            training.
         """
         # pylint: disable=no-member
         if hasattr(self, "_train_negative_sampler"):
@@ -1074,6 +1075,7 @@ class GSConfig:
     @property
     def eval_negative_sampler(self):
         """ The algorithm of sampling negative edges for link prediction
+            evaluation.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_negative_sampler"):
