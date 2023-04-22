@@ -36,7 +36,7 @@ from typing import Optional
 from argparse import REMAINDER
 
 
-def cleanup_proc(get_all_remote_pids, conn):
+def cleanup_proc(get_all_remote_pids_func, conn):
     """This process tries to clean up the remote training tasks.
 
         Parameters
@@ -55,7 +55,7 @@ def cleanup_proc(get_all_remote_pids, conn):
     if data == "exit":
         sys.exit(0)
     else:
-        remote_pids = get_all_remote_pids()
+        remote_pids = get_all_remote_pids_func()
         # Otherwise, we need to ssh to each machine and kill the training jobs.
         for (ip, port), pids in remote_pids.items():
             kill_process(ip, port, pids)
@@ -89,7 +89,7 @@ def kill_process(ip, port, pids):
             + ip
             + " 'kill {}'".format(pid)
         )
-        subprocess.run(kill_cmd, shell=True)
+        subprocess.run(kill_cmd, shell=True, check=False, check=False)
         killed_pids.append(pid)
     # It's possible that some of the processes are not killed. Let's try again.
     for _ in range(3):
@@ -109,7 +109,7 @@ def kill_process(ip, port, pids):
                 + ip
                 + " 'kill -9 {}'".format(pid)
             )
-            subprocess.run(kill_cmd, shell=True)
+            subprocess.run(kill_cmd, shell=True, check=False)
 
 
 def get_killed_pids(ip, port, killed_pids):
@@ -133,7 +133,7 @@ def get_killed_pids(ip, port, killed_pids):
         + ip
         + " 'ps -p {} -h'".format(killed_pids)
     )
-    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE)
+    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE, check=False)
     pids = []
     for process in res.stdout.decode("utf-8").split("\n"):
         process_list = process.split()
@@ -190,7 +190,7 @@ def execute_remote(
         except subprocess.CalledProcessError as err:
             print(f"Called process error {err}")
             state_q.put(err.returncode)
-        except Exception:
+        except Exception: # pylint: disable=broad-exception-caught
             state_q.put(-1)
 
     thread = Thread(
@@ -230,7 +230,7 @@ def get_remote_pids(ip, port, cmd_regex):
         + ip
         + " 'ps -aux | grep python | grep -v StrictHostKeyChecking'"
     )
-    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE)
+    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE, check=False)
     for process in res.stdout.decode("utf-8").split("\n"):
         process_list = process.split()
         if len(process_list) < 2:
@@ -248,7 +248,7 @@ def get_remote_pids(ip, port, cmd_regex):
         + ip
         + " 'pgrep -P {}'".format(pid_str)
     )
-    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE)
+    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE, check=False)
     pids1 = res.stdout.decode("utf-8").split("\n")
     all_pids = []
     for pid in set(pids + pids1):
@@ -457,8 +457,8 @@ def construct_dgl_client_env_vars(
     group_id: int,
     pythonpath: Optional[str] = "",
 ) -> str:
-    """Constructs the DGL client-specific env vars string that are required for DGL code to behave in the correct
-    client role.
+    """Constructs the DGL client-specific env vars string that are
+        required for DGL code to behave in the correct client role.
     Convenience function.
 
     Parameters
@@ -483,7 +483,8 @@ def construct_dgl_client_env_vars(
         Optional. If given, this will pass this as PYTHONPATH.
 
     Returns:
-        client_env_vars: The client-specific env-vars in a string format, friendly for CLI execution.
+        client_env_vars: The client-specific env-vars in a string format,
+        friendly for CLI execution.
     """
     client_env_vars_template = (
         "DGL_DIST_MODE={DGL_DIST_MODE} "
@@ -519,7 +520,8 @@ def construct_dgl_client_env_vars(
 
 def wrap_cmd_with_local_envvars(cmd: str, env_vars: str) -> str:
     """Wraps a CLI command with desired env vars with the following properties:
-    (1) env vars persist for the entire `cmd`, even if it consists of multiple "chained" commands like:
+    (1) env vars persist for the entire `cmd`, even if it consists of multiple
+        "chained" commands like:
         cmd = "ls && pwd && python run/something.py"
     (2) env vars don't pollute the environment after `cmd` completes.
 
@@ -568,7 +570,7 @@ def wrap_cmd_with_extra_envvars(cmd: str, env_vars: list) -> str:
     env_vars = " ".join(env_vars)
     return wrap_cmd_with_local_envvars(cmd, env_vars)
 
-global_group_id = 0
+GLOBAL_GROUP_ID = 0
 
 def update_udf_command(udf_command, args):
     """ Update udf_command with arguments from args.
@@ -610,7 +612,7 @@ def get_available_port(ip):
     for port in range(1234, 65535):
         try:
             sock.connect((ip, port))
-        except:
+        except Exception: # pylint: disable=broad-exception-caught
             return port
     raise RuntimeError("Failed to get available port for ip~{}".format(ip))
 
@@ -722,7 +724,7 @@ def submit_jobs(args, udf_command):
         num_omp_threads=os.environ.get(
             "OMP_NUM_THREADS", str(args.num_omp_threads)
         ),
-        group_id=global_group_id,
+        group_id=GLOBAL_GROUP_ID,
         pythonpath=os.environ.get("PYTHONPATH", ""),
     )
 
@@ -730,7 +732,8 @@ def submit_jobs(args, udf_command):
     master_port = get_available_port(master_addr)
     for node_id, host in enumerate(hosts):
         ip, _ = host
-        # Transform udf_command to follow torch's dist launcher format: `PYTHON_BIN -m torch.distributed.launch ... UDF`
+        # Transform udf_command to follow torch's dist launcher format:
+        # `PYTHON_BIN -m torch.distributed.launch ... UDF`
         torch_dist_udf_command = wrap_udf_in_torch_dist_launcher(
             udf_command=udf_command,
             num_trainers=args.num_trainers,
@@ -764,7 +767,7 @@ def submit_jobs(args, udf_command):
     process = multiprocessing.Process(target=cleanup_proc, args=(func, conn1))
     process.start()
 
-    def signal_handler(signal, frame): # pylint: disable=unused-argument
+    def signal_handler(sig, frame): # pylint: disable=unused-argument
         logging.info("Stop launcher")
         # We need to tell the cleanup process to kill remote training jobs.
         conn2.send("cleanup")
@@ -797,9 +800,11 @@ def get_argument_parser():
     parser.add_argument(
         "--ssh_username",
         default="",
-        help="Optional. When issuing commands (via ssh) to cluster, use the provided username in the ssh cmd. "
-        "Example: If you provide --ssh_username=bob, then the ssh command will be like: 'ssh bob@1.2.3.4 CMD' "
-        "instead of 'ssh 1.2.3.4 CMD'",
+        help="Optional. When issuing commands (via ssh) to cluster, \
+              use the provided username in the ssh cmd. "
+             "Example: If you provide --ssh_username=bob, \
+              then the ssh command will be like: 'ssh bob@1.2.3.4 CMD' "
+             "instead of 'ssh 1.2.3.4 CMD'",
     )
     parser.add_argument(
         "--verbose",

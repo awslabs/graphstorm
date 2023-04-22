@@ -32,8 +32,6 @@ python3 -m graphstorm.run.launch \
         --ip_config ${IP_CONFIG} \
         --ssh_port 2222 \
         ${GSF_HOME}/tests/end2end-tests/custom-gnn/train.py \
-        --ip-config ${IP_CONFIG} \
-        --part-config ${PART_CONFIG} \
         --graph-name movie-lens-100k \
         --predict-ntype movie \
         --node-feat feat \
