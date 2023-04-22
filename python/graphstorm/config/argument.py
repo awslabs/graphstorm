@@ -1457,7 +1457,7 @@ def _add_hyperparam_args(parser):
     # early stop
     group.add_argument("--early-stop-burnin-rounds",
             type=int, default=argparse.SUPPRESS,
-            help="burn-in rounds before to start early stop")
+            help="Burn-in rounds before start checking for the early stop condition.")
     group.add_argument("--window-for-early-stop",
             type=int, default=argparse.SUPPRESS,
             help="the number of latest validation scores to average deciding on early stop")

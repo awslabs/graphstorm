@@ -119,7 +119,7 @@ class GSgnnInstanceEvaluator():
     enable_early_stop: bool
         Set true to enable early stop.
     early_stop_burnin_rounds: int
-        Burnin rounds before to start early stop.
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -335,7 +335,7 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
     enable_early_stop: bool
         Set true to enable early stop.
     early_stop_burnin_rounds: int
-        Burnin rounds before to start early stop.
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -443,7 +443,7 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
     enable_early_stop: bool
         Set true to enable early stop.
     early_stop_burnin_rounds: int
-        Burnin rounds before to start early stop.
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -559,7 +559,7 @@ class GSgnnLPEvaluator():
     enable_early_stop: bool
         Set true to enable early stop.
     early_stop_burnin_rounds: int
-        Burnin rounds before to start early stop.
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -774,7 +774,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
     enable_early_stop: bool
         Set true to enable early stop.
     early_stop_burnin_rounds: int
-        Burnin rounds before to start early stop.
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
