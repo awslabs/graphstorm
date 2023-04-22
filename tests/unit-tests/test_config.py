@@ -340,7 +340,6 @@ def create_task_tracker_config(tmp_path, file_name):
 
     yaml_object["gsf"]["output"] = {
         "task_tracker": "sagemaker_task_tracker",
-        "log_report_frequency": 100,
     }
 
     # config for check default value
@@ -349,7 +348,6 @@ def create_task_tracker_config(tmp_path, file_name):
 
     yaml_object["gsf"]["output"] = {
         "task_tracker": "mlflow",
-        "log_report_frequency": 0,
     }
 
     # config for check default value
@@ -364,19 +362,16 @@ def test_task_tracker_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.task_tracker == GRAPHSTORM_SAGEMAKER_TASK_TRACKER
-        assert config.log_report_frequency == 1000
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.task_tracker == GRAPHSTORM_SAGEMAKER_TASK_TRACKER
-        assert config.log_report_frequency == 100
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test_fail.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "task_tracker")
-        check_failure(config, "log_report_frequency")
 
 def create_train_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()

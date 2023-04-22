@@ -29,7 +29,6 @@ class GSTaskTrackerAbc():
     """
     def __init__(self, config, rank):
         self._rank = rank
-        self._report_frequency = config.log_report_frequency # Can be None if not provided
 
     @abc.abstractmethod
     def log_metric(self, metric_name, metric_value, step, force_report=False):

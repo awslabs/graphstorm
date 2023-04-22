@@ -611,18 +611,6 @@ class GSConfig:
         # It works as normal print
         return GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 
-    @property
-    def log_report_frequency(self):
-        """ Get print/log frequency in number of iterations
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_log_report_frequency"):
-            assert self._log_report_frequency > 0, \
-                "log_report_frequency should be larger than 0"
-            return self._log_report_frequency
-
-        # By default, use 1000
-        return 1000
 
     ###################### Model training related ######################
     @property
@@ -1408,9 +1396,6 @@ def _add_task_tracker(parser):
     group = parser.add_argument_group(title="task_tracker")
     group.add_argument("--task-tracker", type=str, default=argparse.SUPPRESS,
             help=f'Task tracker name. Now we only support {GRAPHSTORM_SAGEMAKER_TASK_TRACKER}')
-    group.add_argument("--log-report-frequency", type=int, default=argparse.SUPPRESS,
-            help="Task running log report frequency. "
-                 "In training, every log_report_frequency, the task states are reported")
     return parser
 
 def _add_hyperparam_args(parser):
