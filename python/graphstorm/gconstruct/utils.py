@@ -165,13 +165,10 @@ class ExtMemArrayConverter:
         -------
         Numpy array : the Numpy array stored in external memory.
         """
-        feat_size = np.prod(arrs[0].shape[1:]) if isinstance(arrs, list) \
-                else np.prod(arrs.shape[1:])
         shape = _get_tot_shape(arrs)
-
         # If external memory workspace is not initialized or the feature size is smaller
         # than a threshold, we don't do anything.
-        if self._ext_mem_workspace is None or feat_size < self._ext_mem_feat_size:
+        if self._ext_mem_workspace is None or np.prod(shape[1:]) < self._ext_mem_feat_size:
             if not isinstance(arrs, list):
                 return arrs
             elif isinstance(arrs, list) and len(arrs) == 1:
