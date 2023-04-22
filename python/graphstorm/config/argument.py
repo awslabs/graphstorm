@@ -457,18 +457,18 @@ class GSConfig:
             return [-1] * len(self.fanout)
 
     @property
-    def n_hidden(self):
+    def hidden_size(self):
         """ Hidden embedding size
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_n_hidden"), \
-            "n_hidden must be provided when pretrain a embedding layer, " \
+        assert hasattr(self, "_hidden_size"), \
+            "hidden_size must be provided when pretrain a embedding layer, " \
             "or train a GNN model"
-        assert isinstance(self._n_hidden, int), \
+        assert isinstance(self._hidden_size, int), \
             "Hidden embedding size must be an integer"
-        assert self._n_hidden > 0, \
+        assert self._hidden_size > 0, \
             "Hidden embedding size must be larger than 0"
-        return self._n_hidden
+        return self._hidden_size
 
     @property
     def n_layers(self):
@@ -1363,8 +1363,8 @@ def _add_gnn_args(parser):
             help="Fan-out of neighbor sampling during minibatch evaluation. "
                  "This argument can either be --eval-fanout 20,10 or "
                  "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
-    group.add_argument("--n-hidden", type=int, default=argparse.SUPPRESS,
-            help="number of hidden units")
+    group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
+            help="The number of features in the hidden state")
     group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
             help="number of propagation rounds")
     parser.add_argument(

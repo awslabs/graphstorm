@@ -423,7 +423,7 @@ def create_ec_config(tmp_path, file_name):
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "model_encoder_type": "rgcn",
                 "lr": 0.001,
             },
@@ -476,7 +476,7 @@ def create_er_config(tmp_path, file_name):
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "lr": 0.001,
             },
             "input": {},
@@ -525,7 +525,7 @@ def create_nr_config(tmp_path, file_name):
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "lr": 0.001,
             },
             "input": {},
@@ -573,7 +573,7 @@ def create_nc_config(tmp_path, file_name):
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "lr": 0.001,
             },
             "input": {},
@@ -622,7 +622,7 @@ def create_lp_config(tmp_path, file_name):
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "lr": 0.001,
             },
             "input": {},
