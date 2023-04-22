@@ -332,9 +332,7 @@ def construct_dgl_server_env_vars(
         num_server_threads:
         tot_num_clients:
         part_config: Partition config.
-            Relative path to workspace.
         ip_config: IP config file containing IP addresses of cluster hosts.
-            Relative path to workspace.
         num_servers:
         graph_format:
         pythonpath: Optional. If given, this will pass this as PYTHONPATH.
@@ -389,9 +387,7 @@ def construct_dgl_client_env_vars(
         num_samplers:
         tot_num_clients:
         part_config: Partition config.
-            Relative path to workspace.
         ip_config: IP config file containing IP addresses of cluster hosts.
-            Relative path to workspace.
         num_servers:
         graph_format:
         num_omp_threads:
@@ -520,7 +516,6 @@ def submit_jobs(args, udf_command):
     thread_list = []
     server_count_per_machine = 0
 
-    args.workspace = os.path.abspath(args.workspace)
     # Get the IP addresses of the cluster.
     # The path to the ip config file can be a absolute path or
     # a relative path to the workspace
@@ -690,7 +685,7 @@ def get_argument_parser():
     )
     parser.add_argument(
         "--workspace",
-        default="./",
+        default=None,
         type=str,
         help="Path of user directory of distributed tasks. \
               This is used to specify a destination location treated \
@@ -721,12 +716,15 @@ def get_argument_parser():
     parser.add_argument(
         "--part_config",
         type=str,
-        help="The file (in workspace) of the partition config",
+        help="The file of the partition config. Absolute path is preferred. \
+              Otherwise, the file should be in workspace.",
     )
     parser.add_argument(
         "--ip_config",
         type=str,
-        help="The file (in workspace) of IP configuration for server processes",
+        help="The file of IP configuration for server processes. \
+              Absolute path is preferred. \
+              Otherwise, the file should be in workspace.",
     )
     parser.add_argument(
         "--num_server_threads",
@@ -790,14 +788,18 @@ def check_input_arguments(args):
         args.num_server_threads > 0
     ), "--num_server_threads must be a positive number."
     assert (
-        args.workspace is not None
-    ), "A user has to specify a workspace with --workspace."
-    assert (
         args.part_config is not None
     ), "A user has to specify a partition configuration file with --part_config."
     assert (
         args.ip_config is not None
     ), "A user has to specify an IP configuration file with --ip_config."
+
+    if args.workspace is None:
+        # Get PWD
+        args.workspace = os.path.dirname(os.path.realpath(__file__))
+    else:
+        args.workspace = os.path.abspath(args.workspace)
+
     if args.num_omp_threads is None:
         # Here we assume all machines have the same number of CPU cores as the machine
         # where the launch script runs.
@@ -816,19 +818,19 @@ def main():
     parser = get_argument_parser()
     # Positional arguments.
     parser.add_argument(
-        "training_script",
+        "exec_script",
         type=str,
         help="Full path to the (single GPU) training program/script to be launched in parallel, "
         "followed by all the arguments for the training script.",
     )
 
     # Rest from the training program.
-    parser.add_argument("training_script_args", nargs=REMAINDER)
+    parser.add_argument("exec_script_args", nargs=REMAINDER)
     args = parser.parse_args()
     check_input_arguments(args)
 
-    training_script_args = [args.training_script] + args.training_script_args
-    submit_jobs(args, training_script_args)
+    exec_script_args = [args.exec_script] + args.exec_script_args
+    submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":
     fmt = "%(asctime)s %(levelname)s %(message)s"

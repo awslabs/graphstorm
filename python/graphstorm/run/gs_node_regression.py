@@ -28,7 +28,7 @@ from argparse import REMAINDER
 
 def main():
     parser = get_argument_parser()
-    args, training_script_args = parser.parse_known_args()
+    args, exec_script_args = parser.parse_known_args()
     check_input_arguments(args)
 
     lib_dir = os.path.abspath(os.path.dirname(__file__))
@@ -36,9 +36,9 @@ def main():
         cmd_path = os.path.join(lib_dir, "gsgnn_np/np_infer_gnn.py")
     else:
         cmd_path = os.path.join(lib_dir, "gsgnn_np/gsgnn_np.py")
-    training_script_args = [cmd_path] + training_script_args
+    exec_script_args = [cmd_path] + exec_script_args
 
-    submit_jobs(args, training_script_args)
+    submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":
     fmt = "%(asctime)s %(levelname)s %(message)s"

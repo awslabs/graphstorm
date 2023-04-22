@@ -28,7 +28,7 @@ from argparse import REMAINDER
 
 def main():
     parser = get_argument_parser()
-    args, training_script_args = parser.parse_known_args()
+    args, exec_script_args = parser.parse_known_args()
     check_input_arguments(args)
 
     lib_dir = os.path.abspath(os.path.dirname(__file__))
@@ -39,9 +39,9 @@ def main():
         cmd = "gsgnn_lp/gsgnn_lm_lp.py" if args.lm_encoder_only \
             else "gsgnn_lp/gsgnn_lp.py"
     cmd_path = os.path.join(lib_dir, cmd)
-    training_script_args = [cmd_path] + training_script_args
+    exec_script_args = [cmd_path] + exec_script_args
 
-    submit_jobs(args, training_script_args)
+    submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":
     fmt = "%(asctime)s %(levelname)s %(message)s"
