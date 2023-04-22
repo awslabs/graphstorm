@@ -240,8 +240,6 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                 assert len(type_node_data[feat_name]) == 1
             type_node_data[feat_name] = _merge_data(type_node_data[feat_name],
                                                     node_type + "_" + feat_name)
-            feat_shape = type_node_data[feat_name].shape
-            print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
@@ -379,9 +377,8 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
             type_edge_data[feat_name] = _merge_data(type_edge_data[feat_name],
                                                     edge_str + "_" + feat_name)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
-            feat_shape = type_edge_data[feat_name].shape
-            print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
+            sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
 
         edge_type = tuple(edge_type)
         edges[edge_type] = (type_src_ids, type_dst_ids)
