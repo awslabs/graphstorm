@@ -50,7 +50,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             test_loader=None,
             mini_batch_infer=True,
             save_model_path=None,
-            save_model_per_iters=None,
+            save_model_frequency=None,
             save_perf_results_path=None,
             freeze_input_layer_epochs=0):
         """ The fit function for edge prediction.
@@ -70,7 +70,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             Whether or not to use mini-batch inference.
         save_model_path : str
             The path where the model is saved.
-        save_model_per_iters : int
+        save_model_frequency : int
             The number of iteration to train the model before saving the model.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
@@ -170,8 +170,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 # Every n iterations, check to save the top k models. If has validation score,
                 # will save # the best top k. But if no validation, will either save
                 # the last k model or all models depends on the setting of top k
-                if save_model_per_iters > 0 and \
-                    total_steps % save_model_per_iters == 0 and \
+                if save_model_frequency > 0 and \
+                    total_steps % save_model_frequency == 0 and \
                     total_steps != 0:
                     if self.evaluator is None or val_score is not None:
                         # We will save the best model when
