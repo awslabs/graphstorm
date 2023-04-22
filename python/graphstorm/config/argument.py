@@ -549,7 +549,7 @@ class GSConfig:
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
             assert self._save_model_frequency > 0, \
-                f'save-model-per-iters must large than 0, but got {self._save_model_frequency}'
+                f'save-model-frequency must large than 0, but got {self._save_model_frequency}'
             return self._save_model_frequency
         # By default, use -1, means do not auto save models
         return -1
