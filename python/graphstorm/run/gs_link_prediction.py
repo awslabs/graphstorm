@@ -41,6 +41,10 @@ def main():
     cmd_path = os.path.join(lib_dir, cmd)
     exec_script_args = [cmd_path] + exec_script_args
 
+    if "coo" not in args.graph_format:
+        args.graph_format = f"{args.graph_format},coo"
+        print(f"Automatically add COO format to graph formats for link prediction. \
+              New graph_format is {args.graph_format}")
     submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":
