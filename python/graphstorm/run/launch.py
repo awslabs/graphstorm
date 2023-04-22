@@ -810,7 +810,7 @@ def get_argument_parser():
     parser.add_argument(
         "--verbose",
         type=lambda x: (str(x).lower() in ['true', '1']),
-        default=argparse.SUPPRESS,
+        default=False,
         help="Print more information.",
     )
     parser.add_argument(
