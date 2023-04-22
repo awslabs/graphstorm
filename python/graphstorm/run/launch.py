@@ -542,7 +542,8 @@ def wrap_cmd_with_local_envvars(cmd: str, env_vars: str) -> str:
         cmd_with_env_vars:
 
     """
-    # use `export` to persist env vars for entire cmd block. required if udf_command is a chain of commands
+    # use `export` to persist env vars for entire cmd block. required if
+    # udf_command is a chain of commands
     # also: wrap in parens to not pollute env:
     #     https://stackoverflow.com/a/45993803
     return f"(export {env_vars}; {cmd})"
