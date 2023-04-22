@@ -1391,7 +1391,7 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
-    group.add_argument('--save-model-per-iters', type=int, default=argparse.SUPPRESS,
+    group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,
             help='Save the model to the specified file. Use none to turn off model saveing')
