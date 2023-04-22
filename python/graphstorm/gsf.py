@@ -58,15 +58,15 @@ def initialize(ip_config, backend):
     th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
 
-def get_feat_size(g, feat_names):
+def get_feat_size(g, node_feat_names):
     """ Get the feature's size on each node type in the input graph.
 
     Parameters
     ----------
     g : DistGraph
         The distributed graph.
-    feat_names : str or dict of str
-        The feature names.
+    node_feat_names : str or dict of str
+        The node feature names.
 
     Returns
     -------
@@ -75,12 +75,12 @@ def get_feat_size(g, feat_names):
     feat_size = {}
     for ntype in g.ntypes:
         # user can specify the name of the field
-        if feat_names is None:
+        if node_feat_names is None:
             feat_name = None
-        elif isinstance(feat_names, dict) and ntype in feat_names:
-            feat_name = feat_names[ntype]
-        elif isinstance(feat_names, str):
-            feat_name = feat_names
+        elif isinstance(node_feat_names, dict) and ntype in node_feat_names:
+            feat_name = node_feat_names[ntype]
+        elif isinstance(node_feat_names, str):
+            feat_name = node_feat_names
         else:
             feat_name = None
 
@@ -353,7 +353,7 @@ def set_encoder(model, g, config, train_task):
         Whether this model is used for training.
     """
     # Set input layer
-    feat_size = get_feat_size(g, config.feat_name)
+    feat_size = get_feat_size(g, config.node_feat_name)
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:
         if model_encoder_type == "lm":
@@ -363,13 +363,13 @@ def set_encoder(model, g, config, train_task):
                                              lm_infer_batchszie=config.lm_infer_batchszie)
         else:
             encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
-                                                feat_size, config.n_hidden,
+                                                feat_size, config.hidden_size,
                                                 num_train=config.lm_train_nodes,
                                                 lm_infer_batchszie=config.lm_infer_batchszie,
                                                 dropout=config.dropout,
                                                 use_node_embeddings=config.use_node_embeddings)
     else:
-        encoder = GSNodeEncoderInputLayer(g, feat_size, config.n_hidden,
+        encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
                                           use_node_embeddings=config.use_node_embeddings)
     model.set_node_input_encoder(encoder)
@@ -385,7 +385,7 @@ def set_encoder(model, g, config, train_task):
         # we need to set the n_layers -1 because there is an output layer
         # that is hard coded.
         gnn_encoder = RelationalGCNEncoder(g,
-                                           config.n_hidden, config.n_hidden,
+                                           config.hidden_size, config.hidden_size,
                                            num_bases=n_bases,
                                            num_hidden_layers=config.n_layers -1,
                                            dropout=dropout,
@@ -393,8 +393,8 @@ def set_encoder(model, g, config, train_task):
     elif model_encoder_type == "rgat":
         # we need to set the n_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
-                                           config.n_hidden,
-                                           config.n_hidden,
+                                           config.hidden_size,
+                                           config.hidden_size,
                                            config.n_heads,
                                            num_hidden_layers=config.n_layers -1,
                                            dropout=dropout,

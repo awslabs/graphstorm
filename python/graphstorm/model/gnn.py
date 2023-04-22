@@ -561,8 +561,9 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                            self.node_input_encoder,
                            get_rank(),
                            th.distributed.get_world_size())
-        print('successfully save the model to ' + model_path)
-        print('Time on save model {}'.format(time.time() - start_save_t))
+        if get_rank() == 0:
+            print('successfully save the model to ' + model_path)
+            print('Time on save model {}'.format(time.time() - start_save_t))
 
     @property
     def node_input_encoder(self):
