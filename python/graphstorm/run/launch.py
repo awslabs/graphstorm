@@ -595,7 +595,7 @@ def update_udf_command(udf_command, args):
     udf_command.append(args.part_config)
 
     udf_command.append("--verbose")
-    udf_command.append(args.verbose)
+    udf_command.append(str(args.verbose))
 
     return udf_command
 
