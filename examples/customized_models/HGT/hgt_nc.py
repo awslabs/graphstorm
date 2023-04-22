@@ -313,7 +313,7 @@ def main(args):
                                   config.eval_metric,
                                   config.multilabel,
                                   config.enable_early_stop,
-                                  config.call_to_consider_early_stop,
+                                  config.early_stop_burnin_rounds,
                                   config.window_for_early_stop,
                                   config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
