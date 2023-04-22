@@ -926,7 +926,7 @@ def check_input_arguments(args):
 
     if args.workspace is None:
         # Get PWD
-        args.workspace = os.path.dirname(os.path.realpath(__file__))
+        args.workspace = os.getcwd()
     else:
         args.workspace = os.path.abspath(args.workspace)
 
