@@ -28,16 +28,6 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
             Task rank
     """
 
-    def _do_report(self, step):
-        """ Whether report the metric
-
-        Parameters
-        ----------
-        step: int
-            Current step
-        """
-        return step % self._report_frequency == 0
-
     def log_metric(self, metric_name, metric_value, step, force_report=False):
         """ log validation or test metric
 
@@ -52,7 +42,7 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         force_report: bool
             If true, report the metric
         """
-        if force_report or self._do_report(step):
+        if force_report:
             if metric_value is not None:
                 print(f"Step {step} | {metric_name}: {metric_value:.4f}")
 

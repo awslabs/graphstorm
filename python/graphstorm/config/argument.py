@@ -611,7 +611,6 @@ class GSConfig:
         # It works as normal print
         return GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 
-
     ###################### Model training related ######################
     @property
     def dropout(self):

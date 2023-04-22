@@ -22,12 +22,10 @@ class GSTaskTrackerAbc():
 
         Parameters
         ----------
-        config: GSConfig
-            Configurations. Users can add their own configures in the yaml config file.
         rank: int
             Task rank
     """
-    def __init__(self, config, rank):
+    def __init__(self, rank):
         self._rank = rank
 
     @abc.abstractmethod
