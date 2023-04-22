@@ -34,14 +34,14 @@ def get_evaluator(config):
                                  config.eval_metric,
                                  config.multilabel,
                                  config.enable_early_stop,
-                                 config.call_to_consider_early_stop,
+                                 config.early_stop_burnin_rounds,
                                  config.window_for_early_stop,
                                  config.early_stop_strategy)
     elif config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
                                         config.eval_metric,
                                         config.enable_early_stop,
-                                        config.call_to_consider_early_stop,
+                                        config.early_stop_burnin_rounds,
                                         config.window_for_early_stop,
                                         config.early_stop_strategy)
     else:
