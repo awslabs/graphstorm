@@ -89,7 +89,7 @@ def kill_process(ip, port, pids):
             + ip
             + " 'kill {}'".format(pid)
         )
-        subprocess.run(kill_cmd, shell=True, check=False, check=False)
+        subprocess.run(kill_cmd, shell=True, check=False)
         killed_pids.append(pid)
     # It's possible that some of the processes are not killed. Let's try again.
     for _ in range(3):
