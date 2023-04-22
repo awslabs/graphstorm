@@ -37,7 +37,15 @@ from argparse import REMAINDER
 
 
 def cleanup_proc(get_all_remote_pids, conn):
-    """This process tries to clean up the remote training tasks."""
+    """This process tries to clean up the remote training tasks.
+
+        Parameters
+        ----------
+        get_all_remote_pids: func
+            Function to get all remote pids
+        conn:
+            connection
+    """
     print("cleanupu process runs")
     # This process should not handle SIGINT.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -55,7 +63,17 @@ def cleanup_proc(get_all_remote_pids, conn):
 
 
 def kill_process(ip, port, pids):
-    """ssh to a remote machine and kill the specified processes."""
+    """ssh to a remote machine and kill the specified processes.
+
+        Parameters
+        ----------
+        ip: str
+            IP adrress of the remote machine
+        port: str
+            SSH port
+        pids: list
+            Pid list
+    """
     curr_pid = os.getpid()
     killed_pids = []
     # If we kill child processes first, the parent process may create more again. This happens
@@ -74,28 +92,38 @@ def kill_process(ip, port, pids):
         subprocess.run(kill_cmd, shell=True)
         killed_pids.append(pid)
     # It's possible that some of the processes are not killed. Let's try again.
-    for i in range(3):
+    for _ in range(3):
         killed_pids = get_killed_pids(ip, port, killed_pids)
         if len(killed_pids) == 0:
             break
-        else:
-            killed_pids.sort()
-            for pid in killed_pids:
-                print(
-                    "kill process {} on {}:{}".format(pid, ip, port), flush=True
-                )
-                kill_cmd = (
-                    "ssh -o StrictHostKeyChecking=no -p "
-                    + str(port)
-                    + " "
-                    + ip
-                    + " 'kill -9 {}'".format(pid)
-                )
-                subprocess.run(kill_cmd, shell=True)
+
+        killed_pids.sort()
+        for pid in killed_pids:
+            print(
+                "kill process {} on {}:{}".format(pid, ip, port), flush=True
+            )
+            kill_cmd = (
+                "ssh -o StrictHostKeyChecking=no -p "
+                + str(port)
+                + " "
+                + ip
+                + " 'kill -9 {}'".format(pid)
+            )
+            subprocess.run(kill_cmd, shell=True)
 
 
 def get_killed_pids(ip, port, killed_pids):
-    """Get the process IDs that we want to kill but are still alive."""
+    """Get the process IDs that we want to kill but are still alive.
+
+        Parameters
+        ----------
+        ip: str
+            IP adrress of the remote machine
+        port: str
+            SSH port
+        killed_pids: list
+            Pid list
+    """
     killed_pids = [str(pid) for pid in killed_pids]
     killed_pids = ",".join(killed_pids)
     ps_cmd = (
@@ -107,10 +135,10 @@ def get_killed_pids(ip, port, killed_pids):
     )
     res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE)
     pids = []
-    for p in res.stdout.decode("utf-8").split("\n"):
-        l = p.split()
-        if len(l) > 0:
-            pids.append(int(l[0]))
+    for process in res.stdout.decode("utf-8").split("\n"):
+        process_list = process.split()
+        if len(process_list) > 0:
+            pids.append(int(process_list[0]))
     return pids
 
 
@@ -123,18 +151,24 @@ def execute_remote(
 ) -> Thread:
     """Execute command line on remote machine via ssh.
 
-    Args:
-        cmd: User-defined command (udf) to execute on the remote host.
-        state_q: A queue collecting Thread exit states.
-        ip: The ip-address of the host to run the command on.
-        port: Port number that the host is listening on.
-        thread_list:
-        username: Optional. If given, this will specify a username to use when issuing commands over SSH.
-            Useful when your infra requires you to explicitly specify a username to avoid permission issues.
+        Parameters
+        ----------
+        cmd:
+            User-defined command (udf) to execute on the remote host.
+        state_q:
+            A queue collecting Thread exit states.
+        ip:
+            The ip-address of the host to run the command on.
+        port:
+            Port number that the host is listening on.
+        username: Optional. If given, this will specify a username to use
+            when issuing commands over SSH.
+            Useful when your infra requires you to explicitly specify a
+            username to avoid permission issues.
 
     Returns:
-        thread: The Thread whose run() is to run the `cmd` on the remote host. Returns when the cmd completes
-            on the remote host.
+        thread: The Thread whose run() is to run the `cmd` on the remote host.
+        Returns when the cmd completes on the remote host.
     """
     ip_prefix = ""
     if username:
@@ -174,10 +208,21 @@ def execute_remote(
 
 
 def get_remote_pids(ip, port, cmd_regex):
-    """Get the process IDs that run the command in the remote machine."""
+    """Get the process IDs that run the command in the remote machine.
+
+        Parameters
+        ----------
+        ip: str
+            IP adrress of the remote machine
+        port: str
+            SSH port
+        cmd_regex:
+            command pattern
+    """
     pids = []
     curr_pid = os.getpid()
-    # Here we want to get the python processes. We may get some ssh processes, so we should filter them out.
+    # Here we want to get the python processes.
+    # We may get some ssh processes, so we should filter them out.
     ps_cmd = (
         "ssh -o StrictHostKeyChecking=no -p "
         + str(port)
@@ -186,14 +231,14 @@ def get_remote_pids(ip, port, cmd_regex):
         + " 'ps -aux | grep python | grep -v StrictHostKeyChecking'"
     )
     res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE)
-    for p in res.stdout.decode("utf-8").split("\n"):
-        l = p.split()
-        if len(l) < 2:
+    for process in res.stdout.decode("utf-8").split("\n"):
+        process_list = process.split()
+        if len(process_list) < 2:
             continue
         # We only get the processes that run the specified command.
-        res = re.search(cmd_regex, p)
-        if res is not None and int(l[1]) != curr_pid:
-            pids.append(l[1])
+        res = re.search(cmd_regex, process)
+        if res is not None and int(process_list[1]) != curr_pid:
+            pids.append(process_list[1])
 
     pid_str = ",".join([str(pid) for pid in pids])
     ps_cmd = (
@@ -215,7 +260,17 @@ def get_remote_pids(ip, port, cmd_regex):
 
 
 def get_all_remote_pids(hosts, ssh_port, udf_command):
-    """Get all remote processes."""
+    """Get all remote processes.
+
+        Parameters
+        ----------
+        hosts: list
+            list of hosts
+        ssh_port: str
+            SSH port
+        udf_command:
+            command
+    """
     remote_pids = {}
     for _, host in enumerate(hosts):
         ip, _ = host
@@ -236,17 +291,24 @@ def construct_torch_dist_launcher_cmd(
     master_port: int,
 ) -> str:
     """Constructs the torch distributed launcher command.
-    Helper function.
+       Helper function.
 
-    Args:
+        Parameters
+        ----------
         num_trainers:
+            Number of trainers on each machine.
         num_nodes:
+            Number of machines
         node_rank:
+            Rank of current node
         master_addr:
+            Master address
         master_port:
+            Master port
 
-    Returns:
-        cmd_str.
+        Returns
+        -------
+            cmd_str.
     """
     torch_cmd_template = (
         "-m torch.distributed.launch "
@@ -277,16 +339,23 @@ def wrap_udf_in_torch_dist_launcher(
 
          "python3 -m torch.distributed.launch <TORCH DIST ARGS> run/some/trainer.py arg1 arg2
 
-    Args:
+        Parameters
+        ----------
         udf_command:
+            Execution command
         num_trainers:
+            Number of trainers on each machine.
         num_nodes:
+            Number of machines
         node_rank:
+            Rank of current node
         master_addr:
+            Master address
         master_port:
+            Master port
 
     Returns:
-
+        New command
     """
     torch_dist_cmd = construct_torch_dist_launcher_cmd(
         num_trainers=num_trainers,
@@ -322,22 +391,32 @@ def construct_dgl_server_env_vars(
     graph_format: str,
     pythonpath: Optional[str] = "",
 ) -> str:
-    """Constructs the DGL server-specific env vars string that are required for DGL code to behave in the correct
-    server role.
+    """Constructs the DGL server-specific env vars string that
+       are required for DGL code to behave in the correct server role.
     Convenience function.
 
-    Args:
+        Parameters
+        ----------
         num_samplers:
+            Number of sampler per server
         num_server_threads:
+            Number of OMP threads per server
         tot_num_clients:
-        part_config: Partition config.
-        ip_config: IP config file containing IP addresses of cluster hosts.
+            Total number of clients
+        part_config:
+            Partition config.
+        ip_config:
+            IP config file containing IP addresses of cluster hosts.
         num_servers:
+            Number of servers
         graph_format:
-        pythonpath: Optional. If given, this will pass this as PYTHONPATH.
+            Graph format
+        pythonpath:
+            Optional. If given, this will pass this as PYTHONPATH.
 
     Returns:
-        server_env_vars: The server-specific env-vars in a string format, friendly for CLI execution.
+        server_env_vars: The server-specific env-vars in a string format,
+        friendly for CLI execution.
 
     """
     server_env_vars_template = (
@@ -382,21 +461,29 @@ def construct_dgl_client_env_vars(
     client role.
     Convenience function.
 
-    Args:
-        num_samplers:
-        tot_num_clients:
-        part_config: Partition config.
-        ip_config: IP config file containing IP addresses of cluster hosts.
-        num_servers:
-        graph_format:
-        num_omp_threads:
-        group_id:
-            Used in client processes to indicate which group it belongs to.
-        pythonpath: Optional. If given, this will pass this as PYTHONPATH.
+    Parameters
+    ----------
+    num_samplers:
+        Number of sampler per server
+    tot_num_clients:
+        Total number of clients
+    part_config:
+        Partition config.
+    ip_config:
+        IP config file containing IP addresses of cluster hosts.
+    num_servers:
+        Number of servers per machine.
+    graph_format:
+        Graph format
+    num_omp_threads:
+        Number of OMP threads per trainer
+    group_id:
+        Used in client processes to indicate which group it belongs to.
+    pythonpath:
+        Optional. If given, this will pass this as PYTHONPATH.
 
     Returns:
         client_env_vars: The client-specific env-vars in a string format, friendly for CLI execution.
-
     """
     client_env_vars_template = (
         "DGL_DIST_MODE={DGL_DIST_MODE} "
@@ -442,9 +529,12 @@ def wrap_cmd_with_local_envvars(cmd: str, env_vars: str) -> str:
         >>> wrap_cmd_with_local_envvars(cmd, env_vars)
         "(export VAR1=value1 VAR2=value2; ls && pwd)"
 
-    Args:
-        cmd:
-        env_vars: A string containing env vars, eg "VAR1=val1 VAR2=val2"
+    Parameters
+    ----------
+    cmd:
+        cmd
+    env_vars:
+        A string containing env vars, eg "VAR1=val1 VAR2=val2"
 
     Returns:
         cmd_with_env_vars:
@@ -465,9 +555,12 @@ def wrap_cmd_with_extra_envvars(cmd: str, env_vars: list) -> str:
         >>> wrap_cmd_with_extra_envvars(cmd, env_vars)
         "(export VAR1=value1 VAR2=value2; ls && pwd)"
 
-    Args:
-        cmd:
-        env_vars: A list of strings containing env vars, e.g., ["VAR1=value1", "VAR2=value2"]
+    Parameters
+    ----------
+    cmd:
+        cmd
+    env_vars:
+        A list of strings containing env vars, e.g., ["VAR1=value1", "VAR2=value2"]
 
     Returns:
         cmd_with_env_vars:
@@ -475,9 +568,7 @@ def wrap_cmd_with_extra_envvars(cmd: str, env_vars: list) -> str:
     env_vars = " ".join(env_vars)
     return wrap_cmd_with_local_envvars(cmd, env_vars)
 
-
-g_monitor_file = None
-g_group_id = 0
+global_group_id = 0
 
 def update_udf_command(udf_command, args):
     """ Update udf_command with arguments from args.
@@ -485,6 +576,14 @@ def update_udf_command(udf_command, args):
         The arguments to update includes:
         1. ip-config
         2. part-config
+        3. verbose
+
+        Parameters
+        ----------
+        udf_command: list
+            Execution arguments to update
+        args:
+            Launch arguments
     """
     udf_command.append("--ip-config")
     udf_command.append(args.ip_config)
@@ -498,7 +597,13 @@ def update_udf_command(udf_command, args):
     return udf_command
 
 def get_available_port(ip):
-    """Get available port with specified ip."""
+    """Get available port with specified ip.
+
+        Parameters
+        ----------
+        ip: str
+            Current ip
+    """
     import socket
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -511,7 +616,15 @@ def get_available_port(ip):
 
 
 def submit_jobs(args, udf_command):
-    """Submit distributed jobs (server and client processes) via ssh"""
+    """Submit distributed jobs (server and client processes) via ssh
+
+        Parameters
+        ----------
+        args:
+            Launch arguments
+        udf_command: list
+            Execution arguments to update
+    """
     servers_cmd = []
     clients_cmd = []
     hosts = []
@@ -527,7 +640,7 @@ def submit_jobs(args, udf_command):
     assert os.path.isfile(ip_config), \
         f"IP config file must be provided but got {ip_config}"
 
-    with open(ip_config) as f:
+    with open(ip_config, encoding='utf-8') as f:
         for line in f:
             result = line.strip().split()
             if len(result) == 2:
@@ -549,7 +662,7 @@ def submit_jobs(args, udf_command):
         os.path.join(args.workspace, args.part_config)
     args.part_config = part_config
 
-    with open(part_config) as conf_f:
+    with open(part_config, encoding='utf-8') as conf_f:
         part_metadata = json.load(conf_f)
     assert "num_parts" in part_metadata, "num_parts does not exist."
     # The number of partitions must match the number of machines in the cluster.
@@ -609,7 +722,7 @@ def submit_jobs(args, udf_command):
         num_omp_threads=os.environ.get(
             "OMP_NUM_THREADS", str(args.num_omp_threads)
         ),
-        group_id=g_group_id,
+        group_id=global_group_id,
         pythonpath=os.environ.get("PYTHONPATH", ""),
     )
 
@@ -651,7 +764,7 @@ def submit_jobs(args, udf_command):
     process = multiprocessing.Process(target=cleanup_proc, args=(func, conn1))
     process.start()
 
-    def signal_handler(signal, frame):
+    def signal_handler(signal, frame): # pylint: disable=unused-argument
         logging.info("Stop launcher")
         # We need to tell the cleanup process to kill remote training jobs.
         conn2.send("cleanup")
@@ -824,6 +937,7 @@ def check_input_arguments(args):
             "The number of OMP threads per trainer should be larger than 0"
 
 def main():
+    """Main func"""
     parser = get_argument_parser()
     # Positional arguments.
     parser.add_argument(
@@ -842,6 +956,6 @@ def main():
     submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":
-    fmt = "%(asctime)s %(levelname)s %(message)s"
-    logging.basicConfig(format=fmt, level=logging.INFO)
+    FMT = "%(asctime)s %(levelname)s %(message)s"
+    logging.basicConfig(format=FMT, level=logging.INFO)
     main()

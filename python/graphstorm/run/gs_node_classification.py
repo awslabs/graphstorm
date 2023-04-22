@@ -24,7 +24,6 @@ import logging
 from .launch import get_argument_parser
 from .launch import check_input_arguments
 from .launch import submit_jobs
-from argparse import REMAINDER
 
 def main():
     parser = get_argument_parser()
@@ -41,6 +40,8 @@ def main():
     submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":
-    fmt = "%(asctime)s %(levelname)s %(message)s"
-    logging.basicConfig(format=fmt, level=logging.INFO)
+    """ Main function
+    """
+    FMT = "%(asctime)s %(levelname)s %(message)s"
+    logging.basicConfig(format=FMT, level=logging.INFO)
     main()
