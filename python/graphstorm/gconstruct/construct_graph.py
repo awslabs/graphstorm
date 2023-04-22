@@ -115,15 +115,6 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                                     skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
-def _merge_data(arr_list, name):
-    if isinstance(arr_list[0], HDF5Array) and list(arr_list) == 1:
-        return arr_list[0]
-
-    # If we allow to store features in external memory, we store node features
-    # that have large feature dimensions in a file and use memmap to access
-    # the array.
-    return convert2ext_mem(arr_list, name)
-
 def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1):
     """ Process node data
 
@@ -238,8 +229,15 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
             # in a single file.
             if type_node_id_map is None:
                 assert len(type_node_data[feat_name]) == 1
-            type_node_data[feat_name] = _merge_data(type_node_data[feat_name],
-                                                    node_type + "_" + feat_name)
+            if isinstance(type_node_data[feat_name][0], HDF5Array) \
+                    and list(type_node_data[feat_name]) == 1:
+                type_node_data[feat_name] = type_node_data[feat_name][0]
+            else:
+                # If we allow to store features in external memory, we store node features
+                # that have large feature dimensions in a file and use memmap to access
+                # the array.
+                type_node_data[feat_name] = convert2ext_mem(type_node_data[feat_name],
+                                                            node_type + "_" + feat_name)
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
@@ -373,9 +371,16 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         print(f"finish merging edges of {edge_type}")
 
         for feat_name in type_edge_data:
-            etype_str = "-".join(edge_type)
-            type_edge_data[feat_name] = _merge_data(type_edge_data[feat_name],
-                                                    edge_str + "_" + feat_name)
+            if isinstance(type_edge_data[feat_name][0], HDF5Array) \
+                    and list(type_edge_data[feat_name]) == 1:
+                type_edge_data[feat_name] = type_edge_data[feat_name][0]
+            else:
+                # If we allow to store features in external memory, we store node features
+                # that have large feature dimensions in a file and use memmap to access
+                # the array.
+                etype_str = "-".join(edge_type)
+                type_edge_data[feat_name] = convert2ext_mem(type_edge_data[feat_name],
+                                                            etype_str + "_" + feat_name)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
             gc.collect()
             sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
