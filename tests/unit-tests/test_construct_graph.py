@@ -23,7 +23,7 @@ import torch as th
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
-from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
+from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop
@@ -110,6 +110,17 @@ def test_hdf5():
         assert False, "This should not happen."
     except:
         pass
+
+    # Test HDF5Array
+    data1 = read_data_hdf5(tmpfile, data_fields=['data1'], in_mem=False)
+    assert isinstance(data1['data1'], HDF5Array)
+    np.testing.assert_array_equal(data1['data1'][:], data['data1'][:])
+    idx = np.arange(0, len(data1['data1']), 2)
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
+    idx = th.randint(0, len(data1['data1']), size=(100,))
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
+    idx = np.random.randint(0, len(data1['data1']), size=(100,))
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
 
     os.remove(tmpfile)
 
