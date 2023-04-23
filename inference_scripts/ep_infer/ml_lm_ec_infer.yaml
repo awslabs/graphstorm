@@ -22,7 +22,7 @@ gsf:
     freeze_lm_encoder_epochs: 0
   gnn:
     model_encoder_type: lm
-    n_hidden: 128
+    hidden_size: 128
     mini_batch_infer: true
   input:
     restore_model_path: null

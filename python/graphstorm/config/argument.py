@@ -457,18 +457,18 @@ class GSConfig:
             return [-1] * len(self.fanout)
 
     @property
-    def n_hidden(self):
+    def hidden_size(self):
         """ Hidden embedding size
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_n_hidden"), \
-            "n_hidden must be provided when pretrain a embedding layer, " \
+        assert hasattr(self, "_hidden_size"), \
+            "hidden_size must be provided when pretrain a embedding layer, " \
             "or train a GNN model"
-        assert isinstance(self._n_hidden, int), \
+        assert isinstance(self._hidden_size, int), \
             "Hidden embedding size must be an integer"
-        assert self._n_hidden > 0, \
+        assert self._hidden_size > 0, \
             "Hidden embedding size must be larger than 0"
-        return self._n_hidden
+        return self._hidden_size
 
     @property
     def n_layers(self):
@@ -759,16 +759,16 @@ class GSConfig:
 
     ### control early stop ###
     @property
-    def call_to_consider_early_stop(self):
-        """ Burning period calls to start considering early stop
+    def early_stop_burnin_rounds(self):
+        """ Burn-in rounds before we start checking for the early stop condition.
         """
         # pylint: disable=no-member
-        if hasattr(self, "_call_to_consider_early_stop"):
-            assert isinstance(self._call_to_consider_early_stop, int), \
-                "call_to_consider_early_stop should be an integer"
-            assert self._call_to_consider_early_stop >= 0, \
-                "call_to_consider_early_stop should be larger than or equal to 0"
-            return self._call_to_consider_early_stop
+        if hasattr(self, "_early_stop_burnin_rounds"):
+            assert isinstance(self._early_stop_burnin_rounds, int), \
+                "early_stop_burnin_rounds should be an integer"
+            assert self._early_stop_burnin_rounds >= 0, \
+                "early_stop_burnin_rounds should be larger than or equal to 0"
+            return self._early_stop_burnin_rounds
 
         return 0
 
@@ -781,7 +781,7 @@ class GSConfig:
             assert isinstance(self._window_for_early_stop, int), \
                 "window_for_early_stop should be an integer"
             assert self._window_for_early_stop > 0, \
-                "call_to_consider_early_stop should be larger than 0"
+                "early_stop_rounds should be larger than 0"
             return self._window_for_early_stop
 
         # at least 3 iterations
@@ -1337,8 +1337,6 @@ def _add_gsgnn_basic_args(parser):
     group = parser.add_argument_group(title="graphstorm gnn")
     group.add_argument('--backend', type=str, default=argparse.SUPPRESS,
             help='PyTorch distributed backend')
-    group.add_argument("--num-gpus", type=int, default=argparse.SUPPRESS,
-            help="number of GPUs")
     group.add_argument('--ip-config', type=str, default=argparse.SUPPRESS,
             help='The file for IP configuration')
     group.add_argument('--part-config', type=str, default=argparse.SUPPRESS,
@@ -1367,8 +1365,8 @@ def _add_gnn_args(parser):
             help="Fan-out of neighbor sampling during minibatch evaluation. "
                  "This argument can either be --eval-fanout 20,10 or "
                  "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
-    group.add_argument("--n-hidden", type=int, default=argparse.SUPPRESS,
-            help="number of hidden units")
+    group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
+            help="The number of features in the hidden state")
     group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
             help="number of propagation rounds")
     parser.add_argument(
@@ -1457,9 +1455,9 @@ def _add_hyperparam_args(parser):
             help="If no-validation is set to True, "
                  "there will be no evaluation during training.")
     # early stop
-    group.add_argument("--call-to-consider-early-stop",
+    group.add_argument("--early-stop-burnin-rounds",
             type=int, default=argparse.SUPPRESS,
-            help="burning period call to start considering early stop")
+            help="Burn-in rounds before start checking for the early stop condition.")
     group.add_argument("--window-for-early-stop",
             type=int, default=argparse.SUPPRESS,
             help="the number of latest validation scores to average deciding on early stop")

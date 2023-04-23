@@ -62,7 +62,7 @@ def main(args):
                                 config.num_negative_edges_eval,
                                 config.lp_decoder_type,
                                 config.enable_early_stop,
-                                config.call_to_consider_early_stop,
+                                config.early_stop_burnin_rounds,
                                 config.window_for_early_stop,
                                 config.early_stop_strategy))
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."

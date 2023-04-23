@@ -281,7 +281,7 @@ def main(args):
     # Define the HGT model
     model = HGT(node_dict, edge_dict,
                 n_inp_dict=nfeat_dims,
-                n_hid=config.n_hidden,
+                n_hid=config.hidden_size,
                 n_out=config.num_classes,
                 n_layers=num_layers,
                 n_heads=args.num_heads,
@@ -313,7 +313,7 @@ def main(args):
                                   config.eval_metric,
                                   config.multilabel,
                                   config.enable_early_stop,
-                                  config.call_to_consider_early_stop,
+                                  config.early_stop_burnin_rounds,
                                   config.window_for_early_stop,
                                   config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
