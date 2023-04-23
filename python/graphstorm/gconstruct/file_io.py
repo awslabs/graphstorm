@@ -184,6 +184,10 @@ class HDF5Array:
         if np.all(ids[1:] - ids[:-1] > 0):
             return self._arr[ids]
         else:
+            # There are two cases here: 1) there are duplicated IDs,
+            # 2) the IDs are not supported. Unique can return unique
+            # IDs in the ascending order that meets the requirement of
+            # HDF5 indexing.
             uniq_ids, reverse_idx = np.unique(ids, return_inverse=True)
             return self._arr[uniq_ids][reverse_idx]
 
