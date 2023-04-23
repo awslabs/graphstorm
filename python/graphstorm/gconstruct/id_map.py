@@ -64,7 +64,7 @@ class IdMap:
 
     Parameters
     ----------
-    ids : Numpy array
+    ids : Array
         The input IDs
     """
     def __init__(self, ids):
