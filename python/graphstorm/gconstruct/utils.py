@@ -107,16 +107,13 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         return return_dict
 
 def _get_tot_shape(arrs):
-    if not isinstance(arrs, list):
-        return arrs.shape
-    else:
-        num_rows = 0
-        shape1 = arrs[0].shape[1:]
-        for arr in arrs:
-            num_rows += arr.shape[0]
-            assert shape1 == arr.shape[1:]
-        shape = [num_rows] + list(shape1)
-        return tuple(shape)
+    num_rows = 0
+    shape1 = arrs[0].shape[1:]
+    for arr in arrs:
+        num_rows += arr.shape[0]
+        assert shape1 == arr.shape[1:]
+    shape = [num_rows] + list(shape1)
+    return tuple(shape)
 
 def _merge_arrs(arrs, tensor_path):
     assert isinstance(arrs, list)
@@ -132,8 +129,10 @@ def _merge_arrs(arrs, tensor_path):
     else:
         return np.concatenate(arrs)
 
-class ExtMemArrayConverter:
-    """ Convert a Numpy array to an external-memory Numpy array.
+class ExtMemArrayMerger:
+    """ Merge multiple Numpy arrays.
+
+    The merged array may be stored on disks.
 
     Parameters
     ----------
@@ -152,26 +151,25 @@ class ExtMemArrayConverter:
             os.remove(tensor_file)
 
     def __call__(self, arrs, name):
-        """ Convert a Numpy array.
+        """ Merge multiple Numpy array.
 
         Parameters
         ----------
-        arrs : Numpy array or list of arrays.
-            The input array.
+        arrs : list of arrays.
+            The input arrays.
         name : str
             The name of the external memory array.
 
         Returns
         -------
-        Numpy array : the Numpy array stored in external memory.
+        Numpy array : an array stored in external memory.
         """
+        assert isinstance(arrs, list)
         shape = _get_tot_shape(arrs)
         # If external memory workspace is not initialized or the feature size is smaller
         # than a threshold, we don't do anything.
         if self._ext_mem_workspace is None or np.prod(shape[1:]) < self._ext_mem_feat_size:
-            if not isinstance(arrs, list):
-                return arrs
-            elif isinstance(arrs, list) and len(arrs) == 1:
+            if len(arrs) == 1:
                 return arrs[0]
             else:
                 return _merge_arrs(arrs, None)
@@ -180,11 +178,12 @@ class ExtMemArrayConverter:
         os.makedirs(self._ext_mem_workspace, exist_ok=True)
         tensor_path = os.path.join(self._ext_mem_workspace, name + ".npy")
         self._tensor_files.append(tensor_path)
-        if isinstance(arrs, list):
+        if len(arrs) > 1:
             return _merge_arrs(arrs, tensor_path)
         else:
-            em_arr = np.memmap(tensor_path, arrs.dtype, mode="w+", shape=shape)
-            em_arr[:] = arrs[:]
+            arr = arrs[0]
+            em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=shape)
+            em_arr[:] = arr[:]
             return em_arr
 
 def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_dir,

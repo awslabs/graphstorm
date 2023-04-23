@@ -28,7 +28,7 @@ from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
-from graphstorm.gconstruct.utils import ExtMemArrayConverter, partition_graph
+from graphstorm.gconstruct.utils import ExtMemArrayMerger, partition_graph
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -390,18 +390,45 @@ def test_map_node_ids():
     check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map)
     check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
 
-def test_convert2ext_mem():
-    # This is to verify the correctness of ExtMemArrayConverter
-    converters = [ExtMemArrayConverter(None, 0),
-                  ExtMemArrayConverter("/tmp", 2)]
+def test_merge_arrays():
+    # This is to verify the correctness of ExtMemArrayMerger
+    converters = [ExtMemArrayMerger(None, 0),
+                  ExtMemArrayMerger("/tmp", 2)]
     for converter in converters:
-        arr = np.array([str(i) for i in range(10)])
-        em_arr = converter(arr, "test1")
-        np.testing.assert_array_equal(arr, em_arr)
+        # Input are HDF5 arrays.
+        data = {}
+        handle, tmpfile = tempfile.mkstemp()
+        os.close(handle)
+        data["data1"] = np.random.rand(10, 3)
+        data["data2"] = np.random.rand(9, 3)
+        write_data_hdf5(data, tmpfile)
+        data1 = read_data_hdf5(tmpfile, in_mem=False)
+        arrs = [data1['data1'], data1['data2']]
+        res = converter(arrs, "test1")
+        np.testing.assert_array_equal(res, np.concatenate(arrs))
+        os.remove(tmpfile)
 
-        arr = np.random.uniform(size=(1000, 10))
-        em_arr = converter(arr, "test2")
-        np.testing.assert_array_equal(arr, em_arr)
+        # Merge two arrays whose feature dimension is larger than 2.
+        data1 = np.random.uniform(size=(1000, 10))
+        data2 = np.random.uniform(size=(900, 10))
+        em_arr = converter([data1, data2], "test2")
+        np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
+
+        # Merge two arrays whose feature dimension is smaller than 2.
+        data1 = np.random.uniform(size=(1000,))
+        data2 = np.random.uniform(size=(900,))
+        em_arr = converter([data1, data2], "test3")
+        np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
+
+        # Input is an array whose feature dimension is larger than 2.
+        data1 = np.random.uniform(size=(1000, 10))
+        em_arr = converter([data1], "test4")
+        np.testing.assert_array_equal(data1, em_arr)
+
+        # Input is an array whose feature dimension is smaller than 2.
+        data1 = np.random.uniform(size=(1000,))
+        em_arr = converter([data1], "test5")
+        np.testing.assert_array_equal(data1, em_arr)
 
 def test_partition_graph():
     # This is to verify the correctness of partition_graph.
@@ -470,7 +497,7 @@ if __name__ == '__main__':
     test_hdf5()
     test_json()
     test_partition_graph()
-    test_convert2ext_mem()
+    test_merge_arrays()
     test_map_node_ids()
     test_id_map()
     test_parquet()
