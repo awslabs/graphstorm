@@ -3,7 +3,6 @@
 service ssh restart
 
 GS_HOME=$(pwd)
-DGL_HOME=/root/dgl
 NUM_TRAINERS=4
 export PYTHONPATH=$GS_HOME/python/
 cd $GS_HOME/training_scripts/gsgnn_ep
@@ -30,12 +29,12 @@ error_and_exit $?
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: HF BERT, BERT nodes: movie, inference: mini-batch"
 
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /tmp/movielens/ml.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf $GS_HOME/tests/end2end-tests/data_process/ml_ec_text.yaml --num-gpus $NUM_TRAINERS --part-config /tmp/movielens/ml.json --n-epochs 1"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /tmp/movielens/ml.json --ip_config ip_list.txt --ssh_port 2222 --cf $GS_HOME/tests/end2end-tests/data_process/ml_ec_text.yaml --num-gpus $NUM_TRAINERS --n-epochs 1
 
 error_and_exit $?
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /tmp/movielens/ml.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_ec.yaml --num-gpus 1 --part-config /tmp/movielens/ml.json --n-epochs 1"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /tmp/movielens/ml.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_ec.yaml --num-gpus 1 --n-epochs 1
 
 error_and_exit $?
 
