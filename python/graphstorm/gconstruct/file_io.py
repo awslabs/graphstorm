@@ -201,7 +201,7 @@ class HDF5Array:
             return self._arr[idx]
         else:
             # There are two cases here: 1) there are duplicated IDs,
-            # 2) the IDs are not supported. Unique can return unique
+            # 2) the IDs are not sorted. Unique can return unique
             # IDs in the ascending order that meets the requirement of
             # HDF5 indexing.
             uniq_ids, reverse_idx = np.unique(idx, return_inverse=True)
