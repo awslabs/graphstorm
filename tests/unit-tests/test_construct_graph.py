@@ -494,6 +494,8 @@ def test_partition_graph():
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
 def test_multiprocessing_checks():
+    # If the data are stored in multiple HDF5 files and there are
+    # features and labels for processing.
     conf = {
         "format": {"name": "hdf5"},
         "features":     [
@@ -518,6 +520,8 @@ def test_multiprocessing_checks():
     multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
+    # If the data are stored in multiple HDF5 files and there are
+    # labels for processing.
     conf = {
         "format": {"name": "hdf5"},
         "labels":       [
@@ -533,6 +537,8 @@ def test_multiprocessing_checks():
     multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
+    # If the data are stored in multiple HDF5 files and there are
+    # features for processing.
     conf = {
         "format": {"name": "hdf5"},
         "features":     [
@@ -551,6 +557,16 @@ def test_multiprocessing_checks():
     multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
+    # If the data are stored in a single HDF5 file and there are
+    # features for processing.
+    in_files = ["/tmp/test1"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
+
+    # If the data are stored in multiple HDF5 files and there are
+    # features that don't require processing.
     conf = {
         "format": {"name": "hdf5"},
         "features":     [
@@ -565,6 +581,8 @@ def test_multiprocessing_checks():
     multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
 
+    # If the data are stored in multiple parquet files and there are
+    # features that don't require processing.
     conf = {
         "format": {"name": "parquet"},
         "features":     [
@@ -578,6 +596,14 @@ def test_multiprocessing_checks():
     label_ops = None
     multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
+
+    # If the data are stored in a single parquet file and there are
+    # features that don't require processing.
+    in_files = ["/tmp/test1"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
 
 if __name__ == '__main__':
     test_multiprocessing_checks()
