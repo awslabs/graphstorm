@@ -26,11 +26,11 @@ from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
 
 class MyGNNModel(gsmodel.GSgnnNodeModelBase):
-    def __init__(self, g, feat_size, num_hidden, num_classes):
+    def __init__(self, g, feat_size, hidden_size, num_classes):
         super(MyGNNModel, self).__init__()
-        self._node_input = gsmodel.GSNodeEncoderInputLayer(g, feat_size, num_hidden)
-        self._gnn = gsmodel.RelationalGCNEncoder(g, num_hidden, num_hidden, num_hidden_layers=1)
-        self._decoder = gsmodel.EntityClassifier(num_hidden, num_classes, multilabel=False)
+        self._node_input = gsmodel.GSNodeEncoderInputLayer(g, feat_size, hidden_size)
+        self._gnn = gsmodel.RelationalGCNEncoder(g, hidden_size, hidden_size, num_hidden_layers=1)
+        self._decoder = gsmodel.EntityClassifier(hidden_size, num_classes, multilabel=False)
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
 
     def forward(self, blocks, node_feats, _, labels, input_nodes=None):

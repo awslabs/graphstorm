@@ -363,13 +363,13 @@ def set_encoder(model, g, config, train_task):
                                              lm_infer_batchszie=config.lm_infer_batchszie)
         else:
             encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
-                                                feat_size, config.n_hidden,
+                                                feat_size, config.hidden_size,
                                                 num_train=config.lm_train_nodes,
                                                 lm_infer_batchszie=config.lm_infer_batchszie,
                                                 dropout=config.dropout,
                                                 use_node_embeddings=config.use_node_embeddings)
     else:
-        encoder = GSNodeEncoderInputLayer(g, feat_size, config.n_hidden,
+        encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
                                           use_node_embeddings=config.use_node_embeddings)
     model.set_node_input_encoder(encoder)
@@ -385,7 +385,7 @@ def set_encoder(model, g, config, train_task):
         # we need to set the n_layers -1 because there is an output layer
         # that is hard coded.
         gnn_encoder = RelationalGCNEncoder(g,
-                                           config.n_hidden, config.n_hidden,
+                                           config.hidden_size, config.hidden_size,
                                            num_bases=n_bases,
                                            num_hidden_layers=config.n_layers -1,
                                            dropout=dropout,
@@ -393,8 +393,8 @@ def set_encoder(model, g, config, train_task):
     elif model_encoder_type == "rgat":
         # we need to set the n_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
-                                           config.n_hidden,
-                                           config.n_hidden,
+                                           config.hidden_size,
+                                           config.hidden_size,
                                            config.n_heads,
                                            num_hidden_layers=config.n_layers -1,
                                            dropout=dropout,

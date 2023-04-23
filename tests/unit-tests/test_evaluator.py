@@ -432,7 +432,7 @@ def test_early_stop_evaluator():
             "evaluation_frequency": 100,
             "eval_metric": ["rmse"],
             "enable_early_stop": False,
-            "call_to_consider_early_stop": 5,
+            "early_stop_burnin_rounds": 5,
             "window_for_early_stop": 3,
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
@@ -440,7 +440,7 @@ def test_early_stop_evaluator():
     evaluator = GSgnnRegressionEvaluator(config.evaluation_frequency,
                                          config.eval_metric,
                                          config.enable_early_stop,
-                                         config.call_to_consider_early_stop,
+                                         config.early_stop_burnin_rounds,
                                          config.window_for_early_stop,
                                          config.early_stop_strategy)
     for _ in range(10):
@@ -451,7 +451,7 @@ def test_early_stop_evaluator():
             "evaluation_frequency": 100,
             "eval_metric": ["rmse"],
             "enable_early_stop": True,
-            "call_to_consider_early_stop": 5,
+            "early_stop_burnin_rounds": 5,
             "window_for_early_stop": 3,
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
@@ -459,7 +459,7 @@ def test_early_stop_evaluator():
     evaluator = GSgnnRegressionEvaluator(config.evaluation_frequency,
                                          config.eval_metric,
                                          config.enable_early_stop,
-                                         config.call_to_consider_early_stop,
+                                         config.early_stop_burnin_rounds,
                                          config.window_for_early_stop,
                                          config.early_stop_strategy)
     for _ in range(5):
@@ -480,7 +480,7 @@ def test_early_stop_evaluator():
             "evaluation_frequency": 100,
             "eval_metric": ["accuracy"],
             "enable_early_stop": True,
-            "call_to_consider_early_stop": 5,
+            "early_stop_burnin_rounds": 5,
             "window_for_early_stop": 3,
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
@@ -489,7 +489,7 @@ def test_early_stop_evaluator():
                                   config2.eval_metric,
                                   config2.multilabel,
                                   config2.enable_early_stop,
-                                  config2.call_to_consider_early_stop,
+                                  config2.early_stop_burnin_rounds,
                                   config2.window_for_early_stop,
                                   config2.early_stop_strategy)
     for _ in range(5):
@@ -533,7 +533,7 @@ def test_early_stop_lp_evaluator():
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 100,
             "enable_early_stop": True,
-            "call_to_consider_early_stop": 5,
+            "early_stop_burnin_rounds": 5,
             "window_for_early_stop": 3,
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
@@ -542,7 +542,7 @@ def test_early_stop_lp_evaluator():
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
                                     enable_early_stop=config.enable_early_stop,
-                                    call_to_consider_early_stop=config.call_to_consider_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                                     window_for_early_stop=config.window_for_early_stop,
                                     early_stop_strategy=config.early_stop_strategy)
     for _ in range(5):
@@ -563,7 +563,7 @@ def test_early_stop_lp_evaluator():
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 100,
             "enable_early_stop": True,
-            "call_to_consider_early_stop": 5,
+            "early_stop_burnin_rounds": 5,
             "window_for_early_stop": 3,
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
@@ -572,7 +572,7 @@ def test_early_stop_lp_evaluator():
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
                                     enable_early_stop=config.enable_early_stop,
-                                    call_to_consider_early_stop=config.call_to_consider_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                                     window_for_early_stop=config.window_for_early_stop,
                                     early_stop_strategy=config.early_stop_strategy)
     for _ in range(5):

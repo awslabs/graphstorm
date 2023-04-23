@@ -21,7 +21,7 @@ gsf:
     model_encoder_type: rgcn
     fanout: "4"
     n_layers: 1
-    n_hidden: 128
+    hidden_size: 128
     mini_batch_infer: true
   input:
     restore_model_path: null
