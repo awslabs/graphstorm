@@ -169,6 +169,8 @@ class HDF5Array:
     ----------
     arr : HDF5 dataset
         The array-like object for accessing the HDF5 file.
+    handle : HDF5Handle
+        The handle that references to the opened HDF5 file.
     """
     def __init__(self, arr, handle):
         self._arr = arr
@@ -177,18 +179,29 @@ class HDF5Array:
     def __len__(self):
         return self._arr.shape[0]
 
-    def __getitem__(self, ids):
-        if isinstance(ids, th.Tensor):
-            ids = ids.numpy()
-        # If the ids are sorted.
-        if np.all(ids[1:] - ids[:-1] > 0):
-            return self._arr[ids]
+    def __getitem__(self, idx):
+        """ Slicing data from the array.
+
+        Parameters
+        ----------
+        idx : Numpy array or Pytorch tensor.
+            The index.
+
+        Returns
+        -------
+        Numpy array : the data from the HDF5 array indexed by `idx`.
+        """
+        if isinstance(idx, th.Tensor):
+            idx = idx.numpy()
+        # If the idx are sorted.
+        if np.all(idx[1:] - idx[:-1] > 0):
+            return self._arr[idx]
         else:
             # There are two cases here: 1) there are duplicated IDs,
             # 2) the IDs are not supported. Unique can return unique
             # IDs in the ascending order that meets the requirement of
             # HDF5 indexing.
-            uniq_ids, reverse_idx = np.unique(ids, return_inverse=True)
+            uniq_ids, reverse_idx = np.unique(idx, return_inverse=True)
             return self._arr[uniq_ids][reverse_idx]
 
     def to_tensor(self):
