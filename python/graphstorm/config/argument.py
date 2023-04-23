@@ -1335,8 +1335,6 @@ def _add_gsgnn_basic_args(parser):
     group = parser.add_argument_group(title="graphstorm gnn")
     group.add_argument('--backend', type=str, default=argparse.SUPPRESS,
             help='PyTorch distributed backend')
-    group.add_argument("--num-gpus", type=int, default=argparse.SUPPRESS,
-            help="number of GPUs")
     group.add_argument('--ip-config', type=str, default=argparse.SUPPRESS,
             help='The file for IP configuration')
     group.add_argument('--part-config', type=str, default=argparse.SUPPRESS,

@@ -193,6 +193,12 @@ edge_conf = [
         "relation":         ("node1", "relation2", "node1"),
         "format":           {"name": "parquet"},
         "files":            os.path.join(in_dir, "edge_data2_*.parquet"),
+        "labels":       [
+            {
+                "task_type":    "link_prediction",
+                "split_pct":   [0.8, 0.2, 0.0],
+            },
+        ],
     },
     {
         "source_id_col":    "src",
