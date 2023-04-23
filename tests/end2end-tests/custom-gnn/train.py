@@ -110,5 +110,9 @@ if __name__ == '__main__':
                            help="The number of classes.")
     argparser.add_argument("--local_rank", type=int,
                            help="The rank of the trainer.")
+    argparser.add_argument("--verbose",
+                           type=lambda x: (str(x).lower() in ['true', '1']),
+                           default=argparse.SUPPRESS,
+                          help="Print more information.")
     args = argparser.parse_args()
     main(args)
