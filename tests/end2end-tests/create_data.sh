@@ -1,18 +1,13 @@
 date
 GS_HOME=$(pwd)
+export PYTHONPATH=$GS_HOME/python/
 mkdir -p /data
 cd /data
 cp -R /storage/ml-100k /data
 
-python3 /$GS_HOME/python/graphstorm/data/tools/preprocess_movielens.py \
-    --input_path ml-100k --output_path movielen-data
-rm -fr ml-json
-
-python3 /$GS_HOME/python/graphstorm/data/tools/preprocess_movielens.py \
-    --input_path ml-100k --output_path ml-json --num_split_files 6
+python3 $GS_HOME/tests/end2end-tests/data_process/process_movielens.py
 
 # movielens node class with balanced training set
-export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--filepath /data \
 	--target_ntype movie \
@@ -24,7 +19,6 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--balance_edges \
 	--num_parts 1
 
-export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 	--filepath /data \
 	--target_ntype movie \
@@ -37,7 +31,6 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 	--num_parts 1
 
 # movielens link prediction
-export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k \
 	--filepath /data \
 	--target_etype "user,rating,movie" \
@@ -50,7 +43,6 @@ python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k \
 	--num_parts 1
 
 # movielens link prediction with text features
-export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k-text  \
 	--filepath /data \
 	--target_etype "user,rating,movie" \
@@ -63,13 +55,11 @@ python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k-text  \
 	--num_parts 1
 
 # movielens node class
-export PYTHONPATH=$GS_HOME/python/
 rm -Rf movielen_no_edata_100k_train_val_1p_4t
 cp -R movielen_100k_lp_train_val_1p_4t movielen_no_edata_100k_train_val_1p_4t
 python3 /$GS_HOME/tests/end2end-tests/data_gen/remove_mask.py --dataset movielen_no_edata_100k_train_val_1p_4t --remove_node_mask 0
 
 # movielens edge regression
-export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--filepath /data \
     --elabel_field "user,rating,movie:rate" \
@@ -85,7 +75,6 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--num_parts 1
 
 # dummy data Edge Classification
-export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--filepath /data \
     --elabel_field "user,rating,movie:rate" \
@@ -101,7 +90,6 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--num_parts 1
 
 # Create data for edge classification with text features
-export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 	--filepath /data \
     --elabel_field "user,rating,movie:rate" \
