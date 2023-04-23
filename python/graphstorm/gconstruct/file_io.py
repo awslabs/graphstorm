@@ -294,9 +294,13 @@ def _parse_file_format(conf, is_node, in_mem):
     else:
         keys = [conf["source_id_col"], conf["dest_id_col"]]
     if "features" in conf:
-        keys += [feat_conf["feature_col"] for feat_conf in conf["features"]]
+        for feat_conf in conf["features"]:
+            assert "feature_col" in feat_conf, "A feature config needs a feature_col."
+            keys.append(feat_conf["feature_col"])
     if "labels" in conf:
-        keys += [label_conf["label_col"] for label_conf in conf["labels"]]
+        for label_conf in conf["labels"]:
+            if "label_col" in label_conf:
+                keys.append(label_conf["label_col"])
     if fmt["name"] == "parquet":
         return partial(read_data_parquet, data_fields=keys)
     elif fmt["name"] == "json":
