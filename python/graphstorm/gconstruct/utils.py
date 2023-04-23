@@ -107,6 +107,16 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         return return_dict
 
 def _get_tot_shape(arrs):
+    """ Get the shape after merging the arrays.
+
+    Parameters
+    ----------
+    arrs : list of arrays
+
+    Returns
+    -------
+    tuple : the shape of the merged array.
+    """
     num_rows = 0
     shape1 = arrs[0].shape[1:]
     for arr in arrs:
@@ -116,6 +126,21 @@ def _get_tot_shape(arrs):
     return tuple(shape)
 
 def _merge_arrs(arrs, tensor_path):
+    """ Merge the arrays.
+
+    The merged array may be stored in a file specified by the path.
+
+    Parameters
+    ----------
+    arrs : list of arrays.
+        The input arrays.
+    tensor_path : str
+        The path where the Numpy array is stored.
+
+    Returns
+    -------
+    Numpy array : the merged array.
+    """
     assert isinstance(arrs, list)
     shape = _get_tot_shape(arrs)
     dtype = arrs[0].dtype
