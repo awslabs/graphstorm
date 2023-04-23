@@ -428,3 +428,47 @@ def process_labels(data, label_processors):
     """
     assert len(label_processors) == 1, "We only support one label per node/edge type."
     return label_processors[0](data)
+
+def require_multiprocessing(conf, feat_ops, label_ops, in_files):
+    """ Test whether the input data requires multiprocessing.
+
+    If the input data is stored in HDF5 and we don't need to read
+    the data in processing, we don't need to use multiprocessing to
+    read data. It needs to meet two conditions to test if the data
+    requires processing: 1) we don't need to transform the features
+    and 2) there are no labels (finding the data split
+    needs to read the labels in memory).
+
+    Parameters
+    ----------
+    conf : dict
+        The configuration of the input data.
+    feat_ops : dict of FeatTransform
+        The operations run on the input features.
+    label_ops : list of LabelProcessor
+        The operations run on the labels.
+    in_files : list of strings
+        The input files.
+
+    Returns
+    -------
+    bool : whether we need to read the data with multiprocessing.
+    """
+    # If there is only one input file.
+    if len(in_files) == 1:
+        return False
+
+    # If the input data are stored in HDF5, we need additional checks.
+    if conf['format']['name'] == "hdf5" and label_ops is None:
+        # If it doesn't have features.
+        if feat_ops is None:
+            return False
+
+        for op in feat_ops:
+            # If we need to transform the feature.
+            if not isinstance(op, Noop):
+                return True
+        # If none of the features require processing.
+        return False
+    else:
+        return True

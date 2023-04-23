@@ -34,6 +34,7 @@ from .file_io import get_in_files, write_data_parquet
 from .file_io import HDF5Array
 from .transform import parse_feat_ops, process_features
 from .transform import parse_label_ops, process_labels
+from .transform import require_multiprocessing
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import multiprocessing_data_read, ExtMemArrayMerger, partition_graph
 
@@ -169,16 +170,15 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
-        assert 'format' in process_conf, \
-                "'format' must be defined for a node type"
-        # If there is only one file, we don't need to concatenate the data.
-        # Potentially, we don't need to read the data in memory if the input
-        # format supports it. Currently, only HDF5 supports this.
-        read_file = parse_node_file_format(process_conf, in_mem=len(in_files) > 1)
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
                 if 'labels' in process_conf else None
+        assert 'format' in process_conf, \
+                "'format' must be defined for a node type"
+        multiprocessing = require_multiprocessing(process_conf, feat_ops, label_ops, in_files)
+        # If it requires multiprocessing, we need to read data to memory.
+        read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
@@ -186,7 +186,8 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                               node_id_col=node_id_col,
                               read_file=read_file)
         start = time.time()
-        return_dict = multiprocessing_data_read(in_files, num_processes, user_parser)
+        num_proc = num_processes if multiprocessing else 0
+        return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
         print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
 
@@ -324,14 +325,13 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         in_files = get_in_files(process_conf['files'])
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
-        # If there is only one file, we don't need to concatenate the data.
-        # Potentially, we don't need to read the data in memory if the input
-        # format supports it. Currently, only HDF5 supports this.
-        read_file = parse_edge_file_format(process_conf, in_mem=len(in_files) > 1)
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
                 if 'labels' in process_conf else None
+        multiprocessing = require_multiprocessing(process_conf, feat_ops, label_ops, in_files)
+        # If it requires multiprocessing, we need to read data to memory.
+        read_file = parse_edge_file_format(process_conf, in_mem=multiprocessing)
 
         # We don't need to copy all node ID maps to the worker processes.
         # Only the node ID maps of the source node type and destination node type
@@ -345,7 +345,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                               conf=process_conf,
                               skip_nonexist_edges=skip_nonexist_edges)
         start = time.time()
-        return_dict = multiprocessing_data_read(in_files, num_processes, user_parser)
+        num_proc = num_processes if multiprocessing else 0
+        return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
         print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
 

@@ -26,7 +26,7 @@ from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
-from graphstorm.gconstruct.transform import Noop
+from graphstorm.gconstruct.transform import Noop, require_multiprocessing
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import ExtMemArrayMerger, partition_graph
 
@@ -493,7 +493,94 @@ def test_partition_graph():
             assert name in edata2
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
+def test_multiprocessing_checks():
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+                "transform": {"name": 'tokenize_hf',
+                    'bert_model': 'bert-base-uncased',
+                    'max_seq_length': 16
+                },
+            },
+        ],
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = parse_label_ops(conf['labels'], is_node=True)
+    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    conf = {
+        "format": {"name": "hdf5"},
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = None
+    label_ops = parse_label_ops(conf['labels'], is_node=True)
+    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+                "transform": {"name": 'tokenize_hf',
+                    'bert_model': 'bert-base-uncased',
+                    'max_seq_length': 16
+                },
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
+
+    conf = {
+        "format": {"name": "parquet"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
 if __name__ == '__main__':
+    test_multiprocessing_checks()
     test_hdf5()
     test_json()
     test_partition_graph()
