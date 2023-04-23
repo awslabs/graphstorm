@@ -810,14 +810,14 @@ class GSConfig:
         return EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 
     @property
-    def enable_early_stop(self):
+    def use_early_stop(self):
         """ whether to enable early stopping by monitoring the validation value
         """
         # pylint: disable=no-member
-        if hasattr(self, "_enable_early_stop"):
-            assert self._enable_early_stop in [True, False], \
-                "enable_early_stop should be in [True, False]"
-            return self._enable_early_stop
+        if hasattr(self, "_use_early_stop"):
+            assert self._use_early_stop in [True, False], \
+                "use_early_stop should be in [True, False]"
+            return self._use_early_stop
 
         # By default do not enable early stop
         return False
@@ -1471,7 +1471,7 @@ def _add_hyperparam_args(parser):
             type=str, default=argparse.SUPPRESS,
             help="Specify the early stop strategy. "
             "It can be either consecutive_increase or average_increase")
-    group.add_argument("--enable-early-stop",
+    group.add_argument("--use-early-stop",
             type=bool, default=argparse.SUPPRESS,
             help='whether to enable early stopping by monitoring the validation loss')
     return parser

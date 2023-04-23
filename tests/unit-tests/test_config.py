@@ -403,7 +403,7 @@ def create_train_config(tmp_path, file_name):
         "sparse_lr": 0.001,
         "use_node_embeddings": False,
         "use_self_loop": False,
-        "enable_early_stop": True,
+        "use_early_stop": True,
         "save_model_path": os.path.join(tmp_path, "save"),
     }
 
@@ -449,7 +449,7 @@ def create_train_config(tmp_path, file_name):
         "evaluation_frequency": 1000,
         'save_model_frequency': 700,
         "topk_model_to_save": 3,
-        "enable_early_stop": True,
+        "use_early_stop": True,
         "early_stop_burnin_rounds": -1,
         "early_stop_rounds": 0,
     }
@@ -489,7 +489,7 @@ def test_train_info():
         assert config.sparse_lr == 0.01
         assert config.use_node_embeddings == False
         assert config.use_self_loop == True
-        assert config.enable_early_stop == False
+        assert config.use_early_stop == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -506,7 +506,7 @@ def test_train_info():
         assert config.sparse_lr == 0.001
         assert config.use_node_embeddings == False
         assert config.use_self_loop == False
-        assert config.enable_early_stop == True
+        assert config.use_early_stop == True
         assert config.early_stop_burnin_rounds == 0
         assert config.early_stop_rounds == 3
 
@@ -539,7 +539,7 @@ def test_train_info():
         check_failure(config, "use_self_loop")
         config._dropout = 1.0
         check_failure(config, "dropout")
-        assert config.enable_early_stop == True
+        assert config.use_early_stop == True
         check_failure(config, "topk_model_to_save")
         check_failure(config, "early_stop_burnin_rounds")
         check_failure(config, "early_stop_rounds")

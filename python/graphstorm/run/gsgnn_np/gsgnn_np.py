@@ -33,14 +33,14 @@ def get_evaluator(config):
         return GSgnnAccEvaluator(config.evaluation_frequency,
                                  config.eval_metric,
                                  config.multilabel,
-                                 config.enable_early_stop,
+                                 config.use_early_stop,
                                  config.early_stop_burnin_rounds,
                                  config.early_stop_rounds,
                                  config.early_stop_strategy)
     elif config.task_type == "node_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
                                         config.eval_metric,
-                                        config.enable_early_stop,
+                                        config.use_early_stop,
                                         config.early_stop_burnin_rounds,
                                         config.early_stop_rounds,
                                         config.early_stop_strategy)
