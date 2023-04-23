@@ -14,7 +14,7 @@ gsf:
   input:
     restore_model_path: null
   output:
-    save_predict_path: null
+    save_prediction_path: null
   hyperparam:
     eval_batch_size: 1024
   rgcn:
