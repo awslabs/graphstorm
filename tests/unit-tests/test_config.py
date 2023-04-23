@@ -391,7 +391,7 @@ def create_train_config(tmp_path, file_name):
     yaml_object["gsf"]["hyperparam"] = {
         "dropout" : 0.1,
         "lr": 0.001,
-        "n_epochs": 10,
+        "num_epochs": 10,
         "batch_size": 64,
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
@@ -439,7 +439,7 @@ def create_train_config(tmp_path, file_name):
     yaml_object["gsf"]["hyperparam"] = {
         "dropout" : -1.0,
         "lr": 0.,
-        "n_epochs": -1,
+        "num_epochs": -1,
         "batch_size": 0,
         "eval_batch_size": 0,
         "lm_tune_lr": 0.,
@@ -476,7 +476,7 @@ def test_train_info():
 
         assert config.dropout == 0
         check_failure(config, "lr")
-        assert config.n_epochs == 0
+        assert config.num_epochs == 0
         check_failure(config, "batch_size")
         config._batch_size = 32
         assert config.batch_size == 32
@@ -496,7 +496,7 @@ def test_train_info():
 
         assert config.dropout == 0.1
         assert config.lr == 0.001
-        assert config.n_epochs == 10
+        assert config.num_epochs == 10
         assert config.batch_size == 64
         assert config.eval_batch_size == 128
         assert config.wd_l2norm == 0.1
@@ -530,7 +530,7 @@ def test_train_info():
         config = GSConfig(args)
         check_failure(config, "dropout")
         check_failure(config, "lr")
-        check_failure(config, "n_epochs")
+        check_failure(config, "num_epochs")
         check_failure(config, "batch_size")
         check_failure(config, "eval_batch_size")
         check_failure(config, "lm_tune_lr")

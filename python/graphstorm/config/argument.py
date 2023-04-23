@@ -650,13 +650,13 @@ class GSConfig:
         return lr
 
     @property
-    def n_epochs(self):
+    def num_epochs(self):
         """ Number of epochs
         """
-        if hasattr(self, "_n_epochs"):
+        if hasattr(self, "_num_epochs"):
             # if 0, only inference or testing
-            assert self._n_epochs >= 0, "Number of epochs must >= 0"
-            return self._n_epochs
+            assert self._num_epochs >= 0, "Number of epochs must >= 0"
+            return self._num_epochs
         # default, inference only
         return 0
 
@@ -1425,7 +1425,7 @@ def _add_hyperparam_args(parser):
             help="dropout probability")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
-    group.add_argument("-e", "--n-epochs", type=int, default=argparse.SUPPRESS,
+    group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size. Must be larger than 0")

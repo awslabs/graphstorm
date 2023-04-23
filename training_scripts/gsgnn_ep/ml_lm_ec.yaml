@@ -33,7 +33,7 @@ gsf:
     dropout: 0.
     lr: 0.001
     lm_tune_lr: 0.0001
-    n_epochs: 3
+    num_epochs: 3
     batch_size: 64
     bert_infer_bs: 128
     wd_l2norm: 0
