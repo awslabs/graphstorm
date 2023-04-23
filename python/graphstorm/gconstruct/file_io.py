@@ -177,14 +177,24 @@ class HDF5Array:
     def __len__(self):
         return self._arr.shape[0]
 
-    def __getitem__(self, idx):
-        return self._arr[idx]
+    def __getitem__(self, ids):
+        if isinstance(ids, th.Tensor):
+            ids = ids.numpy()
+        # If the ids are sorted.
+        if np.all(ids[1:] - ids[:-1] > 0):
+            return self._arr[ids]
+        else:
+            uniq_ids, reverse_idx = np.unique(ids, return_inverse=True)
+            return self._arr[uniq_ids][reverse_idx]
 
     def to_tensor(self):
         """ Return Pytorch tensor.
         """
         arr = self._arr[:]
         return th.tensor(arr)
+
+    def to_numpy(self):
+        return self._arr[:]
 
     @property
     def shape(self):

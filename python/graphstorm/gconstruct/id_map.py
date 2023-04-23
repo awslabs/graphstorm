@@ -18,6 +18,8 @@
 """
 import numpy as np
 
+from .file_io import HDF5Array
+
 class NoopMap:
     """ It doesn't map IDs.
 
@@ -66,6 +68,8 @@ class IdMap:
         The input IDs
     """
     def __init__(self, ids):
+        if isinstance(ids, HDF5Array):
+            ids = ids.to_numpy()
         self._ids = {id1: i for i, id1 in enumerate(ids)}
 
     def __len__(self):
