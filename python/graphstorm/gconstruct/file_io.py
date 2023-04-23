@@ -184,13 +184,16 @@ class HDF5Array:
 
         Parameters
         ----------
-        idx : Numpy array or Pytorch tensor.
+        idx : Numpy array or Pytorch tensor or slice.
             The index.
 
         Returns
         -------
         Numpy array : the data from the HDF5 array indexed by `idx`.
         """
+        if isinstance(idx, slice):
+            return self._arr[idx]
+
         if isinstance(idx, th.Tensor):
             idx = idx.numpy()
         # If the idx are sorted.

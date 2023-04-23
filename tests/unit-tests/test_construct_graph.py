@@ -114,6 +114,7 @@ def test_hdf5():
     # Test HDF5Array
     data1 = read_data_hdf5(tmpfile, data_fields=['data1'], in_mem=False)
     assert isinstance(data1['data1'], HDF5Array)
+    np.testing.assert_array_equal(data1['data1'][:], data['data1'][:])
     idx = np.arange(0, len(data1['data1']), 2)
     np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
     idx = th.randint(0, len(data1['data1']), size=(100,))
