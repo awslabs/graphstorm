@@ -169,10 +169,7 @@ class ExtMemArrayMerger:
         # If external memory workspace is not initialized or the feature size is smaller
         # than a threshold, we don't do anything.
         if self._ext_mem_workspace is None or np.prod(shape[1:]) < self._ext_mem_feat_size:
-            if len(arrs) == 1:
-                return arrs[0]
-            else:
-                return _merge_arrs(arrs, None)
+            return arrs[0] if len(arrs) == 1 else _merge_arrs(arrs, None)
 
         # We need to create the workspace directory if it doesn't exist.
         os.makedirs(self._ext_mem_workspace, exist_ok=True)
