@@ -24,6 +24,7 @@ import os
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
+import torch as th
 import h5py
 
 def read_data_json(data_file, data_fields):
@@ -140,6 +141,24 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
+class HDF5Handle:
+    """ HDF5 file handle
+
+    This is to reference the HDF5 handle and close it when no one
+    uses the HDF5 file.
+
+    Parameters
+    ----------
+    f : HDF5 file handle
+        The handle to access the HDF5 file.
+    """
+    def __init__(self, f):
+        self._f = f
+
+    def __del__(self):
+        return self._f.close()
+
+
 class HDF5Array:
     """ This is an array wrapper class for HDF5 array.
 
@@ -150,25 +169,54 @@ class HDF5Array:
     ----------
     arr : HDF5 dataset
         The array-like object for accessing the HDF5 file.
-    hdf5_f : HDF5 file handle
-        The handle to access the HDF5 file.
+    handle : HDF5Handle
+        The handle that references to the opened HDF5 file.
     """
-    def __init__(self, arr, f):
+    def __init__(self, arr, handle):
         self._arr = arr
-        self._f = f
+        self._handle = handle
 
     def __len__(self):
         return self._arr.shape[0]
 
     def __getitem__(self, idx):
-        return self._arr[idx]
+        """ Slicing data from the array.
 
-    def __del__(self):
-        """ Destroy the object.
+        Parameters
+        ----------
+        idx : Numpy array or Pytorch tensor or slice.
+            The index.
 
-        When the array is destroyed, we need to close the file automatically.
+        Returns
+        -------
+        Numpy array : the data from the HDF5 array indexed by `idx`.
         """
-        return self._f.close()
+        if isinstance(idx, slice):
+            return self._arr[idx]
+
+        if isinstance(idx, th.Tensor):
+            idx = idx.numpy()
+        # If the idx are sorted.
+        if np.all(idx[1:] - idx[:-1] > 0):
+            return self._arr[idx]
+        else:
+            # There are two cases here: 1) there are duplicated IDs,
+            # 2) the IDs are not sorted. Unique can return unique
+            # IDs in the ascending order that meets the requirement of
+            # HDF5 indexing.
+            uniq_ids, reverse_idx = np.unique(idx, return_inverse=True)
+            return self._arr[uniq_ids][reverse_idx]
+
+    def to_tensor(self):
+        """ Return Pytorch tensor.
+        """
+        arr = self._arr[:]
+        return th.tensor(arr)
+
+    def to_numpy(self):
+        """ Return Numpy array.
+        """
+        return self._arr[:]
 
     @property
     def shape(self):
@@ -202,10 +250,11 @@ def read_data_hdf5(data_file, data_fields=None, in_mem=True):
     """
     data = {}
     f = h5py.File(data_file, "r")
+    handle = HDF5Handle(f)
     data_fields = data_fields if data_fields is not None else f.keys()
     for name in data_fields:
         assert name in f, f"The data field {name} does not exist in the hdf5 file."
-        data[name] = f[name][:] if in_mem else HDF5Array(f[name], f)
+        data[name] = f[name][:] if in_mem else HDF5Array(f[name], handle)
     return data
 
 def write_data_hdf5(data, data_file):
@@ -241,12 +290,20 @@ def _parse_file_format(conf, is_node, in_mem):
     """
     fmt = conf["format"]
     assert 'name' in fmt, "'name' field must be defined in the format."
-    keys = [conf["node_id_col"]] if is_node \
-            else [conf["source_id_col"], conf["dest_id_col"]]
+    if is_node and "node_id_col" in conf:
+        keys = [conf["node_id_col"]]
+    elif is_node:
+        keys = []
+    else:
+        keys = [conf["source_id_col"], conf["dest_id_col"]]
     if "features" in conf:
-        keys += [feat_conf["feature_col"] for feat_conf in conf["features"]]
+        for feat_conf in conf["features"]:
+            assert "feature_col" in feat_conf, "A feature config needs a feature_col."
+            keys.append(feat_conf["feature_col"])
     if "labels" in conf:
-        keys += [label_conf["label_col"] for label_conf in conf["labels"]]
+        for label_conf in conf["labels"]:
+            if "label_col" in label_conf:
+                keys.append(label_conf["label_col"])
     if fmt["name"] == "parquet":
         return partial(read_data_parquet, data_fields=keys)
     elif fmt["name"] == "json":

@@ -9,7 +9,7 @@ gsf:
   gnn:
     fanout: "20,15"
     n_layers: 2
-    n_hidden: 256
+    hidden_size: 256
     mini_batch_infer: false
   input:
     restore_model_path: null
@@ -26,7 +26,7 @@ gsf:
   link_prediction:
     num_negative_edges: 4
     num_negative_edges_eval: 100
-    negative_sampler: joint
+    train_negative_sampler: joint
     eval_etype:
       - "author,writes,paper"
     train_etype:

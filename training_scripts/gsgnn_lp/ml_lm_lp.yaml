@@ -18,7 +18,7 @@ gsf:
     save_perf_results_path: null
   gnn:
     model_encoder_type: lm
-    n_hidden: 128
+    hidden_size: 128
     mini_batch_infer: true
   lm:
     lm_train_nodes: 10
@@ -42,7 +42,7 @@ gsf:
   link_prediction:
     num_negative_edges: 4
     num_negative_edges_eval: 100
-    negative_sampler: joint
+    train_negative_sampler: joint
     eval_etype:
       - "user,rating,movie"
     train_etype:
