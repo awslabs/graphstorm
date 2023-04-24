@@ -67,7 +67,7 @@ def main(args):
     # For example pre-compute all BERT embeddings
     model.prepare_input_encoder(infer_data)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
-                save_predict_path=config.save_predict_path,
+                save_prediction_path=config.save_prediction_path,
                 mini_batch_infer=config.mini_batch_infer)
 
 def generate_parser():

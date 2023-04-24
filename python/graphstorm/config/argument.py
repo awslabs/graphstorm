@@ -185,7 +185,7 @@ class GSConfig:
                     arg_val = None
                 if arg_key == "save_embed_path" and arg_val.lower() == "none":
                     arg_val = None
-                if arg_key == "save_predict_path" and arg_val.lower() == "none":
+                if arg_key == "save_prediction_path" and arg_val.lower() == "none":
                     arg_val = None
 
                 # for basic attributes
@@ -929,14 +929,14 @@ class GSConfig:
 
     ###classification/regression inference related ####
     @property
-    def save_predict_path(self):
+    def save_prediction_path(self):
         """ Path to save prediction results.
         """
         # pylint: disable=no-member
-        if hasattr(self, "_save_predict_path"):
-            return self._save_predict_path
+        if hasattr(self, "_save_prediction_path"):
+            return self._save_prediction_path
 
-        # if save_predict_path is not specified in inference
+        # if save_prediction_path is not specified in inference
         # use save_embed_path
         return self.save_embed_path
 
@@ -1609,7 +1609,7 @@ def _add_task_general_args(parser):
 
 def _add_inference_args(parser):
     group = parser.add_argument_group(title="infer")
-    group.add_argument("--save-predict-path", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
     return parser
 

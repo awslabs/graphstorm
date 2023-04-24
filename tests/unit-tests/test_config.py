@@ -1405,7 +1405,7 @@ def create_io_config(tmp_path, file_name):
         "save_model_path": os.path.join(tmp_path, "save"),
         "save_model_per_iters": 100,
         "save_embed_path": "./save_emb",
-        "save_predict_path": "./prediction",
+        "save_prediction_path": "./prediction",
     }
 
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
@@ -1432,13 +1432,13 @@ def test_load_io_info():
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_per_iters == 100
         assert config.save_embed_path == "./save_emb"
-        assert config.save_predict_path == "./save_emb"
+        assert config.save_prediction_path == "./save_emb"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.save_embed_path == "./save_emb"
-        assert config.save_predict_path == "./prediction"
+        assert config.save_prediction_path == "./prediction"
 
 def create_lm_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()

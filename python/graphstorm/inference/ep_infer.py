@@ -40,7 +40,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
         The rank.
     """
 
-    def infer(self, loader, save_embed_path, save_predict_path=None,
+    def infer(self, loader, save_embed_path, save_prediction_path=None,
             mini_batch_infer=False):  # pylint: disable=unused-argument
         """ Do inference
 
@@ -54,7 +54,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
             The mini-batch sampler for edge prediction task.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
-        save_predict_path : str
+        save_prediction_path : str
             The path where the prediction results will be saved.
         mini_batch_infer : bool
             Whether or not to use mini-batch inference.
@@ -83,8 +83,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
         th.distributed.barrier()
         sys_tracker.check('save embeddings')
 
-        if save_predict_path is not None:
-            save_prediction_results(pred, save_predict_path, self.rank)
+        if save_prediction_path is not None:
+            save_prediction_results(pred, save_prediction_path, self.rank)
         th.distributed.barrier()
         sys_tracker.check('save predictions')
 
