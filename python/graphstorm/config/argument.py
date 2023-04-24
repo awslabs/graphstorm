@@ -735,7 +735,8 @@ class GSConfig:
             return self._eval_batch_size
         # (Israt): This number is heuristically chosen. Benchmarks can be found at PR:
         # https://github.com/awslabs/graphstorm/pull/66.
-        return 10000
+        default_eval_batch_size = 10000
+        return default_eval_batch_size
 
     @property
     def evaluation_frequency(self):
