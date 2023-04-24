@@ -733,7 +733,9 @@ class GSConfig:
         if hasattr(self, "_eval_batch_size"):
             assert self._eval_batch_size > 0
             return self._eval_batch_size
-        return self.batch_size
+        # (Israt): This number is heuristically chosen. Benchmarks can be found at PR:
+        # https://github.com/awslabs/graphstorm/pull/66.
+        return 10000
 
     @property
     def evaluation_frequency(self):
