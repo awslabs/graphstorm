@@ -1370,7 +1370,7 @@ def _add_gnn_args(parser):
     group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
             help="number of propagation rounds")
     parser.add_argument(
-            "--mini-batch-infer",
+            "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS
