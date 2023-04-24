@@ -41,7 +41,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
-            mini_batch_infer=False):  # pylint: disable=unused-argument
+            use_mini_batch_infer=False):  # pylint: disable=unused-argument
         """ Do inference
 
         The infer can do three things:
@@ -56,7 +56,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
             The path where the GNN embeddings will be saved.
         save_prediction_path : str
             The path where the prediction results will be saved.
-        mini_batch_infer : bool
+        use_mini_batch_infer : bool
             Whether or not to use mini-batch inference.
         """
         do_eval = self.evaluator is not None

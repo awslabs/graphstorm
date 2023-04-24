@@ -42,7 +42,7 @@ class GSgnnNodePredictionInfer(GSInfer):
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
-              mini_batch_infer=False):
+              use_mini_batch_infer=False):
         """ Do inference
 
         The inference does three things:
@@ -58,13 +58,13 @@ class GSgnnNodePredictionInfer(GSInfer):
             The path where the GNN embeddings will be saved.
         save_prediction_path : str
             The path where the prediction results will be saved.
-        mini_batch_infer : bool
+        use_mini_batch_infer : bool
             Whether or not to use mini-batch inference.
         """
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
         self._model.eval()
-        if mini_batch_infer:
+        if use_mini_batch_infer:
             res = node_mini_batch_gnn_predict(self._model, loader, return_label=do_eval)
             pred = res[0]
             embs = res[1]

@@ -58,7 +58,7 @@ def main(args):
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
     device = 'cuda:%d' % infer.dev_id
-    fanout = config.eval_fanout if config.mini_batch_infer else []
+    fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
@@ -70,7 +70,7 @@ def main(args):
     model.prepare_input_encoder(infer_data)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
-                mini_batch_infer=config.mini_batch_infer)
+                use_mini_batch_infer=config.use_mini_batch_infer)
 
 def generate_parser():
     parser = get_argument_parser()

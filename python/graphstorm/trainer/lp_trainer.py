@@ -49,7 +49,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     def fit(self, train_loader, n_epochs,
             val_loader=None,            # pylint: disable=unused-argument
             test_loader=None,           # pylint: disable=unused-argument
-            mini_batch_infer=True,      # pylint: disable=unused-argument
+            use_mini_batch_infer=True,      # pylint: disable=unused-argument
             save_model_path=None,
             save_model_frequency=None,
             save_perf_results_path=None,
@@ -68,7 +68,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             are used for selecting models.
         test_loader : GSgnnLinkPredictionDataLoader
             The mini-batch sampler for computing test scores.
-        mini_batch_infer : bool
+        use_mini_batch_infer : bool
             Whether or not to use mini-batch inference.
         save_model_path : str
             The path where the model is saved.
@@ -85,7 +85,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             the input layer contains language models.
             Default: 0, no freeze.
         """
-        if not mini_batch_infer:
+        if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
