@@ -34,14 +34,14 @@ def get_evaluator(config):
                                  config.eval_metric,
                                  config.multilabel,
                                  config.enable_early_stop,
-                                 config.call_to_consider_early_stop,
+                                 config.early_stop_burnin_rounds,
                                  config.window_for_early_stop,
                                  config.early_stop_strategy)
     elif config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
                                         config.eval_metric,
                                         config.enable_early_stop,
-                                        config.call_to_consider_early_stop,
+                                        config.early_stop_burnin_rounds,
                                         config.window_for_early_stop,
                                         config.early_stop_strategy)
     else:
@@ -54,7 +54,7 @@ def main(args):
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.target_etype,
-                                    node_feat_field=config.feat_name,
+                                    node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnEdgePredictionTrainer(model, gs.get_rank(),

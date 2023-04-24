@@ -5,13 +5,11 @@ gsf:
     model_encoder_type: rgcn
     graph_name: ogbn-mag
     backend: gloo
-    num_gpus: 4
     verbose: false
-    debug: false
   gnn:
     fanout: "20,15"
     n_layers: 2
-    n_hidden: 256
+    hidden_size: 256
     mini_batch_infer: false
   input:
     restore_model_path: null
@@ -22,7 +20,7 @@ gsf:
   rgcn:
     n_bases: -1
     use_self_loop: true
-    use_dot_product: true
+    lp_decoder_type: "dot_product"
     sparse_lr: 1e-2
     use_node_embeddings: false
   link_prediction:

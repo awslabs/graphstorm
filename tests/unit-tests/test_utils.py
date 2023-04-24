@@ -56,6 +56,12 @@ def helper_save_embedding(tmpdirname):
     return type0_random_emb, type1_random_emb
 
 def test_save_embeddings():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         type0_random_emb, type1_random_emb = helper_save_embedding(tmpdirname)

@@ -47,7 +47,7 @@ def main(args):
                                     config.part_config,
                                     train_etypes=config.train_etype,
                                     eval_etypes=config.eval_etype,
-                                    node_feat_field=config.feat_name)
+                                    node_feat_field=config.node_feat_name)
     model = gs.create_builtin_lp_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
@@ -60,9 +60,9 @@ def main(args):
             GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                 train_data,
                                 config.num_negative_edges_eval,
-                                config.use_dot_product,
+                                config.lp_decoder_type,
                                 config.enable_early_stop,
-                                config.call_to_consider_early_stop,
+                                config.early_stop_burnin_rounds,
                                 config.window_for_early_stop,
                                 config.early_stop_strategy))
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."

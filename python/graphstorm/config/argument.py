@@ -42,6 +42,9 @@ from .config import SUPPORTED_TASK_TRACKER
 
 from .config import SUPPORTED_TASKS
 
+from .config import BUILTIN_LP_DISTMULT_DECODER
+from .config import SUPPORTED_LP_DECODER
+
 from .utils import get_graph_name
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
@@ -207,15 +210,6 @@ class GSConfig:
 
     ###################### Environment Info ######################
     @property
-    def debug(self):
-        """ Debug flag
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_debug"):
-            return self._debug
-        return False
-
-    @property
     def save_perf_results_path(self):
         """ Save performance flag
         """
@@ -241,19 +235,6 @@ class GSConfig:
             return self._backend
 
         return "gloo"
-
-    @property
-    def num_gpus(self):
-        """ Number of gpus per instance
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_num_gpus"):
-            assert self._num_gpus > 0
-            return self._num_gpus
-
-        # TODO(xiangsx): Need to support CPU training
-        assert False, "GPU is required"
-        return 0
 
     @property
     def ip_config(self):
@@ -393,18 +374,18 @@ class GSConfig:
         return self._model_encoder_type
 
     @property
-    def feat_name(self):
+    def node_feat_name(self):
         """ User defined node feature name
 
             It can be in following format:
-            1)feat_name: global feature name, if a node has node feature,
+            1) [feat_name]: global feature name, if a node has node feature,
             the corresponding feature name is <feat_name>
             2)["ntype0:feat0","ntype1:feat0,feat1",...]: different node
             types have different node features.
         """
         # pylint: disable=no-member
-        if hasattr(self, "_feat_name"):
-            feat_names = self._feat_name
+        if hasattr(self, "_node_feat_name"):
+            feat_names = self._node_feat_name
             if len(feat_names) == 1 and \
                 ":" not in feat_names[0]:
                 # global feat_name
@@ -412,6 +393,7 @@ class GSConfig:
 
             # per node type feature
             fname_dict = {}
+
             for feat_name in feat_names:
                 feat_info = feat_name.split(":")
                 ntype = feat_info[0]
@@ -421,8 +403,8 @@ class GSConfig:
                         f"as {fname_dict[ntype]}"
                 assert isinstance(feat_info[1], str), \
                     f"Feature name of {ntype} should be a string not {feat_info[1]}"
-                feat_names = feat_info[1].split(",")
-                fname_dict[ntype] = feat_names
+                # multiple features separated by ','
+                fname_dict[ntype] = feat_info[1].split(",")
             return fname_dict
 
         # By default, return None which means there is no node feature
@@ -475,18 +457,18 @@ class GSConfig:
             return [-1] * len(self.fanout)
 
     @property
-    def n_hidden(self):
+    def hidden_size(self):
         """ Hidden embedding size
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_n_hidden"), \
-            "n_hidden must be provided when pretrain a embedding layer, " \
+        assert hasattr(self, "_hidden_size"), \
+            "hidden_size must be provided when pretrain a embedding layer, " \
             "or train a GNN model"
-        assert isinstance(self._n_hidden, int), \
+        assert isinstance(self._hidden_size, int), \
             "Hidden embedding size must be an integer"
-        assert self._n_hidden > 0, \
+        assert self._hidden_size > 0, \
             "Hidden embedding size must be larger than 0"
-        return self._n_hidden
+        return self._hidden_size
 
     @property
     def n_layers(self):
@@ -777,16 +759,16 @@ class GSConfig:
 
     ### control early stop ###
     @property
-    def call_to_consider_early_stop(self):
-        """ Burning period calls to start considering early stop
+    def early_stop_burnin_rounds(self):
+        """ Burn-in rounds before we start checking for the early stop condition.
         """
         # pylint: disable=no-member
-        if hasattr(self, "_call_to_consider_early_stop"):
-            assert isinstance(self._call_to_consider_early_stop, int), \
-                "call_to_consider_early_stop should be an integer"
-            assert self._call_to_consider_early_stop >= 0, \
-                "call_to_consider_early_stop should be larger than or equal to 0"
-            return self._call_to_consider_early_stop
+        if hasattr(self, "_early_stop_burnin_rounds"):
+            assert isinstance(self._early_stop_burnin_rounds, int), \
+                "early_stop_burnin_rounds should be an integer"
+            assert self._early_stop_burnin_rounds >= 0, \
+                "early_stop_burnin_rounds should be larger than or equal to 0"
+            return self._early_stop_burnin_rounds
 
         return 0
 
@@ -799,7 +781,7 @@ class GSConfig:
             assert isinstance(self._window_for_early_stop, int), \
                 "window_for_early_stop should be an integer"
             assert self._window_for_early_stop > 0, \
-                "call_to_consider_early_stop should be larger than 0"
+                "early_stop_rounds should be larger than 0"
             return self._window_for_early_stop
 
         # at least 3 iterations
@@ -1126,16 +1108,21 @@ class GSConfig:
         return 1000
 
     @property
-    def use_dot_product(self):
-        """ Whether use the dot product loss function instead of distmult
+    def lp_decoder_type(self):
+        """ Type of link prediction decoder
+
+
         """
         # pylint: disable=no-member
-        if hasattr(self, "_use_dot_product"):
-            assert self._use_dot_product in [True, False]
-            return self._use_dot_product
+        if hasattr(self, "_lp_decoder_type"):
+            decoder_type = self._lp_decoder_type.lower()
+            assert decoder_type in SUPPORTED_LP_DECODER, \
+                f"Link prediction decoder {self._lp_decoder_type} not supported. " \
+                f"GraphStorm only supports {SUPPORTED_LP_DECODER}"
+            return decoder_type
 
-        # Set default value to False
-        return False
+        # Set default value to distmult
+        return BUILTIN_LP_DISTMULT_DECODER
 
     @property
     def train_etype(self):
@@ -1209,7 +1196,7 @@ class GSConfig:
     def gamma(self):
         """ Gamma for DistMult
         """
-        assert self.use_dot_product is False, \
+        assert self.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER, \
             "Only used with DistMult"
         if hasattr(self, "_gamma"):
             return float(self._gamma)
@@ -1348,16 +1335,10 @@ def _add_gsgnn_basic_args(parser):
     group = parser.add_argument_group(title="graphstorm gnn")
     group.add_argument('--backend', type=str, default=argparse.SUPPRESS,
             help='PyTorch distributed backend')
-    group.add_argument("--num-gpus", type=int, default=argparse.SUPPRESS,
-            help="number of GPUs")
     group.add_argument('--ip-config', type=str, default=argparse.SUPPRESS,
             help='The file for IP configuration')
     group.add_argument('--part-config', type=str, default=argparse.SUPPRESS,
             help='The path to the partition config file')
-    group.add_argument("--debug",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="Debug mode.")
     group.add_argument("--save-perf-results-path",
             type=str,
             default=argparse.SUPPRESS,
@@ -1368,12 +1349,12 @@ def _add_gnn_args(parser):
     group = parser.add_argument_group(title="gnn")
     group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
             help='Model type can either be gnn or lm to specify the model encoder')
-    group.add_argument("--feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
+    group.add_argument("--node-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
-            "1) '--feat-name feat_name': global feature name, "
+            "1) '--node-feat-name feat_name': global feature name, "
             "if a node has node feature,"
             "the corresponding feature name is <feat_name>"
-            "2)'--feat-name ntype0:feat0,feat1 ntype1:feat0,feat1 ...': "
+            "2)'--node-feat-name ntype0:feat0,feat1 ntype1:feat0,feat1 ...': "
             "different node types have different node features.")
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
@@ -1382,8 +1363,8 @@ def _add_gnn_args(parser):
             help="Fan-out of neighbor sampling during minibatch evaluation. "
                  "This argument can either be --eval-fanout 20,10 or "
                  "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
-    group.add_argument("--n-hidden", type=int, default=argparse.SUPPRESS,
-            help="number of hidden units")
+    group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
+            help="The number of features in the hidden state")
     group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
             help="number of propagation rounds")
     parser.add_argument(
@@ -1472,9 +1453,9 @@ def _add_hyperparam_args(parser):
             help="If no-validation is set to True, "
                  "there will be no evaluation during training.")
     # early stop
-    group.add_argument("--call-to-consider-early-stop",
+    group.add_argument("--early-stop-burnin-rounds",
             type=int, default=argparse.SUPPRESS,
-            help="burning period call to start considering early stop")
+            help="Burn-in rounds before start checking for the early stop condition.")
     group.add_argument("--window-for-early-stop",
             type=int, default=argparse.SUPPRESS,
             help="the number of latest validation scores to average deciding on early stop")
@@ -1571,6 +1552,8 @@ def _add_edge_classification_args(parser):
 
 def _add_link_prediction_args(parser):
     group = parser.add_argument_group(title="link prediction")
+    group.add_argument("--lp-decoder-type", type=str, default=argparse.SUPPRESS,
+            help="Link prediction decoder type.")
     group.add_argument("--num-negative-edges", type=int, default=argparse.SUPPRESS,
             help="Number of edges consider for the negative batch of edges.")
     group.add_argument("--num-negative-edges-eval", type=int, default=argparse.SUPPRESS,
@@ -1604,11 +1587,6 @@ def _add_link_prediction_args(parser):
                     "--reverse-edge-types-map query,adds,rev-adds,asin or"
                     "--reverse-edge-types-map query,adds,rev-adds,asin "
                     "query,clicks,rev-clicks,asin")
-    group.add_argument(
-            "--use-dot-product",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="This suggest to use the dot product loss function instead of distmult")
     group.add_argument(
             "--gamma",
             type=float,

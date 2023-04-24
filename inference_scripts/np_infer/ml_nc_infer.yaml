@@ -3,16 +3,14 @@ version: 1.0
 gsf:
   basic:
     backend: gloo
-    num_gpus: 4
     ip_config: ip_list.txt
     part_config: movielen_100k_train_val_1p_4t/movie-lens-100k.json
     verbose: false
-    debug: false
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
     n_layers: 1
-    n_hidden: 128
+    hidden_size: 128
   input:
     restore_model_path: /data/gsgnn_nc_ml/
   output:

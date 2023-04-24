@@ -44,7 +44,7 @@ def main(args):
     infer_data = GSgnnNodeInferData(config.graph_name,
                                     config.part_config,
                                     eval_ntypes=config.predict_ntype,
-                                    node_feat_field=config.feat_name,
+                                    node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)

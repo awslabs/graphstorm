@@ -12,11 +12,9 @@ lm_model:
 gsf:
   basic:
     backend: gloo
-    num_gpus: 4
     ip_config: ip_list.txt
     part_config: movielen_100k_train_val_1p_4t/movie-lens-100k.json
     verbose: false
-    debug: false
   lm:
     lm_infer_batchszie: 32
     freeze_lm_encoder_epochs: 0
@@ -24,7 +22,7 @@ gsf:
     model_encoder_type: rgcn
     fanout: "4"
     n_layers: 1
-    n_hidden: 128
+    hidden_size: 128
   input:
     restore_model_path: /data/gsgnn_nc_ml/
   output:
