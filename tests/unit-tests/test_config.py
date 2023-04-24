@@ -1056,7 +1056,7 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["link_prediction"] = {
-        "negative_sampler": BUILTIN_LP_JOINT_NEG_SAMPLER,
+        "train_negative_sampler": BUILTIN_LP_JOINT_NEG_SAMPLER,
         "num_negative_edges": 4,
         "num_negative_edges_eval": 100,
         "train_etype": ["query,exactmatch,asin"],
@@ -1075,7 +1075,7 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["link_prediction"] = {
-        "negative_sampler": "udf", # we allow udf sampler
+        "train_negative_sampler": "udf", # we allow udf sampler
         "train_etype": ["query,exactmatch,asin","query,click,asin"],
         "eval_etype": ["query,exactmatch,asin","query,click,asin"],
         "separate_eval": True,
@@ -1133,7 +1133,7 @@ def test_lp_info():
         create_lp_config(Path(tmpdirname), 'lp_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
+        assert config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
         assert config.num_negative_edges == 16
         assert config.num_negative_edges_eval == 1000
         assert config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
@@ -1150,7 +1150,7 @@ def test_lp_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test1.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
+        assert config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
         assert config.num_negative_edges == 4
         assert config.num_negative_edges_eval == 100
         assert config.lp_decoder_type == BUILTIN_LP_DOT_DECODER
@@ -1170,7 +1170,7 @@ def test_lp_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.negative_sampler == "udf"
+        assert config.train_negative_sampler == "udf"
         assert len(config.train_etype) == 2
         assert config.train_etype[0] == ("query", "exactmatch", "asin")
         assert config.train_etype[1] == ("query", "click", "asin")

@@ -73,15 +73,15 @@ def main(args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
-    if config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLinkPredictionDataLoader
-    elif config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnLPJointNegDataLoader
-    elif config.negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLPLocalUniformNegDataLoader
-    elif config.negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
-    elif config.negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
     else:
         raise Exception('Unknown negative sampler')
@@ -93,9 +93,9 @@ def main(args):
                                 exclude_training_targets=config.exclude_training_targets)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    if config.test_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.test_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
     else:
         raise Exception('Unknown test negative sampler.'

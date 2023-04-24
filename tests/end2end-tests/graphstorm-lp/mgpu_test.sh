@@ -267,12 +267,12 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 error_and_exit $?
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT, inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: true, test_negative_sampler: uniform"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_lp.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false  --lp-decoder-type distmult --train-etype user,rating,movie movie,rating-rev,user --test-negative-sampler uniform
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_lp.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false  --lp-decoder-type distmult --train-etype user,rating,movie movie,rating-rev,user --eval-negative-sampler uniform
 
 error_and_exit $?
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, test_negative_sampler: uniform"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_lp.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --test-negative-sampler uniform
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_lp.yaml --fanout '10,15' --n-layers 2 --mini-batch-infer false --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --eval-negative-sampler uniform
 
 error_and_exit $?
 
