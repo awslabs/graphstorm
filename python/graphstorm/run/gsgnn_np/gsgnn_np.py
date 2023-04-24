@@ -103,7 +103,7 @@ def main(args):
                 test_loader=test_dataloader, n_epochs=config.n_epochs,
                 save_model_path=save_model_path,
                 mini_batch_infer=config.mini_batch_infer,
-                save_model_per_iters=config.save_model_per_iters,
+                save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path,
                 freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
 
