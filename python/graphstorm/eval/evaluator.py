@@ -118,8 +118,8 @@ class GSgnnInstanceEvaluator():
         Evaluation metric used during evaluation.
     enable_early_stop: bool
         Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -128,7 +128,7 @@ class GSgnnInstanceEvaluator():
     """
     def __init__(self, evaluation_frequency, eval_metric,
                  enable_early_stop=False,
-                 call_to_consider_early_stop=0,
+                 early_stop_burnin_rounds=0,
                  window_for_early_stop=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         # nodes whose embeddings are used during evaluation
@@ -146,7 +146,7 @@ class GSgnnInstanceEvaluator():
         self.evaluation_frequency = evaluation_frequency
         self._do_early_stop = enable_early_stop
         if self._do_early_stop:
-            self._call_to_consider_early_stop = call_to_consider_early_stop
+            self._early_stop_burnin_rounds = early_stop_burnin_rounds
             self._num_early_stop_calls = 0
             self._window_for_early_stop = window_for_early_stop
             self._early_stop_strategy = early_stop_strategy
@@ -244,7 +244,7 @@ class GSgnnInstanceEvaluator():
             f"valudation score should be a signle key value pair but got {val_score}"
         self._num_early_stop_calls += 1
         # Not enough existing validation scores
-        if self._num_early_stop_calls <= self._call_to_consider_early_stop:
+        if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
             return False
 
         val_score = list(val_score.values())[0]
@@ -334,8 +334,8 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
         Evaluation metric used during evaluation.
     enable_early_stop: bool
         Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -345,11 +345,11 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
     def __init__(self, evaluation_frequency,
                  eval_metric,
                  enable_early_stop=False,
-                 call_to_consider_early_stop=0,
+                 early_stop_burnin_rounds=0,
                  window_for_early_stop=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         super(GSgnnRegressionEvaluator, self).__init__(evaluation_frequency,
-            eval_metric, enable_early_stop, call_to_consider_early_stop,
+            eval_metric, enable_early_stop, early_stop_burnin_rounds,
             window_for_early_stop, early_stop_strategy)
         self._best_val_score = {}
         self._best_test_score = {}
@@ -442,8 +442,8 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
         If set to true, the task is a multi-label classification task.
     enable_early_stop: bool
         Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -453,11 +453,11 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
     def __init__(self, evaluation_frequency,
                  eval_metric, multilabel,
                  enable_early_stop=False,
-                 call_to_consider_early_stop=0,
+                 early_stop_burnin_rounds=0,
                  window_for_early_stop=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY): # pylint: disable=unused-argument
         super(GSgnnAccEvaluator, self).__init__(evaluation_frequency,
-            eval_metric, enable_early_stop, call_to_consider_early_stop,
+            eval_metric, enable_early_stop, early_stop_burnin_rounds,
             window_for_early_stop, early_stop_strategy)
         self.multilabel = multilabel
         self._best_val_score = {}
@@ -558,8 +558,8 @@ class GSgnnLPEvaluator():
         Evaluation metric used during evaluation.
     enable_early_stop: bool
         Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -568,7 +568,7 @@ class GSgnnLPEvaluator():
     """
     def __init__(self, evaluation_frequency, eval_metric,
                  enable_early_stop=False,
-                 call_to_consider_early_stop=0,
+                 early_stop_burnin_rounds=0,
                  window_for_early_stop=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         # nodes whose embeddings are used during evaluation
@@ -585,7 +585,7 @@ class GSgnnLPEvaluator():
         self.evaluation_frequency = evaluation_frequency
         self._do_early_stop = enable_early_stop
         if self._do_early_stop:
-            self._call_to_consider_early_stop = call_to_consider_early_stop
+            self._early_stop_burnin_rounds = early_stop_burnin_rounds
             self._num_early_stop_calls = 0
             self._window_for_early_stop = window_for_early_stop
             self._early_stop_strategy = early_stop_strategy
@@ -607,6 +607,9 @@ class GSgnnLPEvaluator():
     def evaluate(self, val_scores, test_scores, total_iters):
         """
         GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
+
+        Note: Make sure each trainer will get the same validation scores.
+        The early stop and model saving progress rely on certain scores.
 
         Parameters
         ----------
@@ -665,7 +668,7 @@ class GSgnnLPEvaluator():
             f"valudation score should be a signle key value pair but got {val_score}"
         self._num_early_stop_calls += 1
         # Not enough existing validation scores
-        if self._num_early_stop_calls <= self._call_to_consider_early_stop:
+        if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
             return False
 
         val_score = list(val_score.values())[0]
@@ -766,12 +769,12 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         The processed dataset
     num_negative_edges_eval: int
         Number of negative edges sampled for each positive edge in evalation.
-    use_dot_product: bool
-        If it is set to true, use the dot product loss function instead of DistMult.
+    lp_decoder_type: str
+        Link prediction decoder type.
     enable_early_stop: bool
         Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
     window_for_early_stop: int
         The number of latest validation scores used in deciding on early stop.
     early_stop_strategy: str
@@ -779,20 +782,20 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, evaluation_frequency, data,
-                 num_negative_edges_eval, use_dot_product,
+                 num_negative_edges_eval, lp_decoder_type,
                  enable_early_stop=False,
-                 call_to_consider_early_stop=0,
+                 early_stop_burnin_rounds=0,
                  window_for_early_stop=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         eval_metric = ["mrr"]
         super(GSgnnMrrLPEvaluator, self).__init__(evaluation_frequency,
-            eval_metric, enable_early_stop, call_to_consider_early_stop,
+            eval_metric, enable_early_stop, early_stop_burnin_rounds,
             window_for_early_stop, early_stop_strategy)
         self.train_idxs = data.train_idxs
         self.val_idxs = data.val_idxs
         self.test_idxs = data.test_idxs
         self.num_negative_edges_eval = num_negative_edges_eval
-        self.use_dot_product = use_dot_product
+        self.lp_decoder_type = lp_decoder_type
 
         self.metrics_obj = LinkPredictionMetrics()
 

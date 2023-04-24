@@ -5,21 +5,19 @@ gsf:
     model_encoder_type: rgcn
     graph_name: ogbn-arxiv
     backend: gloo
-    num_gpus: 4
     ip_config: ip_list.txt
     part_config: /data/ogbn-arxiv-1p/ogbn-arxiv.json
     verbose: false
-    debug: false
   gnn:
     fanout: "15,10"
     n_layers: 2
-    n_hidden: 128
+    hidden_size: 128
     mini_batch_infer: false
   input:
     restore_model_path: null
   output:
-    save_model_path: /data/ogbn-arxiv-1p/model/
-    save_embed_path: /data/ogbn-arxiv-1p/embed/
+    save_model_path: null
+    save_embed_path: null
   hyperparam:
     dropout: 0.5
     lr: 0.001

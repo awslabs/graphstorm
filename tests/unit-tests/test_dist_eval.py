@@ -34,6 +34,8 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.eval import GSgnnMrrLPEvaluator
 
+from graphstorm.config import BUILTIN_LP_DOT_DECODER
+
 from util import Dummy
 
 from test_evaluator import gen_hg
@@ -49,7 +51,7 @@ def run_dist_lp_eval_worker(worker_rank, train_data, config, val_scores, test_sc
     lp_eval = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                   train_data,
                                   num_negative_edges_eval=config.num_negative_edges_eval,
-                                  use_dot_product=config.use_dot_product,
+                                  lp_decoder_type=config.lp_decoder_type,
                                   enable_early_stop=config.enable_early_stop)
     val_sc, test_sc = lp_eval.evaluate(val_scores, test_scores, 0)
 
@@ -104,7 +106,7 @@ def run_local_lp_eval_worker(train_data, config, val_scores, test_scores, conn):
     lp_eval = GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                   train_data,
                                   num_negative_edges_eval=config.num_negative_edges_eval,
-                                  use_dot_product=config.use_dot_product,
+                                  lp_decoder_type=config.lp_decoder_type,
                                   enable_early_stop=config.enable_early_stop)
     val_sc, test_sc = lp_eval.evaluate(val_scores, test_scores, 0)
     conn.send((val_sc, test_sc))
@@ -153,7 +155,7 @@ def test_lp_dist_eval(seed):
         })
     config = Dummy({
             "num_negative_edges_eval": 10,
-            "use_dot_product": True,
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "evaluation_frequency": 100,
             "enable_early_stop": False,
             "eval_metric": ["mrr"]

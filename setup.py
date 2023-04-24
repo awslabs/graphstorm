@@ -34,7 +34,7 @@ requirements = [
     'transformers>=4.3.0',
     'pandas',
     'pylint',
-    'sklearn',
+    'scikit-learn',
     'ogb',
     'psutil',
 ]

@@ -29,19 +29,11 @@ def get_evaluator(config): # pylint: disable=unused-argument
     """
     if config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
-                                        config.eval_metric,
-                                        config.enable_early_stop,
-                                        config.call_to_consider_early_stop,
-                                        config.window_for_early_stop,
-                                        config.early_stop_strategy)
+                                        config.eval_metric)
     elif config.task_type == 'edge_classification':
         return GSgnnAccEvaluator(config.evaluation_frequency,
                                  config.eval_metric,
-                                 config.multilabel,
-                                 config.enable_early_stop,
-                                 config.call_to_consider_early_stop,
-                                 config.window_for_early_stop,
-                                 config.early_stop_strategy)
+                                 config.multilabel)
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
@@ -52,7 +44,7 @@ def main(args):
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
                                     eval_etypes=config.target_etype,
-                                    node_feat_field=config.feat_name,
+                                    node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_edge_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
@@ -77,7 +69,7 @@ def main(args):
     # For example pre-compute all BERT embeddings
     model.prepare_input_encoder(infer_data)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
-                save_predict_path=config.save_predict_path,
+                save_prediction_path=config.save_prediction_path,
                 mini_batch_infer=config.mini_batch_infer)
 
 def generate_parser():

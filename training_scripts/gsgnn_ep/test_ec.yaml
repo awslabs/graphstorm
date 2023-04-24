@@ -9,17 +9,15 @@ lm_model:
 gsf:
   basic:
     backend: gloo
-    num_gpus: 1
     ip_config: ip_list.txt
     part_config: ./test_ec_1p_4t/test.json
     verbose: false
-    debug: false
     save_perf_results_path: null
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
     n_layers: 1
-    n_hidden: 128
+    hidden_size: 128
     mini_batch_infer: true
   input:
     restore_model_path: null
@@ -29,7 +27,7 @@ gsf:
   hyperparam:
     dropout: 0.
     lr: 0.001
-    bert_tune_lr: 0.0001
+    lm_tune_lr: 0.0001
     n_epochs: 3
     batch_size: 10
     eval_batch_size: 1024
@@ -40,7 +38,6 @@ gsf:
   rgcn:
     n_bases: -1
     use_self_loop: true
-    use_dot_product: true
     sparse_lr: 1e-2
     use_node_embeddings: false
   edge_classification:

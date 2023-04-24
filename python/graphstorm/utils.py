@@ -89,7 +89,7 @@ def estimate_mem_train(root, task):
                     'shared mem: {shared_mem_list[-1]:.3f} GB, cli mem: {max_cli_mem:.3f} GB')
     return max(mem_list), max(shared_mem_list)
 
-def estimate_mem_infer(root, graph_name, num_hidden, num_layers):
+def estimate_mem_infer(root, graph_name, hidden_size, num_layers):
     ''' Estimate the memory consumption for inference.
 
     Parameters
@@ -98,7 +98,7 @@ def estimate_mem_infer(root, graph_name, num_hidden, num_layers):
         The path to the partitioned graph folder.
     graph_name : str
         The graph name.
-    num_hidden : int
+    hidden_size : int
         The hidden size for the GNN embeddings.
     num_layers : int
         The number of GNN layers.
@@ -141,12 +141,12 @@ def estimate_mem_infer(root, graph_name, num_hidden, num_layers):
             # The shared memory stores the graph structure, the node features, edge features
             # as well as the embeddings of the input layer and each GNN layer.
             shared_mem = (struct_size + node_feats + edge_feats
-                    + num_part_nodes * num_hidden * 4 * (num_layers + 1) / 1024/1024/1024)
+                    + num_part_nodes * hidden_size * 4 * (num_layers + 1) / 1024/1024/1024)
             # The memory usage when after the server runs.
             # Majority data is stored in shared memory. When saving the GNN embeddings to the disk,
             # we need to extract the GNN node embeddings, which is stored
             # in the local Pytorch tensor.
-            stable_serv_mem = shared_mem + num_part_nodes * num_hidden * 4 / 1024/1024/1024
+            stable_serv_mem = shared_mem + num_part_nodes * hidden_size * 4 / 1024/1024/1024
             # The peak memory usage
             max_serv_mem = max([struct_size + shared_mem, shared_mem + node_feats,
                 shared_mem + edge_feats, stable_serv_mem])
@@ -167,10 +167,10 @@ class SysTracker:
 
     It tracks the runtime and memory consumption.
     """
-    def __init__(self, debug=True):
+    def __init__(self, verbose=True):
         self._checkpoints = []
         self._rank = dgl.distributed.rpc.get_rank()
-        self._debug = debug
+        self._verbose = verbose
 
     # This is to create only one instance.
     _instance = None
@@ -201,7 +201,7 @@ class SysTracker:
         # We need to get the right rank
         if self._rank < 0:
             self._rank = dgl.distributed.rpc.get_rank()
-        if len(self._checkpoints) >= 2 and self._debug and self._rank == 0:
+        if len(self._checkpoints) >= 2 and self._verbose and self._rank == 0:
             checkpoint1 = self._checkpoints[-2]
             checkpoint2 = self._checkpoints[-1]
             print("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, shared: {:.3f}, \

@@ -27,6 +27,7 @@ from numpy.testing import assert_almost_equal, assert_equal
 import dgl
 
 from graphstorm.config import GSConfig
+from graphstorm.config import BUILTIN_LP_DOT_DECODER
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer
@@ -418,11 +419,11 @@ def create_ec_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "model_encoder_type": "rgcn",
                 "lr": 0.001,
             },
@@ -470,12 +471,12 @@ def create_er_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
                 "model_encoder_type": "rgat",
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "lr": 0.001,
             },
             "input": {},
@@ -519,12 +520,12 @@ def create_nr_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
                 "model_encoder_type": "rgat",
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "lr": 0.001,
             },
             "input": {},
@@ -567,12 +568,12 @@ def create_nc_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
                 "model_encoder_type": "rgat",
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "lr": 0.001,
             },
             "input": {},
@@ -616,12 +617,12 @@ def create_lp_config(tmp_path, file_name):
         "version": 1.0,
         "gsf": {
             "basic": {
-                "feat_name": ["feat"],
+                "node_feat_name": ["feat"],
                 "model_encoder_type": "rgat",
             },
             "gnn": {
                 "n_layers": 1,
-                "n_hidden": 4,
+                "hidden_size": 4,
                 "lr": 0.001,
             },
             "input": {},
@@ -630,7 +631,7 @@ def create_lp_config(tmp_path, file_name):
             },
             "link_prediction": {
                 "train_etype": ["n0,r0,n1"],
-                "use_dot_product": True
+                "lp_decoder_type": BUILTIN_LP_DOT_DECODER
             },
         }
     }
