@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    GSgnn node prediction.
+    GSgnn edge prediction.
 """
 
 import os
@@ -21,27 +21,27 @@ import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.trainer import GSgnnNodePredictionTrainer
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
+from graphstorm.trainer import GSgnnEdgePredictionTrainer
+from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
 
 def get_evaluator(config):
-    if config.task_type == "node_classification":
+    if config.task_type == "edge_classification":
         return GSgnnAccEvaluator(config.evaluation_frequency,
                                  config.eval_metric,
                                  config.multilabel,
                                  config.enable_early_stop,
-                                 config.call_to_consider_early_stop,
+                                 config.early_stop_burnin_rounds,
                                  config.window_for_early_stop,
                                  config.early_stop_strategy)
-    elif config.task_type == "node_regression":
+    elif config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
                                         config.eval_metric,
                                         config.enable_early_stop,
-                                        config.call_to_consider_early_stop,
+                                        config.early_stop_burnin_rounds,
                                         config.window_for_early_stop,
                                         config.early_stop_strategy)
     else:
@@ -51,18 +51,19 @@ def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    train_data = GSgnnNodeTrainData(config.graph_name,
+    train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
-                                    train_ntypes=config.predict_ntype,
+                                    train_etypes=config.target_etype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
-    model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
-    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(),
+    model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
+    trainer = GSgnnEdgePredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path)
     trainer.setup_cuda(dev_id=config.local_rank)
     if not config.no_validation:
+        # TODO(zhengda) we need to refactor the evaluator.
         evaluator = get_evaluator(config)
         trainer.setup_evaluator(evaluator)
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
@@ -72,21 +73,29 @@ def main(args):
     if trainer.rank == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
+
     device = 'cuda:%d' % trainer.dev_id
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True)
+    dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
+                                     batch_size=config.batch_size, device=device, train_task=True,
+                                     reverse_edge_types_map=config.reverse_edge_types_map,
+                                     remove_target_edge_type=config.remove_target_edge_type,
+                                     exclude_training_targets=config.exclude_training_targets)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.mini_batch_infer else []
     if len(train_data.val_idxs) > 0:
-        val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
-                                             batch_size=config.eval_batch_size,
-                                             device=device, train_task=False)
+        val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
+            batch_size=config.eval_batch_size,
+            device=device, train_task=False,
+            reverse_edge_types_map=config.reverse_edge_types_map,
+            remove_target_edge_type=config.remove_target_edge_type)
     if len(train_data.test_idxs) > 0:
-        test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
-                                              batch_size=config.eval_batch_size,
-                                              device=device, train_task=False)
+        test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
+            batch_size=config.eval_batch_size,
+            device=device, train_task=False,
+            reverse_edge_types_map=config.reverse_edge_types_map,
+            remove_target_edge_type=config.remove_target_edge_type)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -108,7 +117,7 @@ def main(args):
                 freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
 
     if config.save_embed_path is not None:
-        model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=False)
+        model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=False)
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)

@@ -14,4 +14,5 @@ pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/trainer/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/inference/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/tracker/
+pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/run/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
