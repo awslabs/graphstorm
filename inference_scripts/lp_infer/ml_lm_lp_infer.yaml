@@ -18,7 +18,7 @@ gsf:
   gnn:
     model_encoder_type: lm
     hidden_size: 128
-    mini_batch_infer: true
+    use_mini_batch_infer: true
   input:
     restore_model_path: /data/gsgnn_lp_ml/
   output:

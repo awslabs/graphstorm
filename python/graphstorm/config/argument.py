@@ -488,14 +488,14 @@ class GSConfig:
             return 0
 
     @property
-    def mini_batch_infer(self):
+    def use_mini_batch_infer(self):
         """ Whether do mini-batch inference or full graph inference
         """
         # pylint: disable=no-member
-        if hasattr(self, "_mini_batch_infer"):
-            assert self._mini_batch_infer in [True, False], \
+        if hasattr(self, "_use_mini_batch_infer"):
+            assert self._use_mini_batch_infer in [True, False], \
                 "Mini batch inference flag must be True or False"
-            return self._mini_batch_infer
+            return self._use_mini_batch_infer
 
         # By default, use mini batch inference, which requires less memory
         return True

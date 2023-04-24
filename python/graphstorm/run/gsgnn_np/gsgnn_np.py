@@ -78,7 +78,7 @@ def main(args):
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
-    fanout = config.eval_fanout if config.mini_batch_infer else []
+    fanout = config.eval_fanout if config.use_mini_batch_infer else []
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
@@ -102,7 +102,7 @@ def main(args):
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
                 test_loader=test_dataloader, n_epochs=config.n_epochs,
                 save_model_path=save_model_path,
-                mini_batch_infer=config.mini_batch_infer,
+                use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_per_iters=config.save_model_per_iters,
                 save_perf_results_path=config.save_perf_results_path,
                 freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
