@@ -300,7 +300,7 @@ def create_io_config(tmp_path, file_name):
 
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
-        "save_model_per_iters": 100,
+        "save_model_frequency": 100,
         "save_embed_path": "./save_emb",
     }
 
@@ -317,7 +317,7 @@ def test_load_io_info():
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
         assert config.save_model_path == None
-        assert config.save_model_per_iters == -1
+        assert config.save_model_frequency == -1
         assert config.save_embed_path == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
@@ -326,7 +326,7 @@ def test_load_io_info():
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
-        assert config.save_model_per_iters == 100
+        assert config.save_model_frequency == 100
         assert config.save_embed_path == "./save_emb"
 
 def create_task_tracker_config(tmp_path, file_name):
@@ -397,7 +397,7 @@ def create_train_config(tmp_path, file_name):
         "wd_l2norm": 0.1,
         "alpha_l2norm": 0.00001,
         "evaluation_frequency": 1000,
-        'save_model_per_iters': 1000,
+        'save_model_frequency': 1000,
         "topk_model_to_save": 3,
         "lm_tune_lr": 0.0001,
         "sparse_lr": 0.001,
@@ -419,14 +419,14 @@ def create_train_config(tmp_path, file_name):
 
     yaml_object["gsf"]["hyperparam"] = {
         "evaluation_frequency": 1000,
-        'save_model_per_iters': 2000,
+        'save_model_frequency': 2000,
         "topk_model_to_save": 5,
         "save_model_path": os.path.join(tmp_path, "save"),
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    # evaluation_frequency = 1000 and save_model_per_iters uses default (-1)
+    # evaluation_frequency = 1000 and save_model_frequency uses default (-1)
     yaml_object["gsf"]["hyperparam"] = {
         "evaluation_frequency": 1000,
         "topk_model_to_save": 5,
@@ -447,7 +447,7 @@ def create_train_config(tmp_path, file_name):
         "use_node_embeddings": True,
         "use_self_loop": "error",
         "evaluation_frequency": 1000,
-        'save_model_per_iters': 700,
+        'save_model_frequency': 700,
         "topk_model_to_save": 3,
         "enable_early_stop": True,
         "early_stop_burnin_rounds": -1,
@@ -459,7 +459,7 @@ def create_train_config(tmp_path, file_name):
 
     yaml_object["gsf"]["hyperparam"] = {
         "evaluation_frequency": 1100,
-        'save_model_per_iters': 2000,
+        'save_model_frequency': 2000,
         "topk_model_to_save": 3,
         "save_model_path": os.path.join(tmp_path, "save"),
     }
@@ -517,13 +517,13 @@ def test_train_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test2.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.evaluation_frequency == 1000
-        assert config.save_model_per_iters == 2000
+        assert config.save_model_frequency == 2000
         assert config.topk_model_to_save == 5
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test3.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.evaluation_frequency == 1000
-        assert config.save_model_per_iters == -1
+        assert config.save_model_frequency == -1
         assert config.topk_model_to_save == 5
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail.yaml'), local_rank=0)
@@ -1394,7 +1394,7 @@ def create_io_config(tmp_path, file_name):
 
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
-        "save_model_per_iters": 100,
+        "save_model_frequency": 100,
         "save_embed_path": "./save_emb",
     }
 
@@ -1403,7 +1403,7 @@ def create_io_config(tmp_path, file_name):
 
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
-        "save_model_per_iters": 100,
+        "save_model_frequency": 100,
         "save_embed_path": "./save_emb",
         "save_prediction_path": "./prediction",
     }
@@ -1421,7 +1421,7 @@ def test_load_io_info():
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
         assert config.save_model_path == None
-        assert config.save_model_per_iters == -1
+        assert config.save_model_frequency == -1
         assert config.save_embed_path == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
@@ -1430,7 +1430,7 @@ def test_load_io_info():
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
-        assert config.save_model_per_iters == 100
+        assert config.save_model_frequency == 100
         assert config.save_embed_path == "./save_emb"
         assert config.save_prediction_path == "./save_emb"
 

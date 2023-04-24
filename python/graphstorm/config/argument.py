@@ -541,16 +541,16 @@ class GSConfig:
         return None
 
     @property
-    def save_model_per_iters(self):
+    def save_model_frequency(self):
         """ Save model every N iterations
         """
         # pylint: disable=no-member
-        if hasattr(self, "_save_model_per_iters"):
+        if hasattr(self, "_save_model_frequency"):
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
-            assert self._save_model_per_iters > 0, \
-                f'save-model-per-iters must large than 0, but got {self._save_model_per_iters}'
-            return self._save_model_per_iters
+            assert self._save_model_frequency > 0, \
+                f'save-model-frequency must large than 0, but got {self._save_model_frequency}'
+            return self._save_model_frequency
         # By default, use -1, means do not auto save models
         return -1
 
@@ -558,17 +558,17 @@ class GSConfig:
     def topk_model_to_save(self):
         """ the number of top k best validation performance model to save
 
-            If topk_model_to_save is set (save_model_per_iters is not set),
+            If topk_model_to_save is set (save_model_frequency is not set),
             GraphStorm will try to save models after each epoch and keep at
             most K models.
-            If save_model_per_iters is set, GraphStorm will try to save
-            models every #save_model_per_iters iterations and keep at
+            If save_model_frequency is set, GraphStorm will try to save
+            models every #save_model_frequency iterations and keep at
             most K models.
             By default, GraphStorm will save the latest K models unless
             evaluation_frequency is set. When evaluation_frequency is set,
             GraphStorm will evaluate the model performance every
             #evaluation_frequency iterations. If at the same iteration,
-            #save_model_per_iters is reached, it will try to save the
+            #save_model_frequency is reached, it will try to save the
             best K model instead of the latest K model.
         """
         # pylint: disable=no-member
@@ -577,16 +577,16 @@ class GSConfig:
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
 
-            if self.evaluation_frequency != sys.maxsize and self.save_model_per_iters > 0:
+            if self.evaluation_frequency != sys.maxsize and self.save_model_frequency > 0:
                 # save model within an epoch need to collaborate with evaluation
                 # within an epoch
-                assert self.save_model_per_iters >= self.evaluation_frequency and \
-                    self.save_model_per_iters % self.evaluation_frequency == 0, \
-                    'FATAL: save_model_per_iters' \
-                          f'({self.save_model_per_iters}) ' \
+                assert self.save_model_frequency >= self.evaluation_frequency and \
+                    self.save_model_frequency % self.evaluation_frequency == 0, \
+                    'FATAL: save_model_frequency' \
+                          f'({self.save_model_frequency}) ' \
                           'does not equal to evaluation_frequency' \
                           f'({self.evaluation_frequency}), or ' \
-                          f'save_model_per_iters ({self.save_model_per_iters}) ' \
+                          f'save_model_frequency ({self.save_model_frequency}) ' \
                           'is not divisible by evaluation_frequency ' \
                           f'({self.evaluation_frequency}). ' \
                           'GraphStorm can not guarentees that it will ' \
@@ -1391,7 +1391,7 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
-    group.add_argument('--save-model-per-iters', type=int, default=argparse.SUPPRESS,
+    group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,
             help='Save the model to the specified file. Use none to turn off model saveing')
