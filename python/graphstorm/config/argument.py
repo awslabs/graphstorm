@@ -811,7 +811,7 @@ class GSConfig:
 
     @property
     def use_early_stop(self):
-        """ whether to enable early stopping by monitoring the validation value
+        """ whether to use early stopping by monitoring the validation value
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_early_stop"):
@@ -1473,7 +1473,7 @@ def _add_hyperparam_args(parser):
             "It can be either consecutive_increase or average_increase")
     group.add_argument("--use-early-stop",
             type=bool, default=argparse.SUPPRESS,
-            help='whether to enable early stopping by monitoring the validation loss')
+            help='whether to use early stopping by monitoring the validation loss')
     return parser
 
 def _add_lm_model_args(parser):

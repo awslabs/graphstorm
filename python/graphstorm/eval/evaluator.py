@@ -117,7 +117,7 @@ class GSgnnInstanceEvaluator():
     eval_metric: list of string
         Evaluation metric used during evaluation.
     use_early_stop: bool
-        Set true to enable early stop.
+        Set true to use early stop.
     early_stop_burnin_rounds: int
         Burn-in rounds before start checking for the early stop condition.
     early_stop_rounds: int
@@ -333,7 +333,7 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
     eval_metric: list of string
         Evaluation metric used during evaluation.
     use_early_stop: bool
-        Set true to enable early stop.
+        Set true to use early stop.
     early_stop_burnin_rounds: int
         Burn-in rounds before start checking for the early stop condition.
     early_stop_rounds: int
@@ -441,7 +441,7 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
     multilabel: bool
         If set to true, the task is a multi-label classification task.
     use_early_stop: bool
-        Set true to enable early stop.
+        Set true to use early stop.
     early_stop_burnin_rounds: int
         Burn-in rounds before start checking for the early stop condition.
     early_stop_rounds: int
@@ -557,7 +557,7 @@ class GSgnnLPEvaluator():
     eval_metric: list of string
         Evaluation metric used during evaluation.
     use_early_stop: bool
-        Set true to enable early stop.
+        Set true to use early stop.
     early_stop_burnin_rounds: int
         Burn-in rounds before start checking for the early stop condition.
     early_stop_rounds: int
@@ -772,7 +772,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
     lp_decoder_type: str
         Link prediction decoder type.
     use_early_stop: bool
-        Set true to enable early stop.
+        Set true to use early stop.
     early_stop_burnin_rounds: int
         Burn-in rounds before start checking for the early stop condition.
     early_stop_rounds: int
