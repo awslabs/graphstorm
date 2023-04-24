@@ -161,7 +161,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(model.module, val_loader, test_loader, 
+                    val_score = self.eval(model.module, val_loader, test_loader,
                                         use_mini_batch_infer, total_steps)
 
                     if self.evaluator.do_early_stop(val_score):
