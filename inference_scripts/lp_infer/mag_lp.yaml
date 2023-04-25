@@ -15,8 +15,6 @@ gsf:
     restore_model_path: null
   output:
     save_embeds_path: null
-  hyperparam:
-    eval_batch_size: 4000
   rgcn:
     n_bases: -1
     use_self_loop: true
