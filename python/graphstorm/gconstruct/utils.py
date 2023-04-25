@@ -198,9 +198,9 @@ class ExtMemArrayMerger:
         # If external memory workspace is not initialized or the feature size is smaller
         # than a threshold, we don't do anything.
         if self._ext_mem_workspace is None or np.prod(shape[1:]) < self._ext_mem_feat_size:
-            if if len(arrs) == 1 and isinstance(arrs[0], HDF5Array):
+            if len(arrs) == 1 and isinstance(arrs[0], HDF5Array):
                 return arrs[0].to_numpy()
-            elif if len(arrs) == 1:
+            elif len(arrs) == 1:
                 return arrs[0]
             else:
                 return _merge_arrs(arrs, None)
