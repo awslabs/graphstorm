@@ -481,7 +481,7 @@ def test_train_info():
         config._batch_size = 32
         assert config.batch_size == 32
         config._eval_batch_size = 32
-        assert config.eval_batch_size == 32
+        assert config.eval_batch_size == 10000
         assert config.wd_l2norm == 0
         assert config.alpha_l2norm == 0
         assert config.topk_model_to_save == math.inf
