@@ -46,7 +46,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 and isinstance(model, GSgnnModelBase), \
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
 
-    def fit(self, train_loader, n_epochs,
+    def fit(self, train_loader, num_epochs,
             val_loader=None,            # pylint: disable=unused-argument
             test_loader=None,           # pylint: disable=unused-argument
             use_mini_batch_infer=True,      # pylint: disable=unused-argument
@@ -61,7 +61,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         ----------
         train_loader : GSgnnLinkPredictionDataLoader
             The mini-batch sampler for training.
-        n_epochs : int
+        num_epochs : int
             The max number of epochs to train the model.
         val_loader : GSgnnLinkPredictionDataLoader
             The mini-batch sampler for computing validation scores. The validation scores
@@ -113,7 +113,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         forward_time = 0
         back_time = 0
         sys_tracker.check('start training')
-        for epoch in range(n_epochs):
+        for epoch in range(num_epochs):
             model.train()
             t0 = time.time()
 

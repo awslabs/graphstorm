@@ -322,7 +322,7 @@ def main(args):
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.
-    trainer.fit(train_loader=dataloader, n_epochs=config.n_epochs,
+    trainer.fit(train_loader=dataloader, num_epochs=config.num_epochs,
                 val_loader=eval_dataloader,
                 test_loader=test_dataloader,
                 save_model_path=config.save_model_path,
