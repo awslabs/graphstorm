@@ -35,14 +35,14 @@ def get_evaluator(config):
                                  config.multilabel,
                                  config.enable_early_stop,
                                  config.early_stop_burnin_rounds,
-                                 config.window_for_early_stop,
+                                 config.early_stop_rounds,
                                  config.early_stop_strategy)
     elif config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
                                         config.eval_metric,
                                         config.enable_early_stop,
                                         config.early_stop_burnin_rounds,
-                                        config.window_for_early_stop,
+                                        config.early_stop_rounds,
                                         config.early_stop_strategy)
     else:
         raise ValueError("Unknown task type")
@@ -107,8 +107,8 @@ def main(args):
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
                 test_loader=test_dataloader, n_epochs=config.n_epochs,
                 save_model_path=save_model_path,
-                mini_batch_infer=config.mini_batch_infer,
-                save_model_per_iters=config.save_model_per_iters,
+                use_mini_batch_infer=config.use_mini_batch_infer,
+                save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path)
 
     if config.save_embed_path is not None:

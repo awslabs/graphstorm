@@ -13,20 +13,30 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Inference script for link prediction tasks with GNN
+    Inference script for edge classification/regression tasks with language
+    model as encoder only.
 """
 
 import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.inference import GSgnnLinkPredictionInfer
-from graphstorm.eval import GSgnnMrrLPEvaluator
-from graphstorm.dataloading import GSgnnEdgeInferData
-from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.inference import GSgnnEdgePredictionInfer
+from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
+from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
+
+def get_evaluator(config): # pylint: disable=unused-argument
+    """ Get evaluator class
+    """
+    if config.task_type == "edge_regression":
+        return GSgnnRegressionEvaluator(config.evaluation_frequency,
+                                        config.eval_metric)
+    elif config.task_type == 'edge_classification':
+        return GSgnnAccEvaluator(config.evaluation_frequency,
+                                 config.eval_metric,
+                                 config.multilabel)
+    else:
+        raise AttributeError(config.task_type + ' is not supported.')
 
 def main(args):
     config = GSConfig(args)
@@ -34,40 +44,32 @@ def main(args):
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
-                                    eval_etypes=config.eval_etype,
-                                    node_feat_field=config.node_feat_name)
-    model = gs.create_builtin_lp_gnn_model(infer_data.g, config, train_task=False)
+                                    eval_etypes=config.target_etype,
+                                    node_feat_field=config.node_feat_name,
+                                    label_field=config.label_field)
+    model = gs.create_builtin_edge_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
-    infer = GSgnnLinkPredictionInfer(model, gs.get_rank())
+    infer = GSgnnEdgePredictionInfer(model, gs.get_rank())
     infer.setup_cuda(dev_id=config.local_rank)
     if not config.no_validation:
-        infer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.evaluation_frequency,
-                                infer_data,
-                                config.num_negative_edges_eval,
-                                config.lp_decoder_type))
+        evaluator = get_evaluator(config)
+        infer.setup_evaluator(evaluator)
         assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
-    # We only support full-graph inference for now.
-    if config.test_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-        test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.test_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
-        test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
-    else:
-        raise Exception('Unknown test negative sampler.'
-            'Supported test negative samplers include '
-            f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
-
-    dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
+    device = 'cuda:%d' % infer.dev_id
+    dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=[],
                                      batch_size=config.eval_batch_size,
-                                     num_negative_edges=config.num_negative_edges_eval)
+                                     device=device, train_task=False,
+                                     remove_target_edge_type=False)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
     model.prepare_input_encoder(infer_data)
-    infer.infer(infer_data, dataloader, save_embed_path=config.save_embed_path)
+    infer.infer(dataloader, save_embed_path=config.save_embed_path,
+                save_prediction_path=config.save_prediction_path,
+                use_mini_batch_infer=config.use_mini_batch_infer)
 
 def generate_parser():
     parser = get_argument_parser()
