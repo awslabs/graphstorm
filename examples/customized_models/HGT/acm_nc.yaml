@@ -23,7 +23,8 @@ gsf:
   hyperparam:
     dropout: 0.
     lr: 0.0001
-    n_epochs: 200
+    lm_tune_lr: 0.0001
+    num_epochs: 200
     batch_size: 1024
     bert_infer_bs: 128
     wd_l2norm: 0

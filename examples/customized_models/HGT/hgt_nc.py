@@ -312,7 +312,7 @@ def main(args):
     evaluator = GSgnnAccEvaluator(config.evaluation_frequency,
                                   config.eval_metric,
                                   config.multilabel,
-                                  config.enable_early_stop,
+                                  config.use_early_stop,
                                   config.early_stop_burnin_rounds,
                                   config.early_stop_rounds,
                                   config.early_stop_strategy)
@@ -322,7 +322,7 @@ def main(args):
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.
-    trainer.fit(train_loader=dataloader, n_epochs=config.n_epochs,
+    trainer.fit(train_loader=dataloader, num_epochs=config.num_epochs,
                 val_loader=eval_dataloader,
                 test_loader=test_dataloader,
                 save_model_path=config.save_model_path,

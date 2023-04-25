@@ -90,7 +90,7 @@ def main(args):
     device = 'cuda:%d' % trainer.dev_id
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=[10, 10],
                                      batch_size=1000, device=device, train_task=True)
-    trainer.fit(train_loader=dataloader, n_epochs=2)
+    trainer.fit(train_loader=dataloader, num_epochs=2)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Training GNN model")

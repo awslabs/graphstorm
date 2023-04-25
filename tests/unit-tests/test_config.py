@@ -391,7 +391,7 @@ def create_train_config(tmp_path, file_name):
     yaml_object["gsf"]["hyperparam"] = {
         "dropout" : 0.1,
         "lr": 0.001,
-        "n_epochs": 10,
+        "num_epochs": 10,
         "batch_size": 64,
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
@@ -403,7 +403,7 @@ def create_train_config(tmp_path, file_name):
         "sparse_lr": 0.001,
         "use_node_embeddings": False,
         "use_self_loop": False,
-        "enable_early_stop": True,
+        "use_early_stop": True,
         "save_model_path": os.path.join(tmp_path, "save"),
     }
 
@@ -439,7 +439,7 @@ def create_train_config(tmp_path, file_name):
     yaml_object["gsf"]["hyperparam"] = {
         "dropout" : -1.0,
         "lr": 0.,
-        "n_epochs": -1,
+        "num_epochs": -1,
         "batch_size": 0,
         "eval_batch_size": 0,
         "lm_tune_lr": 0.,
@@ -449,7 +449,7 @@ def create_train_config(tmp_path, file_name):
         "evaluation_frequency": 1000,
         'save_model_frequency': 700,
         "topk_model_to_save": 3,
-        "enable_early_stop": True,
+        "use_early_stop": True,
         "early_stop_burnin_rounds": -1,
         "early_stop_rounds": 0,
     }
@@ -476,7 +476,7 @@ def test_train_info():
 
         assert config.dropout == 0
         check_failure(config, "lr")
-        assert config.n_epochs == 0
+        assert config.num_epochs == 0
         check_failure(config, "batch_size")
         config._batch_size = 32
         assert config.batch_size == 32
@@ -489,14 +489,14 @@ def test_train_info():
         assert config.sparse_lr == 0.01
         assert config.use_node_embeddings == False
         assert config.use_self_loop == True
-        assert config.enable_early_stop == False
+        assert config.use_early_stop == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'), local_rank=0)
         config = GSConfig(args)
 
         assert config.dropout == 0.1
         assert config.lr == 0.001
-        assert config.n_epochs == 10
+        assert config.num_epochs == 10
         assert config.batch_size == 64
         assert config.eval_batch_size == 128
         assert config.wd_l2norm == 0.1
@@ -506,7 +506,7 @@ def test_train_info():
         assert config.sparse_lr == 0.001
         assert config.use_node_embeddings == False
         assert config.use_self_loop == False
-        assert config.enable_early_stop == True
+        assert config.use_early_stop == True
         assert config.early_stop_burnin_rounds == 0
         assert config.early_stop_rounds == 3
 
@@ -530,7 +530,7 @@ def test_train_info():
         config = GSConfig(args)
         check_failure(config, "dropout")
         check_failure(config, "lr")
-        check_failure(config, "n_epochs")
+        check_failure(config, "num_epochs")
         check_failure(config, "batch_size")
         check_failure(config, "eval_batch_size")
         check_failure(config, "lm_tune_lr")
@@ -539,7 +539,7 @@ def test_train_info():
         check_failure(config, "use_self_loop")
         config._dropout = 1.0
         check_failure(config, "dropout")
-        assert config.enable_early_stop == True
+        assert config.use_early_stop == True
         check_failure(config, "topk_model_to_save")
         check_failure(config, "early_stop_burnin_rounds")
         check_failure(config, "early_stop_rounds")

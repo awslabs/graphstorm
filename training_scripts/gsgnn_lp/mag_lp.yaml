@@ -23,7 +23,7 @@ gsf:
   hyperparam:
     dropout: 0.
     lr: 0.0005
-    n_epochs: 20
+    num_epochs: 20
     batch_size: 4000
     wd_l2norm: 0
   rgcn:
