@@ -733,8 +733,12 @@ class GSConfig:
         if hasattr(self, "_eval_batch_size"):
             assert self._eval_batch_size > 0
             return self._eval_batch_size
-        # (Israt): This number is heuristically chosen. Benchmarks can be found at PR:
-        # https://github.com/awslabs/graphstorm/pull/66.
+        # (Israt): Larger batch sizes significantly improve runtime efficiency. Increasing the
+        # batch size from 1K to 10K reduces end-to-end inference time from 45 mins to 19 mins
+        # in link prediction on OGBN-paers100M dataset with 16-dimensional length. However,
+        # using an overly large batch size can lead to GPU out-of-memory (OOM) issues. Therefore,
+        # a heuristic approach has been taken, and 10K has been chosen as a balanced default
+        # value. More details can be found at https://github.com/awslabs/graphstorm/pull/66.
         return 10000
 
     @property
