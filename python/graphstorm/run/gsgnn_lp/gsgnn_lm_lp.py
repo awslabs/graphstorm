@@ -61,7 +61,7 @@ def main(args):
                                 train_data,
                                 config.num_negative_edges_eval,
                                 config.lp_decoder_type,
-                                config.enable_early_stop,
+                                config.use_early_stop,
                                 config.early_stop_burnin_rounds,
                                 config.early_stop_rounds,
                                 config.early_stop_strategy))

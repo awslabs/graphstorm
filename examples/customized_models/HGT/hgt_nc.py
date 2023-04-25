@@ -312,7 +312,7 @@ def main(args):
     evaluator = GSgnnAccEvaluator(config.evaluation_frequency,
                                   config.eval_metric,
                                   config.multilabel,
-                                  config.enable_early_stop,
+                                  config.use_early_stop,
                                   config.early_stop_burnin_rounds,
                                   config.early_stop_rounds,
                                   config.early_stop_strategy)
