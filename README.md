@@ -84,7 +84,7 @@ python3 /graphstorm/tools/partition_graph_lp.py --dataset ogbn-mag \
                                                 --filepath /tmp/ogbn-mag-lp/ \
                                                 --num_parts 1 \
                                                 --num_trainers_per_machine 4 \
-                                                --predict_etypes author,writes,paper \
+                                                --target_etypes author,writes,paper \
                                                 --output /tmp/ogbn_mag_lp_train_val_1p_4t
 ```
 

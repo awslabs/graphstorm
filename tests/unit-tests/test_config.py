@@ -641,7 +641,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_classification"] = {
-        "predict_ntype": "a",
+        "target_ntype": "a",
         "label_field": "label",
         "multilabel": True,
         "num_classes": 20,
@@ -650,7 +650,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_classification"] = {
-        "predict_ntype": "a",
+        "target_ntype": "a",
         "label_field": "label",
         "multilabel": True,
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
@@ -769,7 +769,7 @@ def test_node_class_info():
         create_node_class_config(Path(tmpdirname), 'node_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "predict_ntype")
+        check_failure(config, "target_ntype")
         check_failure(config, "label_field")
         assert config.multilabel == False
         assert config.multilabel_weights == None
@@ -778,7 +778,7 @@ def test_node_class_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.predict_ntype == "a"
+        assert config.target_ntype == "a"
         assert config.label_field == "label"
         assert config.multilabel == True
         assert config.multilabel_weights == None
@@ -867,7 +867,7 @@ def create_node_regress_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_regression"] = {
-        "predict_ntype": "a",
+        "target_ntype": "a",
         "label_field": "label",
         "eval_metric": "Mse"
     }
@@ -875,7 +875,7 @@ def create_node_regress_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_regression"] = {
-        "predict_ntype": "a",
+        "target_ntype": "a",
         "label_field": "label",
         "eval_metric": ["mse", "RMSE"],
     }
@@ -906,14 +906,14 @@ def test_node_regress_info():
         create_node_regress_config(Path(tmpdirname), 'node_regress_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "predict_ntype")
+        check_failure(config, "target_ntype")
         check_failure(config, "label_field")
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "rmse"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test1.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.predict_ntype == "a"
+        assert config.target_ntype == "a"
         assert config.label_field == "label"
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mse"

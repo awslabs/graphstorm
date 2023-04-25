@@ -48,7 +48,7 @@ gsf:
     sparse_lr: 1e-2
     use_node_embeddings: false
   node_classification:
-    predict_ntype: "movie"
+    target_ntype: "movie"
     label_field: "genre"
     multilabel: false
     num_classes: 19

@@ -942,13 +942,13 @@ class GSConfig:
 
     ### Node related task variables ###
     @property
-    def predict_ntype(self):
+    def target_ntype(self):
         """ The node type for prediction
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_predict_ntype"), \
-            "Must provide the target ntype through predict_ntype"
-        return self._predict_ntype
+        assert hasattr(self, "_target_ntype"), \
+            "Must provide the target ntype through target_ntype"
+        return self._target_ntype
 
     #### edge related task variables ####
     @property
@@ -993,7 +993,6 @@ class GSConfig:
         return {}
 
     ### Edge classification and regression tasks ###
-    # TODO(zhengda) we should rename this to predict_etype
     @property
     def target_etype(self):
         """ The list of canonical etype that will be added as
@@ -1497,7 +1496,7 @@ def _add_rgcn_args(parser):
 
 def _add_node_classification_args(parser):
     group = parser.add_argument_group(title="node classification")
-    group.add_argument("--predict-ntype", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--target-ntype", type=str, default=argparse.SUPPRESS,
                        help="the node type for prediction")
     group.add_argument("--label-field", type=str, default=argparse.SUPPRESS,
                        help="the label field in the data")

@@ -31,7 +31,7 @@ gsf:
     sparse_lr: 1e-2
     use_node_embeddings: false
   node_classification:
-    predict_ntype: "node"
+    target_ntype: "node"
     label_field: "labels"
     multilabel: false
     num_classes: 40

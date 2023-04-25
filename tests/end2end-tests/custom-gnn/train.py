@@ -78,7 +78,7 @@ def main(args):
     gs.initialize(ip_config=args.ip_config, backend="gloo")
     train_data = GSgnnNodeTrainData(args.graph_name,
                                     args.part_config,
-                                    train_ntypes=args.predict_ntype,
+                                    train_ntypes=args.target_ntype,
                                     node_feat_field=args.node_feat,
                                     label_field=args.label)
     for ntype in train_data.g.ntypes:

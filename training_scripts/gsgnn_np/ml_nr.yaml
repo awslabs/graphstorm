@@ -34,6 +34,6 @@ gsf:
     sparse_lr: 1e-2
     use_node_embeddings: false
   node_regression:
-    predict_ntype: "user"
+    target_ntype: "user"
     label_field: 'age'
     eval_metric: 'mse'

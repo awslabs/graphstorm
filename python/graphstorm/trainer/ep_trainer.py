@@ -129,10 +129,10 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
                 assert len(batch_graph.etypes) == 1
-                predict_etype = batch_graph.canonical_etypes[0]
+                target_etype = batch_graph.canonical_etypes[0]
                 # TODO(zhengda) the data loader should return labels directly.
-                seeds = batch_graph.edges[predict_etype[1]].data[dgl.EID]
-                lbl = data.get_labels({predict_etype: seeds}, device)
+                seeds = batch_graph.edges[target_etype[1]].data[dgl.EID]
+                lbl = data.get_labels({target_etype: seeds}, device)
                 blocks = [block.to(device) for block in blocks]
                 batch_graph = batch_graph.to(device)
                 for _, nodes in input_nodes.items():
