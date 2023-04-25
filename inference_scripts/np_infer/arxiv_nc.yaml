@@ -15,8 +15,6 @@ gsf:
     restore_model_path: null
   output:
     save_prediction_path: null
-  hyperparam:
-    eval_batch_size: 1024
   rgcn:
     n_bases: -1
     use_self_loop: true

@@ -25,7 +25,6 @@ gsf:
     lr: 0.0005
     n_epochs: 20
     batch_size: 4000
-    eval_batch_size: 4000
     wd_l2norm: 0
   rgcn:
     n_bases: -1
