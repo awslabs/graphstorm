@@ -9,7 +9,7 @@ gsf:
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
-    n_layers: 1
+    num_layers: 1
     hidden_size: 128
   input:
     restore_model_path: /data/gsgnn_lp_ml/
