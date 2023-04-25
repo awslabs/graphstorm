@@ -35,14 +35,14 @@ def get_evaluator(config):
                                  config.multilabel,
                                  config.enable_early_stop,
                                  config.early_stop_burnin_rounds,
-                                 config.window_for_early_stop,
+                                 config.early_stop_rounds,
                                  config.early_stop_strategy)
     elif config.task_type == "node_regression":
         return GSgnnRegressionEvaluator(config.evaluation_frequency,
                                         config.eval_metric,
                                         config.enable_early_stop,
                                         config.early_stop_burnin_rounds,
-                                        config.window_for_early_stop,
+                                        config.early_stop_rounds,
                                         config.early_stop_strategy)
     else:
         raise ValueError("Unknown task type")

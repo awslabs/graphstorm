@@ -314,7 +314,7 @@ def main(args):
                                   config.multilabel,
                                   config.enable_early_stop,
                                   config.early_stop_burnin_rounds,
-                                  config.window_for_early_stop,
+                                  config.early_stop_rounds,
                                   config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.

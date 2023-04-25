@@ -63,7 +63,7 @@ def main(args):
                                 config.lp_decoder_type,
                                 config.enable_early_stop,
                                 config.early_stop_burnin_rounds,
-                                config.window_for_early_stop,
+                                config.early_stop_rounds,
                                 config.early_stop_strategy))
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
