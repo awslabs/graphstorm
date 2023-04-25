@@ -230,12 +230,8 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
             # in a single file.
             if type_node_id_map is None:
                 assert len(type_node_data[feat_name]) == 1
-            if isinstance(type_node_data[feat_name][0], HDF5Array) \
-                    and list(type_node_data[feat_name]) == 1:
-                type_node_data[feat_name] = type_node_data[feat_name][0]
-            else:
-                type_node_data[feat_name] = arr_merger(type_node_data[feat_name],
-                                                       node_type + "_" + feat_name)
+            type_node_data[feat_name] = arr_merger(type_node_data[feat_name],
+                                                   node_type + "_" + feat_name)
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
@@ -369,13 +365,9 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         print(f"finish merging edges of {edge_type}")
 
         for feat_name in type_edge_data:
-            if isinstance(type_edge_data[feat_name][0], HDF5Array) \
-                    and list(type_edge_data[feat_name]) == 1:
-                type_edge_data[feat_name] = type_edge_data[feat_name][0]
-            else:
-                etype_str = "-".join(edge_type)
-                type_edge_data[feat_name] = arr_merger(type_edge_data[feat_name],
-                                                       etype_str + "_" + feat_name)
+            etype_str = "-".join(edge_type)
+            type_edge_data[feat_name] = arr_merger(type_edge_data[feat_name],
+                                                   etype_str + "_" + feat_name)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
             gc.collect()
             sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')

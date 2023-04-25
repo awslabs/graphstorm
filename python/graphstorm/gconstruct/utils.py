@@ -27,6 +27,7 @@ import dgl
 import torch as th
 
 from ..utils import sys_tracker
+from .file_io import HDF5Array
 
 def worker_fn(task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -151,6 +152,9 @@ def _merge_arrs(arrs, tensor_path):
             out_arr[row_idx:(row_idx + arr.shape[0])] = arr[:]
             row_idx += arr.shape[0]
         return out_arr
+    elif isinstance(arrs[0], HDF5Array):
+        arrs = [arr.to_numpy() for arr in arrs]
+        return np.concatenate(arrs)
     else:
         return np.concatenate(arrs)
 
@@ -194,7 +198,12 @@ class ExtMemArrayMerger:
         # If external memory workspace is not initialized or the feature size is smaller
         # than a threshold, we don't do anything.
         if self._ext_mem_workspace is None or np.prod(shape[1:]) < self._ext_mem_feat_size:
-            return arrs[0] if len(arrs) == 1 else _merge_arrs(arrs, None)
+            if if len(arrs) == 1 and isinstance(arrs[0], HDF5Array):
+                return arrs[0].to_numpy()
+            elif if len(arrs) == 1:
+                return arrs[0]
+            else:
+                return _merge_arrs(arrs, None)
 
         # We need to create the workspace directory if it doesn't exist.
         os.makedirs(self._ext_mem_workspace, exist_ok=True)

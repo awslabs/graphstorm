@@ -186,6 +186,11 @@ class HDF5Array:
         arr = self._arr[:]
         return th.tensor(arr)
 
+    def to_numpy(self):
+        """ Return Numpy array.
+        """
+        return self._arr[:]
+
     @property
     def shape(self):
         """ The shape of the HDF5 array.
