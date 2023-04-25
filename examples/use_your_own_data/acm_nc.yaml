@@ -12,7 +12,7 @@ gsf:
   gnn:
     fanout: "50,50"
     n_layers: 2
-    n_hidden: 256
+    hidden_size: 256
     use_mini_batch_infer: false
   input:
     restore_model_path: null
