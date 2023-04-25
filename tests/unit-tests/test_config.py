@@ -451,7 +451,7 @@ def create_train_config(tmp_path, file_name):
         "topk_model_to_save": 3,
         "enable_early_stop": True,
         "early_stop_burnin_rounds": -1,
-        "window_for_early_stop": 0,
+        "early_stop_rounds": 0,
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
@@ -509,7 +509,7 @@ def test_train_info():
         assert config.use_self_loop == False
         assert config.enable_early_stop == True
         assert config.early_stop_burnin_rounds == 0
-        assert config.window_for_early_stop == 3
+        assert config.early_stop_rounds == 3
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -543,7 +543,7 @@ def test_train_info():
         assert config.enable_early_stop == True
         check_failure(config, "topk_model_to_save")
         check_failure(config, "early_stop_burnin_rounds")
-        check_failure(config, "window_for_early_stop")
+        check_failure(config, "early_stop_rounds")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)

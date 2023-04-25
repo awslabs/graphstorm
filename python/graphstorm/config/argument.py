@@ -775,16 +775,16 @@ class GSConfig:
         return 0
 
     @property
-    def window_for_early_stop(self):
-        """ The number of latest validation scores to average deciding on early stop
+    def early_stop_rounds(self):
+        """ The number of rounds for validation scores to average to decide on early stop
         """
         # pylint: disable=no-member
-        if hasattr(self, "_window_for_early_stop"):
-            assert isinstance(self._window_for_early_stop, int), \
-                "window_for_early_stop should be an integer"
-            assert self._window_for_early_stop > 0, \
+        if hasattr(self, "_early_stop_rounds"):
+            assert isinstance(self._early_stop_rounds, int), \
+                "early_stop_rounds should be an integer"
+            assert self._early_stop_rounds > 0, \
                 "early_stop_rounds should be larger than 0"
-            return self._window_for_early_stop
+            return self._early_stop_rounds
 
         # at least 3 iterations
         return 3
@@ -1460,9 +1460,9 @@ def _add_hyperparam_args(parser):
     group.add_argument("--early-stop-burnin-rounds",
             type=int, default=argparse.SUPPRESS,
             help="Burn-in rounds before start checking for the early stop condition.")
-    group.add_argument("--window-for-early-stop",
+    group.add_argument("--early-stop-rounds",
             type=int, default=argparse.SUPPRESS,
-            help="the number of latest validation scores to average deciding on early stop")
+            help="The number of rounds for validation scores to average to decide on early stop")
     group.add_argument("--early-stop-strategy",
             type=str, default=argparse.SUPPRESS,
             help="Specify the early stop strategy. "
