@@ -12,7 +12,7 @@ gsf:
     fanout: "4"
     n_layers: 1
     hidden_size: 128
-    mini_batch_infer: true
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
@@ -37,7 +37,7 @@ gsf:
   link_prediction:
     num_negative_edges: 4
     num_negative_edges_eval: 100
-    negative_sampler: joint
+    train_negative_sampler: joint
     eval_etype:
       - "user,rating,movie"
     train_etype:

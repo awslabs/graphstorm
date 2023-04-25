@@ -326,7 +326,7 @@ def main(args):
                 val_loader=eval_dataloader,
                 test_loader=test_dataloader,
                 save_model_path=config.save_model_path,
-                mini_batch_infer=True)
+                use_mini_batch_infer=True)
 
     # After training, get the best model from the trainer.
     best_model = trainer.get_best_model()
@@ -347,7 +347,7 @@ def main(args):
                                     train_task=False)
 
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
-    infer.infer(dataloader, save_embed_path=config.save_embed_path, mini_batch_infer=True)
+    infer.infer(dataloader, save_embed_path=config.save_embed_path, use_mini_batch_infer=True)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Training HGT model with the GraphStorm Framework")

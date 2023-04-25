@@ -25,13 +25,13 @@ gsf:
     fanout: "4"
     n_layers: 1
     hidden_size: 128
-    mini_batch_infer: true
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
     save_model_path: ./models/movielen_100k/train_val/movielen_100k_utext_train_val_1p_4t_model
     save_embed_path: null
-    save_model_per_iters: 1000
+    save_model_frequency: 1000
   hyperparam:
     dropout: 0.
     lr: 0.001

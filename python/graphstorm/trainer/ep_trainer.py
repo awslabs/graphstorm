@@ -48,9 +48,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     def fit(self, train_loader, n_epochs,
             val_loader=None,
             test_loader=None,
-            mini_batch_infer=True,
+            use_mini_batch_infer=True,
             save_model_path=None,
-            save_model_per_iters=None,
+            save_model_frequency=None,
             save_perf_results_path=None,
             freeze_input_layer_epochs=0):
         """ The fit function for edge prediction.
@@ -66,11 +66,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             are used for selecting models.
         test_loader : GSgnnEdgeDataLoader
             The mini-batch sampler for computing test scores.
-        mini_batch_infer : bool
+        use_mini_batch_infer : bool
             Whether or not to use mini-batch inference.
         save_model_path : str
             The path where the model is saved.
-        save_model_per_iters : int
+        save_model_frequency : int
             The number of iteration to train the model before saving the model.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
@@ -83,7 +83,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         if self.evaluator is not None:
             assert val_loader is not None, \
                     "The evaluator is provided but validation set is not provided."
-        if not mini_batch_infer:
+        if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
 
@@ -161,8 +161,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(model.module, val_loader, test_loader, mini_batch_infer,
-                                        total_steps)
+                    val_score = self.eval(model.module, val_loader, test_loader,
+                                        use_mini_batch_infer, total_steps)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -170,8 +170,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 # Every n iterations, check to save the top k models. If has validation score,
                 # will save # the best top k. But if no validation, will either save
                 # the last k model or all models depends on the setting of top k
-                if save_model_per_iters > 0 and \
-                    total_steps % save_model_per_iters == 0 and \
+                if save_model_frequency > 0 and \
+                    total_steps % save_model_frequency == 0 and \
                     total_steps != 0:
                     if self.evaluator is None or val_score is not None:
                         # We will save the best model when
@@ -195,7 +195,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, val_loader, test_loader, mini_batch_infer,
+                val_score = self.eval(model.module, val_loader, test_loader, use_mini_batch_infer,
                                     total_steps)
 
                 if self.evaluator.do_early_stop(val_score):
@@ -225,7 +225,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, val_loader, test_loader, mini_batch_infer, total_steps):
+    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -236,7 +236,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             The dataloader for validation data
         test_loader : GSNodeDataLoader
             The dataloader for test data.
-        mini_batch_infer : bool
+        use_mini_batch_infer : bool
             Whether or not to use mini-batch inference.
         total_steps: int
             Total number of iterations.
@@ -249,7 +249,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         sys_tracker.check('start prediction')
         model.eval()
         print("call model.eval()")
-        if mini_batch_infer:
+        if use_mini_batch_infer:
             val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader,
                                                               return_label=True)
             test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader,
