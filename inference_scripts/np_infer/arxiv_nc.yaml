@@ -10,11 +10,11 @@ gsf:
     fanout: "15,10"
     n_layers: 2
     hidden_size: 128
-    mini_batch_infer: true
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
-    save_predict_path: null
+    save_prediction_path: null
   hyperparam:
     eval_batch_size: 1024
   rgcn:

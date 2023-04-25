@@ -90,7 +90,7 @@ best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr 
 echo "The best model is saved in epoch $best_epoch"
 
 echo "**************dataset: Movielens, do inference on saved model"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers $NUM_INFERs --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_nc_infer.yaml --mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-predict-path /data/gsgnn_nc_ml/prediction/ | tee log.txt
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers $NUM_INFERs --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ | tee log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -134,7 +134,7 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_n
 error_and_exit $?
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: dot with a single process"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers 1 --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_nc_infer.yaml --mini-batch-infer false --save-embed-path /data/gsgnn_nc_ml/infer-emb-1p/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-predict-path /data/gsgnn_nc_ml/prediction-1p/ | tee log.txt
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers 1 --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false --save-embed-path /data/gsgnn_nc_ml/infer-emb-1p/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction-1p/ | tee log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -186,7 +186,7 @@ best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr 
 echo "The best model is saved in epoch $best_epoch"
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers $NUM_INFERs --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_nc_text_infer.yaml --mini-batch-infer false   --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-predict-path /data/gsgnn_nc_ml_text/prediction/ | tee log.txt
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers $NUM_INFERs --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false   --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ | tee log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -219,7 +219,7 @@ best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr 
 echo "The best model is saved in epoch $best_epoch"
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers $NUM_INFERs --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_nc_text_infer.yaml --mini-batch-infer false --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-predict-path /data/gsgnn_nc_ml_text/prediction/ | tee log.txt
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num_trainers $NUM_INFERs --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_text_train_val_1p_4t/movie-lens-100k-text.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ | tee log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
