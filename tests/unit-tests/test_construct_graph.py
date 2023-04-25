@@ -405,29 +405,40 @@ def test_merge_arrays():
         data1 = read_data_hdf5(tmpfile, in_mem=False)
         arrs = [data1['data1'], data1['data2']]
         res = converter(arrs, "test1")
+        assert isinstance(res, np.ndarray)
         np.testing.assert_array_equal(res, np.concatenate(arrs))
+
+        # One HDF5 array
+        res = converter([data1['data1']], "test1.5")
+        assert isinstance(res, np.ndarray)
+        np.testing.assert_array_equal(res, data1['data1'])
+
         os.remove(tmpfile)
 
         # Merge two arrays whose feature dimension is larger than 2.
         data1 = np.random.uniform(size=(1000, 10))
         data2 = np.random.uniform(size=(900, 10))
         em_arr = converter([data1, data2], "test2")
+        assert isinstance(em_arr, np.ndarray)
         np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
 
         # Merge two arrays whose feature dimension is smaller than 2.
         data1 = np.random.uniform(size=(1000,))
         data2 = np.random.uniform(size=(900,))
         em_arr = converter([data1, data2], "test3")
+        assert isinstance(em_arr, np.ndarray)
         np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
 
         # Input is an array whose feature dimension is larger than 2.
         data1 = np.random.uniform(size=(1000, 10))
         em_arr = converter([data1], "test4")
+        assert isinstance(em_arr, np.ndarray)
         np.testing.assert_array_equal(data1, em_arr)
 
         # Input is an array whose feature dimension is smaller than 2.
         data1 = np.random.uniform(size=(1000,))
         em_arr = converter([data1], "test5")
+        assert isinstance(em_arr, np.ndarray)
         np.testing.assert_array_equal(data1, em_arr)
 
 def test_partition_graph():
