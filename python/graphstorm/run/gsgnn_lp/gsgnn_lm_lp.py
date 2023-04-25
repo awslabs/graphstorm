@@ -118,7 +118,7 @@ def main(args):
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
                 test_loader=test_dataloader, n_epochs=config.n_epochs,
                 save_model_path=save_model_path,
-                mini_batch_infer=config.mini_batch_infer,
+                use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path)
 

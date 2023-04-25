@@ -488,14 +488,14 @@ class GSConfig:
             return 0
 
     @property
-    def mini_batch_infer(self):
+    def use_mini_batch_infer(self):
         """ Whether do mini-batch inference or full graph inference
         """
         # pylint: disable=no-member
-        if hasattr(self, "_mini_batch_infer"):
-            assert self._mini_batch_infer in [True, False], \
-                "Mini batch inference flag must be True or False"
-            return self._mini_batch_infer
+        if hasattr(self, "_use_mini_batch_infer"):
+            assert self._use_mini_batch_infer in [True, False], \
+                "Use mini batch inference flag must be True or False"
+            return self._use_mini_batch_infer
 
         # By default, use mini batch inference, which requires less memory
         return True
@@ -1372,7 +1372,7 @@ def _add_gnn_args(parser):
     group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
             help="number of propagation rounds")
     parser.add_argument(
-            "--mini-batch-infer",
+            "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS

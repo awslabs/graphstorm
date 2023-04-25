@@ -89,7 +89,7 @@ best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr 
 echo "The best model is saved in epoch $best_epoch"
 
 echo "**************dataset: ML edge regression, do inference on saved model"
-python3 -m graphstorm.run.gs_edge_regression --inference --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_er_infer.yaml --mini-batch-infer false --save-embed-path /data/gsgnn_er/infer-emb/ --restore-model-path /data/gsgnn_er/epoch-$best_epoch/ | tee log.txt
+python3 -m graphstorm.run.gs_edge_regression --inference --workspace $GS_HOME/inference_scripts/ep_infer --num_trainers $NUM_INFO_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_er_infer.yaml --use-mini-batch-infer false --save-embed-path /data/gsgnn_er/infer-emb/ --restore-model-path /data/gsgnn_er/epoch-$best_epoch/ | tee log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 

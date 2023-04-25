@@ -19,7 +19,7 @@ gsf:
   gnn:
     model_encoder_type: lm
     hidden_size: 128
-    mini_batch_infer: true
+    use_mini_batch_infer: true
   lm:
     lm_train_nodes: 10
     lm_infer_batchszie: 32
