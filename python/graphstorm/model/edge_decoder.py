@@ -639,3 +639,47 @@ class LinkPredictDistMultDecoder(GSLayer):
         int : the number of output dimensions.
         """
         return 1
+
+def LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
+    """Link prediction decoder with the score function of dot product
+       with edge weight.
+
+       When computing loss, edge weights are used to adjust the loss
+    """
+    def __init__(self, in_dim, edge_weight_fields):
+        self._edge_weight_fields = edge_weight_fields
+        super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
+
+    def forward(self, g, h): # pylint: disable=arguments-differ
+        """Forward function.
+
+        This computes the dot product score on every edge type.
+        """
+        with g.local_scope():
+            scores = []
+            weights = []
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                src_emb = h[src_type][u]
+                dest_emb = h[dest_type][v]
+                scores_etype = calc_dot_pos_score(src_emb, dest_emb)
+
+                if self.training:
+                    # do train()
+                    eid = g.edges(form="eid", etype=canonical_etype)
+                    weight_field = self._edge_weight_fields[canonical_etype] \
+                        if isinstance(self._edge_weight_fields, dict) \
+                        else self._edge_weight_fields
+                    weight = g.edges[canonical_etype].data[weight_field][eid]
+                    weights.append(weight)
+
+                scores.append(scores_etype)
+
+            scores=th.cat(scores)
+            weights = th.cat(weights) if len(weights) > 0 else []
+            return scores, weights

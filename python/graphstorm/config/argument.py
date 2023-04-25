@@ -1156,6 +1156,11 @@ class GSConfig:
                     assert False, \
                         f"You already specify the weight names of {etype}" \
                         f"as {weight_dict[etype]}"
+
+                # TODO: if train_etype is None, we need to check if
+                # etype exists in g.
+                assert self.train_etype is None or etype in self.train_etype, \
+                    f"{etype} must in the training edge type list"
                 assert isinstance(weight_info[1], str), \
                     f"Feature name of {etype} should be a string not {weight_info[1]}"
                 weight_dict[etype] = weight_info[1]

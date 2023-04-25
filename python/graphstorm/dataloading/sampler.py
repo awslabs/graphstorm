@@ -19,8 +19,13 @@ from collections.abc import Mapping
 import torch as th
 import numpy as np
 from dgl import backend as F
+from dgl import transforms
 from dgl.distributed import node_split
 from dgl.dataloading.negative_sampler import Uniform
+from dgl.dataloading import EdgeCollator
+from dgl.dataloading import utils
+from dgl.base import EID, NID
+from dgl.convert import heterograph
 
 class LocalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes
@@ -210,3 +215,69 @@ class JointUniform(object):
             pos_neg_tuple = _gen_neg_pair(pos_pairs,
                 g.canonical_etypes[0][0], g.canonical_etypes[0][2])
         return pos_neg_tuple
+
+class WeightedEdgeCollator(EdgeCollator):
+    """DGL collator with edge weight stored in both pos_graph and neg_graph
+
+        The implementation follows dgl.dataloading.EdgeCollator
+    """
+    def __init__(self, g, eids, graph_sampler, g_sampling=None, exclude=None,
+                 reverse_eids=None, reverse_etypes=None, negative_sampler=None,
+                 edge_weight_fields=None):
+        self.edge_weight_fields = edge_weight_fields
+        super(WeightedEdgeCollator, self).__init__(
+            g, eids, graph_sampler, graph_sampler, exclude,
+            reverse_eids, reverse_etypes, negative_sampler)
+
+    def _collate_with_negative_sampling(self, items):
+        """
+
+            Parameters
+            ----------
+            items : list[int] or list[tuple[str, int]]
+                Either a list of edge IDs (for homogeneous graphs), or a list of edge type-ID
+                pairs (for heterogeneous graphs).
+        """
+        if isinstance(items[0], tuple):
+            # returns a list of pairs: group them by node types into a dict
+            items = utils.group_as_dict(items)
+        items = utils.prepare_tensor_or_dict(self.g_sampling, items, 'items')
+
+        pair_graph = self.g.edge_subgraph(items, relabel_nodes=False)
+        induced_edges = pair_graph.edata[EID]
+
+        neg_srcdst = self.negative_sampler(self.g, items)
+        if not isinstance(neg_srcdst, Mapping):
+            assert len(self.g.etypes) == 1, \
+                'graph has multiple or no edge types; '\
+                'please return a dict in negative sampler.'
+            neg_srcdst = {self.g.canonical_etypes[0]: neg_srcdst}
+        # Get dtype from a tuple of tensors
+        dtype = F.dtype(list(neg_srcdst.values())[0][0])
+        ctx = F.context(pair_graph)
+
+        # Hint: Get edge weight from pos_graph
+        neg_edges = {
+            etype: neg_srcdst.get(etype, (F.copy_to(F.tensor([], dtype), ctx),
+                                          F.copy_to(F.tensor([], dtype), ctx)))
+            for etype in self.g.canonical_etypes}
+        neg_pair_graph = heterograph(
+            neg_edges, {ntype: self.g.number_of_nodes(ntype) for ntype in self.g.ntypes})
+
+        pair_graph, neg_pair_graph = transforms.compact_graphs([pair_graph, neg_pair_graph])
+        pair_graph.edata[EID] = induced_edges
+
+        seed_nodes = pair_graph.ndata[NID]
+
+        exclude_eids = _find_exclude_eids(
+            self.g_sampling,
+            self.exclude,
+            items,
+            reverse_eid_map=self.reverse_eids,
+            reverse_etype_map=self.reverse_etypes)
+
+        input_nodes, _, blocks = self.graph_sampler.sample_blocks(
+            self.g_sampling, seed_nodes, exclude_eids=exclude_eids)
+
+        return input_nodes, pair_graph, neg_pair_graph, blocks
+

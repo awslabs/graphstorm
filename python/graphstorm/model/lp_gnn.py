@@ -73,7 +73,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
     alpha_l2norm : float
         The alpha for L2 normalization.
     """
-    def __init__(self, alpha_l2norm):
+    def __init__(self, alpha_l2norm, edge_weight_for_loss=None):
         super(GSgnnLinkPredictionModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
 
