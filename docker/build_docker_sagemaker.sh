@@ -18,7 +18,7 @@ fi
 
 # process argument 3: image's tag name, default is local
 if [ -z "$3" ]; then
-    TAG="local"
+    TAG="sm"
 else
     TAG="$3"
 fi
@@ -33,6 +33,7 @@ cp -r $GSF_HOME"docker/sagemaker/build_artifacts" build_artifacts
 DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}"
 
 echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
+cat $GSF_HOME"docker/sagemaker/Dockerfile.sm"
 docker build -f $GSF_HOME"docker/sagemaker/Dockerfile.sm" . -t $DOCKER_FULLNAME
 
 # remove the temporary code folder
