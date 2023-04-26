@@ -28,7 +28,7 @@ gsf:
     bert_infer_bs: 128
     no_validation: false
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
     use_node_embeddings: false
   edge_regression:

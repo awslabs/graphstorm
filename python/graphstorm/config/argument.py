@@ -824,26 +824,28 @@ class GSConfig:
 
     ## RGCN only ##
     @property
-    def n_bases(self):
+    def num_bases(self):
         """ Number of bases used in RGCN weight
         """
         # pylint: disable=no-member
-        if hasattr(self, "_n_bases"):
-            assert isinstance(self._n_bases, int)
-            assert self._n_bases > 0 or self._n_bases == -1
-            return self._n_bases
-        # By default do not use n_bases
+        if hasattr(self, "_num_bases"):
+            assert isinstance(self._num_bases, int)
+            assert self._num_bases > 0 or self._num_bases == -1, \
+                "num_bases should be larger than 0 or -1"
+            return self._num_bases
+        # By default do not use num_bases
         return -1
 
     ## RGAT only ##
     @property
-    def n_heads(self):
+    def num_heads(self):
         """ Number of attention heads
         """
         # pylint: disable=no-member
-        if hasattr(self, "_n_heads"):
-            assert self._n_heads > 0
-            return self._n_heads
+        if hasattr(self, "_num_heads"):
+            assert self._num_heads > 0, \
+                "num_heads should be larger than 0"
+            return self._num_heads
         # By default use 4 heads
         return 4
 
@@ -1491,13 +1493,13 @@ def _add_lm_model_args(parser):
 
 def _add_rgat_args(parser):
     group = parser.add_argument_group(title="rgat")
-    group.add_argument("--n-heads", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-heads", type=int, default=argparse.SUPPRESS,
             help="number of attention heads")
     return parser
 
 def _add_rgcn_args(parser):
     group = parser.add_argument_group(title="rgcn")
-    group.add_argument("--n-bases", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-bases", type=int, default=argparse.SUPPRESS,
             help="number of filter weight matrices, default: -1 [use all]")
     return parser
 

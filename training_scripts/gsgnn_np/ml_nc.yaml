@@ -28,7 +28,7 @@ gsf:
     wd_l2norm: 0
     no_validation: false
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
     sparse_lr: 1e-2
     use_node_embeddings: false
