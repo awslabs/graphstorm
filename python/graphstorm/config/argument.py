@@ -428,8 +428,8 @@ class GSConfig:
                 "etype2:10@etype3:4@etype1:2 when you want to " \
                 "specify a different fanout for different edge types"
 
-        assert len(fanout) == self.n_layers, \
-            f"You have a {self.n_layers} layer GNN, " \
+        assert len(fanout) == self.num_layers, \
+            f"You have a {self.num_layers} layer GNN, " \
             f"but you only specify a {fot_name} fanout for {len(fanout)} layers."
         return fanout
 
@@ -471,18 +471,18 @@ class GSConfig:
         return self._hidden_size
 
     @property
-    def n_layers(self):
+    def num_layers(self):
         """ Number of GNN layers
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
-            assert hasattr(self, "_n_layers"), \
+            assert hasattr(self, "_num_layers"), \
                 "Number of GNN layers must be provided"
-            assert isinstance(self._n_layers, int), \
+            assert isinstance(self._num_layers, int), \
                 "Number of GNN layers must be an integer"
-            assert self._n_layers > 0, \
+            assert self._num_layers > 0, \
                 "Number of GNN layers must be larger than 0"
-            return self._n_layers
+            return self._num_layers
         else:
             # not used by non-GNN models
             return 0
@@ -1373,8 +1373,8 @@ def _add_gnn_args(parser):
                  "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
     group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
             help="The number of features in the hidden state")
-    group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
-            help="number of propagation rounds")
+    group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
+            help="number of layers in the GNN")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
