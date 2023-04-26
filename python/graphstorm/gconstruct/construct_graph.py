@@ -198,7 +198,12 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 if feat_name not in type_node_data:
                     type_node_data[feat_name] = [None] * len(return_dict)
                 type_node_data[feat_name][i] = data[feat_name]
-            type_node_id_map[i] = node_ids
+            # If it's HDF5Array, it's better to convert it into a Numpy array.
+            # This will make the next operations on it more efficiently.
+            if isinstance(node_ids, HDF5Array):
+                type_node_id_map[i] = node_ids.to_numpy()
+            else:
+                type_node_id_map[i] = node_ids
         return_dict = None
 
         # Construct node Id map.
