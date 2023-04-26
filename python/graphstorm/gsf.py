@@ -378,25 +378,25 @@ def set_encoder(model, g, config, train_task):
     dropout = config.dropout if train_task else 0
     if model_encoder_type == "mlp" or model_encoder_type == "lm":
         # Only input encoder is used
-        assert config.n_layers == 0, "No GNN layers"
+        assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None
     elif model_encoder_type == "rgcn":
         n_bases = config.n_bases
-        # we need to set the n_layers -1 because there is an output layer
+        # we need to set the num_layers -1 because there is an output layer
         # that is hard coded.
         gnn_encoder = RelationalGCNEncoder(g,
                                            config.hidden_size, config.hidden_size,
                                            num_bases=n_bases,
-                                           num_hidden_layers=config.n_layers -1,
+                                           num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop)
     elif model_encoder_type == "rgat":
-        # we need to set the n_layers -1 because there is an output layer that is hard coded.
+        # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
                                            config.hidden_size,
                                            config.hidden_size,
                                            config.n_heads,
-                                           num_hidden_layers=config.n_layers -1,
+                                           num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop)
     else:

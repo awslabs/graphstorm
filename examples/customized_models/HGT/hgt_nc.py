@@ -144,7 +144,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                                     #   0 means featureless nodes
                  n_hid,             # hidden dimension
                  n_out,             # output dimension
-                 n_layers,          # number of gnn layers
+                 num_layers,          # number of gnn layers
                  n_heads,           # number of attention
                  target_ntype,     # the node type to be predict
                  use_norm = True,   # use normalization or not, default is True
@@ -153,8 +153,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         super(HGT, self).__init__()
         self.node_dict = node_id_dict
         self.edge_dict = edge_id_dict
-        self.n_layers = n_layers
-        self.target_ntype=target_ntype
+        self.num_layers = num_layers
+        self.predict_ntype=predict_ntype
         self.alpha_l2norm = alpha_l2norm
 
         # set adapt weights according to node id and feature dimension dictionary
@@ -174,7 +174,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
         # hgt layers
         self.gcs = nn.ModuleList()
-        for _ in range(n_layers):
+        for _ in range(num_layers):
             self.gcs.append(HGTLayer(n_hid,
                                      n_hid,
                                      node_id_dict,
@@ -200,7 +200,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
             h[ntype] = F.gelu(n_embed)
 
-        for i in range(self.n_layers):
+        for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
 
         pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
@@ -227,7 +227,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
             h[ntype] = F.gelu(n_embed)
 
-        for i in range(self.n_layers):
+        for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
 
         return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]
@@ -283,7 +283,7 @@ def main(args):
                 n_inp_dict=nfeat_dims,
                 n_hid=config.hidden_size,
                 n_out=config.num_classes,
-                n_layers=num_layers,
+                num_layers=num_layers,
                 n_heads=args.num_heads,
                 target_ntype=config.target_ntype,
                 use_norm=True,
