@@ -417,12 +417,13 @@ def test_merge_arrays():
         arrs = [data1['data1'], data1['data2']]
         res = converter(arrs, "test1")
         assert isinstance(res, np.ndarray)
-        np.testing.assert_array_equal(res, np.concatenate(arrs))
+        np.testing.assert_array_equal(res, np.concatenate([data["data1"],
+                                                           data["data2"]]))
 
         # One HDF5 array
         res = converter([data1['data1']], "test1.5")
         assert isinstance(res, np.ndarray)
-        np.testing.assert_array_equal(res, data1['data1'])
+        np.testing.assert_array_equal(res, data['data1'])
 
         os.remove(tmpfile)
 
