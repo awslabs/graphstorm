@@ -565,9 +565,9 @@ class GSConfig:
             models every #save_model_frequency iterations and keep at
             most K models.
             By default, GraphStorm will save the latest K models unless
-            evaluation_frequency is set. When evaluation_frequency is set,
+            eval_frequency is set. When eval_frequency is set,
             GraphStorm will evaluate the model performance every
-            #evaluation_frequency iterations. If at the same iteration,
+            #eval_frequency iterations. If at the same iteration,
             #save_model_frequency is reached, it will try to save the
             best K model instead of the latest K model.
         """
@@ -577,18 +577,18 @@ class GSConfig:
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
 
-            if self.evaluation_frequency != sys.maxsize and self.save_model_frequency > 0:
+            if self.eval_frequency != sys.maxsize and self.save_model_frequency > 0:
                 # save model within an epoch need to collaborate with evaluation
                 # within an epoch
-                assert self.save_model_frequency >= self.evaluation_frequency and \
-                    self.save_model_frequency % self.evaluation_frequency == 0, \
+                assert self.save_model_frequency >= self.eval_frequency and \
+                    self.save_model_frequency % self.eval_frequency == 0, \
                     'FATAL: save_model_frequency' \
                           f'({self.save_model_frequency}) ' \
-                          'does not equal to evaluation_frequency' \
-                          f'({self.evaluation_frequency}), or ' \
+                          'does not equal to eval_frequency' \
+                          f'({self.eval_frequency}), or ' \
                           f'save_model_frequency ({self.save_model_frequency}) ' \
-                          'is not divisible by evaluation_frequency ' \
-                          f'({self.evaluation_frequency}). ' \
+                          'is not divisible by eval_frequency ' \
+                          f'({self.eval_frequency}). ' \
                           'GraphStorm can not guarentees that it will ' \
                           'save the best model after evaluation cycles.'
 
@@ -742,13 +742,13 @@ class GSConfig:
         return 10000
 
     @property
-    def evaluation_frequency(self):
+    def eval_frequency(self):
         """ How many iterations between evaluations
         """
         # pylint: disable=no-member
-        if hasattr(self, "_evaluation_frequency"):
-            assert self._evaluation_frequency > 0, "evaluation_frequency should larger than 0"
-            return self._evaluation_frequency
+        if hasattr(self, "_eval_frequency"):
+            assert self._eval_frequency > 0, "eval_frequency should larger than 0"
+            return self._eval_frequency
         # set max value (Never do evaluation with in an epoch)
         return sys.maxsize
 
@@ -1450,11 +1450,11 @@ def _add_hyperparam_args(parser):
     # control evaluation
     group.add_argument("--eval-batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size for computing GNN embeddings in evaluation.")
-    group.add_argument('--evaluation-frequency',
+    group.add_argument('--eval-frequency',
             type=int,
             default=argparse.SUPPRESS,
             help="How offen to run the evaluation. "
-                 "Every #evaluation_frequency iterations.")
+                 "Every #eval_frequency iterations.")
     group.add_argument(
             '--no-validation',
             type=lambda x: (str(x).lower() in ['true', '1']),

@@ -137,6 +137,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         assert len(encode_embs) == 1, \
             f'There are {len(encode_embs)} node types: {list(encode_embs.keys())}'
         target_ntype = list(encode_embs.keys())[0]
+        print("multilabel", self._multilabel)
         return self.decoder.predict(encode_embs[target_ntype]), encode_embs[target_ntype]
 
 def node_mini_batch_gnn_predict(model, loader, return_label=False):
@@ -218,15 +219,19 @@ def node_mini_batch_predict(model, emb, loader, return_label=False):
             assert len(input_nodes) == 1, "Currently we only support one node type"
             ntype = list(input_nodes.keys())[0]
             in_nodes = input_nodes[ntype]
-            pred = model.decoder.predict(emb[ntype][in_nodes].to(device))
+            print("change here")
+            pred, pred_max = model.decoder.predict(emb[ntype][in_nodes].to(device))
             preds.append(pred.cpu())
+            preds_max.append(pred_max.cpu())
             if return_label:
                 lbl = data.get_labels(seeds)
                 labels.append(lbl[ntype])
     model.train()
+    # TODO(IN): Use fewer lines
     if return_label:
         preds = th.cat(preds)
+        preds_max = th.cat(preds_max)
         labels = th.cat(labels)
-        return preds, labels
+        return preds, preds_max, labels
     else:
-        return th.cat(preds)
+        return th.cat(preds), th.cat(preds_max)

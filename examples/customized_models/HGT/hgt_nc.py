@@ -8,7 +8,6 @@ import torch.nn.functional as F
 import dgl.function as fn
 
 import graphstorm as gs
-# from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
@@ -309,7 +308,7 @@ def main(args):
                                           train_task=False)
 
     # Optional: set up a evaluator
-    evaluator = GSgnnAccEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnAccEvaluator(config.eval_frequency,
                                   config.eval_metric,
                                   config.multilabel,
                                   config.use_early_stop,

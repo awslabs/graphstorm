@@ -48,7 +48,7 @@ def run_dist_lp_eval_worker(worker_rank, train_data, config, val_scores, test_sc
                                       world_size=2,
                                       rank=worker_rank)
 
-    lp_eval = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+    lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
                                   train_data,
                                   num_negative_edges_eval=config.num_negative_edges_eval,
                                   lp_decoder_type=config.lp_decoder_type,
@@ -103,7 +103,7 @@ def run_local_lp_eval_worker(train_data, config, val_scores, test_scores, conn):
                                       world_size=1,
                                       rank=0)
 
-    lp_eval = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+    lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
                                   train_data,
                                   num_negative_edges_eval=config.num_negative_edges_eval,
                                   lp_decoder_type=config.lp_decoder_type,
@@ -156,7 +156,7 @@ def test_lp_dist_eval(seed):
     config = Dummy({
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "use_early_stop": False,
             "eval_metric": ["mrr"]
         })
@@ -193,11 +193,11 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
     config, train_data = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:
-        evaluator = GSgnnRegressionEvaluator(config.evaluation_frequency,
+        evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
                                              config.eval_metric,
                                              config.use_early_stop)
     else:
-        evaluator = GSgnnAccEvaluator(config.evaluation_frequency,
+        evaluator = GSgnnAccEvaluator(config.eval_frequency,
                                       config.eval_metric,
                                       config.multilabel,
                                       config.use_early_stop)
@@ -286,11 +286,11 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
     config, train_data = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:
-        evaluator = GSgnnRegressionEvaluator(config.evaluation_frequency,
+        evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
                                              config.eval_metric,
                                              config.use_early_stop)
     else:
-        evaluator = GSgnnAccEvaluator(config.evaluation_frequency,
+        evaluator = GSgnnAccEvaluator(config.eval_frequency,
                                       config.eval_metric,
                                       config.multilabel,
                                       config.use_early_stop)
@@ -357,7 +357,7 @@ def test_nc_dist_eval(metric, seed, backend):
         "eval_metric": metric,
         "no_validation": False,
         "multilabel": False,
-        "evaluation_frequency": 100,
+        "eval_frequency": 100,
         "use_early_stop": False,
     })
     train_data = Dummy({
@@ -437,7 +437,7 @@ def test_nc_dist_eval_multilabel(seed, backend):
         "eval_metric": ["accuracy"],
         "no_validation": False,
         "multilabel": True,
-        "evaluation_frequency": 100,
+        "eval_frequency": 100,
         "use_early_stop": False,
     })
     train_data = Dummy({
@@ -479,7 +479,7 @@ def test_nc_dist_regression_eval(metric, seed, backend):
     config = Dummy({
         "eval_metric": metric,
         "no_validation": False,
-        "evaluation_frequency": 100,
+        "eval_frequency": 100,
         "use_early_stop": False,
     })
     train_data = Dummy({

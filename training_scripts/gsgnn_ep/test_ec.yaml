@@ -33,7 +33,7 @@ gsf:
     bert_infer_bs: 128
     wd_l2norm: 0
     no_validation: false
-    evaluation_frequency: 1
+    eval_frequency: 1
   rgcn:
     num_bases: -1
     use_self_loop: true

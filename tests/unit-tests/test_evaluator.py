@@ -64,7 +64,7 @@ def test_mrr_lp_evaluator():
     config = Dummy({
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "use_early_stop": False,
         })
 
@@ -82,7 +82,7 @@ def test_mrr_lp_evaluator():
         ("u", "r1", "v") : [(test_pos_scores, test_neg_scores / 4)]
     }
 
-    lp = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+    lp = GSgnnMrrLPEvaluator(config.eval_frequency,
                              train_data,
                              num_negative_edges_eval=config.num_negative_edges_eval,
                              lp_decoder_type=config.lp_decoder_type,
@@ -134,7 +134,7 @@ def test_mrr_lp_evaluator():
     # test evaluate
     @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
-        lp = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+        lp = GSgnnMrrLPEvaluator(config.eval_frequency,
                                  train_data,
                                  num_negative_edges_eval=config. num_negative_edges_eval,
                                  lp_decoder_type=config.lp_decoder_type,
@@ -179,7 +179,7 @@ def test_mrr_lp_evaluator():
     # test evaluate
     @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
     def check_evaluate_infer(mock_compute_score):
-        lp = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+        lp = GSgnnMrrLPEvaluator(config.eval_frequency,
                                  train_data,
                                  num_negative_edges_eval=config.num_negative_edges_eval,
                                  lp_decoder_type=config.lp_decoder_type,
@@ -207,7 +207,7 @@ def test_mrr_lp_evaluator():
     # check GSgnnMrrLPEvaluator.do_eval()
     # train_data.do_validation True
     # config.no_validation False
-    lp = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+    lp = GSgnnMrrLPEvaluator(config.eval_frequency,
                              train_data,
                              num_negative_edges_eval=config.num_negative_edges_eval,
                              lp_decoder_type=config.lp_decoder_type,
@@ -220,14 +220,14 @@ def test_mrr_lp_evaluator():
     config3 = Dummy({
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
-            "evaluation_frequency": 0,
+            "eval_frequency": 0,
             "use_early_stop": False,
         })
 
     # train_data.do_validation True
     # config.no_validation False
-    # evaluation_frequency is 0
-    lp = GSgnnMrrLPEvaluator(config3.evaluation_frequency,
+    # eval_frequency is 0
+    lp = GSgnnMrrLPEvaluator(config3.eval_frequency,
                              train_data,
                              num_negative_edges_eval=config3.num_negative_edges_eval,
                              lp_decoder_type=config3.lp_decoder_type,
@@ -248,7 +248,7 @@ def test_acc_evaluator():
 
     config = Dummy({
             "multilabel": False,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "eval_metric": ["accuracy"],
             "use_early_stop": False,
         })
@@ -256,7 +256,7 @@ def test_acc_evaluator():
     # Test evaluate
     @patch.object(GSgnnAccEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
-        nc = GSgnnAccEvaluator(config.evaluation_frequency,
+        nc = GSgnnAccEvaluator(config.eval_frequency,
                                config.eval_metric,
                                config.multilabel,
                                config.use_early_stop)
@@ -292,7 +292,7 @@ def test_acc_evaluator():
     # check GSgnnAccEvaluator.do_eval()
     # train_data.do_validation True
     # config.no_validation False
-    nc = GSgnnAccEvaluator(config.evaluation_frequency,
+    nc = GSgnnAccEvaluator(config.eval_frequency,
                            config.eval_metric,
                            config.multilabel,
                            config.use_early_stop)
@@ -303,15 +303,15 @@ def test_acc_evaluator():
 
     config3 = Dummy({
             "multilabel": False,
-            "evaluation_frequency": 0,
+            "eval_frequency": 0,
             "eval_metric": ["accuracy"],
             "use_early_stop": False,
         })
 
     # train_data.do_validation True
     # config.no_validation False
-    # evaluation_frequency is 0
-    nc = GSgnnAccEvaluator(config3.evaluation_frequency,
+    # eval_frequency is 0
+    nc = GSgnnAccEvaluator(config3.eval_frequency,
                            config3.eval_metric,
                            config3.multilabel,
                            config3.use_early_stop)
@@ -329,7 +329,7 @@ def test_regression_evaluator():
                                       rank=0)
 
     config = Dummy({
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "eval_metric": ["rmse"],
             "use_early_stop": False,
         })
@@ -337,7 +337,7 @@ def test_regression_evaluator():
     # Test evaluate
     @patch.object(GSgnnRegressionEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
-        nr = GSgnnRegressionEvaluator(config.evaluation_frequency,
+        nr = GSgnnRegressionEvaluator(config.eval_frequency,
                                       config.eval_metric,
                                       config.use_early_stop)
         mock_compute_score.side_effect = [
@@ -372,7 +372,7 @@ def test_regression_evaluator():
 
     # check GSgnnRegressionEvaluator.do_eval()
     # train_data.do_validation True
-    nr = GSgnnRegressionEvaluator(config.evaluation_frequency,
+    nr = GSgnnRegressionEvaluator(config.eval_frequency,
                                   config.eval_metric,
                                   config.use_early_stop)
     assert nr.do_eval(120, epoch_end=True) is True
@@ -381,15 +381,15 @@ def test_regression_evaluator():
     assert nr.do_eval(1) is False
 
     config3 = Dummy({
-            "evaluation_frequency": 0,
+            "eval_frequency": 0,
             "no_validation": False,
             "eval_metric": ["rmse"],
             "use_early_stop": False,
         })
 
     # train_data.do_validation True
-    # evaluation_frequency is 0
-    nr = GSgnnRegressionEvaluator(config3.evaluation_frequency,
+    # eval_frequency is 0
+    nr = GSgnnRegressionEvaluator(config3.eval_frequency,
                                   config3.eval_metric,
                                   config3.use_early_stop)
     assert nr.do_eval(120, epoch_end=True) is True
@@ -429,7 +429,7 @@ def test_early_stop_cons_increase_judge():
 def test_early_stop_evaluator():
     # common Dummy objects
     config = Dummy({
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "eval_metric": ["rmse"],
             "use_early_stop": False,
             "early_stop_burnin_rounds": 5,
@@ -437,7 +437,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
 
-    evaluator = GSgnnRegressionEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
                                          config.eval_metric,
                                          config.use_early_stop,
                                          config.early_stop_burnin_rounds,
@@ -448,7 +448,7 @@ def test_early_stop_evaluator():
         assert evaluator.do_early_stop({"rmse": 0.1}) is False
 
     config = Dummy({
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "eval_metric": ["rmse"],
             "use_early_stop": True,
             "early_stop_burnin_rounds": 5,
@@ -456,7 +456,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
 
-    evaluator = GSgnnRegressionEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
                                          config.eval_metric,
                                          config.use_early_stop,
                                          config.early_stop_burnin_rounds,
@@ -477,7 +477,7 @@ def test_early_stop_evaluator():
 
     config2 = Dummy({
             "multilabel": False,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "eval_metric": ["accuracy"],
             "use_early_stop": True,
             "early_stop_burnin_rounds": 5,
@@ -485,7 +485,7 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
 
-    evaluator = GSgnnAccEvaluator(config2.evaluation_frequency,
+    evaluator = GSgnnAccEvaluator(config2.eval_frequency,
                                   config2.eval_metric,
                                   config2.multilabel,
                                   config2.use_early_stop,
@@ -516,10 +516,10 @@ def test_early_stop_lp_evaluator():
     config = Dummy({
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "use_early_stop": False,
         })
-    evaluator = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
@@ -531,13 +531,13 @@ def test_early_stop_lp_evaluator():
     config = Dummy({
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "use_early_stop": True,
             "early_stop_burnin_rounds": 5,
             "early_stop_rounds": 3,
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
-    evaluator = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
@@ -561,13 +561,13 @@ def test_early_stop_lp_evaluator():
     config = Dummy({
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "use_early_stop": True,
             "early_stop_burnin_rounds": 5,
             "early_stop_rounds": 3,
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
-    evaluator = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
@@ -592,12 +592,12 @@ def test_get_val_score_rank():
     # common Dummy objects
     config = Dummy({
             "multilabel": False,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "eval_metric": ["accuracy"],
             "use_early_stop": False,
         })
 
-    evaluator = GSgnnAccEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnAccEvaluator(config.eval_frequency,
                                   config.eval_metric,
                                   config.multilabel,
                                   config.use_early_stop)
@@ -613,12 +613,12 @@ def test_get_val_score_rank():
 
     config = Dummy({
             "multilabel": False,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "eval_metric": ["mse"],
             "use_early_stop": False,
         })
 
-    evaluator = GSgnnRegressionEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
                                          config.eval_metric,
                                          config.use_early_stop)
     # For mse, the smaller the better
@@ -633,12 +633,12 @@ def test_get_val_score_rank():
 
     config = Dummy({
             "multilabel": False,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "eval_metric": ["rmse"],
             "use_early_stop": False,
         })
 
-    evaluator = GSgnnRegressionEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
                                          config.eval_metric,
                                          config.use_early_stop)
     # For rmse, the smaller the better
@@ -662,12 +662,12 @@ def test_get_val_score_rank():
     config = Dummy({
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
-            "evaluation_frequency": 100,
+            "eval_frequency": 100,
             "use_early_stop": False,
             "eval_metric": ["mrr"]
         })
 
-    evaluator = GSgnnMrrLPEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,

@@ -43,7 +43,7 @@ def main(args):
     infer.setup_cuda(dev_id=config.local_rank)
     if not config.no_validation:
         infer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.evaluation_frequency,
+            GSgnnMrrLPEvaluator(config.eval_frequency,
                                 infer_data,
                                 config.num_negative_edges_eval,
                                 config.lp_decoder_type))
