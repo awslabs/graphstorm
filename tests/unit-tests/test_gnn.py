@@ -76,7 +76,7 @@ def create_rgat_node_model(g):
     model.set_node_input_encoder(encoder)
 
     gnn_encoder = RelationalGATEncoder(g, 4, 4,
-                                       n_heads=2,
+                                       num_heads=2,
                                        num_hidden_layers=1,
                                        dropout=0,
                                        use_self_loop=True)
@@ -430,7 +430,7 @@ def create_ec_config(tmp_path, file_name):
             "input": {},
             "output": {},
             "rgcn": {
-                "n_bases": 2,
+                "num_bases": 2,
             },
             "edge_classification": {
                 "target_etype": ["n0,r0,n1"],

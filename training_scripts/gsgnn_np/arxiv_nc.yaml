@@ -25,7 +25,7 @@ gsf:
     batch_size: 1024
     wd_l2norm: 0
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
     sparse_lr: 1e-2
     use_node_embeddings: false
