@@ -3,7 +3,6 @@ version: 1.0
 gsf:
   basic:
     model_encoder_type: rgcn
-    graph_name: acm
     backend: gloo
     ip_config: ip_list.txt
     part_config: /data/acm_nc/acm.json
@@ -13,7 +12,7 @@ gsf:
   gnn:
     fanout: "50,50"
     num_layers: 2
-    n_hidden: 256
+    hidden_size: 256
     use_mini_batch_infer: false
   input:
     restore_model_path: null
@@ -34,7 +33,7 @@ gsf:
     sparse_lr: 1e-2
     use_node_embeddings: false
   node_classification:
-    predict_ntype: "paper"
+    target_ntype: "paper"
     label_field: "label"
     multilabel: false
     num_classes: 14
