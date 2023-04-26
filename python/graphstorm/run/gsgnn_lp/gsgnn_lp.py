@@ -61,9 +61,9 @@ def main(args):
                                 train_data,
                                 config.num_negative_edges_eval,
                                 config.lp_decoder_type,
-                                config.enable_early_stop,
+                                config.use_early_stop,
                                 config.early_stop_burnin_rounds,
-                                config.window_for_early_stop,
+                                config.early_stop_rounds,
                                 config.early_stop_strategy))
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
@@ -73,15 +73,15 @@ def main(args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
-    if config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLinkPredictionDataLoader
-    elif config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnLPJointNegDataLoader
-    elif config.negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLPLocalUniformNegDataLoader
-    elif config.negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
-    elif config.negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
     else:
         raise Exception('Unknown negative sampler')
@@ -93,9 +93,9 @@ def main(args):
                                 exclude_training_targets=config.exclude_training_targets)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    if config.test_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.test_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
     else:
         raise Exception('Unknown test negative sampler.'
@@ -118,10 +118,10 @@ def main(args):
     else:
         save_model_path = None
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
-                test_loader=test_dataloader, n_epochs=config.n_epochs,
+                test_loader=test_dataloader, num_epochs=config.num_epochs,
                 save_model_path=save_model_path,
-                mini_batch_infer=config.mini_batch_infer,
-                save_model_per_iters=config.save_model_per_iters,
+                use_mini_batch_infer=config.use_mini_batch_infer,
+                save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path,
                 freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
 

@@ -23,14 +23,13 @@ gsf:
   gnn:
     model_encoder_type: lm
     hidden_size: 128
-    mini_batch_infer: true
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
     save_model_path: null
     save_embed_path: null
   hyperparam:
-    eval_batch_size: 1024
     bert_infer_bs: 128
     no_validation: false
   edge_classification:

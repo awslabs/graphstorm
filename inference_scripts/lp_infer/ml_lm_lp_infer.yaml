@@ -18,13 +18,12 @@ gsf:
   gnn:
     model_encoder_type: lm
     hidden_size: 128
-    mini_batch_infer: true
+    use_mini_batch_infer: true
   input:
     restore_model_path: /data/gsgnn_lp_ml/
   output:
     save_embed_path: /data/gsgnn_lp_ml/infer-emb/
   hyperparam:
-    eval_batch_size: 1024
     bert_infer_bs: 128
     no_validation: false
   link_prediction:

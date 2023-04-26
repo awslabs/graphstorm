@@ -587,7 +587,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
     def num_gnn_layers(self):
         """the number of GNN layers.
         """
-        return self.gnn_encoder.n_layers if self.gnn_encoder is not None else 0
+        return self.gnn_encoder.num_layers if self.gnn_encoder is not None else 0
 
     @property
     def decoder(self):

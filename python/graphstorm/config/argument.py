@@ -185,7 +185,7 @@ class GSConfig:
                     arg_val = None
                 if arg_key == "save_embed_path" and arg_val.lower() == "none":
                     arg_val = None
-                if arg_key == "save_predict_path" and arg_val.lower() == "none":
+                if arg_key == "save_prediction_path" and arg_val.lower() == "none":
                     arg_val = None
 
                 # for basic attributes
@@ -428,8 +428,8 @@ class GSConfig:
                 "etype2:10@etype3:4@etype1:2 when you want to " \
                 "specify a different fanout for different edge types"
 
-        assert len(fanout) == self.n_layers, \
-            f"You have a {self.n_layers} layer GNN, " \
+        assert len(fanout) == self.num_layers, \
+            f"You have a {self.num_layers} layer GNN, " \
             f"but you only specify a {fot_name} fanout for {len(fanout)} layers."
         return fanout
 
@@ -471,31 +471,31 @@ class GSConfig:
         return self._hidden_size
 
     @property
-    def n_layers(self):
+    def num_layers(self):
         """ Number of GNN layers
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
-            assert hasattr(self, "_n_layers"), \
+            assert hasattr(self, "_num_layers"), \
                 "Number of GNN layers must be provided"
-            assert isinstance(self._n_layers, int), \
+            assert isinstance(self._num_layers, int), \
                 "Number of GNN layers must be an integer"
-            assert self._n_layers > 0, \
+            assert self._num_layers > 0, \
                 "Number of GNN layers must be larger than 0"
-            return self._n_layers
+            return self._num_layers
         else:
             # not used by non-GNN models
             return 0
 
     @property
-    def mini_batch_infer(self):
+    def use_mini_batch_infer(self):
         """ Whether do mini-batch inference or full graph inference
         """
         # pylint: disable=no-member
-        if hasattr(self, "_mini_batch_infer"):
-            assert self._mini_batch_infer in [True, False], \
-                "Mini batch inference flag must be True or False"
-            return self._mini_batch_infer
+        if hasattr(self, "_use_mini_batch_infer"):
+            assert self._use_mini_batch_infer in [True, False], \
+                "Use mini batch inference flag must be True or False"
+            return self._use_mini_batch_infer
 
         # By default, use mini batch inference, which requires less memory
         return True
@@ -541,16 +541,16 @@ class GSConfig:
         return None
 
     @property
-    def save_model_per_iters(self):
+    def save_model_frequency(self):
         """ Save model every N iterations
         """
         # pylint: disable=no-member
-        if hasattr(self, "_save_model_per_iters"):
+        if hasattr(self, "_save_model_frequency"):
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
-            assert self._save_model_per_iters > 0, \
-                f'save-model-per-iters must large than 0, but got {self._save_model_per_iters}'
-            return self._save_model_per_iters
+            assert self._save_model_frequency > 0, \
+                f'save-model-frequency must large than 0, but got {self._save_model_frequency}'
+            return self._save_model_frequency
         # By default, use -1, means do not auto save models
         return -1
 
@@ -558,17 +558,17 @@ class GSConfig:
     def topk_model_to_save(self):
         """ the number of top k best validation performance model to save
 
-            If topk_model_to_save is set (save_model_per_iters is not set),
+            If topk_model_to_save is set (save_model_frequency is not set),
             GraphStorm will try to save models after each epoch and keep at
             most K models.
-            If save_model_per_iters is set, GraphStorm will try to save
-            models every #save_model_per_iters iterations and keep at
+            If save_model_frequency is set, GraphStorm will try to save
+            models every #save_model_frequency iterations and keep at
             most K models.
             By default, GraphStorm will save the latest K models unless
             evaluation_frequency is set. When evaluation_frequency is set,
             GraphStorm will evaluate the model performance every
             #evaluation_frequency iterations. If at the same iteration,
-            #save_model_per_iters is reached, it will try to save the
+            #save_model_frequency is reached, it will try to save the
             best K model instead of the latest K model.
         """
         # pylint: disable=no-member
@@ -577,16 +577,16 @@ class GSConfig:
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
 
-            if self.evaluation_frequency != sys.maxsize and self.save_model_per_iters > 0:
+            if self.evaluation_frequency != sys.maxsize and self.save_model_frequency > 0:
                 # save model within an epoch need to collaborate with evaluation
                 # within an epoch
-                assert self.save_model_per_iters >= self.evaluation_frequency and \
-                    self.save_model_per_iters % self.evaluation_frequency == 0, \
-                    'FATAL: save_model_per_iters' \
-                          f'({self.save_model_per_iters}) ' \
+                assert self.save_model_frequency >= self.evaluation_frequency and \
+                    self.save_model_frequency % self.evaluation_frequency == 0, \
+                    'FATAL: save_model_frequency' \
+                          f'({self.save_model_frequency}) ' \
                           'does not equal to evaluation_frequency' \
                           f'({self.evaluation_frequency}), or ' \
-                          f'save_model_per_iters ({self.save_model_per_iters}) ' \
+                          f'save_model_frequency ({self.save_model_frequency}) ' \
                           'is not divisible by evaluation_frequency ' \
                           f'({self.evaluation_frequency}). ' \
                           'GraphStorm can not guarentees that it will ' \
@@ -650,13 +650,13 @@ class GSConfig:
         return lr
 
     @property
-    def n_epochs(self):
+    def num_epochs(self):
         """ Number of epochs
         """
-        if hasattr(self, "_n_epochs"):
+        if hasattr(self, "_num_epochs"):
             # if 0, only inference or testing
-            assert self._n_epochs >= 0, "Number of epochs must >= 0"
-            return self._n_epochs
+            assert self._num_epochs >= 0, "Number of epochs must >= 0"
+            return self._num_epochs
         # default, inference only
         return 0
 
@@ -733,7 +733,13 @@ class GSConfig:
         if hasattr(self, "_eval_batch_size"):
             assert self._eval_batch_size > 0
             return self._eval_batch_size
-        return self.batch_size
+        # (Israt): Larger batch sizes significantly improve runtime efficiency. Increasing the
+        # batch size from 1K to 10K reduces end-to-end inference time from 45 mins to 19 mins
+        # in link prediction on OGBN-paers100M dataset with 16-dimensional length. However,
+        # using an overly large batch size can lead to GPU out-of-memory (OOM) issues. Therefore,
+        # a heuristic approach has been taken, and 10K has been chosen as a balanced default
+        # value. More details can be found at https://github.com/awslabs/graphstorm/pull/66.
+        return 10000
 
     @property
     def evaluation_frequency(self):
@@ -773,16 +779,16 @@ class GSConfig:
         return 0
 
     @property
-    def window_for_early_stop(self):
-        """ The number of latest validation scores to average deciding on early stop
+    def early_stop_rounds(self):
+        """ The number of rounds for validation scores to average to decide on early stop
         """
         # pylint: disable=no-member
-        if hasattr(self, "_window_for_early_stop"):
-            assert isinstance(self._window_for_early_stop, int), \
-                "window_for_early_stop should be an integer"
-            assert self._window_for_early_stop > 0, \
+        if hasattr(self, "_early_stop_rounds"):
+            assert isinstance(self._early_stop_rounds, int), \
+                "early_stop_rounds should be an integer"
+            assert self._early_stop_rounds > 0, \
                 "early_stop_rounds should be larger than 0"
-            return self._window_for_early_stop
+            return self._early_stop_rounds
 
         # at least 3 iterations
         return 3
@@ -804,40 +810,42 @@ class GSConfig:
         return EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 
     @property
-    def enable_early_stop(self):
-        """ whether to enable early stopping by monitoring the validation value
+    def use_early_stop(self):
+        """ whether to use early stopping by monitoring the validation value
         """
         # pylint: disable=no-member
-        if hasattr(self, "_enable_early_stop"):
-            assert self._enable_early_stop in [True, False], \
-                "enable_early_stop should be in [True, False]"
-            return self._enable_early_stop
+        if hasattr(self, "_use_early_stop"):
+            assert self._use_early_stop in [True, False], \
+                "use_early_stop should be in [True, False]"
+            return self._use_early_stop
 
         # By default do not enable early stop
         return False
 
     ## RGCN only ##
     @property
-    def n_bases(self):
+    def num_bases(self):
         """ Number of bases used in RGCN weight
         """
         # pylint: disable=no-member
-        if hasattr(self, "_n_bases"):
-            assert isinstance(self._n_bases, int)
-            assert self._n_bases > 0 or self._n_bases == -1
-            return self._n_bases
-        # By default do not use n_bases
+        if hasattr(self, "_num_bases"):
+            assert isinstance(self._num_bases, int)
+            assert self._num_bases > 0 or self._num_bases == -1, \
+                "num_bases should be larger than 0 or -1"
+            return self._num_bases
+        # By default do not use num_bases
         return -1
 
     ## RGAT only ##
     @property
-    def n_heads(self):
+    def num_heads(self):
         """ Number of attention heads
         """
         # pylint: disable=no-member
-        if hasattr(self, "_n_heads"):
-            assert self._n_heads > 0
-            return self._n_heads
+        if hasattr(self, "_num_heads"):
+            assert self._num_heads > 0, \
+                "num_heads should be larger than 0"
+            return self._num_heads
         # By default use 4 heads
         return 4
 
@@ -929,14 +937,14 @@ class GSConfig:
 
     ###classification/regression inference related ####
     @property
-    def save_predict_path(self):
+    def save_prediction_path(self):
         """ Path to save prediction results.
         """
         # pylint: disable=no-member
-        if hasattr(self, "_save_predict_path"):
-            return self._save_predict_path
+        if hasattr(self, "_save_prediction_path"):
+            return self._save_prediction_path
 
-        # if save_predict_path is not specified in inference
+        # if save_prediction_path is not specified in inference
         # use save_embed_path
         return self.save_embed_path
 
@@ -1063,21 +1071,23 @@ class GSConfig:
 
     ### Link Prediction specific ###
     @property
-    def negative_sampler(self):
+    def train_negative_sampler(self):
         """ The algorithm of sampling negative edges for link prediction
+            training.
         """
         # pylint: disable=no-member
-        if hasattr(self, "_negative_sampler"):
-            return self._negative_sampler
+        if hasattr(self, "_train_negative_sampler"):
+            return self._train_negative_sampler
         return BUILTIN_LP_UNIFORM_NEG_SAMPLER
 
     @property
-    def test_negative_sampler(self):
+    def eval_negative_sampler(self):
         """ The algorithm of sampling negative edges for link prediction
+            evaluation.
         """
         # pylint: disable=no-member
-        if hasattr(self, "_test_negative_sampler"):
-            return self._test_negative_sampler
+        if hasattr(self, "_eval_negative_sampler"):
+            return self._eval_negative_sampler
 
         # use Joint neg for efficiency
         return BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -1365,10 +1375,10 @@ def _add_gnn_args(parser):
                  "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
     group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
             help="The number of features in the hidden state")
-    group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
-            help="number of propagation rounds")
+    group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
+            help="number of layers in the GNN")
     parser.add_argument(
-            "--mini-batch-infer",
+            "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS
@@ -1389,7 +1399,7 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
-    group.add_argument('--save-model-per-iters', type=int, default=argparse.SUPPRESS,
+    group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,
             help='Save the model to the specified file. Use none to turn off model saveing')
@@ -1417,7 +1427,7 @@ def _add_hyperparam_args(parser):
             help="dropout probability")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
-    group.add_argument("-e", "--n-epochs", type=int, default=argparse.SUPPRESS,
+    group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size. Must be larger than 0")
@@ -1456,16 +1466,16 @@ def _add_hyperparam_args(parser):
     group.add_argument("--early-stop-burnin-rounds",
             type=int, default=argparse.SUPPRESS,
             help="Burn-in rounds before start checking for the early stop condition.")
-    group.add_argument("--window-for-early-stop",
+    group.add_argument("--early-stop-rounds",
             type=int, default=argparse.SUPPRESS,
-            help="the number of latest validation scores to average deciding on early stop")
+            help="The number of rounds for validation scores to average to decide on early stop")
     group.add_argument("--early-stop-strategy",
             type=str, default=argparse.SUPPRESS,
             help="Specify the early stop strategy. "
             "It can be either consecutive_increase or average_increase")
-    group.add_argument("--enable-early-stop",
+    group.add_argument("--use-early-stop",
             type=bool, default=argparse.SUPPRESS,
-            help='whether to enable early stopping by monitoring the validation loss')
+            help='whether to use early stopping by monitoring the validation loss')
     return parser
 
 def _add_lm_model_args(parser):
@@ -1483,13 +1493,13 @@ def _add_lm_model_args(parser):
 
 def _add_rgat_args(parser):
     group = parser.add_argument_group(title="rgat")
-    group.add_argument("--n-heads", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-heads", type=int, default=argparse.SUPPRESS,
             help="number of attention heads")
     return parser
 
 def _add_rgcn_args(parser):
     group = parser.add_argument_group(title="rgcn")
-    group.add_argument("--n-bases", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-bases", type=int, default=argparse.SUPPRESS,
             help="number of filter weight matrices, default: -1 [use all]")
     return parser
 
@@ -1561,10 +1571,10 @@ def _add_link_prediction_args(parser):
                  "batch of edges for the model evaluation. "
                  "If the MRR saturates at high values or has "
                  "large variance increase this number.")
-    group.add_argument("--negative-sampler", type=str, default=argparse.SUPPRESS,
-            help="The algorithm of sampling negative edges for link prediction.")
-    group.add_argument("--test-negative-sampler", type=str, default=argparse.SUPPRESS,
-            help="The algorithm of sampling negative edges for link prediction testing")
+    group.add_argument("--train-negative-sampler", type=str, default=argparse.SUPPRESS,
+            help="The algorithm of sampling negative edges for link prediction.training ")
+    group.add_argument("--eval-negative-sampler", type=str, default=argparse.SUPPRESS,
+            help="The algorithm of sampling negative edges for link prediction evaluation")
     group.add_argument('--eval-etype', nargs='+', type=str, default=argparse.SUPPRESS)
     group.add_argument('--train-etype', nargs='+', type=str, default=argparse.SUPPRESS,
             help="The list of canonical etype that will be added as"
@@ -1607,7 +1617,7 @@ def _add_task_general_args(parser):
 
 def _add_inference_args(parser):
     group = parser.add_argument_group(title="infer")
-    group.add_argument("--save-predict-path", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
     return parser
 
