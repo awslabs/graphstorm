@@ -226,10 +226,6 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
             sys_tracker.check(f'Create node ID map of {node_type}')
 
         for feat_name in type_node_data:
-            # If the node data does not provide node IDs, this node data has to be stored
-            # in a single file.
-            if type_node_id_map is None:
-                assert len(type_node_data[feat_name]) == 1
             type_node_data[feat_name] = arr_merger(type_node_data[feat_name],
                                                    node_type + "_" + feat_name)
             gc.collect()
