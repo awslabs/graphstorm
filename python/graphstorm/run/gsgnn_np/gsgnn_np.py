@@ -30,7 +30,7 @@ from graphstorm.model import do_full_graph_inference
 
 def get_evaluator(config):
     if config.task_type == "node_classification":
-        return GSgnnAccEvaluator(config.evaluation_frequency,
+        return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
                                  config.multilabel,
                                  config.use_early_stop,
@@ -38,7 +38,7 @@ def get_evaluator(config):
                                  config.early_stop_rounds,
                                  config.early_stop_strategy)
     elif config.task_type == "node_regression":
-        return GSgnnRegressionEvaluator(config.evaluation_frequency,
+        return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,
                                         config.use_early_stop,
                                         config.early_stop_burnin_rounds,

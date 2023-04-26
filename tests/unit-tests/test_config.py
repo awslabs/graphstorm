@@ -67,7 +67,7 @@ def create_basic_config(tmp_path, file_name):
         "ip_config": os.path.join(tmp_path, "ip.txt"),
         "part_config": os.path.join(tmp_path, "part.json"),
         "model_encoder_type": "rgat",
-        "evaluation_frequency": 100,
+        "eval_frequency": 100,
         "no_validation": True,
     }
     # create dummpy ip.txt
@@ -93,7 +93,7 @@ def create_basic_config(tmp_path, file_name):
     # config for wrong values
     yaml_object["gsf"]["basic"] = {
         "backend": "error",
-        "evaluation_frequency": 0,
+        "eval_frequency": 0,
         "model_encoder_type": "abc"
     }
 
@@ -121,7 +121,7 @@ def test_load_basic_info():
         assert config.ip_config == os.path.join(Path(tmpdirname), "ip.txt")
         assert config.part_config == os.path.join(Path(tmpdirname), "part.json")
         assert config.verbose == False
-        assert config.evaluation_frequency == 100
+        assert config.eval_frequency == 100
         assert config.no_validation == True
 
         # Change config's variables to do further testing
@@ -135,7 +135,7 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.backend == "gloo"
-        assert config.evaluation_frequency == sys.maxsize
+        assert config.eval_frequency == sys.maxsize
         assert config.no_validation == False
         check_failure(config, "model_encoder_type") # must provide model_encoder_type
 
@@ -146,7 +146,7 @@ def test_load_basic_info():
         check_failure(config, "backend")
         check_failure(config, "ip_config")
         check_failure(config, "part_config")
-        check_failure(config, "evaluation_frequency")
+        check_failure(config, "eval_frequency")
         check_failure(config, "model_encoder_type")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test_fail2.yaml'),
@@ -396,7 +396,7 @@ def create_train_config(tmp_path, file_name):
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
         "alpha_l2norm": 0.00001,
-        "evaluation_frequency": 1000,
+        "eval_frequency": 1000,
         'save_model_frequency': 1000,
         "topk_model_to_save": 3,
         "lm_tune_lr": 0.0001,
@@ -418,7 +418,7 @@ def create_train_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["hyperparam"] = {
-        "evaluation_frequency": 1000,
+        "eval_frequency": 1000,
         'save_model_frequency': 2000,
         "topk_model_to_save": 5,
         "save_model_path": os.path.join(tmp_path, "save"),
@@ -426,9 +426,9 @@ def create_train_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    # evaluation_frequency = 1000 and save_model_frequency uses default (-1)
+    # eval_frequency = 1000 and save_model_frequency uses default (-1)
     yaml_object["gsf"]["hyperparam"] = {
-        "evaluation_frequency": 1000,
+        "eval_frequency": 1000,
         "topk_model_to_save": 5,
         "save_model_path": os.path.join(tmp_path, "save"),
     }
@@ -446,7 +446,7 @@ def create_train_config(tmp_path, file_name):
         "sparse_lr": 0.,
         "use_node_embeddings": True,
         "use_self_loop": "error",
-        "evaluation_frequency": 1000,
+        "eval_frequency": 1000,
         'save_model_frequency': 700,
         "topk_model_to_save": 3,
         "use_early_stop": True,
@@ -458,7 +458,7 @@ def create_train_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["hyperparam"] = {
-        "evaluation_frequency": 1100,
+        "eval_frequency": 1100,
         'save_model_frequency': 2000,
         "topk_model_to_save": 3,
         "save_model_path": os.path.join(tmp_path, "save"),
@@ -516,13 +516,13 @@ def test_train_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test2.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.evaluation_frequency == 1000
+        assert config.eval_frequency == 1000
         assert config.save_model_frequency == 2000
         assert config.topk_model_to_save == 5
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test3.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.evaluation_frequency == 1000
+        assert config.eval_frequency == 1000
         assert config.save_model_frequency == -1
         assert config.topk_model_to_save == 5
 
