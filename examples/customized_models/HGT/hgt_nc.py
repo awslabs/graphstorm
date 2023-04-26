@@ -154,7 +154,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         self.node_dict = node_id_dict
         self.edge_dict = edge_id_dict
         self.num_layers = num_layers
-        self.predict_ntype=predict_ntype
+        self.target_ntype=target_ntype
         self.alpha_l2norm = alpha_l2norm
 
         # set adapt weights according to node id and feature dimension dictionary
