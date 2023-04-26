@@ -61,7 +61,7 @@ def main(args):
                                 train_data,
                                 config.num_negative_edges_eval,
                                 config.lp_decoder_type,
-                                config.enable_early_stop,
+                                config.use_early_stop,
                                 config.early_stop_burnin_rounds,
                                 config.early_stop_rounds,
                                 config.early_stop_strategy))
@@ -116,7 +116,7 @@ def main(args):
     else:
         save_model_path = None
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
-                test_loader=test_dataloader, n_epochs=config.n_epochs,
+                test_loader=test_dataloader, num_epochs=config.num_epochs,
                 save_model_path=save_model_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,

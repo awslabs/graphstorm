@@ -8,17 +8,15 @@ gsf:
     verbose: false
   gnn:
     fanout: "15,10"
-    n_layers: 2
+    num_layers: 2
     hidden_size: 128
     use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
     save_prediction_path: null
-  hyperparam:
-    eval_batch_size: 1024
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
     sparse_lr: 1e-2
     use_node_embeddings: false

@@ -428,8 +428,8 @@ class GSConfig:
                 "etype2:10@etype3:4@etype1:2 when you want to " \
                 "specify a different fanout for different edge types"
 
-        assert len(fanout) == self.n_layers, \
-            f"You have a {self.n_layers} layer GNN, " \
+        assert len(fanout) == self.num_layers, \
+            f"You have a {self.num_layers} layer GNN, " \
             f"but you only specify a {fot_name} fanout for {len(fanout)} layers."
         return fanout
 
@@ -471,18 +471,18 @@ class GSConfig:
         return self._hidden_size
 
     @property
-    def n_layers(self):
+    def num_layers(self):
         """ Number of GNN layers
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
-            assert hasattr(self, "_n_layers"), \
+            assert hasattr(self, "_num_layers"), \
                 "Number of GNN layers must be provided"
-            assert isinstance(self._n_layers, int), \
+            assert isinstance(self._num_layers, int), \
                 "Number of GNN layers must be an integer"
-            assert self._n_layers > 0, \
+            assert self._num_layers > 0, \
                 "Number of GNN layers must be larger than 0"
-            return self._n_layers
+            return self._num_layers
         else:
             # not used by non-GNN models
             return 0
@@ -650,13 +650,13 @@ class GSConfig:
         return lr
 
     @property
-    def n_epochs(self):
+    def num_epochs(self):
         """ Number of epochs
         """
-        if hasattr(self, "_n_epochs"):
+        if hasattr(self, "_num_epochs"):
             # if 0, only inference or testing
-            assert self._n_epochs >= 0, "Number of epochs must >= 0"
-            return self._n_epochs
+            assert self._num_epochs >= 0, "Number of epochs must >= 0"
+            return self._num_epochs
         # default, inference only
         return 0
 
@@ -733,7 +733,13 @@ class GSConfig:
         if hasattr(self, "_eval_batch_size"):
             assert self._eval_batch_size > 0
             return self._eval_batch_size
-        return self.batch_size
+        # (Israt): Larger batch sizes significantly improve runtime efficiency. Increasing the
+        # batch size from 1K to 10K reduces end-to-end inference time from 45 mins to 19 mins
+        # in link prediction on OGBN-paers100M dataset with 16-dimensional length. However,
+        # using an overly large batch size can lead to GPU out-of-memory (OOM) issues. Therefore,
+        # a heuristic approach has been taken, and 10K has been chosen as a balanced default
+        # value. More details can be found at https://github.com/awslabs/graphstorm/pull/66.
+        return 10000
 
     @property
     def evaluation_frequency(self):
@@ -804,40 +810,42 @@ class GSConfig:
         return EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 
     @property
-    def enable_early_stop(self):
-        """ whether to enable early stopping by monitoring the validation value
+    def use_early_stop(self):
+        """ whether to use early stopping by monitoring the validation value
         """
         # pylint: disable=no-member
-        if hasattr(self, "_enable_early_stop"):
-            assert self._enable_early_stop in [True, False], \
-                "enable_early_stop should be in [True, False]"
-            return self._enable_early_stop
+        if hasattr(self, "_use_early_stop"):
+            assert self._use_early_stop in [True, False], \
+                "use_early_stop should be in [True, False]"
+            return self._use_early_stop
 
         # By default do not enable early stop
         return False
 
     ## RGCN only ##
     @property
-    def n_bases(self):
+    def num_bases(self):
         """ Number of bases used in RGCN weight
         """
         # pylint: disable=no-member
-        if hasattr(self, "_n_bases"):
-            assert isinstance(self._n_bases, int)
-            assert self._n_bases > 0 or self._n_bases == -1
-            return self._n_bases
-        # By default do not use n_bases
+        if hasattr(self, "_num_bases"):
+            assert isinstance(self._num_bases, int)
+            assert self._num_bases > 0 or self._num_bases == -1, \
+                "num_bases should be larger than 0 or -1"
+            return self._num_bases
+        # By default do not use num_bases
         return -1
 
     ## RGAT only ##
     @property
-    def n_heads(self):
+    def num_heads(self):
         """ Number of attention heads
         """
         # pylint: disable=no-member
-        if hasattr(self, "_n_heads"):
-            assert self._n_heads > 0
-            return self._n_heads
+        if hasattr(self, "_num_heads"):
+            assert self._num_heads > 0, \
+                "num_heads should be larger than 0"
+            return self._num_heads
         # By default use 4 heads
         return 4
 
@@ -1367,8 +1375,8 @@ def _add_gnn_args(parser):
                  "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
     group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
             help="The number of features in the hidden state")
-    group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
-            help="number of propagation rounds")
+    group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
+            help="number of layers in the GNN")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
@@ -1419,7 +1427,7 @@ def _add_hyperparam_args(parser):
             help="dropout probability")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
-    group.add_argument("-e", "--n-epochs", type=int, default=argparse.SUPPRESS,
+    group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size. Must be larger than 0")
@@ -1465,9 +1473,9 @@ def _add_hyperparam_args(parser):
             type=str, default=argparse.SUPPRESS,
             help="Specify the early stop strategy. "
             "It can be either consecutive_increase or average_increase")
-    group.add_argument("--enable-early-stop",
+    group.add_argument("--use-early-stop",
             type=bool, default=argparse.SUPPRESS,
-            help='whether to enable early stopping by monitoring the validation loss')
+            help='whether to use early stopping by monitoring the validation loss')
     return parser
 
 def _add_lm_model_args(parser):
@@ -1485,13 +1493,13 @@ def _add_lm_model_args(parser):
 
 def _add_rgat_args(parser):
     group = parser.add_argument_group(title="rgat")
-    group.add_argument("--n-heads", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-heads", type=int, default=argparse.SUPPRESS,
             help="number of attention heads")
     return parser
 
 def _add_rgcn_args(parser):
     group = parser.add_argument_group(title="rgcn")
-    group.add_argument("--n-bases", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-bases", type=int, default=argparse.SUPPRESS,
             help="number of filter weight matrices, default: -1 [use all]")
     return parser
 
