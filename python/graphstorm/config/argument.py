@@ -1374,7 +1374,7 @@ def _add_gnn_args(parser):
     group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
             help="The number of features in the hidden state")
     group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
-            help="number of propagation rounds")
+            help="number of layers in the GNN")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
