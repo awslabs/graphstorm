@@ -16,6 +16,7 @@
     Utility functions and classes.
 """
 import os
+import math
 import json
 import shutil
 
@@ -24,6 +25,8 @@ from torch import nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
+
+from ..utils import get_rank
 
 
 def sparse_emb_initializer(emb):
@@ -67,6 +70,13 @@ def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
         model_states['decoder'] = decoder.state_dict()
 
     os.makedirs(model_path, exist_ok=True)
+    # [04/16]: Assume this method is called by rank 0 who can perform chmod
+    assert get_rank() == 0, "Only can rank 0 process change folders mode."
+    # mode 767 means rwx-rw-rwx:
+    #     - owner of the folder can read, write, and execute;
+    #     - owner' group can read, write;
+    #     - others can read, write, and execute.
+    os.chmod(model_path, 0o767)
     th.save(model_states, os.path.join(model_path, 'model.bin'))
 
 def save_model_results_json(conf, test_model_performance, save_perf_results_path):
@@ -87,8 +97,42 @@ def save_model_results_json(conf, test_model_performance, save_perf_results_path
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(model_results_and_conf, f, ensure_ascii=False, indent=4)
 
-def save_sparse_embeds(model_path, embed_layer):
+def _get_sparse_emb_range(num_embs, local_rank, world_size):
+    """ Provide a deterministic method to split trainable sparse embeddings
+        during saveing and loading according local rank and world size.
+
+        Parameters
+        ----------
+        num_embs:
+            Size of a sparse embedding
+        local_rank : int
+            Local rank
+        world_size : int
+            World size in a distributed env.
+    """
+    assert local_rank < world_size, \
+        "local rank {local_rank} shold be smaller than world size {world_size}"
+    # Get corresponding data range
+    if num_embs < world_size:
+        start = local_rank if local_rank < num_embs else num_embs
+        end = local_rank + 1 if local_rank < num_embs else num_embs
+    else:
+        start = local_rank * math.ceil(num_embs / world_size)
+        end = (local_rank + 1) * math.ceil(num_embs / world_size)
+        end = num_embs if local_rank + 1 == world_size else end
+    return start, end
+
+def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
     """ save sparse embeddings if any
+
+        Sparse embeddings are stored as:
+        $model_path/ntype0/sparse_emb_0.pt
+                           ...
+                           sparse_emb_N.pt
+        $model_path/ntype1/sparse_emb_0.pt
+                           ...
+                           sparse_emb_N.pt
+        ...
 
         Parameters
         ----------
@@ -96,6 +140,10 @@ def save_sparse_embeds(model_path, embed_layer):
             The path of the model is saved.
         embed_layer: model
             A (distributed) model of embedding layers.
+        local_rank : int
+            Local rank
+        world_size : int
+            World size in a distributed env.
     """
     if embed_layer is None:
         return
@@ -103,23 +151,31 @@ def save_sparse_embeds(model_path, embed_layer):
         if isinstance(embed_layer, DistributedDataParallel) else embed_layer
 
     if len(embed_layer.sparse_embeds) > 0:
+        assert local_rank < world_size
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
+            num_embs = embed_layer.g.number_of_nodes(ntype)
+            start, end = _get_sparse_emb_range(num_embs, local_rank, world_size)
             # collect sparse_emb in a iterative way
             embs = []
             batch_size = 10240
             # TODO: dgl.distributed.DistEmbedding should provide emb.shape
-            num_embs = embed_layer.g.number_of_nodes(ntype)
-            idxs = th.split(th.arange(num_embs), batch_size, dim=0)
+
+            idxs = th.split(th.arange(start=start, end=end), batch_size, dim=0)
             for idx in idxs:
                 # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-                # TODO(xiang): Fix the scalablity problem here
                 embs.append(sparse_emb._tensor[idx])
 
             embs = th.cat(embs, dim=0)
+            # In distributed mode where uses an NFS folder, directly call this makedirs method to
+            # create spare embedding path will cause folder permission error that prevents
+            # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
+            # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
+            emb_path = os.path.join(model_path, ntype)
+            os.makedirs(emb_path, exist_ok=True)
+            emb_file_path = os.path.join(emb_path, f'sparse_emb_{local_rank}.pt')
+            th.save(embs, emb_file_path)
 
-            th.save(embs, os.path.join(model_path, f'{ntype}_sparse_emb.pt'))
-
-def save_opt_state(model_path, dense_opts, sparse_opts):
+def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Save the states of the optimizers.
 
         Parameters
@@ -127,14 +183,22 @@ def save_opt_state(model_path, dense_opts, sparse_opts):
         model_path : str
             The path of the folder where the model is saved.
             We save the optimizer states with the model.
-        dense_opts : list optimizer
+        dense_opts : list of optimizer
             The optimizers for dense model parameters.
+        lm_opts: list of optimizer
+            The optimizers for language model parameters.
         emb_opts : list of optimizer
             The optimizers for sparse embedding layer.
     """
     opt_states = {}
-    assert len(dense_opts) == 1, "We can only support one dense optimizer now."
-    opt_states['dense'] = dense_opts[0].state_dict()
+
+    assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
+    assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
+
+    if len(dense_opts) == 1:
+        opt_states['dense'] = dense_opts[0].state_dict()
+    if len(lm_opts) == 1:
+        opt_states['lm'] = lm_opts[0].state_dict()
     # TODO(zhengda) we need to change DGL to make it work.
     if len(sparse_opts) > 0:
         # TODO(xiangsx) Further discussion of whether we need to save the state of
@@ -179,6 +243,16 @@ def save_embeddings(model_path, embeddings, local_rank, world_size):
             World size in a distributed env.
     """
     os.makedirs(model_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if local_rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(model_path, 0o767)
+    # make sure the model_path permission is changed before other process start to save
+    th.distributed.barrier()
+
     assert local_rank < world_size
     def get_data_range(num_embs):
         # Get corresponding data range
@@ -214,6 +288,31 @@ def save_embeddings(model_path, embeddings, local_rank, world_size):
     if local_rank == 0:
         with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(emb_info))
+
+def save_prediction_results(predictions, prediction_path, local_rank):
+    """ Save node and edge predictions to the given path
+
+        Parameters
+        ----------
+        prediction_path: tensor
+            The tensor of predictions
+        prediction_path: str
+            The path of the prediction is saved.
+        local_rank : int
+            Local rank
+    """
+    os.makedirs(prediction_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if local_rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(prediction_path, 0o767)
+    # make sure the prediction_path permission is changed before other process start to save
+    th.distributed.barrier()
+
+    th.save(predictions, os.path.join(prediction_path, "predict-{}.pt".format(local_rank)))
 
 def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ Load a complete gnn model.
@@ -255,8 +354,17 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     if 'decoder' in checkpoint and decoder is not None:
         decoder.load_state_dict(checkpoint['decoder'])
 
-def load_sparse_embeds(model_path, embed_layer):
+def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
     """load sparse embeddings if any
+
+        Sparse embeddings are stored as:
+        $model_path/ntype0/sparse_emb_0.pt
+                           ...
+                           sparse_emb_N.pt
+        $model_path/ntype1/sparse_emb_0.pt
+                           ...
+                           sparse_emb_N.pt
+        ...
 
         Parameters
         ----------
@@ -264,6 +372,10 @@ def load_sparse_embeds(model_path, embed_layer):
             The path of the model is saved.
         embed_layer: model
             A (distributed) model of embedding layers.
+        local_rank : int
+            Local rank
+        world_size : int
+            World size in a distributed env.
     """
     if embed_layer is None:
         return
@@ -271,27 +383,46 @@ def load_sparse_embeds(model_path, embed_layer):
         if isinstance(embed_layer, DistributedDataParallel) else embed_layer
 
     if len(embed_layer.sparse_embeds) > 0:
+        assert local_rank >= 0
+        assert world_size > 0
+        def load_sparse_emb(num_embs, ntype_path):
+            num_files = len(os.listdir(ntype_path))
+            # Suppose a sparse embedding is trained and saved using N trainers (GPUs).
+            # We are going to use K trainers/infers to load it.
+            # The code handles the following cases:
+            # 1. N == K
+            # 2. N > K, some trainers/infers need to load more than one files
+            # 3. N < K, some trainers/infers do not need to load any files
+            for i in range(math.ceil(num_files/world_size)):
+                file_idx = i * world_size + local_rank
+                if file_idx < num_files:
+                    emb = th.load(os.path.join(ntype_path, f'sparse_emb_{file_idx}.pt'))
+                    # Get the target idx range for sparse_emb_{local_rank}.pt
+                    start, end = _get_sparse_emb_range(num_embs,
+                                                       local_rank=file_idx,
+                                                       world_size=num_files)
+
+                    # write sparse_emb back in an iterative way
+                    batch_size = 10240
+                    idxs = th.split(th.arange(end - start), batch_size, dim=0)
+                    for idx in idxs:
+                        # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
+                        sparse_emb._tensor[start+idx] = emb[idx]
+
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
+            num_embs = embed_layer.g.number_of_nodes(ntype)
             if th.__version__ < "1.13.0":
                 print("WARNING: torch.load() uses pickle module implicitly, " \
                     "which is known to be insecure. It is possible to construct " \
                     "malicious pickle data which will execute arbitrary code " \
                     "during unpickling. Only load data you trust or " \
                     "update torch to 1.13.0+")
-                emb = th.load(os.path.join(model_path, f'{ntype}_sparse_emb.pt'))
+                load_sparse_emb(num_embs, os.path.join(model_path, ntype))
             else:
-                emb = th.load(os.path.join(model_path, f'{ntype}_sparse_emb.pt'),
-                              weights_only=True)
-            # write sparse_emb back in a iterative way
-            batch_size = 10240
-            # TODO: dgl.distributed.DistEmbedding should provide emb.shape
-            num_embs = embed_layer.g.number_of_nodes(ntype)
-            idxs = th.split(th.arange(num_embs), batch_size, dim=0)
-            for idx in idxs:
-                # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-                sparse_emb._tensor[idx] = emb[idx]
 
-def load_opt_state(model_path, dense_opts, sparse_opts):
+                load_sparse_emb(num_embs, os.path.join(model_path, ntype))
+
+def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
 
         Parameters
@@ -300,6 +431,8 @@ def load_opt_state(model_path, dense_opts, sparse_opts):
             The path of the model is saved.
         dense_opts: list of optimizers
             Optimzer for dense layers
+        lm_opts: list of optimizers
+            Optimzer for language models layers
         sparse_opts: list of optimizers
             Optimizer for sparse emb layer
     """
@@ -310,11 +443,22 @@ def load_opt_state(model_path, dense_opts, sparse_opts):
             "during unpickling. Only load data you trust")
     checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
 
-    assert len(dense_opts) == 1, "Currently, we only support one dense optimizer."
-    dense_opts[0].load_state_dict(checkpoint['dense'])
+    assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
+    assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
+
+    # Load general dense models like gnn and input projection matrix
+    if "dense" in checkpoint:
+        assert len(dense_opts) == 1, "General dense parameters must exists in the model"
+        dense_opts[0].load_state_dict(checkpoint["dense"])
+    # Load language models.
+    if "lm" in checkpoint:
+        assert len(lm_opts) == 1, "Language model parameters must exists in the model"
+        dense_opts[0].load_state_dict(checkpoint["lm"])
+
     # TODO(zhengda) we need to change DGL to make it work.
     if 'sparse' in checkpoint and len(sparse_opts) > 0:
         raise NotImplementedError('We cannot load the state of sparse optimizer')
+
 
 def remove_saved_models(model_path):
     """ For only save the Top k best performaned models to save disk spaces, need this function to
@@ -484,3 +628,37 @@ class TopKList():
                 self.toplist = first_part + [val] + last_part
 
         return insert_success, return_val
+
+
+def create_sparse_embeds_path(model_path, embed_layer):
+    """ create sparse embeddings save path by the rank 0
+        The folders are like:
+
+        $model_path/ntype0/
+        $model_path/ntype1/
+        ...
+
+        Parameters
+        ----------
+        model_path: str
+            The path of the model is saved.
+        embed_layer: model
+            A (distributed) model of embedding layers.
+    """
+    if embed_layer is None:
+        return
+
+    embed_layer = embed_layer.module \
+        if isinstance(embed_layer, DistributedDataParallel) else embed_layer
+
+    if len(embed_layer.sparse_embeds) > 0:
+        for ntype, _ in embed_layer.sparse_embeds.items():
+            emb_path = os.path.join(model_path, ntype)
+            os.makedirs(emb_path, exist_ok=True)
+            # [04/16]: Assume this method is called by rank 0 who can perform chmod
+            assert get_rank() == 0, "Only can the rank 0 process can change folders mode."
+            # mode 767 means rwx-rw-rwx:
+            #     - owner of the folder can read, write, and execute;
+            #     - owner' group can read, write;
+            #     - others can read, write, and execute.
+            os.chmod(emb_path, 0o767)

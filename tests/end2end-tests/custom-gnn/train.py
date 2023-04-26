@@ -26,11 +26,11 @@ from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
 
 class MyGNNModel(gsmodel.GSgnnNodeModelBase):
-    def __init__(self, g, feat_size, num_hidden, num_classes):
+    def __init__(self, g, feat_size, hidden_size, num_classes):
         super(MyGNNModel, self).__init__()
-        self._node_input = gsmodel.GSNodeEncoderInputLayer(g, feat_size, num_hidden)
-        self._gnn = gsmodel.RelationalGCNEncoder(g, num_hidden, num_hidden, num_hidden_layers=1)
-        self._decoder = gsmodel.EntityClassifier(num_hidden, num_classes, multilabel=False)
+        self._node_input = gsmodel.GSNodeEncoderInputLayer(g, feat_size, hidden_size)
+        self._gnn = gsmodel.RelationalGCNEncoder(g, hidden_size, hidden_size, num_hidden_layers=1)
+        self._decoder = gsmodel.EntityClassifier(hidden_size, num_classes, multilabel=False)
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
 
     def forward(self, blocks, node_feats, _, labels, input_nodes=None):
@@ -56,6 +56,7 @@ class MyGNNModel(gsmodel.GSgnnNodeModelBase):
     def predict(self, blocks, node_feats, _):
         input_nodes = {ntype: blocks[0].srcnodes[ntype].data[dgl.NID].cpu() \
                 for ntype in blocks[0].srctypes}
+        device = blocks[0].device
         embs = self._node_input(node_feats, input_nodes)
         embs = {name: emb.to(device) for name, emb in embs.items()}
         embs = self._gnn(blocks, embs)
@@ -89,7 +90,7 @@ def main(args):
     device = 'cuda:%d' % trainer.dev_id
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=[10, 10],
                                      batch_size=1000, device=device, train_task=True)
-    trainer.fit(train_loader=dataloader, n_epochs=2)
+    trainer.fit(train_loader=dataloader, num_epochs=2)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Training GNN model")
@@ -109,5 +110,9 @@ if __name__ == '__main__':
                            help="The number of classes.")
     argparser.add_argument("--local_rank", type=int,
                            help="The rank of the trainer.")
+    argparser.add_argument("--verbose",
+                           type=lambda x: (str(x).lower() in ['true', '1']),
+                           default=argparse.SUPPRESS,
+                          help="Print more information.")
     args = argparser.parse_args()
     main(args)

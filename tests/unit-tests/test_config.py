@@ -13,7 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
 import os, sys
 from pathlib import Path
 from tempfile import tempdir
@@ -29,6 +28,8 @@ from graphstorm.config.config import BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+from graphstorm.config import BUILTIN_LP_DOT_DECODER
+from graphstorm.config import BUILTIN_LP_DISTMULT_DECODER
 
 def check_failure(config, field):
     has_error = False
@@ -45,12 +46,13 @@ def create_dummpy_config_obj():
             "basic": {},
             "gnn": {
                 "fanout": "4",
-                "n_layers": 1,
+                "num_layers": 1,
             },
             "input": {},
             "output": {},
             "hyperparam": {
                 "lr": 0.01,
+                "lm_tune_lr": 0.0001,
                 "sparse_lr": 0.0001
             },
             "rgcn": {},
@@ -61,9 +63,7 @@ def create_dummpy_config_obj():
 def create_basic_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
-        "debug" : True,
         "backend": "gloo",
-        "num_gpus": 1,
         "ip_config": os.path.join(tmp_path, "ip.txt"),
         "part_config": os.path.join(tmp_path, "part.json"),
         "model_encoder_type": "rgat",
@@ -83,7 +83,6 @@ def create_basic_config(tmp_path, file_name):
 
     # config for check default value
     yaml_object["gsf"]["basic"] = {
-        "num_gpus": 1,
         "ip_config": os.path.join(tmp_path, "ip.txt"),
         "part_config": os.path.join(tmp_path, "part.json"),
     }
@@ -94,7 +93,6 @@ def create_basic_config(tmp_path, file_name):
     # config for wrong values
     yaml_object["gsf"]["basic"] = {
         "backend": "error",
-        "num_gpus": 0,
         "evaluation_frequency": 0,
         "model_encoder_type": "abc"
     }
@@ -119,9 +117,7 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         # success load
-        assert config.debug == True
         assert config.backend == "gloo"
-        assert config.num_gpus == 1
         assert config.ip_config == os.path.join(Path(tmpdirname), "ip.txt")
         assert config.part_config == os.path.join(Path(tmpdirname), "part.json")
         assert config.verbose == False
@@ -138,7 +134,6 @@ def test_load_basic_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.debug == False
         assert config.backend == "gloo"
         assert config.evaluation_frequency == sys.maxsize
         assert config.no_validation == False
@@ -149,7 +144,6 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "backend")
-        check_failure(config, "num_gpus")
         check_failure(config, "ip_config")
         check_failure(config, "part_config")
         check_failure(config, "evaluation_frequency")
@@ -167,11 +161,11 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgat"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["test_feat"],
+        "node_feat_name": ["test_feat"],
         "fanout": "10,20,30",
-        "n_layers": 3,
-        "n_hidden": 128,
-        "mini_batch_infer": False
+        "num_layers": 3,
+        "hidden_size": 128,
+        "use_mini_batch_infer": False
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -180,12 +174,12 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["test_feat"],
+        "node_feat_name": ["test_feat"],
         "fanout": "a:10@b:10,a:10@b:10@c:20",
         "eval_fanout": "10,10",
-        "n_layers": 2,
-        "n_hidden": 128,
-        "mini_batch_infer": True
+        "num_layers": 2,
+        "hidden_size": 128,
+        "use_mini_batch_infer": True
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -194,8 +188,8 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "lm"
     }
     yaml_object["gsf"]["gnn"] = {
-        "n_layers": 2, # for encoder of lm, n_layers will always be 0
-        "n_hidden": 128,
+        "num_layers": 2, # for encoder of lm, num_layers will always be 0
+        "hidden_size": 128,
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -213,9 +207,9 @@ def create_gnn_config(tmp_path, file_name):
     yaml_object["gsf"]["gnn"] = {
         "fanout": "error", # error fanout
         "eval_fanout": "error",
-        "n_hidden": 0,
-        "n_layers": 0,
-        "mini_batch_infer": "error"
+        "hidden_size": 0,
+        "num_layers": 0,
+        "use_mini_batch_infer": "error"
     }
     with open(os.path.join(tmp_path, file_name+"_error1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -223,8 +217,8 @@ def create_gnn_config(tmp_path, file_name):
     yaml_object["gsf"]["gnn"] = {
         "fanout": "10,10", # error fanout
         "eval_fanout": "10,10",
-        "n_hidden": 32,
-        "n_layers": 1,
+        "hidden_size": 32,
+        "num_layers": 1,
     }
     with open(os.path.join(tmp_path, file_name+"_error2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -237,39 +231,39 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name == "test_feat"
+        assert config.node_feat_name == "test_feat"
         assert config.fanout == [10,20,30]
         assert config.eval_fanout == [-1, -1, -1]
-        assert config.n_layers == 3
-        assert config.n_hidden == 128
-        assert config.mini_batch_infer == False
+        assert config.num_layers == 3
+        assert config.hidden_size == 128
+        assert config.use_mini_batch_infer == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name == "test_feat"
+        assert config.node_feat_name == "test_feat"
         assert config.fanout[0]["a"] == 10
         assert config.fanout[0]["b"] == 10
         assert config.fanout[1]["a"] == 10
         assert config.fanout[1]["b"] == 10
         assert config.fanout[1]["c"] == 20
         assert config.eval_fanout == [10,10]
-        assert config.n_layers == 2
-        assert config.n_hidden == 128
-        assert config.mini_batch_infer == True
+        assert config.num_layers == 2
+        assert config.hidden_size == 128
+        assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test3.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.n_layers == 0 # lm model does not need n layers
+        assert config.num_layers == 0 # lm model does not need n layers
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name is None
-        assert config.n_layers == 0 # lm model does not need n layers
-        assert config.n_hidden == 0 # lm model may not need n hidden
-        assert config.mini_batch_infer == True
+        assert config.node_feat_name is None
+        assert config.num_layers == 0 # lm model does not need n layers
+        assert config.hidden_size == 0 # lm model may not need hidden size
+        assert config.use_mini_batch_infer == True
         check_failure(config, "fanout") # fanout must be provided if used
         check_failure(config, "eval_fanout")
 
@@ -278,9 +272,9 @@ def test_gnn_info():
         config = GSConfig(args)
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
-        check_failure(config, "n_hidden")
-        check_failure(config, "n_layers")
-        check_failure(config, "mini_batch_infer")
+        check_failure(config, "hidden_size")
+        check_failure(config, "num_layers")
+        check_failure(config, "use_mini_batch_infer")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error2.yaml'),
                          local_rank=0)
@@ -306,7 +300,7 @@ def create_io_config(tmp_path, file_name):
 
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
-        "save_model_per_iters": 100,
+        "save_model_frequency": 100,
         "save_embed_path": "./save_emb",
     }
 
@@ -323,7 +317,7 @@ def test_load_io_info():
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
         assert config.save_model_path == None
-        assert config.save_model_per_iters == -1
+        assert config.save_model_frequency == -1
         assert config.save_embed_path == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
@@ -332,7 +326,7 @@ def test_load_io_info():
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
-        assert config.save_model_per_iters == 100
+        assert config.save_model_frequency == 100
         assert config.save_embed_path == "./save_emb"
 
 def create_task_tracker_config(tmp_path, file_name):
@@ -397,38 +391,79 @@ def create_train_config(tmp_path, file_name):
     yaml_object["gsf"]["hyperparam"] = {
         "dropout" : 0.1,
         "lr": 0.001,
-        "n_epochs": 10,
+        "num_epochs": 10,
         "batch_size": 64,
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
         "alpha_l2norm": 0.00001,
+        "evaluation_frequency": 1000,
+        'save_model_frequency': 1000,
         "topk_model_to_save": 3,
+        "lm_tune_lr": 0.0001,
         "sparse_lr": 0.001,
         "use_node_embeddings": False,
         "use_self_loop": False,
-        "enable_early_stop": True,
+        "use_early_stop": True,
         "save_model_path": os.path.join(tmp_path, "save"),
     }
 
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["hyperparam"] = {
+        "topk_model_to_save": 4,
+        "save_model_path": os.path.join(tmp_path, "save"),
+    }
+    with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["hyperparam"] = {
+        "evaluation_frequency": 1000,
+        'save_model_frequency': 2000,
+        "topk_model_to_save": 5,
+        "save_model_path": os.path.join(tmp_path, "save"),
+    }
+    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # evaluation_frequency = 1000 and save_model_frequency uses default (-1)
+    yaml_object["gsf"]["hyperparam"] = {
+        "evaluation_frequency": 1000,
+        "topk_model_to_save": 5,
+        "save_model_path": os.path.join(tmp_path, "save"),
+    }
+    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
     # for failures
     yaml_object["gsf"]["hyperparam"] = {
         "dropout" : -1.0,
         "lr": 0.,
-        "n_epochs": -1,
+        "num_epochs": -1,
         "batch_size": 0,
         "eval_batch_size": 0,
+        "lm_tune_lr": 0.,
         "sparse_lr": 0.,
         "use_node_embeddings": True,
         "use_self_loop": "error",
-        "enable_early_stop": True,
-        "call_to_consider_early_stop": -1,
-        "window_for_early_stop": 0,
+        "evaluation_frequency": 1000,
+        'save_model_frequency': 700,
+        "topk_model_to_save": 3,
+        "use_early_stop": True,
+        "early_stop_burnin_rounds": -1,
+        "early_stop_rounds": 0,
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["hyperparam"] = {
+        "evaluation_frequency": 1100,
+        'save_model_frequency': 2000,
+        "topk_model_to_save": 3,
+        "save_model_path": os.path.join(tmp_path, "save"),
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 
@@ -441,53 +476,77 @@ def test_train_info():
 
         assert config.dropout == 0
         check_failure(config, "lr")
-        assert config.n_epochs == 0
+        assert config.num_epochs == 0
         check_failure(config, "batch_size")
         config._batch_size = 32
         assert config.batch_size == 32
-        assert config.eval_batch_size == 32
+        assert config.eval_batch_size == 10000
         assert config.wd_l2norm == 0
         assert config.alpha_l2norm == 0
         assert config.topk_model_to_save == math.inf
         config._lr = 0.01
+        assert config.lm_tune_lr == 0.01
         assert config.sparse_lr == 0.01
         assert config.use_node_embeddings == False
         assert config.use_self_loop == True
-        assert config.enable_early_stop == False
+        assert config.use_early_stop == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'), local_rank=0)
         config = GSConfig(args)
 
         assert config.dropout == 0.1
         assert config.lr == 0.001
-        assert config.n_epochs == 10
+        assert config.num_epochs == 10
         assert config.batch_size == 64
         assert config.eval_batch_size == 128
         assert config.wd_l2norm == 0.1
         assert config.alpha_l2norm == 0.00001
         assert config.topk_model_to_save == 3
+        assert config.lm_tune_lr == 0.0001
         assert config.sparse_lr == 0.001
         assert config.use_node_embeddings == False
         assert config.use_self_loop == False
-        assert config.enable_early_stop == True
-        assert config.call_to_consider_early_stop == 0
-        assert config.window_for_early_stop == 3
+        assert config.use_early_stop == True
+        assert config.early_stop_burnin_rounds == 0
+        assert config.early_stop_rounds == 3
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test1.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.topk_model_to_save == 4
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test2.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.evaluation_frequency == 1000
+        assert config.save_model_frequency == 2000
+        assert config.topk_model_to_save == 5
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test3.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.evaluation_frequency == 1000
+        assert config.save_model_frequency == -1
+        assert config.topk_model_to_save == 5
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "dropout")
         check_failure(config, "lr")
-        check_failure(config, "n_epochs")
+        check_failure(config, "num_epochs")
         check_failure(config, "batch_size")
         check_failure(config, "eval_batch_size")
+        check_failure(config, "lm_tune_lr")
         check_failure(config, "sparse_lr")
         assert config.use_node_embeddings == True
         check_failure(config, "use_self_loop")
         config._dropout = 1.0
         check_failure(config, "dropout")
-        assert config.enable_early_stop == True
-        check_failure(config, "call_to_consider_early_stop")
-        check_failure(config, "window_for_early_stop")
+        assert config.use_early_stop == True
+        check_failure(config, "topk_model_to_save")
+        check_failure(config, "early_stop_burnin_rounds")
+        check_failure(config, "early_stop_rounds")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail1.yaml'), local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "topk_model_to_save")
 
 def create_rgcn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -498,19 +557,19 @@ def create_rgcn_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgcn"] = {
-        "n_bases": 2,
+        "num_bases": 2,
     }
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgcn"] = {
-        "n_bases": 0.1,
+        "num_bases": 0.1,
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgcn"] = {
-        "n_bases": -2,
+        "num_bases": -2,
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -523,19 +582,19 @@ def test_rgcn_info():
         create_rgcn_config(Path(tmpdirname), 'rgcn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.n_bases == -1
+        assert config.num_bases == -1
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.n_bases == 2
+        assert config.num_bases == 2
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "n_bases")
+        check_failure(config, "num_bases")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "n_bases")
+        check_failure(config, "num_bases")
 
 def create_rgat_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -546,13 +605,13 @@ def create_rgat_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgat"] = {
-        "n_heads": 2,
+        "num_heads": 2,
     }
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgat"] = {
-        "n_heads": 0,
+        "num_heads": 0,
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -563,15 +622,15 @@ def test_rgat_info():
         create_rgat_config(Path(tmpdirname), 'rgat_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.n_heads == 4
+        assert config.num_heads == 4
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.n_heads == 2
+        assert config.num_heads == 2
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "n_heads")
+        check_failure(config, "num_heads")
 
 def create_node_class_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -997,7 +1056,7 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["link_prediction"] = {
-        "negative_sampler": BUILTIN_LP_JOINT_NEG_SAMPLER,
+        "train_negative_sampler": BUILTIN_LP_JOINT_NEG_SAMPLER,
         "num_negative_edges": 4,
         "num_negative_edges_eval": 100,
         "train_etype": ["query,exactmatch,asin"],
@@ -1007,15 +1066,16 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": ["query,exactmatch,rev-exactmatch,asin"],
         "gamma": 2.0,
         "lp_loss_func": BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
+        "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
         "eval_metric": "MRR",
-        "use_dot_product": True,
+        "lp_decoder_type": "dot_product",
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["link_prediction"] = {
-        "negative_sampler": "udf", # we allow udf sampler
+        "train_negative_sampler": "udf", # we allow udf sampler
         "train_etype": ["query,exactmatch,asin","query,click,asin"],
         "eval_etype": ["query,exactmatch,asin","query,click,asin"],
         "separate_eval": True,
@@ -1036,9 +1096,9 @@ def create_lp_config(tmp_path, file_name):
         "exclude_training_targets": "error",
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
-        "use_dot_product": "false",
+        "lp_decoder_type": "transe",
     }
-    # config for check default value
+    # config for check error value
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
@@ -1073,10 +1133,10 @@ def test_lp_info():
         create_lp_config(Path(tmpdirname), 'lp_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
+        assert config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
         assert config.num_negative_edges == 16
         assert config.num_negative_edges_eval == 1000
-        assert config.use_dot_product == False
+        assert config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
         assert config.train_etype == None
         assert config.eval_etype == None
         assert config.separate_eval == False
@@ -1090,10 +1150,10 @@ def test_lp_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test1.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
+        assert config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
         assert config.num_negative_edges == 4
         assert config.num_negative_edges_eval == 100
-        assert config.use_dot_product == True
+        assert config.lp_decoder_type == BUILTIN_LP_DOT_DECODER
         assert len(config.train_etype) == 1
         assert config.train_etype[0] == ("query", "exactmatch", "asin")
         assert len(config.eval_etype) == 1
@@ -1103,14 +1163,14 @@ def test_lp_info():
         assert len(config.reverse_edge_types_map) == 1
         assert config.reverse_edge_types_map[("query", "exactmatch","asin")] == \
             ("asin", "rev-exactmatch","query")
-        check_failure(config, "gamma") # use_dot_product == True
+        check_failure(config, "gamma") # dot product
         assert config.lp_loss_func == BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.negative_sampler == "udf"
+        assert config.train_negative_sampler == "udf"
         assert len(config.train_etype) == 2
         assert config.train_etype[0] == ("query", "exactmatch", "asin")
         assert config.train_etype[1] == ("query", "click", "asin")
@@ -1133,7 +1193,7 @@ def test_lp_info():
         check_failure(config, "exclude_training_targets")
         check_failure(config, "reverse_edge_types_map")
         check_failure(config, "lp_loss_func")
-        check_failure(config, "use_dot_product")
+        check_failure(config, "lp_decoder_type")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1157,11 +1217,11 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgat"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["test_feat"],
+        "node_feat_name": ["test_feat"],
         "fanout": "10,20,30",
-        "n_layers": 3,
-        "n_hidden": 128,
-        "mini_batch_infer": False
+        "num_layers": 3,
+        "hidden_size": 128,
+        "use_mini_batch_infer": False
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1170,24 +1230,24 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["ntype0:feat_name"],
+        "node_feat_name": ["ntype0:feat_name"],
         "fanout": "a:10@b:10,a:10@b:10@c:20",
         "eval_fanout": "10,10",
-        "n_layers": 2,
-        "n_hidden": 128,
-        "mini_batch_infer": True
+        "num_layers": 2,
+        "hidden_size": 128,
+        "use_mini_batch_infer": True
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["ntype0:feat_name", "ntype1:fname"],
+        "node_feat_name": ["ntype0:feat_name,feat_name2", "ntype1:fname"],
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
+        "node_feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
     }
     with open(os.path.join(tmp_path, file_name+"4.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1196,8 +1256,8 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "lm"
     }
     yaml_object["gsf"]["gnn"] = {
-        "n_layers": 2, # for encoder of lm, n_layers will always be 0
-        "n_hidden": 128,
+        "num_layers": 2, # for encoder of lm, num_layers will always be 0
+        "hidden_size": 128,
     }
     with open(os.path.join(tmp_path, file_name+"5.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1213,22 +1273,22 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
+        "node_feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
         "fanout": "error", # error fanout
         "eval_fanout": "error",
-        "n_hidden": 0,
-        "n_layers": 0,
-        "mini_batch_infer": "error"
+        "hidden_size": 0,
+        "num_layers": 0,
+        "use_mini_batch_infer": "error"
     }
     with open(os.path.join(tmp_path, file_name+"_error1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["gnn"] = {
-        "feat_name": {"ntype0":"feat_name"}, # not a list
+        "node_feat_name": {"ntype0":"feat_name"}, # not a list
         "fanout": "10,10", # error fanout
         "eval_fanout": "10,10",
-        "n_hidden": 32,
-        "n_layers": 1,
+        "hidden_size": 32,
+        "num_layers": 1,
     }
     with open(os.path.join(tmp_path, file_name+"_error2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1241,78 +1301,78 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name == "test_feat"
+        assert config.node_feat_name == "test_feat"
         assert config.fanout == [10,20,30]
         assert config.eval_fanout == [-1, -1, -1]
-        assert config.n_layers == 3
-        assert config.n_hidden == 128
-        assert config.mini_batch_infer == False
+        assert config.num_layers == 3
+        assert config.hidden_size == 128
+        assert config.use_mini_batch_infer == False
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert len(config.feat_name) == 1
-        assert 'ntype0' in config.feat_name
-        assert config.feat_name['ntype0'] == ["feat_name"]
+        assert len(config.node_feat_name) == 1
+        assert 'ntype0' in config.node_feat_name
+        assert config.node_feat_name['ntype0'] == ["feat_name"]
         assert config.fanout[0]["a"] == 10
         assert config.fanout[0]["b"] == 10
         assert config.fanout[1]["a"] == 10
         assert config.fanout[1]["b"] == 10
         assert config.fanout[1]["c"] == 20
         assert config.eval_fanout == [10,10]
-        assert config.n_layers == 2
-        assert config.n_hidden == 128
-        assert config.mini_batch_infer == True
+        assert config.num_layers == 2
+        assert config.hidden_size == 128
+        assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test3.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert len(config.feat_name) == 2
-        assert 'ntype0' in config.feat_name
-        assert 'ntype1' in config.feat_name
-        assert config.feat_name['ntype0'] == ["feat_name"]
-        assert config.feat_name['ntype1'] == ["fname"]
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert 'ntype1' in config.node_feat_name
+        assert config.node_feat_name['ntype0'] == ["feat_name", "feat_name2"]
+        assert config.node_feat_name['ntype1'] == ["fname"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test4.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert len(config.feat_name) == 2
-        assert 'ntype0' in config.feat_name
-        assert 'ntype1' in config.feat_name
-        assert len(config.feat_name['ntype0']) == 2
-        assert "feat_name" in config.feat_name['ntype0']
-        assert "fname" in config.feat_name['ntype0']
-        assert config.feat_name['ntype1'] == ["fname"]
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert 'ntype1' in config.node_feat_name
+        assert len(config.node_feat_name['ntype0']) == 2
+        assert "feat_name" in config.node_feat_name['ntype0']
+        assert "fname" in config.node_feat_name['ntype0']
+        assert config.node_feat_name['ntype1'] == ["fname"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test5.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.n_layers == 0 # lm model does not need n layers
+        assert config.num_layers == 0 # lm model does not need n layers
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_default.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        assert config.feat_name is None
-        assert config.n_layers == 0 # lm model does not need n layers
-        check_failure(config, "n_hidden") # lm model may not need n hidden
-        assert config.mini_batch_infer == True
+        assert config.node_feat_name is None
+        assert config.num_layers == 0 # lm model does not need n layers
+        check_failure(config, "hidden_size") # lm model may not need hidden size
+        assert config.use_mini_batch_infer == True
         check_failure(config, "fanout") # fanout must be provided if used
         check_failure(config, "eval_fanout")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "feat_name")
+        check_failure(config, "node_feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
-        check_failure(config, "n_hidden")
-        check_failure(config, "n_layers")
-        check_failure(config, "mini_batch_infer")
+        check_failure(config, "hidden_size")
+        check_failure(config, "num_layers")
+        check_failure(config, "use_mini_batch_infer")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "feat_name")
+        check_failure(config, "node_feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
 
@@ -1334,7 +1394,7 @@ def create_io_config(tmp_path, file_name):
 
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
-        "save_model_per_iters": 100,
+        "save_model_frequency": 100,
         "save_embed_path": "./save_emb",
     }
 
@@ -1343,9 +1403,9 @@ def create_io_config(tmp_path, file_name):
 
     yaml_object["gsf"]["output"] = {
         "save_model_path": os.path.join(tmp_path, "save"),
-        "save_model_per_iters": 100,
+        "save_model_frequency": 100,
         "save_embed_path": "./save_emb",
-        "save_predict_path": "./prediction",
+        "save_prediction_path": "./prediction",
     }
 
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
@@ -1361,7 +1421,7 @@ def test_load_io_info():
         assert config.restore_model_path == None
         assert config.restore_optimizer_path == None
         assert config.save_model_path == None
-        assert config.save_model_per_iters == -1
+        assert config.save_model_frequency == -1
         assert config.save_embed_path == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
@@ -1370,38 +1430,60 @@ def test_load_io_info():
         assert config.restore_model_path == "./restore"
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
-        assert config.save_model_per_iters == 100
+        assert config.save_model_frequency == 100
         assert config.save_embed_path == "./save_emb"
-        assert config.save_predict_path == "./save_emb"
+        assert config.save_prediction_path == "./save_emb"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test2.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.save_embed_path == "./save_emb"
-        assert config.save_predict_path == "./prediction"
+        assert config.save_prediction_path == "./prediction"
 
 def create_lm_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["lm"] = {
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "rgcn"
     }
 
     # config for check default value
+    yaml_object["gsf"]["lm"] = {
+    }
+
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # With language model configured for ode type 'a'
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
         "lm_infer_batchszie": 64,
-        "freeze_lm_encoder_epochs": 3,
+        "freeze_lm_encoder_epochs": 0,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
-                             "gradient_checkpoint": False,
+                             "gradient_checkpoint": True,
                              "node_types": ['a']}]
     }
 
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # With language model configured for ode type 'a'
+    # There is a conflict between freeze_lm_encoder_epochs and gradient_checkpoint
+    # gradient_checkpoint will be set to False if freeze_lm_encoder_epochs > 0
+    yaml_object["gsf"]["lm"] = {
+        "lm_train_nodes": 10,
+        "lm_infer_batchszie": 64,
+        "freeze_lm_encoder_epochs": 3,
+        "node_lm_configs": [{"lm_type": "bert",
+                             "model_name": "bert-base-uncased",
+                             "gradient_checkpoint": True,
+                             "node_types": ['a']}]
+    }
+
+    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # This is not language model
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": -1,
         "lm_infer_batchszie": 1,
@@ -1409,27 +1491,57 @@ def create_lm_config(tmp_path, file_name):
         "node_lm_configs": None
     }
 
-    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # Invalid value for lm_train_nodes, lm_infer_batchszie and freeze_lm_encoder_epochs
     yaml_object["gsf"]["output"] = {
         "lm_train_nodes": -2,
         "lm_infer_batchszie": -1,
         "freeze_lm_encoder_epochs": -1,
-        "node_lm_configs": {"lm_type": "bert",
-                             "model_name": "bert-base-uncased",
-                             "gradient_checkpoint": False,
-                             "node_types": ['a']}
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # "node_lm_configs" should not be an empty list
     yaml_object["gsf"]["output"] = {
         "node_lm_configs": []
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # config for check default value with gsf encoder type lm
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "lm"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # freeze_lm_encoder_epochs does not work with model_encoder_type lm
+    yaml_object["gsf"]["lm"] = {
+        "freeze_lm_encoder_epochs": 3,
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # config for check default value with gsf encoder type mlp
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "mlp"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # freeze_lm_encoder_epochs does not work with model_encoder_type mlp
+    yaml_object["gsf"]["lm"] = {
+        "freeze_lm_encoder_epochs": 3,
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail4.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 def test_lm():
@@ -1450,11 +1562,22 @@ def test_lm():
         config = GSConfig(args)
         assert config.lm_train_nodes == 10
         assert config.lm_infer_batchszie == 64
+        assert config.freeze_lm_encoder_epochs == 0
+        assert config.node_lm_configs is not None
+        assert len(config.node_lm_configs) == 1
+        assert config.node_lm_configs[0]['lm_type'] == "bert"
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == True
+        assert len(config.node_lm_configs[0]['node_types']) == 1
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test2.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
         assert config.freeze_lm_encoder_epochs == 3
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
+        assert config.node_lm_configs[0]['gradient_checkpoint'] == False
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test2.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test3.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.lm_train_nodes == -1
@@ -1468,12 +1591,25 @@ def test_lm():
         check_failure(config, "lm_train_nodes")
         check_failure(config, "lm_infer_batchszie")
         check_failure(config, "freeze_lm_encoder_epochs")
-        check_failure(config, "node_lm_configs")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail2.yaml'),
                          local_rank=0)
+        has_error = False
+        try:
+            config = GSConfig(args)
+        except:
+            has_error = True
+        assert has_error
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail3.yaml'),
+                         local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "node_lm_configs")
+        check_failure(config, "freeze_lm_encoder_epochs")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail4.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "freeze_lm_encoder_epochs")
 
 def test_check_lm_config():
     import tempfile

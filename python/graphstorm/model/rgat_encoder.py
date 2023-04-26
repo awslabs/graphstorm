@@ -37,7 +37,7 @@ class RelationalAttLayer(nn.Module):
         Output feature size.
     rel_names : list[str]
         Relation names.
-    n_heads : int
+    num_heads : int
         Number of attention heads
     bias : bool, optional
         True if bias is added. Default: True
@@ -52,7 +52,7 @@ class RelationalAttLayer(nn.Module):
                  in_feat,
                  out_feat,
                  rel_names,
-                 n_heads,
+                 num_heads,
                  *,
                  bias=True,
                  activation=None,
@@ -67,7 +67,7 @@ class RelationalAttLayer(nn.Module):
         self.self_loop = self_loop
 
         self.conv = dglnn.HeteroGraphConv({
-                rel : dglnn.GATConv(in_feat, out_feat // n_heads, n_heads, bias=False)
+                rel : dglnn.GATConv(in_feat, out_feat // num_heads, num_heads, bias=False)
                 for rel in rel_names
             })
 
@@ -143,7 +143,7 @@ class RelationalGATEncoder(GraphConvEncoder):
         Hidden dimension size
     out_dim: int
         Output dimension size
-    n_heads: int
+    num_heads: int
         Number of heads
     num_hidden_layers: int
         Num hidden layers
@@ -156,23 +156,23 @@ class RelationalGATEncoder(GraphConvEncoder):
     """
     def __init__(self,
                  g,
-                 h_dim, out_dim, n_heads,
+                 h_dim, out_dim, num_heads,
                  num_hidden_layers=1,
                  dropout=0,
                  use_self_loop=True,
                  last_layer_act=False):
         super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
-        self.n_heads = n_heads
+        self.num_heads = num_heads
         # h2h
         for _ in range(num_hidden_layers):
             self.layers.append(RelationalAttLayer(
                 h_dim, h_dim, g.canonical_etypes,
-                self.n_heads, activation=F.relu, self_loop=use_self_loop,
+                self.num_heads, activation=F.relu, self_loop=use_self_loop,
                 dropout=dropout))
         # h2o
         self.layers.append(RelationalAttLayer(
             h_dim, out_dim, g.canonical_etypes,
-            self.n_heads, activation=F.relu if last_layer_act else None,
+            self.num_heads, activation=F.relu if last_layer_act else None,
             self_loop=use_self_loop))
 
     def forward(self, blocks, h):

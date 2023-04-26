@@ -13,8 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Inference script for link prediction tasks with language model as
-    encoder only.
+    Inference script for link prediction tasks with GNN
 """
 
 import torch as th
@@ -36,8 +35,8 @@ def main(args):
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
                                     eval_etypes=config.eval_etype,
-                                    node_feat_field=config.feat_name)
-    model = gs.create_builtin_lp_model(infer_data.g, config, train_task=False)
+                                    node_feat_field=config.node_feat_name)
+    model = gs.create_builtin_lp_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnLinkPredictionInfer(model, gs.get_rank())
@@ -47,18 +46,14 @@ def main(args):
             GSgnnMrrLPEvaluator(config.evaluation_frequency,
                                 infer_data,
                                 config.num_negative_edges_eval,
-                                config.use_dot_product,
-                                config.enable_early_stop,
-                                config.call_to_consider_early_stop,
-                                config.window_for_early_stop,
-                                config.early_stop_strategy))
+                                config.lp_decoder_type))
         assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
     # We only support full-graph inference for now.
-    if config.test_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.test_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
     else:
         raise Exception('Unknown test negative sampler.'
@@ -67,7 +62,7 @@ def main(args):
 
     dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
                                      batch_size=config.eval_batch_size,
-                                     num_negative_edges=config.num_negative_edges)
+                                     num_negative_edges=config.num_negative_edges_eval)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings

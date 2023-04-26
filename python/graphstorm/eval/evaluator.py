@@ -28,7 +28,7 @@ from .utils import calc_ranking, gen_mrr_score
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
     """
-    Stop the training early if the val_score `decreases` for the last window steps.
+    Stop the training early if the val_score `decreases` for the last early stop round.
 
     Note: val_score < Average[val scores in last K steps]
 
@@ -116,20 +116,20 @@ class GSgnnInstanceEvaluator():
         The frequency (# of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
-    enable_early_stop: bool
-        Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
-    window_for_early_stop: int
-        The number of latest validation scores used in deciding on early stop.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, evaluation_frequency, eval_metric,
-                 enable_early_stop=False,
-                 call_to_consider_early_stop=0,
-                 window_for_early_stop=3,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         # nodes whose embeddings are used during evaluation
         # if None all nodes are used.
@@ -144,11 +144,11 @@ class GSgnnInstanceEvaluator():
         assert len(self.metric) > 0, \
             "At least one metric must be defined"
         self.evaluation_frequency = evaluation_frequency
-        self._do_early_stop = enable_early_stop
+        self._do_early_stop = use_early_stop
         if self._do_early_stop:
-            self._call_to_consider_early_stop = call_to_consider_early_stop
+            self._early_stop_burnin_rounds = early_stop_burnin_rounds
             self._num_early_stop_calls = 0
-            self._window_for_early_stop = window_for_early_stop
+            self._early_stop_rounds = early_stop_rounds
             self._early_stop_strategy = early_stop_strategy
             self._val_perf_list = []
         # add this list to store
@@ -244,12 +244,12 @@ class GSgnnInstanceEvaluator():
             f"valudation score should be a signle key value pair but got {val_score}"
         self._num_early_stop_calls += 1
         # Not enough existing validation scores
-        if self._num_early_stop_calls <= self._call_to_consider_early_stop:
+        if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
             return False
 
         val_score = list(val_score.values())[0]
         # Not enough validation scores to make early stop decision
-        if len(self._val_perf_list) < self._window_for_early_stop:
+        if len(self._val_perf_list) < self._early_stop_rounds:
             self._val_perf_list.append(val_score)
             return False
 
@@ -332,25 +332,25 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
         The frequency (# of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
-    enable_early_stop: bool
-        Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
-    window_for_early_stop: int
-        The number of latest validation scores used in deciding on early stop.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, evaluation_frequency,
                  eval_metric,
-                 enable_early_stop=False,
-                 call_to_consider_early_stop=0,
-                 window_for_early_stop=3,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         super(GSgnnRegressionEvaluator, self).__init__(evaluation_frequency,
-            eval_metric, enable_early_stop, call_to_consider_early_stop,
-            window_for_early_stop, early_stop_strategy)
+            eval_metric, use_early_stop, early_stop_burnin_rounds,
+            early_stop_rounds, early_stop_strategy)
         self._best_val_score = {}
         self._best_test_score = {}
         self._best_iter = {}
@@ -440,25 +440,25 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
         Evaluation metric used during evaluation.
     multilabel: bool
         If set to true, the task is a multi-label classification task.
-    enable_early_stop: bool
-        Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
-    window_for_early_stop: int
-        The number of latest validation scores used in deciding on early stop.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, evaluation_frequency,
                  eval_metric, multilabel,
-                 enable_early_stop=False,
-                 call_to_consider_early_stop=0,
-                 window_for_early_stop=3,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY): # pylint: disable=unused-argument
         super(GSgnnAccEvaluator, self).__init__(evaluation_frequency,
-            eval_metric, enable_early_stop, call_to_consider_early_stop,
-            window_for_early_stop, early_stop_strategy)
+            eval_metric, use_early_stop, early_stop_burnin_rounds,
+            early_stop_rounds, early_stop_strategy)
         self.multilabel = multilabel
         self._best_val_score = {}
         self._best_test_score = {}
@@ -556,20 +556,20 @@ class GSgnnLPEvaluator():
         The frequency (# of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
-    enable_early_stop: bool
-        Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
-    window_for_early_stop: int
-        The number of latest validation scores used in deciding on early stop.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, evaluation_frequency, eval_metric,
-                 enable_early_stop=False,
-                 call_to_consider_early_stop=0,
-                 window_for_early_stop=3,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         # nodes whose embeddings are used during evaluation
         # if None all nodes are used.
@@ -583,11 +583,11 @@ class GSgnnLPEvaluator():
         self._metric = eval_metric
         assert len(self.metric) > 0, "At least one metric must be defined"
         self.evaluation_frequency = evaluation_frequency
-        self._do_early_stop = enable_early_stop
+        self._do_early_stop = use_early_stop
         if self._do_early_stop:
-            self._call_to_consider_early_stop = call_to_consider_early_stop
+            self._early_stop_burnin_rounds = early_stop_burnin_rounds
             self._num_early_stop_calls = 0
-            self._window_for_early_stop = window_for_early_stop
+            self._early_stop_rounds = early_stop_rounds
             self._early_stop_strategy = early_stop_strategy
             self._val_perf_list = []
         # add this list to store all of the performance rank of validation scores for pick top k
@@ -607,6 +607,9 @@ class GSgnnLPEvaluator():
     def evaluate(self, val_scores, test_scores, total_iters):
         """
         GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
+
+        Note: Make sure each trainer will get the same validation scores.
+        The early stop and model saving progress rely on certain scores.
 
         Parameters
         ----------
@@ -665,12 +668,12 @@ class GSgnnLPEvaluator():
             f"valudation score should be a signle key value pair but got {val_score}"
         self._num_early_stop_calls += 1
         # Not enough existing validation scores
-        if self._num_early_stop_calls <= self._call_to_consider_early_stop:
+        if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
             return False
 
         val_score = list(val_score.values())[0]
         # Not enough validation scores to make early stop decision
-        if len(self._val_perf_list) < self._window_for_early_stop:
+        if len(self._val_perf_list) < self._early_stop_rounds:
             self._val_perf_list.append(val_score)
             return False
 
@@ -766,33 +769,33 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         The processed dataset
     num_negative_edges_eval: int
         Number of negative edges sampled for each positive edge in evalation.
-    use_dot_product: bool
-        If it is set to true, use the dot product loss function instead of DistMult.
-    enable_early_stop: bool
-        Set true to enable early stop.
-    call_to_consider_early_stop: int
-        Burning period calls to start considering early stop.
-    window_for_early_stop: int
-        The number of latest validation scores used in deciding on early stop.
+    lp_decoder_type: str
+        Link prediction decoder type.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, evaluation_frequency, data,
-                 num_negative_edges_eval, use_dot_product,
-                 enable_early_stop=False,
-                 call_to_consider_early_stop=0,
-                 window_for_early_stop=3,
+                 num_negative_edges_eval, lp_decoder_type,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         eval_metric = ["mrr"]
         super(GSgnnMrrLPEvaluator, self).__init__(evaluation_frequency,
-            eval_metric, enable_early_stop, call_to_consider_early_stop,
-            window_for_early_stop, early_stop_strategy)
+            eval_metric, use_early_stop, early_stop_burnin_rounds,
+            early_stop_rounds, early_stop_strategy)
         self.train_idxs = data.train_idxs
         self.val_idxs = data.val_idxs
         self.test_idxs = data.test_idxs
         self.num_negative_edges_eval = num_negative_edges_eval
-        self.use_dot_product = use_dot_product
+        self.lp_decoder_type = lp_decoder_type
 
         self.metrics_obj = LinkPredictionMetrics()
 

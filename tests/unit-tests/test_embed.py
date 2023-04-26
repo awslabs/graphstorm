@@ -31,6 +31,7 @@ from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 
 
 from data_utils import generate_dummy_dist_graph
+from data_utils import create_lm_graph, create_lm_graph2
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
@@ -108,7 +109,8 @@ def test_input_layer2():
 
 # In this case, we use node feature on one node type and
 # use sparse embedding on the other node type.
-def test_input_layer3():
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_input_layer3(dev):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -123,18 +125,26 @@ def test_input_layer3():
     assert len(layer.input_projs) == 1
     assert list(layer.input_projs.keys())[0] == 'n0'
     assert len(layer.sparse_embeds) == 1
+    layer = layer.to(dev)
+
     node_feat = {}
     node_embs = {}
     input_nodes = {}
     for ntype in g.ntypes:
         input_nodes[ntype] = np.arange(10)
     nn.init.eye_(layer.input_projs['n0'])
-    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']]
+    nn.init.eye_(layer.proj_matrix['n1'])
+    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
     node_embs['n1'] = layer.sparse_embeds['n1'].weight[input_nodes['n1']]
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
-    assert_almost_equal(embed['n0'].detach().numpy(), node_feat['n0'].detach().numpy())
-    assert_almost_equal(embed['n1'].detach().numpy(), node_embs['n1'].detach().numpy())
+    # check emb device
+    for _, emb in embed.items():
+        assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+    assert_almost_equal(embed['n0'].detach().cpu().numpy(),
+                        node_feat['n0'].detach().cpu().numpy())
+    assert_almost_equal(embed['n1'].detach().cpu().numpy(),
+                        node_embs['n1'].detach().cpu().numpy())
 
     # Test the case with errors.
     try:
@@ -147,16 +157,23 @@ def test_input_layer3():
     input_nodes['n0'] = np.arange(10)
     input_nodes['n1'] = np.zeros((0,))
     nn.init.eye_(layer.input_projs['n0'])
-    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']]
+    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
     node_embs['n1'] = layer.sparse_embeds['n1'].weight[input_nodes['n1']]
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
-    assert_almost_equal(embed['n0'].detach().numpy(), node_feat['n0'].detach().numpy())
-    assert_almost_equal(embed['n1'].detach().numpy(), node_embs['n1'].detach().numpy())
+    # check emb device
+    for _, emb in embed.items():
+        assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+    assert_almost_equal(embed['n0'].detach().cpu().numpy(),
+                        node_feat['n0'].detach().cpu().numpy())
+    assert_almost_equal(embed['n1'].detach().cpu().numpy(),
+                        node_embs['n1'].detach().cpu().numpy())
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def test_compute_embed():
+
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_compute_embed(dev):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -171,81 +188,21 @@ def test_compute_embed():
     feat_size = get_feat_size(g, {'n0' : ['feat']})
     layer = GSNodeEncoderInputLayer(g, feat_size, 2)
     nn.init.eye_(layer.input_projs['n0'])
+    nn.init.eye_(layer.proj_matrix['n1'])
+    layer.to(dev)
 
     embeds = compute_node_input_embeddings(g, 10, layer,
                                            feat_field={'n0' : ['feat']})
     assert len(embeds) == len(g.ntypes)
-    assert_almost_equal(embeds['n0'][0:len(embeds['n1'])].numpy(),
-            g.nodes['n0'].data['feat'][0:g.number_of_nodes('n0')].numpy())
-    assert_almost_equal(embeds['n1'][0:len(embeds['n1'])].numpy(),
-            layer.sparse_embeds['n1'].weight[0:g.number_of_nodes('n1')].numpy())
+    assert_almost_equal(embeds['n0'][0:len(embeds['n1'])].cpu().numpy(),
+            g.nodes['n0'].data['feat'][0:g.number_of_nodes('n0')].cpu().numpy())
+    assert_almost_equal(embeds['n1'][0:len(embeds['n1'])].cpu().numpy(),
+            layer.sparse_embeds['n1'].weight[0:g.number_of_nodes('n1')].cpu().numpy())
     # Run it again to tigger the branch that access 'input_emb' directly.
     embeds = compute_node_input_embeddings(g, 10, layer,
                                            feat_field={'n0' : ['feat']})
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-
-def create_lm_graph():
-    bert_model_name = "bert-base-uncased"
-    max_seq_length = 8
-    lm_config = [{"lm_type": "bert",
-                  "model_name": bert_model_name,
-                  "gradient_checkpoint": True,
-                  "node_types": ["n0"]}]
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        g, _ = generate_dummy_dist_graph(tmpdirname)
-
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
-    input_text = ["Hello world!"]
-    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
-    input_ids, valid_len, attention_mask, _ = \
-        create_tokens(tokenizer=tokenizer,
-                      input_text=input_text,
-                      max_seq_length=max_seq_length,
-                      num_node=g.number_of_nodes('n0'))
-
-    g.nodes['n0'].data[TOKEN_IDX] = input_ids
-    g.nodes['n0'].data[VALID_LEN] = valid_len
-
-    return lm_config, feat_size, input_ids, attention_mask, g
-
-def create_lm_graph2():
-    bert_model_name = "bert-base-uncased"
-    max_seq_length = 8
-    lm_config = [{"lm_type": "bert",
-                  "model_name": bert_model_name,
-                  "gradient_checkpoint": True,
-                  "attention_probs_dropout_prob": 0,
-                  "hidden_dropout_prob":0,
-                  "node_types": ["n0", "n1"]}]
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        g, _ = generate_dummy_dist_graph(tmpdirname)
-
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
-    input_text = ["Hello world!"]
-    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
-    input_ids0, valid_len0, attention_mask0, _ = \
-        create_tokens(tokenizer=tokenizer,
-                      input_text=input_text,
-                      max_seq_length=max_seq_length,
-                      num_node=g.number_of_nodes('n0'))
-
-    g.nodes['n0'].data[TOKEN_IDX] = input_ids0
-    g.nodes['n0'].data[ATT_MASK_IDX] = valid_len0
-
-    input_text = ["Hello Aamzon!"]
-    input_ids1, valid_len1, attention_mask1, _ = \
-        create_tokens(tokenizer=tokenizer,
-                      input_text=input_text,
-                      max_seq_length=max_seq_length,
-                      num_node=g.number_of_nodes('n1'))
-    g.nodes['n1'].data[TOKEN_IDX] = input_ids1
-    g.nodes['n1'].data[VALID_LEN] = valid_len1
-
-    return lm_config, feat_size, input_ids0, attention_mask0, \
-        input_ids1, attention_mask1, g
 
 def test_lm_infer():
     # initialize the torch distributed environment
@@ -253,7 +210,9 @@ def test_lm_infer():
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    lm_config, feat_size, input_ids, attention_mask, g = create_lm_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
     # during infer, no bert emb cache is used.
     assert len(layer.lm_emb_cache) == 0
@@ -286,7 +245,9 @@ def test_lm_embed(num_train):
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    lm_config, feat_size, input_ids, attention_mask, g = create_lm_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
 
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=num_train)
     layer.warmup(g)
@@ -330,7 +291,9 @@ def test_lm_embed(num_train):
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    lm_config, feat_size, input_ids, attention_mask, g = create_lm_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 128, num_train=num_train)
     layer.prepare(g)
     if num_train == 0:
@@ -361,7 +324,8 @@ def test_pure_lm_embed(num_train):
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    lm_config, _, _, _, g = create_lm_graph()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, _, _, _, g, _ = create_lm_graph(tmpdirname)
 
     # GSPureLMNodeInputLayer will fail as not all ntypes in g have text feature
     has_error = False
@@ -371,8 +335,9 @@ def test_pure_lm_embed(num_train):
         has_error = True
     assert has_error
 
-    lm_config, feat_size, input_ids0, attention_mask0, \
-        input_ids1, attention_mask1, g = create_lm_graph2()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids0, attention_mask0, \
+            input_ids1, attention_mask1, g, _ = create_lm_graph2(tmpdirname)
     layer = GSPureLMNodeInputLayer(g, lm_config, num_train=num_train)
     layer.prepare(g)
     if num_train == 0:
@@ -469,15 +434,12 @@ def test_lm_embed_warmup(dev):
 
 
 if __name__ == '__main__':
-    """
     test_input_layer1()
     test_input_layer2()
-    test_input_layer3()
-    test_compute_embed()
-
-    test_lm_embed(0)
-    test_lm_embed(10)
-    """
+    test_input_layer3('cpu')
+    test_input_layer3('cuda:0')
+    test_compute_embed('cpu')
+    test_compute_embed('cuda:0')
 
     test_pure_lm_embed(0)
     test_pure_lm_embed(10)
