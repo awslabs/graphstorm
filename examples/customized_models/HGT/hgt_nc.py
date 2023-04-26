@@ -146,7 +146,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                  n_out,             # output dimension
                  num_layers,          # number of gnn layers
                  num_heads,           # number of attention
-                 predict_ntype,     # the node type to be predict
+                 target_ntype,     # the node type to be predict
                  use_norm = True,   # use normalization or not, default is True
                  alpha_l2norm = 0
                  ):
@@ -285,7 +285,7 @@ def main(args):
                 n_out=config.num_classes,
                 num_layers=num_layers,
                 num_heads=args.num_heads,
-                predict_ntype=config.predict_ntype,
+                target_ntype=config.target_ntype,
                 use_norm=True,
                 alpha_l2norm=config.alpha_l2norm)
 
