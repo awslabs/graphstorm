@@ -830,7 +830,8 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_num_bases"):
             assert isinstance(self._num_bases, int)
-            assert self._num_bases > 0 or self._num_bases == -1
+            assert self._num_bases > 0 or self._num_bases == -1, \
+                "num_bases should be larger than 0 or -1"
             return self._num_bases
         # By default do not use num_bases
         return -1
@@ -842,7 +843,8 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_heads"):
-            assert self._num_heads > 0
+            assert self._num_heads > 0, \
+                "num_heads should be larger than 0"
             return self._num_heads
         # By default use 4 heads
         return 4
