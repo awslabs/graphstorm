@@ -3,3 +3,46 @@ This submodule provides support to run GraphStorm training and inference on Amaz
 
 ## Launch SageMaker tasks
 Use scripts under graphstorm.sagemaker.launch to launch SageMaker tasks. Please make sure you already setup your SageMaker environments.
+
+### Launch train task using built-in training script
+
+Preparing training data and training task config
+```
+```
+
+Launch train task
+```
+```
+
+
+### Launch train task using user-defined training script
+
+Preparing training data and training task config
+```
+```
+
+Launch train task
+```
+```
+
+
+### Launch inference task using built-in inference script
+
+Preparing inference data and inference task config
+```
+```
+
+Launch inference task
+```
+```
+
+
+### Launch inference task using user-defined inference script
+
+Preparing inference data and inference task config
+```
+```
+
+Launch inference task
+```
+```
