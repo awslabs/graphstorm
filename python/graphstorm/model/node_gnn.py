@@ -137,7 +137,6 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         assert len(encode_embs) == 1, \
             f'There are {len(encode_embs)} node types: {list(encode_embs.keys())}'
         target_ntype = list(encode_embs.keys())[0]
-        print("multilabel", self._multilabel)
         return self.decoder.predict(encode_embs[target_ntype]), encode_embs[target_ntype]
 
 def node_mini_batch_gnn_predict(model, loader, return_label=False):
