@@ -100,7 +100,7 @@ if __name__ == '__main__':
                            help="The graph name.")
     argparser.add_argument("--part-config", type=str, required=True,
                            help="The partition config file.")
-    argparser.add_argument("--predict-ntype", type=str, required=True,
+    argparser.add_argument("--target-ntype", type=str, required=True,
                            help="The node type for prediction.")
     argparser.add_argument("--node-feat", type=str, required=True,
                            help="The name of the node feature.")
