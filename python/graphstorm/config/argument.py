@@ -1454,7 +1454,7 @@ def _add_hyperparam_args(parser):
             type=int,
             default=argparse.SUPPRESS,
             help="How offen to run the evaluation. "
-                 "Every #eval_frequency iterations.")
+                 "Every #eval-frequency iterations.")
     group.add_argument(
             '--no-validation',
             type=lambda x: (str(x).lower() in ['true', '1']),

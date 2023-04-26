@@ -219,19 +219,15 @@ def node_mini_batch_predict(model, emb, loader, return_label=False):
             assert len(input_nodes) == 1, "Currently we only support one node type"
             ntype = list(input_nodes.keys())[0]
             in_nodes = input_nodes[ntype]
-            print("change here")
-            pred, pred_max = model.decoder.predict(emb[ntype][in_nodes].to(device))
+            pred = model.decoder.predict(emb[ntype][in_nodes].to(device))
             preds.append(pred.cpu())
-            preds_max.append(pred_max.cpu())
             if return_label:
                 lbl = data.get_labels(seeds)
                 labels.append(lbl[ntype])
     model.train()
-    # TODO(IN): Use fewer lines
     if return_label:
         preds = th.cat(preds)
-        preds_max = th.cat(preds_max)
         labels = th.cat(labels)
-        return preds, preds_max, labels
+        return preds, labels
     else:
-        return th.cat(preds), th.cat(preds_max)
+        return th.cat(preds)
