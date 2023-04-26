@@ -41,7 +41,7 @@ gsf:
     wd_l2norm: 0
     no_validation: false
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
     lp_decoder_type: dot_product
     sparse_lr: 1e-2

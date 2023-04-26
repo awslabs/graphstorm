@@ -27,7 +27,7 @@ class HGTLayer(nn.Module):
                  out_dim,           # output dimension
                  node_dict,         # node type and id in order, e.g., {'author': 0, 'paper': 1, 'subject': 2}
                  edge_dict,         # edge type and id in order, e.g., {'writing': 0, 'cited': 1, 'citing': 2}
-                 n_heads,           # number of attention heads
+                 num_heads,           # number of attention heads
                  dropout = 0.2,     # dropout rate, defaut is 0.2
                  use_norm = False   # Use normalization or not, default is False
                  ):
@@ -38,8 +38,8 @@ class HGTLayer(nn.Module):
         self.edge_dict     = edge_dict
         self.num_ntypes    = len(node_dict)
         self.num_etypes    = len(edge_dict)
-        self.n_heads       = n_heads
-        self.d_k           = out_dim // n_heads
+        self.num_heads       = num_heads
+        self.d_k           = out_dim // num_heads
         self.sqrt_dk       = math.sqrt(self.d_k)
         self.use_norm    = use_norm
 
@@ -57,9 +57,9 @@ class HGTLayer(nn.Module):
             if use_norm:
                 self.norms.append(nn.LayerNorm(out_dim))
 
-        self.relation_pri   = nn.Parameter(torch.ones(self.num_etypes, self.n_heads))
-        self.relation_att   = nn.Parameter(torch.Tensor(self.num_etypes, n_heads, self.d_k, self.d_k))
-        self.relation_msg   = nn.Parameter(torch.Tensor(self.num_etypes, n_heads, self.d_k, self.d_k))
+        self.relation_pri   = nn.Parameter(torch.ones(self.num_etypes, self.num_heads))
+        self.relation_att   = nn.Parameter(torch.Tensor(self.num_etypes, num_heads, self.d_k, self.d_k))
+        self.relation_msg   = nn.Parameter(torch.Tensor(self.num_etypes, num_heads, self.d_k, self.d_k))
         self.skip           = nn.Parameter(torch.ones(self.num_ntypes))
         self.drop           = nn.Dropout(dropout)
 
@@ -81,9 +81,9 @@ class HGTLayer(nn.Module):
                 v_linear = self.v_linears[node_dict[srctype]]
                 q_linear = self.q_linears[node_dict[dsttype]]
 
-                k = k_linear(h[srctype]).view(-1, self.n_heads, self.d_k)
-                v = v_linear(h[srctype]).view(-1, self.n_heads, self.d_k)
-                q = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1, self.n_heads, self.d_k)
+                k = k_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
+                v = v_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
+                q = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1, self.num_heads, self.d_k)
 
                 e_id = self.edge_dict[(srctype, etype, dsttype)]
 
@@ -145,8 +145,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                  n_hid,             # hidden dimension
                  n_out,             # output dimension
                  num_layers,          # number of gnn layers
-                 n_heads,           # number of attention
-                 target_ntype,     # the node type to be predict
+                 num_heads,           # number of attention
+                 predict_ntype,     # the node type to be predict
                  use_norm = True,   # use normalization or not, default is True
                  alpha_l2norm = 0
                  ):
@@ -179,7 +179,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                                      n_hid,
                                      node_id_dict,
                                      edge_id_dict,
-                                     n_heads,
+                                     num_heads,
                                      use_norm = use_norm))
         # output layer for classification
         self.out = nn.Linear(n_hid, n_out)
@@ -284,8 +284,8 @@ def main(args):
                 n_hid=config.hidden_size,
                 n_out=config.num_classes,
                 num_layers=num_layers,
-                n_heads=args.num_heads,
-                target_ntype=config.target_ntype,
+                num_heads=args.num_heads,
+                predict_ntype=config.predict_ntype,
                 use_norm=True,
                 alpha_l2norm=config.alpha_l2norm)
 

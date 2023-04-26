@@ -381,12 +381,12 @@ def set_encoder(model, g, config, train_task):
         assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None
     elif model_encoder_type == "rgcn":
-        n_bases = config.n_bases
+        num_bases = config.num_bases
         # we need to set the num_layers -1 because there is an output layer
         # that is hard coded.
         gnn_encoder = RelationalGCNEncoder(g,
                                            config.hidden_size, config.hidden_size,
-                                           num_bases=n_bases,
+                                           num_bases=num_bases,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop)
@@ -395,7 +395,7 @@ def set_encoder(model, g, config, train_task):
         gnn_encoder = RelationalGATEncoder(g,
                                            config.hidden_size,
                                            config.hidden_size,
-                                           config.n_heads,
+                                           config.num_heads,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop)

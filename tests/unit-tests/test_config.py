@@ -557,19 +557,19 @@ def create_rgcn_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgcn"] = {
-        "n_bases": 2,
+        "num_bases": 2,
     }
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgcn"] = {
-        "n_bases": 0.1,
+        "num_bases": 0.1,
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgcn"] = {
-        "n_bases": -2,
+        "num_bases": -2,
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -582,19 +582,19 @@ def test_rgcn_info():
         create_rgcn_config(Path(tmpdirname), 'rgcn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.n_bases == -1
+        assert config.num_bases == -1
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.n_bases == 2
+        assert config.num_bases == 2
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "n_bases")
+        check_failure(config, "num_bases")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "n_bases")
+        check_failure(config, "num_bases")
 
 def create_rgat_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -605,13 +605,13 @@ def create_rgat_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgat"] = {
-        "n_heads": 2,
+        "num_heads": 2,
     }
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["rgat"] = {
-        "n_heads": 0,
+        "num_heads": 0,
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -622,15 +622,15 @@ def test_rgat_info():
         create_rgat_config(Path(tmpdirname), 'rgat_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.n_heads == 4
+        assert config.num_heads == 4
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.n_heads == 2
+        assert config.num_heads == 2
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "n_heads")
+        check_failure(config, "num_heads")
 
 def create_node_class_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
