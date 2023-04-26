@@ -43,7 +43,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not a node model. Please implement GSgnnNodeModelBase."
 
-    def fit(self, train_loader, n_epochs,
+    def fit(self, train_loader, num_epochs,
             val_loader=None,
             test_loader=None,
             use_mini_batch_infer=True,
@@ -57,7 +57,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         ----------
         train_loader : GSgnnNodeDataLoader
             The mini-batch sampler for training.
-        n_epochs : int
+        num_epochs : int
             The max number of epochs to train the model.
         val_loader : GSgnnNodeDataLoader
             The mini-batch sampler for computing validation scores. The validation scores
@@ -110,7 +110,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         early_stop = False # used when early stop is True
         sys_tracker.check('start training')
         g = data.g
-        for epoch in range(n_epochs):
+        for epoch in range(num_epochs):
             model.train()
             t0 = time.time()
             if freeze_input_layer_epochs <= epoch:

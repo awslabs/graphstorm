@@ -11,7 +11,7 @@ gsf:
     evaluation_frequency: 1000
   gnn:
     fanout: "20,15"
-    n_layers: 2
+    num_layers: 2
     hidden_size: 256
     use_mini_batch_infer: false
   input:
@@ -23,12 +23,11 @@ gsf:
   hyperparam:
     dropout: 0.
     lr: 0.0005
-    n_epochs: 20
+    num_epochs: 20
     batch_size: 4000
-    eval_batch_size: 4000
     wd_l2norm: 0
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
     lp_decoder_type: dot_product
     sparse_lr: 1e-2
