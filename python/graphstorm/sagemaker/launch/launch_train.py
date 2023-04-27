@@ -55,7 +55,6 @@ def run_job(input_args, image, unknowargs):
     model_artifact_s3 = input_args.model_artifact_s3 # Where to store model artifacts
     custom_script = input_args.custom_script # custom_script if any
 
-
     boto_session = boto3.session.Session(region_name=region)
     sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
     sess = sagemaker.session.Session(boto_session=boto_session,
@@ -70,7 +69,8 @@ def run_job(input_args, image, unknowargs):
               "graph-data-s3": graph_data_s3,
               "train-yaml-s3": train_yaml_s3,
               "train-yaml-name": train_yaml_name,
-              "enable-bert": enable_bert}
+              "enable-bert": enable_bert,
+              "custom-script": custom_script}
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1

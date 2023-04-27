@@ -34,8 +34,12 @@ from graphstorm.config.config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from graphstorm.config.config import BUILTIN_TASK_EDGE_REGRESSION
 from graphstorm.config.config import BUILTIN_TASK_LINK_PREDICTION
 
-import utils
 import sagemaker
+
+from graphstorm.sagemaker.run.utils import download_yaml_config
+from graphstorm.sagemaker.run.utils import download_graph
+from graphstorm.sagemaker.run.utils import keep_alive
+from graphstorm.sagemaker.run.utils import barrier_master
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,
@@ -171,7 +175,6 @@ def main():
     world_size = len(hosts)
     os.environ['WORLD_SIZE'] = str(world_size)
     host_rank = hosts.index(current_host)
-    assert args.graph_name is not None, "Graph name must be provided"
 
     try:
         for host in hosts:
@@ -219,18 +222,18 @@ def main():
 
     boto_session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
-    yaml_path = utils.download_yaml(train_yaml_s3, train_yaml_name,
+    yaml_path = download_yaml_config(train_yaml_s3, train_yaml_name,
         data_path, sagemaker_session)
-    graph_config_path = utils.download_graph(graph_data_s3, graph_name,
+    graph_config_path = download_graph(graph_data_s3, graph_name,
         host_rank, data_path, sagemaker_session)
 
     err_code = 0
     if host_rank == 0:
-        utils.barrier_master(client_list, world_size)
+        barrier_master(client_list, world_size)
 
         # launch a thread to send keep alive message to all workers
         task_end = Event()
-        thread = Thread(target=utils.keep_alive,
+        thread = Thread(target=keep_alive,
             args=(client_list, world_size, task_end),
             daemon=True)
         thread.start()
