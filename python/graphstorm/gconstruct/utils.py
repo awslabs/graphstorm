@@ -47,7 +47,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
     if th.cuda.is_available():
         num_gpus = th.cuda.device_count()
         gpu = worker_id % num_gpus
-        th.cuda.set_device(gpu)
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
         if worker_id >= num_gpus:
             print(f"WARNING! there are more than 1 processes are attachd to GPU {gpu}.")
     try:

@@ -145,7 +145,10 @@ class ComputeBERT(FeatTransform):
         # We use the local GPU to compute BERT embeddings.
         if th.cuda.is_available():
             use_gpu = True
-            self.lm_model = self.lm_model.cuda()
+            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
+                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
+            device = f"cuda:{gpu}"
+            self.lm_model = self.lm_model.to(device)
         else:
             use_gpu = False
         outputs = self.tokenizer(strs)
@@ -164,9 +167,9 @@ class ComputeBERT(FeatTransform):
             for tokens, att_masks, token_types in zip(tokens_list, att_masks_list,
                                                       token_types_list):
                 if use_gpu:
-                    outputs = self.lm_model(tokens.cuda(),
-                                            attention_mask=att_masks.cuda().long(),
-                                            token_type_ids=token_types.cuda().long())
+                    outputs = self.lm_model(tokens.to(device),
+                                            attention_mask=att_masks.to(device).long(),
+                                            token_type_ids=token_types.to(device).long())
                 else:
                     outputs = self.lm_model(tokens,
                                             attention_mask=att_masks.long(),
