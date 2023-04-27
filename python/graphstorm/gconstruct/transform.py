@@ -429,7 +429,7 @@ def process_labels(data, label_processors):
     assert len(label_processors) == 1, "We only support one label per node/edge type."
     return label_processors[0](data)
 
-def require_multiprocessing(conf, feat_ops, label_ops, in_files):
+def do_multiprocess_transform(conf, feat_ops, label_ops, in_files):
     """ Test whether the input data requires multiprocessing.
 
     If the input data is stored in HDF5 and we don't need to read

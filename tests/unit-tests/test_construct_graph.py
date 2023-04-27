@@ -26,7 +26,7 @@ from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
-from graphstorm.gconstruct.transform import Noop, require_multiprocessing
+from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import ExtMemArrayMerger, partition_graph
 
@@ -539,7 +539,7 @@ def test_multiprocessing_checks():
     in_files = ["/tmp/test1", "/tmp/test2"]
     feat_ops = parse_feat_ops(conf['features'])
     label_ops = parse_label_ops(conf['labels'], is_node=True)
-    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
     # If the data are stored in multiple HDF5 files and there are
@@ -556,7 +556,7 @@ def test_multiprocessing_checks():
     in_files = ["/tmp/test1", "/tmp/test2"]
     feat_ops = None
     label_ops = parse_label_ops(conf['labels'], is_node=True)
-    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
     # If the data are stored in multiple HDF5 files and there are
@@ -576,7 +576,7 @@ def test_multiprocessing_checks():
     in_files = ["/tmp/test1", "/tmp/test2"]
     feat_ops = parse_feat_ops(conf['features'])
     label_ops = None
-    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
     # If the data are stored in a single HDF5 file and there are
@@ -584,7 +584,7 @@ def test_multiprocessing_checks():
     in_files = ["/tmp/test1"]
     feat_ops = parse_feat_ops(conf['features'])
     label_ops = None
-    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
 
     # If the data are stored in multiple HDF5 files and there are
@@ -600,7 +600,7 @@ def test_multiprocessing_checks():
     in_files = ["/tmp/test1", "/tmp/test2"]
     feat_ops = parse_feat_ops(conf['features'])
     label_ops = None
-    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
 
     # If the data are stored in multiple parquet files and there are
@@ -616,7 +616,7 @@ def test_multiprocessing_checks():
     in_files = ["/tmp/test1", "/tmp/test2"]
     feat_ops = parse_feat_ops(conf['features'])
     label_ops = None
-    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
     # If the data are stored in a single parquet file and there are
@@ -624,7 +624,7 @@ def test_multiprocessing_checks():
     in_files = ["/tmp/test1"]
     feat_ops = parse_feat_ops(conf['features'])
     label_ops = None
-    multiprocessing = require_multiprocessing(conf, feat_ops, label_ops, in_files)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
 
 if __name__ == '__main__':

@@ -34,7 +34,7 @@ from .file_io import get_in_files, write_data_parquet
 from .file_io import HDF5Array
 from .transform import parse_feat_ops, process_features
 from .transform import parse_label_ops, process_labels
-from .transform import require_multiprocessing
+from .transform import do_multiprocess_transform
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import multiprocessing_data_read, ExtMemArrayMerger, partition_graph
 
@@ -176,7 +176,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 if 'labels' in process_conf else None
         assert 'format' in process_conf, \
                 "'format' must be defined for a node type"
-        multiprocessing = require_multiprocessing(process_conf, feat_ops, label_ops, in_files)
+        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
         # If it requires multiprocessing, we need to read data to memory.
         read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
@@ -321,7 +321,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
                 if 'labels' in process_conf else None
-        multiprocessing = require_multiprocessing(process_conf, feat_ops, label_ops, in_files)
+        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
         # If it requires multiprocessing, we need to read data to memory.
         read_file = parse_edge_file_format(process_conf, in_mem=multiprocessing)
 
