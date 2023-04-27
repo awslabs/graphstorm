@@ -205,6 +205,23 @@ def test_feat_ops():
     proc_res = process_features(data, res3)
     # TODO test BERT embedding results.
 
+    feat_op4 = [
+        {
+            "feature_col": "test3",
+            "feature_name": "test4",
+            "transform": {"name": 'bert_hf',
+                'bert_model': 'bert-base-uncased',
+                'max_seq_length': 16,
+                'infer_batch_size': 1,
+            },
+        },
+    ]
+    res4 = parse_feat_ops(feat_op4)
+    assert len(res4) == 1
+    assert res4[0].col_name == feat_op4[0]["feature_col"]
+    assert res4[0].feat_name == feat_op4[0]["feature_name"]
+    proc_res = process_features(data, res4)
+
 def test_label():
     def check_split(res):
         assert len(res) == 4

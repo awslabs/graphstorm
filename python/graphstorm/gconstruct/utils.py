@@ -29,11 +29,13 @@ import torch as th
 from ..utils import sys_tracker
 from .file_io import HDF5Array
 
-def worker_fn(task_queue, res_queue, user_parser):
+def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
 
     Parameters
     ----------
+    worker_id : int
+        The worker ID, starting from 0.
     task_queue : Queue
         The queue that contains all tasks
     res_queue : Queue
@@ -42,6 +44,12 @@ def worker_fn(task_queue, res_queue, user_parser):
     user_parser : callable
         The user-defined function to read and process the data files.
     """
+    if th.cuda.is_available():
+        num_gpus = th.cuda.device_count()
+        gpu = worker_id % num_gpus
+        th.cuda.set_device(gpu)
+        if worker_id >= num_gpus:
+            print(f"WARNING! there are more than 1 processes are attachd to GPU {gpu}.")
     try:
         while True:
             # If the queue is empty, it will raise the Empty exception.
@@ -85,8 +93,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         num_files = len(in_files)
         for i, in_file in enumerate(in_files):
             task_queue.put((i, in_file))
-        for _ in range(num_processes):
-            proc = Process(target=worker_fn, args=(task_queue, res_queue, user_parser))
+        for i in range(num_processes):
+            proc = Process(target=worker_fn, args=(i, task_queue, res_queue, user_parser))
             proc.start()
             processes.append(proc)
 

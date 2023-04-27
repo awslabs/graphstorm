@@ -117,12 +117,17 @@ class ComputeBERT(FeatTransform):
         A tokenizer
     model_name : str
         The BERT model name.
+    infer_batch_size : int
+        The inference batch size.
     """
-    def __init__(self, col_name, feat_name, tokenizer, model_name):
+    def __init__(self, col_name, feat_name, tokenizer, model_name,
+                 infer_batch_size=None):
         super(ComputeBERT, self).__init__(col_name, feat_name)
         config = BertConfig.from_pretrained(model_name)
         self.tokenizer = tokenizer
         self.lm_model = BertModel.from_pretrained(model_name, config=config)
+        self.device = None
+        self.infer_batch_size = infer_batch_size
         self.lm_model.eval()
 
     def __call__(self, strs):
@@ -137,15 +142,40 @@ class ComputeBERT(FeatTransform):
         -------
         dict: BERT embeddings.
         """
+        # We use the local GPU to compute BERT embeddings.
+        if th.cuda.is_available():
+            use_gpu = True
+            self.lm_model = self.lm_model.cuda()
+        else:
+            use_gpu = False
         outputs = self.tokenizer(strs)
+        if self.infer_batch_size is not None:
+            tokens_list = th.split(th.tensor(outputs['input_ids']), self.infer_batch_size)
+            att_masks_list = th.split(th.tensor(outputs['attention_mask']),
+                                      self.infer_batch_size)
+            token_types_list = th.split(th.tensor(outputs['token_type_ids']),
+                                        self.infer_batch_size)
+        else:
+            tokens_list = [th.tensor(outputs['input_ids'])]
+            att_masks_list = [th.tensor(outputs['attention_mask'])]
+            token_types_list = [th.tensor(outputs['token_type_ids'])]
         with th.no_grad():
-            att_mask = th.tensor(outputs['attention_mask'], dtype=th.int64)
-            token_types = th.tensor(outputs['token_type_ids'], dtype=th.int64)
-            outputs = self.lm_model(th.tensor(outputs['input_ids']),
-                                    attention_mask=att_mask,
-                                    token_type_ids=token_types)
-        out_emb = outputs.pooler_output.numpy()
-        return {self.feat_name: out_emb}
+            out_embs = []
+            for tokens, att_masks, token_types in zip(tokens_list, att_masks_list,
+                                                      token_types_list):
+                if use_gpu:
+                    outputs = self.lm_model(tokens.cuda(),
+                                            attention_mask=att_masks.cuda().long(),
+                                            token_type_ids=token_types.cuda().long())
+                else:
+                    outputs = self.lm_model(tokens,
+                                            attention_mask=att_masks.long(),
+                                            token_type_ids=token_types.long())
+                out_embs.append(outputs.pooler_output.cpu().numpy())
+        if len(out_embs) > 1:
+            return {self.feat_name: np.concatenate(out_embs)}
+        else:
+            return {self.feat_name: out_embs[0]}
 
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
@@ -216,10 +246,13 @@ def parse_feat_ops(confs):
                 assert 'max_seq_length' in conf, \
                         "'bert_hf' needs to have the 'max_seq_length' field."
                 max_seq_length = int(conf['max_seq_length'])
+                infer_batch_size = int(conf['infer_batch_size']) \
+                        if 'infer_batch_size' in conf else None
                 transform = ComputeBERT(feat['feature_col'], feat_name,
                                         Tokenizer(feat['feature_col'], feat_name,
                                                   tokenizer, max_seq_length),
-                                        conf['bert_model'])
+                                        conf['bert_model'],
+                                        infer_batch_size=infer_batch_size)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
