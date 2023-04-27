@@ -670,14 +670,14 @@ class GSConfig:
         return self._batch_size
 
     @property
-    def sparse_lr(self): # pylint: disable=invalid-name
+    def sparse_optimizer_lr(self): # pylint: disable=invalid-name
         """ Sparse optimizer learning rate
         """
-        if hasattr(self, "_sparse_lr"):
-            sparse_lr = float(self._sparse_lr)
-            assert sparse_lr > 0.0, \
+        if hasattr(self, "_sparse_optimizer_lr"):
+            sparse_optimizer_lr = float(self._sparse_optimizer_lr)
+            assert sparse_optimizer_lr > 0.0, \
                 "Sparse optimizer learning rate must be larger than 0"
-            return sparse_lr
+            return sparse_optimizer_lr
 
         return self.lr
 
@@ -1430,7 +1430,7 @@ def _add_hyperparam_args(parser):
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size. Must be larger than 0")
-    group.add_argument("--sparse-lr", type=float, default=argparse.SUPPRESS,
+    group.add_argument("--sparse-optimizer-lr", type=float, default=argparse.SUPPRESS,
             help="sparse optimizer learning rate")
     group.add_argument(
             "--use-node-embeddings",
