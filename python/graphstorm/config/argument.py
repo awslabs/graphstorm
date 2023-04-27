@@ -428,8 +428,8 @@ class GSConfig:
                 "etype2:10@etype3:4@etype1:2 when you want to " \
                 "specify a different fanout for different edge types"
 
-        assert len(fanout) == self.n_layers, \
-            f"You have a {self.n_layers} layer GNN, " \
+        assert len(fanout) == self.num_layers, \
+            f"You have a {self.num_layers} layer GNN, " \
             f"but you only specify a {fot_name} fanout for {len(fanout)} layers."
         return fanout
 
@@ -471,18 +471,18 @@ class GSConfig:
         return self._hidden_size
 
     @property
-    def n_layers(self):
+    def num_layers(self):
         """ Number of GNN layers
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
-            assert hasattr(self, "_n_layers"), \
+            assert hasattr(self, "_num_layers"), \
                 "Number of GNN layers must be provided"
-            assert isinstance(self._n_layers, int), \
+            assert isinstance(self._num_layers, int), \
                 "Number of GNN layers must be an integer"
-            assert self._n_layers > 0, \
+            assert self._num_layers > 0, \
                 "Number of GNN layers must be larger than 0"
-            return self._n_layers
+            return self._num_layers
         else:
             # not used by non-GNN models
             return 0
@@ -565,9 +565,9 @@ class GSConfig:
             models every #save_model_frequency iterations and keep at
             most K models.
             By default, GraphStorm will save the latest K models unless
-            evaluation_frequency is set. When evaluation_frequency is set,
+            eval_frequency is set. When eval_frequency is set,
             GraphStorm will evaluate the model performance every
-            #evaluation_frequency iterations. If at the same iteration,
+            #eval_frequency iterations. If at the same iteration,
             #save_model_frequency is reached, it will try to save the
             best K model instead of the latest K model.
         """
@@ -577,18 +577,18 @@ class GSConfig:
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
 
-            if self.evaluation_frequency != sys.maxsize and self.save_model_frequency > 0:
+            if self.eval_frequency != sys.maxsize and self.save_model_frequency > 0:
                 # save model within an epoch need to collaborate with evaluation
                 # within an epoch
-                assert self.save_model_frequency >= self.evaluation_frequency and \
-                    self.save_model_frequency % self.evaluation_frequency == 0, \
+                assert self.save_model_frequency >= self.eval_frequency and \
+                    self.save_model_frequency % self.eval_frequency == 0, \
                     'FATAL: save_model_frequency' \
                           f'({self.save_model_frequency}) ' \
-                          'does not equal to evaluation_frequency' \
-                          f'({self.evaluation_frequency}), or ' \
+                          'does not equal to eval_frequency' \
+                          f'({self.eval_frequency}), or ' \
                           f'save_model_frequency ({self.save_model_frequency}) ' \
-                          'is not divisible by evaluation_frequency ' \
-                          f'({self.evaluation_frequency}). ' \
+                          'is not divisible by eval_frequency ' \
+                          f'({self.eval_frequency}). ' \
                           'GraphStorm can not guarentees that it will ' \
                           'save the best model after evaluation cycles.'
 
@@ -650,13 +650,13 @@ class GSConfig:
         return lr
 
     @property
-    def n_epochs(self):
+    def num_epochs(self):
         """ Number of epochs
         """
-        if hasattr(self, "_n_epochs"):
+        if hasattr(self, "_num_epochs"):
             # if 0, only inference or testing
-            assert self._n_epochs >= 0, "Number of epochs must >= 0"
-            return self._n_epochs
+            assert self._num_epochs >= 0, "Number of epochs must >= 0"
+            return self._num_epochs
         # default, inference only
         return 0
 
@@ -733,16 +733,22 @@ class GSConfig:
         if hasattr(self, "_eval_batch_size"):
             assert self._eval_batch_size > 0
             return self._eval_batch_size
-        return self.batch_size
+        # (Israt): Larger batch sizes significantly improve runtime efficiency. Increasing the
+        # batch size from 1K to 10K reduces end-to-end inference time from 45 mins to 19 mins
+        # in link prediction on OGBN-paers100M dataset with 16-dimensional length. However,
+        # using an overly large batch size can lead to GPU out-of-memory (OOM) issues. Therefore,
+        # a heuristic approach has been taken, and 10K has been chosen as a balanced default
+        # value. More details can be found at https://github.com/awslabs/graphstorm/pull/66.
+        return 10000
 
     @property
-    def evaluation_frequency(self):
+    def eval_frequency(self):
         """ How many iterations between evaluations
         """
         # pylint: disable=no-member
-        if hasattr(self, "_evaluation_frequency"):
-            assert self._evaluation_frequency > 0, "evaluation_frequency should larger than 0"
-            return self._evaluation_frequency
+        if hasattr(self, "_eval_frequency"):
+            assert self._eval_frequency > 0, "eval_frequency should larger than 0"
+            return self._eval_frequency
         # set max value (Never do evaluation with in an epoch)
         return sys.maxsize
 
@@ -804,40 +810,42 @@ class GSConfig:
         return EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 
     @property
-    def enable_early_stop(self):
-        """ whether to enable early stopping by monitoring the validation value
+    def use_early_stop(self):
+        """ whether to use early stopping by monitoring the validation value
         """
         # pylint: disable=no-member
-        if hasattr(self, "_enable_early_stop"):
-            assert self._enable_early_stop in [True, False], \
-                "enable_early_stop should be in [True, False]"
-            return self._enable_early_stop
+        if hasattr(self, "_use_early_stop"):
+            assert self._use_early_stop in [True, False], \
+                "use_early_stop should be in [True, False]"
+            return self._use_early_stop
 
         # By default do not enable early stop
         return False
 
     ## RGCN only ##
     @property
-    def n_bases(self):
+    def num_bases(self):
         """ Number of bases used in RGCN weight
         """
         # pylint: disable=no-member
-        if hasattr(self, "_n_bases"):
-            assert isinstance(self._n_bases, int)
-            assert self._n_bases > 0 or self._n_bases == -1
-            return self._n_bases
-        # By default do not use n_bases
+        if hasattr(self, "_num_bases"):
+            assert isinstance(self._num_bases, int)
+            assert self._num_bases > 0 or self._num_bases == -1, \
+                "num_bases should be larger than 0 or -1"
+            return self._num_bases
+        # By default do not use num_bases
         return -1
 
     ## RGAT only ##
     @property
-    def n_heads(self):
+    def num_heads(self):
         """ Number of attention heads
         """
         # pylint: disable=no-member
-        if hasattr(self, "_n_heads"):
-            assert self._n_heads > 0
-            return self._n_heads
+        if hasattr(self, "_num_heads"):
+            assert self._num_heads > 0, \
+                "num_heads should be larger than 0"
+            return self._num_heads
         # By default use 4 heads
         return 4
 
@@ -942,13 +950,13 @@ class GSConfig:
 
     ### Node related task variables ###
     @property
-    def predict_ntype(self):
+    def target_ntype(self):
         """ The node type for prediction
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_predict_ntype"), \
-            "Must provide the target ntype through predict_ntype"
-        return self._predict_ntype
+        assert hasattr(self, "_target_ntype"), \
+            "Must provide the target ntype through target_ntype"
+        return self._target_ntype
 
     #### edge related task variables ####
     @property
@@ -993,7 +1001,6 @@ class GSConfig:
         return {}
 
     ### Edge classification and regression tasks ###
-    # TODO(zhengda) we should rename this to predict_etype
     @property
     def target_etype(self):
         """ The list of canonical etype that will be added as
@@ -1367,8 +1374,8 @@ def _add_gnn_args(parser):
                  "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
     group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
             help="The number of features in the hidden state")
-    group.add_argument("--n-layers", type=int, default=argparse.SUPPRESS,
-            help="number of propagation rounds")
+    group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
+            help="number of layers in the GNN")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
@@ -1419,7 +1426,7 @@ def _add_hyperparam_args(parser):
             help="dropout probability")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
-    group.add_argument("-e", "--n-epochs", type=int, default=argparse.SUPPRESS,
+    group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size. Must be larger than 0")
@@ -1443,11 +1450,11 @@ def _add_hyperparam_args(parser):
     # control evaluation
     group.add_argument("--eval-batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size for computing GNN embeddings in evaluation.")
-    group.add_argument('--evaluation-frequency',
+    group.add_argument('--eval-frequency',
             type=int,
             default=argparse.SUPPRESS,
             help="How offen to run the evaluation. "
-                 "Every #evaluation_frequency iterations.")
+                 "Every #eval-frequency iterations.")
     group.add_argument(
             '--no-validation',
             type=lambda x: (str(x).lower() in ['true', '1']),
@@ -1465,9 +1472,9 @@ def _add_hyperparam_args(parser):
             type=str, default=argparse.SUPPRESS,
             help="Specify the early stop strategy. "
             "It can be either consecutive_increase or average_increase")
-    group.add_argument("--enable-early-stop",
+    group.add_argument("--use-early-stop",
             type=bool, default=argparse.SUPPRESS,
-            help='whether to enable early stopping by monitoring the validation loss')
+            help='whether to use early stopping by monitoring the validation loss')
     return parser
 
 def _add_lm_model_args(parser):
@@ -1485,19 +1492,19 @@ def _add_lm_model_args(parser):
 
 def _add_rgat_args(parser):
     group = parser.add_argument_group(title="rgat")
-    group.add_argument("--n-heads", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-heads", type=int, default=argparse.SUPPRESS,
             help="number of attention heads")
     return parser
 
 def _add_rgcn_args(parser):
     group = parser.add_argument_group(title="rgcn")
-    group.add_argument("--n-bases", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-bases", type=int, default=argparse.SUPPRESS,
             help="number of filter weight matrices, default: -1 [use all]")
     return parser
 
 def _add_node_classification_args(parser):
     group = parser.add_argument_group(title="node classification")
-    group.add_argument("--predict-ntype", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--target-ntype", type=str, default=argparse.SUPPRESS,
                        help="the node type for prediction")
     group.add_argument("--label-field", type=str, default=argparse.SUPPRESS,
                        help="the label field in the data")

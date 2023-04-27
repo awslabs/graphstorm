@@ -28,10 +28,10 @@ def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
     """
     if config.task_type == "edge_regression":
-        return GSgnnRegressionEvaluator(config.evaluation_frequency,
+        return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric)
     elif config.task_type == 'edge_classification':
-        return GSgnnAccEvaluator(config.evaluation_frequency,
+        return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
                                  config.multilabel)
     else:
