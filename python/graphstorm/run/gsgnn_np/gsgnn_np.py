@@ -30,17 +30,17 @@ from graphstorm.model import do_full_graph_inference
 
 def get_evaluator(config):
     if config.task_type == "node_classification":
-        return GSgnnAccEvaluator(config.evaluation_frequency,
+        return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
                                  config.multilabel,
-                                 config.enable_early_stop,
+                                 config.use_early_stop,
                                  config.early_stop_burnin_rounds,
                                  config.early_stop_rounds,
                                  config.early_stop_strategy)
     elif config.task_type == "node_regression":
-        return GSgnnRegressionEvaluator(config.evaluation_frequency,
+        return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,
-                                        config.enable_early_stop,
+                                        config.use_early_stop,
                                         config.early_stop_burnin_rounds,
                                         config.early_stop_rounds,
                                         config.early_stop_strategy)
@@ -53,7 +53,7 @@ def main(args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
-                                    train_ntypes=config.predict_ntype,
+                                    train_ntypes=config.target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
@@ -100,7 +100,7 @@ def main(args):
     else:
         save_model_path = None
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
-                test_loader=test_dataloader, n_epochs=config.n_epochs,
+                test_loader=test_dataloader, num_epochs=config.num_epochs,
                 save_model_path=save_model_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,

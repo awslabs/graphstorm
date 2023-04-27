@@ -36,7 +36,7 @@ if __name__ == '__main__':
                            help="dataset to use")
     argparser.add_argument("--filepath", type=str, default=None)
     # link prediction arguments
-    argparser.add_argument('--predict_etypes', type=str, help='The canonical edge types for making'
+    argparser.add_argument('--target_etypes', type=str, help='The canonical edge types for making'
                            + ' prediction. Multiple edge types can be separated by " ". '
                            + 'For example, "EntA,Links,EntB EntC,Links,EntD"')
     # label split arguments
@@ -107,7 +107,7 @@ if __name__ == '__main__':
         constructed_graph = True
         print("Loading user defined dataset " + str(args.dataset))
         dataset = ConstructedGraphDataset(args.dataset, args.filepath)
-        assert args.predict_etypes is not None, "For user defined dataset, you must provide predict_etypes"
+        assert args.target_etypes is not None, "For user defined dataset, you must provide target_etypes"
 
     g = dataset[0]
 
@@ -134,7 +134,7 @@ if __name__ == '__main__':
             new_g = None
 
     target_etypes = dataset.target_etype if not constructed_graph else \
-        [tuple(pred_etype.split(',')) for pred_etype in args.predict_etypes.split(' ')]
+        [tuple(pred_etype.split(',')) for pred_etype in args.target_etypes.split(' ')]
 
     if not isinstance(target_etypes, list):
         target_etypes = [target_etypes]

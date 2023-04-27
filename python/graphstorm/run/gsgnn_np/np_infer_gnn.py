@@ -28,10 +28,10 @@ def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
     """
     if config.task_type == "node_regression":
-        return GSgnnRegressionEvaluator(config.evaluation_frequency,
+        return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric)
     elif config.task_type == 'node_classification':
-        return GSgnnAccEvaluator(config.evaluation_frequency,
+        return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
                                  config.multilabel)
     else:
@@ -43,7 +43,7 @@ def main(args):
 
     infer_data = GSgnnNodeInferData(config.graph_name,
                                     config.part_config,
-                                    eval_ntypes=config.predict_ntype,
+                                    eval_ntypes=config.target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)

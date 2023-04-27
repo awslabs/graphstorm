@@ -15,7 +15,7 @@ python3 /$GS_HOME/python/graphstorm/data/tools/preprocess_movielens.py \
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--filepath /data \
-	--predict_ntype movie \
+	--target_ntype movie \
 	--undirected \
 	--num_trainers_per_machine 4 \
 	--output movielen_100k_train_val_1p_4t \
@@ -27,7 +27,7 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 	--filepath /data \
-	--predict_ntype movie \
+	--target_ntype movie \
 	--undirected \
 	--num_trainers_per_machine 4 \
 	--output movielen_100k_text_train_val_1p_4t \
@@ -40,7 +40,7 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k \
 	--filepath /data \
-	--predict_etype "user,rating,movie" \
+	--target_etype "user,rating,movie" \
 	--num_trainers_per_machine 4 \
 	--output movielen_100k_lp_train_val_1p_4t \
 	--balance_train \
@@ -53,7 +53,7 @@ python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k \
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k-text  \
 	--filepath /data \
-	--predict_etype "user,rating,movie" \
+	--target_etype "user,rating,movie" \
 	--num_trainers_per_machine 4 \
 	--output movielen_100k_text_lp_train_val_1p_4t \
 	--balance_train \
@@ -73,7 +73,7 @@ export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--filepath /data \
     --elabel_field "user,rating,movie:rate" \
-    --predict_etype "user,rating,movie" \
+    --target_etype "user,rating,movie" \
     --etask_type "regression" \
 	--num_trainers_per_machine 4 \
 	--output movielen_100k_er_1p_4t \
@@ -89,7 +89,7 @@ export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--filepath /data \
     --elabel_field "user,rating,movie:rate" \
-    --predict_etype "user,rating,movie" \
+    --target_etype "user,rating,movie" \
     --etask_type "classification" \
 	--num_trainers_per_machine 4 \
 	--output movielen_100k_ec_1p_4t \
@@ -105,7 +105,7 @@ export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 	--filepath /data \
     --elabel_field "user,rating,movie:rate" \
-    --predict_etype "user,rating,movie" \
+    --target_etype "user,rating,movie" \
     --etask_type "classification" \
 	--num_trainers_per_machine 4 \
 	--output movielen_100k_ec_1p_4t_text \

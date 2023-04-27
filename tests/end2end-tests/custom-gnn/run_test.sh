@@ -33,7 +33,7 @@ python3 -m graphstorm.run.launch \
         --ssh_port 2222 \
         ${GSF_HOME}/tests/end2end-tests/custom-gnn/train.py \
         --graph-name movie-lens-100k \
-        --predict-ntype movie \
+        --target-ntype movie \
         --node-feat feat \
         --num-classes 19 \
         --label genre

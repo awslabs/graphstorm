@@ -36,7 +36,7 @@ python3 /graphstorm/tools/partition_graph.py \
     --dataset acm\
     --filepath /data \
     --num_parts 1 \
-    --predict_ntype paper \
+    --target_ntype paper \
     --nlabel_field paper:label \
     --output /data/acm_nc
 ```
