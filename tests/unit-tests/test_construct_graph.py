@@ -188,6 +188,23 @@ def test_feat_ops():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
+    feat_op3 = [
+        {
+            "feature_col": "test3",
+            "feature_name": "test4",
+            "transform": {"name": 'bert_hf',
+                'bert_model': 'bert-base-uncased',
+                'max_seq_length': 16
+            },
+        },
+    ]
+    res3 = parse_feat_ops(feat_op3)
+    assert len(res3) == 1
+    assert res3[0].col_name == feat_op3[0]["feature_col"]
+    assert res3[0].feat_name == feat_op3[0]["feature_name"]
+    proc_res = process_features(data, res3)
+    # TODO test BERT embedding results.
+
 def test_label():
     def check_split(res):
         assert len(res) == 4

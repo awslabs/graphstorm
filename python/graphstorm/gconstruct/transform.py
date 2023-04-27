@@ -20,6 +20,7 @@
 import numpy as np
 import torch as th
 from transformers import BertTokenizer
+from transformers import BertModel, BertConfig
 
 from .file_io import HDF5Array
 
@@ -101,6 +102,25 @@ class Tokenizer(FeatTransform):
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
 
+class ComputeBERT(FeatTransform):
+    def __init__(self, col_name, feat_name, tokenizer, model_name):
+        super(ComputeBERT, self).__init__(col_name, feat_name)
+        config = BertConfig.from_pretrained(model_name)
+        self.tokenizer = tokenizer
+        self.lm_model = BertModel.from_pretrained(model_name, config=config)
+        self.lm_model.eval()
+
+    def __call__(self, strs):
+        outputs = self.tokenizer(strs)
+        with th.no_grad():
+            att_mask = th.tensor(outputs['attention_mask'], dtype=th.int64)
+            token_types = th.tensor(outputs['token_type_ids'], dtype=th.int64)
+            outputs = self.lm_model(th.tensor(outputs['input_ids']),
+                                    attention_mask=att_mask,
+                                    token_type_ids=token_types)
+        out_emb = outputs.pooler_output.numpy()
+        return {self.feat_name: out_emb}
+
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
     """
@@ -163,6 +183,17 @@ def parse_feat_ops(confs):
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
                 max_seq_length = int(conf['max_seq_length'])
                 transform = Tokenizer(feat['feature_col'], feat_name, tokenizer, max_seq_length)
+            elif conf['name'] == 'bert_hf':
+                assert 'bert_model' in conf, \
+                        "'bert_hf' needs to have the 'bert_model' field."
+                tokenizer = BertTokenizer.from_pretrained(conf['bert_model'])
+                assert 'max_seq_length' in conf, \
+                        "'bert_hf' needs to have the 'max_seq_length' field."
+                max_seq_length = int(conf['max_seq_length'])
+                transform = ComputeBERT(feat['feature_col'], feat_name,
+                                        Tokenizer(feat['feature_col'], feat_name,
+                                                  tokenizer, max_seq_length),
+                                        conf['bert_model'])
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
