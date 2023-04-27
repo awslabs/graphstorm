@@ -103,6 +103,21 @@ class Tokenizer(FeatTransform):
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
 
 class ComputeBERT(FeatTransform):
+    """ Compute BERT embeddings.
+
+    It computes BERT embeddings.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the text features
+    feat_name : str
+        The prefix of the tokenized data
+    tokenizer : Tokenizer
+        A tokenizer
+    model_name : str
+        The BERT model name.
+    """
     def __init__(self, col_name, feat_name, tokenizer, model_name):
         super(ComputeBERT, self).__init__(col_name, feat_name)
         config = BertConfig.from_pretrained(model_name)
@@ -111,6 +126,17 @@ class ComputeBERT(FeatTransform):
         self.lm_model.eval()
 
     def __call__(self, strs):
+        """ Compute BERT embeddings of the strings..
+
+        Parameters
+        ----------
+        strs : list of strings.
+            The text data.
+
+        Returns
+        -------
+        dict: BERT embeddings.
+        """
         outputs = self.tokenizer(strs)
         with th.no_grad():
             att_mask = th.tensor(outputs['attention_mask'], dtype=th.int64)
