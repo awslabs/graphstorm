@@ -297,14 +297,14 @@ class GSConfig:
         return 0
 
     @property
-    def lm_infer_batchszie(self):
+    def lm_infer_batch_size(self):
         """ Mini batch size used to do LM model inference
         """
         # pylint: disable=no-member
-        if hasattr(self, "_lm_infer_batchszie"):
-            assert self._lm_infer_batchszie > 0, \
+        if hasattr(self, "_lm_infer_batch_size"):
+            assert self._lm_infer_batch_size > 0, \
                 "Batch size for LM model inference must larger than 0"
-            return self._lm_infer_batchszie
+            return self._lm_infer_batch_size
 
         return 32
 
@@ -670,14 +670,14 @@ class GSConfig:
         return self._batch_size
 
     @property
-    def sparse_lr(self): # pylint: disable=invalid-name
+    def sparse_optimizer_lr(self): # pylint: disable=invalid-name
         """ Sparse optimizer learning rate
         """
-        if hasattr(self, "_sparse_lr"):
-            sparse_lr = float(self._sparse_lr)
-            assert sparse_lr > 0.0, \
+        if hasattr(self, "_sparse_optimizer_lr"):
+            sparse_optimizer_lr = float(self._sparse_optimizer_lr)
+            assert sparse_optimizer_lr > 0.0, \
                 "Sparse optimizer learning rate must be larger than 0"
-            return sparse_lr
+            return sparse_optimizer_lr
 
         return self.lr
 
@@ -1430,7 +1430,7 @@ def _add_hyperparam_args(parser):
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size. Must be larger than 0")
-    group.add_argument("--sparse-lr", type=float, default=argparse.SUPPRESS,
+    group.add_argument("--sparse-optimizer-lr", type=float, default=argparse.SUPPRESS,
             help="sparse optimizer learning rate")
     group.add_argument(
             "--use-node-embeddings",
@@ -1483,7 +1483,7 @@ def _add_lm_model_args(parser):
             help="learning rate for fine-tuning language model")
     group.add_argument("--lm-train-nodes", type=int, default=argparse.SUPPRESS,
             help="number of nodes used in LM model fine-tuning")
-    group.add_argument("--lm-infer-batchszie", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--lm-infer-batch-size", type=int, default=argparse.SUPPRESS,
             help="Batch size used in LM model inference")
     group.add_argument("--freeze-lm-encoder-epochs", type=int, default=argparse.SUPPRESS,
             help="Before fine-tuning LM model, how many epochs we will take "
