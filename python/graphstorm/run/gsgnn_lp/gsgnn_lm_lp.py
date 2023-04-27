@@ -47,8 +47,8 @@ def main(args):
                                     config.part_config,
                                     train_etypes=config.train_etype,
                                     eval_etypes=config.eval_etype,
-                                    node_feat_field=config.feat_name)
-    model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
+                                    node_feat_field=config.node_feat_name)
+    model = gs.create_builtin_lp_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
@@ -57,13 +57,13 @@ def main(args):
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         trainer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.evaluation_frequency,
+            GSgnnMrrLPEvaluator(config.eval_frequency,
                                 train_data,
                                 config.num_negative_edges_eval,
-                                config.use_dot_product,
-                                config.enable_early_stop,
-                                config.call_to_consider_early_stop,
-                                config.window_for_early_stop,
+                                config.lp_decoder_type,
+                                config.use_early_stop,
+                                config.early_stop_burnin_rounds,
+                                config.early_stop_rounds,
                                 config.early_stop_strategy))
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
@@ -73,29 +73,27 @@ def main(args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
-    if config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLinkPredictionDataLoader
-    elif config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnLPJointNegDataLoader
-    elif config.negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLPLocalUniformNegDataLoader
-    elif config.negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
-    elif config.negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
     else:
         raise Exception('Unknown negative sampler')
     device = 'cuda:%d' % trainer.dev_id
-    dataloader = dataloader_cls(train_data, train_data.train_idxs, config.fanout,
+    dataloader = dataloader_cls(train_data, train_data.train_idxs, [],
                                 config.batch_size, config.num_negative_edges, device,
-                                train_task=True,
-                                reverse_edge_types_map=config.reverse_edge_types_map,
-                                exclude_training_targets=config.exclude_training_targets)
+                                train_task=True)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    if config.test_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.test_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
     else:
         raise Exception('Unknown test negative sampler.'
@@ -118,15 +116,14 @@ def main(args):
     else:
         save_model_path = None
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
-                test_loader=test_dataloader, n_epochs=config.n_epochs,
+                test_loader=test_dataloader, num_epochs=config.num_epochs,
                 save_model_path=save_model_path,
-                mini_batch_infer=config.mini_batch_infer,
-                save_model_per_iters=config.save_model_per_iters,
-                save_perf_results_path=config.save_perf_results_path,
-                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
+                use_mini_batch_infer=config.use_mini_batch_infer,
+                save_model_frequency=config.save_model_frequency,
+                save_perf_results_path=config.save_perf_results_path)
 
     if config.save_embed_path is not None:
-        model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
+        model = gs.create_builtin_lp_model(train_data.g, config, train_task=False)
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)

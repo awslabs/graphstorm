@@ -60,7 +60,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return self._h_dim
 
     @property
-    def n_layers(self):
+    def num_layers(self):
         """ The number of GNN layers.
         """
         # The number of GNN layer is the number of hidden layers + 1

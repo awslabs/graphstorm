@@ -43,6 +43,10 @@ node_data1 = {
     'label': node_id1 % 100,
 }
 
+node_data1_2 = {
+    'data': node_id1,
+}
+
 node_id2 = np.arange(20000)
 node_data2 = {
     'id': node_id2,
@@ -93,7 +97,9 @@ def split_data(data, num):
 
 for i, node_data in enumerate(split_data(node_data1, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
-write_data_hdf5(node_data2, os.path.join(in_dir, f'node_data2.hdf5'))
+write_data_hdf5(node_data1_2, os.path.join(in_dir, f'node_data1_2.hdf5'))
+for i, node_data in enumerate(split_data(node_data2, 5)):
+    write_data_hdf5(node_data, os.path.join(in_dir, f'node_data2_{i}.hdf5'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
     write_data_json(node_data, os.path.join(in_dir, f'node_data3_{i}.json'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
@@ -104,6 +110,17 @@ for i, edge_data in enumerate(split_data(edge_data3, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{i}.parquet'))
 
 node_conf = [
+    {
+        "node_type": "node1",
+        "format": {"name": "hdf5"},
+        "files": os.path.join(in_dir, "node_data1_2.hdf5"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat1",
+            },
+        ],
+    },
     {
         "node_id_col": "id",
         "node_type": "node1",
@@ -135,7 +152,7 @@ node_conf = [
         "node_id_col": "id",
         "node_type": "node2",
         "format": {"name": "hdf5"},
-        "files": os.path.join(in_dir, "node_data2.hdf5"),
+        "files": os.path.join(in_dir, "node_data2_*.hdf5"),
         "features": [
             {
                 "feature_col": "data",
@@ -177,6 +194,12 @@ edge_conf = [
         "relation":         ("node1", "relation2", "node1"),
         "format":           {"name": "parquet"},
         "files":            os.path.join(in_dir, "edge_data2_*.parquet"),
+        "labels":       [
+            {
+                "task_type":    "link_prediction",
+                "split_pct":   [0.8, 0.2, 0.0],
+            },
+        ],
     },
     {
         "source_id_col":    "src",

@@ -23,12 +23,12 @@ import torch as th
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
-from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
+from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
-from graphstorm.gconstruct.transform import Noop
+from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
-from graphstorm.gconstruct.utils import ExtMemArrayConverter, partition_graph
+from graphstorm.gconstruct.utils import ExtMemArrayMerger, partition_graph
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -110,6 +110,17 @@ def test_hdf5():
         assert False, "This should not happen."
     except:
         pass
+
+    # Test HDF5Array
+    data1 = read_data_hdf5(tmpfile, data_fields=['data1'], in_mem=False)
+    assert isinstance(data1['data1'], HDF5Array)
+    np.testing.assert_array_equal(data1['data1'][:], data['data1'][:])
+    idx = np.arange(0, len(data1['data1']), 2)
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
+    idx = th.randint(0, len(data1['data1']), size=(100,))
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
+    idx = np.random.randint(0, len(data1['data1']), size=(100,))
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
 
     os.remove(tmpfile)
 
@@ -390,18 +401,57 @@ def test_map_node_ids():
     check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map)
     check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
 
-def test_convert2ext_mem():
-    # This is to verify the correctness of ExtMemArrayConverter
-    converters = [ExtMemArrayConverter(None, 0),
-                  ExtMemArrayConverter("/tmp", 2)]
+def test_merge_arrays():
+    # This is to verify the correctness of ExtMemArrayMerger
+    converters = [ExtMemArrayMerger(None, 0),
+                  ExtMemArrayMerger("/tmp", 2)]
     for converter in converters:
-        arr = np.array([str(i) for i in range(10)])
-        em_arr = converter(arr, "test1")
-        np.testing.assert_array_equal(arr, em_arr)
+        # Input are HDF5 arrays.
+        data = {}
+        handle, tmpfile = tempfile.mkstemp()
+        os.close(handle)
+        data["data1"] = np.random.rand(10, 3)
+        data["data2"] = np.random.rand(9, 3)
+        write_data_hdf5(data, tmpfile)
+        data1 = read_data_hdf5(tmpfile, in_mem=False)
+        arrs = [data1['data1'], data1['data2']]
+        res = converter(arrs, "test1")
+        assert isinstance(res, np.ndarray)
+        np.testing.assert_array_equal(res, np.concatenate([data["data1"],
+                                                           data["data2"]]))
 
-        arr = np.random.uniform(size=(1000, 10))
-        em_arr = converter(arr, "test2")
-        np.testing.assert_array_equal(arr, em_arr)
+        # One HDF5 array
+        res = converter([data1['data1']], "test1.5")
+        assert isinstance(res, np.ndarray)
+        np.testing.assert_array_equal(res, data['data1'])
+
+        os.remove(tmpfile)
+
+        # Merge two arrays whose feature dimension is larger than 2.
+        data1 = np.random.uniform(size=(1000, 10))
+        data2 = np.random.uniform(size=(900, 10))
+        em_arr = converter([data1, data2], "test2")
+        assert isinstance(em_arr, np.ndarray)
+        np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
+
+        # Merge two arrays whose feature dimension is smaller than 2.
+        data1 = np.random.uniform(size=(1000,))
+        data2 = np.random.uniform(size=(900,))
+        em_arr = converter([data1, data2], "test3")
+        assert isinstance(em_arr, np.ndarray)
+        np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
+
+        # Input is an array whose feature dimension is larger than 2.
+        data1 = np.random.uniform(size=(1000, 10))
+        em_arr = converter([data1], "test4")
+        assert isinstance(em_arr, np.ndarray)
+        np.testing.assert_array_equal(data1, em_arr)
+
+        # Input is an array whose feature dimension is smaller than 2.
+        data1 = np.random.uniform(size=(1000,))
+        em_arr = converter([data1], "test5")
+        assert isinstance(em_arr, np.ndarray)
+        np.testing.assert_array_equal(data1, em_arr)
 
 def test_partition_graph():
     # This is to verify the correctness of partition_graph.
@@ -466,11 +516,124 @@ def test_partition_graph():
             assert name in edata2
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
+def test_multiprocessing_checks():
+    # If the data are stored in multiple HDF5 files and there are
+    # features and labels for processing.
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+                "transform": {"name": 'tokenize_hf',
+                    'bert_model': 'bert-base-uncased',
+                    'max_seq_length': 16
+                },
+            },
+        ],
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = parse_label_ops(conf['labels'], is_node=True)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    # If the data are stored in multiple HDF5 files and there are
+    # labels for processing.
+    conf = {
+        "format": {"name": "hdf5"},
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = None
+    label_ops = parse_label_ops(conf['labels'], is_node=True)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    # If the data are stored in multiple HDF5 files and there are
+    # features for processing.
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+                "transform": {"name": 'tokenize_hf',
+                    'bert_model': 'bert-base-uncased',
+                    'max_seq_length': 16
+                },
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    # If the data are stored in a single HDF5 file and there are
+    # features for processing.
+    in_files = ["/tmp/test1"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
+
+    # If the data are stored in multiple HDF5 files and there are
+    # features that don't require processing.
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
+
+    # If the data are stored in multiple parquet files and there are
+    # features that don't require processing.
+    conf = {
+        "format": {"name": "parquet"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    # If the data are stored in a single parquet file and there are
+    # features that don't require processing.
+    in_files = ["/tmp/test1"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
+
 if __name__ == '__main__':
+    test_multiprocessing_checks()
     test_hdf5()
     test_json()
     test_partition_graph()
-    test_convert2ext_mem()
+    test_merge_arrays()
     test_map_node_ids()
     test_id_map()
     test_parquet()
