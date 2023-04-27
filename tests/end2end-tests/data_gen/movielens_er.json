@@ -35,7 +35,7 @@
 						"labels":	[
 							{
 								"label_col":	"rate",
-								"task_type":	"classification",
+								"task_type":	"regression",
 								"split_pct":	[0.1, 0.1, 0.1]
 							}
 						]

@@ -34,8 +34,7 @@
                         "files":        "/data/ml-100k/edges.parquet",
 						"labels":	[
 							{
-								"label_col":	"rate",
-								"task_type":	"classification",
+								"task_type":	"link_prediction",
 								"split_pct":	[0.1, 0.1, 0.1]
 							}
 						]
