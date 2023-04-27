@@ -16,7 +16,7 @@ gsf:
     part_config: movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k.json
     verbose: false
   lm:
-    lm_infer_batchszie: 32
+    lm_infer_batch_size: 32
   gnn:
     model_encoder_type: rgcn
     fanout: "4"

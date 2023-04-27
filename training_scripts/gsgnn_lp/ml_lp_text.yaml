@@ -24,7 +24,7 @@ gsf:
     use_mini_batch_infer: true
   lm:
     lm_train_nodes: 10
-    lm_infer_batchszie: 32
+    lm_infer_batch_size: 32
     freeze_lm_encoder_epochs: 0
   input:
     restore_model_path: null

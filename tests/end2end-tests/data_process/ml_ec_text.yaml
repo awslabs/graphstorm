@@ -17,7 +17,7 @@ gsf:
     save_perf_results_path: null
   lm:
     lm_train_nodes: 10
-    lm_infer_batchszie: 32
+    lm_infer_batch_size: 32
     freeze_lm_encoder_epochs: 0
   gnn:
     model_encoder_type: rgcn

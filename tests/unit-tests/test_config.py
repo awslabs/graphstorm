@@ -1456,7 +1456,7 @@ def create_lm_config(tmp_path, file_name):
     # With language model configured for ode type 'a'
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
-        "lm_infer_batchszie": 64,
+        "lm_infer_batch_size": 64,
         "freeze_lm_encoder_epochs": 0,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
@@ -1472,7 +1472,7 @@ def create_lm_config(tmp_path, file_name):
     # gradient_checkpoint will be set to False if freeze_lm_encoder_epochs > 0
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
-        "lm_infer_batchszie": 64,
+        "lm_infer_batch_size": 64,
         "freeze_lm_encoder_epochs": 3,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
@@ -1486,7 +1486,7 @@ def create_lm_config(tmp_path, file_name):
     # This is not language model
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": -1,
-        "lm_infer_batchszie": 1,
+        "lm_infer_batch_size": 1,
         "freeze_lm_encoder_epochs": 0,
         "node_lm_configs": None
     }
@@ -1494,10 +1494,10 @@ def create_lm_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    # Invalid value for lm_train_nodes, lm_infer_batchszie and freeze_lm_encoder_epochs
+    # Invalid value for lm_train_nodes, lm_infer_batch_size and freeze_lm_encoder_epochs
     yaml_object["gsf"]["output"] = {
         "lm_train_nodes": -2,
-        "lm_infer_batchszie": -1,
+        "lm_infer_batch_size": -1,
         "freeze_lm_encoder_epochs": -1,
     }
 
@@ -1553,7 +1553,7 @@ def test_lm():
 
         config = GSConfig(args)
         assert config.lm_train_nodes == 0
-        assert config.lm_infer_batchszie == 32
+        assert config.lm_infer_batch_size == 32
         assert config.freeze_lm_encoder_epochs == 0
         assert config.node_lm_configs == None
 
@@ -1561,7 +1561,7 @@ def test_lm():
                          local_rank=0)
         config = GSConfig(args)
         assert config.lm_train_nodes == 10
-        assert config.lm_infer_batchszie == 64
+        assert config.lm_infer_batch_size == 64
         assert config.freeze_lm_encoder_epochs == 0
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
@@ -1581,7 +1581,7 @@ def test_lm():
                          local_rank=0)
         config = GSConfig(args)
         assert config.lm_train_nodes == -1
-        assert config.lm_infer_batchszie == 1
+        assert config.lm_infer_batch_size == 1
         assert config.freeze_lm_encoder_epochs == 0
         assert config.node_lm_configs is None
 
@@ -1589,7 +1589,7 @@ def test_lm():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "lm_train_nodes")
-        check_failure(config, "lm_infer_batchszie")
+        check_failure(config, "lm_infer_batch_size")
         check_failure(config, "freeze_lm_encoder_epochs")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail2.yaml'),
