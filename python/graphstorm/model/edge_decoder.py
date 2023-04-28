@@ -334,7 +334,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         """
         canonical_etype = list(pos_neg_tuple.keys())[0]
         _, neg_src, _, neg_dst = pos_neg_tuple[canonical_etype]
-        pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb = batch_emb
+        pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_emb
 
         pos_src_emb = pos_src_emb.to(device)
         pos_dst_emb = pos_dst_emb.to(device)
@@ -342,7 +342,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         scores = {}
         pos_scores = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
         neg_scores = []
-        if neg_src_emb.shape[0] != 0:
+        if neg_src_emb is not None:
             neg_src_emb = neg_src_emb.to(device)
             if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
                 neg_src_emb = neg_src_emb.reshape(
@@ -369,7 +369,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             assert len(neg_score.shape) == 2
             neg_scores.append(neg_score)
 
-        if neg_dst_emb.shape[0] != 0:
+        if neg_dst_emb is not None:
             neg_dst_emb = neg_dst_emb.to(device)
             if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
                 neg_dst_emb = neg_dst_emb.reshape(

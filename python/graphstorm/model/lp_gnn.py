@@ -159,6 +159,9 @@ def get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale):
 
     pos_src_emb = emb[utype][pos_src]
     pos_dst_emb = emb[vtype][pos_dst]
+    neg_src_emb = None
+    neg_dst_emb = None
+
     if neg_src is not None:
         neg_src_emb = emb[utype][neg_src.reshape(-1,)]
     if neg_dst is not None:
@@ -168,7 +171,7 @@ def get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale):
             neg_dst_emb = emb[vtype][neg_dst]
         else:
             assert False, f"Unknow negative sample type {neg_sample_type}"
-    return (pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb)
+    return (pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb)
 
 
 def lp_mini_batch_predict(model, emb, loader, device):
@@ -200,23 +203,28 @@ def lp_mini_batch_predict(model, emb, loader, device):
         scores = {}
         for pos_neg_tuple, neg_sample_type in loader:
             # Value of scale is heuristically chosen. Numbers can be found
-            # at this PR: https://github.com/awslabs/graphstorm/pull/101
+            # at PR: https://github.com/awslabs/graphstorm/pull/101
             scale = 100
             canonical_etype = list(pos_neg_tuple.keys())[0]
             pos_src, neg_src, _, _ = pos_neg_tuple[canonical_etype]
-
             eval_batch_size = pos_src.shape[0]
             neg_sample_size = neg_src.shape[0]
-            batch_emb = get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale)
-            pos_src_emb, pos_dst_emb, neg_src_emb, neg_dst_emb = batch_emb
+            # Concatenate the node list from multiple batches into one and fetch their
+            # embeddings in one remote pull. This optimizations efficienly using network
+            # bandwidth and reduce runtime.
+            fused_batch_emb = get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale)
+            pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = fused_batch_emb
             b_st = nb_st = 0
             for s in range(scale):
                 if b_st > pos_src_emb.shape[0]:
                     break
+                # Split the concatenated batch back into orginal batch size to avoid GPU OOM
                 batch_emb = (pos_src_emb[b_st: b_st + eval_batch_size],
+                    neg_src_emb[nb_st: nb_st + neg_sample_size]
+                        if neg_src_emb is not None else None,
                     pos_dst_emb[b_st: b_st + eval_batch_size],
-                    neg_src_emb[nb_st: nb_st + neg_sample_size],
-                    neg_dst_emb[nb_st: nb_st + neg_sample_size])
+                    neg_dst_emb[nb_st: nb_st + neg_sample_size]
+                        if neg_src_emb is not None else None)
                 score = \
                     decoder.calc_test_scores(
                         batch_emb, pos_neg_tuple, neg_sample_type, device)
