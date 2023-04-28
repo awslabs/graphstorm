@@ -251,15 +251,19 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         print("call model.eval()")
         if use_mini_batch_infer:
             val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader,
-                                                              return_label=True)
+                                                              return_label=True,
+                                                              return_proba=False)
             test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader,
-                                                                return_label=True)
+                                                                return_label=True,
+                                                                return_proba=False)
         else:
             emb = do_full_graph_inference(model, val_loader.data, task_tracker=self.task_tracker)
             val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader,
-                                                          return_label=True)
+                                                          return_label=True,
+                                                          return_proba=False)
             test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader,
-                                                            return_label=True)
+                                                            return_label=True,
+                                                            return_proba=False)
         model.train()
         sys_tracker.check('predict')
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,

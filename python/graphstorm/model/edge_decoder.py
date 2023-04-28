@@ -121,7 +121,7 @@ class DenseBiDecoder(GSLayer):
 
         Returns
         -------
-        Tensor : the scores of each edge.
+        Tensor : the maximum score of each edge.
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
@@ -130,10 +130,30 @@ class DenseBiDecoder(GSLayer):
             ifeat = h[dest_type][v]
             out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
             out = self.combine_basis(out)
-            if self.regression:
-                out = self.regression_head(out)
-            elif not self._multilabel:
-                out = out.argmax(dim=1)
+        return out.argmax(dim=1)
+
+    def predict_proba(self, g, h):
+        """predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : all the scores of each edge.
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+            out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
+            out = self.combine_basis(out)
+            out = self.regression_head(out)
         return out
 
     @property

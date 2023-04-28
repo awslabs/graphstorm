@@ -77,7 +77,8 @@ class GSgnnNodePredictionInfer(GSInfer):
         else:
             embs = do_full_graph_inference(self._model, loader.data,
                                            task_tracker=self.task_tracker)
-            res = node_mini_batch_predict(self._model, embs, loader, return_label=do_eval)
+            res = node_mini_batch_predict(self._model, embs, loader, return_label=do_eval,
+                                          return_proba=False)
             pred = res[0]
             label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')

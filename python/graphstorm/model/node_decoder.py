@@ -73,10 +73,24 @@ class EntityClassifier(GSLayer):
 
         Returns
         -------
+        Tensor : maximum of the predicted results
+        """
+        logits = th.matmul(inputs, self.decoder)
+        return logits.argmax(dim=1)
+
+    def predict_proba(self, inputs):
+        """ Make prediction on input data.
+
+        Parameters
+        ----------
+        inputs : tensor
+            The input features
+
+        Returns
+        -------
         Tensor : all the predicted results
         """
         logits = th.matmul(inputs, self.decoder)
-        # TODO(zhengda) we need to extend this to return probability of the prediction.
         return logits
 
     @property
