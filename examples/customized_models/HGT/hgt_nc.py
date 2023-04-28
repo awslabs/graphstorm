@@ -8,7 +8,6 @@ import torch.nn.functional as F
 import dgl.function as fn
 
 import graphstorm as gs
-# from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
@@ -146,7 +145,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                  n_out,             # output dimension
                  num_layers,          # number of gnn layers
                  num_heads,           # number of attention
-                 predict_ntype,     # the node type to be predict
+                 target_ntype,     # the node type to be predict
                  use_norm = True,   # use normalization or not, default is True
                  alpha_l2norm = 0
                  ):
@@ -154,7 +153,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         self.node_dict = node_id_dict
         self.edge_dict = edge_id_dict
         self.num_layers = num_layers
-        self.predict_ntype=predict_ntype
+        self.target_ntype=target_ntype
         self.alpha_l2norm = alpha_l2norm
 
         # set adapt weights according to node id and feature dimension dictionary
@@ -203,7 +202,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
 
-        pred_loss = self._loss_fn(h[self.predict_ntype], labels[self.predict_ntype])
+        pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
 
         reg_loss = torch.tensor(0.).to(pred_loss.device)
         # L2 regularization of dense parameters
@@ -230,7 +229,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
 
-        return h[self.predict_ntype].argmax(dim=1), h[self.predict_ntype]
+        return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]
 
     def restore_model(self, restore_model_path):
         pass
@@ -257,7 +256,7 @@ def main(args):
     # Define the GraphStorm training dataset
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
-                                    train_ntypes=config.predict_ntype,
+                                    train_ntypes=config.target_ntype,
                                     node_feat_field=node_feat_fields,
                                     label_field=config.label_field)
 
@@ -285,7 +284,7 @@ def main(args):
                 n_out=config.num_classes,
                 num_layers=num_layers,
                 num_heads=args.num_heads,
-                predict_ntype=config.predict_ntype,
+                target_ntype=config.target_ntype,
                 use_norm=True,
                 alpha_l2norm=config.alpha_l2norm)
 
@@ -309,7 +308,7 @@ def main(args):
                                           train_task=False)
 
     # Optional: set up a evaluator
-    evaluator = GSgnnAccEvaluator(config.evaluation_frequency,
+    evaluator = GSgnnAccEvaluator(config.eval_frequency,
                                   config.eval_metric,
                                   config.multilabel,
                                   config.use_early_stop,
@@ -333,7 +332,7 @@ def main(args):
 
     # Create a dataset for inference.
     infer_data = GSgnnNodeInferData(config.graph_name, config.part_config,
-                                    eval_ntypes=config.predict_ntype,
+                                    eval_ntypes=config.target_ntype,
                                     node_feat_field=node_feat_fields,
                                     label_field=config.label_field)
 

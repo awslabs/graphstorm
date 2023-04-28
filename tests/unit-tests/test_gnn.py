@@ -533,7 +533,7 @@ def create_nr_config(tmp_path, file_name):
             "rgat": {
             },
             "node_regression": {
-                "predict_ntype": "n0",
+                "target_ntype": "n0",
             },
         }
     }
@@ -582,7 +582,7 @@ def create_nc_config(tmp_path, file_name):
             },
             "node_classification": {
                 "num_classes": 2,
-                "predict_ntype": "n0",
+                "target_ntype": "n0",
             },
         }
     }

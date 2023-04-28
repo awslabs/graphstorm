@@ -112,7 +112,7 @@ class GSgnnInstanceEvaluator():
 
     Parameters
     ----------
-    evaluation_frequency: int
+    eval_frequency: int
         The frequency (# of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
@@ -126,7 +126,7 @@ class GSgnnInstanceEvaluator():
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
-    def __init__(self, evaluation_frequency, eval_metric,
+    def __init__(self, eval_frequency, eval_metric,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
@@ -143,7 +143,7 @@ class GSgnnInstanceEvaluator():
         self._metric = eval_metric
         assert len(self.metric) > 0, \
             "At least one metric must be defined"
-        self.evaluation_frequency = evaluation_frequency
+        self.eval_frequency = eval_frequency
         self._do_early_stop = use_early_stop
         if self._do_early_stop:
             self._early_stop_burnin_rounds = early_stop_burnin_rounds
@@ -206,7 +206,7 @@ class GSgnnInstanceEvaluator():
         """
         if epoch_end:
             return True
-        elif self.evaluation_frequency != 0 and total_iters % self.evaluation_frequency == 0:
+        elif self.eval_frequency != 0 and total_iters % self.eval_frequency == 0:
             return True
         return False
 
@@ -328,7 +328,7 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
 
     Parameters
     ----------
-    evaluation_frequency: int
+    eval_frequency: int
         The frequency (# of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
@@ -342,13 +342,13 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
-    def __init__(self, evaluation_frequency,
+    def __init__(self, eval_frequency,
                  eval_metric,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
-        super(GSgnnRegressionEvaluator, self).__init__(evaluation_frequency,
+        super(GSgnnRegressionEvaluator, self).__init__(eval_frequency,
             eval_metric, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
         self._best_val_score = {}
@@ -434,7 +434,7 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
 
     Parameters
     ----------
-    evaluation_frequency: int
+    eval_frequency: int
         The frequency (# of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
@@ -450,13 +450,13 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
-    def __init__(self, evaluation_frequency,
+    def __init__(self, eval_frequency,
                  eval_metric, multilabel,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY): # pylint: disable=unused-argument
-        super(GSgnnAccEvaluator, self).__init__(evaluation_frequency,
+        super(GSgnnAccEvaluator, self).__init__(eval_frequency,
             eval_metric, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
         self.multilabel = multilabel
@@ -552,7 +552,7 @@ class GSgnnLPEvaluator():
 
     Parameters
     ----------
-    evaluation_frequency: int
+    eval_frequency: int
         The frequency (# of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
@@ -566,7 +566,7 @@ class GSgnnLPEvaluator():
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
-    def __init__(self, evaluation_frequency, eval_metric,
+    def __init__(self, eval_frequency, eval_metric,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
@@ -582,7 +582,7 @@ class GSgnnLPEvaluator():
 
         self._metric = eval_metric
         assert len(self.metric) > 0, "At least one metric must be defined"
-        self.evaluation_frequency = evaluation_frequency
+        self.eval_frequency = eval_frequency
         self._do_early_stop = use_early_stop
         if self._do_early_stop:
             self._early_stop_burnin_rounds = early_stop_burnin_rounds
@@ -648,8 +648,8 @@ class GSgnnLPEvaluator():
         """
         if epoch_end:
             return True
-        elif self.evaluation_frequency != 0 and \
-            total_iters % self.evaluation_frequency == 0:
+        elif self.eval_frequency != 0 and \
+            total_iters % self.eval_frequency == 0:
             return True
         return False
 
@@ -763,7 +763,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
 
     Parameters
     ----------
-    evaluation_frequency: int
+    eval_frequency: int
         The frequency (# of iterations) of doing evaluation.
     data: GSgnnEdgeData
         The processed dataset
@@ -781,14 +781,14 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
-    def __init__(self, evaluation_frequency, data,
+    def __init__(self, eval_frequency, data,
                  num_negative_edges_eval, lp_decoder_type,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         eval_metric = ["mrr"]
-        super(GSgnnMrrLPEvaluator, self).__init__(evaluation_frequency,
+        super(GSgnnMrrLPEvaluator, self).__init__(eval_frequency,
             eval_metric, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
         self.train_idxs = data.train_idxs

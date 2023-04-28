@@ -57,7 +57,7 @@ def main(args):
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         trainer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.evaluation_frequency,
+            GSgnnMrrLPEvaluator(config.eval_frequency,
                                 train_data,
                                 config.num_negative_edges_eval,
                                 config.lp_decoder_type,

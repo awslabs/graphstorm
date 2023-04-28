@@ -297,14 +297,14 @@ class GSConfig:
         return 0
 
     @property
-    def lm_infer_batchszie(self):
+    def lm_infer_batch_size(self):
         """ Mini batch size used to do LM model inference
         """
         # pylint: disable=no-member
-        if hasattr(self, "_lm_infer_batchszie"):
-            assert self._lm_infer_batchszie > 0, \
+        if hasattr(self, "_lm_infer_batch_size"):
+            assert self._lm_infer_batch_size > 0, \
                 "Batch size for LM model inference must larger than 0"
-            return self._lm_infer_batchszie
+            return self._lm_infer_batch_size
 
         return 32
 
@@ -565,9 +565,9 @@ class GSConfig:
             models every #save_model_frequency iterations and keep at
             most K models.
             By default, GraphStorm will save the latest K models unless
-            evaluation_frequency is set. When evaluation_frequency is set,
+            eval_frequency is set. When eval_frequency is set,
             GraphStorm will evaluate the model performance every
-            #evaluation_frequency iterations. If at the same iteration,
+            #eval_frequency iterations. If at the same iteration,
             #save_model_frequency is reached, it will try to save the
             best K model instead of the latest K model.
         """
@@ -577,18 +577,18 @@ class GSConfig:
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
 
-            if self.evaluation_frequency != sys.maxsize and self.save_model_frequency > 0:
+            if self.eval_frequency != sys.maxsize and self.save_model_frequency > 0:
                 # save model within an epoch need to collaborate with evaluation
                 # within an epoch
-                assert self.save_model_frequency >= self.evaluation_frequency and \
-                    self.save_model_frequency % self.evaluation_frequency == 0, \
+                assert self.save_model_frequency >= self.eval_frequency and \
+                    self.save_model_frequency % self.eval_frequency == 0, \
                     'FATAL: save_model_frequency' \
                           f'({self.save_model_frequency}) ' \
-                          'does not equal to evaluation_frequency' \
-                          f'({self.evaluation_frequency}), or ' \
+                          'does not equal to eval_frequency' \
+                          f'({self.eval_frequency}), or ' \
                           f'save_model_frequency ({self.save_model_frequency}) ' \
-                          'is not divisible by evaluation_frequency ' \
-                          f'({self.evaluation_frequency}). ' \
+                          'is not divisible by eval_frequency ' \
+                          f'({self.eval_frequency}). ' \
                           'GraphStorm can not guarentees that it will ' \
                           'save the best model after evaluation cycles.'
 
@@ -670,14 +670,14 @@ class GSConfig:
         return self._batch_size
 
     @property
-    def sparse_lr(self): # pylint: disable=invalid-name
+    def sparse_optimizer_lr(self): # pylint: disable=invalid-name
         """ Sparse optimizer learning rate
         """
-        if hasattr(self, "_sparse_lr"):
-            sparse_lr = float(self._sparse_lr)
-            assert sparse_lr > 0.0, \
+        if hasattr(self, "_sparse_optimizer_lr"):
+            sparse_optimizer_lr = float(self._sparse_optimizer_lr)
+            assert sparse_optimizer_lr > 0.0, \
                 "Sparse optimizer learning rate must be larger than 0"
-            return sparse_lr
+            return sparse_optimizer_lr
 
         return self.lr
 
@@ -742,13 +742,13 @@ class GSConfig:
         return 10000
 
     @property
-    def evaluation_frequency(self):
+    def eval_frequency(self):
         """ How many iterations between evaluations
         """
         # pylint: disable=no-member
-        if hasattr(self, "_evaluation_frequency"):
-            assert self._evaluation_frequency > 0, "evaluation_frequency should larger than 0"
-            return self._evaluation_frequency
+        if hasattr(self, "_eval_frequency"):
+            assert self._eval_frequency > 0, "eval_frequency should larger than 0"
+            return self._eval_frequency
         # set max value (Never do evaluation with in an epoch)
         return sys.maxsize
 
@@ -950,13 +950,13 @@ class GSConfig:
 
     ### Node related task variables ###
     @property
-    def predict_ntype(self):
+    def target_ntype(self):
         """ The node type for prediction
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_predict_ntype"), \
-            "Must provide the target ntype through predict_ntype"
-        return self._predict_ntype
+        assert hasattr(self, "_target_ntype"), \
+            "Must provide the target ntype through target_ntype"
+        return self._target_ntype
 
     #### edge related task variables ####
     @property
@@ -1001,7 +1001,6 @@ class GSConfig:
         return {}
 
     ### Edge classification and regression tasks ###
-    # TODO(zhengda) we should rename this to predict_etype
     @property
     def target_etype(self):
         """ The list of canonical etype that will be added as
@@ -1168,18 +1167,6 @@ class GSConfig:
             return [tuple(eval_etype.split(',')) for eval_etype in self._eval_etype]
         # By default return None, which means use all edge types
         return None
-
-    @property
-    def separate_eval(self):
-        """ Whether to separate the evaluation report for different
-            evaluation edge types
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_separate_eval"):
-            assert self._separate_eval in [True, False]
-            return self._separate_eval
-        # By default, combine the evaluation result from different edge types
-        return False
 
     @property
     def exclude_training_targets(self):
@@ -1431,7 +1418,7 @@ def _add_hyperparam_args(parser):
             help="number of training epochs")
     group.add_argument("--batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size. Must be larger than 0")
-    group.add_argument("--sparse-lr", type=float, default=argparse.SUPPRESS,
+    group.add_argument("--sparse-optimizer-lr", type=float, default=argparse.SUPPRESS,
             help="sparse optimizer learning rate")
     group.add_argument(
             "--use-node-embeddings",
@@ -1451,11 +1438,11 @@ def _add_hyperparam_args(parser):
     # control evaluation
     group.add_argument("--eval-batch-size", type=int, default=argparse.SUPPRESS,
             help="Mini-batch size for computing GNN embeddings in evaluation.")
-    group.add_argument('--evaluation-frequency',
+    group.add_argument('--eval-frequency',
             type=int,
             default=argparse.SUPPRESS,
             help="How offen to run the evaluation. "
-                 "Every #evaluation_frequency iterations.")
+                 "Every #eval-frequency iterations.")
     group.add_argument(
             '--no-validation',
             type=lambda x: (str(x).lower() in ['true', '1']),
@@ -1484,7 +1471,7 @@ def _add_lm_model_args(parser):
             help="learning rate for fine-tuning language model")
     group.add_argument("--lm-train-nodes", type=int, default=argparse.SUPPRESS,
             help="number of nodes used in LM model fine-tuning")
-    group.add_argument("--lm-infer-batchszie", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--lm-infer-batch-size", type=int, default=argparse.SUPPRESS,
             help="Batch size used in LM model inference")
     group.add_argument("--freeze-lm-encoder-epochs", type=int, default=argparse.SUPPRESS,
             help="Before fine-tuning LM model, how many epochs we will take "
@@ -1505,7 +1492,7 @@ def _add_rgcn_args(parser):
 
 def _add_node_classification_args(parser):
     group = parser.add_argument_group(title="node classification")
-    group.add_argument("--predict-ntype", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--target-ntype", type=str, default=argparse.SUPPRESS,
                        help="the node type for prediction")
     group.add_argument("--label-field", type=str, default=argparse.SUPPRESS,
                        help="the label field in the data")

@@ -53,7 +53,7 @@ def create_dummpy_config_obj():
             "hyperparam": {
                 "lr": 0.01,
                 "lm_tune_lr": 0.0001,
-                "sparse_lr": 0.0001
+                "sparse_optimizer_lr": 0.0001
             },
             "rgcn": {},
         }
@@ -67,7 +67,7 @@ def create_basic_config(tmp_path, file_name):
         "ip_config": os.path.join(tmp_path, "ip.txt"),
         "part_config": os.path.join(tmp_path, "part.json"),
         "model_encoder_type": "rgat",
-        "evaluation_frequency": 100,
+        "eval_frequency": 100,
         "no_validation": True,
     }
     # create dummpy ip.txt
@@ -93,7 +93,7 @@ def create_basic_config(tmp_path, file_name):
     # config for wrong values
     yaml_object["gsf"]["basic"] = {
         "backend": "error",
-        "evaluation_frequency": 0,
+        "eval_frequency": 0,
         "model_encoder_type": "abc"
     }
 
@@ -121,7 +121,7 @@ def test_load_basic_info():
         assert config.ip_config == os.path.join(Path(tmpdirname), "ip.txt")
         assert config.part_config == os.path.join(Path(tmpdirname), "part.json")
         assert config.verbose == False
-        assert config.evaluation_frequency == 100
+        assert config.eval_frequency == 100
         assert config.no_validation == True
 
         # Change config's variables to do further testing
@@ -135,7 +135,7 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.backend == "gloo"
-        assert config.evaluation_frequency == sys.maxsize
+        assert config.eval_frequency == sys.maxsize
         assert config.no_validation == False
         check_failure(config, "model_encoder_type") # must provide model_encoder_type
 
@@ -146,7 +146,7 @@ def test_load_basic_info():
         check_failure(config, "backend")
         check_failure(config, "ip_config")
         check_failure(config, "part_config")
-        check_failure(config, "evaluation_frequency")
+        check_failure(config, "eval_frequency")
         check_failure(config, "model_encoder_type")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test_fail2.yaml'),
@@ -396,11 +396,11 @@ def create_train_config(tmp_path, file_name):
         "eval_batch_size": 128,
         "wd_l2norm": 0.1,
         "alpha_l2norm": 0.00001,
-        "evaluation_frequency": 1000,
+        "eval_frequency": 1000,
         'save_model_frequency': 1000,
         "topk_model_to_save": 3,
         "lm_tune_lr": 0.0001,
-        "sparse_lr": 0.001,
+        "sparse_optimizer_lr": 0.001,
         "use_node_embeddings": False,
         "use_self_loop": False,
         "use_early_stop": True,
@@ -418,7 +418,7 @@ def create_train_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["hyperparam"] = {
-        "evaluation_frequency": 1000,
+        "eval_frequency": 1000,
         'save_model_frequency': 2000,
         "topk_model_to_save": 5,
         "save_model_path": os.path.join(tmp_path, "save"),
@@ -426,9 +426,9 @@ def create_train_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    # evaluation_frequency = 1000 and save_model_frequency uses default (-1)
+    # eval_frequency = 1000 and save_model_frequency uses default (-1)
     yaml_object["gsf"]["hyperparam"] = {
-        "evaluation_frequency": 1000,
+        "eval_frequency": 1000,
         "topk_model_to_save": 5,
         "save_model_path": os.path.join(tmp_path, "save"),
     }
@@ -443,10 +443,10 @@ def create_train_config(tmp_path, file_name):
         "batch_size": 0,
         "eval_batch_size": 0,
         "lm_tune_lr": 0.,
-        "sparse_lr": 0.,
+        "sparse_optimizer_lr": 0.,
         "use_node_embeddings": True,
         "use_self_loop": "error",
-        "evaluation_frequency": 1000,
+        "eval_frequency": 1000,
         'save_model_frequency': 700,
         "topk_model_to_save": 3,
         "use_early_stop": True,
@@ -458,7 +458,7 @@ def create_train_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["hyperparam"] = {
-        "evaluation_frequency": 1100,
+        "eval_frequency": 1100,
         'save_model_frequency': 2000,
         "topk_model_to_save": 3,
         "save_model_path": os.path.join(tmp_path, "save"),
@@ -486,7 +486,7 @@ def test_train_info():
         assert config.topk_model_to_save == math.inf
         config._lr = 0.01
         assert config.lm_tune_lr == 0.01
-        assert config.sparse_lr == 0.01
+        assert config.sparse_optimizer_lr == 0.01
         assert config.use_node_embeddings == False
         assert config.use_self_loop == True
         assert config.use_early_stop == False
@@ -503,7 +503,7 @@ def test_train_info():
         assert config.alpha_l2norm == 0.00001
         assert config.topk_model_to_save == 3
         assert config.lm_tune_lr == 0.0001
-        assert config.sparse_lr == 0.001
+        assert config.sparse_optimizer_lr == 0.001
         assert config.use_node_embeddings == False
         assert config.use_self_loop == False
         assert config.use_early_stop == True
@@ -516,13 +516,13 @@ def test_train_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test2.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.evaluation_frequency == 1000
+        assert config.eval_frequency == 1000
         assert config.save_model_frequency == 2000
         assert config.topk_model_to_save == 5
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test3.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.evaluation_frequency == 1000
+        assert config.eval_frequency == 1000
         assert config.save_model_frequency == -1
         assert config.topk_model_to_save == 5
 
@@ -534,7 +534,7 @@ def test_train_info():
         check_failure(config, "batch_size")
         check_failure(config, "eval_batch_size")
         check_failure(config, "lm_tune_lr")
-        check_failure(config, "sparse_lr")
+        check_failure(config, "sparse_optimizer_lr")
         assert config.use_node_embeddings == True
         check_failure(config, "use_self_loop")
         config._dropout = 1.0
@@ -641,7 +641,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_classification"] = {
-        "predict_ntype": "a",
+        "target_ntype": "a",
         "label_field": "label",
         "multilabel": True,
         "num_classes": 20,
@@ -650,7 +650,7 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_classification"] = {
-        "predict_ntype": "a",
+        "target_ntype": "a",
         "label_field": "label",
         "multilabel": True,
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
@@ -769,7 +769,7 @@ def test_node_class_info():
         create_node_class_config(Path(tmpdirname), 'node_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "predict_ntype")
+        check_failure(config, "target_ntype")
         check_failure(config, "label_field")
         assert config.multilabel == False
         assert config.multilabel_weights == None
@@ -778,7 +778,7 @@ def test_node_class_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.predict_ntype == "a"
+        assert config.target_ntype == "a"
         assert config.label_field == "label"
         assert config.multilabel == True
         assert config.multilabel_weights == None
@@ -867,7 +867,7 @@ def create_node_regress_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_regression"] = {
-        "predict_ntype": "a",
+        "target_ntype": "a",
         "label_field": "label",
         "eval_metric": "Mse"
     }
@@ -875,7 +875,7 @@ def create_node_regress_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_regression"] = {
-        "predict_ntype": "a",
+        "target_ntype": "a",
         "label_field": "label",
         "eval_metric": ["mse", "RMSE"],
     }
@@ -906,14 +906,14 @@ def test_node_regress_info():
         create_node_regress_config(Path(tmpdirname), 'node_regress_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "predict_ntype")
+        check_failure(config, "target_ntype")
         check_failure(config, "label_field")
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "rmse"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test1.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.predict_ntype == "a"
+        assert config.target_ntype == "a"
         assert config.label_field == "label"
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mse"
@@ -1061,7 +1061,6 @@ def create_lp_config(tmp_path, file_name):
         "num_negative_edges_eval": 100,
         "train_etype": ["query,exactmatch,asin"],
         "eval_etype": ["query,exactmatch,asin"],
-        "separate_eval": True,
         "exclude_training_targets": True,
         "reverse_edge_types_map": ["query,exactmatch,rev-exactmatch,asin"],
         "gamma": 2.0,
@@ -1078,7 +1077,6 @@ def create_lp_config(tmp_path, file_name):
         "train_negative_sampler": "udf", # we allow udf sampler
         "train_etype": ["query,exactmatch,asin","query,click,asin"],
         "eval_etype": ["query,exactmatch,asin","query,click,asin"],
-        "separate_eval": True,
         "exclude_training_targets": False,
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
@@ -1092,7 +1090,6 @@ def create_lp_config(tmp_path, file_name):
         "num_negative_edges_eval": 0,
         "train_etype": "query,exactmatch,asin",
         "eval_etype": "query,exactmatch,asin",
-        "separate_eval": "error",
         "exclude_training_targets": "error",
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
@@ -1139,7 +1136,6 @@ def test_lp_info():
         assert config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
         assert config.train_etype == None
         assert config.eval_etype == None
-        assert config.separate_eval == False
         check_failure(config, "exclude_training_targets")
         assert len(config.reverse_edge_types_map) == 0
         assert config.gamma == 12.0
@@ -1158,7 +1154,6 @@ def test_lp_info():
         assert config.train_etype[0] == ("query", "exactmatch", "asin")
         assert len(config.eval_etype) == 1
         assert config.eval_etype[0] == ("query", "exactmatch", "asin")
-        assert config.separate_eval == True
         assert config.exclude_training_targets == True
         assert len(config.reverse_edge_types_map) == 1
         assert config.reverse_edge_types_map[("query", "exactmatch","asin")] == \
@@ -1189,7 +1184,6 @@ def test_lp_info():
         check_failure(config, "num_negative_edges_eval")
         check_failure(config, "train_etype")
         check_failure(config, "eval_etype")
-        check_failure(config, "separate_eval")
         check_failure(config, "exclude_training_targets")
         check_failure(config, "reverse_edge_types_map")
         check_failure(config, "lp_loss_func")
@@ -1456,7 +1450,7 @@ def create_lm_config(tmp_path, file_name):
     # With language model configured for ode type 'a'
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
-        "lm_infer_batchszie": 64,
+        "lm_infer_batch_size": 64,
         "freeze_lm_encoder_epochs": 0,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
@@ -1472,7 +1466,7 @@ def create_lm_config(tmp_path, file_name):
     # gradient_checkpoint will be set to False if freeze_lm_encoder_epochs > 0
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": 10,
-        "lm_infer_batchszie": 64,
+        "lm_infer_batch_size": 64,
         "freeze_lm_encoder_epochs": 3,
         "node_lm_configs": [{"lm_type": "bert",
                              "model_name": "bert-base-uncased",
@@ -1486,7 +1480,7 @@ def create_lm_config(tmp_path, file_name):
     # This is not language model
     yaml_object["gsf"]["lm"] = {
         "lm_train_nodes": -1,
-        "lm_infer_batchszie": 1,
+        "lm_infer_batch_size": 1,
         "freeze_lm_encoder_epochs": 0,
         "node_lm_configs": None
     }
@@ -1494,10 +1488,10 @@ def create_lm_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    # Invalid value for lm_train_nodes, lm_infer_batchszie and freeze_lm_encoder_epochs
+    # Invalid value for lm_train_nodes, lm_infer_batch_size and freeze_lm_encoder_epochs
     yaml_object["gsf"]["output"] = {
         "lm_train_nodes": -2,
-        "lm_infer_batchszie": -1,
+        "lm_infer_batch_size": -1,
         "freeze_lm_encoder_epochs": -1,
     }
 
@@ -1553,7 +1547,7 @@ def test_lm():
 
         config = GSConfig(args)
         assert config.lm_train_nodes == 0
-        assert config.lm_infer_batchszie == 32
+        assert config.lm_infer_batch_size == 32
         assert config.freeze_lm_encoder_epochs == 0
         assert config.node_lm_configs == None
 
@@ -1561,7 +1555,7 @@ def test_lm():
                          local_rank=0)
         config = GSConfig(args)
         assert config.lm_train_nodes == 10
-        assert config.lm_infer_batchszie == 64
+        assert config.lm_infer_batch_size == 64
         assert config.freeze_lm_encoder_epochs == 0
         assert config.node_lm_configs is not None
         assert len(config.node_lm_configs) == 1
@@ -1581,7 +1575,7 @@ def test_lm():
                          local_rank=0)
         config = GSConfig(args)
         assert config.lm_train_nodes == -1
-        assert config.lm_infer_batchszie == 1
+        assert config.lm_infer_batch_size == 1
         assert config.freeze_lm_encoder_epochs == 0
         assert config.node_lm_configs is None
 
@@ -1589,7 +1583,7 @@ def test_lm():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "lm_train_nodes")
-        check_failure(config, "lm_infer_batchszie")
+        check_failure(config, "lm_infer_batch_size")
         check_failure(config, "freeze_lm_encoder_epochs")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_fail2.yaml'),
