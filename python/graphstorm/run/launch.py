@@ -276,8 +276,7 @@ def get_all_remote_pids(hosts, ssh_port, udf_command):
         ip, _ = host
         # When creating training processes in remote machines, we may insert some arguments
         # in the commands. We need to use regular expressions to match the modified command.
-        cmds = udf_command.split()
-        new_udf_command = " .*".join(cmds)
+        new_udf_command = " .*".join(udf_command)
         pids = get_remote_pids(ip, ssh_port, new_udf_command)
         remote_pids[(ip, ssh_port)] = pids
     return remote_pids
