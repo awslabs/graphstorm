@@ -1169,18 +1169,6 @@ class GSConfig:
         return None
 
     @property
-    def separate_eval(self):
-        """ Whether to separate the evaluation report for different
-            evaluation edge types
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_separate_eval"):
-            assert self._separate_eval in [True, False]
-            return self._separate_eval
-        # By default, combine the evaluation result from different edge types
-        return False
-
-    @property
     def exclude_training_targets(self):
         """ Whether to remove the training targets from
             the computation graph before the forward pass.

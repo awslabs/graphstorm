@@ -1061,7 +1061,6 @@ def create_lp_config(tmp_path, file_name):
         "num_negative_edges_eval": 100,
         "train_etype": ["query,exactmatch,asin"],
         "eval_etype": ["query,exactmatch,asin"],
-        "separate_eval": True,
         "exclude_training_targets": True,
         "reverse_edge_types_map": ["query,exactmatch,rev-exactmatch,asin"],
         "gamma": 2.0,
@@ -1078,7 +1077,6 @@ def create_lp_config(tmp_path, file_name):
         "train_negative_sampler": "udf", # we allow udf sampler
         "train_etype": ["query,exactmatch,asin","query,click,asin"],
         "eval_etype": ["query,exactmatch,asin","query,click,asin"],
-        "separate_eval": True,
         "exclude_training_targets": False,
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
@@ -1092,7 +1090,6 @@ def create_lp_config(tmp_path, file_name):
         "num_negative_edges_eval": 0,
         "train_etype": "query,exactmatch,asin",
         "eval_etype": "query,exactmatch,asin",
-        "separate_eval": "error",
         "exclude_training_targets": "error",
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
@@ -1139,7 +1136,6 @@ def test_lp_info():
         assert config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
         assert config.train_etype == None
         assert config.eval_etype == None
-        assert config.separate_eval == False
         check_failure(config, "exclude_training_targets")
         assert len(config.reverse_edge_types_map) == 0
         assert config.gamma == 12.0
@@ -1158,7 +1154,6 @@ def test_lp_info():
         assert config.train_etype[0] == ("query", "exactmatch", "asin")
         assert len(config.eval_etype) == 1
         assert config.eval_etype[0] == ("query", "exactmatch", "asin")
-        assert config.separate_eval == True
         assert config.exclude_training_targets == True
         assert len(config.reverse_edge_types_map) == 1
         assert config.reverse_edge_types_map[("query", "exactmatch","asin")] == \
@@ -1189,7 +1184,6 @@ def test_lp_info():
         check_failure(config, "num_negative_edges_eval")
         check_failure(config, "train_etype")
         check_failure(config, "eval_etype")
-        check_failure(config, "separate_eval")
         check_failure(config, "exclude_training_targets")
         check_failure(config, "reverse_edge_types_map")
         check_failure(config, "lp_loss_func")
