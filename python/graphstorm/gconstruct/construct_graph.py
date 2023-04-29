@@ -433,7 +433,8 @@ def process_graph(args):
 
     if args.output_format == "DistDGL":
         partition_graph(g, node_data, edge_data, args.graph_name,
-                        args.num_partitions, args.output_dir)
+                        args.num_partitions, args.output_dir,
+                        save_mapping=args.save_id_mapping)
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
@@ -488,4 +489,9 @@ if __name__ == '__main__':
     argparser.add_argument("--ext_mem_feat_size", type=int, default=64,
                            help="The minimal number of feature dimensions that features " + \
                                    "can be stored in external memory.")
+    argparser.add_argument("--save_id_mapping",
+                           type=lambda x: (str(x).lower() in ['true', '1']),
+                           default=True,
+                           help="Set True to store the mappings for the edges " + \
+                                "and nodes after partition")
     process_graph(argparser.parse_args())

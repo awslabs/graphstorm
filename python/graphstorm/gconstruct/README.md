@@ -154,3 +154,12 @@ For HuggingFace tokenizer, the `name` field in the feature transformation dictio
 is `tokenize_hf`. The dict should contain two additional fields. `bert_model`
 specifies the BERT model used for tokenization. `max_seq_length` specifies
 the maximal sequence length.
+
+## Output
+Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL.
+By Specifying the `output_format` as "DGL", the output will be an [DGLGraph] (https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html).
+By Specifying the `output_format` as "DistDGL", the output will be a partitioned
+DGL graph named DistDGL graph. It contains the partitioned graph, a JSON config
+describing the meta-information of the partitioned graph, and the mappings for the
+edges and nodes after partition which maps each node and edge in the partitoined
+graph into the original node and edge id space.

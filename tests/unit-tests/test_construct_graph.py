@@ -475,13 +475,27 @@ def test_partition_graph():
     edge_data1 = []
     with tempfile.TemporaryDirectory() as tmpdirname:
         partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
-                        part_method="random")
+                        part_method="random", save_mapping=True)
         for i in range(num_parts):
             part_dir = os.path.join(tmpdirname, "part" + str(i))
             node_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'node_feat.dgl')))
             edge_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'edge_feat.dgl')))
+
+        # Check saved node ID and edge ID mapping
+        tmp_node_map_file = os.path.join(tmpdirname, f"node_mapping.pt")
+        tmp_edge_map_file = os.path.join(tmpdirname, f"edge_mapping.pt")
+        assert os.path.exists(tmp_node_map_file)
+        assert os.path.exists(tmp_edge_map_file)
+        node_id_map = th.load(tmp_node_map_file)
+        edge_id_map = th.load(tmp_edge_map_file)
+        assert len(node_id_map) == len(num_nodes)
+        assert len(edge_id_map) == len(edges)
+        for node_type, num_node in num_nodes.items():
+            assert node_id_map[node_type].shape[0] == num_node
+        for edge_type, edge in edges.items():
+            assert edge_id_map[edge_type].shape[0] == edge[0].shape[0]
 
     # Partition the graph with DGL's partition_graph.
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
