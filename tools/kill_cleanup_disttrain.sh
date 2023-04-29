@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$#" -lt 2 ]; then
-  echo "Usage: $0 ip_list_file port_num graph_name"
+  echo "Usage: $0 ip_list_file graph_name port_num"
   exit 1
 fi
 
@@ -10,9 +10,13 @@ while IFS= read -r ip; do
     ips+=($ip)
 done < "$1"
 
-port_num=$2
+graph_name=$2
 
-graph_name=$3
+if [ -z "$3"]; then
+    port_num=2222
+else
+    port_num=$3
+fi
 
 for ip in "${ips[@]}"; do
     echo "Clean up $ip"
