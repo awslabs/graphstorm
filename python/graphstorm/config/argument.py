@@ -396,6 +396,7 @@ class GSConfig:
 
             for feat_name in feat_names:
                 feat_info = feat_name.split(":")
+                assert len(feat_info) == 2, f"Unknown format of the feature name: {feat_name}"
                 ntype = feat_info[0]
                 if ntype in fname_dict:
                     assert False, \
