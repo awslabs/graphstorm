@@ -17,6 +17,7 @@
     node regression, edge classification and edge regression.
 """
 
+import os
 import numpy as np
 import torch as th
 from transformers import BertTokenizer
