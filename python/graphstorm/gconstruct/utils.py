@@ -317,7 +317,9 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     if save_mapping:
         new_node_mapping, new_edge_mapping = mapping
 
-        # the new_node_mapping contains per entity type on the ith row the original node id for the ith node.
+        # the new_node_mapping contains per entity type on the ith row
+        # the original node id for the ith node.
         _save_maps(output_dir, "node_mapping", new_node_mapping)
-        # the new_edge_mapping contains per edge type on the ith row the original edge id for the ith edge.
+        # the new_edge_mapping contains per edge type on the ith row
+        # the original edge id for the ith edge.
         _save_maps(output_dir, "edge_mapping", new_edge_mapping)
