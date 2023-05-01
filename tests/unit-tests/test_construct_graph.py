@@ -188,6 +188,7 @@ def test_feat_ops():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
+    # Compute BERT embeddings.
     feat_op3 = [
         {
             "feature_col": "test3",
@@ -207,6 +208,7 @@ def test_feat_ops():
     assert len(proc_res['test4']) == 2
     np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
 
+    # Compute BERT embeddings with multiple mini-batches.
     feat_op4 = [
         {
             "feature_col": "test3",

@@ -44,6 +44,8 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
     user_parser : callable
         The user-defined function to read and process the data files.
     """
+    # We need to set a GPU device for each worker process in case that
+    # some transformations (e.g., computing BERT embeddings) require GPU computation.
     if th.cuda.is_available():
         num_gpus = th.cuda.device_count()
         gpu = worker_id % num_gpus
