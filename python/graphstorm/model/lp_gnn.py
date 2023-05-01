@@ -202,29 +202,27 @@ def lp_mini_batch_predict(model, emb, loader, device):
     with th.no_grad():
         scores = {}
         for pos_neg_tuple, neg_sample_type in loader:
-            # Value of scale is heuristically chosen. Numbers can be found
-            # at PR: https://github.com/awslabs/graphstorm/pull/101
-            scale = 100
             canonical_etype = list(pos_neg_tuple.keys())[0]
-            pos_src, neg_src, _, _ = pos_neg_tuple[canonical_etype]
-            eval_batch_size = pos_src.shape[0]
-            neg_sample_size = neg_src.shape[0]
-            # Concatenate the node list from multiple batches into one and fetch their
-            # embeddings in one remote pull. This optimizations efficienly using network
-            # bandwidth and reduce runtime.
-            fused_batch_emb = get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale)
+            pos_src, neg_src, _, neg_dst = pos_neg_tuple[canonical_etype]
+            # To optimize network bandwidth usage, we concatenate node lists from multiple
+            # batches and retrieve their embeddings with a single remote pull. Heuristically
+            # we have found using a batch size of 100K results in efficient network utilization
+            # and reduces the end-to-end inference pipeline from 45 to 21 minutes compared to
+            # using a batch size of 1024 on ogbn-papers100M dataset. More details can be found
+            # at PR#101 (https://github.com/awslabs/graphstorm/pull/101)
+            num_batches_to_cat = int(100000/pos_src.shape[0])
+            fused_batch_emb = get_embs(emb, pos_neg_tuple, neg_sample_type, loader,
+                                       num_batches_to_cat)
             pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = fused_batch_emb
-            b_st = nb_st = 0
-            for s in range(scale):
-                if b_st > pos_src_emb.shape[0]:
-                    break
+            p_st = ns_st = nd_st = 0
+            for _ in range(num_batches_to_cat):
                 # Split the concatenated batch back into orginal batch size to avoid GPU OOM
-                batch_emb = (pos_src_emb[b_st: b_st + eval_batch_size],
-                    neg_src_emb[nb_st: nb_st + neg_sample_size]
+                batch_emb = (pos_src_emb[p_st: p_st + pos_src.shape[0]],
+                    neg_src_emb[ns_st: ns_st + neg_src.shape[0]]
                         if neg_src_emb is not None else None,
-                    pos_dst_emb[b_st: b_st + eval_batch_size],
-                    neg_dst_emb[nb_st: nb_st + neg_sample_size]
-                        if neg_src_emb is not None else None)
+                    pos_dst_emb[p_st: p_st + pos_src.shape[0]],
+                    neg_dst_emb[nd_st: nd_st + neg_dst.shape[0]]
+                        if neg_dst_emb is not None else None)
                 score = \
                     decoder.calc_test_scores(
                         batch_emb, pos_neg_tuple, neg_sample_type, device)
@@ -236,6 +234,9 @@ def lp_mini_batch_predict(model, emb, loader, device):
                         scores[canonical_etype].append(s)
                     else:
                         scores[canonical_etype] = [s]
-                b_st += eval_batch_size
-                nb_st += neg_sample_size
+                p_st += pos_src.shape[0]
+                ns_st += neg_src.shape[0]
+                nd_st += neg_dst.shape[0]
+                if p_st >= pos_src_emb.shape[0]:
+                    break
     return scores
