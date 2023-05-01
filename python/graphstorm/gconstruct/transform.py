@@ -62,14 +62,14 @@ class Tokenizer(FeatTransform):
         The name of the column that contains the text features
     feat_name : str
         The prefix of the tokenized data
-    tokenizer : HuggingFace Tokenizer
-        a tokenizer
+    bert_model : str
+        The name of the BERT model.
     max_seq_length : int
         The maximal length of the tokenization results.
     """
-    def __init__(self, col_name, feat_name, tokenizer, max_seq_length):
+    def __init__(self, col_name, feat_name, bert_model, max_seq_length):
         super(Tokenizer, self).__init__(col_name, feat_name)
-        self.tokenizer = tokenizer
+        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
     def __call__(self, strs):
@@ -238,23 +238,21 @@ def parse_feat_ops(confs):
             if conf['name'] == 'tokenize_hf':
                 assert 'bert_model' in conf, \
                         "'tokenize_hf' needs to have the 'bert_model' field."
-                tokenizer = BertTokenizer.from_pretrained(conf['bert_model'])
                 assert 'max_seq_length' in conf, \
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
-                max_seq_length = int(conf['max_seq_length'])
-                transform = Tokenizer(feat['feature_col'], feat_name, tokenizer, max_seq_length)
+                transform = Tokenizer(feat['feature_col'], feat_name, conf['bert_model'],
+                                      int(conf['max_seq_length']))
             elif conf['name'] == 'bert_hf':
                 assert 'bert_model' in conf, \
                         "'bert_hf' needs to have the 'bert_model' field."
-                tokenizer = BertTokenizer.from_pretrained(conf['bert_model'])
                 assert 'max_seq_length' in conf, \
                         "'bert_hf' needs to have the 'max_seq_length' field."
-                max_seq_length = int(conf['max_seq_length'])
                 infer_batch_size = int(conf['infer_batch_size']) \
                         if 'infer_batch_size' in conf else None
                 transform = ComputeBERT(feat['feature_col'], feat_name,
                                         Tokenizer(feat['feature_col'], feat_name,
-                                                  tokenizer, max_seq_length),
+                                                  conf['bert_model'],
+                                                  int(conf['max_seq_length'])),
                                         conf['bert_model'],
                                         infer_batch_size=infer_batch_size)
             else:
