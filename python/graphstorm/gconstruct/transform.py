@@ -248,7 +248,7 @@ def parse_feat_ops(confs):
                 assert 'max_seq_length' in conf, \
                         "'bert_hf' needs to have the 'max_seq_length' field."
                 infer_batch_size = int(conf['infer_batch_size']) \
-                        if 'infer_batch_size' in conf else None
+                        if 'infer_batch_size' in conf else 1024
                 transform = ComputeBERT(feat['feature_col'], feat_name,
                                         Tokenizer(feat['feature_col'], feat_name,
                                                   conf['bert_model'],
