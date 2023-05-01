@@ -203,7 +203,9 @@ def test_feat_ops():
     assert res3[0].col_name == feat_op3[0]["feature_col"]
     assert res3[0].feat_name == feat_op3[0]["feature_name"]
     proc_res = process_features(data, res3)
-    # TODO test BERT embedding results.
+    assert "test4" in proc_res
+    assert len(proc_res['test4']) == 2
+    np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
 
     feat_op4 = [
         {
@@ -221,6 +223,9 @@ def test_feat_ops():
     assert res4[0].col_name == feat_op4[0]["feature_col"]
     assert res4[0].feat_name == feat_op4[0]["feature_name"]
     proc_res = process_features(data, res4)
+    assert "test4" in proc_res
+    assert len(proc_res['test4']) == 2
+    np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
 
 def test_label():
     def check_split(res):
