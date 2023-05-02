@@ -34,7 +34,7 @@ if __name__ == '__main__':
                            help="dataset to use")
     argparser.add_argument("--filepath", type=str, default=None)
     # node arguments
-    argparser.add_argument('--predict_ntype', type=str, help='The node type for making prediction'
+    argparser.add_argument('--target_ntype', type=str, help='The node type for making prediction'
                            + 'Currently only support one node type.')
     argparser.add_argument('--ntask_type', type=str, default='classification', nargs='?',
                            choices=['classification', 'regression'],
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     argparser.add_argument('--nlabel_field', type=str, help='The field that stores label on nodes.'
                            + 'The format is \"nodetype:label\", e.g., paper:subject')
     # edge arguments
-    argparser.add_argument('--predict_etype', type=str, help='The canonical edge type for making '
+    argparser.add_argument('--target_etype', type=str, help='The canonical edge type for making '
                            + 'prediction. The format is \"scr_ntype,etype,dst_ntype\". '
                            + 'Currently only support one edge type.')
     argparser.add_argument('--etask_type', type=str, default='classification',nargs='?',
@@ -120,20 +120,20 @@ if __name__ == '__main__':
         "The sum of train and validation percentages should NOT larger than 1."
 
     # predict node types and edge types check. At least one argument should be given.
-    pred_ntypes = args.predict_ntype.split(',') if args.predict_ntype is not None else None
+    pred_ntypes = args.target_ntype.split(',') if args.target_ntype is not None else None
     if pred_ntypes is None:
         try:
             pred_ntypes = [dataset.predict_category]
         except:
             pass
-    pred_etypes = [tuple(args.predict_etype.split(','))] if args.predict_etype is not None else None
+    pred_etypes = [tuple(args.target_etype.split(','))] if args.target_etype is not None else None
     if pred_etypes is None:
         try:
             pred_etypes = [dataset.target_etype]
         except:
             pass
     assert pred_ntypes is not None or pred_etypes is not None, \
-        "For partition graph datasets, you must provide predict_ntype or predict_etype, or both"
+        "For partition graph datasets, you must provide target_ntype or target_etype, or both"
     if pred_ntypes is not None:
         assert len(pred_ntypes) == 1, "We currently only support one node type prediction."
     if pred_etypes is not None:
@@ -233,7 +233,7 @@ if __name__ == '__main__':
                 g.nodes[ntype].data['test_mask'] = test_mask
         else:
             raise Exception('There is no predicted node type to split. Please set the '
-                            +'predict_ntype argument ......')
+                            +'target_ntype argument ......')
 
     # Split train/val/test sets for each predicted node type
     if args.generate_new_edge_split:
@@ -260,7 +260,7 @@ if __name__ == '__main__':
                 g.edges[etype].data['test_mask'] = test_mask
         else:
             raise Exception('There is no predicted edge type to split. Please set the '
-                            +'predict_etype argument ......')
+                            +'target_etype argument ......')
 
     # Output general graph information
     print(f'load {args.dataset} takes {time.time() - start:.3f} seconds')

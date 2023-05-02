@@ -436,7 +436,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # before all processes use the model.
         th.distributed.barrier()
 
-    def init_optimizer(self, lr, sparse_lr, weight_decay, lm_lr=None):
+    def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
 
         Parameters
@@ -444,7 +444,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         lr : float
             The learning rate for dense parameters
             The learning rate for general dense parameters
-        sparse_lr : float
+        sparse_optimizer_lr : float
             The learning rate for sparse parameters
         weight_decay : float
             The weight decay for the optimizer.
@@ -454,7 +454,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         sparse_params = self.get_sparse_params()
         if len(sparse_params) > 0:
-            emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_lr)
+            emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_optimizer_lr)
             sparse_opts = [emb_optimizer]
         else:
             sparse_opts = []
@@ -587,7 +587,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
     def num_gnn_layers(self):
         """the number of GNN layers.
         """
-        return self.gnn_encoder.n_layers if self.gnn_encoder is not None else 0
+        return self.gnn_encoder.num_layers if self.gnn_encoder is not None else 0
 
     @property
     def decoder(self):

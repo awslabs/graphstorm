@@ -78,7 +78,7 @@ def main(args):
     gs.initialize(ip_config=args.ip_config, backend="gloo")
     train_data = GSgnnNodeTrainData(args.graph_name,
                                     args.part_config,
-                                    train_ntypes=args.predict_ntype,
+                                    train_ntypes=args.target_ntype,
                                     node_feat_field=args.node_feat,
                                     label_field=args.label)
     for ntype in train_data.g.ntypes:
@@ -90,7 +90,7 @@ def main(args):
     device = 'cuda:%d' % trainer.dev_id
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=[10, 10],
                                      batch_size=1000, device=device, train_task=True)
-    trainer.fit(train_loader=dataloader, n_epochs=2)
+    trainer.fit(train_loader=dataloader, num_epochs=2)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Training GNN model")
@@ -100,7 +100,7 @@ if __name__ == '__main__':
                            help="The graph name.")
     argparser.add_argument("--part-config", type=str, required=True,
                            help="The partition config file.")
-    argparser.add_argument("--predict-ntype", type=str, required=True,
+    argparser.add_argument("--target-ntype", type=str, required=True,
                            help="The node type for prediction.")
     argparser.add_argument("--node-feat", type=str, required=True,
                            help="The name of the node feature.")

@@ -76,7 +76,7 @@ def create_rgat_node_model(g):
     model.set_node_input_encoder(encoder)
 
     gnn_encoder = RelationalGATEncoder(g, 4, 4,
-                                       n_heads=2,
+                                       num_heads=2,
                                        num_hidden_layers=1,
                                        dropout=0,
                                        use_self_loop=True)
@@ -422,7 +422,7 @@ def create_ec_config(tmp_path, file_name):
                 "node_feat_name": ["feat"],
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "model_encoder_type": "rgcn",
                 "lr": 0.001,
@@ -430,7 +430,7 @@ def create_ec_config(tmp_path, file_name):
             "input": {},
             "output": {},
             "rgcn": {
-                "n_bases": 2,
+                "num_bases": 2,
             },
             "edge_classification": {
                 "target_etype": ["n0,r0,n1"],
@@ -459,7 +459,7 @@ def test_edge_classification():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
     assert isinstance(model.decoder, DenseBiDecoder)
@@ -475,7 +475,7 @@ def create_er_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
             },
@@ -508,7 +508,7 @@ def test_edge_regression():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, DenseBiDecoder)
@@ -524,7 +524,7 @@ def create_nr_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
             },
@@ -533,7 +533,7 @@ def create_nr_config(tmp_path, file_name):
             "rgat": {
             },
             "node_regression": {
-                "predict_ntype": "n0",
+                "target_ntype": "n0",
             },
         }
     }
@@ -556,7 +556,7 @@ def test_node_regression():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_node_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, EntityRegression)
@@ -572,7 +572,7 @@ def create_nc_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
             },
@@ -582,7 +582,7 @@ def create_nc_config(tmp_path, file_name):
             },
             "node_classification": {
                 "num_classes": 2,
-                "predict_ntype": "n0",
+                "target_ntype": "n0",
             },
         }
     }
@@ -605,7 +605,7 @@ def test_node_classification():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_node_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, EntityClassifier)
@@ -621,7 +621,7 @@ def create_lp_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
             },
@@ -654,7 +654,7 @@ def test_link_prediction():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_lp_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, LinkPredictDotDecoder)

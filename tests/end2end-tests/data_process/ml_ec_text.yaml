@@ -8,7 +8,6 @@ lm_model:
       gradient_checkpoint: true
       node_types:
         - movie
-        - user
 gsf:
   basic:
     backend: gloo
@@ -25,7 +24,7 @@ gsf:
     fanout: "4"
     num_layers: 1
     hidden_size: 128
-    use_mini_batch_infer: true
+    mini_batch_infer: true
   input:
     restore_model_path: null
   output:
@@ -37,6 +36,7 @@ gsf:
     lm_tune_lr: 0.0001
     num_epochs: 3
     batch_size: 64
+    eval_batch_size: 1024
     bert_infer_bs: 128
     wd_l2norm: 0
     no_validation: false

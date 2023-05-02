@@ -48,7 +48,7 @@ class ClassifyLossFunc(GSLayer):
             # BCEWithLogitsLoss wants labels be th.Float
             return self.loss_fn(logits, labels.type(th.float32))
         else:
-            return self.loss_fn(logits, labels)
+            return self.loss_fn(logits, labels.long())
 
     @property
     def in_dims(self):
