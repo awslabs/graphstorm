@@ -130,7 +130,13 @@ class DenseBiDecoder(GSLayer):
             ifeat = h[dest_type][v]
             out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
             out = self.combine_basis(out)
-        return out.argmax(dim=1)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self._multilabel:
+                out = (th.sigmoid(logits) > .5).long()
+            else:  # not multilabel
+                out = out.argmax(dim=1)
+        return out
 
     def predict_proba(self, g, h):
         """predict function for this decoder
@@ -154,7 +160,7 @@ class DenseBiDecoder(GSLayer):
             out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
             out = self.combine_basis(out)
             out = self.regression_head(out)
-        return out
+        return th.sigmoid(out) if self._multilabel else th.softmax(out, 0)
 
     @property
     def in_dims(self):

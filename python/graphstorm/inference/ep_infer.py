@@ -66,7 +66,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                                        task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         res = edge_mini_batch_predict(self._model, embs, loader, return_label=do_eval,
-                                      predict_proba=False)
+                                      return_proba=False)
         pred = res[0]
         label = res[1] if do_eval else None
         sys_tracker.check('compute prediction')
