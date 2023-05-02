@@ -209,9 +209,11 @@ def check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_n
     with th.no_grad():
         pos_src, _, pos_dst, neg_dst = gen_edge_pairs()
         pos_neg_tuple = {etype: (pos_src, None, pos_dst, neg_dst)}
-        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
         pos_src_emb = emb[etype[0]][pos_src]
         pos_dst_emb = emb[etype[2]][pos_dst]
+        neg_dst_emb = emb[etype[2]][neg_dst]
+        batch_embs = (pos_src_emb, None, pos_dst_emb, neg_dst_emb)
+        score = decoder.calc_test_scores(batch_embs, pos_neg_tuple, neg_sample_type, device)
         pos_score = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
@@ -225,9 +227,11 @@ def check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_n
 
         pos_src, neg_src, pos_dst, _ = gen_edge_pairs()
         pos_neg_tuple = {etype: (pos_src, neg_src, pos_dst, None)}
-        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
         pos_src_emb = emb[etype[0]][pos_src]
         pos_dst_emb = emb[etype[2]][pos_dst]
+        neg_src_emb = emb[etype[0]][neg_src]
+        batch_embs = (pos_src_emb, neg_src_emb, pos_dst_emb, None)
+        score = decoder.calc_test_scores(batch_embs, pos_neg_tuple, neg_sample_type, device)
         pos_score = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
         neg_scores = []
         for i in range(pos_dst.shape[0]):
@@ -241,9 +245,12 @@ def check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_n
 
         pos_src, neg_src, pos_dst, neg_dst = gen_edge_pairs()
         pos_neg_tuple = {etype: (pos_src, neg_src, pos_dst, neg_dst)}
-        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
         pos_src_emb = emb[etype[0]][pos_src]
         pos_dst_emb = emb[etype[2]][pos_dst]
+        neg_src_emb = emb[etype[0]][neg_src]
+        neg_dst_emb = emb[etype[2]][neg_dst]
+        batch_embs = (pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb)
+        score = decoder.calc_test_scores(batch_embs, pos_neg_tuple, neg_sample_type, device)
         pos_score = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
@@ -355,7 +362,7 @@ def test_LinkPredictDotDecoder(h_dim, num_pos, num_neg, device):
     etype = ('a', 'r1', 'b')
     decoder = LinkPredictDotDecoder(h_dim)
 
-    # check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_neg, device)
+    check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_neg, device)
     check_calc_test_scores_dot_joint_neg(decoder, etype, h_dim, num_pos, num_neg, device)
 
 if __name__ == '__main__':
