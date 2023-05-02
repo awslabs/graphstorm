@@ -207,7 +207,7 @@ def eval_roc_auc(logits,labels):
 def eval_acc(pred, labels):
     """compute evaluation accuracy.
     """
-    return th.sum(pred.argmax(dim=1).cpu() == labels.cpu()).item() / len(labels)
+    return th.sum(pred.cpu() == labels.cpu()).item() / len(labels)
 
 
 def compute_f1_score(y_preds, y_targets):
