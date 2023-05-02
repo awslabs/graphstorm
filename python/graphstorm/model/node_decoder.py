@@ -76,7 +76,7 @@ class EntityClassifier(GSLayer):
         Tensor : maximum of the predicted results
         """
         logits = th.matmul(inputs, self.decoder)
-        return logits.argmax(dim=1)
+        return th.sigmoid(logits) > .5 if self._multilabel else logits.argmax(dim=1)
 
     def predict_proba(self, inputs):
         """ Make prediction on input data.
@@ -91,7 +91,7 @@ class EntityClassifier(GSLayer):
         Tensor : all the predicted results
         """
         logits = th.matmul(inputs, self.decoder)
-        return logits
+        return th.sigmoid(logits) if self._multilabel else th.softmax(logits, 0)
 
     @property
     def in_dims(self):

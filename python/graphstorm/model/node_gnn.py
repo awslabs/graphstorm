@@ -53,7 +53,7 @@ class GSgnnNodeModelInterface:
         """
 
     @abc.abstractmethod
-    def predict(self, blocks, node_feats, edge_feats, input_nodes):
+    def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
         """ Make prediction on the nodes with GNN.
 
         Parameters
@@ -66,10 +66,13 @@ class GSgnnNodeModelInterface:
             The edge features of the message passing graphs.
         input_nodes: dict of Tensors
             The input nodes of a mini-batch.
+        return_proba : bool
+            Whether or not to return all the predicted results or only the maximum one
 
         Returns
         -------
-        Tensor : the prediction results.
+        Tensor : GNN prediction results. Return all the results when return_proba is true
+            otherwise return the maximum result.
         Tensor : the GNN embeddings.
         """
 
@@ -138,8 +141,8 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             f'There are {len(encode_embs)} node types: {list(encode_embs.keys())}'
         target_ntype = list(encode_embs.keys())[0]
         if return_proba:
-            return self.decoder.predict_proba(encode_embs[target_ntype]),
-            encode_embs[target_ntype]
+            return self.decoder.predict_proba(encode_embs[target_ntype]), \
+                encode_embs[target_ntype]
         return self.decoder.predict(encode_embs[target_ntype]), encode_embs[target_ntype]
 
 def node_mini_batch_gnn_predict(model, loader, return_label=False, return_proba=False):
@@ -154,11 +157,12 @@ def node_mini_batch_gnn_predict(model, loader, return_label=False, return_proba=
     return_label : bool
         Whether or not to return labels
     return_proba : bool
-        Return all the predicted results when true otherwise only the maximum value
+        Whether or not to return all the predicted results or only the maximum one
 
     Returns
     -------
-    Tensor : GNN prediction results.
+    Tensor : GNN prediction results. Return all the results when return_proba is true
+        otherwise return the maximum result.
     Tensor : GNN embeddings.
     Tensor : labels if return_labels is True
     """
