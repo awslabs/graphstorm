@@ -103,7 +103,7 @@ class Tokenizer(FeatTransform):
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
 
-class ComputeBERT(FeatTransform):
+class Text2BERT(FeatTransform):
     """ Compute BERT embeddings.
 
     It computes BERT embeddings.
@@ -123,7 +123,7 @@ class ComputeBERT(FeatTransform):
     """
     def __init__(self, col_name, feat_name, tokenizer, model_name,
                  infer_batch_size=None):
-        super(ComputeBERT, self).__init__(col_name, feat_name)
+        super(Text2BERT, self).__init__(col_name, feat_name)
         config = BertConfig.from_pretrained(model_name)
         self.tokenizer = tokenizer
         self.lm_model = BertModel.from_pretrained(model_name, config=config)
@@ -249,12 +249,12 @@ def parse_feat_ops(confs):
                         "'bert_hf' needs to have the 'max_seq_length' field."
                 infer_batch_size = int(conf['infer_batch_size']) \
                         if 'infer_batch_size' in conf else 1024
-                transform = ComputeBERT(feat['feature_col'], feat_name,
-                                        Tokenizer(feat['feature_col'], feat_name,
-                                                  conf['bert_model'],
-                                                  int(conf['max_seq_length'])),
-                                        conf['bert_model'],
-                                        infer_batch_size=infer_batch_size)
+                transform = Text2BERT(feat['feature_col'], feat_name,
+                                      Tokenizer(feat['feature_col'], feat_name,
+                                                conf['bert_model'],
+                                                int(conf['max_seq_length'])),
+                                      conf['bert_model'],
+                                      infer_batch_size=infer_batch_size)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
