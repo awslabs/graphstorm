@@ -25,8 +25,8 @@ fi
 
 # Copy scripts and tools codes to the docker folder
 # TODO: use pip install later
-mkdir -p code
-cp -r $GSF_HOME"python" code/python
+mkdir -p code/graphstorm
+cp -r $GSF_HOME"python" code/graphstorm/
 cp -r $GSF_HOME"docker/sagemaker/build_artifacts" build_artifacts
 
 # Build OSS docker for EC2 instances that an pull ECR docker images

@@ -90,6 +90,9 @@ def run_job(input_args, image, unknowargs):
     print(f"Parameters {params}")
     print(f"GraphStorm Parameters {unknowargs}")
 
+    print(os.path.basename(entry_point))
+    print(os.path.dirname(entry_point))
+
     est = PyTorch(
         entry_point=os.path.basename(entry_point),
         source_dir=os.path.dirname(entry_point),

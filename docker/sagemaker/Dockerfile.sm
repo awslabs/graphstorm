@@ -21,8 +21,12 @@ COPY build_artifacts/start_with_right_hostname.sh /usr/local/bin/start_with_righ
 
 # /opt/ml and all subdirectories are utilized by SageMaker, we use the /code subdirectory to store our user code.
 # TODO(xiangsx): change to pip install when PIP package is avaliable
-COPY code/python/graphstorm /opt/ml/code/graphstorm/
+COPY code/graphstorm/ /opt/ml/code/graphstorm/
 ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
+
+RUN ls /opt/ml/code/graphstorm/
+
+RUN cp /opt/ml/code/graphstorm/python/graphstorm/sagemaker/run/sagemaker_train.py /opt/ml/code/
 
 WORKDIR /opt/ml/code
 
