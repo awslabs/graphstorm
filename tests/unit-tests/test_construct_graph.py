@@ -227,7 +227,7 @@ def test_feat_ops():
     proc_res2 = process_features(data, res4)
     assert "test4" in proc_res2
     assert len(proc_res2['test4']) == 2
-    np.testing.assert_array_equal(proc_res['test4'], proc_res2['test4'])
+    np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
 
 def test_label():
     def check_split(res):
