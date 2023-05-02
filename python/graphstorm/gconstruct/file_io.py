@@ -132,6 +132,8 @@ def write_data_parquet(data, data_file):
     arr_dict = {}
     for key in data:
         arr = data[key]
+        assert np.prod(arr.shape) < 2 * 1024 * 1024 * 1024, \
+                "Some PyArrow versions do not support a column with over 2 billion elements."
         assert len(arr.shape) == 1 or len(arr.shape) == 2, \
                 "We can only write a vector or a matrix to a parquet file."
         if len(arr.shape) == 1:
