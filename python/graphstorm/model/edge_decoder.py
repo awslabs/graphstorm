@@ -133,7 +133,7 @@ class DenseBiDecoder(GSLayer):
             if self.regression:
                 out = self.regression_head(out)
             elif self._multilabel:
-                out = (th.sigmoid(logits) > .5).long()
+                out = (th.sigmoid(out) > .5).long()
             else:  # not multilabel
                 out = out.argmax(dim=1)
         return out
