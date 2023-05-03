@@ -137,6 +137,13 @@ class Text2BERT(FeatTransform):
         initialize the BERT model in the worker process instead of creating it
         in the master process and passing it to the worker process.
         """
+        if th.cuda.is_available():
+            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
+                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
+            self.device = f"cuda:{gpu}"
+        else:
+            self.device = None
+
         if self.lm_model is None:
             config = BertConfig.from_pretrained(self.model_name)
             lm_model = BertModel.from_pretrained(self.model_name,
@@ -144,12 +151,9 @@ class Text2BERT(FeatTransform):
             lm_model.eval()
 
             # We use the local GPU to compute BERT embeddings.
-            if th.cuda.is_available():
-                gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
-                        if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
-                lm_model = lm_model.to(f"cuda:{gpu}")
+            if self.device is not None:
+                lm_model = lm_model.to(self.device)
             self.lm_model = lm_model
-        return th.cuda.is_available()
 
     def __call__(self, strs):
         """ Compute BERT embeddings of the strings..
@@ -163,7 +167,7 @@ class Text2BERT(FeatTransform):
         -------
         dict: BERT embeddings.
         """
-        use_gpu = self._init()
+        self._init()
         outputs = self.tokenizer(strs)
         if self.infer_batch_size is not None:
             tokens_list = th.split(th.tensor(outputs['input_ids']), self.infer_batch_size)
@@ -179,10 +183,10 @@ class Text2BERT(FeatTransform):
             out_embs = []
             for tokens, att_masks, token_types in zip(tokens_list, att_masks_list,
                                                       token_types_list):
-                if use_gpu:
-                    outputs = self.lm_model(tokens.to(device),
-                                            attention_mask=att_masks.to(device).long(),
-                                            token_type_ids=token_types.to(device).long())
+                if self.device is not None:
+                    outputs = self.lm_model(tokens.to(self.device),
+                                            attention_mask=att_masks.to(self.device).long(),
+                                            token_type_ids=token_types.to(self.device).long())
                 else:
                     outputs = self.lm_model(tokens,
                                             attention_mask=att_masks.long(),
