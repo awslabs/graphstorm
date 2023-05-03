@@ -22,6 +22,8 @@ import numpy as np
 import torch as th
 import argparse
 
+from transformers import BertModel, BertConfig
+
 def read_data_parquet(data_file):
     table = pq.read_table(data_file)
     pd = table.to_pandas()
@@ -63,6 +65,18 @@ reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['
 # Test the first node data
 data = g.nodes['node1'].data['feat'].numpy()
 data1 = g.nodes['node1'].data['feat1'].numpy()
+assert 'input_ids' in g.nodes['node1'].data
+assert 'attention_mask' in g.nodes['node1'].data
+assert 'token_type_ids' in g.nodes['node1'].data
+# Test BERT embeddings.
+model_name = "bert-base-uncased"
+config = BertConfig.from_pretrained(model_name)
+lm_model = BertModel.from_pretrained(model_name, config=config)
+bert_emb = lm_model(g.nodes['node1'].data['input_ids'],
+                    g.nodes['node1'].data['attention_mask'].long(),
+                    g.nodes['node1'].data['token_type_ids'].long())
+assert 'bert' in g.nodes['node1'].data
+np.testing.assert_allclose(bert_emb, g.nodes['node1'].data['bert'], rtol=1e-3)
 label = g.nodes['node1'].data['label'].numpy()
 assert label.dtype == np.int32
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
