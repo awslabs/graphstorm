@@ -206,6 +206,8 @@ def test_feat_ops():
     proc_res = process_features(data, res3)
     assert "test4" in proc_res
     assert len(proc_res['test4']) == 2
+    # There are two text strings and both of them are "hello world".
+    # The BERT embeddings should be the same.
     np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
 
     # Compute BERT embeddings with multiple mini-batches.
