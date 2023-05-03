@@ -26,7 +26,7 @@ from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
 from ..utils import get_rank
 
-def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batchszie):
+def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batch_size):
     """ Update the lm_emb_cache using lanaguage models.
 
     Parameters
@@ -37,7 +37,7 @@ def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batch
         Language models
     lm_emb_cache: dict
         Language model embedding cache
-    lm_infer_batchszie: int
+    lm_infer_batch_size: int
         Language model inference batch size
     """
     for (lm_ntypes, lm_node_feats), lm_model \
@@ -61,7 +61,7 @@ def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batch
                 partition_book=g.get_partition_book(),
                 ntype=ntype, force_even=False)
 
-            node_list = th.split(infer_nodes, lm_infer_batchszie)
+            node_list = th.split(infer_nodes, lm_infer_batch_size)
             input_ntypes = [ntype]
             for _, input_nodes in enumerate(node_list):
                 input_lm_feats = {}
@@ -149,14 +149,14 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         A list of language model configurations.
     num_train: int
         Number of trainable texts
-    lm_infer_batchszie: int
+    lm_infer_batch_size: int
         Batch size used for computing text embeddings for static lm model
     """
     def __init__(self,
                  g,
                  node_lm_configs,
                  num_train=0,
-                 lm_infer_batchszie=16):
+                 lm_infer_batch_size=16):
         super(GSPureLMNodeInputLayer, self).__init__(g)
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
@@ -167,7 +167,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         for lm_config in node_lm_configs:
             lm_model = init_lm_model(lm_config,
                                      num_train=num_train,
-                                     lm_infer_batchszie=lm_infer_batchszie)
+                                     lm_infer_batch_size=lm_infer_batch_size)
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
             lm_node_feats = get_lm_node_feats(g, lm_model, lm_ntypes)
@@ -178,7 +178,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
             "Every node type in a graph should have text feature"
 
         self.num_train = num_train
-        self.lm_infer_batchszie = lm_infer_batchszie
+        self.lm_infer_batch_size = lm_infer_batch_size
         self.use_cache = False
         self.lm_emb_cache = {}
 
@@ -233,7 +233,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                           self.lm_models_info,
                           self.lm_models,
                           self.lm_emb_cache,
-                          self.lm_infer_batchszie)
+                          self.lm_infer_batch_size)
         self.use_cache = True
 
     #pylint: disable=keyword-arg-before-vararg
@@ -292,7 +292,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         The embedding size
     num_train: int
         Number of trainable texts
-    lm_infer_batchszie: int
+    lm_infer_batch_size: int
         Batch size used for computing text embeddings for static lm model
     activation : func
         The activation function
@@ -308,7 +308,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                  feat_size,
                  embed_size,
                  num_train=0,
-                 lm_infer_batchszie=16,
+                 lm_infer_batch_size=16,
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False):
@@ -321,7 +321,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         for lm_config in node_lm_configs:
             lm_model = init_lm_model(lm_config,
                                      num_train=num_train,
-                                     lm_infer_batchszie=lm_infer_batchszie)
+                                     lm_infer_batch_size=lm_infer_batch_size)
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
             lm_node_feats = get_lm_node_feats(g, lm_model, lm_ntypes)
@@ -336,7 +336,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                           f'features {feat_size[ntype]}->{adjust_feat_size[ntype]}')
 
         self.num_train = num_train
-        self.lm_infer_batchszie = lm_infer_batchszie
+        self.lm_infer_batch_size = lm_infer_batch_size
         self.use_cache = False
         self.lm_emb_cache = {}
 
@@ -390,7 +390,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                           self.lm_models_info,
                           self.lm_models,
                           self.lm_emb_cache,
-                          self.lm_infer_batchszie)
+                          self.lm_infer_batch_size)
         self.use_cache = True
 
     def unfreeze(self):
