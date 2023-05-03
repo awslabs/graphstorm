@@ -226,8 +226,8 @@ def _save_maps(output_dir, fname, map_data):
         The directory where we will save the partitioned results.
     fname: str
         Mapping file name
-    map_data:
-        id mapping
+    map_data: dict of tensors
+        ID mapping
     """
     map_file = f"{fname}.pt"
     map_file = os.path.join(output_dir, map_file)

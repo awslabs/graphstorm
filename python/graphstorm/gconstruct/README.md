@@ -164,3 +164,7 @@ It contains the partitioned graph, a JSON config
 describing the meta-information of the partitioned graph, and the mappings for the
 edges and nodes after partition which maps each node and edge in the partitoined
 graph into the original node and edge id space.
+The node ID mapping is stored as a dictionary of 1D tensors whose key is
+the node type and value is a 1D tensor mapping between shuffled node IDs and the original node IDs.
+The edge ID mapping is stored as a dictionary of 1D tensors whose key is
+the edge type and value is a 1D tensor mapping between shuffled edge IDs and the original edge IDs.
