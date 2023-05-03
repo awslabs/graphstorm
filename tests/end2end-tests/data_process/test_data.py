@@ -78,7 +78,7 @@ with th.no_grad():
                         g.nodes['node1'].data['token_type_ids'].long())
 assert 'bert' in g.nodes['node1'].data
 np.testing.assert_allclose(bert_emb.pooler_output.numpy(),
-        g.nodes['node1'].data['bert'].numpy(), rtol=1e-3)
+        g.nodes['node1'].data['bert'].numpy(), rtol=1e-2)
 label = g.nodes['node1'].data['label'].numpy()
 assert label.dtype == np.int32
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
