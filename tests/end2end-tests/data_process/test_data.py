@@ -72,11 +72,13 @@ assert 'token_type_ids' in g.nodes['node1'].data
 model_name = "bert-base-uncased"
 config = BertConfig.from_pretrained(model_name)
 lm_model = BertModel.from_pretrained(model_name, config=config)
-bert_emb = lm_model(g.nodes['node1'].data['input_ids'],
-                    g.nodes['node1'].data['attention_mask'].long(),
-                    g.nodes['node1'].data['token_type_ids'].long())
+with th.no_grad():
+    bert_emb = lm_model(g.nodes['node1'].data['input_ids'],
+                        g.nodes['node1'].data['attention_mask'].long(),
+                        g.nodes['node1'].data['token_type_ids'].long())
 assert 'bert' in g.nodes['node1'].data
-np.testing.assert_allclose(bert_emb, g.nodes['node1'].data['bert'], rtol=1e-3)
+np.testing.assert_allclose(bert_emb.pooler_output.numpy(),
+        g.nodes['node1'].data['bert'].numpy(), rtol=1e-3)
 label = g.nodes['node1'].data['label'].numpy()
 assert label.dtype == np.int32
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
