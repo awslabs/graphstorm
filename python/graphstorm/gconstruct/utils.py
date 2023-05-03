@@ -217,8 +217,25 @@ class ExtMemArrayMerger:
             em_arr[:] = arr[:]
             return em_arr
 
+def _save_maps(output_dir, fname, map_data):
+    """ Save node id mapping or edge id mapping
+
+    Parameters
+    ----------
+    output_dir : str
+        The directory where we will save the partitioned results.
+    fname: str
+        Mapping file name
+    map_data: dict of tensors
+        ID mapping
+    """
+    map_file = f"{fname}.pt"
+    map_file = os.path.join(output_dir, map_file)
+    # Use torch save as tensors are torch tensors
+    th.save(map_data, map_file)
+
 def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_dir,
-                    part_method=None):
+                    part_method=None, save_mapping=True):
     """ Partition a graph
 
     This takes advantage of the graph partition function in DGL.
@@ -244,6 +261,9 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         The directory where we will save the partitioned results.
     part_method : str (optional)
         The partition algorithm used to partition the graph.
+    save_mapping: bool
+        Whether to store the mappings for the edges and nodes after partition.
+        Default: True
     """
     from dgl.distributed.graph_partition_book import _etype_tuple_to_str
     orig_id_name = "__gs_orig_id"
@@ -254,11 +274,14 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     sys_tracker.check('Before partitioning starts')
     if part_method is None:
         part_method = "None" if num_partitions == 1 else "metis"
-    dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
-                                    part_method=part_method,
-                                    # TODO(zhengda) we need to enable balancing node types.
-                                    balance_ntypes=None,
-                                    balance_edges=True)
+
+    mapping = \
+        dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
+                                        part_method=part_method,
+                                        # TODO(zhengda) we need to enable balancing node types.
+                                        balance_ntypes=None,
+                                        balance_edges=True,
+                                        return_mapping=save_mapping)
     sys_tracker.check('Graph partitioning')
     for i in range(num_partitions):
         part_dir = os.path.join(output_dir, "part" + str(i))
@@ -290,3 +313,13 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         for etype in g.canonical_etypes:
             del data[_etype_tuple_to_str(etype) + '/' + orig_id_name]
         dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), data)
+
+    if save_mapping:
+        new_node_mapping, new_edge_mapping = mapping
+
+        # the new_node_mapping contains per entity type on the ith row
+        # the original node id for the ith node.
+        _save_maps(output_dir, "node_mapping", new_node_mapping)
+        # the new_edge_mapping contains per edge type on the ith row
+        # the original edge id for the ith edge.
+        _save_maps(output_dir, "edge_mapping", new_edge_mapping)

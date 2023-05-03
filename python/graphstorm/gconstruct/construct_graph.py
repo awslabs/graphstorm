@@ -433,7 +433,8 @@ def process_graph(args):
 
     if args.output_format == "DistDGL":
         partition_graph(g, node_data, edge_data, args.graph_name,
-                        args.num_partitions, args.output_dir)
+                        args.num_partitions, args.output_dir,
+                        save_mapping=True) # always save mapping
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
