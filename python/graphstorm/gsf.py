@@ -163,7 +163,7 @@ def create_builtin_node_model(g, config, train_task):
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -265,7 +265,7 @@ def create_builtin_edge_model(g, config, train_task):
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -335,7 +335,7 @@ def create_builtin_lp_model(g, config, train_task):
     model.set_decoder(decoder)
     model.set_loss_func(LinkPredictLossFunc())
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -360,12 +360,12 @@ def set_encoder(model, g, config, train_task):
             # only use language model(s) as input layer encoder(s)
             encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
                                              num_train=config.lm_train_nodes,
-                                             lm_infer_batchszie=config.lm_infer_batchszie)
+                                             lm_infer_batch_size=config.lm_infer_batch_size)
         else:
             encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
                                                 feat_size, config.hidden_size,
                                                 num_train=config.lm_train_nodes,
-                                                lm_infer_batchszie=config.lm_infer_batchszie,
+                                                lm_infer_batch_size=config.lm_infer_batch_size,
                                                 dropout=config.dropout,
                                                 use_node_embeddings=config.use_node_embeddings)
     else:

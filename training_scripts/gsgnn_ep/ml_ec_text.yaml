@@ -18,7 +18,7 @@ gsf:
     save_perf_results_path: null
   lm:
     lm_train_nodes: 10
-    lm_infer_batchszie: 32
+    lm_infer_batch_size: 32
     freeze_lm_encoder_epochs: 0
   gnn:
     model_encoder_type: rgcn
@@ -44,7 +44,7 @@ gsf:
   rgcn:
     num_bases: -1
     use_self_loop: true
-    sparse_lr: 1e-2
+    sparse_optimizer_lr: 1e-2
     use_node_embeddings: false
   edge_classification:
     target_etype:
