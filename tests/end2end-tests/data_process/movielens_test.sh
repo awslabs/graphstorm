@@ -50,3 +50,4 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 rm -R /tmp/movielens
+rm -R /tmp/movielens_bert
