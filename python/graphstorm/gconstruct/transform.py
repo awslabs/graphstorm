@@ -121,7 +121,8 @@ class Noop(FeatTransform):
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
-                f"The feature {self.feat_name} has to be integers or floats."
+                f"The feature {self.feat_name} has to be integers or floats. " + \
+                f"But its dtype is {feats.dtype}"
         return {self.feat_name: feats}
 
 def parse_feat_ops(confs):
