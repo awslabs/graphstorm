@@ -124,12 +124,32 @@ class Text2BERT(FeatTransform):
     def __init__(self, col_name, feat_name, tokenizer, model_name,
                  infer_batch_size=None):
         super(Text2BERT, self).__init__(col_name, feat_name)
-        config = BertConfig.from_pretrained(model_name)
+        self.model_name = model_name
+        self.lm_model = None
         self.tokenizer = tokenizer
-        self.lm_model = BertModel.from_pretrained(model_name, config=config)
         self.device = None
         self.infer_batch_size = infer_batch_size
-        self.lm_model.eval()
+
+    def _init(self):
+        """ Initialize the BERT model.
+
+        We should delay the BERT model initialization because we need to
+        initialize the BERT model in the worker process instead of creating it
+        in the master process and passing it to the worker process.
+        """
+        if self.lm_model is None:
+            config = BertConfig.from_pretrained(self.model_name)
+            lm_model = BertModel.from_pretrained(self.model_name,
+                                                 config=config)
+            lm_model.eval()
+
+            # We use the local GPU to compute BERT embeddings.
+            if th.cuda.is_available():
+                gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
+                        if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
+                lm_model = lm_model.to(f"cuda:{gpu}")
+            self.lm_model = lm_model
+        return th.cuda.is_available()
 
     def __call__(self, strs):
         """ Compute BERT embeddings of the strings..
@@ -143,15 +163,7 @@ class Text2BERT(FeatTransform):
         -------
         dict: BERT embeddings.
         """
-        # We use the local GPU to compute BERT embeddings.
-        if th.cuda.is_available():
-            use_gpu = True
-            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
-                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
-            device = f"cuda:{gpu}"
-            self.lm_model = self.lm_model.to(device)
-        else:
-            use_gpu = False
+        use_gpu = self._init()
         outputs = self.tokenizer(strs)
         if self.infer_batch_size is not None:
             tokens_list = th.split(th.tensor(outputs['input_ids']), self.infer_batch_size)
