@@ -839,14 +839,13 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             return_metrics[metric] = return_metric.item()
         return return_metrics
 
-    def evaluate(self, val_scores, test_ranking, total_iters):
+    def evaluate(self, val_ranking, test_ranking, total_iters):
         """ GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
         Parameters
         ----------
-        val_scores: dict of (list, list)
-            The positive and negative scores of validation edges
-            for each edge type
+        val_ranking: Tensor
+            Ranking of validation edges for each edge type
         test_ranking: Tensor
             Ranking of positive scores
         total_iters: int
@@ -862,8 +861,8 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         with th.no_grad():
             test_score = self.compute_score(test_ranking)
 
-            if val_scores is not None:
-                val_score = self.compute_score(val_scores)
+            if val_ranking is not None:
+                val_score = self.compute_score(val_ranking)
 
                 if get_rank() == 0:
                     for metric in self.metric:
