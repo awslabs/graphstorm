@@ -48,6 +48,8 @@ def create_acm_raw_data(graph,
     ----------
     graph : DGL heterogeneous graph
         The generated dgl.heterograph object.
+    output_path: str
+        The folder path to save output files
 
     Returns
     -------
@@ -220,6 +222,22 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
     """Create ACM graph data from URL downloading.
     1. Assign paper nodes with a random 256D feature;
     2. No edge features
+    
+    Parameters
+    ----------
+    download_path: str
+        The file path to save download ACM data
+    dataset_name: str
+        The graph name.
+    is_split: boolean
+        Decide if split the label and generate train/val/test mask feature on paper nodes.
+    output_path: str
+        The folder path to save output DGL graph
+
+    Returns
+    -------
+    graph_acm: DGL graph
+        Return the generated DGL graph, and save it to the given output_path
     """
     if not os.path.exists(dowload_path):
         data_url = 'https://data.dgl.ai/dataset/ACM.mat'
