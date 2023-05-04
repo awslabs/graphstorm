@@ -35,9 +35,5 @@ gsf:
   node_classification:
     target_ntype: "paper"
     label_field: "label"
-    node_feat_name:
-      - "paper:feat"
-      - "author:feat"
-      - "subject:feat"
     multilabel: false
     num_classes: 14
