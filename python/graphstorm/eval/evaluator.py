@@ -24,7 +24,7 @@ from .utils import broadcast_data
 from ..config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from ..config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from ..utils import get_rank
-from .utils import calc_ranking, gen_mrr_score
+from .utils import gen_mrr_score
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
     """
@@ -604,7 +604,7 @@ class GSgnnLPEvaluator():
         self.tracker = client
 
     @abc.abstractmethod
-    def evaluate(self, val_scores, test_scores, total_iters):
+    def evaluate(self, val_ranking, test_ranking, total_iters):
         """
         GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
@@ -613,12 +613,10 @@ class GSgnnLPEvaluator():
 
         Parameters
         ----------
-        val_scores: dict of (list, list)
-            The positive and negative scores of validation edges
-            for each edge type
-        test_scores: dict of (list, list)
-            The positive and negative scores of testing edges
-            for each edge type
+        val_ranking: Tensor
+            Ranking of the validation edges
+        test_ranking: Tensor
+            Ranking of the testing edges
         total_iters: int
             The current interation number.
 
@@ -845,9 +843,9 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         Parameters
         ----------
         val_ranking: Tensor
-            Ranking of validation edges for each edge type
+            Ranking of validation edges.
         test_ranking: Tensor
-            Ranking of positive scores
+            Ranking of the test edges.
         total_iters: int
             The current interation number.
 

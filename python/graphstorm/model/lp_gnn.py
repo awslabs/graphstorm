@@ -145,12 +145,11 @@ def lp_mini_batch_predict(model, emb, loader, device):
                     scores[canonical_etype].append(s)
                 else:
                     scores[canonical_etype] = [s]
-        # calculate ranking
-        # TODO (Israt): remove the previous append step
+        # calculate ranking. etype is ignored in calculating ranking and
+        # global mrr. User can develop its own per etype MRR evaluator
         rankings = []
         for _, score_lists in scores.items():
             for (pos_score, neg_score) in score_lists:
                 rankings.append(calc_ranking(pos_score, neg_score))
         rankings = th.cat(rankings, dim=0)
-
     return rankings
