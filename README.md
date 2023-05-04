@@ -84,14 +84,14 @@ python3 /graphstorm/tools/partition_graph_lp.py --dataset ogbn-mag \
                                                 --filepath /tmp/ogbn-mag-lp/ \
                                                 --num_parts 1 \
                                                 --num_trainers_per_machine 4 \
-                                                --predict_etypes author,writes,paper \
+                                                --target_etypes author,writes,paper \
                                                 --output /tmp/ogbn_mag_lp_train_val_1p_4t
 ```
 
 Third, run the below command to train an RGCN model to perform link prediction on the partitioned MAG graph.
 
 ```
-python3 ~/dgl/tools/launch.py \
+python3 -m graphstorm.run.launch \
         --workspace /tmp/ogbn-mag-lp/ \
         --num_trainers 1 \
         --num_servers 1 \
@@ -99,12 +99,11 @@ python3 ~/dgl/tools/launch.py \
         --part_config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
         --ip_config /tmp/ogbn-mag-lp/ip_list.txt \
         --ssh_port 2222 \
-        "python3 /graphstorm/training_scripts/gsgnn_lp/gsgnn_lp.py \
+        /graphstorm/training_scripts/gsgnn_lp/gsgnn_lp.py \
         --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
-        --num-gpus 1 \
         --ip-config /tmp/ogbn-mag-lp/ip_list.txt \
         --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
-        --feat-name paper:feat \
+        --node-feat-name paper:feat \
         --save-model-path /tmp/ogbn-mag/ \
         --save-perf-results-path /tmp/ogbn-mag/"
 ```

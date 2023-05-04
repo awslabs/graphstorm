@@ -16,11 +16,11 @@
     Infer wrapper for edge classification and regression.
 """
 import time
-import os
 import torch as th
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
+from ..model.utils import save_prediction_results
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict
 
@@ -40,8 +40,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
         The rank.
     """
 
-    def infer(self, loader, save_embed_path, save_predict_path=None,
-            mini_batch_infer=False):  # pylint: disable=unused-argument
+    def infer(self, loader, save_embed_path, save_prediction_path=None,
+            use_mini_batch_infer=False):  # pylint: disable=unused-argument
         """ Do inference
 
         The infer can do three things:
@@ -54,9 +54,9 @@ class GSgnnEdgePredictionInfer(GSInfer):
             The mini-batch sampler for edge prediction task.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
-        save_predict_path : str
+        save_prediction_path : str
             The path where the prediction results will be saved.
-        mini_batch_infer : bool
+        use_mini_batch_infer : bool
             Whether or not to use mini-batch inference.
         """
         do_eval = self.evaluator is not None
@@ -83,9 +83,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
         th.distributed.barrier()
         sys_tracker.check('save embeddings')
 
-        if save_predict_path is not None:
-            os.makedirs(save_predict_path, exist_ok=True)
-            th.save(pred, os.path.join(save_predict_path, "predict-{}.pt".format(self.rank)))
+        if save_prediction_path is not None:
+            save_prediction_results(pred, save_prediction_path, self.rank)
         th.distributed.barrier()
         sys_tracker.check('save predictions')
 
