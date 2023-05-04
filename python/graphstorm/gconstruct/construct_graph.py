@@ -418,6 +418,7 @@ def process_graph(args):
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
+    sys_tracker.check('Process input data')
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
@@ -429,11 +430,13 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    print(g)
     sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
         partition_graph(g, node_data, edge_data, args.graph_name,
-                        args.num_partitions, args.output_dir)
+                        args.num_partitions, args.output_dir,
+                        part_method=args.part_method)
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
@@ -488,4 +491,5 @@ if __name__ == '__main__':
     argparser.add_argument("--ext_mem_feat_size", type=int, default=64,
                            help="The minimal number of feature dimensions that features " + \
                                    "can be stored in external memory.")
+    argparser.add_argument("--part_method", type=str, help="The partition method.")
     process_graph(argparser.parse_args())
