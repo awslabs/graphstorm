@@ -807,13 +807,13 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-    def compute_score(self, scores, train=False): # pylint:disable=unused-argument
+    def compute_score(self, rankings, train=False): # pylint:disable=unused-argument
         """ Compute evaluation score
 
             Parameters
             ----------
-            scores: dict of tuples
-                Pos and negative scores in format of etype:(pos_score, neg_score)
+            rankings: Tensor
+                Rankings of positive score
             train: bool
                 TODO: Reversed for future use cases when we want to use different
                 way to generate scores for train (more efficient but less accurate)
@@ -823,14 +823,8 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             -------
             Evaluation metric values: dict
         """
-        rankings = []
         # We calculate global mrr, etype is ignored.
         # User can develop its own per etype MRR evaluator
-        for _, score_lists in scores.items():
-            for (pos_score, neg_score) in score_lists:
-                rankings.append(calc_ranking(pos_score, neg_score))
-
-        rankings = th.cat(rankings, dim=0)
         metrics = gen_mrr_score(rankings)
 
         # When world size == 1, we do not need the barrier
@@ -845,7 +839,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             return_metrics[metric] = return_metric.item()
         return return_metrics
 
-    def evaluate(self, val_scores, test_scores, total_iters):
+    def evaluate(self, val_scores, test_ranking, total_iters):
         """ GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
         Parameters
@@ -853,9 +847,8 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         val_scores: dict of (list, list)
             The positive and negative scores of validation edges
             for each edge type
-        test_scores: dict of (list, list)
-            The positive and negative scores of testing edges
-            for each edge type
+        test_ranking: Tensor
+            Ranking of positive scores
         total_iters: int
             The current interation number.
 
@@ -867,7 +860,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             Test mrr
         """
         with th.no_grad():
-            test_score = self.compute_score(test_scores)
+            test_score = self.compute_score(test_ranking)
 
             if val_scores is not None:
                 val_score = self.compute_score(val_scores)

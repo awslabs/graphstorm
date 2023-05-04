@@ -19,6 +19,7 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from ..eval.utils import calc_ranking
 
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
@@ -126,9 +127,8 @@ def lp_mini_batch_predict(model, emb, loader, device):
 
         Returns
         -------
-        dict of (list, list):
-            Return a dictionary of edge type to
-            (positive scores, negative scores)
+        rankings: Tensor
+            Rankings of positive scores
     """
     decoder = model.decoder
     with th.no_grad():
@@ -145,4 +145,12 @@ def lp_mini_batch_predict(model, emb, loader, device):
                     scores[canonical_etype].append(s)
                 else:
                     scores[canonical_etype] = [s]
-    return scores
+        # calculate ranking
+        # TODO (Israt): remove the previous append step
+        rankings = []
+        for _, score_lists in scores.items():
+            for (pos_score, neg_score) in score_lists:
+                rankings.append(calc_ranking(pos_score, neg_score))
+        rankings = th.cat(rankings, dim=0)
+
+    return rankings
