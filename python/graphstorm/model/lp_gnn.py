@@ -127,29 +127,26 @@ def lp_mini_batch_predict(model, emb, loader, device):
 
         Returns
         -------
-        rankings: Tensor
-            Rankings of positive scores
+        rankings: dict of tensors
+            Rankings of positive scores in format of {etype: ranking}
     """
     decoder = model.decoder
     with th.no_grad():
-        scores = {}
+        ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
             score = \
                 decoder.calc_test_scores(
                     emb, pos_neg_tuple, neg_sample_type, device)
             for canonical_etype, s in score.items():
-                # We do not concatenate pos scores/neg scores
-                # into a single pos score tensor/neg score tensor
-                # to avoid unnecessary data copy.
-                if canonical_etype in scores:
-                    scores[canonical_etype].append(s)
+                # We do not concatenate rankings into a single
+                # ranking tensor to avoid unnecessary data copy.
+                pos_score, neg_score = s
+                if canonical_etype in ranking:
+                    ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
                 else:
-                    scores[canonical_etype] = [s]
-        # calculate ranking. etype is ignored in calculating ranking and
-        # global mrr. User can develop its own per etype MRR evaluator
-        rankings = []
-        for _, score_lists in scores.items():
-            for (pos_score, neg_score) in score_lists:
-                rankings.append(calc_ranking(pos_score, neg_score))
-        rankings = th.cat(rankings, dim=0)
+                    ranking[canonical_etype] = [calc_ranking(pos_score, neg_score)]
+
+        rankings = {}
+        for canonical_etype, rank in ranking.items():
+            rankings[canonical_etype] = th.cat(rank, dim=0)
     return rankings

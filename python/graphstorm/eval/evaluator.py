@@ -604,7 +604,7 @@ class GSgnnLPEvaluator():
         self.tracker = client
 
     @abc.abstractmethod
-    def evaluate(self, val_ranking, test_ranking, total_iters):
+    def evaluate(self, val_scores, test_scores, total_iters):
         """
         GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
@@ -613,10 +613,10 @@ class GSgnnLPEvaluator():
 
         Parameters
         ----------
-        val_ranking: Tensor
-            Ranking of the validation edges
-        test_ranking: Tensor
-            Ranking of the testing edges
+        val_scores: dict of (list, list)
+            The rankings of validation edges for each edge type.
+        test_scores: dict of (list, list)
+            The rankings of testing edges for each edge type.
         total_iters: int
             The current interation number.
 
@@ -810,8 +810,8 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
 
             Parameters
             ----------
-            rankings: Tensor
-                Rankings of positive score
+            rankings: dict of tensors
+                Rankings of positive scores in format of {etype: ranking}
             train: bool
                 TODO: Reversed for future use cases when we want to use different
                 way to generate scores for train (more efficient but less accurate)
@@ -823,7 +823,12 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         """
         # We calculate global mrr, etype is ignored.
         # User can develop its own per etype MRR evaluator
-        metrics = gen_mrr_score(rankings)
+        ranking = []
+        for _, rank in rankings.items():
+            ranking.append(rank)
+        ranking = th.cat(ranking, dim=0)
+
+        metrics = gen_mrr_score(ranking)
 
         # When world size == 1, we do not need the barrier
         if th.distributed.get_world_size() > 1:
@@ -837,15 +842,15 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             return_metrics[metric] = return_metric.item()
         return return_metrics
 
-    def evaluate(self, val_ranking, test_ranking, total_iters):
+    def evaluate(self, val_scores, test_scores, total_iters):
         """ GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
         Parameters
         ----------
-        val_ranking: Tensor
-            Ranking of validation edges.
-        test_ranking: Tensor
-            Ranking of the test edges.
+        val_scores: dict of tensors
+            Rankings of positive scores of validation edges.
+        test_scores: dict of tensors
+            Rankings of positive scores of test edges.
         total_iters: int
             The current interation number.
 
@@ -857,10 +862,10 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             Test mrr
         """
         with th.no_grad():
-            test_score = self.compute_score(test_ranking)
+            test_score = self.compute_score(test_scores)
 
-            if val_ranking is not None:
-                val_score = self.compute_score(val_ranking)
+            if val_scores is not None:
+                val_score = self.compute_score(val_scores)
 
                 if get_rank() == 0:
                     for metric in self.metric:
