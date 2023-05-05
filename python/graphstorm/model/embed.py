@@ -164,6 +164,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
         embed_name = 'embed'
+        self.use_random_embeddings = True
         for ntype in g.ntypes:
             feat_dim = 0
             if feat_size[ntype] > 0:
@@ -195,11 +196,17 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                 nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                 self.proj_matrix[ntype] = proj_matrix
-                self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                self.embed_size,
-                                embed_name + '_' + ntype,
-                                init_emb,
-                                part_policy=part_policy)
+                if self.use_random_embeddings:
+                    self._sparse_embeds[ntype] = DistTensor((g.number_of_nodes(ntype), self.embed_size),
+                                                            th.float32, name=embed_name + '_' + ntype,
+                                                            init_func=init_emb,
+                                                            part_policy=part_policy)
+                else:
+                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
+                                                               self.embed_size,
+                                                               embed_name + '_' + ntype,
+                                                               init_emb,
+                                                               part_policy=part_policy)
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
@@ -234,12 +241,20 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
-                if len(input_nodes[ntype]) == 0:
+                if len(input_nodes[ntype]) == 0 and self.use_random_embeddings:
+                    dtype = self.sparse_embeds[ntype].dtype
+                    embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].shape[1]),
+                                           device=device, dtype=dtype)
+                    continue
+                elif len(input_nodes[ntype]) == 0:
                     dtype = self.sparse_embeds[ntype].weight.dtype
                     embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
                                            device=device, dtype=dtype)
                     continue
-                emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+                if self.use_random_embeddings:
+                    emb = self.sparse_embeds[ntype][input_nodes[ntype]].to(device)
+                else:
+                    emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
                 emb = emb @ self.proj_matrix[ntype]
             if self.activation is not None:
                 emb = self.activation(emb)
