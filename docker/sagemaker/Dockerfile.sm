@@ -7,8 +7,6 @@ FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-gpu-py
 
 LABEL maintainer="Amazon AI Graph ML team"
 
-RUN pip install --no-cache-dir transformers
-
 # Install DGL
 RUN pip3 install dgl==1.0.2 -f https://data.dgl.ai/wheels/cu117/repo.html
 
@@ -26,7 +24,7 @@ ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
 
 RUN ls /opt/ml/code/graphstorm/
 
-RUN cp /opt/ml/code/graphstorm/python/graphstorm/sagemaker/run/sagemaker_train.py /opt/ml/code/
+RUN cp /opt/ml/code/graphstorm/python/graphstorm/sagemaker/run/* /opt/ml/code/
 
 WORKDIR /opt/ml/code
 

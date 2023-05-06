@@ -50,7 +50,7 @@ def run_job(input_args, image, unknowargs):
     graph_name = input_args.graph_name # Training graph name
     graph_data_s3 = input_args.graph_data_s3 # S3 location storing partitioned graph data
     train_yaml_s3 = input_args.train_yaml_s3 # S3 location storing the yaml file
-    train_yaml_name = input_args.train_yaml_name # Yaml file name
+    output_s3 = input_args.output_s3 # S3 location to store the model artifacts
     enable_bert = input_args.enable_bert # Whether enable bert contraining
     model_artifact_s3 = input_args.model_artifact_s3 # Where to store model artifacts
     custom_script = input_args.custom_script # custom_script if any
@@ -68,9 +68,10 @@ def run_job(input_args, image, unknowargs):
               "graph-name": graph_name,
               "graph-data-s3": graph_data_s3,
               "train-yaml-s3": train_yaml_s3,
-              "train-yaml-name": train_yaml_name,
-              "enable-bert": enable_bert,
-              "custom-script": custom_script}
+              "output-s3": output_s3,
+              "enable-bert": enable_bert}
+    if custom_script is not None:
+        params["custom-script"] = custom_script
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
@@ -145,8 +146,8 @@ def parse_args():
     parser.add_argument("--train-yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--train-yaml-name", type=str,
-        help="Training yaml config file name")
+    parser.add_argument("--output-s3", type=str,
+        help="S3 location to store the model artifacts.")
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")

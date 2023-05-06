@@ -28,5 +28,3 @@ cd ~/build-docker/
 
 bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ docker-name docker-tag
 ```
-
-

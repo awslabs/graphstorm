@@ -150,8 +150,6 @@ def parse_args():
     parser.add_argument("--infer-yaml-s3", type=str,
         help="S3 location of inference yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--infer-yaml-name", type=str,
-        help="Training yaml config file name")
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")

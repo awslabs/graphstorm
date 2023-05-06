@@ -20,6 +20,8 @@ import os
 import time
 import shutil
 
+from urllib.parse import urlparse
+
 from sagemaker.s3 import S3Downloader
 from sagemaker.s3 import S3Uploader
 
@@ -124,7 +126,7 @@ def wait_for_exit(master_sock):
         print(msg.decode())
     master_sock.send(b"Exit")
 
-def download_yaml_config(yaml_s3, yaml_file_name, local_path, sagemaker_session):
+def download_yaml_config(yaml_s3, local_path, sagemaker_session):
     """ download yaml config file
 
     Parameters
@@ -144,18 +146,18 @@ def download_yaml_config(yaml_s3, yaml_file_name, local_path, sagemaker_session)
         Path to downloaded file
     """
     # Download training yaml file
-    yaml_file_s3 = yaml_s3 + yaml_file_name
+    s3_url = urlparse(yaml_s3)
+    yaml_file_name = s3_url.path.split('/')[-1]
+    assert yaml_file_name.endswith('yaml'), f"{yaml_s3} must be a yaml file."
     yaml_path = os.path.join(local_path, yaml_file_name)
     ### Download Partitioned graph data
 
     os.makedirs(local_path, exist_ok=True)
     try:
-        S3Downloader.download(yaml_file_s3, local_path,
+        S3Downloader.download(yaml_s3, local_path,
             sagemaker_session=sagemaker_session)
     except Exception: # pylint: disable=broad-except
-        print(f"Can not download yaml config from {yaml_file_s3}.")
-        print(f"Please check S3 folder {yaml_s3} and yaml file {yaml_file_name}")
-        raise RuntimeError(f"Fail to download yaml file {yaml_file_s3}")
+        raise RuntimeError(f"Fail to download yaml file {yaml_s3}")
 
     return yaml_path
 
@@ -200,6 +202,45 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
 
     return os.path.join(graph_path, graph_config)
 
+
+def _upload_data_to_s3(s3_path, data_path, sagemaker_session):
+    """ Upload data into S3
+
+    Parameters
+    ----------
+    s3_path: str
+        S3 uri to upload the data
+    data_path: str
+        Local data path
+    sagemaker_session: sagemaker.session.Session
+        sagemaker_session to run download
+    """
+    try:
+        ret = S3Uploader.upload(data_path, s3_path,
+            sagemaker_session=sagemaker_session)
+    except Exception: # pylint: disable=broad-except
+        print(f"Can not upload data into {s3_path}")
+        raise RuntimeError(f"Can not upload data into {s3_path}")
+    return ret
+
+def upload_model_artifacts(model_s3_path, model_path, sagemaker_session):
+    """ Upload trained model into S3
+
+    The trained model includes all dense layers of input encoders, GNNs and
+    output decoders and learnable sparse embeddings which are stored in
+    a distributed manner.
+
+    Parameters
+    ----------
+    model_s3_path: str
+        S3 uri to upload the model artifacts.
+    model_path: str
+        Local path of the model artifacts.
+    sagemaker_session: sagemaker.session.Session
+        sagemaker_session to run download
+    """
+    return _upload_data_to_s3(model_s3_path, model_path, sagemaker_session)
+
 def upload_embs(emb_s3_path, emb_path, sagemaker_session):
     """ Upload generated node embeddings into S3
 
@@ -216,13 +257,7 @@ def upload_embs(emb_s3_path, emb_path, sagemaker_session):
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
     """
-    try:
-        ret = S3Uploader.upload(emb_path, emb_s3_path,
-            sagemaker_session=sagemaker_session)
-    except Exception: # pylint: disable=broad-except
-        print(f"Can not upload data into {emb_s3_path}")
-        raise RuntimeError(f"Can not upload data into {emb_s3_path}")
-    return ret
+    return _upload_data_to_s3(emb_s3_path, emb_path, sagemaker_session)
 
 def remove_data(path):
     """ Clean up local data under path

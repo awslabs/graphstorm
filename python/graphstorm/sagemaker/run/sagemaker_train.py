@@ -40,6 +40,10 @@ from graphstorm.sagemaker.run.utils import download_yaml_config
 from graphstorm.sagemaker.run.utils import download_graph
 from graphstorm.sagemaker.run.utils import keep_alive
 from graphstorm.sagemaker.run.utils import barrier_master
+from graphstorm.sagemaker.run.utils import barrier
+from graphstorm.sagemaker.run.utils import terminate_workers
+from graphstorm.sagemaker.run.utils import wait_for_exit
+from graphstorm.sagemaker.run.utils import upload_model_artifacts
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,
@@ -87,7 +91,7 @@ def launch_train_task(task_type, num_gpus, graph_config,
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
-    extra_args = " ".join(extra_args)
+    #extra_args = " ".join(extra_args)
 
     launch_cmd = ["python3", "-m", cmd,
         "--num_trainers", f"{num_gpus}",
@@ -98,8 +102,11 @@ def launch_train_task(task_type, num_gpus, graph_config,
         "--extra_envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
         "--ssh_port", "22"]
     launch_cmd += [custom_script] if custom_script is not None else []
+    print(extra_args)
     launch_cmd += ["--cf", f"{yaml_path}",
         "--save-model-path", f"{save_model_path}"] + extra_args
+
+    print(launch_cmd)
 
     def run(launch_cmd, state_q):
         try:
@@ -134,8 +141,8 @@ def parse_train_args():
     parser.add_argument("--train-yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--train-yaml-name", type=str,
-        help="Training yaml config file name")
+    parser.add_argument("--output-s3", type=str,
+        help="S3 location to store the model artifacts.")
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
@@ -157,9 +164,7 @@ def main():
     assert 'SM_CHANNEL_TRAIN' in os.environ, \
         "SageMaker trainer should have the data path in os.environ."
     data_path = str(os.environ['SM_CHANNEL_TRAIN'])
-
     output_path = "/opt/ml/model/"
-    save_model_path = os.path.join(output_path, "model_checkpoint")
 
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
@@ -168,6 +173,8 @@ def main():
     args, unknownargs = parser.parse_known_args()
     print(f"Know args {args}")
     print(f"Unknow args {unknownargs}")
+
+    save_model_path = os.path.join(output_path, "model_checkpoint")
 
     train_env = json.loads(os.environ['SM_TRAINING_ENV'])
     hosts = train_env['hosts']
@@ -217,12 +224,12 @@ def main():
     graph_data_s3 = args.graph_data_s3
     task_type = args.task_type
     train_yaml_s3 = args.train_yaml_s3
-    train_yaml_name = args.train_yaml_name
+    output_s3 = args.output_s3
     custom_script = args.custom_script
 
     boto_session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
-    yaml_path = download_yaml_config(train_yaml_s3, train_yaml_name,
+    yaml_path = download_yaml_config(train_yaml_s3,
         data_path, sagemaker_session)
     graph_config_path = download_graph(graph_data_s3, graph_name,
         host_rank, data_path, sagemaker_session)
@@ -255,13 +262,13 @@ def main():
         except RuntimeError as e:
             print(e)
             err_code = -1
-        utils.terminate_workers(client_list, world_size, task_end)
+        terminate_workers(client_list, world_size, task_end)
         print("Master End")
     else:
-        utils.barrier(sock)
+        barrier(sock)
         # Block util training finished
         # Listen to end command
-        utils.wait_for_exit(sock)
+        wait_for_exit(sock)
         print("Worker End")
 
     sock.close()
@@ -269,6 +276,10 @@ def main():
         # Report an error
         print("Task failed")
         sys.exit(-1)
+
+    # If there are saved models
+    if os.path.exists(save_model_path):
+        upload_model_artifacts(output_s3, save_model_path, sagemaker_session)
 
 if __name__ == '__main__':
     main()
