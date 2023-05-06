@@ -188,6 +188,29 @@ def test_feat_ops():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
+def test_process_features():
+    # Just get the features without transformation.
+    data = {}
+    data["test1"] = np.random.rand(10, 3)
+    data["test2"] = np.random.rand(10)
+
+    feat_op1 = [{
+        "feature_col": "test1",
+        "feature_name": "test1",
+    },{
+        "feature_col": "test2",
+        "feature_name": "test2",
+    }]
+    ops_rst = parse_feat_ops(feat_op1)
+    rst = process_features(data, ops_rst)
+    assert len(rst) == 2
+    assert 'test1' in rst
+    assert 'test2' in rst
+    assert (len(rst['test1'].shape)) == 2
+    assert (len(rst['test2'].shape)) == 2
+    np.testing.assert_array_equal(rst['test1'], data['test1'])
+    np.testing.assert_array_equal(rst['test2'], data['test2'].reshape(-1, 1))
+    
 def test_label():
     def check_split(res):
         assert len(res) == 4
@@ -652,4 +675,5 @@ if __name__ == '__main__':
     test_id_map()
     test_parquet()
     test_feat_ops()
+    test_process_features()
     test_label()
