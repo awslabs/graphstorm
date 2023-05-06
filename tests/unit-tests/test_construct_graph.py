@@ -188,6 +188,49 @@ def test_feat_ops():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
+    # Compute BERT embeddings.
+    feat_op3 = [
+        {
+            "feature_col": "test3",
+            "feature_name": "test4",
+            "transform": {"name": 'bert_hf',
+                'bert_model': 'bert-base-uncased',
+                'max_seq_length': 16
+            },
+        },
+    ]
+    res3 = parse_feat_ops(feat_op3)
+    assert len(res3) == 1
+    assert res3[0].col_name == feat_op3[0]["feature_col"]
+    assert res3[0].feat_name == feat_op3[0]["feature_name"]
+    proc_res = process_features(data, res3)
+    assert "test4" in proc_res
+    assert len(proc_res['test4']) == 2
+    # There are two text strings and both of them are "hello world".
+    # The BERT embeddings should be the same.
+    np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
+
+    # Compute BERT embeddings with multiple mini-batches.
+    feat_op4 = [
+        {
+            "feature_col": "test3",
+            "feature_name": "test4",
+            "transform": {"name": 'bert_hf',
+                'bert_model': 'bert-base-uncased',
+                'max_seq_length': 16,
+                'infer_batch_size': 1,
+            },
+        },
+    ]
+    res4 = parse_feat_ops(feat_op4)
+    assert len(res4) == 1
+    assert res4[0].col_name == feat_op4[0]["feature_col"]
+    assert res4[0].feat_name == feat_op4[0]["feature_name"]
+    proc_res2 = process_features(data, res4)
+    assert "test4" in proc_res2
+    assert len(proc_res2['test4']) == 2
+    np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
+
 def test_process_features():
     # Just get the features without transformation.
     data = {}
