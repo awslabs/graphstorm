@@ -32,6 +32,7 @@ from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_inference
 from ..utils import get_rank
+from ..dataloading.dataset import prepare_batch_input
 
 class GSOptimizer():
     """ A combination of optimizers.
@@ -646,14 +647,9 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1
                 input_nodes = {data.g.ntypes[0]: input_nodes}
-            feat = prepare_batch_input(data.g, input_nodes, dev=device,
-                                       feat_field=data.node_feat_field)
-            embs = model.node_input_encoder(feats, input_nodes)
-            assert len(embs) == len(embeddings)
-            for key, val in embs.items():
-                assert key in embeddings
-                assert np.all(embeddings[key][input_nodes[key]].numpy() == val.numpy())
-            return embs
+            feats = prepare_batch_input(data.g, input_nodes, dev=device,
+                                        feat_field=data.node_feat_field)
+            return model.node_input_encoder(feats, input_nodes)
         embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
                                     batch_size, -1, edge_mask=edge_mask,
                                     task_tracker=task_tracker)
