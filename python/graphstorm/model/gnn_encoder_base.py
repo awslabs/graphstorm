@@ -72,7 +72,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         """
         return self._layers
 
-def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
+def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                    edge_mask=None, task_tracker=None):
     """Distributed inference of final representation over all node types.
 
@@ -98,7 +98,6 @@ def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
     dict of Tensor : the final GNN embeddings of all nodes.
     """
     device = gnn_encoder.device
-    x = node_feats
     with th.no_grad():
         for i, layer in enumerate(gnn_encoder.layers):
             # get the fanout for this layer
@@ -140,7 +139,10 @@ def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
                     assert len(g.ntypes) == 1
                     output_nodes = {g.ntypes[0]: output_nodes}
 
-                h = {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
+                if iter_l == 0:
+                    h = get_input_embeds(blocks[0], input_nodes)
+                else:
+                    h = {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
                 h = layer(block, h)
 
                 for k in h.keys():
