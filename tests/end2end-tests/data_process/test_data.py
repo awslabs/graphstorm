@@ -66,8 +66,10 @@ data1 = g.nodes['node1'].data['feat1'].numpy()
 label = g.nodes['node1'].data['label'].numpy()
 assert label.dtype == np.int32
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
-assert np.all(data == orig_ids)
-assert np.all(data1 == orig_ids)
+# After graph construction, any 1D features will be converted to 2D features, so
+# here need to convert orig_ids to 2D to pass test
+assert np.all(data == orig_ids.reshape(-1, 1))
+assert np.all(data1 == orig_ids.reshape(-1, 1))
 assert np.all(label == orig_ids % 100)
 assert th.sum(g.nodes['node1'].data['train_mask']) == int(g.number_of_nodes('node1') * 0.8)
 assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1') * 0.2)
@@ -106,4 +108,6 @@ src_ids, dst_ids = g.edges(etype=('node2', 'relation3', 'node3'))
 feat = g.edges[('node2', 'relation3', 'node3')].data['feat'].numpy()
 src_ids = src_ids.numpy()
 dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()])
-assert np.all(src_ids + dst_ids == feat)
+# After graph construction, any 1D features will be converted to 2D features, so
+# here need to convert feat back to 1D to pass test
+assert np.all(src_ids + dst_ids == feat.reshape(-1,))

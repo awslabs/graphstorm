@@ -192,7 +192,10 @@ def process_features(data, ops):
         for key, val in res.items():
             # Check if has 1D features. If yes, convert to 2D features
             if len(val.shape) == 1:
-                val = val.reshape(-1, 1)
+                if isinstance(val, HDF5Array):
+                    val = val.to_numpy().reshape(-1, 1)
+                else:
+                    val = val.reshape(-1, 1)
 
             new_data[key] = val
     return new_data
