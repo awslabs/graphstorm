@@ -636,6 +636,7 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
                                                    feat_field=data.node_feat_field)
     else:
         model.eval()
+        device = model.gnn_encoder.device
         def get_input_embeds(_, input_nodes):
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1
