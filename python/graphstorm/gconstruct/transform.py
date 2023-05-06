@@ -17,9 +17,11 @@
     node regression, edge classification and edge regression.
 """
 
+import os
 import numpy as np
 import torch as th
 from transformers import BertTokenizer
+from transformers import BertModel, BertConfig
 
 from .file_io import HDF5Array
 
@@ -60,14 +62,14 @@ class Tokenizer(FeatTransform):
         The name of the column that contains the text features
     feat_name : str
         The prefix of the tokenized data
-    tokenizer : HuggingFace Tokenizer
-        a tokenizer
+    bert_model : str
+        The name of the BERT model.
     max_seq_length : int
         The maximal length of the tokenization results.
     """
-    def __init__(self, col_name, feat_name, tokenizer, max_seq_length):
+    def __init__(self, col_name, feat_name, bert_model, max_seq_length):
         super(Tokenizer, self).__init__(col_name, feat_name)
-        self.tokenizer = tokenizer
+        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
     def __call__(self, strs):
@@ -100,6 +102,100 @@ class Tokenizer(FeatTransform):
         return {token_id_name: th.cat(tokens, dim=0).numpy(),
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
+
+class Text2BERT(FeatTransform):
+    """ Compute BERT embeddings.
+
+    It computes BERT embeddings.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the text features
+    feat_name : str
+        The prefix of the tokenized data
+    tokenizer : Tokenizer
+        A tokenizer
+    model_name : str
+        The BERT model name.
+    infer_batch_size : int
+        The inference batch size.
+    """
+    def __init__(self, col_name, feat_name, tokenizer, model_name,
+                 infer_batch_size=None):
+        super(Text2BERT, self).__init__(col_name, feat_name)
+        self.model_name = model_name
+        self.lm_model = None
+        self.tokenizer = tokenizer
+        self.device = None
+        self.infer_batch_size = infer_batch_size
+
+    def _init(self):
+        """ Initialize the BERT model.
+
+        We should delay the BERT model initialization because we need to
+        initialize the BERT model in the worker process instead of creating it
+        in the master process and passing it to the worker process.
+        """
+        if th.cuda.is_available():
+            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
+                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
+            self.device = f"cuda:{gpu}"
+        else:
+            self.device = None
+
+        if self.lm_model is None:
+            config = BertConfig.from_pretrained(self.model_name)
+            lm_model = BertModel.from_pretrained(self.model_name,
+                                                 config=config)
+            lm_model.eval()
+
+            # We use the local GPU to compute BERT embeddings.
+            if self.device is not None:
+                lm_model = lm_model.to(self.device)
+            self.lm_model = lm_model
+
+    def __call__(self, strs):
+        """ Compute BERT embeddings of the strings..
+
+        Parameters
+        ----------
+        strs : list of strings.
+            The text data.
+
+        Returns
+        -------
+        dict: BERT embeddings.
+        """
+        self._init()
+        outputs = self.tokenizer(strs)
+        if self.infer_batch_size is not None:
+            tokens_list = th.split(th.tensor(outputs['input_ids']), self.infer_batch_size)
+            att_masks_list = th.split(th.tensor(outputs['attention_mask']),
+                                      self.infer_batch_size)
+            token_types_list = th.split(th.tensor(outputs['token_type_ids']),
+                                        self.infer_batch_size)
+        else:
+            tokens_list = [th.tensor(outputs['input_ids'])]
+            att_masks_list = [th.tensor(outputs['attention_mask'])]
+            token_types_list = [th.tensor(outputs['token_type_ids'])]
+        with th.no_grad():
+            out_embs = []
+            for tokens, att_masks, token_types in zip(tokens_list, att_masks_list,
+                                                      token_types_list):
+                if self.device is not None:
+                    outputs = self.lm_model(tokens.to(self.device),
+                                            attention_mask=att_masks.to(self.device).long(),
+                                            token_type_ids=token_types.to(self.device).long())
+                else:
+                    outputs = self.lm_model(tokens,
+                                            attention_mask=att_masks.long(),
+                                            token_type_ids=token_types.long())
+                out_embs.append(outputs.pooler_output.cpu().numpy())
+        if len(out_embs) > 1:
+            return {self.feat_name: np.concatenate(out_embs)}
+        else:
+            return {self.feat_name: out_embs[0]}
 
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
@@ -158,11 +254,23 @@ def parse_feat_ops(confs):
             if conf['name'] == 'tokenize_hf':
                 assert 'bert_model' in conf, \
                         "'tokenize_hf' needs to have the 'bert_model' field."
-                tokenizer = BertTokenizer.from_pretrained(conf['bert_model'])
                 assert 'max_seq_length' in conf, \
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
-                max_seq_length = int(conf['max_seq_length'])
-                transform = Tokenizer(feat['feature_col'], feat_name, tokenizer, max_seq_length)
+                transform = Tokenizer(feat['feature_col'], feat_name, conf['bert_model'],
+                                      int(conf['max_seq_length']))
+            elif conf['name'] == 'bert_hf':
+                assert 'bert_model' in conf, \
+                        "'bert_hf' needs to have the 'bert_model' field."
+                assert 'max_seq_length' in conf, \
+                        "'bert_hf' needs to have the 'max_seq_length' field."
+                infer_batch_size = int(conf['infer_batch_size']) \
+                        if 'infer_batch_size' in conf else 1024
+                transform = Text2BERT(feat['feature_col'], feat_name,
+                                      Tokenizer(feat['feature_col'], feat_name,
+                                                conf['bert_model'],
+                                                int(conf['max_seq_length'])),
+                                      conf['bert_model'],
+                                      infer_batch_size=infer_batch_size)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
@@ -190,6 +298,13 @@ def process_features(data, ops):
         res = op(data[op.col_name])
         assert isinstance(res, dict)
         for key, val in res.items():
+            # Check if has 1D features. If yes, convert to 2D features
+            if len(val.shape) == 1:
+                if isinstance(val, HDF5Array):
+                    val = val.to_numpy().reshape(-1, 1)
+                else:
+                    val = val.reshape(-1, 1)
+
             new_data[key] = val
     return new_data
 
