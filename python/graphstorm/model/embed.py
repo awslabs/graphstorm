@@ -270,7 +270,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         -------
         list of Tensors: the sparse embeddings.
         """
-        if self.sparse_embeds is not None and len(self.sparse_embeds) > 0:
+        if self.sparse_embeds is not None and len(self.sparse_embeds) > 0 \
+                and not self.use_random_embeddings:
             return list(self.sparse_embeds.values())
         else:
             return []
