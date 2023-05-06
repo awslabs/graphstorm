@@ -139,7 +139,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                     assert len(g.ntypes) == 1
                     output_nodes = {g.ntypes[0]: output_nodes}
 
-                if iter_l == 0:
+                if i == 0:
                     h = get_input_embeds(blocks[0], input_nodes)
                 else:
                     h = {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
