@@ -1,6 +1,6 @@
 .. _distributed-sagemaker:
 
-[Under construction]
+[**Under construction**]
 
 Use GraphStorm in SageMaker
 ============================

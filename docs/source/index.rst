@@ -60,7 +60,7 @@ Scale to Giant Graphs
 For acquainted users who wish to train and infernece GraphStorm for very large graphs,
 
 - follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the distributed mode.
-- follow the :ref:`Run GraphStorm in SageMaker<distributed-sagemaker>` to use GraphStrom in SageMaker distributedly. 
+- [WIP]follow the :ref:`Run GraphStorm in SageMaker<distributed-sagemaker>` to use GraphStrom in SageMaker distributedly. 
 
 [WIP]Avanced Topics
 --------------------

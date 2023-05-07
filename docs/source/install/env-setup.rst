@@ -28,6 +28,8 @@ the following commands to install Docker.
 .. note::
     Current GraphStorm version requires at least one GPU installed in the instance. Later version will support CPUs.
 
+.. _build_docker:
+
 Build a GraphStorm Docker image from source
 --------------------------------------------
 
