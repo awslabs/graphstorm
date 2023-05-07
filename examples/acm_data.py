@@ -97,4 +97,3 @@ if __name__ == '__main__':
     graph = create_acm_graph(dowload_path=args.download_path,
                              dataset_name=args.args.dataset_name,
                              output_path=args.output_path)
-    

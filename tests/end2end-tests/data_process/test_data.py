@@ -22,6 +22,8 @@ import numpy as np
 import torch as th
 import argparse
 
+from transformers import BertModel, BertConfig
+
 def read_data_parquet(data_file):
     table = pq.read_table(data_file)
     pd = table.to_pandas()
@@ -63,11 +65,28 @@ reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['
 # Test the first node data
 data = g.nodes['node1'].data['feat'].numpy()
 data1 = g.nodes['node1'].data['feat1'].numpy()
+assert 'input_ids' in g.nodes['node1'].data
+assert 'attention_mask' in g.nodes['node1'].data
+assert 'token_type_ids' in g.nodes['node1'].data
+# Test BERT embeddings.
+model_name = "bert-base-uncased"
+config = BertConfig.from_pretrained(model_name)
+lm_model = BertModel.from_pretrained(model_name, config=config)
+with th.no_grad():
+    bert_emb = lm_model(g.nodes['node1'].data['input_ids'],
+                        g.nodes['node1'].data['attention_mask'].long(),
+                        g.nodes['node1'].data['token_type_ids'].long())
+assert 'bert' in g.nodes['node1'].data
+np.testing.assert_allclose(bert_emb.pooler_output.numpy(),
+                           g.nodes['node1'].data['bert'].numpy(),
+                           atol=1e-4)
 label = g.nodes['node1'].data['label'].numpy()
 assert label.dtype == np.int32
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
-assert np.all(data == orig_ids)
-assert np.all(data1 == orig_ids)
+# After graph construction, any 1D features will be converted to 2D features, so
+# here need to convert orig_ids to 2D to pass test
+assert np.all(data == orig_ids.reshape(-1, 1))
+assert np.all(data1 == orig_ids.reshape(-1, 1))
 assert np.all(label == orig_ids % 100)
 assert th.sum(g.nodes['node1'].data['train_mask']) == int(g.number_of_nodes('node1') * 0.8)
 assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1') * 0.2)
@@ -106,4 +125,6 @@ src_ids, dst_ids = g.edges(etype=('node2', 'relation3', 'node3'))
 feat = g.edges[('node2', 'relation3', 'node3')].data['feat'].numpy()
 src_ids = src_ids.numpy()
 dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()])
-assert np.all(src_ids + dst_ids == feat)
+# After graph construction, any 1D features will be converted to 2D features, so
+# here need to convert feat back to 1D to pass test
+assert np.all(src_ids + dst_ids == feat.reshape(-1,))
