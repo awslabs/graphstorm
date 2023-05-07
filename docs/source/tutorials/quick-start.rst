@@ -31,11 +31,11 @@ This command will automatically download ogbn-arxiv data and split the graph int
 .. code-block:: bash
 
     /tmp/ogbn_arxiv_nc_1p:
-    |- ogbn-arxiv.json
+    ogbn-arxiv.json
     |- part0:
-        |- edge_feat.dgl
-        |- graph.dgl
-        |- node_feat.dgl
+        edge_feat.dgl
+        graph.dgl
+        node_feat.dgl
 
 The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL graph. As the partition command specifies to create one partition, there is one sub-folder, named ``part0``.  Files in the sub-folder includes three types of data, i.e., the graph structure, the node features, and edge features.
 
@@ -52,19 +52,16 @@ Then run below command to start a training job that train an built-in RGCN model
 
 .. code-block:: bash
 
-    python3  ~/dgl/tools/launch.py \
-            --workspace /tmp/ogbn-arxiv-nc \
-            --num_trainers 1 \
-            --num_servers 1 \
-            --num_samplers 0 \
-            --part_config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-            --ip_config  /tmp/ogbn-arxiv-nc/ip_list.txt \
-            --ssh_port 2222 \
-            "python3 /graphstorm/training_scripts/gsgnn_np/gsgnn_np.py \
-                    --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
-                    --ip-config /tmp/ogbn-arxiv-nc/ip_list.txt \
-                    --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-                    --save-model-path /tmp/ogbn-arxiv-nc/models"
+    python3  -m graphstorm.run.gs_node_classification \
+             --workspace /tmp/ogbn-arxiv-nc \
+             --num_trainers 1 \
+             --num_servers 1 \
+             --num_samplers 0 \
+             --part_config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
+             --ip_config  /tmp/ogbn-arxiv-nc/ip_list.txt \
+             --ssh_port 2222 \
+             --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
+             --save-model-path /tmp/ogbn-arxiv-nc/models
 
 This command uses GraphStorm's training scripts and default settings defined in the `/graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/training_scripts/gsgnn_np/arxiv_nc.yaml>`_. It will train an RGCN model by 10 epochs and save the model files after epoch at the ``/tmp/ogbn-arxiv-nc/models`` folder as the shown structure.
 
@@ -72,14 +69,14 @@ This command uses GraphStorm's training scripts and default settings defined in 
     
     /tmp/ogbn-arxiv-nc/models
     |- epoch-0
-        |- model.bin
-        |- node_sparse_emb.bin
-        |- optimizers.bin
+        model.bin
+        node_sparse_emb.bin
+        optimizers.bin
     |- epoch-1
         ...
     |- epoch-9
 
-In an AWS g4dn.12xlarge instance, it takes around 50 seconds to finish one training and evaluation epoch by using 1 GPU.
+In an AWS g4dn.12xlarge instance, it takes around 8 seconds to finish one training and evaluation epoch by using 1 GPU.
 
 Launch inference
 ----------------
@@ -87,20 +84,18 @@ The output log of the training command also show which epoch achieve the best pe
 
 .. code-block:: bash
 
-    python3 ~/dgl/tools/launch.py \
-            --workspace /tmp/ogbn-arxiv-nc \
-            --num_trainers 1 \
-            --num_servers 1 \
-            --num_samplers 0 \
-            --part_config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-            --ip_config /tmp/ogbn-arxiv-nc/ip_list.txt \
-            --ssh_port 2222 \
-            "python3 /graphstorm/inference_scripts/np_infer/np_infer_gnn.py \
-                    --cf /graphstorm/inference_scripts/np_infer/arxiv_nc.yaml \
-                    --ip-config /tmp/ogbn-arxiv-nc/ip_list.txt \
-                    --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-                    --save-predict-path /tmp/ogbn-arxiv-nc/predictions/ \
-                    --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/"
+    python3 -m graphstorm.run.gs_node_classification \
+               --inference \
+               --workspace /tmp/ogbn-arxiv-nc \
+               --num_trainers 1 \
+               --num_servers 1 \
+               --num_samplers 0 \
+               --part_config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
+               --ip_config  /tmp/ogbn-arxiv-nc/ip_list.txt \
+               --ssh_port 2222 \
+               --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
+               --save-prediction-path /tmp/ogbn-arxiv-nc/predictions/ \
+               --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/
 
 This inference command predicts the classes of nodes in the testing set and saves the results, a Pytorch tensor file named "**predict-0.pt**", into the ``/tmp/ogbn-arxiv-nc/predictions/`` folder.
 

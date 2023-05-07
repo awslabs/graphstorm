@@ -8,8 +8,8 @@ Welcome to GraphStorm Documentation and Tutorials
    :hidden:
    :glob:
 
-   install/index
-   tutorials/index
+   install/env-setup
+   tutorials/quick-start
    tutorials/own-data
    configuration/index
 
@@ -51,22 +51,22 @@ Once the GraphStorm Docker running environment is ready,
 
 - follow the :ref:`GraphStorm Quick-Start Guide<quick-start>` guide to run GraphStorm built-in data and models to get familiar with GraphStorm's usage of training and inference.
 - follow the :ref:`Use Your Own Graph Data<use-own-data>` guide to use your own graph data in GraphStorm.
-- read the :ref:`GraphStorm Configuration<configurations>` to learn hyperparameters provided by GraphStorm that can help to achieve the best performance.
+- read the :ref:`GraphStorm Configuration<configurations>` to learn configurations provided by GraphStorm that can help to achieve the best performance.
 
 
-[WIP]Scale to Giant Graphs
+Scale to Giant Graphs
 ---------------------------------
 
-For acquainted users who wish to use their own Graph Neural Network models in GraphStorm,
+For acquainted users who wish to train and infernece GraphStorm for very large graphs,
 
-- Run GraphStorm in Distributed running environment.
-- Run GraphStorm in SageMaker Distributed running environment. 
+- follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the distributed mode.
+- follow the :ref:`Run GraphStorm in SageMaker<distributed-sagemaker>` to use GraphStrom in SageMaker distributedly. 
 
 [WIP]Avanced Topics
 --------------------
 
-- Use Your Own GNN Models
-- APIs
+- [WIP] :ref:`Use Your Own GNN Models<use-own-models>`
+- [WIP]APIs
 
 Contribution
 -------------
