@@ -165,7 +165,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(model.module, val_loader, test_loader,
-                                        use_mini_batch_infer, total_steps)
+                                        use_mini_batch_infer, total_steps, return_proba)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -228,7 +228,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps, return_proba):
+    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
+             return_proba):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -243,6 +244,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             Whether or not to use mini-batch inference.
         total_steps: int
             Total number of iterations.
+        return_proba: bool
+            Whether to return all the predictions or the maximum prediction.
 
         Returns
         -------
