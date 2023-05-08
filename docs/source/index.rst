@@ -3,7 +3,7 @@ Welcome to GraphStorm Documentation and Tutorials
 ==================================================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Get Started
    :hidden:
    :glob:
@@ -20,7 +20,6 @@ Welcome to GraphStorm Documentation and Tutorials
    :glob:
 
    scale/distributed
-   scale/sagemaker
 
 .. toctree::
    :maxdepth: 1
@@ -60,12 +59,11 @@ Scale to Giant Graphs
 For acquainted users who wish to train and infernece GraphStorm for very large graphs,
 
 - follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the distributed mode.
-- [WIP]follow the :ref:`Run GraphStorm in SageMaker<distributed-sagemaker>` to use GraphStrom in SageMaker distributedly. 
 
-[WIP]Avanced Topics
+Avanced Topics
 --------------------
 
-- [WIP] :ref:`Use Your Own GNN Models<use-own-models>`
+- :ref:`Use Your Own GNN Models<use-own-models>`
 - [WIP]APIs
 
 Contribution
