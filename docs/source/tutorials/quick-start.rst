@@ -39,6 +39,8 @@ This command will automatically download ogbn-arxiv data and split the graph int
 
 The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL graph. As the partition command specifies to create one partition, there is one sub-folder, named ``part0``.  Files in the sub-folder includes three types of data, i.e., the graph structure, the node features, and edge features.
 
+.. _launch-training:
+
 Launch Training
 -----------------
 GraphStorm currently relies on **ssh** to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in a signle machine, as this tutorial does, only need to run the following command to create an ``ip_list.txt`` file with one row '**127.0.0.1**' as its content.

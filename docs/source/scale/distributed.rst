@@ -220,5 +220,3 @@ Launch the training for the OGBN-Papers100M is similar as the OGBN-MAG data. Pic
 Due to the large size of Papers100M graph, it take around six minutes for all GraphStorm containers in the cluster to start their training processes and load corresponding partitions before the training starts.
 
 Given a cluster with three AWS g4dn.12xlarge instances, each of which has 48 Intel Xeon vCPUs, four Nvidia T4 GPUs, and 192GB memory, it takes around 45 minutes to train one epoch with the given configurations.
-
-Add for tests.

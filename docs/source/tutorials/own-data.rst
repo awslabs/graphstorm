@@ -60,6 +60,10 @@ Once succeeds, the command will create a set of folders and files under the ``/t
         paper.parquet
         subject.parquet
 
+.. _input-config:
+
+Input Configuration JSON
+```````````````````````````
 GraphStorm's graph construction tool relies on the configuration JSON to provide graph information. The explain the format of the configuration JSON contents is in the `gconstruct README <https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme>`_. Below show the contents of the examplar ACM config.json file.
 
 .. code-block:: json
@@ -225,6 +229,10 @@ Based on the original ACM dataset, this example build a simple heterogenous grap
 .. figure:: ../../../tutorial/ACM_schema.png
     :align: center
 
+.. _raw-data-files:
+
+Input raw node/edge data files
+```````````````````````````````
 The raw node and edge data files are both in parquet format, whose contents are demonstrated as the diagram below.
 
 .. figure:: ../../../tutorial/ACM_raw_parquet.png
@@ -242,6 +250,10 @@ The configuration JSON file along with these node and edge parquet files are the
                --num_partitions 1 \
                --graph_name acm
 
+.. _output-graph-construction:
+
+Outputs of graph construction
+```````````````````````````````
 Outputs of the command are under the ``/tmp/acm_nc/`` folder like the followings:
 
 .. code-block:: bash
