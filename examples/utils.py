@@ -24,10 +24,11 @@
 def convert_tensor_to_list_arrays(tensor):
     """ Convert Pytorch Tensor to a list of arrays
     
-    Because pandas DataFrame cannot save a 2D numpy array into parquet format, need to convert
-    the tensor (1D or 2D) into a list of list or a list of array. And then it can be used to
-    build a pandas DataFrame, which can be saved into parquet format. Tensor with dimension >=3D
-    cannot be processed and saved into parquet files.
+    Since a pandas DataFrame cannot save a 2D numpy array in parquet format, it is necessary to
+    convert the tensor (1D or 2D) into a list of lists or a list of array. This converted tensor
+    can then be used to build a pandas DataFrame, which can be saved in parquet format. However,
+    tensor with a dimension greater than or equal to 3D cannot be processed or saved into parquet
+    files.
 
     Parameters:
     tensor: Pytorch Tensor, 1D or 2D

@@ -36,10 +36,11 @@ from utils import convert_tensor_to_list_arrays
 
 def create_acm_raw_data(graph,
                         output_path=None):
-    """Generate ACM data to be used for the GraphStorm's construction tool.
+    """Generate ACM data from DGL graph object created by create_acm_dgl_graph()
 
-    Generate ACM data into the tables plus a JSON file that required by the GraphStorm's 
+    Convert ACM data into multiple tables and a JSON file that required by the GraphStorm's 
     construction tool for demo purpose.
+    
     This graph is based on the DGL graph created by the create_acm_dgl_graph() function. Because we
     only use three relationships in the original ACM data, the number of graph nodes could be less 
     than the papers, authors, and subjects in the original node lists.
@@ -63,6 +64,7 @@ def create_acm_raw_data(graph,
         node_dict = {}
         # generate the id column
         node_ids = graph.nodes(ntype)
+        # convert tensor to list of arrays for saving in parquet format
         node_dict['node_id'] = convert_tensor_to_list_arrays(node_ids)
 
         # generate the feature columns and label column
@@ -70,9 +72,11 @@ def create_acm_raw_data(graph,
             for feat_name, val in graph.nodes[ntype].data.items():
                 # Here we just hard code the 'label' string
                 if feat_name == 'label':
+                   # convert tensor to list of arrays for saving in parquet format
                     node_dict[feat_name] = convert_tensor_to_list_arrays(val)
                     continue
                 # Here we assume all others are node features
+                # convert tensor to list of arrays for saving in parquet format
                 node_dict[feat_name] = convert_tensor_to_list_arrays(val)
 
         # generate the pandas DataFrame that combine ids, and, if have, features and labels
@@ -87,6 +91,7 @@ def create_acm_raw_data(graph,
         edge_dict = {}
         # generate the ids columns for both source nodes and destination nodes
         src_ids, dst_ids = graph.edges(etype=(src_ntype, etype, dst_ntype))
+       # convert tensor to list of arrays for saving in parquet format
         edge_dict['source_id'] = convert_tensor_to_list_arrays(src_ids)
         edge_dict['dest_id'] = convert_tensor_to_list_arrays(dst_ids)
         
@@ -95,9 +100,11 @@ def create_acm_raw_data(graph,
             for feat_name, val in graph.edges[(src_ntype, etype, dst_ntype)].data.items():
                 if feat_name == 'label':
                     # Here we just hard code the 'label' string
+                    # convert tensor to list of arrays for saving in parquet format
                     edge_dict['label'] = convert_tensor_to_list_arrays(val)
                     continue
                 # Here we assume all others are edge features
+                # convert tensor to list of arrays for saving in parquet format
                 edge_dict[feat_name] = convert_tensor_to_list_arrays(val)
             
         # generate the pandas DataFrame that combine ids, and, if have, features and labels
@@ -109,18 +116,18 @@ def create_acm_raw_data(graph,
     node_base_path = os.path.join(output_path, 'nodes')
     if not os.path.exists(node_base_path):
         os.makedirs(node_base_path)
-
+    # save node data files
     node_file_paths = {}
     for (ntype, node_df) in node_list:
         node_file_path = os.path.join(node_base_path, ntype + '.parquet')
         node_df.to_parquet(node_file_path)
         node_file_paths[ntype]= [node_file_path]
         print(f'Saved {ntype} node data to {node_file_path}.')
-    
+
     edge_base_path = os.path.join(output_path, 'edges')
     if not os.path.exists(edge_base_path):
         os.makedirs(edge_base_path)
-        
+    # save edge data files
     edge_file_paths = {}
     for (canonical_etype, edge_df) in edge_list:
         src_ntype, etype, dst_ntype = canonical_etype
@@ -188,7 +195,8 @@ def create_acm_raw_data(graph,
                 label_dict['task_type'] = 'classification'      # In ACM data, we do not have this
                                                                 # edge task. Here is just for demo
                 label_dict['split_pct'] = [0.8, 0.1, 0.1]       # Same as the label_split filed.
-                                                                # Here is just for demo
+                                                                # The split pct values are just for
+                                                                # demonstration purpose.
                 labels_list.append(label_dict)
             else:
                 feat_dict['feature_col'] = col
