@@ -24,7 +24,7 @@ from .utils import broadcast_data
 from ..config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from ..config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from ..utils import get_rank
-from .utils import calc_ranking, gen_mrr_score
+from .utils import gen_mrr_score
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
     """
@@ -613,12 +613,10 @@ class GSgnnLPEvaluator():
 
         Parameters
         ----------
-        val_scores: dict of (list, list)
-            The positive and negative scores of validation edges
-            for each edge type
-        test_scores: dict of (list, list)
-            The positive and negative scores of testing edges
-            for each edge type
+        val_scores: dict of tensors
+            The rankings of validation edges for each edge type.
+        test_scores: dict of tensors
+            The rankings of testing edges for each edge type.
         total_iters: int
             The current interation number.
 
@@ -807,13 +805,13 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-    def compute_score(self, scores, train=False): # pylint:disable=unused-argument
+    def compute_score(self, rankings, train=False): # pylint:disable=unused-argument
         """ Compute evaluation score
 
             Parameters
             ----------
-            scores: dict of tuples
-                Pos and negative scores in format of etype:(pos_score, neg_score)
+            rankings: dict of tensors
+                Rankings of positive scores in format of {etype: ranking}
             train: bool
                 TODO: Reversed for future use cases when we want to use different
                 way to generate scores for train (more efficient but less accurate)
@@ -823,15 +821,14 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             -------
             Evaluation metric values: dict
         """
-        rankings = []
         # We calculate global mrr, etype is ignored.
         # User can develop its own per etype MRR evaluator
-        for _, score_lists in scores.items():
-            for (pos_score, neg_score) in score_lists:
-                rankings.append(calc_ranking(pos_score, neg_score))
+        ranking = []
+        for _, rank in rankings.items():
+            ranking.append(rank)
+        ranking = th.cat(ranking, dim=0)
 
-        rankings = th.cat(rankings, dim=0)
-        metrics = gen_mrr_score(rankings)
+        metrics = gen_mrr_score(ranking)
 
         # When world size == 1, we do not need the barrier
         if th.distributed.get_world_size() > 1:
@@ -850,12 +847,10 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
 
         Parameters
         ----------
-        val_scores: dict of (list, list)
-            The positive and negative scores of validation edges
-            for each edge type
-        test_scores: dict of (list, list)
-            The positive and negative scores of testing edges
-            for each edge type
+        val_scores: dict of tensors
+            Rankings of positive scores of validation edges for each edge type.
+        test_scores: dict of tensors
+            Rankings of positive scores of test edges for each edge type..
         total_iters: int
             The current interation number.
 
