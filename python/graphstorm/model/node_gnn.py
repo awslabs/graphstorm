@@ -145,7 +145,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
                 encode_embs[target_ntype]
         return self.decoder.predict(encode_embs[target_ntype]), encode_embs[target_ntype]
 
-def node_mini_batch_gnn_predict(model, loader, return_proba, return_label=False):
+def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
 
     Parameters
@@ -180,6 +180,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba, return_label=False)
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
+            # #######TODO
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
             preds.append(pred.cpu())
             embs.append(emb.cpu())
@@ -197,7 +198,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba, return_label=False)
     else:
         return preds, embs
 
-def node_mini_batch_predict(model, emb, loader, return_proba, return_label=False):
+def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction.
 
     Parameters

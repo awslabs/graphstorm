@@ -216,7 +216,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                                                 save_perf_results_path)
 
     def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
-             return_proba):
+             return_proba=True):
         """ do the model evaluation using validiation and test sets
 
         Parameters

@@ -142,7 +142,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
             return self.decoder.predict_proba(batch_graph, encode_embs)
         return self.decoder.predict(batch_graph, encode_embs)
 
-def edge_mini_batch_gnn_predict(model, loader, return_proba, return_label=False):
+def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
 
     Parameters
@@ -151,8 +151,8 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba, return_label=False)
         The GraphStorm GNN model
     loader : GSgnnEdgeDataLoader
         The GraphStorm dataloader
-    return_proba : bool
-        Whether or not to return all the predictions or the maximum prediction
+    return_proba: bool
+        Whether to return all the predictions or the maximum prediction
     return_label : bool
         Whether or not to return labels
 
@@ -196,7 +196,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba, return_label=False)
     else:
         return preds
 
-def edge_mini_batch_predict(model, emb, loader, return_proba, return_label=False):
+def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction.
 
     This function usually follows full-grain GNN embedding inference. After having
@@ -211,8 +211,8 @@ def edge_mini_batch_predict(model, emb, loader, return_proba, return_label=False
         The GNN embeddings
     loader : GSgnnEdgeDataLoader
         The GraphStorm dataloader
-    return_proba : bool
-        Whether or not to return all the predictions or the maximum prediction
+    return_proba: bool
+        Whether to return all the predictions or the maximum prediction
     return_label : bool
         Whether or not to return labels
 

@@ -268,17 +268,24 @@ class MLPEdgeDecoder(GSLayer):
         -------
         Tensor : the scores of each edge.
         """
-        with g.local_scope():
-            u, v = g.edges(etype=self.target_etype)
-            src_type, _, dest_type = self.target_etype
-            ufeat = h[src_type][u]
-            ifeat = h[dest_type][v]
+        out = self.forward(g, h)
+        return th.softmax(out, 0)
 
-            h = th.cat([ufeat, ifeat], dim=1)
-            out = th.matmul(h, self.decoder)
-            if self.regression:
-                out = self.regression_head(out)
-        return out
+    def predict_proba(self, g, h):
+        """Predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : the scores of each edge.
+        """
+        return self.predict(g, h)
 
     @property
     def in_dims(self):
