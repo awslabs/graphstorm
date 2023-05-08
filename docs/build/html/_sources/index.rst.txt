@@ -71,8 +71,3 @@ Contribution
 GraphStorm is free software; you can redistribute it and/or modify it under the terms
 of the Apache License 2.0. We welcome contributions.
 Join us on `GitHub <https://github.com/awslabs/graphstorm>`_.
-
-Indices
-=======
-
-* :ref:`genindex`
