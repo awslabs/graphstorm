@@ -532,6 +532,7 @@ edge_mapping.pt
 <ul class="simple">
 <li><p><strong>part_config</strong>: please change value of this configure to where you store the partitioned graph’s JSON file. It is better to use an absolute path to avoid path mis-match.</p></li>
 <li><p><strong>ip_config</strong>: please make sure ip_list.txt created and the path of the ip_list.txt file is correct.</p></li>
+<li><p><strong>node-feat-name</strong>: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will consider these nodes as featureless, hence using learnable embeddings as their features. See below example yaml file and launch commands.</p></li>
 </ul>
 <p>If you conduct Classification/Regression tasks,</p>
 <ul class="simple">
@@ -588,6 +589,10 @@ edge_mapping.pt
 <span class="w">    </span><span class="nt">sparse_optimizer_lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-2</span>
 <span class="w">    </span><span class="nt">use_node_embeddings</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="nt">node_classification</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">node-feat-name</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;paper:feat&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;author:feat&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;subject:feat&quot;</span>
 <span class="w">    </span><span class="nt">target_ntype</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;paper&quot;</span>
 <span class="w">    </span><span class="nt">label_field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;label&quot;</span>
 <span class="w">    </span><span class="nt">multilabel</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>

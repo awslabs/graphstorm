@@ -334,6 +334,7 @@ It is common that users will copy and reuse GraphStorm's built-in scripts and ya
 
 - **part_config**: please change value of this configure to where you store the partitioned graph's JSON file. It is better to use an absolute path to avoid path mis-match.
 - **ip_config**: please make sure ip_list.txt created and the path of the ip_list.txt file is correct.
+- **node-feat-name**: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will consider these nodes as featureless, hence using learnable embeddings as their features. See below example yaml file and launch commands. 
 
 If you conduct Classification/Regression tasks,
 
@@ -395,6 +396,10 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         sparse_optimizer_lr: 1e-2
         use_node_embeddings: false
     node_classification:
+        node-feat-name:
+          - "paper:feat"
+          - "author:feat"
+          - "subject:feat"
         target_ntype: "paper"
         label_field: "label"
         multilabel: false
