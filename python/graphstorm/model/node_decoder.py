@@ -88,7 +88,7 @@ class EntityClassifier(GSLayer):
 
         Returns
         -------
-        Tensor : all the predicted results
+        Tensor : all normalized predicted results
         """
         logits = th.matmul(inputs, self.decoder)
         return th.sigmoid(logits) if self._multilabel else th.softmax(logits, 0)
