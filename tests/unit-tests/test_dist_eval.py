@@ -121,30 +121,30 @@ def test_lp_dist_eval(seed):
     # Create a random heterogenous graph first
     etypes = [("n0", "r0", "n1"), ("n0", "r1", "n1")]
 
-    val_pos_scores = th.rand((10,1))
-    val_neg_scores = th.rand((10,10))
+    val_ranking_etype1 = th.rand((10,2))
+    val_ranking_etype2 = th.rand((10,2))
     val_scores_0 = {
-        ("n0", "r0", "n1") : [(val_pos_scores, val_neg_scores / 2), (val_pos_scores, val_neg_scores / 2)],
-        ("n0", "r1", "n1") : [(val_pos_scores, val_neg_scores / 4)]
+        ("n0", "r0", "n1") : val_ranking_etype1,
+        ("n0", "r1", "n1") : val_ranking_etype2
     }
-    val_pos_scores = th.rand((10,1))
-    val_neg_scores = th.rand((10,10))
+    val_ranking_etype1 = th.rand((10,2))
+    val_ranking_etype2 = th.rand((10,2))
     val_scores_1 = {
-        ("n0", "r0", "n1") : [(val_pos_scores, val_neg_scores / 2), (val_pos_scores, val_neg_scores / 2)],
-        ("n0", "r1", "n1") : [(val_pos_scores, val_neg_scores / 4)]
+        ("n0", "r0", "n1") : val_ranking_etype1,
+        ("n0", "r1", "n1") : val_ranking_etype2
     }
 
-    test_pos_scores = th.rand((10,1))
-    test_neg_scores = th.rand((10,10))
+    test_ranking_etype1 = th.rand((10,2))
+    test_ranking_etype2 = th.rand((10,2))
     test_scores_0 = {
-        ("n0", "r0", "n1") : [(test_pos_scores, test_neg_scores / 2), (test_pos_scores, test_neg_scores / 2)],
-        ("n0", "r1", "n1") : [(test_pos_scores, test_neg_scores / 4)]
+        ("n0", "r0", "n1") : test_ranking_etype1,
+        ("n0", "r1", "n1") : test_ranking_etype2
     }
-    test_pos_scores = th.rand((10,1))
-    test_neg_scores = th.rand((10,10))
+    test_ranking_etype1 = th.rand((10,2))
+    test_ranking_etype2 = th.rand((10,2))
     test_scores_1 = {
-        ("n0", "r0", "n1") : [(test_pos_scores, test_neg_scores / 2), (test_pos_scores, test_neg_scores / 2)],
-        ("n0", "r1", "n1") : [(test_pos_scores, test_neg_scores / 4)]
+        ("n0", "r0", "n1") : test_ranking_etype1,
+        ("n0", "r1", "n1") : test_ranking_etype2
     }
 
     # Dummy objects
@@ -167,10 +167,10 @@ def test_lp_dist_eval(seed):
         test_scores_0, test_scores_1)
     # do evaluation with single worker
     val_local, test_local = run_local_lp_eval(train_data, config,
-        {etypes[0]: val_scores_0[etypes[0]] + val_scores_1[etypes[0]],
-         etypes[1]: val_scores_0[etypes[1]] + val_scores_1[etypes[1]]},
-        {etypes[0]: test_scores_0[etypes[0]] + test_scores_1[etypes[0]],
-         etypes[1]: test_scores_0[etypes[1]] + test_scores_1[etypes[1]]})
+        {etypes[0]: th.cat((val_scores_0[etypes[0]], val_scores_1[etypes[0]]), dim = 0),
+         etypes[1]: th.cat((val_scores_0[etypes[1]], val_scores_1[etypes[1]]), dim = 0)},
+        {etypes[0]: th.cat((test_scores_0[etypes[0]], test_scores_1[etypes[0]]), dim = 0),
+         etypes[1]: th.cat((test_scores_0[etypes[1]], test_scores_1[etypes[1]]), dim =0)})
 
     print(f"dist {val_dist}")
     print(f"local {val_local}")
