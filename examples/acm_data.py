@@ -71,8 +71,8 @@ def create_acm_graph(dowload_path='/tmp/ACM.mat',
     # Save the graph for later partition
     if dataset_name is None:
         dataset_name = 'acm'
-    if output_file_path is None:
-        output_file_path = '/tmp'
+    if output_path is None:
+        output_path = '/tmp'
 
     output_file_path = os.path.join(output_path, dataset_name + '.dgl')
     print(f'Saving ACM data to {output_file_path} ......')
