@@ -41,7 +41,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
-            use_mini_batch_infer=False):  # pylint: disable=unused-argument
+            use_mini_batch_infer=False, return_proba=True):  # pylint: disable=unused-argument
         """ Do inference
 
         The infer can do three things:
@@ -58,6 +58,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
             The path where the prediction results will be saved.
         use_mini_batch_infer : bool
             Whether or not to use mini-batch inference.
+        return_proba: bool
+            Whether to return all the predictions or the maximum prediction.
         """
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
@@ -65,8 +67,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
         embs = do_full_graph_inference(self._model, loader.data,
                                        task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
-        res = edge_mini_batch_predict(self._model, embs, loader, return_label=do_eval,
-                                      return_proba=False)
+        res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
+                                      return_label=do_eval)
         pred = res[0]
         label = res[1] if do_eval else None
         sys_tracker.check('compute prediction')

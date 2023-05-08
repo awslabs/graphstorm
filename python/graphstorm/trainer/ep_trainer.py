@@ -52,7 +52,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             save_model_path=None,
             save_model_frequency=None,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0):
+            freeze_input_layer_epochs=0,
+            return_proba=True):
         """ The fit function for edge prediction.
 
         Parameters
@@ -78,6 +79,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             Freeze input layer model for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        return_proba: bool
+            Whether to return all the predicted results or the maximum prediction.
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -196,7 +199,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module, val_loader, test_loader, use_mini_batch_infer,
-                                    total_steps)
+                                    total_steps, return_proba)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
@@ -225,7 +228,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps):
+    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps, return_proba):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -248,22 +251,17 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('start prediction')
         model.eval()
-        print("call model.eval()")
         if use_mini_batch_infer:
-            val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader,
-                                                              return_label=True,
-                                                              return_proba=False)
-            test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader,
-                                                                return_label=True,
-                                                                return_proba=False)
+            val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader, return_proba,
+                                                              return_label=True)
+            test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader, return_proba,
+                                                                return_label=True)
         else:
             emb = do_full_graph_inference(model, val_loader.data, task_tracker=self.task_tracker)
-            val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader,
-                                                          return_label=True,
-                                                          return_proba=False)
-            test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader,
-                                                            return_label=True,
-                                                            return_proba=False)
+            val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader, return_proba,
+                                                          return_label=True)
+            test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader, return_proba,
+                                                            return_label=True)
         model.train()
         sys_tracker.check('predict')
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
