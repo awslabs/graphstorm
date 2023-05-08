@@ -188,6 +188,72 @@ def test_feat_ops():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
+    # Compute BERT embeddings.
+    feat_op3 = [
+        {
+            "feature_col": "test3",
+            "feature_name": "test4",
+            "transform": {"name": 'bert_hf',
+                'bert_model': 'bert-base-uncased',
+                'max_seq_length': 16
+            },
+        },
+    ]
+    res3 = parse_feat_ops(feat_op3)
+    assert len(res3) == 1
+    assert res3[0].col_name == feat_op3[0]["feature_col"]
+    assert res3[0].feat_name == feat_op3[0]["feature_name"]
+    proc_res = process_features(data, res3)
+    assert "test4" in proc_res
+    assert len(proc_res['test4']) == 2
+    # There are two text strings and both of them are "hello world".
+    # The BERT embeddings should be the same.
+    np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
+
+    # Compute BERT embeddings with multiple mini-batches.
+    feat_op4 = [
+        {
+            "feature_col": "test3",
+            "feature_name": "test4",
+            "transform": {"name": 'bert_hf',
+                'bert_model': 'bert-base-uncased',
+                'max_seq_length': 16,
+                'infer_batch_size': 1,
+            },
+        },
+    ]
+    res4 = parse_feat_ops(feat_op4)
+    assert len(res4) == 1
+    assert res4[0].col_name == feat_op4[0]["feature_col"]
+    assert res4[0].feat_name == feat_op4[0]["feature_name"]
+    proc_res2 = process_features(data, res4)
+    assert "test4" in proc_res2
+    assert len(proc_res2['test4']) == 2
+    np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
+
+def test_process_features():
+    # Just get the features without transformation.
+    data = {}
+    data["test1"] = np.random.rand(10, 3)
+    data["test2"] = np.random.rand(10)
+
+    feat_op1 = [{
+        "feature_col": "test1",
+        "feature_name": "test1",
+    },{
+        "feature_col": "test2",
+        "feature_name": "test2",
+    }]
+    ops_rst = parse_feat_ops(feat_op1)
+    rst = process_features(data, ops_rst)
+    assert len(rst) == 2
+    assert 'test1' in rst
+    assert 'test2' in rst
+    assert (len(rst['test1'].shape)) == 2
+    assert (len(rst['test2'].shape)) == 2
+    np.testing.assert_array_equal(rst['test1'], data['test1'])
+    np.testing.assert_array_equal(rst['test2'], data['test2'].reshape(-1, 1))
+    
 def test_label():
     def check_split(res):
         assert len(res) == 4
@@ -475,13 +541,27 @@ def test_partition_graph():
     edge_data1 = []
     with tempfile.TemporaryDirectory() as tmpdirname:
         partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
-                        part_method="random")
+                        part_method="random", save_mapping=True)
         for i in range(num_parts):
             part_dir = os.path.join(tmpdirname, "part" + str(i))
             node_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'node_feat.dgl')))
             edge_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'edge_feat.dgl')))
+
+        # Check saved node ID and edge ID mapping
+        tmp_node_map_file = os.path.join(tmpdirname, f"node_mapping.pt")
+        tmp_edge_map_file = os.path.join(tmpdirname, f"edge_mapping.pt")
+        assert os.path.exists(tmp_node_map_file)
+        assert os.path.exists(tmp_edge_map_file)
+        node_id_map = th.load(tmp_node_map_file)
+        edge_id_map = th.load(tmp_edge_map_file)
+        assert len(node_id_map) == len(num_nodes)
+        assert len(edge_id_map) == len(edges)
+        for node_type, num_node in num_nodes.items():
+            assert node_id_map[node_type].shape[0] == num_node
+        for edge_type, edge in edges.items():
+            assert edge_id_map[edge_type].shape[0] == edge[0].shape[0]
 
     # Partition the graph with DGL's partition_graph.
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
@@ -638,4 +718,5 @@ if __name__ == '__main__':
     test_id_map()
     test_parquet()
     test_feat_ops()
+    test_process_features()
     test_label()

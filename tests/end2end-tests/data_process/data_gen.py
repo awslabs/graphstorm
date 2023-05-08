@@ -139,6 +139,13 @@ node_conf = [
                               "bert_model": "bert-base-uncased",
                               "max_seq_length": 16},
             },
+            {
+                "feature_col": "text",
+                "feature_name": "bert",
+                "transform": {"name": "bert_hf",
+                              "bert_model": "bert-base-uncased",
+                              "max_seq_length": 16},
+            },
         ],
         "labels":       [
             {
