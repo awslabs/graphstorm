@@ -180,7 +180,6 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
-            # #######TODO
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
             preds.append(pred.cpu())
             embs.append(emb.cpu())

@@ -159,8 +159,13 @@ class DenseBiDecoder(GSLayer):
             ifeat = h[dest_type][v]
             out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
             out = self.combine_basis(out)
-            out = self.regression_head(out)
-        return th.sigmoid(out) if self._multilabel else th.softmax(out, 0)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self._multilabel:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 0)
+        return out
 
     @property
     def in_dims(self):
@@ -285,7 +290,7 @@ class MLPEdgeDecoder(GSLayer):
         -------
         Tensor : the scores of each edge.
         """
-        return self.predict(g, h)
+        return self.predict(g,h)
 
     @property
     def in_dims(self):
