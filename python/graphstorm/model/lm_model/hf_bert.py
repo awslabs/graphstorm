@@ -64,12 +64,12 @@ class HFBertWrapper(GSFLanguageModelWrapper):
     def __init__(self,
                  lm_model,
                  num_train,
-                 lm_infer_batchszie=32,
+                 lm_infer_batch_size=32,
                  profile=False):
         super(HFBertWrapper, self).__init__(
             lm_model, num_train,
             lm_model.config.hidden_size, [TOKEN_IDX, ATT_MASK_IDX, VALID_LEN, TOKEN_TID_IDX],
-            lm_infer_batchszie, profile)
+            lm_infer_batch_size, profile)
 
         self.origin_num_train = self.num_train
         assert isinstance(self.lm_model, BertModel), \
