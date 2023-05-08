@@ -31,8 +31,8 @@ def convert_tensor_to_list_arrays(tensor):
     files.
 
     Parameters:
-    tensor: Pytorch Tensor, 1D or 2D
-        The input Pytorch tensor to be converted
+    tensor: Pytorch Tensor
+        The input Pytorch tensor (1D or 2D) to be converted
     
     Returns:
     list_array: list of numpy arrays
