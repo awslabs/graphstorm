@@ -1,0 +1,506 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use Your Own Models" href="../advanced/own-models.html" /><link rel="prev" title="Graph Partition" href="../configuration/configuration-partition.html" />
+
+    <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
+        <title>Use GraphStorm in a Distributed Cluster - GraphStorm 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">GraphStorm 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">GraphStorm 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-launch.html">GraphStorm Launch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-partition.html">Graph Partition</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Scale to Giant Graphs</span></p>
+<ul class="current">
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Use GraphStorm in a Distributed Cluster</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/own-models.html">Use Your Own Models</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="use-graphstorm-in-a-distributed-cluster">
+<span id="distributed-cluster"></span><h1>Use GraphStorm in a Distributed Cluster<a class="headerlink" href="#use-graphstorm-in-a-distributed-cluster" title="Permalink to this heading">#</a></h1>
+<p>GraphStorm can handle the enterprise-level graphs in a distributed way within a cluster. To leverage this feature, there are four steps to follow:</p>
+<ul class="simple">
+<li><p>Create a cluster with instances each of which can run GraphStorm Docker container.</p></li>
+<li><p>Set up IP address configuration and check 2222 port status.</p></li>
+<li><p>Process and partition large graphs into DGL distributed format.</p></li>
+<li><p>Launch the training within one instance’ container.</p></li>
+</ul>
+<p>The first example of this guide uses the <a class="reference external" href="https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag">OGB-MAG</a> as example data and demonstrate how to use GraphStorm to train an RGCN model (a built-in model) in a cluster with three EC2 instances. The OGB-MAG data is large enough to demonstrate the scalability of GraphStorm, and also small enough to finish this tutorial in one hour.</p>
+<section id="create-a-graphstorm-cluster">
+<h2>Create a GraphStorm Cluster<a class="headerlink" href="#create-a-graphstorm-cluster" title="Permalink to this heading">#</a></h2>
+<section id="setup-of-each-instance-in-a-cluster">
+<h3>Setup of each instance in a cluster<a class="headerlink" href="#setup-of-each-instance-in-a-cluster" title="Permalink to this heading">#</a></h3>
+<p>A GraphStorm cluster contains several GPU instances each of which can run GraphStorm Docker container. For each instance, please follow the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">Environment Setup</span></a> description to setup GraphStorm Docker container environment. This tutorial uses three EC2 instances in the cluster.</p>
+</section>
+<section id="setup-of-a-shared-file-system-for-the-cluster">
+<h3>Setup of a shared file system for the cluster<a class="headerlink" href="#setup-of-a-shared-file-system-for-the-cluster" title="Permalink to this heading">#</a></h3>
+<p>A GraphStorm cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.</p>
+<p><a class="reference external" href="https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system">Here</a> is the instruction of setting up NFS for a cluster provided by DGL. As the steps of setting up an NFS might be different system by system, we suggest users to look for additional information about NFS setting. Here are some available sources: <a class="reference external" href="https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04">NFS tutorial</a> by DigitalOcean, <a class="reference external" href="https://ubuntu.com/server/docs/service-nfs">NFS document</a> for Ubuntu, <a class="reference external" href="https://www.linode.com/docs/guides/using-an-nfs-server-on-ubuntu2004/">NFS guide</a> by Linode, <a class="reference external" href="https://www.tecmint.com/how-to-setup-nfs-server-in-linux/">NFS tutorial</a> at Tecmint, and <a class="reference external" href="https://www.howtoforge.com/how-to-install-nfs-server-and-client-on-ubuntu-22-04/">NFS guide</a> by HowtoForge.</p>
+<p>For an EC2 cluster, users can set up EFS. <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/gs-step-two-create-efs-resources.html">Here</a> is the instruction of creating EFS; <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html">here</a> is the instruction of installing an EFS client; <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/efs-mount-helper.html">here</a> provides the instructions of mounting the EFS filesystem.</p>
+<p>After setting up a shared file system, we can keep all partitioned graph data in the network filesystem. Then mount the data folder to the <code class="docutils literal notranslate"><span class="pre">/path_to_data/</span></code> of each instances in the cluster so that GraphStorm container can access the partitioned graph easily.</p>
+</section>
+<section id="create-graphstorm-container-by-mounting-the-nfs-folder">
+<h3>Create GraphStorm container by mounting the NFS folder<a class="headerlink" href="#create-graphstorm-container-by-mounting-the-nfs-folder" title="Permalink to this heading">#</a></h3>
+<p>In each instance, use the following command to start a GraphStorm Docker container and run it as a backend daemon.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>nvidia-docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span>/path_to_data/:/data<span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>-v<span class="w"> </span>/dev/shm:/dev/shm<span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>--network<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>-d<span class="w"> </span>--name<span class="w"> </span><span class="nb">test</span><span class="w"> </span>graphstorm:local
+</pre></div>
+</div>
+<p>This command mount the <code class="docutils literal notranslate"><span class="pre">/path_to_data/</span></code> folder to the container’s <code class="docutils literal notranslate"><span class="pre">/data/</span></code> folder by which GraphStorm codes can access graph data and save training and inference outcomes.</p>
+</section>
+</section>
+<section id="setup-ip-address-configuration-and-check-port-2222-status">
+<h2>Setup IP address configuration and check port 2222 status<a class="headerlink" href="#setup-ip-address-configuration-and-check-port-2222-status" title="Permalink to this heading">#</a></h2>
+<section id="collect-the-ip-list">
+<h3>Collect the IP list<a class="headerlink" href="#collect-the-ip-list" title="Permalink to this heading">#</a></h3>
+<p>The GraphStorm Docker containers use SSH on port 2222 to communicate with each other. Users need to collect all IP addresses of the three instances and put them into a text file, e.g., <code class="docutils literal notranslate"><span class="pre">/data/ip_list.txt</span></code>, which is like:</p>
+<figure class="align-center">
+<img alt="../_images/distributed_ips.png" src="../_images/distributed_ips.png" />
+</figure>
+<p>Put this file into any GraphStorm container’s <code class="docutils literal notranslate"><span class="pre">/data/</span></code> folder.</p>
+</section>
+<section id="check-port-2222">
+<h3>Check port 2222<a class="headerlink" href="#check-port-2222" title="Permalink to this heading">#</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The GraphStorm Docker container use port <code class="docutils literal notranslate"><span class="pre">2222</span></code> to SSH login to containers running on other machines. Please make sure the host instance does not use this port.</p>
+</div>
+<p>Users also need to make sure the port <code class="docutils literal notranslate"><span class="pre">2222</span></code> is open for SSH commands. In the container environment, users can check the connectivity with the command <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">&lt;ip-in-the-cluster&gt;</span> <span class="pre">-p</span> <span class="pre">2222</span></code>. Please replacing the <code class="docutils literal notranslate"><span class="pre">&lt;ip-in-the-cluster&gt;</span></code> with the real IP address in the <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file above, e.g.,</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh<span class="w"> </span><span class="m">172</span>.38.12.143<span class="w"> </span>-p<span class="w"> </span><span class="m">2222</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="process-and-partition-a-graph">
+<h2>Process and Partition a Graph<a class="headerlink" href="#process-and-partition-a-graph" title="Permalink to this heading">#</a></h2>
+<p>Pick one instance and run the following command to connect to the GraphStorm Docker container.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>container<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span><span class="nb">test</span><span class="w"> </span>/bin/bash
+</pre></div>
+</div>
+<p>And then download and process the OGBN-MAG data with the command below.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/tools/gen_mag_dataset.py<span class="w"> </span>--savepath<span class="w"> </span>/data/ogbn-mag-lp/<span class="w"> </span>--edge_pct<span class="w"> </span><span class="m">0</span>.2
+</pre></div>
+</div>
+<p>Because we use three GraphStorm instances in the cluster for model training, here we split the MAG data into three partitions by specifying the <strong>–num_parts</strong> argument to <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/tools/partition_graph_lp.py<span class="w"> </span>--dataset<span class="w"> </span>ogbn-mag<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--filepath<span class="w"> </span>/data/ogbn-mag-lp/<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--num_parts<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--balance_train<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--balance_edges<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--num_trainers_per_machine<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--target_etypes<span class="w"> </span>author,writes,paper<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--output<span class="w"> </span>/data/ogbn_mag_lp_3p
+</pre></div>
+</div>
+<p>After running commands in the previous step successfully, the partitioned OGBN-MAG graph has been stored in the <code class="docutils literal notranslate"><span class="pre">/data/ogbn_mag_lp_3p</span></code> folder whose structure is like the diagram below. Because the <code class="docutils literal notranslate"><span class="pre">/data/</span></code> folder is actually a shared filesystem, all instances in the cluster can access these files.</p>
+<figure class="align-center">
+<img alt="../_images/3partitions-files.png" src="../_images/3partitions-files.png" />
+</figure>
+</section>
+<section id="launch-training-in-one-container">
+<h2>Launch Training in One Container<a class="headerlink" href="#launch-training-in-one-container" title="Permalink to this heading">#</a></h2>
+<p>When all three previous steps are done, it is easy to launch a distributed training job. Pick a GraphStorm container, e.g. the container with IP address 172.37.11.221, and run the following command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_link_prediction<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--workspace<span class="w"> </span>/data/ogbn-mag-lp/<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num_trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num_servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num_samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--part_config<span class="w"> </span>/data/ogbn_mag_lp_3p/ogbn-mag.json<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--ip_config<span class="w"> </span>/data/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--ssh_port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--cf<span class="w"> </span>/graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--feat-name<span class="w"> </span>paper:feat<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--save-model-path<span class="w"> </span>/data/ogbn-mag-lp/models/
+</pre></div>
+</div>
+<p>That’s it!</p>
+</section>
+<section id="train-a-large-graph-ogbn-papers100m">
+<h2>Train a Large Graph (OGBN-Papers100M)<a class="headerlink" href="#train-a-large-graph-ogbn-papers100m" title="Permalink to this heading">#</a></h2>
+<p>The previous sections demonstrate GraphStorm’s distributed training feature for a quick start. This section will use GraphStorm to train a large Graph data, i.e., <a class="reference external" href="https://ogb.stanford.edu/docs/nodeprop/#ogbn-papers100M">OGBN-Papers100M</a>,  that can hardly be processed and trained in a single machine. The steps of training a large Graph is nearly the same as the above section, but need a few additional operations.</p>
+<section id="id6">
+<h3>Create a GraphStorm Cluster<a class="headerlink" href="#id6" title="Permalink to this heading">#</a></h3>
+<p>In addition to the three GraphStorm instance created in the OGBN-MAG, to download and partition the OGBN-Papers100M graph, we need a new instance that have large memory, e.g., &gt;800GB. In this guide we use an AWS r6a.32xlarge instance, which has 1TB memory. For the instance, please follow the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">Environment Setup</span></a> description to setup GraphStorm Docker container environment. Once building the GraphStorm Docker image in this instance, use the following command to start a GraphStorm Docker container.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span>/path_to_data/:/data<span class="w"> </span><span class="se">\</span>
+<span class="w">              </span>-v<span class="w"> </span>/dev/shm:/dev/shm<span class="w"> </span><span class="se">\</span>
+<span class="w">              </span>--network<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
+<span class="w">              </span>-d<span class="w"> </span>--name<span class="w"> </span><span class="nb">test</span><span class="w"> </span>graphstorm:local
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>Use the “docker”, instead of “nvidia-docker” command to create the GraphStorm container because the new r6a.32xlarge instance does not have GPUs configured.</p></li>
+<li><p>Make sure there is at least 300GB free space in the /path_to_data/ folder.</p></li>
+</ul>
+</div>
+</section>
+<section id="id7">
+<h3>Process and Partition a Graph<a class="headerlink" href="#id7" title="Permalink to this heading">#</a></h3>
+<p>Connect to the GraphStorm Docker container with the below command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/tools/partition_graph_lp.py<span class="w"> </span>--dataset<span class="w"> </span>ogbn-papers100M<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--num_parts<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--balance_train<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--balance_edges<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--output<span class="w"> </span>/data/ogbn_papers100M_3p<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--train_pct<span class="w"> </span><span class="m">0</span>.1<span class="w"> </span><span class="se">\</span>
+<span class="w">                                                </span>--filepath<span class="w"> </span>/data
+</pre></div>
+</div>
+<p>Given the size of OGBN-Papers100M, the download and partition process could take more than 5 hours and consume around 700GB memory in peak. After the command finishes, the partitioned OGBN-Papers100M graphs are stored in the <code class="docutils literal notranslate"><span class="pre">/data/ogbn_papers100M_3p</span></code> folder whose structure is same as the OGBN-MAG’s.</p>
+</section>
+<section id="distribute-partitioned-graphs-and-configurations-to-all-instances">
+<h3>Distribute Partitioned Graphs and Configurations to all Instances<a class="headerlink" href="#distribute-partitioned-graphs-and-configurations-to-all-instances" title="Permalink to this heading">#</a></h3>
+<p>In this step, users need to copy these partitioned files to the shared file system of the GraphStorm cluster. And the IP list collection and 2222 port open operations are identical to the above OGBN-MAG tutorial.</p>
+<p>For the OGBN-Papers100M data, we use a YAML file, called ogbn_papers100M_nc_p3.yaml, that have the contents below.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nn">---</span>
+<span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="nt">gsf</span><span class="p">:</span>
+<span class="nt">basic</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">model_encoder_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rgcn</span>
+<span class="w">    </span><span class="nt">graph_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ogbn-papers100M</span>
+<span class="w">    </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gloo</span>
+<span class="w">    </span><span class="nt">ip_config</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/ip_list.txt</span>
+<span class="w">    </span><span class="nt">part_config</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/ogbn_papers100M_3p/ogbn-papers100M.json</span>
+<span class="w">    </span><span class="nt">verbose</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">    </span><span class="nt">no_validation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">    </span><span class="nt">evaluation_frequency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">500</span>
+<span class="nt">gnn</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">num_layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">hidden_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">128</span>
+<span class="w">    </span><span class="nt">mini_batch_infer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">input</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">restore_model_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<span class="nt">output</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">save_model_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<span class="w">    </span><span class="nt">save_embed_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<span class="nt">hyperparam</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.</span>
+<span class="w">    </span><span class="nt">lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.001</span>
+<span class="w">    </span><span class="nt">num_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">    </span><span class="nt">fanout</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5,10,15&quot;</span>
+<span class="w">    </span><span class="nt">eval_fanout</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5,10,15&quot;</span>
+<span class="w">    </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">128</span>
+<span class="w">    </span><span class="nt">eval_batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">128</span>
+<span class="w">    </span><span class="nt">wd_l2norm</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="nt">rgcn</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">num_bases</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-1</span>
+<span class="w">    </span><span class="nt">use_self_loop</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">lp_decoder_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dot_product</span>
+<span class="w">    </span><span class="nt">sparse_optimizer-lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-2</span>
+<span class="w">    </span><span class="nt">use_node_embeddings</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="nt">node_classification</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">target_ntype</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;node&quot;</span>
+<span class="w">    </span><span class="nt">label_field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;labels&quot;</span>
+<span class="w">    </span><span class="nt">num_classes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">172</span>
+</pre></div>
+</div>
+</section>
+<section id="id8">
+<h3>Launch Training in One Container<a class="headerlink" href="#id8" title="Permalink to this heading">#</a></h3>
+<p>Launch the training for the OGBN-Papers100M is similar as the OGBN-MAG data. Pick a GraphStorm container, e.g. the container with IP address 172.37.11.221, and run the following command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--workspace<span class="w"> </span>/data/<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num_trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num_servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num_samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--part_config<span class="w"> </span>/data/ogbn_papers100M_3p/ogbn-papers100M.json<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ip_config<span class="w"> </span>/data/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ssh_port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--graph_format<span class="w"> </span>csc,coo<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--cf<span class="w"> </span>/data/ogbn_papers100M_nc_p3.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--feat-name<span class="w"> </span>feat
+</pre></div>
+</div>
+<p>Due to the large size of Papers100M graph, it take around six minutes for all GraphStorm containers in the cluster to start their training processes and load corresponding partitions before the training starts.</p>
+<p>Given a cluster with three AWS g4dn.12xlarge instances, each of which has 48 Intel Xeon vCPUs, four Nvidia T4 GPUs, and 192GB memory, it takes around 45 minutes to train one epoch with the given configurations.</p>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="../advanced/own-models.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Use Your Own Models</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="../configuration/configuration-partition.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Graph Partition</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2023, AGML team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Use GraphStorm in a Distributed Cluster</a><ul>
+<li><a class="reference internal" href="#create-a-graphstorm-cluster">Create a GraphStorm Cluster</a><ul>
+<li><a class="reference internal" href="#setup-of-each-instance-in-a-cluster">Setup of each instance in a cluster</a></li>
+<li><a class="reference internal" href="#setup-of-a-shared-file-system-for-the-cluster">Setup of a shared file system for the cluster</a></li>
+<li><a class="reference internal" href="#create-graphstorm-container-by-mounting-the-nfs-folder">Create GraphStorm container by mounting the NFS folder</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#setup-ip-address-configuration-and-check-port-2222-status">Setup IP address configuration and check port 2222 status</a><ul>
+<li><a class="reference internal" href="#collect-the-ip-list">Collect the IP list</a></li>
+<li><a class="reference internal" href="#check-port-2222">Check port 2222</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#process-and-partition-a-graph">Process and Partition a Graph</a></li>
+<li><a class="reference internal" href="#launch-training-in-one-container">Launch Training in One Container</a></li>
+<li><a class="reference internal" href="#train-a-large-graph-ogbn-papers100m">Train a Large Graph (OGBN-Papers100M)</a><ul>
+<li><a class="reference internal" href="#id6">Create a GraphStorm Cluster</a></li>
+<li><a class="reference internal" href="#id7">Process and Partition a Graph</a></li>
+<li><a class="reference internal" href="#distribute-partitioned-graphs-and-configurations-to-all-instances">Distribute Partitioned Graphs and Configurations to all Instances</a></li>
+<li><a class="reference internal" href="#id8">Launch Training in One Container</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    </body>
+</html>

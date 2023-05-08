@@ -1,0 +1,716 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="prev" title="Use GraphStorm in a Distributed Cluster" href="../scale/distributed.html" />
+
+    <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
+        <title>Use Your Own Models - GraphStorm 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">GraphStorm 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">GraphStorm 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-launch.html">GraphStorm Launch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-partition.html">Graph Partition</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Scale to Giant Graphs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul class="current">
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Use Your Own Models</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="use-your-own-models">
+<span id="use-own-models"></span><h1>Use Your Own Models<a class="headerlink" href="#use-your-own-models" title="Permalink to this heading">#</a></h1>
+<p>The GraphStorm Framework (GSF) has built in two basic GNN models, i.e., the RGCN and the RGAT model, for heterogenous graphs. If you want to further explore different GNN models and leverage the GraphStorm’s easy-of-use and scalability power, you can modify your own GNN models according to the GraphStorm’s customer model APIs.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>GraphStorm has an <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT">examples</a> that customizes the HGT DGL model implementation for user reference.</p>
+</div>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">#</a></h2>
+<p>Before following the GraphStorm’s customized model APIs, please make sure your GNN models meet the below prerequisites.</p>
+<section id="use-dgl-to-implement-your-gnn-models">
+<h3>Use DGL to implement your GNN models<a class="headerlink" href="#use-dgl-to-implement-your-gnn-models" title="Permalink to this heading">#</a></h3>
+<p>The GraphStorm Framework relies on the <a class="reference external" href="https://www.dgl.ai/">DGL library</a> to implement and run GNN models. Particularly, the GraphStorm’s scalability power depends on the DGL’s distributed libraries. For this reason, your GNN models should be implemented with the DGL Library. You can learn how to do this via the DGL’s <a class="reference external" href="https://docs.dgl.ai/guide/index.html">User Guide</a>. In addition, there are many <a class="reference external" href="https://github.com/dmlc/dgl/tree/master/examples">GNN model examples</a> implemented by the DGL community. Please explore these materials to check if there is any model that may meet your requirements.</p>
+</section>
+<section id="modify-you-gnn-models-for-mini-batch-training-inference">
+<h3>Modify you GNN models for mini-batch training/inference<a class="headerlink" href="#modify-you-gnn-models-for-mini-batch-training-inference" title="Permalink to this heading">#</a></h3>
+<p>Many existing GNN models were implemented for running on popular academic graphs, which, compared to enterprise-level graphs, are relatively small and lack of node/edge features. Therefore, implementors use the full-graph training/inference mode, i.e., feed the entire graph along with its node/edge features in to GNN models in one epoch. When deal with large graphs, this mode will fail due to either the limits of the GPUs’ memory, or the slow speed if run on CPUs.</p>
+<p>In order to tackle large graphs, we can change GNN models to perform stochastic mini-batch training, where we do not have to fit the graphs and their features of all the nodes/edges into GPUs. You can learn how to modify GNN models into mini-batch training/inference mode via the <a class="reference external" href="https://docs.dgl.ai/en/1.0.x/guide/minibatch.html">DGL User Guide Chapter 6</a>. For examples of the different implementations between full-graph mode and mini-batch mode, please look for DGL model examples, in which mini-batch mode files normally have a file name ended with “_mb” string, like the <a class="reference external" href="https://github.com/dmlc/dgl/blob/master/examples/pytorch/rgcn-hetero/entity_classify_mb.py">RGCN model</a>, or file names including “dist” string, like the <a class="reference external" href="https://github.com/dmlc/dgl/blob/master/examples/pytorch/graphsage/dist/train_dist.py#L26">GraphSage distributed model</a>.</p>
+</section>
+<section id="learn-how-to-run-graphstorm-in-a-docker-environment">
+<h3>Learn how to run GraphStorm in a docker environment<a class="headerlink" href="#learn-how-to-run-graphstorm-in-a-docker-environment" title="Permalink to this heading">#</a></h3>
+<p>Current GraphStorm runs on docker environment. So as all steps described below. Please refer to the first two sections in the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">Environment Setup</span></a> to learn how to run GraphStorm in a docker environment, and set up your environment.</p>
+</section>
+</section>
+<section id="modifications-required-for-plugging-customer-models-into-graphstorm">
+<h2>Modifications required for plugging customer models into GraphStorm<a class="headerlink" href="#modifications-required-for-plugging-customer-models-into-graphstorm" title="Permalink to this heading">#</a></h2>
+<section id="step-1-convert-your-graph-data-into-required-format">
+<h3>Step 1: Convert your graph data into required format<a class="headerlink" href="#step-1-convert-your-graph-data-into-required-format" title="Permalink to this heading">#</a></h3>
+<p>Users can follow the User Your Own Graph Data tutorial to prepare your graph data for GraphStorm.</p>
+</section>
+<section id="step-2-modify-your-gnn-model-to-use-the-graphstorm-apis">
+<h3>Step 2: Modify your GNN model to use the GraphStorm APIs<a class="headerlink" href="#step-2-modify-your-gnn-model-to-use-the-graphstorm-apis" title="Permalink to this heading">#</a></h3>
+<p>To plug you GNN models into the GraphStorm, you need to use the GraphStorm model APIs. The key model APIs are the class GSgnnNodeModelBase, GSgnnEdgeModelBase, and GSgnnLinkPredictionModelBase. Your GNN models should inherit one of the three classes depending on your task.</p>
+<p>Here we use a Node Classification dummy model to demonstrate how to modify the GNN models.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">dgl.nn</span> <span class="k">as</span> <span class="nn">dglnn</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.function</span> <span class="k">as</span> <span class="nn">F</span>
+
+<span class="k">class</span> <span class="nc">dummyGnnModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="n">hid_dim</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span> <span class="o">=</span> <span class="n">dglnn</span><span class="o">.</span><span class="n">HeteroSAGEConv</span><span class="p">(</span><span class="n">in_dim</span><span class="p">,</span> <span class="n">hid_dim</span><span class="p">)</span>                     <span class="c1"># input layer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span> <span class="o">=</span> <span class="n">dglnn</span><span class="o">.</span><span class="n">HeteroSAGEConv</span><span class="p">(</span><span class="n">hid_dim</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">)</span>                    <span class="c1"># output layer</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blocks</span><span class="p">,</span> <span class="n">node_feats</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">node_feats</span><span class="p">)</span>                                  <span class="c1"># input layer computation</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="p">{</span><span class="n">ntype</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="n">n_emb</span><span class="p">]</span> <span class="k">for</span> <span class="n">ntype</span><span class="p">,</span> <span class="n">n_emb</span> <span class="ow">in</span> <span class="n">h</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>             <span class="c1"># activation computation</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">h</span><span class="p">)</span>                                           <span class="c1"># output layer computation</span>
+        <span class="k">return</span> <span class="n">h</span>
+</pre></div>
+</div>
+<p>The dummy GNN model has two GNN layers. Its <code class="docutils literal notranslate"><span class="pre">forward()</span></code> function takes DGL blocks and node feature, which is a dictionary whose keys are node types and values are node feature tensors, as input arguments.
+.. Note:: please be aware that there is NO HeteroSAGEConv module in the DGL. We make it up here for demonstration about how to process heterogeneous graphs only.</p>
+<p>To make this dummy model work for the GraphStorm, we need replace the PyTorch <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code> with GraphStorm’s <code class="docutils literal notranslate"><span class="pre">GSgnnNodeModelBase</span></code> and implement required functions.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">GSgnnNodeModelBase</span></code> class, which is also a PyTorch Module, has three required functions that you own GNN model need to implement, including <code class="docutils literal notranslate"><span class="pre">forward(self,</span> <span class="pre">blocks,</span> <span class="pre">node_feats,</span> <span class="pre">edge_feats,</span> <span class="pre">labels)</span></code>, <code class="docutils literal notranslate"><span class="pre">predict(self,</span> <span class="pre">blocks,</span> <span class="pre">node_feats,</span> <span class="pre">edge_feats)</span></code>, and <code class="docutils literal notranslate"><span class="pre">create_optimizer(self)</span></code>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">forward()</span></code> function is similar to the PyTorch Module’s <code class="docutils literal notranslate"><span class="pre">forward()</span></code> function except that its input arguments MUST include blocks and labels, node features or edge features are optional only if your GNN model needs them. Unlike common cases where forward function returns logits computed by models, the return value of <code class="docutils literal notranslate"><span class="pre">GSgnnNodeModelBase</span></code>’s <code class="docutils literal notranslate"><span class="pre">forward()</span></code> should be a loss value, which the GraphStorm will use to perform backward operations. Because of this change, you need to include a loss function into your GNN models, instead of computing loss outside of GNN models. Following these requirements, our dummy model have a few more lines added as shown below.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">dgl.nn</span> <span class="k">as</span> <span class="nn">dglnn</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.function</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">from</span> <span class="nn">graphstorm</span> <span class="kn">import</span> <span class="n">model</span> <span class="k">as</span> <span class="n">gsmodel</span>
+
+
+<span class="k">class</span> <span class="nc">dummyGnnModel</span><span class="p">(</span><span class="n">gsmodel</span><span class="o">.</span><span class="n">GSgnnNodeModelBase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="n">hid_dim</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span> <span class="o">=</span> <span class="n">dglnn</span><span class="o">.</span><span class="n">HeteroSAGEConv</span><span class="p">(</span><span class="n">in_dim</span><span class="p">,</span> <span class="n">hid_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span> <span class="o">=</span> <span class="n">dglnn</span><span class="o">.</span><span class="n">HeteroSAGEConv</span><span class="p">(</span><span class="n">hid_dim</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span> <span class="o">=</span> <span class="n">gsmodel</span><span class="o">.</span><span class="n">ClassifyLossFunc</span><span class="p">(</span><span class="n">multilabel</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>             <span class="c1"># define a loss function</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blocks</span><span class="p">,</span> <span class="n">node_feats</span><span class="p">,</span> <span class="n">pred_ntype</span><span class="p">,</span> <span class="n">labels</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">node_feats</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="p">{</span><span class="n">ntype</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="n">n_emb</span><span class="p">]</span> <span class="k">for</span> <span class="n">ntype</span><span class="p">,</span> <span class="n">n_emb</span> <span class="ow">in</span> <span class="n">h</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">h</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="n">pred_ntype</span><span class="p">],</span> <span class="n">labels</span><span class="p">)</span>                            <span class="c1"># compute loss value</span>
+        <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+<p>You may notice that the GraphStorm already provides common loss functions for classification, regression and link prediction, which can be easily imported and used in your model. But you are free to use any PyTorch loss functions or even your own loss function. In the above codes, we also add the prediction node type and labels to compute the loss.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">predict()</span></code> function is for inference and it will not be used for backward. Its input arguments are similar to the forward() function, but no need for labels. The <code class="docutils literal notranslate"><span class="pre">predict()</span></code> function will return two values. The first is the prediction results, not the logits. The second is the model embeddings, which could be used for some specific purposes (this return value is uncommon for some users, and we are working on the fix this confusion). With these requirements, the <code class="docutils literal notranslate"><span class="pre">predict()</span></code> function of the dummy model is like the codes below.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blocks</span><span class="p">,</span> <span class="n">node_feats</span><span class="p">,</span> <span class="n">pred_ntype</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">node_feats</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="p">{</span><span class="n">ntype</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="n">n_emb</span><span class="p">]</span> <span class="k">for</span> <span class="n">ntype</span><span class="p">,</span> <span class="n">n_emb</span> <span class="ow">in</span> <span class="n">h</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">h</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">h</span><span class="p">[</span><span class="n">pred_ntype</span><span class="p">]</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">h</span><span class="p">[</span><span class="n">pred_ntype</span><span class="p">]</span>                       <span class="c1"># return two values: one is the predict results,</span>
+                                                                                <span class="c1"># while another is the computed node representations, which can be saved.</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">create_optimizer()</span></code> function is for users to define its own optimizer. You can put the optimizer definition from the training flow in here, like the codes below</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">create_optimizer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>There are other optional functions in the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76">GSgnnNodeModelBase</a> class, including <code class="docutils literal notranslate"><span class="pre">restore_model(self,</span> <span class="pre">restore_model_path)</span></code> and <code class="docutils literal notranslate"><span class="pre">save_model(self,</span> <span class="pre">model_path)</span></code>, which are used for restore and save models. If you want to save or restore models, implement these two functions too.</p>
+</section>
+<section id="step-3-modify-the-training-inference-flow-with-the-graphstorm-apis">
+<h3>Step 3. Modify the training/inference flow with the GraphStorm APIs<a class="headerlink" href="#step-3-modify-the-training-inference-flow-with-the-graphstorm-apis" title="Permalink to this heading">#</a></h3>
+<p>With the modified GNN models ready, the next step is to modify the training/inference loop by replacing datasets and dataloaders with the GraphStorm’s dataloading classes.</p>
+<p>In general, the dummy model could use the following flow to be trained and evaluated as suggested by the <a class="reference external" href="https://docs.dgl.ai/guide/training.html">DGL User Guide</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dgl.dataloading</span> <span class="kn">import</span> <span class="n">NeighborSampler</span><span class="p">,</span> <span class="n">DataLoader</span>
+
+<span class="n">sampler</span> <span class="o">=</span> <span class="n">NeighborSampler</span><span class="p">([</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>                                                  <span class="c1"># Define neighbor sampler</span>
+<span class="n">train_dataloader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="p">{</span><span class="n">pred_ntype</span><span class="p">:</span> <span class="n">train_index</span><span class="p">},</span> <span class="n">sampler</span>                 <span class="c1"># Define DGL dataloader</span>
+                            <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">)</span>
+<span class="n">dummy_model</span> <span class="o">=</span> <span class="n">dummyGnnModel</span><span class="p">(</span><span class="n">in_dim</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">hid_dim</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">out_dim</span><span class="o">=</span><span class="n">n_labels</span><span class="p">)</span>                    <span class="c1"># Initialize the dummy model</span>
+<span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>                                    <span class="c1"># Define an optimizer</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">input_nodes</span><span class="p">,</span> <span class="n">output_nodes</span><span class="p">,</span> <span class="n">blocks</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">train_dataloader</span><span class="p">):</span>
+        <span class="n">node_features</span> <span class="o">=</span> <span class="n">extract_node_feature</span><span class="p">(</span><span class="n">input_nodes</span><span class="p">)</span>                               <span class="c1"># Only extract features for input nodes in this blocks</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">extract_labels</span><span class="p">(</span><span class="n">output_nodes</span><span class="p">[</span><span class="n">pred_ntype</span><span class="p">])</span>                               <span class="c1"># Only extract labels for output nodes in this blocks</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="n">dummy_model</span><span class="p">(</span><span class="n">blocks</span><span class="p">,</span> <span class="n">node_features</span><span class="p">)</span>                                     <span class="c1"># forward propagation by using all nodes</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">cross_entropy</span><span class="p">(</span><span class="n">logits</span><span class="p">[</span><span class="n">pred_ntype</span><span class="p">],</span> <span class="n">labels</span><span class="p">)</span>                              <span class="c1"># compute loss</span>
+        <span class="c1"># compute validation accuracy ......</span>
+        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The GraphStorm training flow is similar with a few modifications.</p>
+<section id="start-training-process-with-graphstorm-s-iniatilization">
+<h4>Start training process with GraphStorm’s iniatilization<a class="headerlink" href="#start-training-process-with-graphstorm-s-iniatilization" title="Permalink to this heading">#</a></h4>
+<p>Any GraphStorm training process <strong>MUST</strong> start with a proper initialization. You can use the following codes at the beginning of training flow.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">graphstorm</span> <span class="k">as</span> <span class="nn">gs</span>
+<span class="o">......</span>
+<span class="n">gs</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">ip_config</span><span class="o">=</span><span class="n">ip_config</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;gloo&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>the “ip_config” argument specifies a ip configuration file, which contains the IP addresses of machines in a GraphStorm distributed cluster. You can find its description at the <a class="reference internal" href="../tutorials/quick-start.html#launch-training"><span class="std std-ref">Launch Training</span></a> section of the <a class="reference internal" href="../tutorials/quick-start.html#quick-start"><span class="std std-ref">Quick Start Tutorial</span></a>.</p>
+</section>
+<section id="replace-dgl-dataloader-with-the-graphstorm-s-dataset-and-dataloader">
+<h4>Replace DGL DataLoader with the GraphStorm’s dataset and dataloader<a class="headerlink" href="#replace-dgl-dataloader-with-the-graphstorm-s-dataset-and-dataloader" title="Permalink to this heading">#</a></h4>
+<p>Because the GraphStorm uses distributed graphs, we need to first load the partitioned graph, which is created in the Step 1, with the <code class="docutils literal notranslate"><span class="pre">GSgnnNodeTrainData</span></code> class (for edge tasks, the GraphStorm also provides <code class="docutils literal notranslate"><span class="pre">GSgnnEdgeTrainData</span></code>). The <code class="docutils literal notranslate"><span class="pre">GSgnnNodeTrainData</span></code> could be created as shown in the codes below.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">graph_data</span> <span class="o">=</span> <span class="n">GSgnnNodeTrainData</span><span class="p">(</span><span class="n">graph_name</span><span class="p">,</span> <span class="n">part_config</span><span class="p">,</span> <span class="n">train_ntypes</span><span class="o">=</span><span class="n">pred_ntype</span><span class="p">,</span> <span class="n">eval_ntypes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                <span class="n">label_field</span><span class="o">=</span><span class="n">label_field</span><span class="p">,</span> <span class="n">node_feat_field</span><span class="o">=</span><span class="n">node_feat_field</span><span class="p">,</span> <span class="n">edge_feat_field</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Arguments of this class includes the partition configuration JSON file path, which are the outputs of the <strong>Step 1</strong>. The <code class="docutils literal notranslate"><span class="pre">graph_name</span></code> can be found in the JSON file.</p>
+<p>The other values, the <code class="docutils literal notranslate"><span class="pre">train_ntypes</span></code>, the <code class="docutils literal notranslate"><span class="pre">label_field</span></code>, the <code class="docutils literal notranslate"><span class="pre">node_feat_field</span></code> and <code class="docutils literal notranslate"><span class="pre">edge_feat_field</span></code>, should be consistent with the values in the raw data <a class="reference internal" href="../tutorials/own-data.html#input-config"><span class="std std-ref">input configuration JSON</span></a> defined in the <strong>Step 1</strong>. The <code class="docutils literal notranslate"><span class="pre">train_ntypes</span></code> is the <code class="docutils literal notranslate"><span class="pre">node_type</span></code> that has <code class="docutils literal notranslate"><span class="pre">labels</span></code> specified. The <code class="docutils literal notranslate"><span class="pre">label_fields</span></code> is the value specified in <code class="docutils literal notranslate"><span class="pre">label_col</span></code> of the <code class="docutils literal notranslate"><span class="pre">train_ntype</span></code>. The <code class="docutils literal notranslate"><span class="pre">node_feat_field</span></code> and the <code class="docutils literal notranslate"><span class="pre">edge_feat_field</span></code> are two dictionaries, whose keys are the values of <code class="docutils literal notranslate"><span class="pre">node_type</span></code>, and values are the values of <code class="docutils literal notranslate"><span class="pre">feature_name</span></code>.</p>
+<p>Then we can put this dataset into GraphStorm’s GSgnnNodeDataLoader, which is like:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">train_dataloader</span> <span class="o">=</span> <span class="n">GSgnnNodeDataLoader</span><span class="p">(</span><span class="n">graph_data</span><span class="p">,</span> <span class="n">graph_data</span><span class="o">.</span><span class="n">train_idxs</span><span class="p">,</span> <span class="n">fanout</span><span class="o">=</span><span class="n">fanout</span><span class="p">,</span>
+                                   <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">train_task</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">val_dataloader</span>   <span class="o">=</span> <span class="n">GSgnnNodeDataLoader</span><span class="p">(</span><span class="n">graph_data</span><span class="p">,</span> <span class="n">graph_data</span><span class="o">.</span><span class="n">val_idxs</span><span class="p">,</span> <span class="n">fanout</span><span class="o">=</span><span class="n">fanout</span><span class="p">,</span>
+                                    <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">train_task</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">test_dataloader</span>  <span class="o">=</span> <span class="n">GSgnnNodeDataLoader</span><span class="p">(</span><span class="n">graph_data</span><span class="p">,</span> <span class="n">graph_data</span><span class="o">.</span><span class="n">test_idxs</span><span class="p">,</span> <span class="n">fanout</span><span class="o">=</span><span class="n">fanout</span><span class="p">,</span>
+                                    <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">train_task</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The GraphStorm provides a set of dataloaders for different GML tasks. Here we deal with a node task, hence using the node dataloader, which takes the graph data created above as the first argument. The second argument is the label index that the GraphStorm dataset extracted from the graph as indicated in the target nodes’ <code class="docutils literal notranslate"><span class="pre">train_mask</span></code>, <code class="docutils literal notranslate"><span class="pre">val_mask</span></code>, and <code class="docutils literal notranslate"><span class="pre">test_mask</span></code>, which are automatically generated by GraphStorm graph construction tool with the specified <code class="docutils literal notranslate"><span class="pre">split_pct</span></code> field. The GSgnnNodeTrainData automatically extract these indexes out and set its properties so that you can directly use them like <code class="docutils literal notranslate"><span class="pre">graph_data.train_idxs</span></code> and <code class="docutils literal notranslate"><span class="pre">graph_data.val_idxs</span></code>, and <code class="docutils literal notranslate"><span class="pre">graph_data.test_idxs</span></code>. The rest of arguments are similar to the common training flow, except that we set the <code class="docutils literal notranslate"><span class="pre">train_task</span></code> to be <code class="docutils literal notranslate"><span class="pre">False</span></code> for the evaluation and test dataloader.</p>
+</section>
+<section id="use-graphstorm-s-model-trainer-to-wrap-your-model-and-attach-evaluator-and-task-tracker-to-it">
+<h4>Use GraphStorm’s model trainer to wrap your model and attach evaluator and task tracker to it<a class="headerlink" href="#use-graphstorm-s-model-trainer-to-wrap-your-model-and-attach-evaluator-and-task-tracker-to-it" title="Permalink to this heading">#</a></h4>
+<p>Unlike the common flow, GraphStorm wraps GNN models with different trainers just like other frameworks, e.g. scikit-learn. GraphStorm provides node prediction, edge prediction, and link prediction trainers. Create them is easy. For the dummy model, after create it as the <code class="docutils literal notranslate"><span class="pre">dummy_model</span> <span class="pre">=</span> <span class="pre">dummyGnnModel(in_dim=16,</span> <span class="pre">hid_dim=64,</span> <span class="pre">out_dim=n_labels)</span></code>, we can use the <code class="docutils literal notranslate"><span class="pre">GSgnnNodePredictionTrainer</span></code> class to wrap it like:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trainer</span> <span class="o">=</span> <span class="n">GSgnnNodePredictionTrainer</span><span class="p">(</span><span class="n">dummy_model</span><span class="p">,</span> <span class="n">rank</span><span class="o">=</span><span class="n">gs</span><span class="o">.</span><span class="n">get_rank</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">GSgnnNodePredictionTrainer</span></code> takes a GNN model as the first argument.</p>
+<p>The GraphStorm trainers can have evaluators and task trackers associated. The following codes show how to do this.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">evaluator</span> <span class="o">=</span> <span class="n">GSgnnAccEvaluator</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">eval_frequency</span><span class="p">,</span>
+                          <span class="n">config</span><span class="o">.</span><span class="n">eval_metric</span><span class="p">,</span>
+                          <span class="n">config</span><span class="o">.</span><span class="n">multilabel</span><span class="p">,</span>
+                          <span class="n">config</span><span class="o">.</span><span class="n">use_early_stop</span><span class="p">,</span>
+                          <span class="n">config</span><span class="o">.</span><span class="n">early_stop_burnin_rounds</span><span class="p">,</span>
+                          <span class="n">config</span><span class="o">.</span><span class="n">early_stop_rounds</span><span class="p">,</span>
+                          <span class="n">config</span><span class="o">.</span><span class="n">early_stop_strategy</span><span class="p">)</span>
+<span class="n">trainer</span><span class="o">.</span><span class="n">setup_evaluator</span><span class="p">(</span><span class="n">evaluator</span><span class="p">)</span>
+
+<span class="n">tracker</span> <span class="o">=</span> <span class="n">GSSageMakerTaskTracker</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">gs</span><span class="o">.</span><span class="n">get_rank</span><span class="p">())</span>       <span class="c1"># Optional: set up a task tracker to show the progress of training.</span>
+<span class="n">trainer</span><span class="o">.</span><span class="n">setup_task_tracker</span><span class="p">(</span><span class="n">tracker</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>GraphStorm’s evaluators could help to compute the required evaluation metrics, such as <code class="docutils literal notranslate"><span class="pre">accuracy</span></code>, <code class="docutils literal notranslate"><span class="pre">f1</span></code>, <code class="docutils literal notranslate"><span class="pre">mrr</span></code>, and etc. Users can select the proper evaluator and use the trainer’s <code class="docutils literal notranslate"><span class="pre">setup_evaluator()</span></code> method to attach them. GraphStorm’s task trackers serve as log collectors, which is used to show the training information.</p>
+</section>
+<section id="use-trainer-s-fit-function-to-run-training">
+<h4>Use trainer’s <code class="docutils literal notranslate"><span class="pre">fit()</span></code> function to run training<a class="headerlink" href="#use-trainer-s-fit-function-to-run-training" title="Permalink to this heading">#</a></h4>
+<p>Once all trainers, evaluators, and task trackers set, the last step is to use the trainer’s <code class="docutils literal notranslate"><span class="pre">fit()</span></code> function to run training, validating, and testing on the three sets like the code below.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trainer</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_loader</span><span class="o">=</span><span class="n">train_dataloader</span><span class="p">,</span> <span class="n">num_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span> <span class="n">val_loader</span><span class="o">=</span><span class="n">eval_dataloader</span><span class="p">,</span>
+        <span class="n">test_loader</span><span class="o">=</span><span class="n">test_dataloader</span><span class="p">,</span> <span class="n">save_model_path</span><span class="o">=</span><span class="n">save_model_path</span><span class="p">,</span> <span class="n">mini_batch_infer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">fit()</span></code> function wraps dataloaders, number of epochs, to replace the common “<strong>for loops</strong>” as seen in the above training flow. The <code class="docutils literal notranslate"><span class="pre">fit()</span></code> function also takes additional arguments, such as <code class="docutils literal notranslate"><span class="pre">save_model_path</span></code>, and <code class="docutils literal notranslate"><span class="pre">save_model_requency</span></code> to save different model artifacts. <strong>BUT</strong> before set these arguments, you need to implement the <code class="docutils literal notranslate"><span class="pre">restore_model(self,</span> <span class="pre">restore_model_path)</span></code> and <code class="docutils literal notranslate"><span class="pre">save_model(self,</span> <span class="pre">model_path)</span></code> functions in the <strong>Step 2</strong>.</p>
+</section>
+</section>
+<section id="step-4-set-up-graphstorm-yaml-configuration-file-and-your-own-arguments">
+<h3>Step 4. Set up GraphStorm YAML configuration file and your own arguments<a class="headerlink" href="#step-4-set-up-graphstorm-yaml-configuration-file-and-your-own-arguments" title="Permalink to this heading">#</a></h3>
+<p>GraphStorm has a set of configurations that control the various perspectives of the model training and inference process. You can find the details of these configurations in the GraphStorm <a class="reference internal" href="../configuration/index.html#configurations"><span class="std std-ref">Configuration page</span></a>. These configurations could be either passed as input arguments or set in a YAML format file. Below is an example of the YAML file.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nn">---</span>
+<span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="nt">gsf</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">basic</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gloo</span>
+<span class="w">        </span><span class="nt">ip_config</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ip_list.txt</span>
+<span class="w">        </span><span class="nt">part_config</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/acm_nc/acm.json</span>
+<span class="w">        </span><span class="nt">alpha_l2norm</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.</span>
+<span class="w">    </span><span class="nt">gnn</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">fanout</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;50,50&quot;</span>
+<span class="w">        </span><span class="nt">num_layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">        </span><span class="nt">hidden_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">256</span>
+<span class="w">    </span><span class="nt">input</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">restore_model_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<span class="w">    </span><span class="nt">output</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">save_model_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/outputs</span>
+<span class="w">        </span><span class="nt">save_embeds_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/outputs</span>
+<span class="w">        </span><span class="nt">save_prediction_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/outputs</span>
+<span class="w">    </span><span class="nt">hyperparam</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.</span>
+<span class="w">        </span><span class="nt">lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0001</span>
+<span class="w">        </span><span class="nt">num_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200</span>
+<span class="w">        </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1024</span>
+<span class="w">        </span><span class="nt">eval_batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1024</span>
+<span class="w">    </span><span class="nt">node_classification</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">target_ntype</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;paper&quot;</span>
+<span class="w">        </span><span class="nt">label_field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;label&quot;</span>
+<span class="w">        </span><span class="nt">multilabel</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">        </span><span class="nt">num_classes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">14</span>
+</pre></div>
+</div>
+<p>Users can use an argument to read in this YAML file, and construct a <code class="docutils literal notranslate"><span class="pre">GSConfig</span></code> object like the below codes. And then use the GSConfig instance, e.g., <code class="docutils literal notranslate"><span class="pre">config</span></code>, to provide arguments that the GraphStorm supports.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">graphstorm.config</span> <span class="kn">import</span> <span class="n">GSConfig</span>
+<span class="o">......</span>
+<span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--yaml-config-file&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;The GraphStorm YAML configuration file path.&quot;</span><span class="p">)</span>
+<span class="n">args</span> <span class="o">=</span> <span class="n">argparser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">GSConfig</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For users’ own configurations, you still can pass them as input argument of your training script, and extract them from the args object.</p>
+</section>
+<section id="step-5-one-more-thing-the-unused-weights-error">
+<h3>Step 5. One more thing: the unused weights error<a class="headerlink" href="#step-5-one-more-thing-the-unused-weights-error" title="Permalink to this heading">#</a></h3>
+<p>Uncommonly seen in the full-graph training or mini-batch training on a single GPU, the unused weights error could frequently occur when start to train models on multiple GPUs in parallel. PyTorch distributed framework’s inner mechanism cause this problem. One easy way to solve this error is to add a regularization to all trainable parameters into the loss computation like the codes blow.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pred_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">predict_ntype</span><span class="p">],</span> <span class="n">labels</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">predict_ntype</span><span class="p">])</span>
+<span class="c1"># L2 regularization of trainable parameters</span>
+<span class="n">reg_loss</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">pred_loss</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">d_para</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+    <span class="n">reg_loss</span> <span class="o">+=</span> <span class="n">d_para</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+<span class="n">reg_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_l2norm</span> <span class="o">*</span> <span class="n">reg_loss</span>
+
+<span class="n">total_loss</span> <span class="o">=</span> <span class="n">pred_loss</span> <span class="o">+</span> <span class="n">reg_loss</span>
+</pre></div>
+</div>
+<p>You can add a coefficient to control the influence of the regularization like the <code class="docutils literal notranslate"><span class="pre">alpha_l2norm</span></code>.</p>
+</section>
+</section>
+<section id="put-everything-together-and-run-them">
+<h2>Put Everything Together and Run them<a class="headerlink" href="#put-everything-together-and-run-them" title="Permalink to this heading">#</a></h2>
+<p>With all required modifications ready, let’s put everything of the dummy model together in a Python file, e.g, d``ummy_nc.py``, as a full example. We can put the Python file and the related artifacts, including the YAML file, e.g., <code class="docutils literal notranslate"><span class="pre">acm_nc.yaml</span></code>, and the <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file in a folder, e.g. <code class="docutils literal notranslate"><span class="pre">/dummy_model</span></code>. And then use the GraphStorm’s launch script to run this dummy model in the GraphStorm framework.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">~/</span><span class="n">dgl</span><span class="o">/</span><span class="n">tools</span><span class="o">/</span><span class="n">launch</span><span class="o">.</span><span class="n">py</span> \
+        <span class="o">--</span><span class="n">workspace</span> <span class="o">/</span><span class="n">dummy_model</span> \
+        <span class="o">--</span><span class="n">part_config</span> <span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">dummy_nc</span><span class="o">/</span><span class="n">dummy_data</span><span class="o">.</span><span class="n">json</span> \
+        <span class="o">--</span><span class="n">ip_config</span> <span class="n">ip_list</span><span class="o">.</span><span class="n">txt</span> \
+        <span class="o">--</span><span class="n">num_trainers</span> <span class="mi">4</span> \
+        <span class="o">--</span><span class="n">num_servers</span> <span class="mi">1</span> \
+        <span class="o">--</span><span class="n">num_samplers</span> <span class="mi">0</span> \
+        <span class="o">--</span><span class="n">ssh_port</span> <span class="mi">2222</span> \
+        <span class="s2">&quot;python3 dummy_nc.py --yaml-config-file dummy_nc.yaml </span><span class="se">\</span>
+<span class="s2">                            --part-config dummy_data.json </span><span class="se">\</span>
+<span class="s2">                            --ip-config ip_list.txt </span><span class="se">\</span>
+<span class="s2">                            --node-feat paper:feat-author:feat-subject:feat&quot;</span>
+</pre></div>
+</div>
+<p>The argument value of <code class="docutils literal notranslate"><span class="pre">--part_config</span></code> is the JSON file coming from the <a class="reference internal" href="../tutorials/own-data.html#output-graph-construction"><span class="std std-ref">outputs</span></a> of the Step 1.</p>
+<p>Here come the full dummy model example for reference. Please note that this code is NOT runnable but for demonstration purpose. To try runnable example, please check the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT">GraphStorm examples</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">dgl.nn</span> <span class="k">as</span> <span class="nn">dglnn</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.function</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">graphstorm</span> <span class="k">as</span> <span class="nn">gs</span>
+<span class="kn">from</span> <span class="nn">graphstorm</span> <span class="kn">import</span> <span class="n">model</span> <span class="k">as</span> <span class="n">gsmodel</span>
+<span class="kn">from</span> <span class="nn">graphstorm.trainer</span> <span class="kn">import</span> <span class="n">GSgnnNodePredictionTrainer</span>
+<span class="kn">from</span> <span class="nn">graphstorm.inference</span> <span class="kn">import</span> <span class="n">GSgnnNodePredictionInfer</span>
+<span class="kn">from</span> <span class="nn">graphstorm.dataloading</span> <span class="kn">import</span> <span class="n">GSgnnNodeTrainData</span><span class="p">,</span> <span class="n">GSgnnNodeInferData</span>
+<span class="kn">from</span> <span class="nn">graphstorm.dataloading</span> <span class="kn">import</span> <span class="n">GSgnnNodeDataLoader</span>
+<span class="kn">from</span> <span class="nn">graphstorm.eval</span> <span class="kn">import</span> <span class="n">GSgnnAccEvaluator</span>
+<span class="kn">from</span> <span class="nn">graphstorm.tracker</span> <span class="kn">import</span> <span class="n">GSSageMakerTaskTracker</span>
+
+
+<span class="k">class</span> <span class="nc">dummyGnnModel</span><span class="p">(</span><span class="n">gsmodel</span><span class="o">.</span><span class="n">GSgnnNodeModelBase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="n">hid_dim</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">,</span> <span class="n">pred_ntype</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span> <span class="o">=</span> <span class="n">dglnn</span><span class="o">.</span><span class="n">HeteroSAGEConv</span><span class="p">(</span><span class="n">in_dim</span><span class="p">,</span> <span class="n">hid_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span> <span class="o">=</span> <span class="n">dglnn</span><span class="o">.</span><span class="n">HeteroSAGEConv</span><span class="p">(</span><span class="n">hid_dim</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pred_ntype</span> <span class="o">=</span> <span class="n">pred_ntype</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span> <span class="o">=</span> <span class="n">gsmodel</span><span class="o">.</span><span class="n">ClassifyLossFunc</span><span class="p">(</span><span class="n">multilabel</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>             <span class="c1"># define a loss function</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blocks</span><span class="p">,</span> <span class="n">node_feats</span><span class="p">,</span> <span class="n">labels</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">node_feats</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="p">{</span><span class="n">ntype</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="n">n_emb</span><span class="p">]</span> <span class="k">for</span> <span class="n">ntype</span><span class="p">,</span> <span class="n">n_emb</span> <span class="ow">in</span> <span class="n">h</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">h</span><span class="p">)</span>
+
+        <span class="n">pred_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">predict_ntype</span><span class="p">],</span> <span class="n">labels</span><span class="p">)</span>
+        <span class="c1"># L2 regularization of trainable parameters</span>
+        <span class="n">reg_loss</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">pred_loss</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">d_para</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+            <span class="n">reg_loss</span> <span class="o">+=</span> <span class="n">d_para</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">reg_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_l2norm</span> <span class="o">*</span> <span class="n">reg_loss</span>
+
+        <span class="n">total_loss</span> <span class="o">=</span> <span class="n">pred_loss</span> <span class="o">+</span> <span class="n">reg_loss</span>
+        <span class="k">return</span> <span class="n">total_loss</span>
+
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blocks</span><span class="p">,</span> <span class="n">node_feats</span><span class="p">,</span> <span class="n">pred_ntype</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">node_feats</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="p">{</span><span class="n">ntype</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="n">n_emb</span><span class="p">]</span> <span class="k">for</span> <span class="n">ntype</span><span class="p">,</span> <span class="n">n_emb</span> <span class="ow">in</span> <span class="n">h</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">h</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">h</span><span class="p">[</span><span class="n">pred_ntype</span><span class="p">]</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">h</span><span class="p">[</span><span class="n">pred_ntype</span><span class="p">]</span>                       <span class="c1"># return two values</span>
+
+    <span class="k">def</span> <span class="nf">create_optimizer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">restore_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">restore_model_path</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">save_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_path</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">gs</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">ip_config</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">ip_config</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;gloo&quot;</span><span class="p">)</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">GSConfig</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="c1"># Process node_feat_field to define GraphStorm dataset</span>
+    <span class="n">node_feat_fields</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">node_feat_types</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">node_feat</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">node_feat_type</span> <span class="ow">in</span> <span class="n">node_feat_types</span><span class="p">:</span>
+        <span class="n">node_type</span><span class="p">,</span> <span class="n">feat_names</span> <span class="o">=</span> <span class="n">node_feat_type</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="n">node_feat_fields</span><span class="p">[</span><span class="n">node_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">feat_names</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Define the GraphStorm training dataset</span>
+    <span class="n">train_data</span> <span class="o">=</span> <span class="n">GSgnnNodeTrainData</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">graph_name</span><span class="p">,</span>
+                                    <span class="n">config</span><span class="o">.</span><span class="n">part_config</span><span class="p">,</span>
+                                    <span class="n">train_ntypes</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">target_ntype</span><span class="p">,</span>
+                                    <span class="n">node_feat_field</span><span class="o">=</span><span class="n">node_feat_fields</span><span class="p">,</span>
+                                    <span class="n">label_field</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">label_field</span><span class="p">)</span>
+    <span class="n">nfeat_dims</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">ntype</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">node_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">train_data</span><span class="o">.</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">ntype</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;feat&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nfeat_dims</span><span class="p">[</span><span class="n">ntype</span><span class="p">]</span> <span class="o">=</span> <span class="n">train_data</span><span class="o">.</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">ntype</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;feat&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">nfeat_dims</span><span class="p">[</span><span class="n">ntype</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">dummyModel</span><span class="p">(</span><span class="n">nfeat_dims</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">target_ntype</span><span class="p">)</span>
+
+    <span class="c1"># Create a trainer for the node classification task.</span>
+    <span class="n">trainer</span> <span class="o">=</span> <span class="n">GSgnnNodePredictionTrainer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">gs</span><span class="o">.</span><span class="n">get_rank</span><span class="p">(),</span> <span class="n">topk_model_to_save</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">trainer</span><span class="o">.</span><span class="n">setup_cuda</span><span class="p">(</span><span class="n">dev_id</span><span class="o">=</span><span class="n">gs</span><span class="o">.</span><span class="n">get_rank</span><span class="p">())</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda:</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">trainer</span><span class="o">.</span><span class="n">dev_id</span>
+
+    <span class="c1"># Define the GraphStorm train dataloader</span>
+    <span class="n">dataloader</span> <span class="o">=</span> <span class="n">GSgnnNodeDataLoader</span><span class="p">(</span><span class="n">train_data</span><span class="p">,</span> <span class="n">train_data</span><span class="o">.</span><span class="n">train_idxs</span><span class="p">,</span> <span class="n">fanout</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">fanout</span><span class="p">,</span>
+                                    <span class="n">batch_size</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">train_task</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Optional: Define the evaluation dataloader</span>
+    <span class="n">eval_dataloader</span> <span class="o">=</span> <span class="n">GSgnnNodeDataLoader</span><span class="p">(</span><span class="n">train_data</span><span class="p">,</span> <span class="n">train_data</span><span class="o">.</span><span class="n">val_idxs</span><span class="p">,</span><span class="n">fanout</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">fanout</span><span class="p">,</span>
+                                        <span class="n">batch_size</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">eval_batch_size</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+                                        <span class="n">train_task</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Optional: Define the evaluation dataloader</span>
+    <span class="n">test_dataloader</span> <span class="o">=</span> <span class="n">GSgnnNodeDataLoader</span><span class="p">(</span><span class="n">train_data</span><span class="p">,</span> <span class="n">train_data</span><span class="o">.</span><span class="n">test_idxs</span><span class="p">,</span><span class="n">fanout</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">fanout</span><span class="p">,</span>
+                                        <span class="n">batch_size</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">eval_batch_size</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+                                        <span class="n">train_task</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Optional: set up a evaluator</span>
+    <span class="n">evaluator</span> <span class="o">=</span> <span class="n">GSgnnAccEvaluator</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">eval_frequency</span><span class="p">,</span>
+                                <span class="n">config</span><span class="o">.</span><span class="n">eval_metric</span><span class="p">,</span>
+                                <span class="n">config</span><span class="o">.</span><span class="n">multilabel</span><span class="p">,</span>
+                                <span class="n">config</span><span class="o">.</span><span class="n">use_early_stop</span><span class="p">,</span>
+                                <span class="n">config</span><span class="o">.</span><span class="n">early_stop_burnin_rounds</span><span class="p">,</span>
+                                <span class="n">config</span><span class="o">.</span><span class="n">early_stop_rounds</span><span class="p">,</span>
+                                <span class="n">config</span><span class="o">.</span><span class="n">early_stop_strategy</span><span class="p">)</span>
+    <span class="n">trainer</span><span class="o">.</span><span class="n">setup_evaluator</span><span class="p">(</span><span class="n">evaluator</span><span class="p">)</span>
+    <span class="c1"># Optional: set up a task tracker to show the progress of training.</span>
+    <span class="n">tracker</span> <span class="o">=</span> <span class="n">GSSageMakerTaskTracker</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">gs</span><span class="o">.</span><span class="n">get_rank</span><span class="p">())</span>
+    <span class="n">trainer</span><span class="o">.</span><span class="n">setup_task_tracker</span><span class="p">(</span><span class="n">tracker</span><span class="p">)</span>
+
+    <span class="c1"># Start the training process.</span>
+    <span class="n">trainer</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_loader</span><span class="o">=</span><span class="n">dataloader</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">num_epochs</span><span class="p">,</span>
+                <span class="n">val_loader</span><span class="o">=</span><span class="n">eval_dataloader</span><span class="p">,</span>
+                <span class="n">test_loader</span><span class="o">=</span><span class="n">test_dataloader</span><span class="p">,</span>
+                <span class="n">save_model_path</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">save_model_path</span><span class="p">,</span>
+                <span class="n">mini_batch_infer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># After training, get the best model from the trainer.</span>
+    <span class="n">best_model</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">get_best_model</span><span class="p">()</span>
+
+
+    <span class="c1"># Create a dataset for inference.</span>
+    <span class="n">infer_data</span> <span class="o">=</span> <span class="n">GSgnnNodeInferData</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">graph_name</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">part_config</span><span class="p">,</span>
+                                    <span class="n">eval_ntypes</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">target_ntype</span><span class="p">,</span>
+                                    <span class="n">node_feat_field</span><span class="o">=</span><span class="n">node_feat_fields</span><span class="p">,</span>
+                                    <span class="n">label_field</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">label_field</span><span class="p">)</span>
+
+    <span class="c1"># Create an inference for a node task.</span>
+    <span class="n">infer</span> <span class="o">=</span> <span class="n">GSgnnNodePredictionInfer</span><span class="p">(</span><span class="n">best_model</span><span class="p">,</span> <span class="n">gs</span><span class="o">.</span><span class="n">get_rank</span><span class="p">())</span>
+    <span class="n">infer</span><span class="o">.</span><span class="n">setup_cuda</span><span class="p">(</span><span class="n">dev_id</span><span class="o">=</span><span class="n">gs</span><span class="o">.</span><span class="n">get_rank</span><span class="p">())</span>
+    <span class="n">infer</span><span class="o">.</span><span class="n">setup_evaluator</span><span class="p">(</span><span class="n">evaluator</span><span class="p">)</span>
+    <span class="n">infer</span><span class="o">.</span><span class="n">setup_task_tracker</span><span class="p">(</span><span class="n">tracker</span><span class="p">)</span>
+    <span class="n">dataloader</span> <span class="o">=</span> <span class="n">GSgnnNodeDataLoader</span><span class="p">(</span><span class="n">infer_data</span><span class="p">,</span> <span class="n">infer_data</span><span class="o">.</span><span class="n">test_idxs</span><span class="p">,</span>
+                                    <span class="n">fanout</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">fanout</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+                                    <span class="n">train_task</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Run inference on the inference dataset and save the GNN embeddings in the specified path.</span>
+    <span class="n">infer</span><span class="o">.</span><span class="n">infer</span><span class="p">(</span><span class="n">dataloader</span><span class="p">,</span> <span class="n">save_embed_path</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">save_embed_path</span><span class="p">,</span> <span class="n">mini_batch_infer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">argparser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="s2">&quot;Training HGT model with the GraphStorm Framework&quot;</span><span class="p">)</span>
+    <span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--yaml-config-file&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;The GraphStorm YAML configuration file path.&quot;</span><span class="p">)</span>
+    <span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--ip-config&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;The IP config file for the cluster.&quot;</span><span class="p">)</span>
+    <span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--node-feat&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;The name of the node features. </span><span class="se">\</span>
+<span class="s2">                                Format is nodetype1:featname1,featname2-nodetype2:featname1,...&quot;</span><span class="p">)</span>
+    <span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--local_rank&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;The rank for trainers. MUST have this argument for using DGL launch command!!&quot;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">argparser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">main</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          <a class="prev-page" href="../scale/distributed.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Use GraphStorm in a Distributed Cluster</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2023, AGML team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Use Your Own Models</a><ul>
+<li><a class="reference internal" href="#prerequisites">Prerequisites</a><ul>
+<li><a class="reference internal" href="#use-dgl-to-implement-your-gnn-models">Use DGL to implement your GNN models</a></li>
+<li><a class="reference internal" href="#modify-you-gnn-models-for-mini-batch-training-inference">Modify you GNN models for mini-batch training/inference</a></li>
+<li><a class="reference internal" href="#learn-how-to-run-graphstorm-in-a-docker-environment">Learn how to run GraphStorm in a docker environment</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modifications-required-for-plugging-customer-models-into-graphstorm">Modifications required for plugging customer models into GraphStorm</a><ul>
+<li><a class="reference internal" href="#step-1-convert-your-graph-data-into-required-format">Step 1: Convert your graph data into required format</a></li>
+<li><a class="reference internal" href="#step-2-modify-your-gnn-model-to-use-the-graphstorm-apis">Step 2: Modify your GNN model to use the GraphStorm APIs</a></li>
+<li><a class="reference internal" href="#step-3-modify-the-training-inference-flow-with-the-graphstorm-apis">Step 3. Modify the training/inference flow with the GraphStorm APIs</a><ul>
+<li><a class="reference internal" href="#start-training-process-with-graphstorm-s-iniatilization">Start training process with GraphStorm’s iniatilization</a></li>
+<li><a class="reference internal" href="#replace-dgl-dataloader-with-the-graphstorm-s-dataset-and-dataloader">Replace DGL DataLoader with the GraphStorm’s dataset and dataloader</a></li>
+<li><a class="reference internal" href="#use-graphstorm-s-model-trainer-to-wrap-your-model-and-attach-evaluator-and-task-tracker-to-it">Use GraphStorm’s model trainer to wrap your model and attach evaluator and task tracker to it</a></li>
+<li><a class="reference internal" href="#use-trainer-s-fit-function-to-run-training">Use trainer’s <code class="docutils literal notranslate"><span class="pre">fit()</span></code> function to run training</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#step-4-set-up-graphstorm-yaml-configuration-file-and-your-own-arguments">Step 4. Set up GraphStorm YAML configuration file and your own arguments</a></li>
+<li><a class="reference internal" href="#step-5-one-more-thing-the-unused-weights-error">Step 5. One more thing: the unused weights error</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#put-everything-together-and-run-them">Put Everything Together and Run them</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    </body>
+</html>
