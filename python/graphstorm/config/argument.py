@@ -915,6 +915,7 @@ class GSConfig:
     @property
     def return_proba(self):
         """ Whether to return all the predictions or the maximum prediction.
+            Set True to return predictions and False to return maximum prediction.
         """
         if hasattr(self, "_return_proba"):
             assert self._return_proba in [True, False], \
