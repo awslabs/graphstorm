@@ -920,7 +920,7 @@ class GSConfig:
             assert self._return_proba in [True, False], \
                 "Return all the predictions when True else return the maximum prediction."
             return self._return_proba
-        # By default, retrun all the predictions
+        # By default, return all the predictions
         return True
 
     @property
