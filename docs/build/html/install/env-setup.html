@@ -161,8 +161,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-launch.html">GraphStorm Launch</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-partition.html">Graph Partition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-run.html">Training and Inference</a></li>
 </ul>
 </li>
 </ul>
@@ -214,7 +214,9 @@ Users need to install dependencies and configure distributed Pytorch running env
 recommend that our users use Docker as the base running environment to use GraphStorm.</p>
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">#</a></h2>
-<p>You need to install Docker in your environment as the <a class="reference external" href="https://docs.Docker.com/get-Docker/">Docker documentation</a> suggests, and the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html">Nvidia Container Toolkit</a>.</p>
+<ol class="arabic simple">
+<li><p><strong>Docker</strong>: You need to install Docker in your environment as the <a class="reference external" href="https://docs.Docker.com/get-Docker/">Docker documentation</a> suggests, and the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html">Nvidia Container Toolkit</a>.</p></li>
+</ol>
 <p>For example, in an AWS EC2 instance created with <cite>Deep Learning AMI GPU PyTorch 1.13.0</cite>, you can run the following commands to install Docker.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
 sudo<span class="w"> </span>apt<span class="w"> </span>update
@@ -222,10 +224,9 @@ sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> <
 </pre></div>
 </div>
 <p>If using AWS <cite>Deep Learning AMI GPU version</cite>, the Nvidia Container Toolkit has been preinstalled.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The current version of GraphStorm requires <strong>at least one GPU</strong> installed in the instance. Later version will support CPUs.</p>
-</div>
+<ol class="arabic simple" start="2">
+<li><p><strong>GPU</strong>: The current version of GraphStorm requires <strong>at least one GPU</strong> installed in the instance. Later version will support CPUs.</p></li>
+</ol>
 </section>
 <section id="build-a-graphstorm-docker-image-from-source-code">
 <span id="build-docker"></span><h2>Build a GraphStorm Docker image from source code<a class="headerlink" href="#build-a-graphstorm-docker-image-from-source-code" title="Permalink to this heading">#</a></h2>

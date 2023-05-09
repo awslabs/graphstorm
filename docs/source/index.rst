@@ -50,7 +50,7 @@ Once the GraphStorm Docker running environment is ready,
 
 - follow the :ref:`GraphStorm Quick-Start Guide<quick-start>` guide to run GraphStorm built-in data and models to get familiar with GraphStorm's usage of training and inference.
 - follow the :ref:`Use Your Own Graph Data<use-own-data>` guide to prepare your own graph data for GraphStorm.
-- read the :ref:`GraphStorm Lauch Configurations<configurations-launch>` to learn the various configurations provided by GraphStorm that can help to achieve the best performance.
+- read the :ref:`GraphStorm Training and Inference Configurations<configurations-run>` to learn the various configurations provided by GraphStorm that can help to achieve the best performance.
 
 Scale to Giant Graphs
 ---------------------------------

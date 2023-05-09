@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use GraphStorm in a Distributed Cluster" href="../scale/distributed.html" /><link rel="prev" title="GraphStorm Launch" href="configuration-launch.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Training and Inference" href="configuration-run.html" /><link rel="prev" title="Graph Construction" href="configuration-gconstruction.html" />
 
     <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
         <title>Graph Partition - GraphStorm 0.1 documentation</title>
@@ -161,8 +161,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">GraphStorm Configurations</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="configuration-gconstruction.html">Graph Construction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="configuration-launch.html">GraphStorm Launch</a></li>
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Graph Partition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-run.html">Training and Inference</a></li>
 </ul>
 </li>
 </ul>
@@ -209,58 +209,58 @@
         <article role="main">
           <section id="graph-partition">
 <span id="configurations-partition"></span><h1>Graph Partition<a class="headerlink" href="#graph-partition" title="Permalink to this heading">#</a></h1>
-<p>For users who are already familiar with DGL and how to construct DGL graph, GraphStorm provides two graph partition tools to partition DGL graphs into the required input format for GraphStorm launch tool.</p>
+<p>For users who are already familiar with DGL and know how to construct DGL graph, GraphStorm provides two graph partition tools to partition DGL graphs into the required input format for GraphStorm launch tool for training and inference.</p>
 <ul class="simple">
-<li><p><a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py">partition_graph.py</a>: for Node/Edge Classification/Regress task partition.</p></li>
-<li><p><a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py">partition_graph_lp.py</a>: for Link Prediction task partition.</p></li>
+<li><p><a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py">partition_graph.py</a>: for Node/Edge Classification/Regress task graph partition.</p></li>
+<li><p><a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py">partition_graph_lp.py</a>: for Link Prediction task graph partition.</p></li>
 </ul>
 <section id="partition-graph-py-arguments">
-<h2><a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py">partition_graph.py</a> Arguments<a class="headerlink" href="#partition-graph-py-arguments" title="Permalink to this heading">#</a></h2>
+<h2><a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py">partition_graph.py</a> arguments<a class="headerlink" href="#partition-graph-py-arguments" title="Permalink to this heading">#</a></h2>
 <ul class="simple">
-<li><p><strong>–dataset</strong>: (Required) the graph dataset name defined for the saved DGL graph file.</p></li>
-<li><p><strong>–filepath</strong>: (Required)  the file path of the saved DGL graph file.</p></li>
-<li><p><strong>–target_ntype</strong>: the node type for making prediction, required for node classification/regression tasks. This argument is associated with the node type having labels. Current GraphStorm supports one predict node type only.</p></li>
+<li><p><strong>–dataset</strong>: (<strong>Required</strong>) the graph dataset name defined for the saved DGL graph file.</p></li>
+<li><p><strong>–filepath</strong>: (<strong>Required</strong>) the file path of the saved DGL graph file.</p></li>
+<li><p><strong>–target_ntype</strong>: the node type for making prediction, required for node classification/regression tasks. This argument is associated with the node type having labels. Current GraphStorm supports <strong>one</strong> predict node type only.</p></li>
 <li><p><strong>–ntype_task</strong>: the node type task to perform. Only support <code class="docutils literal notranslate"><span class="pre">classification</span></code> and <code class="docutils literal notranslate"><span class="pre">regression</span></code> so far. Default is <code class="docutils literal notranslate"><span class="pre">classification</span></code>.</p></li>
-<li><p><strong>–nlabel_field</strong>: the field that stores labels on the predict node type, required if set the - - <strong>–target_ntype</strong>: the format is <code class="docutils literal notranslate"><span class="pre">nodetype:labelname</span></code>, e.g., <cite>paper:label</cite>.</p></li>
-<li><p><strong>–target_etype</strong>: the canonical edge type for making prediction, required for edge classification/regression tasks. This argument is associated with the edge type having labels. Current GraphStorm supports one predict edge type only. The format is <code class="docutils literal notranslate"><span class="pre">src_ntype,etype,dst_ntype</span></code>, e.g., <cite>author,write,paper</cite>.</p></li>
+<li><p><strong>–nlabel_field</strong>: the field that stores labels on the predict node type, <strong>required</strong> if set the <strong>target_ntype</strong>. The format is <code class="docutils literal notranslate"><span class="pre">nodetype:labelname</span></code>, e.g., <cite>“paper:label”</cite>.</p></li>
+<li><p><strong>–target_etype</strong>: the canonical edge type for making prediction, <strong>required</strong> for edge classification/regression tasks. This argument is associated with the edge type having labels. Current GraphStorm supports <strong>one</strong> predict edge type only. The format is <code class="docutils literal notranslate"><span class="pre">src_ntype,etype,dst_ntype</span></code>, e.g., <cite>“author,write,paper”</cite>.</p></li>
 <li><p><strong>–etype_task</strong>: the edge type task to perform. Only allow <code class="docutils literal notranslate"><span class="pre">classification</span></code> and <code class="docutils literal notranslate"><span class="pre">regression</span></code> so far. Default is <code class="docutils literal notranslate"><span class="pre">classification</span></code>.</p></li>
-<li><p><strong>–elabel_field</strong>: the field that stores labels on the predict edge type, required if set the <strong>–target_etype</strong>. The format is <code class="docutils literal notranslate"><span class="pre">src_ntype,etype,dst_ntype:labelname</span></code>, e.g., <cite>author,write,paper:label</cite>.</p></li>
-<li><p><strong>–generate_new_node_split</strong>: a boolean value, required if need the partition script to split nodes for training/validation/test sets. If set this argument <code class="docutils literal notranslate"><span class="pre">true</span></code>, must set the <strong>–target_ntype</strong> argument too.</p></li>
-<li><p><strong>–generate_new_edge_split</strong>: a boolean value, required if need the partition script to split edges for training/validation/test sets. If set this argument <code class="docutils literal notranslate"><span class="pre">true</span></code>, you must set the <strong>–target_etype</strong> argument too.</p></li>
+<li><p><strong>–elabel_field</strong>: the field that stores labels on the predict edge type, required if set the <strong>target_etype</strong>. The format is <code class="docutils literal notranslate"><span class="pre">src_ntype,etype,dst_ntype:labelname</span></code>, e.g., <cite>“author,write,paper:label”</cite>.</p></li>
+<li><p><strong>–generate_new_node_split</strong>: a boolean value, required if need the partition script to split nodes for training/validation/test sets. If set this argument <code class="docutils literal notranslate"><span class="pre">true</span></code>, <strong>must</strong> set the <strong>target_ntype</strong> argument too.</p></li>
+<li><p><strong>–generate_new_edge_split</strong>: a boolean value, required if need the partition script to split edges for training/validation/test sets. If set this argument <code class="docutils literal notranslate"><span class="pre">true</span></code>, you must set the <strong>target_etype</strong> argument too.</p></li>
 <li><p><strong>–train_pct</strong>: a float value (&gt;0. and &lt;1.) with default value <code class="docutils literal notranslate"><span class="pre">0.8</span></code>. If you want the partition script to split nodes/edges for training/validation/test sets, you can set this value to control the percentage of nodes/edges for training.</p></li>
 <li><p><strong>–val_pct</strong>: a float value (&gt;0. and &lt;1.) with default value <code class="docutils literal notranslate"><span class="pre">0.1</span></code>. You can set this value to control the percentage of nodes/edges for validation.</p></li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The sum of the <strong>—-train_pct</strong> and <strong>—-val_pct</strong> should be less than 1. And the percentage of test nodes/edges is the result of 1-(train_pct + val_pct).</p>
+<p>The sum of the <strong>train_pct</strong> and <strong>val_pct</strong> should be less than 1. And the percentage of test nodes/edges is the result of 1-(train_pct + val_pct).</p>
 </div>
 <ul class="simple">
-<li><p><strong>–undirected</strong>: if add this argument, will add reverse edges to the given graphs.</p></li>
+<li><p><strong>–undirected</strong>: if add this argument, will add reverse edges to the given graph.</p></li>
 <li><p><strong>–retain_original_features</strong>: boolean value to control if use the original features generated by dataset, e.g., embeddings of paper abstracts. If set to <code class="docutils literal notranslate"><span class="pre">true</span></code>, will keep the original features; otherwise we will use the tokenized text for using BERT models to generate embeddings.</p></li>
-<li><p><strong>–num_parts</strong>: integer value that specifies partitions the DGL graph to be split, required. Remember this number because we will need to set it in the model training step.</p></li>
-<li><p><strong>–output</strong>: (Required) the folder path that partitioned DGL graph will be saved.</p></li>
+<li><p><strong>–num_parts</strong>: (<strong>Required</strong>) integer value that specifies partitions the DGL graph to be split. Remember this number because we will need to set it in the model training step.</p></li>
+<li><p><strong>–output</strong>: (<strong>Required</strong>) the folder path that the partitioned DGL graph will be saved.</p></li>
 </ul>
 </section>
 <section id="partition-graph-lp-py-arguments">
-<h2><a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py">partition_graph_lp.py</a> Arguments<a class="headerlink" href="#partition-graph-lp-py-arguments" title="Permalink to this heading">#</a></h2>
+<h2><a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py">partition_graph_lp.py</a> arguments<a class="headerlink" href="#partition-graph-lp-py-arguments" title="Permalink to this heading">#</a></h2>
 <ul class="simple">
-<li><p><strong>–dataset</strong>: (Required) the graph name defined for the saved DGL graph file.</p></li>
-<li><p><strong>–filepath</strong>: (Required) the file path of the saved DGL graph file.</p></li>
-<li><p><strong>–target_etypes</strong>: the canonical edge type for making prediction, required for link prediction. The GSF supports one predict edge type only. The format is <code class="docutils literal notranslate"><span class="pre">src_ntype,etype,dst_ntype</span></code>, e.g., <cite>author,write,paper</cite>.</p></li>
+<li><p><strong>–dataset</strong>: (<strong>Required</strong>) the graph name defined for the saved DGL graph file.</p></li>
+<li><p><strong>–filepath</strong>: (<strong>Required</strong>) the file path of the saved DGL graph file.</p></li>
+<li><p><strong>–target_etypes</strong>: (<strong>Required</strong>) the canonical edge type for making prediction.  GraphStorm supports <strong>one</strong> predict edge type only. The format is <code class="docutils literal notranslate"><span class="pre">src_ntype,etype,dst_ntype</span></code>, e.g., <cite>“author,write,paper”</cite>.</p></li>
 <li><p><strong>–train_pct</strong>: a float value (&gt;0. and &lt;1.) with default value <code class="docutils literal notranslate"><span class="pre">0.8</span></code>. If you want the partition script to split nodes/edges for training/validation/test sets, you can set this value to control the percentage of nodes/edges for training.</p></li>
 <li><p><strong>–val_pct</strong>: a float value (&gt;0. and &lt;1.) with default value <code class="docutils literal notranslate"><span class="pre">0.1</span></code>. You can set this value to control the percentage of nodes/edges for validation.</p></li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The sum of the <strong>-—train_pct</strong> and <strong>-—val_pct</strong> should less than 1. And the percentage of test nodes/edges is the result of 1-(train_pct + val_pct).</p>
+<p>The sum of the <strong>train_pct</strong> and <strong>val_pct</strong> should less than 1. And the percentage of test nodes/edges is the result of 1-(train_pct + val_pct).</p>
 </div>
 <ul class="simple">
 <li><p><strong>–undirected</strong>: if add this argument, will add reverse edges to the given graphs.</p></li>
 <li><p><strong>–train_graph_only</strong>: boolean value to control if partition the training graph or not, default is <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p></li>
 <li><p><strong>–retain_original_features</strong>: boolean value to control if use the original features generated by dataset, e.g., embeddings of paper abstracts. If set to <code class="docutils literal notranslate"><span class="pre">true</span></code>, will keep the original features; otherwise we will use the tokenized text for using BERT models to generate embeddings.</p></li>
-<li><p><strong>–retain_etypes</strong>: the list of canonical edge type that will be retained before partitioning the graph. This might be helpful to remove noise edges in this application. Format example: <code class="docutils literal notranslate"><span class="pre">—retain_etypes</span> <span class="pre">query,clicks,asin</span> <span class="pre">query,adds,asin</span> <span class="pre">query,purchases,asin</span> <span class="pre">asin,rev-clicks,query</span></code>.</p></li>
-<li><p><strong>–num_parts</strong>: (Required) integer value that specifies partitions the DGL graph to be split. Remember this number because we will need to set it in the model training step.</p></li>
-<li><p><strong>–output</strong>: (Required) the folder path that partitioned DGL graph will be saved.</p></li>
+<li><p><strong>–retain_etypes</strong>: the list of canonical edge type that will be retained before partitioning the graph. This might be helpful to remove noise edges in this application. Format example: <code class="docutils literal notranslate"><span class="pre">—-retain_etypes</span> <span class="pre">query,clicks,asin</span> <span class="pre">query,adds,asin</span> <span class="pre">query,purchases,asin</span> <span class="pre">asin,rev-clicks,query</span></code>.</p></li>
+<li><p><strong>–num_parts</strong>: (<strong>Required</strong>) integer value that specifies partitions the DGL graph to be split. Remember this number because we will need to set it in the model training step.</p></li>
+<li><p><strong>–output</strong>: (<strong>Required</strong>) the folder path that the partitioned DGL graph will be saved.</p></li>
 </ul>
 </section>
 </section>
@@ -270,23 +270,23 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="../scale/distributed.html">
+          <a class="next-page" href="configuration-run.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Use GraphStorm in a Distributed Cluster</div>
+                <div class="title">Training and Inference</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="configuration-launch.html">
+          <a class="prev-page" href="configuration-gconstruction.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">GraphStorm Launch</div>
+                <div class="title">Graph Construction</div>
                 
               </div>
             </a>
@@ -321,8 +321,8 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Graph Partition</a><ul>
-<li><a class="reference internal" href="#partition-graph-py-arguments">partition_graph.py Arguments</a></li>
-<li><a class="reference internal" href="#partition-graph-lp-py-arguments">partition_graph_lp.py Arguments</a></li>
+<li><a class="reference internal" href="#partition-graph-py-arguments">partition_graph.py arguments</a></li>
+<li><a class="reference internal" href="#partition-graph-lp-py-arguments">partition_graph_lp.py arguments</a></li>
 </ul>
 </li>
 </ul>

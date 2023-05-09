@@ -2,21 +2,21 @@
 
 Use Your Own Models
 ======================
-The GraphStorm Framework (GSF) has built in two basic GNN models, i.e., the RGCN and the RGAT model, for heterogenous graphs. If you want to further explore different GNN models and leverage the GraphStorm's easy-of-use and scalability power, you can modify your own GNN models according to the GraphStorm's customer model APIs.
+Currently GraphStorm has two built-in GNN models, i.e., the RGCN and the RGAT model, for heterogenous graphs. If users want to further explore different GNN models and leverage the GraphStorm's easy-of-use and scalability power, you can modify your own GNN models according to the GraphStorm's customer model APIs. This tutorial will explain in details about how to do this.
 
-.. note:: GraphStorm has an `examples <https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT>`_ that customizes the HGT DGL model implementation for user reference.
+.. note:: GraphStorm has a runnable `examples <https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT>`_ that customizes the HGT DGL model implementation for users' reference.
 
 Prerequisites
 ---------------
-Before following the GraphStorm's customized model APIs, please make sure your GNN models meet the below prerequisites.
+Before following the GraphStorm's customized model APIs, please make sure your GNN models meet the prerequisites.
 
 Use DGL to implement your GNN models
 .....................................
 The GraphStorm Framework relies on the `DGL library <https://www.dgl.ai/>`_ to implement and run GNN models. Particularly, the GraphStorm's scalability power depends on the DGL's distributed libraries. For this reason, your GNN models should be implemented with the DGL Library. You can learn how to do this via the DGL's `User Guide <https://docs.dgl.ai/guide/index.html>`_. In addition, there are many `GNN model examples <https://github.com/dmlc/dgl/tree/master/examples>`_ implemented by the DGL community. Please explore these materials to check if there is any model that may meet your requirements.
 
-Modify you GNN models for mini-batch training/inference
+Modify you GNN models to use mini-batch training/inference
 ..........................................................
-Many existing GNN models were implemented for running on popular academic graphs, which, compared to enterprise-level graphs, are relatively small and lack of node/edge features. Therefore, implementors use the full-graph training/inference mode, i.e., feed the entire graph along with its node/edge features in to GNN models in one epoch. When deal with large graphs, this mode will fail due to either the limits of the GPUs' memory, or the slow speed if run on CPUs.
+Many existing GNN models were implemented for running on popular academic graphs, which, compared to enterprise-level graphs, are relatively small and lack of node/edge features. Therefore, implementors use the full-graph training/inference mode, i.e., feed the entire graph along with its node/edge features into GNN models in one epoch. When deal with large graphs, this mode will fail due to either the limits of the GPUs' memory, or the slow speed if run on CPUs.
 
 In order to tackle large graphs, we can change GNN models to perform stochastic mini-batch training, where we do not have to fit the graphs and their features of all the nodes/edges into GPUs. You can learn how to modify GNN models into mini-batch training/inference mode via the `DGL User Guide Chapter 6 <https://docs.dgl.ai/en/1.0.x/guide/minibatch.html>`_. For examples of the different implementations between full-graph mode and mini-batch mode, please look for DGL model examples, in which mini-batch mode files normally have a file name ended with "_mb" string, like the `RGCN model <https://github.com/dmlc/dgl/blob/master/examples/pytorch/rgcn-hetero/entity_classify_mb.py>`_, or file names including "dist" string, like the `GraphSage distributed model <https://github.com/dmlc/dgl/blob/master/examples/pytorch/graphsage/dist/train_dist.py#L26>`_.
 
@@ -24,15 +24,15 @@ Learn how to run GraphStorm in a docker environment
 ......................................................
 Current GraphStorm runs on docker environment. So as all steps described below. Please refer to the first two sections in the :ref:`Environment Setup<setup>` to learn how to run GraphStorm in a docker environment, and set up your environment.
 
-Modifications required for plugging customer models into GraphStorm
----------------------------------------------------------------------
+Modifications required for customer models
+---------------------------------------------------------------
 Step 1: Convert your graph data into required format
 .....................................................
-Users can follow the User Your Own Graph Data tutorial to prepare your graph data for GraphStorm.
+Users can follow the :ref:`User Your Own Graph Data <use-own-data>` tutorial to prepare your graph data for GraphStorm.
 
 Step 2: Modify your GNN model to use the GraphStorm APIs
 .........................................................
-To plug you GNN models into the GraphStorm, you need to use the GraphStorm model APIs. The key model APIs are the class GSgnnNodeModelBase, GSgnnEdgeModelBase, and GSgnnLinkPredictionModelBase. Your GNN models should inherit one of the three classes depending on your task.
+To plug you GNN models into the GraphStorm, you need to use the GraphStorm model APIs. The key model APIs are the class `GSgnnNodeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76>`_, `GSgnnEdgeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/edge_gnn.py#L80>`_, and `GSgnnLinkPredictionModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/lp_gnn.py#L58>`_. Your GNN models should inherit one of the three classes depending on your task.
 
 Here we use a Node Classification dummy model to demonstrate how to modify the GNN models.
 
@@ -54,14 +54,15 @@ Here we use a Node Classification dummy model to demonstrate how to modify the G
             h = self.conv2(blocks[1], h)                                           # output layer computation
             return h
 
-The dummy GNN model has two GNN layers. Its ``forward()`` function takes DGL blocks and node feature, which is a dictionary whose keys are node types and values are node feature tensors, as input arguments. 
-.. Note:: please be aware that there is NO HeteroSAGEConv module in the DGL. We make it up here for demonstration about how to process heterogeneous graphs only.
+The dummy GNN model has two GNN layers. Its ``forward()`` function takes DGL blocks and node feature, which is a dictionary whose keys are node types and values are node feature tensors, as input arguments.
 
-To make this dummy model work for the GraphStorm, we need replace the PyTorch ``nn.Module`` with GraphStorm's ``GSgnnNodeModelBase`` and implement required functions.
+.. Note:: Be aware that there is **NO** HeteroSAGEConv module in the DGL. We make it up here for demonstration about how to process heterogeneous graphs only.
 
-The ``GSgnnNodeModelBase`` class, which is also a PyTorch Module, has three required functions that you own GNN model need to implement, including ``forward(self, blocks, node_feats, edge_feats, labels)``, ``predict(self, blocks, node_feats, edge_feats)``, and ``create_optimizer(self)``.
+To make this dummy model work in GraphStorm, we need replace the PyTorch ``nn.Module`` with GraphStorm's ``GSgnnNodeModelBase`` and implement required functions.
 
-The ``forward()`` function is similar to the PyTorch Module's ``forward()`` function except that its input arguments MUST include blocks and labels, node features or edge features are optional only if your GNN model needs them. Unlike common cases where forward function returns logits computed by models, the return value of ``GSgnnNodeModelBase``'s ``forward()`` should be a loss value, which the GraphStorm will use to perform backward operations. Because of this change, you need to include a loss function into your GNN models, instead of computing loss outside of GNN models. Following these requirements, our dummy model have a few more lines added as shown below.
+The ``GSgnnNodeModelBase`` class, which is also a PyTorch Module, has three required functions that users' own GNN model need to implement, including ``forward(self, blocks, node_feats, edge_feats, labels, input_nodes)``, ``predict(self, blocks, node_feats, edge_feats, input_nodes)``, and ``create_optimizer(self)``.
+
+The ``forward()`` function is similar to the PyTorch Module's ``forward()`` function except that its input arguments **MUST** include blocks and labels, node features, edge features, or input_nodes are optional only if your GNN model needs them. Unlike common cases where forward function returns logits computed by models, the return value of ``GSgnnNodeModelBase``'s ``forward()`` should be a loss value, which the GraphStorm will use to perform backward operations. Because of this change, you need to include a loss function within your GNN models, instead of computing loss outside. Following these requirements, our dummy model have a few more lines added as shown below.
 
 .. code-block:: python
 
@@ -79,27 +80,27 @@ The ``forward()`` function is similar to the PyTorch Module's ``forward()`` func
             self.conv2 = dglnn.HeteroSAGEConv(hid_dim, out_dim)
             self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)             # define a loss function
 
-        def forward(self, blocks, node_feats, pred_ntype, labels):
+        def forward(self, blocks, node_feats, target_ntype, labels):
             h = self.conv1(blocks[0], node_feats)
             h = {ntype: F.relu(h[n_emb] for ntype, n_emb in h.items())
             h = self.conv2(blocks[1], h)
-            loss = self._loss_fn(h[pred_ntype], labels)                            # compute loss value
+            loss = self._loss_fn(h[target_ntype], labels)                            # compute loss value
             return loss
 
 You may notice that the GraphStorm already provides common loss functions for classification, regression and link prediction, which can be easily imported and used in your model. But you are free to use any PyTorch loss functions or even your own loss function. In the above codes, we also add the prediction node type and labels to compute the loss.
 
-The ``predict()`` function is for inference and it will not be used for backward. Its input arguments are similar to the forward() function, but no need for labels. The ``predict()`` function will return two values. The first is the prediction results, not the logits. The second is the model embeddings, which could be used for some specific purposes (this return value is uncommon for some users, and we are working on the fix this confusion). With these requirements, the ``predict()`` function of the dummy model is like the codes below.
+The ``predict()`` function is for inference and it will not be used for backward. Its input arguments are similar to the forward() function, but no need for labels. The ``predict()`` function will return two values. The first is the prediction results, not the logits. The second is the model embeddings, which could be used for some specific purposes (this return value is uncommon for some users, and we are working on the fix this confusion). With these requirements, the ``predict()`` function of the dummy model is like the code below.
 
 .. code-block:: python
 
-    def predict(self, blocks, node_feats, pred_ntype):
+    def predict(self, blocks, node_feats, target_ntype):
             h = self.conv1(blocks[0], node_feats)
             h = {ntype: F.relu(h[n_emb] for ntype, n_emb in h.items())
             h = self.conv2(blocks[1], h)
-            return h[pred_ntype].argmax(dim=1), h[pred_ntype]                       # return two values: one is the predict results, 
+            return h[target_ntype].argmax(dim=1), h[target_ntype]                       # return two values: one is the predict results, 
                                                                                     # while another is the computed node representations, which can be saved.
 
-The ``create_optimizer()`` function is for users to define its own optimizer. You can put the optimizer definition from the training flow in here, like the codes below
+The ``create_optimizer()`` function is for users to define its own optimizer. You can put the optimizer definition from the training flow in here, like the code below
 
 .. code-block:: python
 
@@ -119,7 +120,7 @@ In general, the dummy model could use the following flow to be trained and evalu
     from dgl.dataloading import NeighborSampler, DataLoader
 
     sampler = NeighborSampler([20,20] * 2)                                                  # Define neighbor sampler
-    train_dataloader = DataLoader(graph, {pred_ntype: train_index}, sampler                 # Define DGL dataloader
+    train_dataloader = DataLoader(graph, {target_ntype: train_index}, sampler                 # Define DGL dataloader
                                 batch_size=64)
     dummy_model = dummyGnnModel(in_dim=16, hid_dim=64, out_dim=n_labels)                    # Initialize the dummy model
     opt = torch.optim.Adam(model.parameters(), lr=0.001)                                    # Define an optimizer
@@ -128,9 +129,9 @@ In general, the dummy model could use the following flow to be trained and evalu
         model.train()
         for i, (input_nodes, output_nodes, blocks) in enumerate(train_dataloader):
             node_features = extract_node_feature(input_nodes)                               # Only extract features for input nodes in this blocks
-            labels = extract_labels(output_nodes[pred_ntype])                               # Only extract labels for output nodes in this blocks
+            labels = extract_labels(output_nodes[target_ntype])                               # Only extract labels for output nodes in this blocks
             logits = dummy_model(blocks, node_features)                                     # forward propagation by using all nodes
-            loss = F.cross_entropy(logits[pred_ntype], labels)                              # compute loss
+            loss = F.cross_entropy(logits[target_ntype], labels)                              # compute loss
             # compute validation accuracy ......
             loss.backward()
 
@@ -144,24 +145,26 @@ Any GraphStorm training process **MUST** start with a proper initialization. You
 
     import graphstorm as gs
     ......
-    gs.initialize(ip_config=ip_config, backend="gloo")
 
-the "ip_config" argument specifies a ip configuration file, which contains the IP addresses of machines in a GraphStorm distributed cluster. You can find its description at the :ref:`Launch Training<launch-training>` section of the :ref:`Quick Start Tutorial <quick-start>`.
+    def main(args):
+        gs.initialize(ip_config=ip_config, backend="gloo")
+
+the ``ip_config`` argument specifies a ip configuration file, which contains the IP addresses of machines in a GraphStorm distributed cluster. You can find its description at the :ref:`Launch Training<launch-training>` section of the :ref:`Quick Start Tutorial <quick-start>`.
 
 Replace DGL DataLoader with the GraphStorm's dataset and dataloader
 `````````````````````````````````````````````````````````````````````
-Because the GraphStorm uses distributed graphs, we need to first load the partitioned graph, which is created in the Step 1, with the ``GSgnnNodeTrainData`` class (for edge tasks, the GraphStorm also provides ``GSgnnEdgeTrainData``). The ``GSgnnNodeTrainData`` could be created as shown in the codes below.
+Because the GraphStorm uses distributed graphs, we need to first load the partitioned graph, which is created in the **Step 1**, with the `GSgnnNodeTrainData <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/dataloading/dataset.py#L469>`_ class (for edge tasks, the GraphStorm also provides `GSgnnEdgeTrainData <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/dataloading/dataset.py#L216>`_). The ``GSgnnNodeTrainData`` could be created as shown in the codes below.
 
 .. code-block:: python
 
-    graph_data = GSgnnNodeTrainData(graph_name, part_config, train_ntypes=pred_ntype, eval_ntypes=None,
+    graph_data = GSgnnNodeTrainData(graph_name, part_config, train_ntypes=target_ntype, eval_ntypes=None,
                                     label_field=label_field, node_feat_field=node_feat_field, edge_feat_field=None)
 
 Arguments of this class includes the partition configuration JSON file path, which are the outputs of the **Step 1**. The ``graph_name`` can be found in the JSON file.
 
 The other values, the ``train_ntypes``, the ``label_field``, the ``node_feat_field`` and ``edge_feat_field``, should be consistent with the values in the raw data :ref:`input configuration JSON <input-config>` defined in the **Step 1**. The ``train_ntypes`` is the ``node_type`` that has ``labels`` specified. The ``label_fields`` is the value specified in ``label_col`` of the ``train_ntype``. The ``node_feat_field`` and the ``edge_feat_field`` are two dictionaries, whose keys are the values of ``node_type``, and values are the values of ``feature_name``.
 
-Then we can put this dataset into GraphStorm's GSgnnNodeDataLoader, which is like:
+Then we can put this dataset into GraphStorm's `GSgnnNodeDataLoader <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/dataloading/dataloading.py#L544>`_, which is like:
 
 .. code-block:: python
 
@@ -172,17 +175,17 @@ Then we can put this dataset into GraphStorm's GSgnnNodeDataLoader, which is lik
     test_dataloader  = GSgnnNodeDataLoader(graph_data, graph_data.test_idxs, fanout=fanout,
                                         batch_size=64, device=device, train_task=False)
 
-The GraphStorm provides a set of dataloaders for different GML tasks. Here we deal with a node task, hence using the node dataloader, which takes the graph data created above as the first argument. The second argument is the label index that the GraphStorm dataset extracted from the graph as indicated in the target nodes' ``train_mask``, ``val_mask``, and ``test_mask``, which are automatically generated by GraphStorm graph construction tool with the specified ``split_pct`` field. The GSgnnNodeTrainData automatically extract these indexes out and set its properties so that you can directly use them like ``graph_data.train_idxs`` and ``graph_data.val_idxs``, and ``graph_data.test_idxs``. The rest of arguments are similar to the common training flow, except that we set the ``train_task`` to be ``False`` for the evaluation and test dataloader.
+The GraphStorm provides a set of dataloaders for different GML tasks. Here we deal with a node task, hence using the node dataloader, which takes the graph data created above as the first argument. The second argument is the label index that the GraphStorm dataset extracted from the graph as indicated in the target nodes' ``train_mask``, ``val_mask``, and ``test_mask``, which are automatically generated by GraphStorm graph construction tool with the specified ``split_pct`` field. The ``GSgnnNodeTrainData`` automatically extract these indexes out and set its properties so that you can directly use them like ``graph_data.train_idxs`` and ``graph_data.val_idxs``, and ``graph_data.test_idxs``. The rest of arguments are similar to the common training flow, except that we set the ``train_task`` to be ``False`` for the evaluation and test dataloader.
 
 Use GraphStorm's model trainer to wrap your model and attach evaluator and task tracker to it
 ````````````````````````````````````````````````````````````````````````````````````````````````
-Unlike the common flow, GraphStorm wraps GNN models with different trainers just like other frameworks, e.g. scikit-learn. GraphStorm provides node prediction, edge prediction, and link prediction trainers. Create them is easy. For the dummy model, after create it as the ``dummy_model = dummyGnnModel(in_dim=16, hid_dim=64, out_dim=n_labels)``, we can use the ``GSgnnNodePredictionTrainer`` class to wrap it like:
+Unlike the common flow, GraphStorm wraps GNN models with different trainers just like other frameworks, e.g. scikit-learn. GraphStorm provides node prediction, edge prediction, and link prediction trainers. Creation of them is easy. For the dummy model, after create it as the ``dummy_model = dummyGnnModel(in_dim=16, hid_dim=64, out_dim=n_labels)``, we can use the `GSgnnNodePredictionTrainer <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/trainer/np_trainer.py#L29>`_ class to wrap it like:
 
 .. code-block:: python
 
     trainer = GSgnnNodePredictionTrainer(dummy_model, rank=gs.get_rank())
 
-The ``GSgnnNodePredictionTrainer`` takes a GNN model as the first argument. 
+The ``GSgnnNodePredictionTrainer`` takes a GNN model as the first argument. The seconde argument is for using different GPUs.
 
 The GraphStorm trainers can have evaluators and task trackers associated. The following codes show how to do this.
 
@@ -200,7 +203,7 @@ The GraphStorm trainers can have evaluators and task trackers associated. The fo
     tracker = GSSageMakerTaskTracker(config, gs.get_rank())       # Optional: set up a task tracker to show the progress of training.
     trainer.setup_task_tracker(tracker)
 
-GraphStorm's evaluators could help to compute the required evaluation metrics, such as ``accuracy``, ``f1``, ``mrr``, and etc. Users can select the proper evaluator and use the trainer's ``setup_evaluator()`` method to attach them. GraphStorm's task trackers serve as log collectors, which is used to show the training information.
+GraphStorm's `evaluators <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/eval/evaluator.py>`_ could help to compute the required evaluation metrics, such as ``accuracy``, ``f1``, ``mrr``, and etc. Users can select the proper evaluator and use the trainer's ``setup_evaluator()`` method to attach them. GraphStorm's `task trackers <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/tracker/graphstorm_tracker.py>`_ serve as log collectors, which is used to show the process information.
 
 Use trainer's ``fit()`` function to run training
 ``````````````````````````````````````````````````
@@ -209,13 +212,13 @@ Once all trainers, evaluators, and task trackers set, the last step is to use th
 .. code-block:: python
 
     trainer.fit(train_loader=train_dataloader, num_epochs=num_epochs, val_loader=eval_dataloader,
-            test_loader=test_dataloader, save_model_path=save_model_path, mini_batch_infer=True)
+                test_loader=test_dataloader, save_model_path=save_model_path, mini_batch_infer=True)
 
 The ``fit()`` function wraps dataloaders, number of epochs, to replace the common "**for loops**" as seen in the above training flow. The ``fit()`` function also takes additional arguments, such as ``save_model_path``, and ``save_model_requency`` to save different model artifacts. **BUT** before set these arguments, you need to implement the ``restore_model(self, restore_model_path)`` and ``save_model(self, model_path)`` functions in the **Step 2**.
 
-Step 4. Set up GraphStorm YAML configuration file and your own arguments
-.........................................................................
-GraphStorm has a set of configurations that control the various perspectives of the model training and inference process. You can find the details of these configurations in the GraphStorm :ref:`Configuration page <configurations>`. These configurations could be either passed as input arguments or set in a YAML format file. Below is an example of the YAML file.
+Step 4. Setup GraphStorm configuration YAML file
+.....................................................................
+GraphStorm has a set of configurations that control the various perspectives of the model training and inference process. You can find the details of these configurations in the GraphStorm :ref:`Configuration page <configurations-run>`. These configurations could be either passed as input arguments or set in a YAML format file. Below is an example of the YAML file.
 
 .. code-block:: yaml
 
@@ -259,7 +262,7 @@ Users can use an argument to read in this YAML file, and construct a ``GSConfig`
     args = argparser.parse_args()
     config = GSConfig(args)
 
-For users' own configurations, you still can pass them as input argument of your training script, and extract them from the args object.
+For users' own configurations, you still can pass them as input argument of the training script, and extract them from the ``args`` object.
 
 Step 5. One more thing: the unused weights error
 ...................................................
@@ -267,7 +270,7 @@ Uncommonly seen in the full-graph training or mini-batch training on a single GP
 
 .. code-block:: python
 
-        pred_loss = self._loss_fn(h[self.predict_ntype], labels[self.predict_ntype])
+        pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
         # L2 regularization of trainable parameters
         reg_loss = torch.tensor(0.).to(pred_loss.device)
         for d_para in self.parameters():
@@ -277,11 +280,11 @@ Uncommonly seen in the full-graph training or mini-batch training on a single GP
 
         total_loss = pred_loss + reg_loss
 
-You can add a coefficient to control the influence of the regularization like the ``alpha_l2norm``.
+You can add a coefficient, like the ``alpha_l2norm``, to control the influence of the regularization.
 
 Put Everything Together and Run them
 -------------------------------------
-With all required modifications ready, let's put everything of the dummy model together in a Python file, e.g, d``ummy_nc.py``, as a full example. We can put the Python file and the related artifacts, including the YAML file, e.g., ``acm_nc.yaml``, and the ``ip_list.txt`` file in a folder, e.g. ``/dummy_model``. And then use the GraphStorm's launch script to run this dummy model in the GraphStorm framework.
+With all required modifications ready, let's put everything of the dummy model together in a Python file, e.g, ``dummy_nc.py``. We can put the Python file and the related artifacts, including the YAML file, e.g., ``acm_nc.yaml``, and the ``ip_list.txt`` file in a folder, e.g. ``/dummy_model/``. And then use the GraphStorm's launch script to run this dummy model.
 
 .. code-block:: python
 
@@ -294,15 +297,17 @@ With all required modifications ready, let's put everything of the dummy model t
             --num_samplers 0 \
             --ssh_port 2222 \
             "python3 dummy_nc.py --yaml-config-file dummy_nc.yaml \
-                                --part-config dummy_data.json \ 
-                                --ip-config ip_list.txt \
-                                --node-feat paper:feat-author:feat-subject:feat"
+                                 --part-config dummy_data.json \ 
+                                 --ip-config ip_list.txt \
+                                 --node-feat-name paper:feat-author:feat-subject:feat"
 
 The argument value of ``--part_config`` is the JSON file coming from the :ref:`outputs <output-graph-construction>` of the Step 1.
 
 The full dummy model example
-`````````````````````````````
-Here come the full dummy model example for reference. Please note that this code is NOT runnable but for demonstration purpose. To try runnable example, please check the `GraphStorm examples <https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT>`_.
+.............................
+Here come the full dummy model example for reference. Please note that this code is **NOT** runnable but for demonstration purpose. 
+
+.. note:: To try runnable example, please check the `GraphStorm examples <https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT>`_.
 
 .. code-block:: python
 
@@ -321,11 +326,11 @@ Here come the full dummy model example for reference. Please note that this code
 
 
     class dummyGnnModel(gsmodel.GSgnnNodeModelBase):
-        def __init__(self, in_dim, hid_dim, out_dim, pred_ntype):
+        def __init__(self, in_dim, hid_dim, out_dim, target_ntype):
             super().__init__()
             self.conv1 = dglnn.HeteroSAGEConv(in_dim, hid_dim)
             self.conv2 = dglnn.HeteroSAGEConv(hid_dim, out_dim)
-            self.pred_ntype = pred_ntype
+            self.target_ntype = target_ntype
             self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)             # define a loss function
 
         def forward(self, blocks, node_feats, labels):
@@ -333,7 +338,7 @@ Here come the full dummy model example for reference. Please note that this code
             h = {ntype: F.relu(h[n_emb] for ntype, n_emb in h.items())
             h = self.conv2(blocks[1], h)
 
-            pred_loss = self._loss_fn(h[self.predict_ntype], labels)
+            pred_loss = self._loss_fn(h[self.target_ntype], labels)
             # L2 regularization of trainable parameters
             reg_loss = torch.tensor(0.).to(pred_loss.device)
             for d_para in self.parameters():
@@ -343,11 +348,11 @@ Here come the full dummy model example for reference. Please note that this code
             total_loss = pred_loss + reg_loss
             return total_loss
 
-        def predict(self, blocks, node_feats, pred_ntype):
+        def predict(self, blocks, node_feats, target_ntype):
             h = self.conv1(blocks[0], node_feats)
             h = {ntype: F.relu(h[n_emb] for ntype, n_emb in h.items())
             h = self.conv2(blocks[1], h)
-            return h[pred_ntype].argmax(dim=1), h[pred_ntype]                       # return two values
+            return h[target_ntype].argmax(dim=1), h[target_ntype]                       # return two values
 
         def create_optimizer(self, lr=0.001):
             return torch.optim.Adam(self.parameters(), lr=lr)
@@ -364,7 +369,7 @@ Here come the full dummy model example for reference. Please note that this code
 
         # Process node_feat_field to define GraphStorm dataset
         node_feat_fields = {}
-        node_feat_types = args.node_feat.split('-')
+        node_feat_types = args.node_feat_name.split('-')
         for node_feat_type in node_feat_types:
             node_type, feat_names = node_feat_type.split(':')
             node_feat_fields[node_type] = feat_names.split(',')
@@ -451,7 +456,7 @@ Here come the full dummy model example for reference. Please note that this code
                             help="The GraphStorm YAML configuration file path.")
         argparser.add_argument("--ip-config", type=str, required=True,
                             help="The IP config file for the cluster.")
-        argparser.add_argument("--node-feat", type=str, required=True,
+        argparser.add_argument("--node-feat-name", type=str, required=True,
                             help="The name of the node features. \
                                     Format is nodetype1:featname1,featname2-nodetype2:featname1,...")
         argparser.add_argument("--local_rank", type=int,

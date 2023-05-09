@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Graph Partition" href="configuration-partition.html" /><link rel="prev" title="Graph Construction" href="configuration-gconstruction.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use GraphStorm in a Distributed Cluster" href="../scale/distributed.html" /><link rel="prev" title="Graph Partition" href="configuration-partition.html" />
 
     <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
         <title>Training and Inference - GraphStorm 0.1 documentation</title>
@@ -161,8 +161,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">GraphStorm Configurations</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="configuration-gconstruction.html">Graph Construction</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Training and Inference</a></li>
 <li class="toctree-l2"><a class="reference internal" href="configuration-partition.html">Graph Partition</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Training and Inference</a></li>
 </ul>
 </li>
 </ul>
@@ -209,12 +209,12 @@
         <article role="main">
           <section id="training-and-inference">
 <span id="configurations-run"></span><h1>Training and Inference<a class="headerlink" href="#training-and-inference" title="Permalink to this heading">#</a></h1>
-<p>GraphStorm provides dozens of configurable parameters for users to control their training and inference tasks. This document provides detailed description of each configurable parameter. You can use yaml config file to define these parameters or you can use command line arguments to define and update these parameters. Specifically, GraphStorm parses yaml config file first. Then it parses arguments to overwrite parameters defined in the yaml file or add new parameters.</p>
+<p>GraphStorm provides dozens of configurable parameters for users to control their training and inference tasks. This document provides detailed description of each configurable parameter. You can use YAML config file to define these parameters or you can use command line arguments to define and update these parameters. Specifically, GraphStorm parses yaml config file first. Then it parses arguments to overwrite parameters defined in the yaml file or add new parameters.</p>
 <section id="launch-environment-configurations">
 <h2>Launch Environment Configurations<a class="headerlink" href="#launch-environment-configurations" title="Permalink to this heading">#</a></h2>
 <ul class="simple">
 <li><dl class="simple">
-<dt><strong>backend</strong>: PyTorch distributed backend, the suggested backend is gloo. Support backends include gloo and nccl</dt><dd><ul>
+<dt><strong>backend</strong>: (<strong>Required</strong>) PyTorch distributed backend, the suggested backend is gloo. Support backends include gloo and nccl</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">backend:</span> <span class="pre">gloo</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--backend</span> <span class="pre">gloo</span></code></p></li>
 <li><p>Default value: <code class="docutils literal notranslate"><span class="pre">gloo</span></code></p></li>
@@ -223,7 +223,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>ip_config</strong>: (Required) Path to a file containing IPs of instances in a distributed training/inference cluster. In the ip config file, each line stores one IP. HINT: Use absolute path to avoid any path related problems.</dt><dd><ul>
+<dt><strong>ip_config</strong>: (<strong>Required</strong>) Path to a file containing IPs of instances in a distributed training/inference cluster. In the ip config file, each line stores one IP. HINT: Use absolute path to avoid any path related problems.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">ip_config:</span> <span class="pre">example/ip_list.txt</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--ip-config</span> <span class="pre">example/ip_list.txt</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -232,7 +232,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>part_config</strong>: (Required) Path to a file containing graph partition configuration. The graph partition is generated by GraphStorm Partition tools. HINT: Use absolute path to avoid any path related problems.</dt><dd><ul>
+<dt><strong>part_config</strong>: (<strong>Required</strong>) Path to a file containing graph partition configuration. The graph partition is generated by GraphStorm Partition tools. HINT: Use absolute path to avoid any path related problems.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">part_config:</span> <span class="pre">example-graph/example.json</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--part-config</span> <span class="pre">example-graph/example.json</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -256,7 +256,7 @@
 <p>GraphStorm provides a set of parameters to config the GNN model structure (input layer, gnn layer, decoder layer, etc)</p>
 <ul>
 <li><dl class="simple">
-<dt><strong>model_encoder_type</strong>: (Required) Graph encoder model used to encode graph data. It can be rgat or rgcn.</dt><dd><ul class="simple">
+<dt><strong>model_encoder_type</strong>: (<strong>Required</strong>) Graph encoder model used to encode graph data. It can be rgat or rgcn.</dt><dd><ul class="simple">
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">model_encoder_type:</span> <span class="pre">rgcn</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--model-encoder-type</span> <span class="pre">rgcn</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -290,7 +290,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>hidden_size</strong>: (Required) The dimension of hidden GNN layers. Must be an integer larger than 0. Currently, each GNN layer has the same hidden dimension.</dt><dd><ul class="simple">
+<dt><strong>hidden_size</strong>: (<strong>Required</strong>) The dimension of hidden GNN layers. Must be an integer larger than 0. Currently, each GNN layer has the same hidden dimension.</dt><dd><ul class="simple">
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">hidden_size:</span> <span class="pre">128</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--hidden-size</span> <span class="pre">128</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -432,7 +432,7 @@
 <p>GraphStorm provides a set of parameters to control training hyper-parameters.</p>
 <ul class="simple">
 <li><dl class="simple">
-<dt><strong>fanout</strong>: (Required) The fanout of each GNN layers. The fanouts must be integers larger than 0. The number of fanouts must equal to num_layers. It accepts two formats: a) <cite>“20,10”</cite>, it defines number of neighbors to sample per edge type for each GNN layer with the ith element being the fanout for the ith GNN layer. In the example, the fanout of the 0th GNN layer is 20 and the fanout of the 1st GNN layer is 10. b) <cite>&quot;etype2:20&#64;etype3:20&#64;etype1:10,etype2:10&#64;etype3:4&#64;etype1:2&quot;</cite>. It defines the numbers of neighbors to sample for different edge types for each GNN layers with the i-th element being the fanout for the i-th GNN layer. In the example, the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 20, 20 and 10 respectively and the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 10, 4 and 2 respectively.</dt><dd><ul>
+<dt><strong>fanout</strong>: (<strong>Required</strong>) The fanout of each GNN layers. The fanouts must be integers larger than 0. The number of fanouts must equal to num_layers. It accepts two formats: a) <cite>“20,10”</cite>, it defines number of neighbors to sample per edge type for each GNN layer with the ith element being the fanout for the ith GNN layer. In the example, the fanout of the 0th GNN layer is 20 and the fanout of the 1st GNN layer is 10. b) <cite>&quot;etype2:20&#64;etype3:20&#64;etype1:10,etype2:10&#64;etype3:4&#64;etype1:2&quot;</cite>. It defines the numbers of neighbors to sample for different edge types for each GNN layers with the i-th element being the fanout for the i-th GNN layer. In the example, the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 20, 20 and 10 respectively and the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 10, 4 and 2 respectively.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">fanout:</span> <span class="pre">10,10</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--fanout</span> <span class="pre">10,10</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -450,7 +450,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>lr</strong>: (Required) Learning rate. Learning rate for dense parameters of input encoder, model encoder and decoder.</dt><dd><ul>
+<dt><strong>lr</strong>: (<strong>Required</strong>) Learning rate. Learning rate for dense parameters of input encoder, model encoder and decoder.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">lr:</span> <span class="pre">0.5</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--lr</span> <span class="pre">0.5</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -468,7 +468,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>batch_size</strong>: (Required) Mini-batch size. It defines the batch size of each trainer. The global batch size equals to the number of trainers multiply the batch_size. For example, suppose we have 2 machines each with 8 GPUs and set batch_size to 128. The global batch size will be 2 * 8 * 128 = 2048.</dt><dd><ul>
+<dt><strong>batch_size</strong>: (<strong>Required</strong>) Mini-batch size. It defines the batch size of each trainer. The global batch size equals to the number of trainers multiply the batch_size. For example, suppose we have 2 machines each with 8 GPUs and set batch_size to 128. The global batch size will be 2 * 8 * 128 = 2048.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">batch_size:</span> <span class="pre">128</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--batch_size</span> <span class="pre">128</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -571,7 +571,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>eval_fanout</strong>: (Required) The fanout of each GNN layers used in evaluation and inference. It follows the same format as fanout.</dt><dd><ul>
+<dt><strong>eval_fanout</strong>: (<strong>Required</strong>) The fanout of each GNN layers used in evaluation and inference. It follows the same format as fanout.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">eval_fanout:</span> <span class="pre">&quot;10,10&quot;</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--eval-fanout</span> <span class="pre">10,10</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -657,7 +657,7 @@
 <h3>General Configurations<a class="headerlink" href="#general-configurations" title="Permalink to this heading">#</a></h3>
 <ul>
 <li><dl class="simple">
-<dt><strong>task_type</strong>:(Required) Supported task type includes node_classification, node_regression, edge_classification, edge_regression, and link_prediction.</dt><dd><ul class="simple">
+<dt><strong>task_type</strong>: (<strong>Required</strong>) Supported task type includes node_classification, node_regression, edge_classification, edge_regression, and link_prediction.</dt><dd><ul class="simple">
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">task_type:</span> <span class="pre">node_classification</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--task-type</span> <span class="pre">node_classification</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -695,7 +695,7 @@
 <h3>Classification and Regression Task<a class="headerlink" href="#classification-and-regression-task" title="Permalink to this heading">#</a></h3>
 <ul class="simple">
 <li><dl class="simple">
-<dt><strong>label_field</strong>:(Required) The field name of labelled data in the graph data. For node classification tasks, GraphStorm use <code class="docutils literal notranslate"><span class="pre">graph.nodes[target_ntype].data[label_field]</span></code> to access node labels. For edge classification tasks, GraphStorm use <code class="docutils literal notranslate"><span class="pre">graph.edges[target_etype].data[label_field]</span></code> to access edge labels.</dt><dd><ul>
+<dt><strong>label_field</strong>: (<strong>Required</strong>) The field name of labelled data in the graph data. For node classification tasks, GraphStorm use <code class="docutils literal notranslate"><span class="pre">graph.nodes[target_ntype].data[label_field]</span></code> to access node labels. For edge classification tasks, GraphStorm use <code class="docutils literal notranslate"><span class="pre">graph.edges[target_etype].data[label_field]</span></code> to access edge labels.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">label_field:</span> <span class="pre">color</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--label-field</span> <span class="pre">color</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -704,7 +704,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>num_classes</strong>: (Required) The cardinality of labels in a classification task. Used by node classification and edge classification.</dt><dd><ul>
+<dt><strong>num_classes</strong>: (<strong>Required</strong>) The cardinality of labels in a classification task. Used by node classification and edge classification.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">num_classes:</span> <span class="pre">10</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--num-classes</span> <span class="pre">10</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -722,7 +722,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>multilabel_weights</strong>:  Used to specify label weight of each class in a multi-label classification task. This is used together with <strong>multilabel</strong>. It is feed into <code class="docutils literal notranslate"><span class="pre">torch.nn.BCEWithLogitsLoss</span></code>. The weights should be in the following format <cite>0.1,0.2,0.3,0.1,0.0</cite>. Each field represents a weight for a class. Suppose there are 3 classes. The multilabel_weights is set to <cite>0.1,0.2,0.3</cite>. Class 0 will have weight of 0.1, class 1 will have weight of 0.2 and class 2 will have weight of 0.3. For more details, see <a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html">BCEWithLogitsLoss</a>. If not provided, all classes are treated equally.</dt><dd><ul>
+<dt><strong>multilabel_weights</strong>: Used to specify label weight of each class in a multi-label classification task. This is used together with <strong>multilabel</strong>. It is feed into <code class="docutils literal notranslate"><span class="pre">torch.nn.BCEWithLogitsLoss</span></code>. The weights should be in the following format <cite>0.1,0.2,0.3,0.1,0.0</cite>. Each field represents a weight for a class. Suppose there are 3 classes. The multilabel_weights is set to <cite>0.1,0.2,0.3</cite>. Class 0 will have weight of 0.1, class 1 will have weight of 0.2 and class 2 will have weight of 0.3. For more details, see <a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html">BCEWithLogitsLoss</a>. If not provided, all classes are treated equally.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">multilabel_weights:</span> <span class="pre">0.1,0.2,0.3</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--multilabel-weights</span> <span class="pre">0.1,0.2,0.3</span></code></p></li>
 <li><p>Default value: <code class="docutils literal notranslate"><span class="pre">None</span></code></p></li>
@@ -754,7 +754,7 @@
 <h3>Node Classification/Regression Specific<a class="headerlink" href="#node-classification-regression-specific" title="Permalink to this heading">#</a></h3>
 <ul class="simple">
 <li><dl class="simple">
-<dt><strong>target_ntype</strong>: (Required) The node type for prediction.</dt><dd><ul>
+<dt><strong>target_ntype</strong>: (<strong>Required</strong>) The node type for prediction.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">target_ntype:</span> <span class="pre">movie</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--target-ntype</span> <span class="pre">movie</span></code></p></li>
 <li><p>Default value: This parameter must be provided by user.</p></li>
@@ -768,7 +768,7 @@
 <h3>Edge Classification/Regression Specific<a class="headerlink" href="#edge-classification-regression-specific" title="Permalink to this heading">#</a></h3>
 <ul>
 <li><dl>
-<dt><strong>target_etype</strong>: (Required) The list of canonical edge types that will be added as a training target in edge classification/regression tasks, for example <code class="docutils literal notranslate"><span class="pre">--train-etype</span> <span class="pre">query,clicks,asin</span></code> or <code class="docutils literal notranslate"><span class="pre">--train-etype</span> <span class="pre">query,clicks,asin</span> <span class="pre">query,search,asin</span></code>. A canonical edge type should be formatted as <cite>src_node_type,relation_type,dst_node_type</cite>. Currently, GraphStorm only supports single task edge classification/regression, i.e., it only accepts one canonical edge type.</dt><dd><ul>
+<dt><strong>target_etype</strong>: (<strong>Required</strong>) The list of canonical edge types that will be added as a training target in edge classification/regression tasks, for example <code class="docutils literal notranslate"><span class="pre">--train-etype</span> <span class="pre">query,clicks,asin</span></code> or <code class="docutils literal notranslate"><span class="pre">--train-etype</span> <span class="pre">query,clicks,asin</span> <span class="pre">query,search,asin</span></code>. A canonical edge type should be formatted as <cite>src_node_type,relation_type,dst_node_type</cite>. Currently, GraphStorm only supports single task edge classification/regression, i.e., it only accepts one canonical edge type.</dt><dd><ul>
 <li><dl>
 <dt>Yaml: <code class="docutils literal notranslate"><span class="pre">target_etype:</span></code></dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">query,clicks,asin</span></code></div>
@@ -944,23 +944,23 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="configuration-partition.html">
+          <a class="next-page" href="../scale/distributed.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Graph Partition</div>
+                <div class="title">Use GraphStorm in a Distributed Cluster</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="configuration-gconstruction.html">
+          <a class="prev-page" href="configuration-partition.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Graph Construction</div>
+                <div class="title">Graph Partition</div>
                 
               </div>
             </a>

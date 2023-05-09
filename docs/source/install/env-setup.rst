@@ -10,7 +10,7 @@ recommend that our users use Docker as the base running environment to use Graph
 Prerequisites
 --------------
 
-You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-Docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
+1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-Docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
 For example, in an AWS EC2 instance created with `Deep Learning AMI GPU PyTorch 1.13.0`, you can run the following commands to install Docker.
 
@@ -22,8 +22,7 @@ For example, in an AWS EC2 instance created with `Deep Learning AMI GPU PyTorch 
 
 If using AWS `Deep Learning AMI GPU version`, the Nvidia Container Toolkit has been preinstalled.
 
-.. note::
-    The current version of GraphStorm requires **at least one GPU** installed in the instance. Later version will support CPUs.
+2. **GPU**: The current version of GraphStorm requires **at least one GPU** installed in the instance. Later version will support CPUs.
 
 .. _build_docker:
 

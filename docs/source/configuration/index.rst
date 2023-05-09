@@ -9,7 +9,7 @@ These configurations and arguments include:
 
 - :ref:`GraphStorm graph construction configurations<configurations-gconstruction>`.
 - :ref:`GraphStorm graph partition configurations<configurations-partition>`.
-- :ref:`GraphStorm launch configurations<configurations-run>`.
+- :ref:`GraphStorm training and inference configurations<configurations-run>`.
 
 .. toctree::
     :maxdepth: 1
