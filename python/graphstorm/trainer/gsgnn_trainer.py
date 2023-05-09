@@ -188,8 +188,8 @@ class GSgnnTrainer():
         '''
         th.distributed.barrier()
         if save_model_path is not None:
-            assert isinstance(model.module, GSgnnModel) or isinstance(model.module, GSgnnModelBase), \
-                "Please make sure the model derives from GSgnnModel, " \
+            assert isinstance(model.module, (GSgnnModel, GSgnnModelBase)), \
+                "Please make sure the model derives from GSgnnModel or GSgnnModelBase, " \
                 "which provides a scalable model saving implementation."
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
             model.module.save_model(save_model_path)
