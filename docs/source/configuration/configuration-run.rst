@@ -1,6 +1,6 @@
-.. _configurations-launch:
+.. _configurations-run:
 
-GraphStorm Launch
+Training and Inference
 ============================
 
 GraphStorm provides dozens of configurable parameters for users to control their training and inference tasks. This document provides detailed description of each configurable parameter. You can use yaml config file to define these parameters or you can use command line arguments to define and update these parameters. Specifically, GraphStorm parses yaml config file first. Then it parses arguments to overwrite parameters defined in the yaml file or add new parameters.

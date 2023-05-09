@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Graph Partition" href="configuration-partition.html" /><link rel="prev" title="Graph Construction" href="configuration-gconstruction.html" />
 
     <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
-        <title>GraphStorm Training and Inference Configurations - GraphStorm 0.1 documentation</title>
+        <title>Training and Inference - GraphStorm 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -155,12 +155,13 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Quick Start Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">GraphStorm Configurations</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="configuration-gconstruction.html">Graph Construction</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Training and Inference</a></li>
 <li class="toctree-l2"><a class="reference internal" href="configuration-partition.html">Graph Partition</a></li>
 </ul>
 </li>
@@ -206,8 +207,8 @@
           </label>
         </div>
         <article role="main">
-          <section id="graphstorm-training-and-inference-configurations">
-<span id="configurations-run"></span><h1>GraphStorm Training and Inference Configurations<a class="headerlink" href="#graphstorm-training-and-inference-configurations" title="Permalink to this heading">#</a></h1>
+          <section id="training-and-inference">
+<span id="configurations-run"></span><h1>Training and Inference<a class="headerlink" href="#training-and-inference" title="Permalink to this heading">#</a></h1>
 <p>GraphStorm provides dozens of configurable parameters for users to control their training and inference tasks. This document provides detailed description of each configurable parameter. You can use yaml config file to define these parameters or you can use command line arguments to define and update these parameters. Specifically, GraphStorm parses yaml config file first. Then it parses arguments to overwrite parameters defined in the yaml file or add new parameters.</p>
 <section id="launch-environment-configurations">
 <h2>Launch Environment Configurations<a class="headerlink" href="#launch-environment-configurations" title="Permalink to this heading">#</a></h2>
@@ -943,8 +944,26 @@
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="configuration-partition.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Graph Partition</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="configuration-gconstruction.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Graph Construction</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -975,7 +994,7 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">GraphStorm Training and Inference Configurations</a><ul>
+<li><a class="reference internal" href="#">Training and Inference</a><ul>
 <li><a class="reference internal" href="#launch-environment-configurations">Launch Environment Configurations</a></li>
 <li><a class="reference internal" href="#model-configurations">Model Configurations</a><ul>
 <li><a class="reference internal" href="#built-in-model-specific-configurations">Built-in Model Specific Configurations</a><ul>

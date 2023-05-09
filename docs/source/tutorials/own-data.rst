@@ -26,8 +26,8 @@ GraphStorm provides a graph construction tool to generate input files for using 
 In general, the graph construction tool need three set of files.
 
 * A configuration JSON file, which describes the graph structure, i.e. nodes and edges, the tasks to perform, the node features, and data file paths.
-* A set of node files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
-* A set of edge files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
+* A set of raw node data files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
+* A set of raw edge data files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
 
 This tutorial use the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.
 
@@ -63,7 +63,7 @@ Once succeeds, the command will create a set of folders and files under the ``/t
 
 .. _input-config:
 
-The input Configuration JSON
+The input configuration JSON
 ```````````````````````````````
 GraphStorm's graph construction tool relies on the configuration JSON to provide graph information. The explain the format of the configuration JSON contents is in the `gconstruct README <https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme>`_. Below show the contents of the examplar ACM config.json file.
 
@@ -239,7 +239,7 @@ The raw node and edge data files are both in parquet format, whose contents are 
 .. figure:: ../../../tutorial/ACM_raw_parquet.png
     :align: center
 
-In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. All edges do not have feature associated. Therefore, there only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``.
+In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. Correspondingly, in the paper node parquet file, there is a column, ``label``, store the label values. All edges do not have feature associated. Therefore, there only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``.
 
 The configuration JSON file along with these node and edge parquet files are the required inputs of the GraphStorm's construction tool. Then we can use the tool to create the partition graph data as the following command does.
 
@@ -255,7 +255,7 @@ The configuration JSON file along with these node and edge parquet files are the
 
 Outputs of graph construction
 ```````````````````````````````
-Outputs of the command are under the ``/tmp/acm_nc/`` folder like the followings:
+The above command reads in the JSON file, and match its contents with the node and edge parquet files. And then read in all parquet files, construct the graph, check consistancy, pre-process features, and eventually split the graph into partitions. Outputs of the command are under the ``/tmp/acm_nc/`` folder like the followings:
 
 .. code-block:: bash
 
@@ -268,14 +268,14 @@ Outputs of the command are under the ``/tmp/acm_nc/`` folder like the followings
         graph.dgl
         node_feat.dgl 
 
-These files become the inputs of GraphStorm's launch scripts and APIs.
+Because the above command specify the ``--num_partitions`` to be ``1``, there is only one partition was created, which is saved in the ``part0`` folder. These files become the inputs of GraphStorm's launch scripts.
 
 Option 2: Required DGL graph
 ................................
-For some users who are already familiar with `DGL <https://www.dgl.ai/>`_, they can convert their graph data into the required DGL graph format. And then use GraphStorm's partition tools to create the inputs of GraphStorm's launch scripts and APIs.
+For some users who are already familiar with `DGL <https://www.dgl.ai/>`_, they can convert their graph data into the required DGL graph format. And then use GraphStorm's partition tools to create the inputs of GraphStorm's launch scripts.
 
-Required DGL graph format:
-
+Required DGL graph format
+```````````````````````````
 - a `dgl.heterograph <https://docs.dgl.ai/generated/dgl.heterograph.html#dgl.heterograph>`_.
 - All nodes/edges features are set in nodes/edges' data field, and remember the feature names, which will be used in the later steps.
     - For nodes' features, the common way to set features is like ``g.nodes['nodetypename'].data['featurename']=nodefeaturetensor``, The formal explanation of DGL's node feature could be found in the `Using node features <https://docs.dgl.ai/generated/dgl.DGLGraph.nodes.html>`_.
@@ -284,7 +284,7 @@ Required DGL graph format:
     - The common way to set node-related labels as a feature is like ``g.nodes['predictnodetypename'].data['labelname']=nodelabeltensor``.
     - The common way to set edge-related labels as a feature is like ``g.nodes['predictedgetypename'].data['labelname']=edgelabeltensor``.
     - For link prediction task, a common way to extract labels is to use existing edges as the positive edges and use negative sampling method to extract non-exist edges as negative edges. So in this step, we do not need to set the labels. The GraphStorm has implemented this function.
-- (Optional) if you have your own train/validation/test split on nodes/edges, you can put the train/validation/test nodes/edges index tensors as three nodes/edges features with the feature names as ``train_mask``, ``val_mask``, and ``test_mask``. If you do not have nodes/edges split, you can use the split functions provided in the GSF partition scripts to create them in the next step.
+- (Optional) if you have your own train/validation/test split on nodes/edges, you can put the train/validation/test nodes/edges index tensors as three nodes/edges features with the feature names as ``train_mask``, ``val_mask``, and ``test_mask``. If you do not have nodes/edges split, you can use the split functions provided in the GraphStorm partition tools to create them in the next step.
     - For training nodes, the setting is like ``g.nodes['predictnodetypename'].data['train_mask']=trainingnodeindexetensor``.
     - For validation nodes, the setting is like ``g.nodes['predictnodetypename'].data['val_mask']=validationnodeindexetensor``. Make sure you use 'val_mask' as the feature name because the GSF uses this name by default.
     - For validation nodes, the setting is like ``g.nodes['predictnodetypename'].data['test_mask']=testnodeindexetensor``.
@@ -295,7 +295,7 @@ Once this DGL graph is constructed, you can use DGL's `save_graphs() <https://do
 
 The ACM graph data example
 `````````````````````````````
-For the ACM data, the following command can create a DGL graph as the input for GraphStorm’s partition tools.
+For the ACM data, the following command can create a DGL graph as the input for GraphStorm's partition tools.
 
 .. code-block:: bash
 
@@ -313,9 +313,9 @@ The below image show how the built DGL ACM data looks like.
 
 Partition the DGL ACM graph for node classification
 ```````````````````````````````````````````````````````
-GraphStorm provides two graph partition scripts, the `partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_ for node/edge prediction graph partition, and the `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_ for the link prediction graph partition.
+GraphStorm provides two graph partition tools, the `partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_ for node/edge prediction graph partition, and the `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_ for the link prediction graph partition.
 
-The below command partition the DGL ACM graph, the ``acm.dgl`` in the ``/tmp/acm_dgl`` folder into one partition, and save the partitioned data to ``/tmp/acm_nc/`` folder.
+The below command partition the DGL ACM graph, the ``acm.dgl`` in the ``/tmp/acm_dgl`` folder, into one partition, and save the partitioned data to ``/tmp/acm_nc/`` folder.
 
 .. code-block:: bash
 
@@ -329,39 +329,41 @@ The below command partition the DGL ACM graph, the ``acm.dgl`` in the ``/tmp/acm
 
 Outputs of the command are under the ``/tmp/acm_nc/`` folder with the same contents as the Option 1.
 
+Please refer to :ref:`Graph Partition Configurations <configurations-partition>` to find more details of the arguments of the two partition tools.
+
 Step 2: Modify the YAML configuration file to include your own data's information
 -----------------------------------------------------------------------------------
-It is common that users will copy and reuse GraphStorm's built-in scripts and yaml files to run on their own graph data, but forget to change the contents of yaml files to match their own data. Below are some configurations that users need to double check and make changes accordingly.
+It is common that users will copy and reuse GraphStorm's built-in scripts and yaml files to run training/inference on their own graph data, but forget to change the contents of yaml files to match their own data. Below are some configurations that users need to double check and make changes accordingly.
 
-- **part_config**: please change value of this configure to where you store the partitioned graph's JSON file. It is better to use an absolute path to avoid path mis-match.
-- **ip_config**: please make sure ip_list.txt created and the path of the ip_list.txt file is correct.
-- **node-feat-name**: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will consider these nodes as featureless, hence using learnable embeddings as their features. See below example yaml file and launch commands. 
+- **part_config**: please change value of this configure to where you store the partitioned graph's JSON , e.g. the ``/tmp/acm_nc/acm.json``. It is better to use an absolute path to avoid path mis-match.
+- **ip_config**: please make sure the ``ip_list.txt`` created and the path of the ``ip_list.txt`` file is correct.
+- **node-feat-name**: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will consider these nodes featureless, hence using learnable embeddings as their features. See below yaml file and launch commands for examples.
 
-If you conduct Classification/Regression tasks,
+For Classification/Regression tasks:
 
-- **label_field**: please change value of this field to fit to the field name of labeled data in your graph data.
-- **num_classes**: please change value of this filed to fit to the number of classes to be predicted in your graph data if doing a Classification task.
+- **label_field**: please change values of this field to fit to the field name of labeled data in your graph data.
+- **num_classes**: please change values of this filed to fit to the number of classes to be predicted in your graph data if doing a Classification task.
 
-If you conduct Node Classification/Regression tasks,
+For Node Classification/Regression tasks:
 
-- **predict_ntype**: please change value of this field to the node type that the label is associated, which should be the same node type for prediction.
+- **target_ntype**: please change values of this field to the node type that the label is associated, which should be the same node type for prediction.
 
-If you conduct Edge Classification/Regression tasks,
+For Edge Classification/Regression tasks:
 
-- **target_etype**: please change value of this field to the edge type that the label is associated, which should be the same edge type for prediction.
+- **target_etype**: please change values of this field to the edge type that the label is associated, which should be the same edge type for prediction.
 
-If you conduct Link Prediction tasks,
+For Link Prediction tasks:
 
-- **train_etype**: please specify value of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put None as the value, all edge types will be used for training, this might not commonly used practice for most Link Prediction related tasks.
-- **eval_etype**: it is highly recommended that set this value to be the same as the value of train_etype, so that the evaluation metric can truly demonstrate the performance of models.
+- **train_etype**: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put ``None`` as the value, all edge types will be used for training, this might not commonly used in practice for most Link Prediction related tasks.
+- **eval_etype**: it is highly recommended that set this value to be the same as the value of ``train_etype``, so that the evaluation metric can truly demonstrate the performance of models.
 
 Besides these configuration, it is also important for you to use the correct format to configure node/edge types in the yaml files. For example, in an edge-related task, you should provide a canonical edge type, e.g. `**user,write,paper**` (no white spaces in this string), for edge types, rather than the edge name only, e.g. the `**write**`. 
 
-For more detailed information of these options, please refer to the :ref:`GraphStorm Configurations <configurations>` page.
+For more detailed information of these options, please refer to the :ref:`GraphStorm Launch Configurations <configurations-Launch>` page.
 
 An example ACM  YAML file for node classification
 ..................................................
-Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm's built-in RGCN model for node classification on the ``paper`` type nodes. The YAML file can also be found at the ``/graphstorm/examples/use_your_own_data/`` folder.
+Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm's built-in RGCN model for node classification on the ``paper`` nodes. The YAML file can also be found at the `/graphstorm/examples/use_your_own_data/acm_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml>`_.
 
 .. code-block:: yaml
 
@@ -412,14 +414,14 @@ Step 3: Launch training script on your own graphs
 
 With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training scripts to launch the training job. 
 
-.. Note:: we assume an ip_list.txt file has been created in the ``/tmp/`` folder. Users can use the following commands to create this file.
+.. Note:: We assume an ip_list.txt file has been created in the ``/tmp/`` folder. Users can use the following commands to create this file.
 
     .. code-block:: bash
 
         touch /tmp/ip_list.txt
         echo 127.0.0.1 > /tmp/ip_list.txt
 
-Below is a simple launch script example that train a GraphStorm built-in RGCN model on the ACM data for node classification.
+Below is a launch script example that trains a GraphStorm built-in RGCN model on the ACM data for node classification.
 
 .. code-block:: bash
 
@@ -434,7 +436,7 @@ Below is a simple launch script example that train a GraphStorm built-in RGCN mo
             --cf /graphstorm/examples/use_your_own_data/acm_nc.yaml \
             --node-feat-name paper:feat author:feat subject:feat
 
-Similar to the Quick-Start tutorial, users can launch the inference script on thier own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.
+Similar to the :ref:`Quick-Start <quick-start>` tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.
 
 .. code-block:: bash
 

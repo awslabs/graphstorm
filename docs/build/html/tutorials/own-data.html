@@ -232,8 +232,8 @@
 <p>In general, the graph construction tool need three set of files.</p>
 <ul class="simple">
 <li><p>A configuration JSON file, which describes the graph structure, i.e. nodes and edges, the tasks to perform, the node features, and data file paths.</p></li>
-<li><p>A set of node files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
-<li><p>A set of edge files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
+<li><p>A set of raw node data files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
+<li><p>A set of raw edge data files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
 </ul>
 <p>This tutorial use the <a class="reference external" href="https://data.dgl.ai/dataset/ACM.mat">ACM publication graph</a> as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.</p>
 <p>First go the <code class="docutils literal notranslate"><span class="pre">/graphstorm/examples/</span></code> folder.</p>
@@ -260,8 +260,8 @@ config.json
 <span class="w">    </span>subject.parquet
 </pre></div>
 </div>
-<section id="input-configuration-json">
-<span id="input-config"></span><h4>Input Configuration JSON<a class="headerlink" href="#input-configuration-json" title="Permalink to this heading">#</a></h4>
+<section id="the-input-configuration-json">
+<span id="input-config"></span><h4>The input configuration JSON<a class="headerlink" href="#the-input-configuration-json" title="Permalink to this heading">#</a></h4>
 <p>GraphStorm’s graph construction tool relies on the configuration JSON to provide graph information. The explain the format of the configuration JSON contents is in the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme">gconstruct README</a>. Below show the contents of the examplar ACM config.json file.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;nodes&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -431,7 +431,7 @@ config.json
 <figure class="align-center">
 <img alt="../_images/ACM_raw_parquet.png" src="../_images/ACM_raw_parquet.png" />
 </figure>
-<p>In this example, only the <code class="docutils literal notranslate"><span class="pre">paper</span></code> nodes have labels and the task is node classification. So, in the JSON file, the <code class="docutils literal notranslate"><span class="pre">paper</span></code> node has the <code class="docutils literal notranslate"><span class="pre">labels</span></code> field, and the <code class="docutils literal notranslate"><span class="pre">task_type</span></code> is specified as <code class="docutils literal notranslate"><span class="pre">classification</span></code>. All edges do not have feature associated. Therefore, there only have two columns in these parquet files for edges, the <code class="docutils literal notranslate"><span class="pre">source_id</span></code> and the <code class="docutils literal notranslate"><span class="pre">dest_id</span></code>.</p>
+<p>In this example, only the <code class="docutils literal notranslate"><span class="pre">paper</span></code> nodes have labels and the task is node classification. So, in the JSON file, the <code class="docutils literal notranslate"><span class="pre">paper</span></code> node has the <code class="docutils literal notranslate"><span class="pre">labels</span></code> field, and the <code class="docutils literal notranslate"><span class="pre">task_type</span></code> is specified as <code class="docutils literal notranslate"><span class="pre">classification</span></code>. Correspondingly, in the paper node parquet file, there is a column, <code class="docutils literal notranslate"><span class="pre">label</span></code>, store the label values. All edges do not have feature associated. Therefore, there only have two columns in these parquet files for edges, the <code class="docutils literal notranslate"><span class="pre">source_id</span></code> and the <code class="docutils literal notranslate"><span class="pre">dest_id</span></code>.</p>
 <p>The configuration JSON file along with these node and edge parquet files are the required inputs of the GraphStorm’s construction tool. Then we can use the tool to create the partition graph data as the following command does.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.gconstruct.construct_graph<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--conf_file<span class="w"> </span>/tmp/acm_raw/config.json<span class="w"> </span><span class="se">\</span>
@@ -443,7 +443,7 @@ config.json
 </section>
 <section id="outputs-of-graph-construction">
 <span id="output-graph-construction"></span><h4>Outputs of graph construction<a class="headerlink" href="#outputs-of-graph-construction" title="Permalink to this heading">#</a></h4>
-<p>Outputs of the command are under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder like the followings:</p>
+<p>The above command reads in the JSON file, and match its contents with the node and edge parquet files. And then read in all parquet files, construct the graph, check consistancy, pre-process features, and eventually split the graph into partitions. Outputs of the command are under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder like the followings:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/tmp/acm_nc
 acm.json
 node_mapping.pt
@@ -454,13 +454,14 @@ edge_mapping.pt
 <span class="w">    </span>node_feat.dgl
 </pre></div>
 </div>
-<p>These files become the inputs of GraphStorm’s launch scripts and APIs.</p>
+<p>Because the above command specify the <code class="docutils literal notranslate"><span class="pre">--num_partitions</span></code> to be <code class="docutils literal notranslate"><span class="pre">1</span></code>, there is only one partition was created, which is saved in the <code class="docutils literal notranslate"><span class="pre">part0</span></code> folder. These files become the inputs of GraphStorm’s launch scripts.</p>
 </section>
 </section>
 <section id="option-2-required-dgl-graph">
 <h3>Option 2: Required DGL graph<a class="headerlink" href="#option-2-required-dgl-graph" title="Permalink to this heading">#</a></h3>
-<p>For some users who are already familiar with <a class="reference external" href="https://www.dgl.ai/">DGL</a>, they can convert their graph data into the required DGL graph format. And then use GraphStorm’s partition tools to create the inputs of GraphStorm’s launch scripts and APIs.</p>
-<p>Required DGL graph format:</p>
+<p>For some users who are already familiar with <a class="reference external" href="https://www.dgl.ai/">DGL</a>, they can convert their graph data into the required DGL graph format. And then use GraphStorm’s partition tools to create the inputs of GraphStorm’s launch scripts.</p>
+<section id="required-dgl-graph-format">
+<h4>Required DGL graph format<a class="headerlink" href="#required-dgl-graph-format" title="Permalink to this heading">#</a></h4>
 <ul class="simple">
 <li><p>a <a class="reference external" href="https://docs.dgl.ai/generated/dgl.heterograph.html#dgl.heterograph">dgl.heterograph</a>.</p></li>
 <li><dl class="simple">
@@ -481,7 +482,7 @@ edge_mapping.pt
 </dl>
 </li>
 <li><dl class="simple">
-<dt>(Optional) if you have your own train/validation/test split on nodes/edges, you can put the train/validation/test nodes/edges index tensors as three nodes/edges features with the feature names as <code class="docutils literal notranslate"><span class="pre">train_mask</span></code>, <code class="docutils literal notranslate"><span class="pre">val_mask</span></code>, and <code class="docutils literal notranslate"><span class="pre">test_mask</span></code>. If you do not have nodes/edges split, you can use the split functions provided in the GSF partition scripts to create them in the next step.</dt><dd><ul>
+<dt>(Optional) if you have your own train/validation/test split on nodes/edges, you can put the train/validation/test nodes/edges index tensors as three nodes/edges features with the feature names as <code class="docutils literal notranslate"><span class="pre">train_mask</span></code>, <code class="docutils literal notranslate"><span class="pre">val_mask</span></code>, and <code class="docutils literal notranslate"><span class="pre">test_mask</span></code>. If you do not have nodes/edges split, you can use the split functions provided in the GraphStorm partition tools to create them in the next step.</dt><dd><ul>
 <li><p>For training nodes, the setting is like <code class="docutils literal notranslate"><span class="pre">g.nodes['predictnodetypename'].data['train_mask']=trainingnodeindexetensor</span></code>.</p></li>
 <li><p>For validation nodes, the setting is like <code class="docutils literal notranslate"><span class="pre">g.nodes['predictnodetypename'].data['val_mask']=validationnodeindexetensor</span></code>. Make sure you use ‘val_mask’ as the feature name because the GSF uses this name by default.</p></li>
 <li><p>For validation nodes, the setting is like <code class="docutils literal notranslate"><span class="pre">g.nodes['predictnodetypename'].data['test_mask']=testnodeindexetensor</span></code>.</p></li>
@@ -493,6 +494,7 @@ edge_mapping.pt
 </li>
 </ul>
 <p>Once this DGL graph is constructed, you can use DGL’s <a class="reference external" href="https://docs.dgl.ai/generated/dgl.save_graphs.html?highlight=save_graphs#dgl.save_graphs">save_graphs()</a> function to save it into a local file. The file name must follow GraphStorm convention: <code class="docutils literal notranslate"><span class="pre">&lt;datasetname&gt;.dgl</span></code>. You can give your graph dataset a name, e.g., <code class="docutils literal notranslate"><span class="pre">acm</span></code> or <code class="docutils literal notranslate"><span class="pre">ogbn_mag</span></code>.</p>
+</section>
 <section id="the-acm-graph-data-example">
 <h4>The ACM graph data example<a class="headerlink" href="#the-acm-graph-data-example" title="Permalink to this heading">#</a></h4>
 <p>For the ACM data, the following command can create a DGL graph as the input for GraphStorm’s partition tools.</p>
@@ -511,8 +513,8 @@ edge_mapping.pt
 </section>
 <section id="partition-the-dgl-acm-graph-for-node-classification">
 <h4>Partition the DGL ACM graph for node classification<a class="headerlink" href="#partition-the-dgl-acm-graph-for-node-classification" title="Permalink to this heading">#</a></h4>
-<p>GraphStorm provides two graph partition scripts, the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py">partition_graph.py</a> for node/edge prediction graph partition, and the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py">partition_graph_lp.py</a> for the link prediction graph partition.</p>
-<p>The below command partition the DGL ACM graph, the <code class="docutils literal notranslate"><span class="pre">acm.dgl</span></code> in the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_dgl</span></code> folder into one partition, and save the partitioned data to <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder.</p>
+<p>GraphStorm provides two graph partition tools, the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py">partition_graph.py</a> for node/edge prediction graph partition, and the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py">partition_graph_lp.py</a> for the link prediction graph partition.</p>
+<p>The below command partition the DGL ACM graph, the <code class="docutils literal notranslate"><span class="pre">acm.dgl</span></code> in the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_dgl</span></code> folder, into one partition, and save the partitioned data to <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/tools/partition_graph.py<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--dataset<span class="w"> </span>acm<span class="se">\</span>
 <span class="w">        </span>--filepath<span class="w"> </span>/tmp/acm_dgl<span class="w"> </span><span class="se">\</span>
@@ -523,40 +525,41 @@ edge_mapping.pt
 </pre></div>
 </div>
 <p>Outputs of the command are under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder with the same contents as the Option 1.</p>
+<p>Please refer to <a class="reference internal" href="../configuration/configuration-partition.html#configurations-partition"><span class="std std-ref">Graph Partition Configurations</span></a> to find more details of the arguments of the two partition tools.</p>
 </section>
 </section>
 </section>
 <section id="step-2-modify-the-yaml-configuration-file-to-include-your-own-data-s-information">
 <h2>Step 2: Modify the YAML configuration file to include your own data’s information<a class="headerlink" href="#step-2-modify-the-yaml-configuration-file-to-include-your-own-data-s-information" title="Permalink to this heading">#</a></h2>
-<p>It is common that users will copy and reuse GraphStorm’s built-in scripts and yaml files to run on their own graph data, but forget to change the contents of yaml files to match their own data. Below are some configurations that users need to double check and make changes accordingly.</p>
+<p>It is common that users will copy and reuse GraphStorm’s built-in scripts and yaml files to run training/inference on their own graph data, but forget to change the contents of yaml files to match their own data. Below are some configurations that users need to double check and make changes accordingly.</p>
 <ul class="simple">
-<li><p><strong>part_config</strong>: please change value of this configure to where you store the partitioned graph’s JSON file. It is better to use an absolute path to avoid path mis-match.</p></li>
-<li><p><strong>ip_config</strong>: please make sure ip_list.txt created and the path of the ip_list.txt file is correct.</p></li>
-<li><p><strong>node-feat-name</strong>: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will consider these nodes as featureless, hence using learnable embeddings as their features. See below example yaml file and launch commands.</p></li>
+<li><p><strong>part_config</strong>: please change value of this configure to where you store the partitioned graph’s JSON , e.g. the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/acm.json</span></code>. It is better to use an absolute path to avoid path mis-match.</p></li>
+<li><p><strong>ip_config</strong>: please make sure the <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> created and the path of the <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file is correct.</p></li>
+<li><p><strong>node-feat-name</strong>: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will consider these nodes featureless, hence using learnable embeddings as their features. See below yaml file and launch commands for examples.</p></li>
 </ul>
-<p>If you conduct Classification/Regression tasks,</p>
+<p>For Classification/Regression tasks:</p>
 <ul class="simple">
-<li><p><strong>label_field</strong>: please change value of this field to fit to the field name of labeled data in your graph data.</p></li>
-<li><p><strong>num_classes</strong>: please change value of this filed to fit to the number of classes to be predicted in your graph data if doing a Classification task.</p></li>
+<li><p><strong>label_field</strong>: please change values of this field to fit to the field name of labeled data in your graph data.</p></li>
+<li><p><strong>num_classes</strong>: please change values of this filed to fit to the number of classes to be predicted in your graph data if doing a Classification task.</p></li>
 </ul>
-<p>If you conduct Node Classification/Regression tasks,</p>
+<p>For Node Classification/Regression tasks:</p>
 <ul class="simple">
-<li><p><strong>predict_ntype</strong>: please change value of this field to the node type that the label is associated, which should be the same node type for prediction.</p></li>
+<li><p><strong>target_ntype</strong>: please change values of this field to the node type that the label is associated, which should be the same node type for prediction.</p></li>
 </ul>
-<p>If you conduct Edge Classification/Regression tasks,</p>
+<p>For Edge Classification/Regression tasks:</p>
 <ul class="simple">
-<li><p><strong>target_etype</strong>: please change value of this field to the edge type that the label is associated, which should be the same edge type for prediction.</p></li>
+<li><p><strong>target_etype</strong>: please change values of this field to the edge type that the label is associated, which should be the same edge type for prediction.</p></li>
 </ul>
-<p>If you conduct Link Prediction tasks,</p>
+<p>For Link Prediction tasks:</p>
 <ul class="simple">
-<li><p><strong>train_etype</strong>: please specify value of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put None as the value, all edge types will be used for training, this might not commonly used practice for most Link Prediction related tasks.</p></li>
-<li><p><strong>eval_etype</strong>: it is highly recommended that set this value to be the same as the value of train_etype, so that the evaluation metric can truly demonstrate the performance of models.</p></li>
+<li><p><strong>train_etype</strong>: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put <code class="docutils literal notranslate"><span class="pre">None</span></code> as the value, all edge types will be used for training, this might not commonly used in practice for most Link Prediction related tasks.</p></li>
+<li><p><strong>eval_etype</strong>: it is highly recommended that set this value to be the same as the value of <code class="docutils literal notranslate"><span class="pre">train_etype</span></code>, so that the evaluation metric can truly demonstrate the performance of models.</p></li>
 </ul>
 <p>Besides these configuration, it is also important for you to use the correct format to configure node/edge types in the yaml files. For example, in an edge-related task, you should provide a canonical edge type, e.g. <cite>**user,write,paper**</cite> (no white spaces in this string), for edge types, rather than the edge name only, e.g. the <cite>**write**</cite>.</p>
-<p>For more detailed information of these options, please refer to the <a class="reference internal" href="../configuration/index.html#configurations"><span class="std std-ref">GraphStorm Configurations</span></a> page.</p>
+<p>For more detailed information of these options, please refer to the <a class="reference internal" href="../configuration/configuration-launch.html#configurations-launch"><span class="std std-ref">GraphStorm Launch Configurations</span></a> page.</p>
 <section id="an-example-acm-yaml-file-for-node-classification">
 <h3>An example ACM  YAML file for node classification<a class="headerlink" href="#an-example-acm-yaml-file-for-node-classification" title="Permalink to this heading">#</a></h3>
-<p>Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm’s built-in RGCN model for node classification on the <code class="docutils literal notranslate"><span class="pre">paper</span></code> type nodes. The YAML file can also be found at the <code class="docutils literal notranslate"><span class="pre">/graphstorm/examples/use_your_own_data/</span></code> folder.</p>
+<p>Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm’s built-in RGCN model for node classification on the <code class="docutils literal notranslate"><span class="pre">paper</span></code> nodes. The YAML file can also be found at the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml">/graphstorm/examples/use_your_own_data/acm_nc.yaml</a>.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nn">---</span>
 <span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
 <span class="nt">gsf</span><span class="p">:</span>
@@ -606,13 +609,13 @@ edge_mapping.pt
 <p>With the partitioned data and configuration YAML file available, it is easy to use GraphStorm’s training scripts to launch the training job.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>we assume an ip_list.txt file has been created in the <code class="docutils literal notranslate"><span class="pre">/tmp/</span></code> folder. Users can use the following commands to create this file.</p>
+<p>We assume an ip_list.txt file has been created in the <code class="docutils literal notranslate"><span class="pre">/tmp/</span></code> folder. Users can use the following commands to create this file.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>touch<span class="w"> </span>/tmp/ip_list.txt
 <span class="nb">echo</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>&gt;<span class="w"> </span>/tmp/ip_list.txt
 </pre></div>
 </div>
 </div>
-<p>Below is a simple launch script example that train a GraphStorm built-in RGCN model on the ACM data for node classification.</p>
+<p>Below is a launch script example that trains a GraphStorm built-in RGCN model on the ACM data for node classification.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--workspace<span class="w"> </span>/graphstorm/examples/use_your_own_data<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--part_config<span class="w"> </span>/tmp/acm_nc/acm.json<span class="w"> </span><span class="se">\</span>
@@ -625,7 +628,7 @@ edge_mapping.pt
 <span class="w">        </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span>author:feat<span class="w"> </span>subject:feat
 </pre></div>
 </div>
-<p>Similar to the Quick-Start tutorial, users can launch the inference script on thier own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.</p>
+<p>Similar to the <a class="reference internal" href="quick-start.html#quick-start"><span class="std std-ref">Quick-Start</span></a> tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--inference<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--workspace<span class="w"> </span>/graphstorm/examples/use_your_own_data<span class="w"> </span><span class="se">\</span>
@@ -702,12 +705,13 @@ edge_mapping.pt
 <li><a class="reference internal" href="#">Use Your Own Data Tutorial</a><ul>
 <li><a class="reference internal" href="#step-1-prepare-your-own-graph-data">Step 1: Prepare Your Own Graph Data</a><ul>
 <li><a class="reference internal" href="#option-1-required-raw-data-format">Option 1: Required raw data format</a><ul>
-<li><a class="reference internal" href="#input-configuration-json">Input Configuration JSON</a></li>
+<li><a class="reference internal" href="#the-input-configuration-json">The input configuration JSON</a></li>
 <li><a class="reference internal" href="#input-raw-node-edge-data-files">Input raw node/edge data files</a></li>
 <li><a class="reference internal" href="#outputs-of-graph-construction">Outputs of graph construction</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#option-2-required-dgl-graph">Option 2: Required DGL graph</a><ul>
+<li><a class="reference internal" href="#required-dgl-graph-format">Required DGL graph format</a></li>
 <li><a class="reference internal" href="#the-acm-graph-data-example">The ACM graph data example</a></li>
 <li><a class="reference internal" href="#partition-the-dgl-acm-graph-for-node-classification">Partition the DGL ACM graph for node classification</a></li>
 </ul>

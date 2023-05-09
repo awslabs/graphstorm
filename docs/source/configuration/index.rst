@@ -8,8 +8,8 @@ GraphStorm is designed for easy to use and requires less- or no-code operations 
 These configurations and arguments include:
 
 - :ref:`GraphStorm graph construction configurations<configurations-gconstruction>`.
-- :ref:`GraphStorm launch configurations<configurations-launch>`.
-- :ref:`GraphStorm graph partition configurations<configurations-gpartition>`.
+- :ref:`GraphStorm graph partition configurations<configurations-partition>`.
+- :ref:`GraphStorm launch configurations<configurations-run>`.
 
 .. toctree::
     :maxdepth: 1
@@ -17,5 +17,5 @@ These configurations and arguments include:
     :glob:
 
     configuration-gconstruction
-    configuration-launch
     configuration-partition
+    configuration-run

@@ -1,4 +1,4 @@
-.. _configurations-gpartition:
+.. _configurations-partition:
 
 Graph Partition
 ============================
