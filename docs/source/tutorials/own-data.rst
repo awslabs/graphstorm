@@ -2,33 +2,34 @@
 
 Use Your Own Data Tutorial
 ============================
-It is easy for users to prepare their own graphs data and leverage GraphStorm's built-in GNN models, e.g., RGCN and RGAT, to perform graph machine learning tasks.  It takes three steps:
+It is easy for users to prepare their own graphs data and leverage GraphStorm's built-in GNN models, e.g., RGCN and RGAT, to perform GML tasks.  It takes three steps to use your own graph data in GraphStorm:
 
-- Step 1: Prepare your own graph data.
-- Step 2: Modify configuration YAML file.
-- Step 3: Launch GraphStorm command for training/inference.
+* Step 1: Prepare your own graph data in the required format.
+* Step 2: Modify GraphStorm configuration YAML file.
+* Step 3: Launch GraphStorm command for training/inference.
 
-.. Note:: 
-    All commands below should be run within the GraphStorm container environment. 
+.. Note::
+
+    All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare your environment.
 
 Step 1: Prepare Your Own Graph Data
 -------------------------------------
 There are two options to prepare your own graph data for using GraphStorm:
 
-- Put your graph in the required raw data format, and use GraphStorm's construction tools to automatically generate the input files. This is the preferred way.
-- Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm's partition tool to generate the input files. This option is for advanced DGL users.
+- Prepare your graph in the required raw data format, and use GraphStorm's construction tools to automatically generate the input files. **This is the preferred method**.
+- Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm's partition tools to generate the input files. This option is for acquainted DGL users.
 
 Option 1: Required raw data format
 .......................................
-GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the `gconstruct README <https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme>`_. 
+GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the `gconstruct README <https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme>`_, and the :ref:`Graph Construction Configurations<configurations-gconstruction>`.
 
 In general, the graph construction tool need three set of files.
 
-* A configuration JSON file, which describes the graph data, the tasks to perform, the node features, and data file paths.
-* A set of files of nodes. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
-* A set of files of edges. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
+* A configuration JSON file, which describes the graph structure, i.e. nodes and edges, the tasks to perform, the node features, and data file paths.
+* A set of node files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
+* A set of edge files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
 
-Here use the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ for node classification as an demonstration to show how to prepare your own graph data, and what these files and their contents are like.
+This tutorial use the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.
 
 First go the ``/graphstorm/examples/`` folder.
 
@@ -62,8 +63,8 @@ Once succeeds, the command will create a set of folders and files under the ``/t
 
 .. _input-config:
 
-Input Configuration JSON
-```````````````````````````
+The input Configuration JSON
+```````````````````````````````
 GraphStorm's graph construction tool relies on the configuration JSON to provide graph information. The explain the format of the configuration JSON contents is in the `gconstruct README <https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme>`_. Below show the contents of the examplar ACM config.json file.
 
 .. code-block:: json

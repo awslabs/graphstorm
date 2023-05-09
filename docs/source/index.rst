@@ -36,7 +36,7 @@ Welcome to GraphStorm Documentation and Tutorials
    :glob:
 
 GraphStorm is a graph machine learning (GML) framework for enterprise use cases. It simplifies the development, training and deployment of GML models for industry-scale graphs
-by providing scalable training and inference pipelines of Graph Machine Learning (GML) models for extremely large graphs (measured in billons of nodes and edges).
+by providing scalable training and inference pipelines of GML models for extremely large graphs (measured in billons of nodes and edges).
 GraphStorm provides a collection of built-in GML models and users can train a GML model with a single command without writing any code. To help develop SOTA models,
 GraphStorm provides a large collection of configurations for customizing model implementations and training pipelines to improve model performance. GraphStorm also provides a programming
 interface to train any custom GML model in a distributed manner. Users provide their own model implementations and use GraphStorm training pipeline to scale.
@@ -49,25 +49,25 @@ For absolute beginners, please first start with the :ref:`GraphStorm Docker envi
 Once the GraphStorm Docker running environment is ready, 
 
 - follow the :ref:`GraphStorm Quick-Start Guide<quick-start>` guide to run GraphStorm built-in data and models to get familiar with GraphStorm's usage of training and inference.
-- follow the :ref:`Use Your Own Graph Data<use-own-data>` guide to use your own graph data in GraphStorm.
-- read the :ref:`GraphStorm Configuration<configurations>` to learn configurations provided by GraphStorm that can help to achieve the best performance.
-
+- follow the :ref:`Use Your Own Graph Data<use-own-data>` guide to prepare your own graph data for GraphStorm.
+- read the :ref:`GraphStorm Lauch Configurations<configurations-launch>` to learn the various configurations provided by GraphStorm that can help to achieve the best performance.
 
 Scale to Giant Graphs
 ---------------------------------
 
-For acquainted users who wish to train and infernece GraphStorm for very large graphs,
+For acquainted users who wish to train and infernece on very large graphs,
 
-- follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the distributed mode.
+- follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the Distributed mode.
 
 Avanced Topics
 --------------------
 
-- :ref:`Use Your Own GNN Models<use-own-models>`
-- [WIP]APIs
+For users who want to use their own GML models in GraphStorm, 
+
+- follow the :ref:`Use Your Own GNN Models<use-own-models>` tutoiral to learn the programming interfaces and the general methods.
+- [WIP] GraphStorm APIs
 
 Contribution
 -------------
-GraphStorm is free software; you can redistribute it and/or modify it under the terms
-of the Apache License 2.0. We welcome contributions.
+GraphStorm is free software; you can redistribute it and/or modify it under the terms of the Apache License 2.0. We welcome contributions.
 Join us on `GitHub <https://github.com/awslabs/graphstorm>`_.

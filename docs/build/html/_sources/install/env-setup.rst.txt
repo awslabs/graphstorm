@@ -7,17 +7,12 @@ GraphStorm can be installed as a pip package. However, configure an GraphStorm e
 Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we
 recommend that our users use Docker as the base running environment to use GraphStorm.
 
-For users who want to create their own GraphStorm Docker images because they want to add additional functions,
-e.g. graph data building, you can use the provided scripts to build your own GraphStorm Docker images.
-
 Prerequisites
 --------------
 
-You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-Docker/>`_
-suggests.
+You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-Docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
-For example, in an AWS EC2 instance created with Deep Learning AMI GPU PyTorch 1.13.0, you can run
-the following commands to install Docker.
+For example, in an AWS EC2 instance created with `Deep Learning AMI GPU PyTorch 1.13.0`, you can run the following commands to install Docker.
 
 .. code-block:: bash
 
@@ -25,13 +20,15 @@ the following commands to install Docker.
     sudo apt update
     sudo apt install Docker.io
 
+If using AWS `Deep Learning AMI GPU version`, the Nvidia Container Toolkit has been preinstalled.
+
 .. note::
-    Current GraphStorm version requires at least one GPU installed in the instance. Later version will support CPUs.
+    The current version of GraphStorm requires **at least one GPU** installed in the instance. Later version will support CPUs.
 
 .. _build_docker:
 
-Build a GraphStorm Docker image from source
---------------------------------------------
+Build a GraphStorm Docker image from source code
+--------------------------------------------------
 
 Please use the following command to build a Docker image from source:
 
@@ -41,31 +38,35 @@ Please use the following command to build a Docker image from source:
 
     bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ docker-name docker-tag
 
-There are three arguments of the `build_docker_oss4local.sh`:
+There are three arguments of the ``build_docker_oss4local.sh``:
 
-1. **path-to-graphstorm** (required), is the absolute path of the "graphstorm" folder, where you clone the GraphStorm source code. For example, the path could be "/code/graphstorm".
-2. **docker-name** (optional), is the assigned name of the to be built Docker image. Default is "graphstorm".
-3. **docker-tag** (optional), is the assigned tag name of the to be built docker image. Default is "local".
+1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you clone and download the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
+2. **docker-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
+3. **docker-tag** (optional), is the assigned tag name of the to be built docker image. Default is ``local``.
 
-You can use the below command to check if the new image exists.
+You can use the below command to check if the new Docker image is created successfully.
 
 .. code:: bash
 
     docker image ls
 
-If the build succeeds, there should be a new Docker image, named *<docker-name>:<docker-tag>*, e.g., "graphstorm:local".
+If the build succeeds, there should be a new Docker image, named *<docker-name>:<docker-tag>*, e.g., ``graphstorm:local``.
 
 
 Create a GraphStorm Container
 ------------------------------
 
-First, create a GraphStorm container based on the built Docker image by running the following command:
+First, you need to create a GraphStorm container based on the Docker image built in the previous step. 
+
+Run the following command:
 
 .. code:: bash
 
     nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstomr:local
 
-This command will create a GraphStorm contained, named *test* and run the container as a daemon. Then connect to the container by running the following command:
+This command will create a GraphStorm contained, named ``test`` and run the container as a daemon. 
+
+Then connect to the container by running the following command:
 
 .. code:: bash
 
@@ -76,10 +77,3 @@ If succeeds, the command prompt will change to the container's, like
 .. code-block:: console
 
     root@ip-address:/#
-
-Before run any GraphStorm scripts, make sure to set up the ``PYTHONPATH`` varaible with the command:
-
-.. code:: bash
-
-    export PYTHONPATH=/graphstorm/python
-

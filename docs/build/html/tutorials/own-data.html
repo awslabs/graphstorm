@@ -209,33 +209,33 @@
         <article role="main">
           <section id="use-your-own-data-tutorial">
 <span id="use-own-data"></span><h1>Use Your Own Data Tutorial<a class="headerlink" href="#use-your-own-data-tutorial" title="Permalink to this heading">#</a></h1>
-<p>It is easy for users to prepare their own graphs data and leverage GraphStorm’s built-in GNN models, e.g., RGCN and RGAT, to perform graph machine learning tasks.  It takes three steps:</p>
+<p>It is easy for users to prepare their own graphs data and leverage GraphStorm’s built-in GNN models, e.g., RGCN and RGAT, to perform GML tasks.  It takes three steps to use your own graph data in GraphStorm:</p>
 <ul class="simple">
-<li><p>Step 1: Prepare your own graph data.</p></li>
-<li><p>Step 2: Modify configuration YAML file.</p></li>
+<li><p>Step 1: Prepare your own graph data in the required format.</p></li>
+<li><p>Step 2: Modify GraphStorm configuration YAML file.</p></li>
 <li><p>Step 3: Launch GraphStorm command for training/inference.</p></li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>All commands below should be run within the GraphStorm container environment.</p>
+<p>All commands below should be run in a GraphStorm Docker container. Please refer to the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">GraphStorm Docker environment setup</span></a> to prepare your environment.</p>
 </div>
 <section id="step-1-prepare-your-own-graph-data">
 <h2>Step 1: Prepare Your Own Graph Data<a class="headerlink" href="#step-1-prepare-your-own-graph-data" title="Permalink to this heading">#</a></h2>
 <p>There are two options to prepare your own graph data for using GraphStorm:</p>
 <ul class="simple">
-<li><p>Put your graph in the required raw data format, and use GraphStorm’s construction tools to automatically generate the input files. This is the preferred way.</p></li>
-<li><p>Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm’s partition tool to generate the input files. This option is for advanced DGL users.</p></li>
+<li><p>Prepare your graph in the required raw data format, and use GraphStorm’s construction tools to automatically generate the input files. <strong>This is the preferred method</strong>.</p></li>
+<li><p>Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm’s partition tools to generate the input files. This option is for acquainted DGL users.</p></li>
 </ul>
 <section id="option-1-required-raw-data-format">
 <h3>Option 1: Required raw data format<a class="headerlink" href="#option-1-required-raw-data-format" title="Permalink to this heading">#</a></h3>
-<p>GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme">gconstruct README</a>.</p>
+<p>GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme">gconstruct README</a>, and the <a class="reference internal" href="../configuration/configuration-gconstruction.html#configurations-gconstruction"><span class="std std-ref">Graph Construction Configurations</span></a>.</p>
 <p>In general, the graph construction tool need three set of files.</p>
 <ul class="simple">
-<li><p>A configuration JSON file, which describes the graph data, the tasks to perform, the node features, and data file paths.</p></li>
-<li><p>A set of files of nodes. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
-<li><p>A set of files of edges. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
+<li><p>A configuration JSON file, which describes the graph structure, i.e. nodes and edges, the tasks to perform, the node features, and data file paths.</p></li>
+<li><p>A set of node files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
+<li><p>A set of edge files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
 </ul>
-<p>Here use the <a class="reference external" href="https://data.dgl.ai/dataset/ACM.mat">ACM publication graph</a> for node classification as an demonstration to show how to prepare your own graph data, and what these files and their contents are like.</p>
+<p>This tutorial use the <a class="reference external" href="https://data.dgl.ai/dataset/ACM.mat">ACM publication graph</a> as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.</p>
 <p>First go the <code class="docutils literal notranslate"><span class="pre">/graphstorm/examples/</span></code> folder.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/graphstorm/examples
 </pre></div>
