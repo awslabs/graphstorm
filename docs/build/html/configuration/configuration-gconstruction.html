@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="GraphStorm Launch" href="configuration-launch.html" /><link rel="prev" title="GraphStorm Configurations" href="index.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Graph Partition" href="configuration-partition.html" /><link rel="prev" title="GraphStorm Configurations" href="index.html" />
 
     <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
         <title>Graph Construction - GraphStorm 0.1 documentation</title>
@@ -134,7 +134,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <div class="visually-hidden">Toggle table of contents sidebar</div>
         <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
       </label>
@@ -161,8 +161,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">GraphStorm Configurations</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Graph Construction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="configuration-launch.html">GraphStorm Launch</a></li>
 <li class="toctree-l2"><a class="reference internal" href="configuration-partition.html">Graph Partition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-run.html">Training and Inference</a></li>
 </ul>
 </li>
 </ul>
@@ -201,7 +201,7 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <div class="visually-hidden">Toggle table of contents sidebar</div>
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
@@ -209,7 +209,124 @@
         <article role="main">
           <section id="graph-construction">
 <span id="configurations-gconstruction"></span><h1>Graph Construction<a class="headerlink" href="#graph-construction" title="Permalink to this heading">#</a></h1>
-<p>[TODO]</p>
+<section id="construct-graph-py-arguments">
+<h2><a class="reference external" href="https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py">construct_graph.py</a> arguments<a class="headerlink" href="#construct-graph-py-arguments" title="Permalink to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>–conf_file</strong>: (<strong>Required</strong>) the path of the configuration JSON file.</p></li>
+<li><p><strong>–num_processes</strong>: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.</p></li>
+<li><p><strong>–num_processes_for_nodes</strong>: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.</p></li>
+<li><p><strong>–num_processes_for_edges</strong>: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.</p></li>
+<li><p><strong>–output_dir</strong>: (<strong>Required</strong>) the path of the output data files.</p></li>
+<li><p><strong>–graph_name</strong>: (<strong>Required</strong>) the name assigned for the graph.</p></li>
+<li><p><strong>–remap_node_id</strong>: boolean value to decide whether to rename node IDs or not. Default is true.</p></li>
+<li><p><strong>–add_reverse_edges</strong>: boolean value to decide whether to add reverse edges for the given graph. Default is true.</p></li>
+<li><p><strong>–output_format</strong>: the format of constructed graph, options are <code class="docutils literal notranslate"><span class="pre">DGL</span></code> and <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>. Default is <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>. The output format is explained in the <a class="reference internal" href="#output-format"><span class="std std-ref">Output</span></a> section below.</p></li>
+<li><p><strong>–num_partitions</strong>: the number of partitions of the constructed graph. This is only valid if the output format is <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>.</p></li>
+<li><p><strong>–skip_nonexist_edges</strong>: boolean value to decide whether skip edges that whose endpoint nodes don’t exist. Default is true.</p></li>
+<li><p><strong>–ext_mem_workspace</strong>: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.</p></li>
+<li><p><strong>-ext_mem_feat_size</strong>: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.</p></li>
+</ul>
+</section>
+<section id="configuration-json-explainations">
+<h2>Configuration JSON Explainations<a class="headerlink" href="#configuration-json-explainations" title="Permalink to this heading">#</a></h2>
+<p>The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: <code class="docutils literal notranslate"><span class="pre">nodes</span></code> and <code class="docutils literal notranslate"><span class="pre">edges</span></code>.</p>
+<section id="nodes">
+<h3><code class="docutils literal notranslate"><span class="pre">nodes</span></code><a class="headerlink" href="#nodes" title="Permalink to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">nodes</span></code> contains a list of node types and the information of a node type is stored in a dictionary. A node dictionary contains multiple fields and most fields are optional.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">node_type</span></code>: (<strong>Required</strong>) specifies the node type. Think this as a name given to one type of nodes, e.g. <cite>author</cite> and <cite>paper</cite>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">files</span></code>: (<strong>Required</strong>) specifies the input files for the node data. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it contains the paths of files with a wildcard, or a list of file paths, e.g., <cite>file_name*.parquet</cite>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">format</span></code>: (<strong>Required</strong>) specifies the input file format. Currently, the pipeline supports two formats: <code class="docutils literal notranslate"><span class="pre">parquet</span></code> and <code class="docutils literal notranslate"><span class="pre">JSON</span></code>. The value of this filed is a dictionary, where the key is <code class="docutils literal notranslate"><span class="pre">name</span></code> and the value is either <code class="docutils literal notranslate"><span class="pre">parquet</span></code> or <code class="docutils literal notranslate"><span class="pre">JSON</span></code>, e.g., <cite>{“name”:”JSON”}</cite>. The detailed format information is specified in the format section.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">node_id_col</span></code>: specifies the column name that contains the node IDs. This field is optional. If a node type contains multiple blocks to specify the node data, only one of the blocks require to specify the node ID column.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">features</span></code> is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature directionary is defined <a class="reference internal" href="#feat-format"><span class="std std-ref">below</span></a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">labels</span></code> is a list of dictionaries that define where to get labels and how to split the data into training/validation/test set. This is optional. The format of a label directionary is defined <a class="reference internal" href="#label-format"><span class="std std-ref">below</span></a>.</p></li>
+</ul>
+</section>
+<section id="edges">
+<h3><code class="docutils literal notranslate"><span class="pre">edges</span></code><a class="headerlink" href="#edges" title="Permalink to this heading">#</a></h3>
+<p>Similarly, <code class="docutils literal notranslate"><span class="pre">edges</span></code> contains a list of edge types and the information of an edge type is stored in a dictionary. An edge dictionary also contains the same fields of <code class="docutils literal notranslate"><span class="pre">files</span></code>, <code class="docutils literal notranslate"><span class="pre">format</span></code>, <code class="docutils literal notranslate"><span class="pre">features</span></code> and <code class="docutils literal notranslate"><span class="pre">labels</span></code> as <code class="docutils literal notranslate"><span class="pre">nodes</span></code>. In addition, it contains the following fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">source_id_col</span></code>: (<strong>Required</strong>) specifies the column name of the source node IDs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dest_id_col</span></code>: (<strong>Required</strong>) specifies the column name of the destination node IDs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">relation</span></code>: (<strong>Required</strong>) is a list of three elements that contains the node type of the source nodes, the relation type of the edges and the node type of the destination nodes. Values of node types should be same as the corresponding values specified in the <code class="docutils literal notranslate"><span class="pre">node_type</span></code> fields in <code class="docutils literal notranslate"><span class="pre">nodes</span></code> objects, e.g., <cite>[“author”, “write”, “paper”]</cite>.</p></li>
+</ul>
+<p id="feat-format"><strong>A feature dictionary is defined:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">feature_col</span></code>: (<strong>Required</strong>) specifies the column name in the input file that contains the feature.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">feature_name</span></code>: specifies the prefix of the column features name. This is optional. If feature_name is not provided, <code class="docutils literal notranslate"><span class="pre">feature_col</span></code> is used as the feature name. If the feature transformation generates multiple tensors, <code class="docutils literal notranslate"><span class="pre">feature_name</span></code> becomes the prefix of the names of the generated tensors.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transform</span></code>: specifies the actual feature transformation. This is a dictionary and its name field indicates the feature transformation. Each transformation has its own argument. The list of feature transformations supported by the pipeline are listed in the section of <a class="reference internal" href="#feat-transform"><span class="std std-ref">Feature Transformation</span></a> below.</p></li>
+</ul>
+<p id="label-format"><strong>A label dictionary is defined:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">task_type</span></code>: (<strong>Required</strong>) specifies the task defined on the nodes or edges. Currently, its value can be <code class="docutils literal notranslate"><span class="pre">classification</span></code>, <code class="docutils literal notranslate"><span class="pre">regression</span></code> and <code class="docutils literal notranslate"><span class="pre">link_prediction</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">label_col</span></code>: specifies the column name in the input file that contains the label. This has to be specified for <code class="docutils literal notranslate"><span class="pre">classification</span></code> and <code class="docutils literal notranslate"><span class="pre">regression</span></code> tasks. <code class="docutils literal notranslate"><span class="pre">label_col</span></code> is used as the label name.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">split_pct</span></code>: specifies how to split the data into training/validation/test. This is optional. If it’s not specified, the data is split into 80% for training 10% for validation and 10% for testing. The pipeline constructs three additional vectors indicating the training/validation/test masks. For <code class="docutils literal notranslate"><span class="pre">classification</span></code> and <code class="docutils literal notranslate"><span class="pre">regression</span></code> tasks, the names of the mask tensors are <code class="docutils literal notranslate"><span class="pre">train_mask</span></code>, <code class="docutils literal notranslate"><span class="pre">val_mask</span></code> and <code class="docutils literal notranslate"><span class="pre">test_mask</span></code>.</p></li>
+</ul>
+</section>
+<section id="input-formats">
+<span id="input-format"></span><h3>Input formats<a class="headerlink" href="#input-formats" title="Permalink to this heading">#</a></h3>
+<p>Currently, the graph construction pipeline supports two input formats: <code class="docutils literal notranslate"><span class="pre">Parquet</span></code> and <code class="docutils literal notranslate"><span class="pre">JSON</span></code>.</p>
+<p>For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.</p>
+<p>For JSON format, each line of the JSON file is a JSON object. The JSON object can only have one level. The value of each field can only be primitive values, such as integers, strings and floating points, or a list of integers or floating points.</p>
+</section>
+<section id="feature-transformation">
+<span id="feat-transform"></span><h3>Feature transformation<a class="headerlink" href="#feature-transformation" title="Permalink to this heading">#</a></h3>
+<p>Currently, the graph construction pipeline only supports one feature transformation: tokenize the text string with a HuggingFace tokenizer.</p>
+<p>For HuggingFace tokenizer, the <code class="docutils literal notranslate"><span class="pre">name</span></code> field in the feature transformation dictionary is <code class="docutils literal notranslate"><span class="pre">tokenize_hf</span></code>. The dict should contain two additional fields. <code class="docutils literal notranslate"><span class="pre">bert_model</span></code> specifies the BERT model used for tokenization. <code class="docutils literal notranslate"><span class="pre">max_seq_length</span></code> specifies the maximal sequence length.</p>
+</section>
+<section id="output">
+<span id="output-format"></span><h3>Output<a class="headerlink" href="#output" title="Permalink to this heading">#</a></h3>
+<p>Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL. If select <code class="docutils literal notranslate"><span class="pre">DGL</span></code>, the output is a file, named <cite>&lt;graph_name&gt;.dgl</cite> under the folder specified by the <strong>–output_dir</strong> argument, where <cite>&lt;graph_name&gt;</cite> is the value of argument <strong>–graph_name</strong>. If select <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>, the output is a JSON file, named <cite>&lt;graph_name&gt;.json</cite>, and a set of <cite>part*</cite> folders under the folder specified by the <strong>–output_dir</strong> argument, where the <cite>*</cite> is the number specified by the <strong>–num_partitions</strong> argument.
+By Specifying the output_format as <code class="docutils literal notranslate"><span class="pre">DGL</span></code>, the output will be an <a class="reference external" href="https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html">DGLGraph</a>. By Specifying the output_format as <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>, the output will be a partitioned graph named <a class="reference external" href="https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api">DistDGL graph</a>. It contains the partitioned graph, a JSON config describing the meta-information of the partitioned graph, and the mappings for the edges and nodes after partition which maps each node and edge in the partitoined graph into the original node and edge id space. The node ID mapping is stored as a dictionary of 1D tensors whose key is the node type and value is a 1D tensor mapping between shuffled node IDs and the original node IDs. The edge ID mapping is stored as a dictionary of 1D tensors whose key is the edge type and value is a 1D tensor mapping between shuffled edge IDs and the original edge IDs.</p>
+</section>
+<section id="an-example">
+<h3>An example<a class="headerlink" href="#an-example" title="Permalink to this heading">#</a></h3>
+<p>Below shows an example that contains one node type and an edge type. For a real example, please refer to the <a class="reference internal" href="../tutorials/own-data.html#input-config"><span class="std std-ref">input JSON file</span></a> used in the <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">Use Your Own Graphs Tutorial</span></a>.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">{</span>
+<span class="nt">    nodes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span>
+<span class="w">        </span><span class="p p-Indicator">{</span>
+<span class="w">            </span><span class="s">&quot;node_id_col&quot;</span><span class="p p-Indicator">:</span><span class="w">  </span><span class="s">&quot;paper_id&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&quot;node_type&quot;</span><span class="p p-Indicator">:</span><span class="w">    </span><span class="s">&quot;paper&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&quot;format&quot;</span><span class="p p-Indicator">:</span><span class="w">       </span><span class="p p-Indicator">{</span><span class="s">&quot;name&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;parquet&quot;</span><span class="p p-Indicator">},</span>
+<span class="w">            </span><span class="s">&quot;files&quot;</span><span class="p p-Indicator">:</span><span class="w">        </span><span class="p p-Indicator">[</span><span class="s">&quot;/tmp/dummy/paper_nodes*.parquet&quot;</span><span class="p p-Indicator">],</span>
+<span class="w">            </span><span class="s">&quot;features&quot;</span><span class="p p-Indicator">:</span><span class="w">     </span><span class="p p-Indicator">[</span>
+<span class="w">                </span><span class="p p-Indicator">{</span>
+<span class="w">                    </span><span class="s">&quot;feature_col&quot;</span><span class="p p-Indicator">:</span><span class="w">  </span><span class="p p-Indicator">[</span><span class="s">&quot;paper_title&quot;</span><span class="p p-Indicator">],</span>
+<span class="w">                    </span><span class="s">&quot;feature_name&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;title&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">                    </span><span class="s">&quot;transform&quot;</span><span class="p p-Indicator">:</span><span class="w">    </span><span class="p p-Indicator">{</span><span class="s">&quot;name&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;tokenize_hf&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">                                     </span><span class="s">&quot;bert&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;huggingface-basic&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">                                     </span><span class="s">&quot;max_seq_length&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">512</span><span class="p p-Indicator">}</span>
+<span class="w">                </span><span class="p p-Indicator">},</span>
+<span class="w">            </span><span class="p p-Indicator">],</span>
+<span class="w">            </span><span class="s">&quot;labels&quot;</span><span class="p p-Indicator">:</span><span class="w">       </span><span class="p p-Indicator">[</span>
+<span class="w">                </span><span class="p p-Indicator">{</span>
+<span class="w">                    </span><span class="s">&quot;label_col&quot;</span><span class="p p-Indicator">:</span><span class="w">    </span><span class="s">&quot;labels&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">                    </span><span class="s">&quot;task_type&quot;</span><span class="p p-Indicator">:</span><span class="w">    </span><span class="s">&quot;classification&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">                    </span><span class="s">&quot;split_pct&quot;</span><span class="p p-Indicator">:</span><span class="w">   </span><span class="p p-Indicator">[</span><span class="nv">0.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.0</span><span class="p p-Indicator">],</span>
+<span class="w">                </span><span class="p p-Indicator">},</span>
+<span class="w">            </span><span class="p p-Indicator">],</span>
+<span class="w">        </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="p p-Indicator">],</span>
+<span class="nt">    edges</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span>
+<span class="w">        </span><span class="p p-Indicator">{</span>
+<span class="w">            </span><span class="s">&quot;source_id_col&quot;</span><span class="p p-Indicator">:</span><span class="w">    </span><span class="s">&quot;src_paper_id&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&quot;dest_id_col&quot;</span><span class="p p-Indicator">:</span><span class="w">      </span><span class="s">&quot;dest_paper_id&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&quot;relation&quot;</span><span class="p p-Indicator">:</span><span class="w">         </span><span class="p p-Indicator">[</span><span class="s">&quot;paper&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;cite&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;paer&quot;</span><span class="p p-Indicator">],</span>
+<span class="w">            </span><span class="s">&quot;format&quot;</span><span class="p p-Indicator">:</span><span class="w">           </span><span class="p p-Indicator">{</span><span class="s">&quot;name&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;parquet&quot;</span><span class="p p-Indicator">},</span>
+<span class="w">            </span><span class="s">&quot;files&quot;</span><span class="p p-Indicator">:</span><span class="w">            </span><span class="p p-Indicator">[</span><span class="s">&quot;/tmp/edge_feat.parquet&quot;</span><span class="p p-Indicator">],</span>
+<span class="w">            </span><span class="s">&quot;features&quot;</span><span class="p p-Indicator">:</span><span class="w">         </span><span class="p p-Indicator">[</span>
+<span class="w">                </span><span class="p p-Indicator">{</span>
+<span class="w">                    </span><span class="s">&quot;feature_col&quot;</span><span class="p p-Indicator">:</span><span class="w">  </span><span class="p p-Indicator">[</span><span class="s">&quot;citation_time&quot;</span><span class="p p-Indicator">],</span>
+<span class="w">                    </span><span class="s">&quot;feature_name&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;feat&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">                </span><span class="p p-Indicator">},</span>
+<span class="w">            </span><span class="p p-Indicator">]</span>
+<span class="w">        </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="p p-Indicator">]</span>
+<span class="p p-Indicator">}</span>
+</pre></div>
+</div>
+</section>
+</section>
 </section>
 
         </article>
@@ -217,12 +334,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="configuration-launch.html">
+          <a class="next-page" href="configuration-partition.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">GraphStorm Launch</div>
+                <div class="title">Graph Partition</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -255,8 +372,36 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Graph Construction</a><ul>
+<li><a class="reference internal" href="#construct-graph-py-arguments">construct_graph.py arguments</a></li>
+<li><a class="reference internal" href="#configuration-json-explainations">Configuration JSON Explainations</a><ul>
+<li><a class="reference internal" href="#nodes"><code class="docutils literal notranslate"><span class="pre">nodes</span></code></a></li>
+<li><a class="reference internal" href="#edges"><code class="docutils literal notranslate"><span class="pre">edges</span></code></a></li>
+<li><a class="reference internal" href="#input-formats">Input formats</a></li>
+<li><a class="reference internal" href="#feature-transformation">Feature transformation</a></li>
+<li><a class="reference internal" href="#output">Output</a></li>
+<li><a class="reference internal" href="#an-example">An example</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
