@@ -121,14 +121,3 @@ cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_multi_label_ec
 python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multilabel.py --path /data/movielen_100k_multi_label_ec --node_class false --field rate
 
 date
-
-# create a dataset with partitions
-python3 $GS_HOME/tests/end2end-tests/data_process/data_gen.py
-python3 -m graphstorm.gconstruct.construct_graph --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_out --graph_name test --output_format DistDGL --partition 2
-
-# launch kvservers and 2 processes which will Load dgl graph and then saving embeddings.
-# load one of graph features and try to save it.
-# call save_embeddings
-# check the result.
-
-
