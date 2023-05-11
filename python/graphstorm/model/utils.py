@@ -25,7 +25,6 @@ from torch import nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
-from dgl.distributed import DistTensor
 
 from ..utils import get_rank
 from ..data.utils import alltoallv_nccl, alltoallv_cpu
@@ -232,7 +231,8 @@ def save_relation_embeddings(emb_path, decoder):
 
 def _get_data_range(rank, world_size, num_embs):
     """ save_embeddings will evenly split node embeddings across all
-        the workers to save. This function returns the data range according to the current worker rank and the total number of nodes (embeddings).
+        the workers to save. This function returns the data range according
+        to the current worker rank and the total number of nodes (embeddings).
 
         Parameters
         ----------
