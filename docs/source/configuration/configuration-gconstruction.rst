@@ -21,7 +21,7 @@ Graph Construction
 * **-ext_mem_feat_size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
 
 
-Configuration JSON Explainations
+Configuration JSON Explaination
 ---------------------------------
 
 The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: ``nodes`` and ``edges``.
