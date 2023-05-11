@@ -78,8 +78,8 @@ class GSgnnLinkPredictionInfer(GSInfer):
             test_start = time.time()
             device = th.device(f"cuda:{self.dev_id}") \
                 if self.dev_id >= 0 else th.device("cpu")
-            test_scores = lp_mini_batch_predict(self._model, embs, loader, device)
-            val_mrr, test_mrr = self.evaluator.evaluate(None, test_scores, 0)
+            test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
+            val_mrr, test_mrr = self.evaluator.evaluate(None, test_rankings, 0)
             sys_tracker.check('run evaluation')
             if self.rank == 0:
                 self.log_print_metrics(val_score=val_mrr,

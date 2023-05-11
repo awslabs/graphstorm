@@ -21,6 +21,7 @@ import torch as th
 from .gnn import GSgnnModel, GSgnnModelBase
 from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from ..eval.utils import calc_ranking
 
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
@@ -194,13 +195,12 @@ def lp_mini_batch_predict(model, emb, loader, device):
 
         Returns
         -------
-        dict of (list, list):
-            Return a dictionary of edge type to
-            (positive scores, negative scores)
+        rankings: dict of tensors
+            Rankings of positive scores in format of {etype: ranking}
     """
     decoder = model.decoder
     with th.no_grad():
-        scores = {}
+        ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
             canonical_etype = list(pos_neg_tuple.keys())[0]
             pos_src, neg_src, _, neg_dst = pos_neg_tuple[canonical_etype]
@@ -227,16 +227,19 @@ def lp_mini_batch_predict(model, emb, loader, device):
                     decoder.calc_test_scores(
                         batch_emb, pos_neg_tuple, neg_sample_type, device)
                 for canonical_etype, s in score.items():
-                    # We do not concatenate pos scores/neg scores
-                    # into a single pos score tensor/neg score tensor
-                    # to avoid unnecessary data copy.
-                    if canonical_etype in scores:
-                        scores[canonical_etype].append(s)
-                    else:
-                        scores[canonical_etype] = [s]
+                  # We do not concatenate rankings into a single
+                  # ranking tensor to avoid unnecessary data copy.
+                  pos_score, neg_score = s
+                  if canonical_etype in ranking:
+                      ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
+                  else:
+                      ranking[canonical_etype] = [calc_ranking(pos_score, neg_score)]
                 p_st += pos_src.shape[0]
                 ns_st += neg_src.shape[0]
                 nd_st += neg_dst.shape[0]
                 if p_st >= pos_src_emb.shape[0]:
                     break
-    return scores
+        rankings = {}
+        for canonical_etype, rank in ranking.items():
+            rankings[canonical_etype] = th.cat(rank, dim=0)
+    return rankings
