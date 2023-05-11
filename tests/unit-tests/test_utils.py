@@ -111,8 +111,10 @@ def run_dist_save_embeddings(model_path, emb, worker_rank,
 
     save_embeddings(model_path, emb, worker_rank, world_size, device, node_id_mapping_file)
 
+# TODO: Only test gloo now
+# Will add test for nccl once we enable nccl
 @pytest.mark.parametrize("num_embs", [16, 17])
-@pytest.mark.parametrize("backend", ["gloo", "nccl"])
+@pytest.mark.parametrize("backend", ["gloo"])
 def test_save_embeddings_with_id_mapping(num_embs, backend):
     import tempfile
 
