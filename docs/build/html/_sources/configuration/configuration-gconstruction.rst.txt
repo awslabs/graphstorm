@@ -16,9 +16,9 @@ Graph Construction
 * **--add_reverse_edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
 * **--output_format**: the format of constructed graph, options are ``DGL`` and ``DistDGL``. Default is ``DistDGL``. The output format is explained in the :ref:`Output <output-format>` section below.
 * **--num_partitions**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
-* **--skip_nonexist_edges**: boolean value to decide whether skip edges that whose endpoint nodes don't exist. Default is true.
+* **--skip_nonexist_edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **--ext_mem_workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
-* **-ext_mem_feat_size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
+* **--ext_mem_feat_size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
 
 
 Configuration JSON Explaination
@@ -32,7 +32,7 @@ The JSON file that describes the graph data defines where to get node data and e
 
 * ``node_type``: (**Required**) specifies the node type. Think this as a name given to one type of nodes, e.g. `author` and `paper`.
 * ``files``: (**Required**) specifies the input files for the node data. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it contains the paths of files with a wildcard, or a list of file paths, e.g., `file_name*.parquet`.
-* ``format``: (**Required**) specifies the input file format. Currently, the pipeline supports two formats: ``parquet`` and ``JSON``. The value of this filed is a dictionary, where the key is ``name`` and the value is either ``parquet`` or ``JSON``, e.g., `{"name":"JSON"}`. The detailed format information is specified in the format section.
+* ``format``: (**Required**) specifies the input file format. Currently, the pipeline supports two formats: ``parquet`` and ``JSON``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``parquet`` or ``JSON``, e.g., `{"name":"JSON"}`. The detailed format information is specified in the format section.
 * ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If a node type contains multiple blocks to specify the node data, only one of the blocks require to specify the node ID column.
 * ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature directionary is defined :ref:`below <feat-format>`.
 * ``labels`` is a list of dictionaries that define where to get labels and how to split the data into training/validation/test set. This is optional. The format of a label directionary is defined :ref:`below<label-format>`.

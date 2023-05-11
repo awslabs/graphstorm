@@ -209,15 +209,14 @@
         <article role="main">
           <section id="environment-setup">
 <span id="setup"></span><h1>Environment Setup<a class="headerlink" href="#environment-setup" title="Permalink to this heading">#</a></h1>
-<p>GraphStorm can be installed as a pip package. However, configure an GraphStorm environment is non-trivial.
-Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we
-recommend that our users use Docker as the base running environment to use GraphStorm.</p>
+<p>For a quick and easy setup, GraphStorm can be installed as a pip package.</p>
+<p>However, configuring an GraphStorm environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we recommend that our users use Docker as the base running environment to use GraphStorm.</p>
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Docker</strong>: You need to install Docker in your environment as the <a class="reference external" href="https://docs.Docker.com/get-Docker/">Docker documentation</a> suggests, and the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html">Nvidia Container Toolkit</a>.</p></li>
 </ol>
-<p>For example, in an AWS EC2 instance created with <cite>Deep Learning AMI GPU PyTorch 1.13.0</cite>, you can run the following commands to install Docker.</p>
+<p>For example, in an AWS EC2 instance without Docker preinstalled, you can run the following commands to install Docker.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
 sudo<span class="w"> </span>apt<span class="w"> </span>update
 sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>Docker.io

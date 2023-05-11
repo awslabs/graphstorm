@@ -161,8 +161,8 @@
 <li class="toctree-l1"><a class="reference internal" href="own-data.html">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-launch.html">GraphStorm Launch</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-partition.html">Graph Partition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-run.html">Training and Inference</a></li>
 </ul>
 </li>
 </ul>
@@ -210,7 +210,7 @@
           <section id="quick-start-tutorial">
 <span id="quick-start"></span><h1>Quick Start Tutorial<a class="headerlink" href="#quick-start-tutorial" title="Permalink to this heading">#</a></h1>
 <p>GraphStorm provides a set of tools, which can help users to use built-in datasets as examples to quickly learn the general steps of using GraphStorm.</p>
-<p>GraphStorm is designed to easy to use GML models, parcularly the graph neural networks (GNNs) models. Users only need to perform three operations:</p>
+<p>GraphStorm is designed for easy to use GML models, parcularly the graph neural networks (GNNs) models. Users only need to perform three operations:</p>
 <ul class="simple">
 <li><ol class="arabic simple">
 <li><p>Prepare Graph dataset in the required format as inputs of GraphStorm;</p></li>
@@ -252,7 +252,7 @@ ogbn-arxiv.json
 </section>
 <section id="launch-training">
 <span id="id1"></span><h2>Launch Training<a class="headerlink" href="#launch-training" title="Permalink to this heading">#</a></h2>
-<p>GraphStorm currently relies on <strong>ssh</strong> to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in a signle machine, as this tutorial does, users only need to run the following command to create an <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file that has one row ‘<strong>127.0.0.1</strong>’ as its content.</p>
+<p>GraphStorm currently relies on <strong>ssh</strong> to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in a <strong>signle machine</strong>, as this tutorial does, users only need to run the following command to create an <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file that has one row ‘<strong>127.0.0.1</strong>’ as its content.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>touch<span class="w"> </span>/tmp/ogbn-arxiv-nc/ip_list.txt
 <span class="nb">echo</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>&gt;/tmp/ogbn-arxiv-nc/ip_list.txt
 </pre></div>
@@ -281,7 +281,7 @@ ogbn-arxiv.json
 <span class="p">|</span>-<span class="w"> </span>epoch-9
 </pre></div>
 </div>
-<p>In an AWS g4dn.12xlarge instance, it takes around 8 seconds to finish one training and evaluation epoch by using 1 GPU.</p>
+<p>In a <strong>signle</strong> AWS g4dn.12xlarge instance, it takes around 8 seconds to finish one training and evaluation epoch by using <strong>1 GPU</strong>.</p>
 </section>
 <section id="launch-inference">
 <h2>Launch inference<a class="headerlink" href="#launch-inference" title="Permalink to this heading">#</a></h2>

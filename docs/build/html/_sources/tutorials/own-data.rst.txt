@@ -2,7 +2,7 @@
 
 Use Your Own Data Tutorial
 ============================
-It is easy for users to prepare their own graphs data and leverage GraphStorm's built-in GNN models, e.g., RGCN and RGAT, to perform GML tasks.  It takes three steps to use your own graph data in GraphStorm:
+It is easy for users to prepare their own graph data and leverage GraphStorm's built-in GNN models, e.g., RGCN and RGAT, to perform GML tasks.  It takes three steps to use your own graph data in GraphStorm:
 
 * Step 1: Prepare your own graph data in the required format.
 * Step 2: Modify GraphStorm configuration YAML file.
@@ -17,13 +17,13 @@ Step 1: Prepare Your Own Graph Data
 There are two options to prepare your own graph data for using GraphStorm:
 
 - Prepare your graph in the required raw data format, and use GraphStorm's construction tools to automatically generate the input files. **This is the preferred method**.
-- Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm's partition tools to generate the input files. This option is for acquainted DGL users.
+- Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm's partition tools to generate the input files. This option is for experienced DGL users.
 
 Option 1: Required raw data format
 .......................................
 GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the `gconstruct README <https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme>`_, and the :ref:`Graph Construction Configurations<configurations-gconstruction>`.
 
-In general, the graph construction tool need three set of files.
+In general, the graph construction tool needs three sets of files.
 
 * A configuration JSON file, which describes the graph structure, i.e. nodes and edges, the tasks to perform, the node features, and data file paths.
 * A set of raw node data files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
@@ -43,7 +43,7 @@ Then run the command to create the ACM data with the required raw format.
     
     python3 -m /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw 
 
-Once succeeds, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder, as shown below:
+Once successful, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder, as shown below:
 
 .. code-block:: bash
     
@@ -239,9 +239,9 @@ The raw node and edge data files are both in parquet format, whose contents are 
 .. figure:: ../../../tutorial/ACM_raw_parquet.png
     :align: center
 
-In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. Correspondingly, in the paper node parquet file, there is a column, ``label``, store the label values. All edges do not have feature associated. Therefore, there only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``.
+In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. Correspondingly, in the paper node parquet file, there is a column, ``label``, stores the label values. All edge types do not have features associated. Therefore, we only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``.
 
-The configuration JSON file along with these node and edge parquet files are the required inputs of the GraphStorm's construction tool. Then we can use the tool to create the partition graph data as the following command does.
+The configuration JSON file along with these node and edge parquet files are the required inputs of the GraphStorm's construction tool. Then we can use the tool to create the partition graph data with the following command.
 
 .. code-block:: bash
 
@@ -255,7 +255,7 @@ The configuration JSON file along with these node and edge parquet files are the
 
 Outputs of graph construction
 ```````````````````````````````
-The above command reads in the JSON file, and match its contents with the node and edge parquet files. And then read in all parquet files, construct the graph, check consistancy, pre-process features, and eventually split the graph into partitions. Outputs of the command are under the ``/tmp/acm_nc/`` folder like the followings:
+The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read in all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be created under the ``/tmp/acm_nc/`` folder as followings:
 
 .. code-block:: bash
 
@@ -268,7 +268,7 @@ The above command reads in the JSON file, and match its contents with the node a
         graph.dgl
         node_feat.dgl 
 
-Because the above command specify the ``--num_partitions`` to be ``1``, there is only one partition was created, which is saved in the ``part0`` folder. These files become the inputs of GraphStorm's launch scripts.
+Because the above command specifies the ``--num_partitions`` to be ``1``, there is only one partition created, which is saved in the ``part0`` folder. These files become the inputs of GraphStorm's launch scripts.
 
 Option 2: Required DGL graph
 ................................
@@ -333,11 +333,11 @@ Please refer to :ref:`Graph Partition Configurations <configurations-partition>`
 
 Step 2: Modify the YAML configuration file to include your own data's information
 -----------------------------------------------------------------------------------
-It is common that users will copy and reuse GraphStorm's built-in scripts and yaml files to run training/inference on their own graph data, but forget to change the contents of yaml files to match their own data. Below are some configurations that users need to double check and make changes accordingly.
+It is common that users will copy and reuse GraphStorm's built-in scripts and yaml files to run training/inference on their own graph data, but forget to change the contents of yaml files to match their own data. Below are some parameters that users need to double check and make changes accordingly.
 
-- **part_config**: please change value of this configure to where you store the partitioned graph's JSON , e.g. the ``/tmp/acm_nc/acm.json``. It is better to use an absolute path to avoid path mis-match.
+- **part_config**: please change value of this parameter to where you store the partitioned graph's JSON , e.g. the ``/tmp/acm_nc/acm.json``. It is better to use an absolute path to avoid path mis-match.
 - **ip_config**: please make sure the ``ip_list.txt`` created and the path of the ``ip_list.txt`` file is correct.
-- **node-feat-name**: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will consider these nodes featureless, hence using learnable embeddings as their features. See below yaml file and launch commands for examples.
+- **node-feat-name**: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will ignore any features the nodes might have, hence only using learnable embeddings as their features. See below yaml file and launch commands for examples.
 
 For Classification/Regression tasks:
 
@@ -355,15 +355,15 @@ For Edge Classification/Regression tasks:
 For Link Prediction tasks:
 
 - **train_etype**: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put ``None`` as the value, all edge types will be used for training, this might not commonly used in practice for most Link Prediction related tasks.
-- **eval_etype**: it is highly recommended that set this value to be the same as the value of ``train_etype``, so that the evaluation metric can truly demonstrate the performance of models.
+- **eval_etype**: it is highly recommended that you set this value to be the same as the value of ``train_etype``, so that the evaluation metric can truly demonstrate the performance of models.
 
-Besides these configuration, it is also important for you to use the correct format to configure node/edge types in the yaml files. For example, in an edge-related task, you should provide a canonical edge type, e.g. `**user,write,paper**` (no white spaces in this string), for edge types, rather than the edge name only, e.g. the `**write**`. 
+Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the yaml files. For example, in an edge-related task, you should provide a canonical edge type, e.g. `**user,write,paper**` (no white spaces in this string), for edge types, rather than the edge name only, e.g. the `**write**`. 
 
-For more detailed information of these options, please refer to the :ref:`GraphStorm Launch Configurations <configurations-Launch>` page.
+For more detailed information of these options, please refer to the :ref:`GraphStorm Launch Configurations <configurations-run>` page.
 
 An example ACM  YAML file for node classification
 ..................................................
-Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm's built-in RGCN model for node classification on the ``paper`` nodes. The YAML file can also be found at the `/graphstorm/examples/use_your_own_data/acm_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml>`_.
+Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm's built-in RGCN model for node classification on the ``paper`` nodes. The YAML file can also be found at the `/graphstorm/examples/use_your_own_data/acm_nc.yaml <hhttps://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml>`_.
 
 .. code-block:: yaml
 
@@ -408,6 +408,7 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         multilabel: false
         num_classes: 14
 
+You can copy this file to the ``/tmp`` folder within the GraphStorm container for the next step.
 
 Step 3: Launch training script on your own graphs
 ---------------------------------------------------
@@ -426,14 +427,14 @@ Below is a launch script example that trains a GraphStorm built-in RGCN model on
 .. code-block:: bash
 
     python3 -m graphstorm.run.gs_node_classification \
-            --workspace /graphstorm/examples/use_your_own_data \
+            --workspace /tmp \
             --part_config /tmp/acm_nc/acm.json \
             --ip_config /tmp/ip_list.txt \
             --num_trainers 4 \
             --num_servers 1 \
             --num_samplers 0 \
             --ssh_port 2222 \
-            --cf /graphstorm/examples/use_your_own_data/acm_nc.yaml \
+            --cf /tmp/acm_nc.yaml \
             --node-feat-name paper:feat author:feat subject:feat
 
 Similar to the :ref:`Quick-Start <quick-start>` tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.

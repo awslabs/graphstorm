@@ -4,7 +4,7 @@ Quick Start Tutorial
 ====================
 GraphStorm provides a set of tools, which can help users to use built-in datasets as examples to quickly learn the general steps of using GraphStorm.
 
-GraphStorm is designed to easy to use GML models, parcularly the graph neural networks (GNNs) models. Users only need to perform three operations:
+GraphStorm is designed for easy to use GML models, parcularly the graph neural networks (GNNs) models. Users only need to perform three operations:
 
 - 1. Prepare Graph dataset in the required format as inputs of GraphStorm;
 - 2. Launch GraphStorm training scripts and save the best models;
@@ -44,7 +44,7 @@ The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL 
 
 Launch Training
 -----------------
-GraphStorm currently relies on **ssh** to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in a signle machine, as this tutorial does, users only need to run the following command to create an ``ip_list.txt`` file that has one row '**127.0.0.1**' as its content.
+GraphStorm currently relies on **ssh** to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in a **signle machine**, as this tutorial does, users only need to run the following command to create an ``ip_list.txt`` file that has one row '**127.0.0.1**' as its content.
 
 .. code-block:: bash
 
@@ -79,7 +79,7 @@ This command uses GraphStorm's training scripts and default settings defined in 
         ...
     |- epoch-9
 
-In an AWS g4dn.12xlarge instance, it takes around 8 seconds to finish one training and evaluation epoch by using 1 GPU.
+In a **signle** AWS g4dn.12xlarge instance, it takes around 8 seconds to finish one training and evaluation epoch by using **1 GPU**.
 
 Launch inference
 ----------------
