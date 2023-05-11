@@ -3,16 +3,16 @@
 Environment Setup
 =================
 
-GraphStorm can be installed as a pip package. However, configure an GraphStorm environment is non-trivial.
-Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we
-recommend that our users use Docker as the base running environment to use GraphStorm.
+For a quick and easy setup, GraphStorm can be installed as a pip package.
+
+However, configuring an GraphStorm environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we recommend that our users use Docker as the base running environment to use GraphStorm.
 
 Prerequisites
 --------------
 
 1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-Docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
-For example, in an AWS EC2 instance created with `Deep Learning AMI GPU PyTorch 1.13.0`, you can run the following commands to install Docker.
+For example, in an AWS EC2 instance without Docker preinstalled, you can run the following commands to install Docker.
 
 .. code-block:: bash
 
