@@ -109,29 +109,23 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-def get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale):
+
+def get_embs(emb, node_list, neg_sample_type, canonical_etype):
     """ Fetch node embeddings for mini-batch prediction.
 
         Parameters
         ----------
         emb: dict of Tensor
             Node embeddings.
-        pos_neg_tuple: dict of tuple
-            Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source,
-            postive destination, negatve destination).
-            The positive edges: (positive source, positive desitnation)
-            The negative edges: (positive source, negative desitnation) and
-                                (negative source, positive desitnation)
+        node_list: tuple of tensor
+            list of positive/negative source and destination nodes
         neg_sample_type: str
             Describe how negative samples are sampled.
                 Uniform: For each positive edge, we sample K negative edges
                 Joint: For one batch of positive edges, we sample
                        K negative edges
-        loader : GSgnnEdgeDataLoader
-            The GraphStorm dataloader
-        scale : int
-            Number of batches to be fused whilw fetching embeddings
+        canonical_etype: str
+            Relation type
 
         Return
         ------
@@ -140,24 +134,8 @@ def get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale):
             tuple(positive source embeddings, negative source embeddings,
             postive destination embeddings, negatve destination embeddings).
     """
-    assert isinstance(pos_neg_tuple, dict) and len(pos_neg_tuple) == 1, \
-    "DotDecoder is only applicable to link prediction task with " \
-    "single target training edge type"
-
-    canonical_etype = list(pos_neg_tuple.keys())[0]
-    pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[canonical_etype]
     utype, _, vtype = canonical_etype
-
-    for _ in range(scale):
-        pos_neg_tuple, _ = next(loader, (None, None))
-        if pos_neg_tuple is None:
-            break
-        pos_src_, neg_src_, pos_dst_, neg_dst_ = pos_neg_tuple[canonical_etype]
-        pos_src = th.cat((pos_src, pos_src_), dim=0)
-        neg_src = th.cat((neg_src, neg_src_), dim=0)
-        pos_dst = th.cat((pos_dst, pos_dst_), dim=0)
-        neg_dst = th.cat((neg_dst, neg_dst_), dim=0)
-
+    pos_src, neg_src, pos_dst, neg_dst = node_list
     pos_src_emb = emb[utype][pos_src]
     pos_dst_emb = emb[vtype][pos_dst]
     neg_src_emb = None
@@ -173,6 +151,22 @@ def get_embs(emb, pos_neg_tuple, neg_sample_type, loader, scale):
         else:
             assert False, f"Unknow negative sample type {neg_sample_type}"
     return (pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb)
+
+
+def compute_score(decoder, ranking, batch_emb, pos_neg_tuple, neg_sample_type, device):
+    """ Compute scores for positive edges and negative edges using batch embeddings"""
+    score = \
+        decoder.calc_test_scores(
+            #  batch_emb, pos_neg_tuple, neg_sample_type, prev_canonical_etype, device)
+            batch_emb, pos_neg_tuple, neg_sample_type, device)
+    for canonical_etype, s in score.items():
+        # We do not concatenate rankings into a single
+        # ranking tensor to avoid unnecessary data copy.
+        pos_score, neg_score = s
+        if canonical_etype in ranking:
+            ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
+        else:
+            ranking[canonical_etype] = [calc_ranking(pos_score, neg_score)]
 
 
 def lp_mini_batch_predict(model, emb, loader, device):
@@ -202,41 +196,53 @@ def lp_mini_batch_predict(model, emb, loader, device):
     with th.no_grad():
         ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
-            canonical_etype = list(pos_neg_tuple.keys())[0]
-            pos_src, neg_src, _, neg_dst = pos_neg_tuple[canonical_etype]
+            canonical_etype = prev_canonical_etype = list(pos_neg_tuple.keys())[0]
+            pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[prev_canonical_etype]
+            pos_src_size = pos_src.shape[0]
+            neg_src_size = neg_src.shape[0]
+            neg_dst_size = neg_dst.shape[0]
             # To optimize network bandwidth usage, we concatenate node lists from multiple
             # batches and retrieve their embeddings with a single remote pull. Heuristically
             # we have found using a batch size of 100K results in efficient network utilization
             # and reduces the end-to-end inference pipeline from 45 to 21 minutes compared to
             # using a batch size of 1024 on ogbn-papers100M dataset. More details can be found
             # at PR#101 (https://github.com/awslabs/graphstorm/pull/101)
-            num_batches_to_cat = int(100000/pos_src.shape[0])
-            fused_batch_emb = get_embs(emb, pos_neg_tuple, neg_sample_type, loader,
-                                       num_batches_to_cat)
-            pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = fused_batch_emb
+            num_batch_to_cat = int(100000/pos_src.shape[0])
+            for _ in range(num_batch_to_cat):
+                pos_neg_tuple_next, _ = next(loader, (None, None))
+                if pos_neg_tuple_next is None:
+                    break
+                canonical_etype = list(pos_neg_tuple_next.keys())[0]
+                if canonical_etype != prev_canonical_etype:
+                    batch_embs = get_embs(emb, pos_neg_tuple_next[canonical_etype],
+                                          neg_sample_type, canonical_etype)
+                    compute_score(decoder, ranking, batch_embs, pos_neg_tuple,
+                                  neg_sample_type, device)
+                    break
+                pos_src_, neg_src_, pos_dst_, neg_dst_ = pos_neg_tuple_next[canonical_etype]
+                pos_src = th.cat((pos_src, pos_src_), dim=0)
+                neg_src = th.cat((neg_src, neg_src_), dim=0)
+                pos_dst = th.cat((pos_dst, pos_dst_), dim=0)
+                neg_dst = th.cat((neg_dst, neg_dst_), dim=0)
+                prev_canonical_etype = canonical_etype
+
+            batch_embs = get_embs(emb, (pos_src, neg_src, pos_dst, neg_dst), neg_sample_type,
+                                  canonical_etype)
+            pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_embs
+
             p_st = ns_st = nd_st = 0
-            for _ in range(num_batches_to_cat):
+            for _ in range(num_batch_to_cat):
                 # Split the concatenated batch back into orginal batch size to avoid GPU OOM
-                batch_emb = (pos_src_emb[p_st: p_st + pos_src.shape[0]],
-                    neg_src_emb[ns_st: ns_st + neg_src.shape[0]]
+                batch_emb = (pos_src_emb[p_st: p_st + pos_src_size],
+                    neg_src_emb[ns_st: ns_st + neg_src_size]
                         if neg_src_emb is not None else None,
-                    pos_dst_emb[p_st: p_st + pos_src.shape[0]],
-                    neg_dst_emb[nd_st: nd_st + neg_dst.shape[0]]
+                    pos_dst_emb[p_st: p_st + pos_src_size],
+                    neg_dst_emb[nd_st: nd_st + neg_dst_size]
                         if neg_dst_emb is not None else None)
-                score = \
-                    decoder.calc_test_scores(
-                        batch_emb, pos_neg_tuple, neg_sample_type, device)
-                for canonical_etype, s in score.items():
-                  # We do not concatenate rankings into a single
-                  # ranking tensor to avoid unnecessary data copy.
-                  pos_score, neg_score = s
-                  if canonical_etype in ranking:
-                      ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
-                  else:
-                      ranking[canonical_etype] = [calc_ranking(pos_score, neg_score)]
-                p_st += pos_src.shape[0]
-                ns_st += neg_src.shape[0]
-                nd_st += neg_dst.shape[0]
+                compute_score(decoder, ranking, batch_emb, pos_neg_tuple, neg_sample_type, device)
+                p_st += pos_src_size
+                ns_st += neg_src_size
+                nd_st += neg_dst_size
                 if p_st >= pos_src_emb.shape[0]:
                     break
         rankings = {}

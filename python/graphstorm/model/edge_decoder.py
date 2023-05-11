@@ -332,6 +332,10 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             Return a dictionary of edge type to
             (positive scores, negative scores)
         """
+        # TODO (Israt): This assert is not valid after unfusion.
+        assert isinstance(pos_neg_tuple, dict) and len(pos_neg_tuple) == 1, \
+        "DotDecoder is only applicable to link prediction task with " \
+        "single target training edge type"
         canonical_etype = list(pos_neg_tuple.keys())[0]
         _, neg_src, _, neg_dst = pos_neg_tuple[canonical_etype]
         pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_emb
@@ -504,13 +508,13 @@ class LinkPredictDistMultDecoder(GSLayer):
             scores=th.cat(scores)
             return scores
 
-    def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
+    def calc_test_scores(self, batch_emb, pos_neg_tuple, neg_sample_type, device):
         """ Compute scores for positive edges and negative edges
 
         Parameters
         ----------
-        emb: dict of Tensor
-            Node embeddings.
+        batch_emb: Tuple of tensors
+            Node embeddings stored in a tuple
         pos_neg_tuple: dict of tuple
             Positive and negative edges stored in a tuple:
             tuple(positive source, negative source,
@@ -536,11 +540,11 @@ class LinkPredictDistMultDecoder(GSLayer):
             "DistMulti is only applicable to heterogeneous graphs." \
             "Otherwise please use dot product decoder"
         scores = {}
+        # TODO (Israt): This for loop is not needed. Dataloader has one etype at a time
         for canonical_etype, (pos_src, neg_src, pos_dst, neg_dst) in pos_neg_tuple.items():
+            pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_emb
             utype, _, vtype = canonical_etype
             # pos score
-            pos_src_emb = emb[utype][pos_src]
-            pos_dst_emb = emb[vtype][pos_dst]
             rid = self.etype2rid[canonical_etype]
             rel_embedding = self._w_relation(
                 th.tensor(rid).to(self._w_relation.weight.device))
@@ -549,7 +553,6 @@ class LinkPredictDistMultDecoder(GSLayer):
             neg_scores = []
 
             if neg_src is not None:
-                neg_src_emb = emb[utype][neg_src.reshape(-1,)]
                 if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
                     neg_src_emb = neg_src_emb.reshape(neg_src.shape[0], neg_src.shape[1], -1)
                     # uniform sampled negative samples
@@ -582,7 +585,6 @@ class LinkPredictDistMultDecoder(GSLayer):
 
             if neg_dst is not None:
                 if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-                    neg_dst_emb = emb[vtype][neg_dst.reshape(-1,)]
                     neg_dst_emb = neg_dst_emb.reshape(neg_dst.shape[0], neg_dst.shape[1], -1)
                     # uniform sampled negative samples
                     pos_src_emb = pos_src_emb.reshape(
@@ -592,7 +594,6 @@ class LinkPredictDistMultDecoder(GSLayer):
                     neg_score = calc_distmult_pos_score(
                         pos_src_emb, rel_embedding, neg_dst_emb, device)
                 elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
-                    neg_dst_emb = emb[vtype][neg_dst]
                     # joint sampled negative samples
                     assert len(pos_src_emb.shape) == 2, \
                         "For joint negative sampler, in evaluation " \
