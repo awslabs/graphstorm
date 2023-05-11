@@ -229,6 +229,36 @@ def save_relation_embeddings(emb_path, decoder):
         json.dump(et2id_map, f, ensure_ascii=False, indent=4)
     th.save(relembs, os.path.join(emb_path, "rel_emb.pt"))
 
+def _get_data_range(rank, world_size, num_embs):
+    """ save_embeddings will evenly split node embeddings across all
+        the workers to save. This function returns the data range according to the current worker rank and the total number of nodes (embeddings).
+
+        Parameters
+        ----------
+        rank: int
+            Current worker rank
+        world_size: int
+            Total number of workers
+        num_embs: int
+            Number of node embeddings.
+
+        Return
+        ------
+        start: int
+            Starting node idx of the current embedding data range
+        end: int
+            Ending node idx of the current embedding data range.
+    """
+    assert rank < world_size
+
+    if num_embs <= rank:
+        return 0, 0
+    # Get corresponding data range
+    start = rank * (num_embs // world_size)
+    end = (rank + 1) * (num_embs // world_size)
+    end = num_embs if rank + 1 == world_size else end
+    return start, end
+
 def save_embeddings(model_path, embeddings, local_rank, world_size, node_id_mapping_file=None):
     """ Save embeddings in a distributed way
 
@@ -258,87 +288,86 @@ def save_embeddings(model_path, embeddings, local_rank, world_size, node_id_mapp
     # make sure the model_path permission is changed before other process start to save
     th.distributed.barrier()
 
+    assert local_rank < world_size
+
+
+    def exchange_node_id_mapping(node_id_mapping, num_embs):
+        if local_rank == 0:
+            data_tensors = []
+            for i in world_size:
+                start_idx, end_idx = _get_data_range(i, world_size, num_embs)
+                data_tensor.append(node_id_mapping[start_idx:end_idx])
+
+        else:
+            data_tensors = [th.empty((0,),
+                                        dtype=th.long,
+                                        device=th.device('cpu')) \
+                for _ in world_size]
+
+        start_idx, end_idx = _get_data_range(local_rank, world_size, num_embs)
+        gather_list = \
+            [th.empty((end_idx-start_idx,),
+                        dtype=th.long,
+                        device=th.device('cpu')) \
+                if i == 0 else th.empty((0,),
+                                        dtype=th.long,
+                                        device=th.device('cpu')) \
+                for i in world_size]
+        alltoallv_cpu(local_rank, world_size, gather_list, data_tensors)
+        return gather_list[0]
+
     # Node ID mapping won't be very large if number of nodes is
     # less than 10 billion. An ID mapping of 10 billion nodes
     # will take around 80 GByte.
     if node_id_mapping_file is not None:
         if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-            # Create a DistTensor to store nid_mapping
-            nid_mapping = DistTensor((embeddings.shape[0],),
-                dtype=th.long,
-                name="nid-map",
-                part_policy=embeddings.part_policy)
-
             # only host 0 will load node id mapping from disk
             if local_rank == 0:
                 node_id_mapping = th.load(node_id_mapping_file)
                 assert not isinstance(node_id_mapping, dict), \
                     "The node embedding to save is a tensor but " \
                     f"the node id mapping is a dict {node_id_mapping}"
-                nid_mapping[:] = node_id_mapping
-            th.distributed.barrier()
 
+                nid_mapping = exchange_node_id_mapping(node_id_mapping, len(embeddings))
+            else:
+                nid_mapping = exchange_node_id_mapping(None, len(embeddings))
         elif isinstance(embeddings, dict):
             nid_mapping = {}
-            for name, emb in embeddings.items():
-                # Create a DistTensor to store nid_mapping
-                nid_mapping[name] = DistTensor((emb.shape[0],),
-                    dtype=th.long,
-                    name=f"nid-map-{name}",
-                    part_policy=emb.part_policy)
+            if local_rank == 0:
+                node_id_mapping = th.load(node_id_mapping_file)
 
+            for name, emb in embeddings.items():
                 if local_rank == 0:
                     assert name in node_id_mapping, \
                         f"node id mapping for ntype {name} should exists"
-                    nid_mapping[name][:] = node_id_mapping[name]
-                th.distributed.barrier()
+                    nid_mapping[name] = \
+                        exchange_node_id_mapping(node_id_mapping[name], len(emb))
+                else:
+                    nid_mapping[name] = \
+                        exchange_node_id_mapping(None, len(emb))
+            else:
+
         else:
             nid_mapping = None
     else:
         nid_mapping = None
 
-    assert local_rank < world_size
-    def get_data_range(num_embs):
-        # Get corresponding data range
-        start = local_rank * (num_embs // world_size)
-        end = (local_rank + 1) * (num_embs // world_size)
-        end = num_embs if local_rank + 1 == world_size else end
-        return start, end
-
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-        start, end = get_data_range(len(embeddings))
+        start, end = _get_data_range(local_rank, world_size, len(embeddings))
         if nid_mapping is None:
             embeddings = embeddings[start:end]
         else:
-            # Shuffle embedding first
-            idx = nid_mapping[start:end]
-            new_embeddings = DistTensor(embeddings.shape,
-                dtype=embeddings.dtype
-                name=f"shuffled-{embeddings.name}",
-                part_policy=embeddings.part_policy)
-            new_embeddings[idx] = embeddings[start:end]
-            th.distributed.barrier()
-            # Get shuffled embeddings
-            embeddings = new_embeddings[start:end]
+            embeddings = embeddings[nid_mapping]
     elif isinstance(embeddings, dict):
         # We need to duplicate the dict so that the input argument is not changed.
         embeddings = dict(embeddings.items())
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
-                start, end = get_data_range(len(emb))
+                start, end = _get_data_range(local_rank, world_size, len(emb))
                 if nid_mapping is None:
                     emb = emb[start:end]
                 else:
-                    # Shuffle embedding first
-                    idx = nid_mapping[name][start:end]
-                    new_embeddings = DistTensor(emb.shape,
-                        dtype=emb.dtype
-                        name=f"shuffled-{emb.name}",
-                        part_policy=emb.part_policy)
-                    new_embeddings[idx] = emb[start:end]
-                    th.distributed.barrier()
-                    # Get shuffled embeddings
-                    emb = new_embeddings[start:end]
+                    emb = emb[nid_mapping[name]]
                 embeddings[name] = emb
 
     emb_info = {
