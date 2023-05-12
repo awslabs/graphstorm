@@ -186,7 +186,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         # use GSF components
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
 
-    def forward(self, blocks, node_feats, edge_feats, labels, epoch=-1, total_steps=-1):
+    def forward(self, blocks, node_feats, edge_feats, labels, input_nodes):
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
@@ -213,7 +213,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
         return pred_loss + reg_loss
 
-    def predict(self, blocks, node_feats, _, input_nodes=None):
+    def predict(self, blocks, node_feats, _, input_nodes):
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
@@ -321,7 +321,8 @@ def main(args):
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.
-    trainer.fit(train_loader=dataloader, num_epochs=config.num_epochs,
+    trainer.fit(train_loader=dataloader,
+                num_epochs=config.num_epochs,
                 val_loader=eval_dataloader,
                 test_loader=test_dataloader,
                 save_model_path=config.save_model_path,
