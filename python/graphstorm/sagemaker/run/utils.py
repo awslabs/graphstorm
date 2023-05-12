@@ -248,6 +248,7 @@ def upload_model_artifacts(model_s3_path, model_path, sagemaker_session):
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
     """
+    print(f"Upload model artifacts to {model_s3_path}")
     return _upload_data_to_s3(model_s3_path, model_path, sagemaker_session)
 
 def upload_embs(emb_s3_path, emb_path, sagemaker_session):
