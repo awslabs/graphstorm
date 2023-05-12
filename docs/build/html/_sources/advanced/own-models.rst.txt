@@ -2,27 +2,27 @@
 
 Use Your Own Models
 ======================
-Currently GraphStorm has two built-in GNN models, i.e., the RGCN and the RGAT model, for heterogenous graphs. If users want to further explore different GNN models and leverage the GraphStorm's easy-of-use and scalability power, you can modify your own GNN models according to the GraphStorm's customer model APIs. This tutorial will explain in details about how to do this.
+Currently GraphStorm has two built-in GNN models, i.e., the RGCN and the RGAT model, for heterogenous graphs. If users want to further explore different GNN models and leverage the GraphStorm's ease-of-use and scalability, you can create your own GNN models according to the GraphStorm's customer model APIs. This tutorial will explain in detail how to do this, with a runnable `example <https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT>`_ that customizes the HGT DGL model implementation.
 
-.. note:: GraphStorm has a runnable `examples <https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT>`_ that customizes the HGT DGL model implementation for users' reference.
+.. _use-own-models-prerequisites:
 
 Prerequisites
 ---------------
-Before following the GraphStorm's customized model APIs, please make sure your GNN models meet the prerequisites.
+Before following GraphStorm's customized model APIs, please make sure your GNN models meet the prerequisites.
 
 Use DGL to implement your GNN models
 .....................................
-The GraphStorm Framework relies on the `DGL library <https://www.dgl.ai/>`_ to implement and run GNN models. Particularly, the GraphStorm's scalability power depends on the DGL's distributed libraries. For this reason, your GNN models should be implemented with the DGL Library. You can learn how to do this via the DGL's `User Guide <https://docs.dgl.ai/guide/index.html>`_. In addition, there are many `GNN model examples <https://github.com/dmlc/dgl/tree/master/examples>`_ implemented by the DGL community. Please explore these materials to check if there is any model that may meet your requirements.
+The GraphStorm Framework relies on the `DGL library <https://www.dgl.ai/>`_ to implement and run GNN models. Particularly, the GraphStorm's scalability comes from the DGL's distributed libraries. For this reason, your GNN models should be implemented with the DGL Library. You can learn how to do this via the DGL's `User Guide <https://docs.dgl.ai/guide/index.html>`_. In addition, there are many `GNN model examples <https://github.com/dmlc/dgl/tree/master/examples>`_ implemented by the DGL community. Please explore these materials to check if there is any model that may meet your requirements.
 
 Modify you GNN models to use mini-batch training/inference
 ..........................................................
-Many existing GNN models were implemented for running on popular academic graphs, which, compared to enterprise-level graphs, are relatively small and lack of node/edge features. Therefore, implementors use the full-graph training/inference mode, i.e., feed the entire graph along with its node/edge features into GNN models in one epoch. When deal with large graphs, this mode will fail due to either the limits of the GPUs' memory, or the slow speed if run on CPUs.
+Many existing GNN models were implemented for running on popular academic graphs, which, compared to enterprise-level graphs, are relatively small and lack node/edge features. Therefore, implementors use the full-graph training/inference mode, i.e., feed the entire graph along with its node/edge features into GNN models in one epoch. When dealing with large graphs, this mode will fail due to either the limits of the GPUs' memory, or the slow speed if using CPUs.
 
 In order to tackle large graphs, we can change GNN models to perform stochastic mini-batch training, where we do not have to fit the graphs and their features of all the nodes/edges into GPUs. You can learn how to modify GNN models into mini-batch training/inference mode via the `DGL User Guide Chapter 6 <https://docs.dgl.ai/en/1.0.x/guide/minibatch.html>`_. For examples of the different implementations between full-graph mode and mini-batch mode, please look for DGL model examples, in which mini-batch mode files normally have a file name ended with "_mb" string, like the `RGCN model <https://github.com/dmlc/dgl/blob/master/examples/pytorch/rgcn-hetero/entity_classify_mb.py>`_, or file names including "dist" string, like the `GraphSage distributed model <https://github.com/dmlc/dgl/blob/master/examples/pytorch/graphsage/dist/train_dist.py#L26>`_.
 
-Learn how to run GraphStorm in a docker environment
+Learn how to run GraphStorm in a Docker environment
 ......................................................
-Current GraphStorm runs on docker environment. So as all steps described below. Please refer to the first two sections in the :ref:`Environment Setup<setup>` to learn how to run GraphStorm in a docker environment, and set up your environment.
+Currently GraphStorm runs on Docker environment. The rest of the tutorial assumes execution wthin the GraphStorm Docker container. Please refer to the first two sections in the :ref:`Environment Setup<setup>` to learn how to run GraphStorm in a Docker environment, and set up your environment.
 
 Modifications required for customer models
 ---------------------------------------------------------------
@@ -32,31 +32,52 @@ Users can follow the :ref:`User Your Own Graph Data <use-own-data>` tutorial to 
 
 Step 2: Modify your GNN model to use the GraphStorm APIs
 .........................................................
-To plug you GNN models into the GraphStorm, you need to use the GraphStorm model APIs. The key model APIs are the class `GSgnnNodeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76>`_, `GSgnnEdgeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/edge_gnn.py#L80>`_, and `GSgnnLinkPredictionModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/lp_gnn.py#L58>`_. Your GNN models should inherit one of the three classes depending on your task.
+To plug GNN models into GraphStorm, you need to use the GraphStorm model APIs. The key model APIs are the class `GSgnnNodeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76>`_, `GSgnnEdgeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/edge_gnn.py#L80>`_, and `GSgnnLinkPredictionModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/lp_gnn.py#L58>`_. Your GNN models should inherit one of the three classes depending on your task.
 
-Here we use a Node Classification dummy model to demonstrate how to modify the GNN models.
+Here we use the `DGL HGT example model <https://github.com/dmlc/dgl/blob/master/examples/pytorch/hgt/model.py>`_ to demonstrate how to modify the GNN models.
 
 .. code-block:: python
 
-    import dgl.nn as dglnn
-    import torch.nn as nn
-    import torch.nn.function as F
+    class HGT(nn.Module):
+        def __init__(self, ......):
+            super(HTG, self).__init__()
+            ......
 
-    class dummyGnnModel(nn.Module):
-        def __init__(self, in_dim, hid_dim, out_dim):
-            super().__init__()
-            self.conv1 = dglnn.HeteroSAGEConv(in_dim, hid_dim)                     # input layer
-            self.conv2 = dglnn.HeteroSAGEConv(hid_dim, out_dim)                    # output layer
+        def forward(self, G, out_key):
+            h = {}
+            for ntype in G.ntypes:
+                n_id = self.node_dict[ntype]
+                h[ntype] = F.gelu(self.adapt_ws[n_id](G.nodes[ntype].data["inp"]))
+            for i in range(self.n_layers):
+                h = self.gcs[i](G, h)
+            return self.out(h[out_key])
 
-        def forward(self, blocks, node_feats):
-            h = self.conv1(blocks[0], node_feats)                                  # input layer computation
-            h = {ntype: F.relu(h[n_emb] for ntype, n_emb in h.items())             # activation computation
-            h = self.conv2(blocks[1], h)                                           # output layer computation
-            return h
+The original HGT model implement uses full-graph training and inference mode. Its ``forward()`` function takes a DGL graph, `G` and the to-be predicted node type, `out_key` as input arguments.
 
-The dummy GNN model has two GNN layers. Its ``forward()`` function takes DGL blocks and node feature, which is a dictionary whose keys are node types and values are node feature tensors, as input arguments.
+As the :ref:`Prerequisites <use-own-models-prerequisites>` required, we revise this model to use mini-batch training and inference mode as shown below.
 
-.. Note:: Be aware that there is **NO** HeteroSAGEConv module in the DGL. We make it up here for demonstration about how to process heterogeneous graphs only.
+.. code-block:: python
+
+    class HGT_mb(nn.Module):
+        def __init__(self, ......)
+            super(HGT_mb, self).__init__()
+            ......
+
+        def forward(self, mfgs, n_feats_dict, out_ntype):
+            h = {}
+            for ntype in mfgs[0].ntypes:
+                if self.adapt_ws[ntype] is None:
+                    n_id = self.node_dict[ntype]
+                    emb_id = self.ntype_id_map[n_id]
+                    n_embed = self.ntype_embed(torch.Tensor([emb_id] * mfgs[0].num_nodes(ntype)).long().to(self.device))
+                else:
+                    n_embed = self.adapt_ws[ntype](n_feats_dict[ntype])
+                h[ntype] = F.gelu(n_embed)
+
+            for i in range(self.n_layers):
+                h = self.gcs[i](mfgs[i], h)
+
+            return self.out(h[out_ntype])
 
 To make this dummy model work in GraphStorm, we need replace the PyTorch ``nn.Module`` with GraphStorm's ``GSgnnNodeModelBase`` and implement required functions.
 
