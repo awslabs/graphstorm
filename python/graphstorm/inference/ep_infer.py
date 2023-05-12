@@ -41,9 +41,9 @@ class GSgnnEdgePredictionInfer(GSInfer):
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
-            use_mini_batch_infer=False,
+            use_mini_batch_infer=False, # pylint: disable=unused-argument
             device=th.device('cpu'),
-            node_id_mapping_file=None):  # pylint: disable=unused-argument
+            node_id_mapping_file=None):
         """ Do inference
 
         The infer can do three things:

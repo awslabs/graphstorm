@@ -121,7 +121,6 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
     # single embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
         emb, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
-        print(nid_mapping)
         _save_maps(tmpdirname, "node_mapping", nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')

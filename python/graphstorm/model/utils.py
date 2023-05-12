@@ -250,7 +250,8 @@ def _get_data_range(rank, world_size, num_embs):
         end: int
             Ending node idx of the current embedding data range.
     """
-    assert rank < world_size
+    assert rank < world_size, \
+        f"Rank {rank} of a worker should be smaller than the cluster size {world_size}"
 
     # Get corresponding data range
     start = rank * (num_embs // world_size)
@@ -298,7 +299,7 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
     def exchange_node_id_mapping(node_id_mapping, num_embs):
         """ Rank0 loads node_id_mappings and spreads it to other ranks.
             Each rank will get a sub-range of node_id_mappings.
-            Wu use alltoall_v to send sub-node_id_mappings to each rank.
+            We use alltoall_v to send sub-node_id_mappings to each rank.
         """
         if local_rank == 0:
             data_tensors = []
