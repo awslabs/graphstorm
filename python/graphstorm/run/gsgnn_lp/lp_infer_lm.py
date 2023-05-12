@@ -70,7 +70,6 @@ def main(args):
     model.prepare_input_encoder(infer_data)
     infer.infer(infer_data, dataloader,
                 save_embed_path=config.save_embed_path,
-                device=device,
                 node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
