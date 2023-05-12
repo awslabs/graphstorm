@@ -153,18 +153,17 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         pos_neg_tuple[etypes[0]] = (pos_src, None, pos_dst, neg_dst)
         # pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[1]]
         # pos_neg_tuple[etypes[1]] = (pos_src, neg_src, pos_dst, None)
+        pos_src, _, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         neg_dst_emb = emb[etypes[0][2]][neg_dst]
         batch_embs = (pos_src_emb, None, pos_dst_emb, neg_dst_emb)
         score = decoder.calc_test_scores(batch_embs, pos_neg_tuple, neg_sample_type, device)
-        pos_src, _, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
         rel_emb = decoder.get_relemb(etypes[0])
         pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
-            neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
             # (dim) * (dim) * (num_neg, dim)
             ns = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
             neg_scores.append(ns)
@@ -182,12 +181,11 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         neg_src_emb = emb[etypes[1][0]][neg_src]
         batch_embs = (pos_src_emb, neg_src_emb, pos_dst_emb, None)
         score = decoder.calc_test_scores(batch_embs, pos_neg_tuple, neg_sample_type, device)
-
         rel_emb = decoder.get_relemb(etypes[1])
         pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
         neg_scores = []
         for i in range(pos_dst.shape[0]):
-            neg_src_emb = emb[etypes[1][0]][neg_src[i]]
+            neg_src_emb = emb[etypes[1][0]][neg_src]
             pde = pos_dst_emb[i]
             # (num_neg, dim) * (dim) * (dim)
             ns = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
@@ -211,8 +209,6 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
             pde = pos_dst_emb[i]
-            neg_src_emb = emb[etypes[0][0]][neg_src[i]]
-            neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
             # (num_neg, dim) * (dim) * (dim)
             ns_0 = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
             # (dim) * (dim) * (num_neg, dim)
@@ -220,6 +216,7 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
             neg_scores.append(th.cat((ns_0, ns_1), dim=-1))
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg*2, pos_src.shape[0])
+
 
 def check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_neg, device):
     neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
@@ -380,7 +377,7 @@ def test_LinkPredictDistMultDecoder(h_dim, num_pos, num_neg, device):
     decoder.trained_rels[1] = 1
 
     check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device)
-    # check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, device)
+    check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, device)
 
 @pytest.mark.parametrize("h_dim", [16, 64])
 @pytest.mark.parametrize("num_pos", [8, 32])
@@ -396,6 +393,6 @@ def test_LinkPredictDotDecoder(h_dim, num_pos, num_neg, device):
 
 if __name__ == '__main__':
     test_LinkPredictDistMultDecoder(16, 8, 1, "cpu")
-    # test_LinkPredictDistMultDecoder(16, 32, 32, "cuda:0")
+    test_LinkPredictDistMultDecoder(16, 32, 32, "cuda:0")
     test_LinkPredictDotDecoder(16, 8, 1, "cpu")
     test_LinkPredictDotDecoder(16, 32, 32, "cuda:0")

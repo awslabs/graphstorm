@@ -237,7 +237,8 @@ def lp_mini_batch_predict(model, emb, loader, device):
                         pos_dst_emb[p_st: p_st + pos_src_size],
                         neg_dst_emb[ns_st: ns_st + neg_src_size]
                             if neg_dst_emb is not None else None)
-                    compute_score(decoder, ranking, batch_emb, pos_neg_tuple, neg_sample_type, device)
+                    compute_score(decoder, ranking, batch_emb, pos_neg_tuple,
+                                  neg_sample_type, device)
                     p_st += pos_src_size
                     ns_st += neg_src_size
                     if p_st >= pos_src_emb.shape[0]:
