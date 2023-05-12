@@ -25,6 +25,7 @@ import numpy as np
 from numpy.testing import assert_equal
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
 from graphstorm.model.utils import _get_data_range
+from graphstorm.model.utils import _exchange_node_id_mapping
 from graphstorm.gconstruct.utils import _save_maps
 from graphstorm import get_feat_size
 
@@ -98,6 +99,56 @@ def test_get_data_range():
     assert start == 2
     assert end == 4
 
+def run_dist_exchange_node_id_mapping(worker_rank, world_size, backend,
+    node_id_mapping, num_embs, target_nid_mapping):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend=backend,
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=worker_rank)
+    th.cuda.set_device(worker_rank)
+    device = 'cuda:%d' % worker_rank
+
+    nid_mapping = _exchange_node_id_mapping(worker_rank, world_size, device, node_id_mapping, num_embs)
+
+    assert_equal(target_nid_mapping.numpy(), nid_mapping.cpu().numpy())
+
+@pytest.mark.parametrize("num_embs", [100, 101])
+@pytest.mark.parametrize("backend", ["gloo"])
+def test_exchange_node_id_mapping(num_embs, backend):
+    node_id_mapping = th.randperm(num_embs)
+    start, end = _get_data_range(0, 4, num_embs)
+    target_nid_mapping_0 = node_id_mapping[start:end]
+    start, end = _get_data_range(1, 4, num_embs)
+    target_nid_mapping_1 = node_id_mapping[start:end]
+    start, end = _get_data_range(2, 4, num_embs)
+    target_nid_mapping_2 = node_id_mapping[start:end]
+    start, end = _get_data_range(3, 4, num_embs)
+    target_nid_mapping_3 = node_id_mapping[start:end]
+    ctx = mp.get_context('spawn')
+    p0 = ctx.Process(target=run_dist_exchange_node_id_mapping,
+                    args=(0, 4, backend, node_id_mapping.clone(), num_embs, target_nid_mapping_0))
+    p1 = ctx.Process(target=run_dist_exchange_node_id_mapping,
+                    args=(1, 4, backend, node_id_mapping.clone(), num_embs, target_nid_mapping_1))
+    p2 = ctx.Process(target=run_dist_exchange_node_id_mapping,
+                    args=(2, 4, backend, node_id_mapping.clone(), num_embs, target_nid_mapping_2))
+    p3 = ctx.Process(target=run_dist_exchange_node_id_mapping,
+                    args=(3, 4, backend, node_id_mapping.clone(), num_embs, target_nid_mapping_3))
+
+    p0.start()
+    p1.start()
+    p2.start()
+    p3.start()
+    p0.join()
+    p1.join()
+    p2.join()
+    p3.join()
+    assert p0.exitcode == 0
+    assert p1.exitcode == 0
+    assert p2.exitcode == 0
+    assert p3.exitcode == 0
+
 def run_dist_save_embeddings(model_path, emb, worker_rank,
     world_size, node_id_mapping_file, backend):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
@@ -124,7 +175,6 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         _save_maps(tmpdirname, "node_mapping", nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
-        conn1, conn2 = mp.Pipe()
         p0 = ctx.Process(target=run_dist_save_embeddings,
                         args=(tmpdirname, emb, 0, 2, nid_mapping_file, backend))
         p1 = ctx.Process(target=run_dist_save_embeddings,
@@ -161,7 +211,6 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         _save_maps(tmpdirname, "node_mapping", nid_mappings)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
-        conn1, conn2 = mp.Pipe()
         p0 = ctx.Process(target=run_dist_save_embeddings,
                         args=(tmpdirname, embs, 0, 2, nid_mapping_file, backend))
         p1 = ctx.Process(target=run_dist_save_embeddings,
@@ -311,6 +360,8 @@ def test_gen_mrr_score():
 
 if __name__ == '__main__':
     test_get_data_range()
+    test_exchange_node_id_mapping(100, backend='gloo')
+    test_exchange_node_id_mapping(101, backend='nccl')
     test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
     test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
 
