@@ -214,7 +214,7 @@
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p><strong>Docker</strong>: You need to install Docker in your environment as the <a class="reference external" href="https://docs.Docker.com/get-Docker/">Docker documentation</a> suggests, and the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html">Nvidia Container Toolkit</a>.</p></li>
+<li><p><strong>Docker</strong>: You need to install Docker in your environment as the <a class="reference external" href="https://docs.Docker.com/get-docker/">Docker documentation</a> suggests, and the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html">Nvidia Container Toolkit</a>.</p></li>
 </ol>
 <p>For example, in an AWS EC2 instance without Docker preinstalled, you can run the following commands to install Docker.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
@@ -224,13 +224,15 @@ sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> <
 </div>
 <p>If using AWS <cite>Deep Learning AMI GPU version</cite>, the Nvidia Container Toolkit has been preinstalled.</p>
 <ol class="arabic simple" start="2">
-<li><p><strong>GPU</strong>: The current version of GraphStorm requires <strong>at least one GPU</strong> installed in the instance. Later version will support CPUs.</p></li>
+<li><p><strong>GPU</strong>: The current version of GraphStorm requires <strong>at least one GPU</strong> installed in the instance.</p></li>
 </ol>
 </section>
 <section id="build-a-graphstorm-docker-image-from-source-code">
 <span id="build-docker"></span><h2>Build a GraphStorm Docker image from source code<a class="headerlink" href="#build-a-graphstorm-docker-image-from-source-code" title="Permalink to this heading">#</a></h2>
 <p>Please use the following command to build a Docker image from source:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/path-to-graphstorm/docker/
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
+
+<span class="nb">cd</span><span class="w"> </span>/path-to-graphstorm/docker/
 
 bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_oss4local.sh<span class="w"> </span>/path-to-graphstorm/<span class="w"> </span>docker-name<span class="w"> </span>docker-tag
 </pre></div>

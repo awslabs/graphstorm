@@ -157,7 +157,7 @@
   <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">GraphStorm Configurations</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Graph Construction</a></li>
@@ -227,8 +227,8 @@
 <li><p><strong>–ext_mem_feat_size</strong>: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.</p></li>
 </ul>
 </section>
-<section id="configuration-json-explaination">
-<h2>Configuration JSON Explaination<a class="headerlink" href="#configuration-json-explaination" title="Permalink to this heading">#</a></h2>
+<section id="configuration-json-explanations">
+<span id="gconstruction-json"></span><h2>Configuration JSON Explanations<a class="headerlink" href="#configuration-json-explanations" title="Permalink to this heading">#</a></h2>
 <p>The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: <code class="docutils literal notranslate"><span class="pre">nodes</span></code> and <code class="docutils literal notranslate"><span class="pre">edges</span></code>.</p>
 <section id="nodes">
 <h3><code class="docutils literal notranslate"><span class="pre">nodes</span></code><a class="headerlink" href="#nodes" title="Permalink to this heading">#</a></h3>
@@ -236,10 +236,10 @@
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">node_type</span></code>: (<strong>Required</strong>) specifies the node type. Think this as a name given to one type of nodes, e.g. <cite>author</cite> and <cite>paper</cite>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">files</span></code>: (<strong>Required</strong>) specifies the input files for the node data. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it contains the paths of files with a wildcard, or a list of file paths, e.g., <cite>file_name*.parquet</cite>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">format</span></code>: (<strong>Required</strong>) specifies the input file format. Currently, the pipeline supports two formats: <code class="docutils literal notranslate"><span class="pre">parquet</span></code> and <code class="docutils literal notranslate"><span class="pre">JSON</span></code>. The value of this field is a dictionary, where the key is <code class="docutils literal notranslate"><span class="pre">name</span></code> and the value is either <code class="docutils literal notranslate"><span class="pre">parquet</span></code> or <code class="docutils literal notranslate"><span class="pre">JSON</span></code>, e.g., <cite>{“name”:”JSON”}</cite>. The detailed format information is specified in the format section.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">format</span></code>: (<strong>Required</strong>) specifies the input file format. Currently, the pipeline supports three formats: <code class="docutils literal notranslate"><span class="pre">parquet</span></code>, <code class="docutils literal notranslate"><span class="pre">HDF5</span></code>, and <code class="docutils literal notranslate"><span class="pre">JSON</span></code>. The value of this field is a dictionary, where the key is <code class="docutils literal notranslate"><span class="pre">name</span></code> and the value is either <code class="docutils literal notranslate"><span class="pre">parquet</span></code> or <code class="docutils literal notranslate"><span class="pre">JSON</span></code>, e.g., <cite>{“name”:”JSON”}</cite>. The detailed format information is specified in the format section.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">node_id_col</span></code>: specifies the column name that contains the node IDs. This field is optional. If a node type contains multiple blocks to specify the node data, only one of the blocks require to specify the node ID column.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">features</span></code> is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature directionary is defined <a class="reference internal" href="#feat-format"><span class="std std-ref">below</span></a>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">labels</span></code> is a list of dictionaries that define where to get labels and how to split the data into training/validation/test set. This is optional. The format of a label directionary is defined <a class="reference internal" href="#label-format"><span class="std std-ref">below</span></a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">features</span></code> is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature dictionary is defined <a class="reference internal" href="#feat-format"><span class="std std-ref">below</span></a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">labels</span></code> is a list of dictionaries that define where to get labels and how to split the data into training/validation/test set. This is optional. The format of a label dictionary is defined <a class="reference internal" href="#label-format"><span class="std std-ref">below</span></a>.</p></li>
 </ul>
 </section>
 <section id="edges">
@@ -265,8 +265,9 @@
 </section>
 <section id="input-formats">
 <span id="input-format"></span><h3>Input formats<a class="headerlink" href="#input-formats" title="Permalink to this heading">#</a></h3>
-<p>Currently, the graph construction pipeline supports two input formats: <code class="docutils literal notranslate"><span class="pre">Parquet</span></code> and <code class="docutils literal notranslate"><span class="pre">JSON</span></code>.</p>
+<p>Currently, the graph construction pipeline supports two input formats: <code class="docutils literal notranslate"><span class="pre">Parquet</span></code>, <code class="docutils literal notranslate"><span class="pre">HDF5</span></code>, and <code class="docutils literal notranslate"><span class="pre">JSON</span></code>.</p>
 <p>For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.</p>
+<p>The HDF5 format is similar as the parquet format, but have larger capacity. Therefore suggest to use HDF5 format if users’ data is large.</p>
 <p>For JSON format, each line of the JSON file is a JSON object. The JSON object can only have one level. The value of each field can only be primitive values, such as integers, strings and floating points, or a list of integers or floating points.</p>
 </section>
 <section id="feature-transformation">
@@ -386,7 +387,7 @@ By Specifying the output_format as <code class="docutils literal notranslate"><s
             <ul>
 <li><a class="reference internal" href="#">Graph Construction</a><ul>
 <li><a class="reference internal" href="#construct-graph-py-arguments">construct_graph.py arguments</a></li>
-<li><a class="reference internal" href="#configuration-json-explaination">Configuration JSON Explaination</a><ul>
+<li><a class="reference internal" href="#configuration-json-explanations">Configuration JSON Explanations</a><ul>
 <li><a class="reference internal" href="#nodes"><code class="docutils literal notranslate"><span class="pre">nodes</span></code></a></li>
 <li><a class="reference internal" href="#edges"><code class="docutils literal notranslate"><span class="pre">edges</span></code></a></li>
 <li><a class="reference internal" href="#input-formats">Input formats</a></li>

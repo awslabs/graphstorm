@@ -10,7 +10,7 @@ However, configuring an GraphStorm environment is non-trivial. Users need to ins
 Prerequisites
 --------------
 
-1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-Docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
+1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
 For example, in an AWS EC2 instance without Docker preinstalled, you can run the following commands to install Docker.
 
@@ -22,7 +22,7 @@ For example, in an AWS EC2 instance without Docker preinstalled, you can run the
 
 If using AWS `Deep Learning AMI GPU version`, the Nvidia Container Toolkit has been preinstalled.
 
-2. **GPU**: The current version of GraphStorm requires **at least one GPU** installed in the instance. Later version will support CPUs.
+2. **GPU**: The current version of GraphStorm requires **at least one GPU** installed in the instance.
 
 .. _build_docker:
 
@@ -33,6 +33,8 @@ Please use the following command to build a Docker image from source:
 
 .. code-block:: bash
 
+    git clone https://github.com/awslabs/graphstorm.git
+    
     cd /path-to-graphstorm/docker/
 
     bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ docker-name docker-tag

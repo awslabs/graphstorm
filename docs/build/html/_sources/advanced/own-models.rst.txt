@@ -32,7 +32,7 @@ Users can follow the :ref:`User Your Own Graph Data <use-own-data>` tutorial to 
 
 Step 2: Modify your GNN model to use the GraphStorm APIs
 .........................................................
-To plug GNN models into GraphStorm, you need to use the GraphStorm model APIs. The key model APIs are the class `GSgnnNodeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76>`_, `GSgnnEdgeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/edge_gnn.py#L80>`_, and `GSgnnLinkPredictionModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/lp_gnn.py#L58>`_. Your GNN models should inherit one of the three classes depending on your task.
+To plug your GNN models into GraphStorm, you need to use the GraphStorm model APIs. The key model APIs are the class `GSgnnNodeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76>`_, `GSgnnEdgeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/edge_gnn.py#L80>`_, and `GSgnnLinkPredictionModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/lp_gnn.py#L58>`_. Your GNN models should inherit one of the three classes depending on your task.
 
 Here we use the `DGL HGT example model <https://github.com/dmlc/dgl/blob/master/examples/pytorch/hgt/model.py>`_ to demonstrate how to modify the GNN models.
 
@@ -52,7 +52,7 @@ Here we use the `DGL HGT example model <https://github.com/dmlc/dgl/blob/master/
                 h = self.gcs[i](G, h)
             return self.out(h[out_key])
 
-The original HGT model implement uses full-graph training and inference mode. Its ``forward()`` function takes a DGL graph, `G` and the to-be predicted node type, `out_key` as input arguments.
+The original HGT model implement uses full-graph training and inference mode. Its ``forward()`` function takes a DGL graph, ``G`` and the to-be predicted node type, ``out_key`` as input arguments.
 
 As the :ref:`Prerequisites <use-own-models-prerequisites>` required, we revise this model to use mini-batch training and inference mode as shown below.
 
@@ -63,23 +63,23 @@ As the :ref:`Prerequisites <use-own-models-prerequisites>` required, we revise t
             super(HGT_mb, self).__init__()
             ......
 
-        def forward(self, mfgs, n_feats_dict, out_ntype):
+        def forward(self, blocks, n_feats_dict, out_ntype):
             h = {}
-            for ntype in mfgs[0].ntypes:
+            for ntype in blocks[0].ntypes:
                 if self.adapt_ws[ntype] is None:
                     n_id = self.node_dict[ntype]
                     emb_id = self.ntype_id_map[n_id]
-                    n_embed = self.ntype_embed(torch.Tensor([emb_id] * mfgs[0].num_nodes(ntype)).long().to(self.device))
+                    n_embed = self.ntype_embed(torch.Tensor([emb_id] * blocks[0].num_nodes(ntype)).long().to(self.device))
                 else:
                     n_embed = self.adapt_ws[ntype](n_feats_dict[ntype])
                 h[ntype] = F.gelu(n_embed)
 
             for i in range(self.n_layers):
-                h = self.gcs[i](mfgs[i], h)
+                h = self.gcs[i](blocks[i], h)
 
             return self.out(h[out_ntype])
 
-To make this dummy model work in GraphStorm, we need replace the PyTorch ``nn.Module`` with GraphStorm's ``GSgnnNodeModelBase`` and implement required functions.
+Then to further make this ``HGT_mb`` model work in GraphStorm, we need replace the PyTorch ``nn.Module`` with GraphStorm's ``GSgnnNodeModelBase`` and implement required functions.
 
 The ``GSgnnNodeModelBase`` class, which is also a PyTorch Module, has three required functions that users' own GNN model need to implement, including ``forward(self, blocks, node_feats, edge_feats, labels, input_nodes)``, ``predict(self, blocks, node_feats, edge_feats, input_nodes)``, and ``create_optimizer(self)``.
 
@@ -170,7 +170,7 @@ Any GraphStorm training process **MUST** start with a proper initialization. You
     def main(args):
         gs.initialize(ip_config=ip_config, backend="gloo")
 
-the ``ip_config`` argument specifies a ip configuration file, which contains the IP addresses of machines in a GraphStorm distributed cluster. You can find its description at the :ref:`Launch Training<launch-training>` section of the :ref:`Quick Start Tutorial <quick-start>`.
+the ``ip_config`` argument specifies a ip configuration file, which contains the IP addresses of machines in a GraphStorm distributed cluster. You can find its description at the :ref:`Launch Training<launch-training>` section of the :ref:`Quick Start Tutorial <quick-start-standalone>`.
 
 Replace DGL DataLoader with the GraphStorm's dataset and dataloader
 `````````````````````````````````````````````````````````````````````

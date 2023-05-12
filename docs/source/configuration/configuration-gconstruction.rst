@@ -20,8 +20,9 @@ Graph Construction
 * **--ext_mem_workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
 * **--ext_mem_feat_size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
 
+.. _gconstruction-json:
 
-Configuration JSON Explaination
+Configuration JSON Explanations
 ---------------------------------
 
 The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: ``nodes`` and ``edges``.
@@ -32,10 +33,10 @@ The JSON file that describes the graph data defines where to get node data and e
 
 * ``node_type``: (**Required**) specifies the node type. Think this as a name given to one type of nodes, e.g. `author` and `paper`.
 * ``files``: (**Required**) specifies the input files for the node data. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it contains the paths of files with a wildcard, or a list of file paths, e.g., `file_name*.parquet`.
-* ``format``: (**Required**) specifies the input file format. Currently, the pipeline supports two formats: ``parquet`` and ``JSON``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``parquet`` or ``JSON``, e.g., `{"name":"JSON"}`. The detailed format information is specified in the format section.
+* ``format``: (**Required**) specifies the input file format. Currently, the pipeline supports three formats: ``parquet``, ``HDF5``, and ``JSON``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``parquet`` or ``JSON``, e.g., `{"name":"JSON"}`. The detailed format information is specified in the format section.
 * ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If a node type contains multiple blocks to specify the node data, only one of the blocks require to specify the node ID column.
-* ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature directionary is defined :ref:`below <feat-format>`.
-* ``labels`` is a list of dictionaries that define where to get labels and how to split the data into training/validation/test set. This is optional. The format of a label directionary is defined :ref:`below<label-format>`.
+* ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature dictionary is defined :ref:`below <feat-format>`.
+* ``labels`` is a list of dictionaries that define where to get labels and how to split the data into training/validation/test set. This is optional. The format of a label dictionary is defined :ref:`below<label-format>`.
 
 ``edges``
 ...........
@@ -65,9 +66,11 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 
 Input formats
 ..............
-Currently, the graph construction pipeline supports two input formats: ``Parquet`` and ``JSON``.
+Currently, the graph construction pipeline supports two input formats: ``Parquet``, ``HDF5``, and ``JSON``.
 
 For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.
+
+The HDF5 format is similar as the parquet format, but have larger capacity. Therefore suggest to use HDF5 format if users' data is large. 
 
 For JSON format, each line of the JSON file is a JSON object. The JSON object can only have one level. The value of each field can only be primitive values, such as integers, strings and floating points, or a list of integers or floating points.
 

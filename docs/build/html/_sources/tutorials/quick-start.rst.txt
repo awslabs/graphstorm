@@ -1,10 +1,10 @@
-.. _quick-start:
+.. _quick-start-standalone:
 
-Quick Start Tutorial
-====================
+Standalone Mode Quick Start Tutorial
+=======================================
 GraphStorm provides a set of tools, which can help users to use built-in datasets as examples to quickly learn the general steps of using GraphStorm.
 
-GraphStorm is designed for easy to use GML models, parcularly the graph neural networks (GNNs) models. Users only need to perform three operations:
+GraphStorm is designed for easy-to-use GML models, particularly the graph neural network (GNN) models. Users only need to perform three operations:
 
 - 1. Prepare Graph dataset in the required format as inputs of GraphStorm;
 - 2. Launch GraphStorm training scripts and save the best models;
@@ -33,12 +33,14 @@ This command will automatically download ogbn-arxiv data and split the graph int
 
     /tmp/ogbn_arxiv_nc_1p:
     ogbn-arxiv.json
+    node_mapping.pt
+    edge_mapping.pt
     |- part0:
         edge_feat.dgl
         graph.dgl
         node_feat.dgl
 
-The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument ``--num_parts 1``, there is one sub-folder, named ``part0``.  Files in the sub-folder includes three types of data, i.e., the graph structure (``graph.dgl``), the node features (``node_feat.dgl``), and edge features (``edge_feat.dgl``).
+The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument ``--num_parts 1``, there is one sub-folder, named ``part0``.  Files in the sub-folder includes three types of data, i.e., the graph structure (``graph.dgl``), the node features (``node_feat.dgl``), and edge features (``edge_feat.dgl``). The ``node_mapping.pt`` and ``edge_mapping.pt`` contain the ID mapping between the raw node and edge IDs with the built graph node and edge IDs.
 
 .. _launch-training:
 

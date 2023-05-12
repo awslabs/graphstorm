@@ -21,7 +21,7 @@ There are two options to prepare your own graph data for using GraphStorm:
 
 Option 1: Required raw data format
 .......................................
-GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the `gconstruct README <https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme>`_, and the :ref:`Graph Construction Configurations<configurations-gconstruction>`.
+GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the :ref:`Graph Construction Configurations<configurations-gconstruction>`.
 
 In general, the graph construction tool needs three sets of files.
 
@@ -29,7 +29,7 @@ In general, the graph construction tool needs three sets of files.
 * A set of raw node data files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
 * A set of raw edge data files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
 
-This tutorial use the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.
+This tutorial uses the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.
 
 First go the ``/graphstorm/examples/`` folder.
 
@@ -65,7 +65,7 @@ Once successful, the command will create a set of folders and files under the ``
 
 The input configuration JSON
 ```````````````````````````````
-GraphStorm's graph construction tool relies on the configuration JSON to provide graph information. The explain the format of the configuration JSON contents is in the `gconstruct README <https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme>`_. Below show the contents of the examplar ACM config.json file.
+GraphStorm's graph construction tool relies on the configuration JSON to provide graph information. Explanations of the format of the configuration JSON contents could be found in the :ref:`GraphStorm Graph Configuration JSON <gconstruction-json>`. Below show the contents of the examplar ACM config.json file.
 
 .. code-block:: json
 
@@ -255,7 +255,7 @@ The configuration JSON file along with these node and edge parquet files are the
 
 Outputs of graph construction
 ```````````````````````````````
-The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read in all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be created under the ``/tmp/acm_nc/`` folder as followings:
+The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be created under the ``/tmp/acm_nc/`` folder as followings:
 
 .. code-block:: bash
 
@@ -269,6 +269,8 @@ The above command reads in the JSON file, and matchs its contents with the node 
         node_feat.dgl 
 
 Because the above command specifies the ``--num_partitions`` to be ``1``, there is only one partition created, which is saved in the ``part0`` folder. These files become the inputs of GraphStorm's launch scripts.
+
+.. note:: Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large dataset.
 
 Option 2: Required DGL graph
 ................................
@@ -341,8 +343,8 @@ It is common that users will copy and reuse GraphStorm's built-in scripts and ya
 
 For Classification/Regression tasks:
 
-- **label_field**: please change values of this field to fit to the field name of labeled data in your graph data.
-- **num_classes**: please change values of this filed to fit to the number of classes to be predicted in your graph data if doing a Classification task.
+- **label_field**: please change values of this field to specify the field name of labeled data in your graph data.
+- **num_classes**: please change values of this filed to specify the number of classes to be predicted in your graph data if doing a Classification task.
 
 For Node Classification/Regression tasks:
 
@@ -359,7 +361,7 @@ For Link Prediction tasks:
 
 Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the yaml files. For example, in an edge-related task, you should provide a canonical edge type, e.g. `**user,write,paper**` (no white spaces in this string), for edge types, rather than the edge name only, e.g. the `**write**`. 
 
-For more detailed information of these options, please refer to the :ref:`GraphStorm Launch Configurations <configurations-run>` page.
+For more detailed information of these options, please refer to the :ref:`GraphStorm Training and Inference Configurations <configurations-run>` page.
 
 An example ACM  YAML file for node classification
 ..................................................
@@ -399,7 +401,7 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         sparse_optimizer_lr: 1e-2
         use_node_embeddings: false
     node_classification:
-        node-feat-name:
+        node_feat_name:
           - "paper:feat"
           - "author:feat"
           - "subject:feat"
@@ -437,7 +439,7 @@ Below is a launch script example that trains a GraphStorm built-in RGCN model on
             --cf /tmp/acm_nc.yaml \
             --node-feat-name paper:feat author:feat subject:feat
 
-Similar to the :ref:`Quick-Start <quick-start>` tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.
+Similar to the :ref:`Quick-Start <quick-start-standalone>` tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.
 
 .. code-block:: bash
 

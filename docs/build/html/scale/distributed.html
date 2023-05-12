@@ -157,7 +157,7 @@
   <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
@@ -209,23 +209,23 @@
         <article role="main">
           <section id="use-graphstorm-in-a-distributed-cluster">
 <span id="distributed-cluster"></span><h1>Use GraphStorm in a Distributed Cluster<a class="headerlink" href="#use-graphstorm-in-a-distributed-cluster" title="Permalink to this heading">#</a></h1>
-<p>GraphStorm can handle the enterprise-level graphs in the distributed mode with a cluster. To leverage this feature, there are four steps to follow:</p>
+<p>GraphStorm can scale to the enterprise-level graphs in the distributed mode with a cluster. To leverage this capacity, there are four steps to follow:</p>
 <ul class="simple">
 <li><p>Create a cluster with instances each of which can run GraphStorm Docker container.</p></li>
 <li><p>Set up IP address configuration and check port 2222 status.</p></li>
-<li><p>Process and partition large graphs into distributed format.</p></li>
+<li><p>Partition large graphs into distributed format.</p></li>
 <li><p>Launch the training within one instance’ container.</p></li>
 </ul>
 <p>The first section of this tutorial uses the <a class="reference external" href="https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag">OGB-MAG</a> as example data and demonstrate how to use GraphStorm to train an RGCN model (a built-in model) in a cluster with three EC2 instances. The OGB-MAG data is large enough to demonstrate the scalability of GraphStorm, and also small enough to finish this tutorial in one hour.</p>
 <section id="create-a-graphstorm-cluster">
 <h2>Create a GraphStorm Cluster<a class="headerlink" href="#create-a-graphstorm-cluster" title="Permalink to this heading">#</a></h2>
-<section id="setup-of-each-instance-in-a-cluster">
-<h3>Setup of each instance in a cluster<a class="headerlink" href="#setup-of-each-instance-in-a-cluster" title="Permalink to this heading">#</a></h3>
-<p>A GraphStorm cluster contains several GPU installed instances each of which can run GraphStorm Docker container. For each instance, please follow the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">Environment Setup</span></a> description to setup GraphStorm Docker container environment. This tutorial uses three EC2 instances in the cluster.</p>
+<section id="setup-the-instance-of-a-cluster">
+<h3>Setup the instance of a cluster<a class="headerlink" href="#setup-the-instance-of-a-cluster" title="Permalink to this heading">#</a></h3>
+<p>A cluster contains several GPU installed instances each of which can run GraphStorm Docker container. For each instance, please follow the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">Environment Setup</span></a> description to setup GraphStorm Docker container environment. This tutorial uses three EC2 instances in the cluster.</p>
 </section>
 <section id="setup-of-a-shared-file-system-for-the-cluster">
 <h3>Setup of a shared file system for the cluster<a class="headerlink" href="#setup-of-a-shared-file-system-for-the-cluster" title="Permalink to this heading">#</a></h3>
-<p>A GraphStorm cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.</p>
+<p>A cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.</p>
 <p><a class="reference external" href="https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system">Here</a> is the instruction of setting up NFS for a cluster provided by DGL. As the steps of setup of an NFS could be various for different systems, we suggest users to look for additional information about NFS setting. Here are some available sources: <a class="reference external" href="https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04">NFS tutorial</a> by DigitalOcean, <a class="reference external" href="https://ubuntu.com/server/docs/service-nfs">NFS document</a> for Ubuntu, <a class="reference external" href="https://www.linode.com/docs/guides/using-an-nfs-server-on-ubuntu2004/">NFS guide</a> by Linode, <a class="reference external" href="https://www.tecmint.com/how-to-setup-nfs-server-in-linux/">NFS tutorial</a> at Tecmint, and <a class="reference external" href="https://www.howtoforge.com/how-to-install-nfs-server-and-client-on-ubuntu-22-04/">NFS guide</a> by HowtoForge.</p>
 <p>For an AWS EC2 cluster, users can use EFS as the shared file system. Follow 1) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/gs-step-two-create-efs-resources.html">the instruction of creating EFS</a>; 2) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html">the instruction of installing an EFS client</a>; 3) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/efs-mount-helper.html">the instructions of mounting the EFS filesystem</a>.</p>
 <p>After setting up a shared file system, we can keep all partitioned graph data in the shared folder. Then mount the data folder to the <code class="docutils literal notranslate"><span class="pre">/path_to_data/</span></code> of each instances in the cluster so that all GraphStorm containers in the cluster can access these partitioned graph data easily.</p>
@@ -270,8 +270,8 @@
 </div>
 </section>
 </section>
-<section id="process-and-partition-a-graph">
-<h2>Process and Partition a Graph<a class="headerlink" href="#process-and-partition-a-graph" title="Permalink to this heading">#</a></h2>
+<section id="partition-a-graph">
+<h2>Partition a Graph<a class="headerlink" href="#partition-a-graph" title="Permalink to this heading">#</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>All commands below should be run in a GraphStorm Docker container. Please refer to the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">GraphStorm Docker environment setup</span></a> to prepare your environment.</p>
@@ -296,8 +296,8 @@
 <img alt="../_images/3partitions-files.png" src="../_images/3partitions-files.png" />
 </figure>
 </section>
-<section id="launch-training-in-one-container">
-<h2>Launch Training in One Container<a class="headerlink" href="#launch-training-in-one-container" title="Permalink to this heading">#</a></h2>
+<section id="launch-training-on-one-container">
+<h2>Launch Training on One Container<a class="headerlink" href="#launch-training-on-one-container" title="Permalink to this heading">#</a></h2>
 <p>When graph partition data is ready, it is easy to launch a distributed training job. Pick a GraphStorm container, e.g. the container with IP address <code class="docutils literal notranslate"><span class="pre">172.37.11.221</span></code>, and run the following command.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_link_prediction<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--workspace<span class="w"> </span>/data/ogbn-mag-lp/<span class="w"> </span><span class="se">\</span>
@@ -334,8 +334,8 @@
 </ul>
 </div>
 </section>
-<section id="id4">
-<h3>Process and Partition a Graph<a class="headerlink" href="#id4" title="Permalink to this heading">#</a></h3>
+<section id="process-and-partition-a-graph">
+<h3>Process and Partition a Graph<a class="headerlink" href="#process-and-partition-a-graph" title="Permalink to this heading">#</a></h3>
 <p>Run the below command to download and partition the OGBN-Papers100M data for a node classification task, which will predict the category of a paper. Because the ogbn-papers100M is one of GraphStorm’s built-in datasets, we do not specify some arguments, such as <code class="docutils literal notranslate"><span class="pre">target_ntype</span></code>, <code class="docutils literal notranslate"><span class="pre">nlabel_field</span></code>, and <code class="docutils literal notranslate"><span class="pre">ntask_type</span></code>, which have been automatically handled by GraphStorm’s <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/data/ogbn_datasets.py">ogbn_datasets.py</a>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/tools/partition_graph.py<span class="w"> </span>--dataset<span class="w"> </span>ogbn-papers100M<span class="w"> </span><span class="se">\</span>
 <span class="w">                                            </span>--filepath<span class="w"> </span>/data<span class="w"> </span><span class="se">\</span>
@@ -395,8 +395,8 @@
 </pre></div>
 </div>
 </section>
-<section id="id5">
-<h3>Launch Training in One Container<a class="headerlink" href="#id5" title="Permalink to this heading">#</a></h3>
+<section id="launch-training-in-one-container">
+<h3>Launch Training in One Container<a class="headerlink" href="#launch-training-in-one-container" title="Permalink to this heading">#</a></h3>
 <p>Launch the training for the OGBN-Papers100M is similar as the OGBN-MAG data. Pick a GraphStorm container, e.g. the container with IP address <code class="docutils literal notranslate"><span class="pre">172.37.11.221</span></code>, and run the following command.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--workspace<span class="w"> </span>/data/<span class="w"> </span><span class="se">\</span>
@@ -474,7 +474,7 @@
             <ul>
 <li><a class="reference internal" href="#">Use GraphStorm in a Distributed Cluster</a><ul>
 <li><a class="reference internal" href="#create-a-graphstorm-cluster">Create a GraphStorm Cluster</a><ul>
-<li><a class="reference internal" href="#setup-of-each-instance-in-a-cluster">Setup of each instance in a cluster</a></li>
+<li><a class="reference internal" href="#setup-the-instance-of-a-cluster">Setup the instance of a cluster</a></li>
 <li><a class="reference internal" href="#setup-of-a-shared-file-system-for-the-cluster">Setup of a shared file system for the cluster</a></li>
 <li><a class="reference internal" href="#create-graphstorm-container-by-mounting-the-nfs-folder">Create GraphStorm container by mounting the NFS folder</a></li>
 </ul>
@@ -484,13 +484,13 @@
 <li><a class="reference internal" href="#check-port-2222">Check port 2222</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#process-and-partition-a-graph">Process and Partition a Graph</a></li>
-<li><a class="reference internal" href="#launch-training-in-one-container">Launch Training in One Container</a></li>
+<li><a class="reference internal" href="#partition-a-graph">Partition a Graph</a></li>
+<li><a class="reference internal" href="#launch-training-on-one-container">Launch Training on One Container</a></li>
 <li><a class="reference internal" href="#train-a-large-graph-ogbn-papers100m">Train a Large Graph (OGBN-Papers100M)</a><ul>
 <li><a class="reference internal" href="#id3">Create a GraphStorm Cluster</a></li>
-<li><a class="reference internal" href="#id4">Process and Partition a Graph</a></li>
+<li><a class="reference internal" href="#process-and-partition-a-graph">Process and Partition a Graph</a></li>
 <li><a class="reference internal" href="#distribute-partitioned-graphs-and-configurations-to-all-instances">Distribute Partitioned Graphs and Configurations to all Instances</a></li>
-<li><a class="reference internal" href="#id5">Launch Training in One Container</a></li>
+<li><a class="reference internal" href="#launch-training-in-one-container">Launch Training in One Container</a></li>
 </ul>
 </li>
 </ul>

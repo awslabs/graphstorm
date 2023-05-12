@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="GraphStorm Configurations" href="../configuration/index.html" /><link rel="prev" title="Quick Start Tutorial" href="quick-start.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="GraphStorm Configurations" href="../configuration/index.html" /><link rel="prev" title="Standalone Mode Quick Start Tutorial" href="quick-start.html" />
 
     <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
         <title>Use Your Own Data Tutorial - GraphStorm 0.1 documentation</title>
@@ -157,7 +157,7 @@
   <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quick-start.html">Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
@@ -228,14 +228,14 @@
 </ul>
 <section id="option-1-required-raw-data-format">
 <h3>Option 1: Required raw data format<a class="headerlink" href="#option-1-required-raw-data-format" title="Permalink to this heading">#</a></h3>
-<p>GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme">gconstruct README</a>, and the <a class="reference internal" href="../configuration/configuration-gconstruction.html#configurations-gconstruction"><span class="std std-ref">Graph Construction Configurations</span></a>.</p>
+<p>GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The general information about the raw data format can be found in the <a class="reference internal" href="../configuration/configuration-gconstruction.html#configurations-gconstruction"><span class="std std-ref">Graph Construction Configurations</span></a>.</p>
 <p>In general, the graph construction tool needs three sets of files.</p>
 <ul class="simple">
 <li><p>A configuration JSON file, which describes the graph structure, i.e. nodes and edges, the tasks to perform, the node features, and data file paths.</p></li>
 <li><p>A set of raw node data files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
 <li><p>A set of raw edge data files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.</p></li>
 </ul>
-<p>This tutorial use the <a class="reference external" href="https://data.dgl.ai/dataset/ACM.mat">ACM publication graph</a> as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.</p>
+<p>This tutorial uses the <a class="reference external" href="https://data.dgl.ai/dataset/ACM.mat">ACM publication graph</a> as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.</p>
 <p>First go the <code class="docutils literal notranslate"><span class="pre">/graphstorm/examples/</span></code> folder.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/graphstorm/examples
 </pre></div>
@@ -262,7 +262,7 @@ config.json
 </div>
 <section id="the-input-configuration-json">
 <span id="input-config"></span><h4>The input configuration JSON<a class="headerlink" href="#the-input-configuration-json" title="Permalink to this heading">#</a></h4>
-<p>GraphStorm’s graph construction tool relies on the configuration JSON to provide graph information. The explain the format of the configuration JSON contents is in the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct#readme">gconstruct README</a>. Below show the contents of the examplar ACM config.json file.</p>
+<p>GraphStorm’s graph construction tool relies on the configuration JSON to provide graph information. Explanations of the format of the configuration JSON contents could be found in the <a class="reference internal" href="../configuration/configuration-gconstruction.html#gconstruction-json"><span class="std std-ref">GraphStorm Graph Configuration JSON</span></a>. Below show the contents of the examplar ACM config.json file.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;nodes&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">        </span><span class="p">{</span>
@@ -443,7 +443,7 @@ config.json
 </section>
 <section id="outputs-of-graph-construction">
 <span id="output-graph-construction"></span><h4>Outputs of graph construction<a class="headerlink" href="#outputs-of-graph-construction" title="Permalink to this heading">#</a></h4>
-<p>The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read in all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be created under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder as followings:</p>
+<p>The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be created under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder as followings:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/tmp/acm_nc
 acm.json
 node_mapping.pt
@@ -455,6 +455,10 @@ edge_mapping.pt
 </pre></div>
 </div>
 <p>Because the above command specifies the <code class="docutils literal notranslate"><span class="pre">--num_partitions</span></code> to be <code class="docutils literal notranslate"><span class="pre">1</span></code>, there is only one partition created, which is saved in the <code class="docutils literal notranslate"><span class="pre">part0</span></code> folder. These files become the inputs of GraphStorm’s launch scripts.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large dataset.</p>
+</div>
 </section>
 </section>
 <section id="option-2-required-dgl-graph">
@@ -539,8 +543,8 @@ edge_mapping.pt
 </ul>
 <p>For Classification/Regression tasks:</p>
 <ul class="simple">
-<li><p><strong>label_field</strong>: please change values of this field to fit to the field name of labeled data in your graph data.</p></li>
-<li><p><strong>num_classes</strong>: please change values of this filed to fit to the number of classes to be predicted in your graph data if doing a Classification task.</p></li>
+<li><p><strong>label_field</strong>: please change values of this field to specify the field name of labeled data in your graph data.</p></li>
+<li><p><strong>num_classes</strong>: please change values of this filed to specify the number of classes to be predicted in your graph data if doing a Classification task.</p></li>
 </ul>
 <p>For Node Classification/Regression tasks:</p>
 <ul class="simple">
@@ -556,7 +560,7 @@ edge_mapping.pt
 <li><p><strong>eval_etype</strong>: it is highly recommended that you set this value to be the same as the value of <code class="docutils literal notranslate"><span class="pre">train_etype</span></code>, so that the evaluation metric can truly demonstrate the performance of models.</p></li>
 </ul>
 <p>Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the yaml files. For example, in an edge-related task, you should provide a canonical edge type, e.g. <cite>**user,write,paper**</cite> (no white spaces in this string), for edge types, rather than the edge name only, e.g. the <cite>**write**</cite>.</p>
-<p>For more detailed information of these options, please refer to the <a class="reference internal" href="../configuration/configuration-run.html#configurations-run"><span class="std std-ref">GraphStorm Launch Configurations</span></a> page.</p>
+<p>For more detailed information of these options, please refer to the <a class="reference internal" href="../configuration/configuration-run.html#configurations-run"><span class="std std-ref">GraphStorm Training and Inference Configurations</span></a> page.</p>
 <section id="an-example-acm-yaml-file-for-node-classification">
 <h3>An example ACM  YAML file for node classification<a class="headerlink" href="#an-example-acm-yaml-file-for-node-classification" title="Permalink to this heading">#</a></h3>
 <p>Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm’s built-in RGCN model for node classification on the <code class="docutils literal notranslate"><span class="pre">paper</span></code> nodes. The YAML file can also be found at the <a class="reference external" href="hhttps://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml">/graphstorm/examples/use_your_own_data/acm_nc.yaml</a>.</p>
@@ -592,7 +596,7 @@ edge_mapping.pt
 <span class="w">    </span><span class="nt">sparse_optimizer_lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-2</span>
 <span class="w">    </span><span class="nt">use_node_embeddings</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="nt">node_classification</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">node-feat-name</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">node_feat_name</span><span class="p">:</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;paper:feat&quot;</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;author:feat&quot;</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;subject:feat&quot;</span>
@@ -629,7 +633,7 @@ edge_mapping.pt
 <span class="w">        </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span>author:feat<span class="w"> </span>subject:feat
 </pre></div>
 </div>
-<p>Similar to the <a class="reference internal" href="quick-start.html#quick-start"><span class="std std-ref">Quick-Start</span></a> tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.</p>
+<p>Similar to the <a class="reference internal" href="quick-start.html#quick-start-standalone"><span class="std std-ref">Quick-Start</span></a> tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--inference<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--workspace<span class="w"> </span>/graphstorm/examples/use_your_own_data<span class="w"> </span><span class="se">\</span>
@@ -669,7 +673,7 @@ edge_mapping.pt
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Quick Start Tutorial</div>
+                <div class="title">Standalone Mode Quick Start Tutorial</div>
                 
               </div>
             </a>

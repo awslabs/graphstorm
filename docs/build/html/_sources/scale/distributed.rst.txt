@@ -2,11 +2,11 @@
 
 Use GraphStorm in a Distributed Cluster
 ========================================
-GraphStorm can handle the enterprise-level graphs in the distributed mode with a cluster. To leverage this feature, there are four steps to follow:
+GraphStorm can scale to the enterprise-level graphs in the distributed mode with a cluster. To leverage this capacity, there are four steps to follow:
 
 * Create a cluster with instances each of which can run GraphStorm Docker container.
 * Set up IP address configuration and check port 2222 status.
-* Process and partition large graphs into distributed format.
+* Partition large graphs into distributed format.
 * Launch the training within one instance' container.
 
 The first section of this tutorial uses the `OGB-MAG <https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag>`_ as example data and demonstrate how to use GraphStorm to train an RGCN model (a built-in model) in a cluster with three EC2 instances. The OGB-MAG data is large enough to demonstrate the scalability of GraphStorm, and also small enough to finish this tutorial in one hour.
@@ -14,13 +14,13 @@ The first section of this tutorial uses the `OGB-MAG <https://ogb.stanford.edu/d
 Create a GraphStorm Cluster
 ----------------------------
 
-Setup of each instance in a cluster
+Setup the instance of a cluster
 .......................................
-A GraphStorm cluster contains several GPU installed instances each of which can run GraphStorm Docker container. For each instance, please follow the :ref:`Environment Setup <setup>` description to setup GraphStorm Docker container environment. This tutorial uses three EC2 instances in the cluster.
+A cluster contains several GPU installed instances each of which can run GraphStorm Docker container. For each instance, please follow the :ref:`Environment Setup <setup>` description to setup GraphStorm Docker container environment. This tutorial uses three EC2 instances in the cluster.
 
 Setup of a shared file system for the cluster
 ...............................................
-A GraphStorm cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
+A cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
 
 `Here <https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system>`_ is the instruction of setting up NFS for a cluster provided by DGL. As the steps of setup of an NFS could be various for different systems, we suggest users to look for additional information about NFS setting. Here are some available sources: `NFS tutorial <https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04>`_ by DigitalOcean, `NFS document <https://ubuntu.com/server/docs/service-nfs>`_ for Ubuntu, `NFS guide <https://www.linode.com/docs/guides/using-an-nfs-server-on-ubuntu2004/>`_ by Linode, `NFS tutorial <https://www.tecmint.com/how-to-setup-nfs-server-in-linux/>`_ at Tecmint, and `NFS guide <https://www.howtoforge.com/how-to-install-nfs-server-and-client-on-ubuntu-22-04/>`_ by HowtoForge.
 
@@ -72,7 +72,7 @@ In the container environment, users can check the connectivity with the command 
 
     ssh 172.38.12.143 -p 2222
 
-Process and Partition a Graph
+Partition a Graph
 -------------------------------
 
 .. note::
@@ -103,7 +103,7 @@ After this command completes successfully, the partitioned OGBN-MAG graph is sto
 .. figure:: ../../../tutorial/3partitions-files.png
     :align: center
 
-Launch Training in One Container
+Launch Training on One Container
 ---------------------------------
 When graph partition data is ready, it is easy to launch a distributed training job. Pick a GraphStorm container, e.g. the container with IP address ``172.37.11.221``, and run the following command. 
 

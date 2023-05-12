@@ -183,7 +183,7 @@ GraphStorm provides a set of parameters to control model evaluation.
 - **eval_fanout**: (**Required**) The fanout of each GNN layers used in evaluation and inference. It follows the same format as fanout.
     - Yaml: ``eval_fanout: "10,10"``
     - Argument: ``--eval-fanout 10,10``
-    - Default value: This parameter must be provided by user.
+    - Default value: This parameter must be provided by user. But if set the ``--num_layers`` to be 0, which means there is no GNN layer, no need to specify this configuration.
 - **use_mini_batch_infer**: Set true to do mini-batch inference during evaluation and inference. Set false to do full-graph inference during evaluation and inference. For node classification/regression and edge classification/regression tasks, if the evaluation set or testing set is small, mini-batch inference can be more efficient as it does not waste resources to compute node embeddings for nodes not used during inference. However, if the test set is large or the task is link prediction, full graph inference (set use_mini_batch_infer to false) is preferred, as it avoids recomputing node embeddings during inference.
     - Yaml: ``use_mini_batch_infer: false``
     - Argument: ``--use-mini-batch-infer false``

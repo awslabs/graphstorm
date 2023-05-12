@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use Your Own Data Tutorial" href="own-data.html" /><link rel="prev" title="Environment Setup" href="../install/env-setup.html" />
 
     <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
-        <title>Quick Start Tutorial - GraphStorm 0.1 documentation</title>
+        <title>Standalone Mode Quick Start Tutorial - GraphStorm 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -157,7 +157,7 @@
   <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Quick Start Tutorial</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Standalone Mode Quick Start Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="own-data.html">Use Your Own Data Tutorial</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
@@ -207,10 +207,10 @@
           </label>
         </div>
         <article role="main">
-          <section id="quick-start-tutorial">
-<span id="quick-start"></span><h1>Quick Start Tutorial<a class="headerlink" href="#quick-start-tutorial" title="Permalink to this heading">#</a></h1>
+          <section id="standalone-mode-quick-start-tutorial">
+<span id="quick-start-standalone"></span><h1>Standalone Mode Quick Start Tutorial<a class="headerlink" href="#standalone-mode-quick-start-tutorial" title="Permalink to this heading">#</a></h1>
 <p>GraphStorm provides a set of tools, which can help users to use built-in datasets as examples to quickly learn the general steps of using GraphStorm.</p>
-<p>GraphStorm is designed for easy to use GML models, parcularly the graph neural networks (GNNs) models. Users only need to perform three operations:</p>
+<p>GraphStorm is designed for easy-to-use GML models, particularly the graph neural network (GNN) models. Users only need to perform three operations:</p>
 <ul class="simple">
 <li><ol class="arabic simple">
 <li><p>Prepare Graph dataset in the required format as inputs of GraphStorm;</p></li>
@@ -242,13 +242,15 @@
 <p>This command will automatically download ogbn-arxiv data and split the graph into one partition. Outcomes of the command are a set of files saved in the <code class="docutils literal notranslate"><span class="pre">/tmp/ogbn_arxiv_nc_1p/</span></code> folder, as shown below.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/tmp/ogbn_arxiv_nc_1p:
 ogbn-arxiv.json
+node_mapping.pt
+edge_mapping.pt
 <span class="p">|</span>-<span class="w"> </span>part0:
 <span class="w">    </span>edge_feat.dgl
 <span class="w">    </span>graph.dgl
 <span class="w">    </span>node_feat.dgl
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">ogbn-arxiv.json</span></code> file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument <code class="docutils literal notranslate"><span class="pre">--num_parts</span> <span class="pre">1</span></code>, there is one sub-folder, named <code class="docutils literal notranslate"><span class="pre">part0</span></code>.  Files in the sub-folder includes three types of data, i.e., the graph structure (<code class="docutils literal notranslate"><span class="pre">graph.dgl</span></code>), the node features (<code class="docutils literal notranslate"><span class="pre">node_feat.dgl</span></code>), and edge features (<code class="docutils literal notranslate"><span class="pre">edge_feat.dgl</span></code>).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">ogbn-arxiv.json</span></code> file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument <code class="docutils literal notranslate"><span class="pre">--num_parts</span> <span class="pre">1</span></code>, there is one sub-folder, named <code class="docutils literal notranslate"><span class="pre">part0</span></code>.  Files in the sub-folder includes three types of data, i.e., the graph structure (<code class="docutils literal notranslate"><span class="pre">graph.dgl</span></code>), the node features (<code class="docutils literal notranslate"><span class="pre">node_feat.dgl</span></code>), and edge features (<code class="docutils literal notranslate"><span class="pre">edge_feat.dgl</span></code>). The <code class="docutils literal notranslate"><span class="pre">node_mapping.pt</span></code> and <code class="docutils literal notranslate"><span class="pre">edge_mapping.pt</span></code> contain the ID mapping between the raw node and edge IDs with the built graph node and edge IDs.</p>
 </section>
 <section id="launch-training">
 <span id="id1"></span><h2>Launch Training<a class="headerlink" href="#launch-training" title="Permalink to this heading">#</a></h2>
@@ -379,7 +381,7 @@ ogbn-arxiv.json
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Quick Start Tutorial</a><ul>
+<li><a class="reference internal" href="#">Standalone Mode Quick Start Tutorial</a><ul>
 <li><a class="reference internal" href="#download-and-partition-ogb-arxiv-data">Download  and Partition OGB-arxiv Data</a></li>
 <li><a class="reference internal" href="#launch-training">Launch Training</a></li>
 <li><a class="reference internal" href="#launch-inference">Launch inference</a></li>
