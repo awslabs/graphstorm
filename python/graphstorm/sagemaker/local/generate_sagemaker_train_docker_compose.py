@@ -80,7 +80,7 @@ if __name__ == "__main__":
                     f'--graph-name {args.graph_name} ' \
                     f'--train-yaml-s3 {args.train_yaml_s3} ' \
                     f'--enable-bert {args.enable_bert} ' \
-                    f'--output-data-s3 {args.output_s3} ' \
+                    f'--output-s3 {args.output_s3} ' \
                     f'{custom_script} ' + \
                     ' '.join(unknownargs)
         return {
@@ -91,6 +91,7 @@ if __name__ == "__main__":
                 'command': cmd,
                 'environment':
                     {
+                    'SM_NUM_GPUS': 1,
                     'SM_TRAINING_ENV': \
                         f'{{"hosts": {host_list}, "current_host": "algo-{instance_idx}"}}',
                     'RANK': instance_idx,

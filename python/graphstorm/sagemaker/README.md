@@ -141,6 +141,17 @@ Preparing training data and training task config
 
 Launch train task
 ```
+python3 -m graphstorm.sagemaker.launch.launch_train \
+        --image-url <AMAZON_ECR_IMAGE_PATH> \
+        --region us-east-1 \
+        --entry-point run/sagemaker_train.py \
+        --role <ARN_ROLE> \
+        --graph-data-s3 <GRAPH_INPUT_DATA> \
+        --graph-name ogbn-arxiv \
+        --task-type "node_classification" \
+        --train-yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
+        --output-s3 <S3_PATH_TO_SAVE_TRAINED_MODEL> \
+        --num-layers 1 --hidden-size 128 --backend gloo --batch-size 128 --node-feat-name node:feat
 ```
 
 
