@@ -200,6 +200,15 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
         print(f"Can not download graph_data from {graph_data_s3}.")
         raise RuntimeError(f"Can not download graph_data from {graph_data_s3}.")
 
+    node_id_mapping = "node_mapping.pt"
+
+    # Try to download node id mapping file if any
+    try:
+        S3Downloader.download(os.path.join(graph_data_s3, node_id_mapping),
+            graph_path, sagemaker_session=sagemaker_session)
+    except Exception: # pylint: disable=broad-except
+        print("node id mapping file does not exist")
+
     return os.path.join(graph_path, graph_config)
 
 

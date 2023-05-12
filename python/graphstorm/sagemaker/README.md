@@ -133,27 +133,35 @@ interact with S3 so you would require valid AWS credentials to run.
 
 ### Launch GraphStorm training/inference using Amazon SageMaker service
 
-### Launch train task using built-in training script
+#### Launch train task using built-in training script
 
-Preparing training data and training task config
+##### Preparing training data and training task config.
 ```
+cd ~/
+git clone https://github.com/awslabs/graphstorm.git
+GS_HOME=~/graphstorm/
+python3 $GS_HOME/tools/partition_graph.py --dataset ogbn-arxiv \
+                                          --filepath /tmp/ogbn-arxiv-nc/ \
+                                          --num_parts 2 \
+                                          --output /tmp/ogbn_arxiv_nc_2p
 ```
 
-Launch train task
+You need to upload /tmp/ogbn_arxiv_nc_2p into S3.
+
+##### Launch train task
 ```
 python3 -m graphstorm.sagemaker.launch.launch_train \
         --image-url <AMAZON_ECR_IMAGE_PATH> \
         --region us-east-1 \
         --entry-point run/sagemaker_train.py \
         --role <ARN_ROLE> \
-        --graph-data-s3 <GRAPH_INPUT_DATA> \
+        --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
         --graph-name ogbn-arxiv \
         --task-type "node_classification" \
         --train-yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
         --output-s3 <S3_PATH_TO_SAVE_TRAINED_MODEL> \
         --num-layers 1 --hidden-size 128 --backend gloo --batch-size 128 --node-feat-name node:feat
 ```
-
 
 ### Launch train task using user-defined training script
 
