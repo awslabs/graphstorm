@@ -214,6 +214,7 @@ def lp_mini_batch_predict(model, emb, loader, device):
                     canonical_etype = list(pos_neg_tuple_next.keys())[0]
                     if canonical_etype != prev_canonical_etype:
                         node_list[prev_canonical_etype] = (pos_src, neg_src, pos_dst, neg_dst)
+                        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple_next[canonical_etype]
                     else:
                         pos_src_, neg_src_, pos_dst_, neg_dst_ = pos_neg_tuple_next[canonical_etype]
                         pos_src = th.cat((pos_src, pos_src_), dim=0)
@@ -229,8 +230,8 @@ def lp_mini_batch_predict(model, emb, loader, device):
                 pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_embs
                 p_st = ns_st = 0
                 batch_emb = {}
+                # Split the concatenated batch back into orginal batch size to avoid GPU OOM
                 for _ in range(num_batch_to_cat):
-                    # Split the concatenated batch back into orginal batch size to avoid GPU OOM
                     batch_emb[etype] = (pos_src_emb[p_st: p_st + pos_src_size],
                         neg_src_emb[ns_st: ns_st + neg_src_size]
                             if neg_src_emb is not None else None,
