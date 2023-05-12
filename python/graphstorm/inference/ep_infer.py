@@ -82,10 +82,11 @@ class GSgnnEdgePredictionInfer(GSInfer):
             target_ntypes.add(etype[2])
         embs = {ntype: embs[ntype] for ntype in target_ntypes}
         if save_embed_path is not None:
+            device = th.device(f"cuda:{self.dev_id}") \
+                if self.dev_id >= 0 else th.device("cpu")
             save_gsgnn_embeddings(save_embed_path, embs, self.rank,
                 th.distributed.get_world_size(),
-                device = th.device(f"cuda:{self.dev_id}") \
-                    if self.dev_id >= 0 else th.device("cpu")
+                device=device,
                 node_id_mapping_file=node_id_mapping_file)
         th.distributed.barrier()
         sys_tracker.check('save embeddings')
