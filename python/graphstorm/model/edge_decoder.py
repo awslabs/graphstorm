@@ -541,9 +541,8 @@ class LinkPredictDistMultDecoder(GSLayer):
             "Otherwise please use dot product decoder"
         scores = {}
         # TODO (Israt): This for loop is not needed. Dataloader has one etype at a time
-        for canonical_etype, (pos_src, neg_src, pos_dst, neg_dst) in pos_neg_tuple.items():
+        for canonical_etype, (_, neg_src, _, neg_dst) in pos_neg_tuple.items():
             pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_emb
-            utype, _, vtype = canonical_etype
             # pos score
             rid = self.etype2rid[canonical_etype]
             rel_embedding = self._w_relation(
