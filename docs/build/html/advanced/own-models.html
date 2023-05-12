@@ -514,7 +514,7 @@
 </section>
 <section id="put-everything-together-and-run-them">
 <h2>Put Everything Together and Run them<a class="headerlink" href="#put-everything-together-and-run-them" title="Permalink to this heading">#</a></h2>
-<p>With all required modifications ready, let’s put everything of the modified HGT model together in a Python file, e.g, <code class="docutils literal notranslate"><span class="pre">hgt_nc.py</span></code>. We can put the Python file and the related artifacts, including the YAML file, e.g., <code class="docutils literal notranslate"><span class="pre">acm_nc.yaml</span></code>, and the <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file in a folder, e.g. <code class="docutils literal notranslate"><span class="pre">/hgt_nc/</span></code>. And then use the GraphStorm’s launch script to run this dummy model.</p>
+<p>With all required modifications ready, let’s put everything of the modified HGT model together in a Python file, e.g, <code class="docutils literal notranslate"><span class="pre">hgt_nc.py</span></code>. We can put the Python file and the related artifacts, including the YAML file, e.g., <code class="docutils literal notranslate"><span class="pre">acm_nc.yaml</span></code>, and the <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file in a folder, e.g. <code class="docutils literal notranslate"><span class="pre">/hgt_nc/</span></code>. And then use the GraphStorm’s launch script to run this modified HGT model.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">~/</span><span class="n">dgl</span><span class="o">/</span><span class="n">tools</span><span class="o">/</span><span class="n">launch</span><span class="o">.</span><span class="n">py</span> \
         <span class="o">--</span><span class="n">workspace</span> <span class="o">/</span><span class="n">hgt_nc</span> \
         <span class="o">--</span><span class="n">part_config</span> <span class="o">/</span><span class="n">hgt_nc</span><span class="o">/</span><span class="n">acm_data</span><span class="o">.</span><span class="n">json</span> \
@@ -523,7 +523,7 @@
         <span class="o">--</span><span class="n">num_servers</span> <span class="mi">1</span> \
         <span class="o">--</span><span class="n">num_samplers</span> <span class="mi">0</span> \
         <span class="o">--</span><span class="n">ssh_port</span> <span class="mi">2222</span> \
-        <span class="s2">&quot;python3 hgt_nc.py --yaml-config-file hgt_nc.yaml </span><span class="se">\</span>
+        <span class="s2">&quot;python3 hgt_nc.py --yaml-config-file acm_nc.yaml </span><span class="se">\</span>
 <span class="s2">                           --part-config acm_data.json </span><span class="se">\</span>
 <span class="s2">                           --ip-config ip_list.txt </span><span class="se">\</span>
 <span class="s2">                           --node-feat-name paper:feat-author:feat-subject:feat&quot;</span>

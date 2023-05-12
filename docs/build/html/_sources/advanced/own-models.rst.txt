@@ -362,7 +362,7 @@ You can add a coefficient, like the ``alpha_l2norm``, to control the influence o
 
 Put Everything Together and Run them
 -------------------------------------
-With all required modifications ready, let's put everything of the modified HGT model together in a Python file, e.g, ``hgt_nc.py``. We can put the Python file and the related artifacts, including the YAML file, e.g., ``acm_nc.yaml``, and the ``ip_list.txt`` file in a folder, e.g. ``/hgt_nc/``. And then use the GraphStorm's launch script to run this dummy model.
+With all required modifications ready, let's put everything of the modified HGT model together in a Python file, e.g, ``hgt_nc.py``. We can put the Python file and the related artifacts, including the YAML file, e.g., ``acm_nc.yaml``, and the ``ip_list.txt`` file in a folder, e.g. ``/hgt_nc/``. And then use the GraphStorm's launch script to run this modified HGT model.
 
 .. code-block:: python
 
@@ -374,7 +374,7 @@ With all required modifications ready, let's put everything of the modified HGT 
             --num_servers 1 \
             --num_samplers 0 \
             --ssh_port 2222 \
-            "python3 hgt_nc.py --yaml-config-file hgt_nc.yaml \
+            "python3 hgt_nc.py --yaml-config-file acm_nc.yaml \
                                --part-config acm_data.json \ 
                                --ip-config ip_list.txt \
                                --node-feat-name paper:feat-author:feat-subject:feat"
