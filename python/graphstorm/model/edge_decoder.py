@@ -349,8 +349,6 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         if neg_src_emb is not None:
             neg_src_emb = neg_src_emb.to(device)
             if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-                neg_src_emb = neg_src_emb.reshape(
-                    neg_src.shape[0], neg_src.shape[1], -1)
                 pos_dst_emb = pos_dst_emb.reshape(
                     pos_dst_emb.shape[0], 1, pos_dst_emb.shape[1])
                 neg_score = calc_dot_pos_score(neg_src_emb, pos_dst_emb)
@@ -376,8 +374,6 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         if neg_dst_emb is not None:
             neg_dst_emb = neg_dst_emb.to(device)
             if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-                neg_dst_emb = neg_dst_emb.reshape(
-                    neg_dst.shape[0], neg_dst.shape[1], -1)
                 # uniform sampled negative samples
                 pos_src_emb = pos_src_emb.reshape(
                     pos_src_emb.shape[0], 1, pos_src_emb.shape[1])
@@ -551,9 +547,8 @@ class LinkPredictDistMultDecoder(GSLayer):
                 pos_src_emb, pos_dst_emb, rel_embedding, device)
             neg_scores = []
 
-            if neg_src is not None:
+            if neg_src_emb is not None:
                 if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-                    neg_src_emb = neg_src_emb.reshape(neg_src.shape[0], neg_src.shape[1], -1)
                     # uniform sampled negative samples
                     pos_dst_emb = pos_dst_emb.reshape(
                         pos_dst_emb.shape[0], 1, pos_dst_emb.shape[1])
@@ -582,9 +577,8 @@ class LinkPredictDistMultDecoder(GSLayer):
                 assert len(neg_score.shape) == 2
                 neg_scores.append(neg_score)
 
-            if neg_dst is not None:
+            if neg_dst_emb is not None:
                 if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-                    neg_dst_emb = neg_dst_emb.reshape(neg_dst.shape[0], neg_dst.shape[1], -1)
                     # uniform sampled negative samples
                     pos_src_emb = pos_src_emb.reshape(
                         pos_src_emb.shape[0], 1, pos_src_emb.shape[1])

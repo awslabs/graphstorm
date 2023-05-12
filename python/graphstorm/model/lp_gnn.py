@@ -143,9 +143,12 @@ def get_embs(emb, node_list, neg_sample_type, canonical_etype):
 
     if neg_src is not None:
         neg_src_emb = emb[utype][neg_src.reshape(-1,)]
+        if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+            neg_src_emb = neg_src_emb.reshape(neg_src.shape[0], neg_src.shape[1], -1)
     if neg_dst is not None:
         if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
             neg_dst_emb = emb[vtype][neg_dst.reshape(-1,)]
+            neg_dst_emb = neg_dst_emb.reshape(neg_dst.shape[0], neg_dst.shape[1], -1)
         elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
             neg_dst_emb = emb[vtype][neg_dst]
         else:
@@ -227,7 +230,6 @@ def lp_mini_batch_predict(model, emb, loader, device):
             for etype, item in node_list.items():
                 batch_embs = get_embs(emb, item, neg_sample_type, etype)
                 pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_embs
-
                 p_st = ns_st = 0
                 for _ in range(num_batch_to_cat):
                     # Split the concatenated batch back into orginal batch size to avoid GPU OOM
