@@ -268,7 +268,7 @@ class GSConfig:
 
             We assume node_id mappings are stored as a single object
             along with part_config. (We assume the graph is partitioned
-            using DGL graph partition tools)
+            using DGL graph partition tool)
         """
         path = os.path.dirname(self.part_config)
         # See graphstorm.gconstruct.utils.partition_graph for more detials

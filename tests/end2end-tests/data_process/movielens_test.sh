@@ -47,7 +47,7 @@ fi
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: BERT embeddings, inference: mini-batch"
 
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /tmp/movielens_bert/ml.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_ec.yaml --num-epochs 1 --node-feat-name user:feat movie:title --save-embed-path /tmp/movielens_bert/emb/ --node-id-mapping-file /tmp/movielens_bert/node_mapping.pt
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /tmp/movielens_bert/ml.json --ip_config ip_list.txt --ssh_port 2222 --cf ml_ec.yaml --num-epochs 1 --node-feat-name user:feat movie:title --save-embed-path /tmp/movielens_bert/emb/
 
 error_and_exit $?
 
