@@ -304,20 +304,13 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             scores=th.cat(scores)
             return scores
 
-    def calc_test_scores(self, batch_emb, pos_neg_tuple, neg_sample_type, device):
+    def calc_test_scores(self, batch_embs, neg_sample_type, device):
         """ Compute scores for positive edges and negative edges
 
         Parameters
         ----------
-        batch_emb: Tuple of tensors
-            Node embeddings stored in a tuple
-        pos_neg_tuple: dict of tuple
-            Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source,
-            postive destination, negatve destination).
-            The positive edges: (positive source, positive desitnation)
-            The negative edges: (positive source, negative desitnation) and
-                                (negative source, positive desitnation)
+        batch_embs: dict of tuple
+            Node embeddings stored in a tuple for an edge type
         neg_sample_type: str
             Describe how negative samples are sampled.
                 Uniform: For each positive edge, we sample K negative edges
@@ -332,14 +325,11 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             Return a dictionary of edge type to
             (positive scores, negative scores)
         """
-        # TODO (Israt): This assert is not valid after unfusion.
-        assert isinstance(pos_neg_tuple, dict) and len(pos_neg_tuple) == 1, \
+        assert isinstance(batch_embs, dict) and len(batch_embs) == 1, \
         "DotDecoder is only applicable to link prediction task with " \
         "single target training edge type"
-        canonical_etype = list(pos_neg_tuple.keys())[0]
-        _, neg_src, _, neg_dst = pos_neg_tuple[canonical_etype]
-        pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_emb
-
+        canonical_etype = list(batch_embs.keys())[0]
+        pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_embs[canonical_etype]
         pos_src_emb = pos_src_emb.to(device)
         pos_dst_emb = pos_dst_emb.to(device)
 
@@ -362,7 +352,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
                     "For joint negative sampler, in evaluation" \
                     "negative src/dst embs should in shape of " \
                     "[number_of_negs, dimension size]"
-                neg_src_emb = neg_src_emb.reshape(1, neg_src.shape[0], -1)
+                neg_src_emb = neg_src_emb.reshape(1, neg_src_emb.shape[0], -1)
                 pos_dst_emb = pos_dst_emb.reshape(
                     pos_dst_emb.shape[0], 1, pos_dst_emb.shape[1])
                 neg_score = calc_dot_pos_score(neg_src_emb, pos_dst_emb)
@@ -379,7 +369,6 @@ class LinkPredictDotDecoder(GSLayerNoParam):
                     pos_src_emb.shape[0], 1, pos_src_emb.shape[1])
                 neg_score = calc_dot_pos_score(pos_src_emb, neg_dst_emb)
             elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
-                # neg_dst_emb = neg_dst_emb.to(device)
                 # joint sampled negative samples
                 assert len(pos_src_emb.shape) == 2, \
                     "For joint negative sampler, in evaluation " \
@@ -391,7 +380,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
                     "[number_of_negs, dimension size]"
                 pos_src_emb = pos_src_emb.reshape(
                     pos_src_emb.shape[0], 1, pos_src_emb.shape[1])
-                neg_dst_emb = neg_dst_emb.reshape(1, neg_dst.shape[0], -1)
+                neg_dst_emb = neg_dst_emb.reshape(1, neg_dst_emb.shape[0], -1)
                 neg_score = calc_dot_pos_score(pos_src_emb, neg_dst_emb)
             else:
                 assert False, f"Unknow negative sample type {neg_sample_type}"
@@ -504,20 +493,13 @@ class LinkPredictDistMultDecoder(GSLayer):
             scores=th.cat(scores)
             return scores
 
-    def calc_test_scores(self, batch_emb, pos_neg_tuple, neg_sample_type, device):
+    def calc_test_scores(self, batch_embs, neg_sample_type, device):
         """ Compute scores for positive edges and negative edges
 
         Parameters
         ----------
-        batch_emb: Tuple of tensors
-            Node embeddings stored in a tuple
-        pos_neg_tuple: dict of tuple
-            Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source,
-            postive destination, negatve destination).
-            The positive edges: (positive source, positive desitnation)
-            The negative edges: (positive source, negative desitnation) and
-                                (negative source, positive desitnation)
+        batch_embs: dict of tuple
+            Node embeddings stored in a tuple for different edge types
         neg_sample_type: str
             Describe how negative samples are sampled.
                 Uniform: For each positive edge, we sample K negative edges
@@ -532,12 +514,11 @@ class LinkPredictDistMultDecoder(GSLayer):
             Return a dictionary of edge type to
             (positive scores, negative scores)
         """
-        assert isinstance(pos_neg_tuple, dict), \
-            "DistMulti is only applicable to heterogeneous graphs." \
+        assert isinstance(batch_embs, dict), \
+            "DistMult is only applicable to heterogeneous graphs." \
             "Otherwise please use dot product decoder"
         scores = {}
-        # TODO (Israt): This for loop is not needed. Dataloader has one etype at a time
-        for canonical_etype, (_, neg_src, _, neg_dst) in pos_neg_tuple.items():
+        for canonical_etype, batch_emb in batch_embs.items():
             pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_emb
             # pos score
             rid = self.etype2rid[canonical_etype]
@@ -546,7 +527,6 @@ class LinkPredictDistMultDecoder(GSLayer):
             pos_scores = calc_distmult_pos_score(
                 pos_src_emb, pos_dst_emb, rel_embedding, device)
             neg_scores = []
-
             if neg_src_emb is not None:
                 if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
                     # uniform sampled negative samples

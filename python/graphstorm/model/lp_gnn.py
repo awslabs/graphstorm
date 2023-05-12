@@ -156,12 +156,9 @@ def get_embs(emb, node_list, neg_sample_type, canonical_etype):
     return (pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb)
 
 
-def compute_score(decoder, ranking, batch_emb, pos_neg_tuple, neg_sample_type, device):
+def compute_batch_score(decoder, ranking, batch_emb, neg_sample_type, device):
     """ Compute scores for positive edges and negative edges using batch embeddings"""
-    score = \
-        decoder.calc_test_scores(
-            #  batch_emb, pos_neg_tuple, neg_sample_type, prev_canonical_etype, device)
-            batch_emb, pos_neg_tuple, neg_sample_type, device)
+    score = decoder.calc_test_scores(batch_emb, neg_sample_type, device)
     for canonical_etype, s in score.items():
         # We do not concatenate rankings into a single
         # ranking tensor to avoid unnecessary data copy.
@@ -231,16 +228,16 @@ def lp_mini_batch_predict(model, emb, loader, device):
                 batch_embs = get_embs(emb, item, neg_sample_type, etype)
                 pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_embs
                 p_st = ns_st = 0
+                batch_emb = {}
                 for _ in range(num_batch_to_cat):
                     # Split the concatenated batch back into orginal batch size to avoid GPU OOM
-                    batch_emb = (pos_src_emb[p_st: p_st + pos_src_size],
+                    batch_emb[etype] = (pos_src_emb[p_st: p_st + pos_src_size],
                         neg_src_emb[ns_st: ns_st + neg_src_size]
                             if neg_src_emb is not None else None,
                         pos_dst_emb[p_st: p_st + pos_src_size],
                         neg_dst_emb[ns_st: ns_st + neg_src_size]
                             if neg_dst_emb is not None else None)
-                    compute_score(decoder, ranking, batch_emb, pos_neg_tuple,
-                                  neg_sample_type, device)
+                    compute_batch_score(decoder, ranking, batch_emb, neg_sample_type, device)
                     p_st += pos_src_size
                     ns_st += neg_src_size
                     if p_st >= pos_src_emb.shape[0]:
