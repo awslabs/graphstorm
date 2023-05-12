@@ -196,11 +196,11 @@ def lp_mini_batch_predict(model, emb, loader, device):
     with th.no_grad():
         ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
+            node_list = {}
             canonical_etype = prev_canonical_etype = list(pos_neg_tuple.keys())[0]
             pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[prev_canonical_etype]
             pos_src_size = pos_src.shape[0]
             neg_src_size = neg_src.shape[0]
-            neg_dst_size = neg_dst.shape[0]
             # To optimize network bandwidth usage, we concatenate node lists from multiple
             # batches and retrieve their embeddings with a single remote pull. Heuristically
             # we have found using a batch size of 100K results in efficient network utilization
@@ -210,41 +210,38 @@ def lp_mini_batch_predict(model, emb, loader, device):
             num_batch_to_cat = int(100000/pos_src.shape[0])
             for _ in range(num_batch_to_cat):
                 pos_neg_tuple_next, _ = next(loader, (None, None))
-                if pos_neg_tuple_next is None:
-                    break
-                canonical_etype = list(pos_neg_tuple_next.keys())[0]
-                if canonical_etype != prev_canonical_etype:
-                    batch_embs = get_embs(emb, pos_neg_tuple_next[canonical_etype],
-                                          neg_sample_type, canonical_etype)
-                    compute_score(decoder, ranking, batch_embs, pos_neg_tuple,
-                                  neg_sample_type, device)
-                    break
-                pos_src_, neg_src_, pos_dst_, neg_dst_ = pos_neg_tuple_next[canonical_etype]
-                pos_src = th.cat((pos_src, pos_src_), dim=0)
-                neg_src = th.cat((neg_src, neg_src_), dim=0)
-                pos_dst = th.cat((pos_dst, pos_dst_), dim=0)
-                neg_dst = th.cat((neg_dst, neg_dst_), dim=0)
-                prev_canonical_etype = canonical_etype
+                if pos_neg_tuple_next is not None:
+                    canonical_etype = list(pos_neg_tuple_next.keys())[0]
+                    if canonical_etype != prev_canonical_etype:
+                        node_list[prev_canonical_etype] = (pos_src, neg_src, pos_dst, neg_dst)
+                    else:
+                        pos_src_, neg_src_, pos_dst_, neg_dst_ = pos_neg_tuple_next[canonical_etype]
+                        pos_src = th.cat((pos_src, pos_src_), dim=0)
+                        neg_src = th.cat((neg_src, neg_src_), dim=0)
+                        pos_dst = th.cat((pos_dst, pos_dst_), dim=0)
+                        neg_dst = th.cat((neg_dst, neg_dst_), dim=0)
+                    prev_canonical_etype = canonical_etype
 
-            batch_embs = get_embs(emb, (pos_src, neg_src, pos_dst, neg_dst), neg_sample_type,
-                                  canonical_etype)
-            pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_embs
+            node_list[canonical_etype] = (pos_src, neg_src, pos_dst, neg_dst)
 
-            p_st = ns_st = nd_st = 0
-            for _ in range(num_batch_to_cat):
-                # Split the concatenated batch back into orginal batch size to avoid GPU OOM
-                batch_emb = (pos_src_emb[p_st: p_st + pos_src_size],
-                    neg_src_emb[ns_st: ns_st + neg_src_size]
-                        if neg_src_emb is not None else None,
-                    pos_dst_emb[p_st: p_st + pos_src_size],
-                    neg_dst_emb[nd_st: nd_st + neg_dst_size]
-                        if neg_dst_emb is not None else None)
-                compute_score(decoder, ranking, batch_emb, pos_neg_tuple, neg_sample_type, device)
-                p_st += pos_src_size
-                ns_st += neg_src_size
-                nd_st += neg_dst_size
-                if p_st >= pos_src_emb.shape[0]:
-                    break
+            for etype, item in node_list.items():
+                batch_embs = get_embs(emb, item, neg_sample_type, etype)
+                pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_embs
+
+                p_st = ns_st = 0
+                for _ in range(num_batch_to_cat):
+                    # Split the concatenated batch back into orginal batch size to avoid GPU OOM
+                    batch_emb = (pos_src_emb[p_st: p_st + pos_src_size],
+                        neg_src_emb[ns_st: ns_st + neg_src_size]
+                            if neg_src_emb is not None else None,
+                        pos_dst_emb[p_st: p_st + pos_src_size],
+                        neg_dst_emb[ns_st: ns_st + neg_src_size]
+                            if neg_dst_emb is not None else None)
+                    compute_score(decoder, ranking, batch_emb, pos_neg_tuple, neg_sample_type, device)
+                    p_st += pos_src_size
+                    ns_st += neg_src_size
+                    if p_st >= pos_src_emb.shape[0]:
+                        break
         rankings = {}
         for canonical_etype, rank in ranking.items():
             rankings[canonical_etype] = th.cat(rank, dim=0)
