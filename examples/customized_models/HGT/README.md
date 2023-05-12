@@ -52,12 +52,12 @@ echo 127.0.0.1 > /data/ip_list.txt
 Then run the below command to train the modified HGT model with GraphStorm.
 
 ```shell
-python3 ~/dgl/tools/launch.py \
+python3 -m graphstorm.run.launch \
     --workspace /graphstorm/examples/customized_models/HGT \
-    --part_config /data/acm_nc/acm.json \
-    --ip_config /data/ip_list.txt \
-    --num_trainers 2 \
-    --num_servers 1 \
+    --part-config /data/acm_nc/acm.json \
+    --ip-config /data/ip_list.txt \
+    --num-trainers 2 \
+    --num-servers 1 \
     --num_samplers 0 \
     --ssh_port 2222 \
     "python3 hgt_nc.py --yaml-config-file acm_nc.yaml \
