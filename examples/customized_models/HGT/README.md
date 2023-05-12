@@ -42,17 +42,26 @@ python3 /graphstorm/tools/partition_graph.py \
 ```
 
 **Step 3: Run the modified HGT model**
+First, add a file, named `ip_list.txt`, in the `/data/` folder. Its contents is one line of a localhost ip: "127.0.0.1". Or you can use the folowing two commands to create this file.
+
+```shell
+touch /data/ip_list.txt
+echo 127.0.0.1 > /data/ip_list.txt
+```
+
+Then run the below command to train the modified HGT model with GraphStorm.
+
 ```shell
 python3 ~/dgl/tools/launch.py \
     --workspace /graphstorm/examples/customized_models/HGT \
     --part_config /data/acm_nc/acm.json \
-    --ip_config ip_list.txt \
+    --ip_config /data/ip_list.txt \
     --num_trainers 2 \
     --num_servers 1 \
     --num_samplers 0 \
     --ssh_port 2222 \
     "python3 hgt_nc.py --yaml-config-file acm_nc.yaml \
-                       --ip-config ip_list.txt \
+                       --ip-config /data/ip_list.txt \
                        --node-feat paper:feat-author:feat-subject:feat \
                        --num-heads 8"
 ```
