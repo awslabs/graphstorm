@@ -56,19 +56,28 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
     with th.no_grad():
         pos_neg_tuple = {
             etypes[0]: gen_edge_pairs(),
-            # etypes[1]: gen_edge_pairs(),
+            etypes[1]: gen_edge_pairs(),
         }
         pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
         pos_neg_tuple[etypes[0]] = (pos_src, None, pos_dst, neg_dst)
-        # pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[1]]
-        # pos_neg_tuple[etypes[1]] = (pos_src, neg_src, pos_dst, None)
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         neg_dst_emb = emb[etypes[0][2]][neg_dst]
         batch_embs[etypes[0]] = (pos_src_emb, None, pos_dst_emb, neg_dst_emb)
-        score = decoder.calc_test_scores(batch_embs, neg_sample_type, device)
-        pos_src, _, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
 
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[1]]
+        pos_neg_tuple[etypes[1]] = (pos_src, neg_src, pos_dst, None)
+        pos_src_emb = emb[etypes[1][0]][pos_src]
+        pos_dst_emb = emb[etypes[1][2]][pos_dst]
+        pos_neg_tuple[etypes[1]] = (pos_src, neg_src, pos_dst, None)
+        neg_src_emb = emb[etypes[1][0]][neg_src]
+        batch_embs[etypes[1]] = (pos_src_emb, neg_src_emb, pos_dst_emb, None)
+
+        score = decoder.calc_test_scores(batch_embs, neg_sample_type, device)
+
+        pos_src, _, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_src_emb = emb[etypes[0][0]][pos_src]
+        pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
         pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
         neg_scores = []
@@ -81,18 +90,9 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
 
-        pos_neg_tuple = {
-            # etypes[0]: gen_edge_pairs(),
-            etypes[1]: gen_edge_pairs(),
-        }
         pos_src, neg_src, pos_dst, _ = pos_neg_tuple[etypes[1]]
         pos_src_emb = emb[etypes[1][0]][pos_src]
         pos_dst_emb = emb[etypes[1][2]][pos_dst]
-        pos_neg_tuple[etypes[1]] = (pos_src, neg_src, pos_dst, None)
-        neg_src_emb = emb[etypes[1][0]][neg_src]
-        batch_embs[etypes[1]] = (pos_src_emb, neg_src_emb, pos_dst_emb, None)
-        score = decoder.calc_test_scores(batch_embs, neg_sample_type, device)
-
         rel_emb = decoder.get_relemb(etypes[1])
         pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
         neg_scores = []
@@ -149,7 +149,7 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
     with th.no_grad():
         pos_neg_tuple = {
             etypes[0]: gen_edge_pairs(),
-            # etypes[1]: gen_edge_pairs(),
+            etypes[1]: gen_edge_pairs(),
         }
         pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
         pos_neg_tuple[etypes[0]] = (pos_src, None, pos_dst, neg_dst)
@@ -172,10 +172,6 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
 
-        pos_neg_tuple = {
-            # etypes[0]: gen_edge_pairs(),
-            etypes[1]: gen_edge_pairs(),
-        }
         pos_src, neg_src, pos_dst, _ = pos_neg_tuple[etypes[1]]
         pos_src_emb = emb[etypes[1][0]][pos_src]
         pos_dst_emb = emb[etypes[1][2]][pos_dst]
