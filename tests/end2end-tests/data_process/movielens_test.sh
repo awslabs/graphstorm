@@ -23,7 +23,7 @@ error_and_exit () {
 # Test the DistDGL graph format.
 echo "********* Test the DistDGL graph format ********"
 python3 $GS_HOME/tests/end2end-tests/data_process/process_movielens.py
-python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_process/movielens.json --num-processes 1 --output-dir /tmp/movielens --graph-name ml --add-reverse-edges
+python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_process/movielens.json --num-processes 1 --output-dir /tmp/movielens --graph-name ml --add-reverse-edges --part-method random
 
 error_and_exit $?
 
