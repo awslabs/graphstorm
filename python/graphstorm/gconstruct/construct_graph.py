@@ -496,5 +496,4 @@ if __name__ == '__main__':
     argparser.add_argument("--ext-mem-feat-size", type=int, default=64,
                            help="The minimal number of feature dimensions that features " + \
                                    "can be stored in external memory.")
-    argparser.add_argument("--part_method", type=str, help="The partition method.")
     process_graph(argparser.parse_args())
