@@ -437,7 +437,7 @@ def process_graph(args):
         assert args.part_method in ["metis", "random"], \
                 "We only support 'metis' or 'random'."
         partition_graph(g, node_data, edge_data, args.graph_name,
-                        args.num_partitions, args.output_dir,
+                        args.num_parts, args.output_dir,
                         save_mapping=True, # always save mapping
                         part_method=args.part_method)
     elif args.output_format == "DGL":
@@ -466,34 +466,34 @@ def process_graph(args):
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
-    argparser.add_argument("--conf_file", type=str, required=True,
+    argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
-    argparser.add_argument("--num_processes", type=int, default=1,
+    argparser.add_argument("--num-processes", type=int, default=1,
                            help="The number of processes to process the data simulteneously.")
-    argparser.add_argument("--num_processes_for_nodes", type=int,
+    argparser.add_argument("--num-processes-for-nodes", type=int,
                            help="The number of processes to process node data simulteneously.")
-    argparser.add_argument("--num_processes_for_edges", type=int,
+    argparser.add_argument("--num-processes-for-edges", type=int,
                            help="The number of processes to process edge data simulteneously.")
-    argparser.add_argument("--output_dir", type=str, required=True,
+    argparser.add_argument("--output-dir", type=str, required=True,
                            help="The path of the output data folder.")
-    argparser.add_argument("--graph_name", type=str, required=True,
+    argparser.add_argument("--graph-name", type=str, required=True,
                            help="The graph name")
-    argparser.add_argument("--remap_node_id", action='store_true',
+    argparser.add_argument("--remap-node-id", action='store_true',
                            help="Whether or not to remap node IDs.")
-    argparser.add_argument("--add_reverse_edges", action='store_true',
+    argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
-    argparser.add_argument("--output_format", type=str, default="DistDGL",
+    argparser.add_argument("--output-format", type=str, default="DistDGL",
                            help="The output format of the constructed graph.")
-    argparser.add_argument("--num_partitions", type=int, default=1,
+    argparser.add_argument("--num-parts", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
     argparser.add_argument("--part-method", type=str, default='metis',
                            help="The partition method. Currently, we support 'metis' and 'random'.")
-    argparser.add_argument("--skip_nonexist_edges", action='store_true',
+    argparser.add_argument("--skip-nonexist-edges", action='store_true',
                            help="Skip edges that whose endpoint nodes don't exist.")
-    argparser.add_argument("--ext_mem_workspace", type=str,
+    argparser.add_argument("--ext-mem-workspace", type=str,
                            help="The directory where we can store data during graph construction.")
-    argparser.add_argument("--ext_mem_feat_size", type=int, default=64,
+    argparser.add_argument("--ext-mem-feat-size", type=int, default=64,
                            help="The minimal number of feature dimensions that features " + \
                                    "can be stored in external memory.")
     process_graph(argparser.parse_args())
