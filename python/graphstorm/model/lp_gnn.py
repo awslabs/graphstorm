@@ -19,6 +19,7 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from ..eval.utils import calc_ranking
 
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
@@ -126,23 +127,26 @@ def lp_mini_batch_predict(model, emb, loader, device):
 
         Returns
         -------
-        dict of (list, list):
-            Return a dictionary of edge type to
-            (positive scores, negative scores)
+        rankings: dict of tensors
+            Rankings of positive scores in format of {etype: ranking}
     """
     decoder = model.decoder
     with th.no_grad():
-        scores = {}
+        ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
             score = \
                 decoder.calc_test_scores(
                     emb, pos_neg_tuple, neg_sample_type, device)
             for canonical_etype, s in score.items():
-                # We do not concatenate pos scores/neg scores
-                # into a single pos score tensor/neg score tensor
-                # to avoid unnecessary data copy.
-                if canonical_etype in scores:
-                    scores[canonical_etype].append(s)
+                # We do not concatenate rankings into a single
+                # ranking tensor to avoid unnecessary data copy.
+                pos_score, neg_score = s
+                if canonical_etype in ranking:
+                    ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
                 else:
-                    scores[canonical_etype] = [s]
-    return scores
+                    ranking[canonical_etype] = [calc_ranking(pos_score, neg_score)]
+
+        rankings = {}
+        for canonical_etype, rank in ranking.items():
+            rankings[canonical_etype] = th.cat(rank, dim=0)
+    return rankings

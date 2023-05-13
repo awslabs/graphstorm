@@ -118,7 +118,9 @@ def main(args):
         model.prepare_input_encoder(train_data)
         embeddings = do_full_graph_inference(model, train_data, task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size())
+                        th.distributed.get_world_size(),
+                        device=device,
+                        node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
     parser = get_argument_parser()
