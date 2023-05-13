@@ -128,10 +128,11 @@ The command line below shows an example of how to use `construct_graph.py` to
 construct a graph and save it in DistDGL graph format directly.
 ```
 python3 -m graphstorm.gconstruct.construct_graph \
-			--conf_file test_data/test_data.json \
-			--num_processes 2 \
-			--output_dir /tmp/test_out \
-			--graph_name test
+			--conf-file test_data/test_data.json \
+			--num-processes 2 \
+			--num-parts 2 \
+			--output-dir /tmp/test_out \
+			--graph-name test
 ```
 
 ## Input formats

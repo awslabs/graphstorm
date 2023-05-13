@@ -18,7 +18,7 @@ python3 $GS_HOME/tests/end2end-tests/data_process/data_gen.py
 
 # Test the DGLGraph format.
 echo "********* Test the DGLGraph format *********"
-python3 -m graphstorm.gconstruct.construct_graph --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_out --graph_name test --output_format DGL
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 4 --output-dir /tmp/test_out --graph-name test --output-format DGL
 
 error_and_exit $?
 
@@ -28,7 +28,7 @@ error_and_exit $?
 
 # Test the DistDGL graph format.
 echo "********* Test the DistDGL graph format ********"
-python3 -m graphstorm.gconstruct.construct_graph --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_partition2 --graph_name test
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 4 --output-dir /tmp/test_partition2 --graph-name test
 
 error_and_exit $?
 
@@ -38,7 +38,7 @@ error_and_exit $?
 
 # Test the DistDGL graph format with external memory support.
 echo "********* Test the DistDGL graph format with external memory support ********"
-python3 -m graphstorm.gconstruct.construct_graph --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_partition2 --graph_name test --ext_mem_workspace /tmp --ext_mem_feat_size 2
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 4 --output-dir /tmp/test_partition2 --graph-name test --ext-mem-workspace /tmp --ext-mem-feat-size 2
 
 error_and_exit $?
 
@@ -48,6 +48,6 @@ error_and_exit $?
 
 # Test the DistDGL graph format with reverse edges.
 echo "*********** Test the DistDGL graph format with reverse edges *********"
-python3 -m graphstorm.gconstruct.construct_graph --conf_file /tmp/test_data/test_data_transform.conf --num_processes 4 --output_dir /tmp/test_out --graph_name test --add_reverse_edges
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 4 --output-dir /tmp/test_out --graph-name test --add-reverse-edges
 
 error_and_exit $?
