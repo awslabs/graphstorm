@@ -23,12 +23,12 @@ error_and_exit () {
 # Test the DistDGL graph format.
 echo "********* Test the DistDGL graph format ********"
 python3 $GS_HOME/tests/end2end-tests/data_process/process_movielens.py
-python3 -m graphstorm.gconstruct.construct_graph --conf_file $GS_HOME/tests/end2end-tests/data_process/movielens.json --num_processes 1 --output_dir /tmp/movielens --graph_name ml --add_reverse_edges
+python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_process/movielens.json --num-processes 1 --output-dir /tmp/movielens --graph-name ml --add-reverse-edges
 
 error_and_exit $?
 
 echo "********* Test the DistDGL graph format with BERT embeddings ********"
-python3 -m graphstorm.gconstruct.construct_graph --conf_file $GS_HOME/tests/end2end-tests/data_process/movielens_bert.json --num_processes 1 --output_dir /tmp/movielens_bert --graph_name ml --add_reverse_edges
+python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_process/movielens_bert.json --num-processes 1 --output-dir /tmp/movielens_bert --graph-name ml --add-reverse-edges
 
 error_and_exit $?
 
