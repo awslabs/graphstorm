@@ -15,7 +15,7 @@ Graph Construction
 * **--remap-node_id**: boolean value to decide whether to rename node IDs or not. Default is true.
 * **--add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
 * **--output-format**: the format of constructed graph, options are ``DGL`` and ``DistDGL``. Default is ``DistDGL``. The output format is explained in the :ref:`Output <output-format>` section below.
-* **--num-partitions**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
+* **--num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
 * **--skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **--ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
 * **--ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
@@ -86,7 +86,7 @@ For HuggingFace tokenizer, the ``name`` field in the feature transformation dict
 
 Output
 ..........
-Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL. If select ``DGL``, the output is a file, named `<graph_name>.dgl` under the folder specified by the **--output-dir** argument, where `<graph_name>` is the value of argument **--graph-name**. If select ``DistDGL``, the output is a JSON file, named `<graph_name>.json`, and a set of `part*` folders under the folder specified by the **--output-dir** argument, where the `*` is the number specified by the **--num-partitions** argument.
+Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL. If select ``DGL``, the output is a file, named `<graph_name>.dgl` under the folder specified by the **--output-dir** argument, where `<graph_name>` is the value of argument **--graph-name**. If select ``DistDGL``, the output is a JSON file, named `<graph_name>.json`, and a set of `part*` folders under the folder specified by the **--output-dir** argument, where the `*` is the number specified by the **--num-parts** argument.
 By Specifying the output_format as ``DGL``, the output will be an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_. By Specifying the output_format as ``DistDGL``, the output will be a partitioned graph named `DistDGL graph <https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api>`_. It contains the partitioned graph, a JSON config describing the meta-information of the partitioned graph, and the mappings for the edges and nodes after partition which maps each node and edge in the partitoined graph into the original node and edge id space. The node ID mapping is stored as a dictionary of 1D tensors whose key is the node type and value is a 1D tensor mapping between shuffled node IDs and the original node IDs. The edge ID mapping is stored as a dictionary of 1D tensors whose key is the edge type and value is a 1D tensor mapping between shuffled edge IDs and the original edge IDs.
 
 An example
