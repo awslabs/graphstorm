@@ -25,6 +25,7 @@ from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.eval.utils import calc_distmult_pos_score
 from graphstorm.eval.utils import calc_dot_pos_score
+from graphstorm.model.lp_gnn import get_embs
 
 def _check_scores(score, pos_score, neg_scores, etype, num_neg, batch_size):
     # pos scores
@@ -37,6 +38,13 @@ def _check_scores(score, pos_score, neg_scores, etype, num_neg, batch_size):
     assert_almost_equal(score[etype][0].numpy(), pos_score.numpy(), decimal=5)
     assert_almost_equal(score[etype][1].numpy(), neg_scores.numpy(), decimal=5)
 
+def _check_emb(batch_embs1, batch_embs2):
+    assert len(batch_embs1) == len(batch_embs2)
+    for emb1, emb2 in zip(batch_embs1, batch_embs2):
+        if emb1 is None:
+            assert emb2 == None
+        else:
+            assert th.equal(emb1, emb2)
 
 def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device):
     neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
@@ -369,6 +377,47 @@ def check_calc_test_scores_dot_joint_neg(decoder, etype, h_dim, num_pos, num_neg
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etype, num_neg*2, pos_src.shape[0])
 
+def check_get_embed(etype, h_dim, num_pos, num_neg, device):
+    neg_sample_type = BUILTIN_LP_JOINT_NEG_SAMPLER
+    emb = {
+        'a': th.rand((128, h_dim)),
+        'b': th.rand((128, h_dim)),
+    }
+
+    def gen_edge_pairs():
+        pos_src = th.randint(100, (num_pos,))
+        pos_dst = th.randint(100, (num_pos,))
+        neg_src = th.randint(128, (num_neg,))
+        neg_dst = th.randint(128, (num_neg,))
+        return (pos_src, neg_src, pos_dst, neg_dst)
+
+    with th.no_grad():
+        pos_src, _, pos_dst, neg_dst = gen_edge_pairs()
+        node_list =(pos_src, None, pos_dst, neg_dst)
+        batch_emb = get_embs(emb, node_list, neg_sample_type, etype)
+        pos_src_emb = emb[etype[0]][pos_src]
+        pos_dst_emb = emb[etype[2]][pos_dst]
+        neg_dst_emb = emb[etype[2]][neg_dst]
+        _check_emb(batch_emb, (pos_src_emb, None, pos_dst_emb, neg_dst_emb))
+
+        pos_src, neg_src, pos_dst, _ = gen_edge_pairs()
+        node_list =(pos_src, neg_src, pos_dst, None)
+        batch_emb = get_embs(emb, node_list, neg_sample_type, etype)
+        pos_src_emb = emb[etype[0]][pos_src]
+        pos_dst_emb = emb[etype[2]][pos_dst]
+        neg_src_emb = emb[etype[0]][neg_src]
+        _check_emb(batch_emb, (pos_src_emb, neg_src_emb, pos_dst_emb, None))
+
+        pos_src, neg_src, pos_dst, neg_dst = gen_edge_pairs()
+        node_list =(pos_src, neg_src, pos_dst, neg_dst)
+        batch_emb = get_embs(emb, node_list, neg_sample_type, etype)
+        pos_src_emb = emb[etype[0]][pos_src]
+        pos_dst_emb = emb[etype[2]][pos_dst]
+        neg_src_emb = emb[etype[0]][neg_src]
+        neg_dst_emb = emb[etype[2]][neg_dst]
+        _check_emb(batch_emb, (pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb))
+
+
 @pytest.mark.parametrize("h_dim", [16, 64])
 @pytest.mark.parametrize("num_pos", [8, 32])
 @pytest.mark.parametrize("num_neg", [1, 32])
@@ -396,8 +445,20 @@ def test_LinkPredictDotDecoder(h_dim, num_pos, num_neg, device):
     check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_neg, device)
     check_calc_test_scores_dot_joint_neg(decoder, etype, h_dim, num_pos, num_neg, device)
 
+@pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("num_pos", [8, 32])
+@pytest.mark.parametrize("num_neg", [1, 32])
+@pytest.mark.parametrize("device",["cpu", "cuda:0"])
+def test_get_embs(h_dim, num_pos, num_neg, device):
+    th.manual_seed(1)
+    etype = ('a', 'r1', 'b')
+
+    check_get_embed(etype, h_dim, num_pos, num_neg, device)
+
 if __name__ == '__main__':
     test_LinkPredictDistMultDecoder(16, 8, 1, "cpu")
     test_LinkPredictDistMultDecoder(16, 32, 32, "cuda:0")
     test_LinkPredictDotDecoder(16, 8, 1, "cpu")
     test_LinkPredictDotDecoder(16, 32, 32, "cuda:0")
+    test_get_embs(16, 8, 1, "cpu")
+    test_get_embs(16, 32, 32, "cuda:0")
