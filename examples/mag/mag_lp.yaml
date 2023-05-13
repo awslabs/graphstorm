@@ -24,9 +24,12 @@ gsf:
     lm_tune_lr: 0.0001
     num_epochs: 3
     batch_size: 10240
+    eval_fanout: "20"
+    eval_batch_size: 1024
     bert_infer_bs: 10240
     wd_l2norm: 0
     no_validation: false
+    eval_frequency: 10000
   rgcn:
     num_bases: -1
     use_self_loop: true
