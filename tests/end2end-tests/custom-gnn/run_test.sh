@@ -30,7 +30,7 @@ python3 -m graphstorm.run.launch \
         --num-samplers ${NUM_SAMPLERS} \
         --part-config ${PART_CONFIG} \
         --ip-config ${IP_CONFIG} \
-        ----ssh-port 2222 \
+        --ssh-port 2222 \
         ${GSF_HOME}/tests/end2end-tests/custom-gnn/train.py \
         --graph-name movie-lens-100k \
         --target-ntype movie \

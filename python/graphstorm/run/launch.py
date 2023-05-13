@@ -259,7 +259,7 @@ def get_remote_pids(ip, port, cmd_regex):
     return all_pids
 
 
-def get_all_remote_pids(hosts, --ssh-port, udf_command):
+def get_all_remote_pids(hosts, ssh_port, udf_command):
     """Get all remote processes.
 
         Parameters
