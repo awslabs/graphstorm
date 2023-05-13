@@ -646,7 +646,7 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
                                         feat_field=data.node_feat_field)
             return model.node_input_encoder(feats, input_nodes)
         embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
-                                    batch_size, -1, edge_mask=edge_mask,
+                                    batch_size, 20, edge_mask=edge_mask,
                                     task_tracker=task_tracker)
         # TODO(zhengda) we should avoid getting rank from the graph.
         if get_rank() == 0:
