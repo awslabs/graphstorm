@@ -433,7 +433,7 @@ def process_graph(args):
 
     if args.output_format == "DistDGL":
         partition_graph(g, node_data, edge_data, args.graph_name,
-                        args.num_partitions, args.output_dir,
+                        args.num_parts, args.output_dir,
                         save_mapping=True) # always save mapping
     elif args.output_format == "DGL":
         for ntype in node_data:
@@ -479,7 +479,7 @@ if __name__ == '__main__':
                            help="Add reverse edges.")
     argparser.add_argument("--output-format", type=str, default="DistDGL",
                            help="The output format of the constructed graph.")
-    argparser.add_argument("--num-partitions", type=int, default=1,
+    argparser.add_argument("--num-parts", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
     argparser.add_argument("--skip-nonexist_edges", action='store_true',

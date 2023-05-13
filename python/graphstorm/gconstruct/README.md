@@ -130,6 +130,7 @@ construct a graph and save it in DistDGL graph format directly.
 python3 -m graphstorm.gconstruct.construct_graph \
 			--conf-file test_data/test_data.json \
 			--num-processes 2 \
+			--num-parts 2 \
 			--output-dir /tmp/test_out \
 			--graph-name test
 ```
