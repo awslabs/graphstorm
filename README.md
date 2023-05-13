@@ -62,7 +62,7 @@ python3 -m graphstorm.run.launch \
         --num-samplers 0 \
         --part-config /tmp/ogbn_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
         --ip-config  /tmp/ogbn-arxiv-nc/ip_list.txt \
-        --ssh_port 2222 \
+        ----ssh-port 2222 \
         "python3 /graphstorm/training_scripts/gsgnn_np/gsgnn_np.py \
         --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
         --ip-config /tmp/ogbn-arxiv-nc/ip_list.txt \
@@ -98,7 +98,7 @@ python3 -m graphstorm.run.launch \
         --num-samplers 0 \
         --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
         --ip-config /tmp/ogbn-mag-lp/ip_list.txt \
-        --ssh_port 2222 \
+        ----ssh-port 2222 \
         /graphstorm/training_scripts/gsgnn_lp/gsgnn_lp.py \
         --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
         --ip-config /tmp/ogbn-mag-lp/ip_list.txt \

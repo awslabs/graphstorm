@@ -59,7 +59,7 @@ python3 -m graphstorm.run.launch \
     --num-trainers 2 \
     --num-servers 1 \
     --num_samplers 0 \
-    --ssh_port 2222 \
+    ----ssh-port 2222 \
     "python3 hgt_nc.py --yaml-config-file acm_nc.yaml \
                        --ip-config /data/ip_list.txt \
                        --node-feat paper:feat-author:feat-subject:feat \
