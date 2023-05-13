@@ -418,6 +418,7 @@ def process_graph(args):
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
+    sys_tracker.check('Process input data')
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
@@ -429,12 +430,16 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    print(g)
     sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
+        assert args.part_method in ["metis", "random"], \
+                "We only support 'metis' or 'random'."
         partition_graph(g, node_data, edge_data, args.graph_name,
                         args.num_partitions, args.output_dir,
-                        save_mapping=True) # always save mapping
+                        save_mapping=True, # always save mapping
+                        part_method=args.part_method)
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
@@ -482,6 +487,8 @@ if __name__ == '__main__':
     argparser.add_argument("--num_partitions", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
+    argparser.add_argument("--part-method", type=str,
+                           help="The partition method. Currently, we support 'metis' and 'random'.")
     argparser.add_argument("--skip_nonexist_edges", action='store_true',
                            help="Skip edges that whose endpoint nodes don't exist.")
     argparser.add_argument("--ext_mem_workspace", type=str,
