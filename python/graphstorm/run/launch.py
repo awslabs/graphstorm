@@ -266,7 +266,7 @@ def get_all_remote_pids(hosts, ssh_port, udf_command):
         ----------
         hosts: list
             list of hosts
-        --ssh-port: str
+        ssh_port: str
             SSH port
         udf_command:
             command
@@ -277,8 +277,8 @@ def get_all_remote_pids(hosts, ssh_port, udf_command):
         # When creating training processes in remote machines, we may insert some arguments
         # in the commands. We need to use regular expressions to match the modified command.
         new_udf_command = " .*".join(udf_command)
-        pids = get_remote_pids(ip, --ssh-port, new_udf_command)
-        remote_pids[(ip, --ssh-port)] = pids
+        pids = get_remote_pids(ip, ssh_port, new_udf_command)
+        remote_pids[(ip, ssh_port)] = pids
     return remote_pids
 
 
@@ -708,7 +708,7 @@ def submit_jobs(args, udf_command):
                 cmd,
                 state_q,
                 ip,
-                args.--ssh-port,
+                args.ssh_port,
                 username=args.ssh_username,
             )
         )
@@ -754,7 +754,7 @@ def submit_jobs(args, udf_command):
         clients_cmd.append(cmd)
         thread_list.append(
             execute_remote(
-                cmd, state_q, ip, args.--ssh-port, username=args.ssh_username
+                cmd, state_q, ip, args.ssh_port, username=args.ssh_username
             )
         )
 
@@ -763,7 +763,7 @@ def submit_jobs(args, udf_command):
 
     # Start a cleanup process dedicated for cleaning up remote training jobs.
     conn1, conn2 = multiprocessing.Pipe()
-    func = partial(get_all_remote_pids, hosts, args.--ssh-port, udf_command)
+    func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
     process = multiprocessing.Process(target=cleanup_proc, args=(func, conn1))
     process.start()
 
