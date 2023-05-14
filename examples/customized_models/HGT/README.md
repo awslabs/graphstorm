@@ -58,7 +58,7 @@ python3 -m graphstorm.run.launch \
     --ip-config /data/ip_list.txt \
     --num-trainers 2 \
     --num-servers 1 \
-    --num_samplers 0 \
+    --num-samplers 0 \
     --ssh-port 2222 \
     "python3 hgt_nc.py --yaml-config-file acm_nc.yaml \
                        --ip-config /data/ip_list.txt \
