@@ -331,7 +331,7 @@ def get_valid_label_index(label):
         raise ValueError("GraphStorm only supports label data of integers and float." + \
                          f"This label data has data type of {label.dtype}.")
 
-class CustomLabelProcessors:
+class CustomLabelProcessor:
     def __init__(self, col_name, label_name, task_type,
                  train_idx, val_idx, test_idx):
         self._col_name = col_name
@@ -381,7 +381,6 @@ class CustomLabelProcessors:
         -------
         dict of Tensors : it contains the labels as well as training/val/test splits.
         """
-        assert self.col_name in data, f"The label column {self.col_name} does not exist."
         if self.col_name in data:
             label = data[self.col_name]
             num_samples = len(label)
@@ -394,6 +393,8 @@ class CustomLabelProcessors:
         res = self.data_split(num_samples)
         if label is not None and self._task_type == "classification":
             res[self.label_name] = np.int32(label)
+        elif label is not None:
+            res[self.label_name] = label
         return res
 
 class LabelProcessor:
@@ -570,9 +571,12 @@ def parse_label_ops(confs, is_node):
     task_type = label_conf['task_type']
     if 'custom_split' in label_conf:
         custom_split = label_conf['custom_split']
+        assert len(custom_split) == 3, \
+                "Custom data split needs to provide train/val/test index."
         train_idx = np.load(custom_split[0])
         val_idx = np.load(custom_split[1])
         test_idx = np.load(custom_split[2])
+        label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         return [CustomLabelProcessor(label_col, label_col, task_type,
                                      train_idx, val_idx, test_idx)]
 

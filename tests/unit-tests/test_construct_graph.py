@@ -326,6 +326,20 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
+    # Check custom data split for classification.
+    data = {'label' : np.random.randint(3, size=10)}
+    np.save("/tmp/train_idx.npy", np.arange(8))
+    np.save("/tmp/val_idx.npy", np.arange(8, 9))
+    np.save("/tmp/test_idx.npy", np.arange(9, 10))
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'custom_split': ["/tmp/train_idx.npy",
+                             "/tmp/val_idx.npy",
+                             "/tmp/test_idx.npy"]}
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    check_classification(res)
+
     # Check regression
     conf = {'task_type': 'regression',
             'label_col': 'label',
@@ -347,9 +361,42 @@ def test_label():
     res = process_labels(data, ops)
     check_regression(res)
 
+    # Check custom data split for regression.
+    data = {'label' : np.random.uniform(size=10) * 10}
+    np.save("/tmp/train_idx.npy", np.arange(8))
+    np.save("/tmp/val_idx.npy", np.arange(8, 9))
+    np.save("/tmp/test_idx.npy", np.arange(9, 10))
+    conf = {'task_type': 'regression',
+            'label_col': 'label',
+            'custom_split': ["/tmp/train_idx.npy",
+                             "/tmp/val_idx.npy",
+                             "/tmp/test_idx.npy"]}
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    check_regression(res)
+
     # Check link prediction
     conf = {'task_type': 'link_prediction',
             'split_pct': [0.8, 0.1, 0.1]}
+    ops = parse_label_ops([conf], False)
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 3
+    assert 'train_mask' in res
+    assert 'val_mask' in res
+    assert 'test_mask' in res
+    assert np.sum(res['train_mask']) == 8
+    assert np.sum(res['val_mask']) == 1
+    assert np.sum(res['test_mask']) == 1
+
+    # Check custom data split for link prediction.
+    np.save("/tmp/train_idx.npy", np.arange(8))
+    np.save("/tmp/val_idx.npy", np.arange(8, 9))
+    np.save("/tmp/test_idx.npy", np.arange(9, 10))
+    conf = {'task_type': 'link_prediction',
+            'custom_split': ["/tmp/train_idx.npy",
+                             "/tmp/val_idx.npy",
+                             "/tmp/test_idx.npy"]}
     ops = parse_label_ops([conf], False)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
