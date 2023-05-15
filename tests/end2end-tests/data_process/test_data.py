@@ -88,9 +88,9 @@ orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_n
 assert np.all(data == orig_ids.reshape(-1, 1))
 assert np.all(data1 == orig_ids.reshape(-1, 1))
 assert np.all(label == orig_ids % 100)
-assert th.sum(g.nodes['node1'].data['label_train_mask']) == int(g.number_of_nodes('node1') * 0.8)
-assert th.sum(g.nodes['node1'].data['label_val_mask']) == int(g.number_of_nodes('node1') * 0.2)
-assert th.sum(g.nodes['node1'].data['label_test_mask']) == 0
+assert th.sum(g.nodes['node1'].data['train_mask']) == int(g.number_of_nodes('node1') * 0.8)
+assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1') * 0.2)
+assert th.sum(g.nodes['node1'].data['test_mask']) == 0
 
 # Test the second node data
 data = g.nodes['node2'].data['feat'].numpy()
@@ -107,11 +107,11 @@ assert label.dtype == np.int32
 src_ids = np.array([reverse_node1_map[src_id] for src_id in src_ids.numpy()])
 dst_ids = dst_ids.numpy()
 assert np.all((src_ids + dst_ids) % 100 == label)
-assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['label_train_mask']) \
+assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['train_mask']) \
         == int(g.number_of_edges(('node1', 'relation1', 'node2')) * 0.8)
-assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['label_val_mask']) \
+assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['val_mask']) \
         == int(g.number_of_edges(('node1', 'relation1', 'node2')) * 0.2)
-assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['label_test_mask']) == 0
+assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['test_mask']) == 0
 
 # Test the edge data of edge type 2
 assert th.sum(g.edges[('node1', 'relation2', 'node1')].data['train_mask']) \
