@@ -285,7 +285,40 @@ Once all trainers, evaluators, and task trackers are set, the last step is to us
 
 The ``fit()`` function wraps dataloaders, number of epochs, to replace the common "**for loops**" as seen in the common training flow. The ``fit()`` function also takes additional arguments, such as ``save_model_path`` to save different model artifacts. **BUT** before set these arguments, you need to implement the ``restore_model(self, restore_model_path)`` and ``save_model(self, model_path)`` functions in the :ref:`Step 2 <step-2>`.
 
-Step 4. Setup GraphStorm configuration YAML file
+Step 4. Handle the unused weights error
+...................................................
+Uncommonly seen in the full-graph training or mini-batch training on a single GPU, the unused weights error could frequently occur when we start to train models on multiple GPUs in parallel. PyTorch distributed framework's inner mechanism causes this problem. One easy way to solve this error is to add a regularization to all trainable parameters into the loss computation like the code blow.
+
+.. code-block:: python
+
+        pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
+        
+        reg_loss = torch.tensor(0.).to(pred_loss.device)
+        # L2 regularization of dense parameters
+        for d_para in self.parameters():
+            reg_loss += d_para.square().sum()
+
+        reg_loss = self.alpha_l2norm * reg_loss
+
+        return pred_loss + reg_loss
+
+You can add a coefficient, like the ``alpha_l2norm``, to control the influence of the regularization.
+
+Step 5. Add ``local_rank`` as an argument of the Python main function
+......................................................................
+Because GraphStorm relys on PyTorch's distributed framework, which requires an argument, ``local_rank``, in PyTorch's launch script. GraphStorm's built-in trainers and inferers have this argument configured already. But for customized models, it is required to add ``local_rank`` as an argument of the Python main function although this argument is not used anywhere in the customized model. A sample code is shown below.
+
+.. code-block:: python
+
+    if __name__ == '__main__':
+        argparser = argparse.ArgumentParser("Training HGT model with the GraphStorm Framework")
+        ......
+        argparser.add_argument("--local_rank", type=int,
+                            help="The rank of the trainer. MUST have this argument!!")
+
+.. note:: PyTorch v2.0 change the argument ``local_rank`` to ``local-rank``. Therefore, if users use PyTorch v2.0 or later version, please change this argument accordingly.
+
+Step 6. Setup GraphStorm configuration YAML file
 .....................................................................
 GraphStorm has a set of parameters that control the various perspectives of the model training and inference process. You can find the details of these parameters in the GraphStorm :ref:`Training and Inference Configurations <configurations-run>`. These parameters could be either passed as input arguments or set in a YAML format file. Below is an example of the YAML file.
 
@@ -340,25 +373,6 @@ Users can use an argument to read in this YAML file, and construct a ``GSConfig`
     config = GSConfig(args)
 
 For users' own configurations, you still can pass them as input argument of the training script, and extract them from the ``args`` object.
-
-Step 5. One more thing: the unused weights error
-...................................................
-Uncommonly seen in the full-graph training or mini-batch training on a single GPU, the unused weights error could frequently occur when we start to train models on multiple GPUs in parallel. PyTorch distributed framework's inner mechanism causes this problem. One easy way to solve this error is to add a regularization to all trainable parameters into the loss computation like the code blow.
-
-.. code-block:: python
-
-        pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
-        
-        reg_loss = torch.tensor(0.).to(pred_loss.device)
-        # L2 regularization of dense parameters
-        for d_para in self.parameters():
-            reg_loss += d_para.square().sum()
-
-        reg_loss = self.alpha_l2norm * reg_loss
-
-        return pred_loss + reg_loss
-
-You can add a coefficient, like the ``alpha_l2norm``, to control the influence of the regularization.
 
 Put Everything Together and Run them
 -------------------------------------

@@ -442,8 +442,40 @@
 <p>The <code class="docutils literal notranslate"><span class="pre">fit()</span></code> function wraps dataloaders, number of epochs, to replace the common “<strong>for loops</strong>” as seen in the common training flow. The <code class="docutils literal notranslate"><span class="pre">fit()</span></code> function also takes additional arguments, such as <code class="docutils literal notranslate"><span class="pre">save_model_path</span></code> to save different model artifacts. <strong>BUT</strong> before set these arguments, you need to implement the <code class="docutils literal notranslate"><span class="pre">restore_model(self,</span> <span class="pre">restore_model_path)</span></code> and <code class="docutils literal notranslate"><span class="pre">save_model(self,</span> <span class="pre">model_path)</span></code> functions in the <a class="reference internal" href="#step-2"><span class="std std-ref">Step 2</span></a>.</p>
 </section>
 </section>
-<section id="step-4-setup-graphstorm-configuration-yaml-file">
-<h3>Step 4. Setup GraphStorm configuration YAML file<a class="headerlink" href="#step-4-setup-graphstorm-configuration-yaml-file" title="Permalink to this heading">#</a></h3>
+<section id="step-4-handle-the-unused-weights-error">
+<h3>Step 4. Handle the unused weights error<a class="headerlink" href="#step-4-handle-the-unused-weights-error" title="Permalink to this heading">#</a></h3>
+<p>Uncommonly seen in the full-graph training or mini-batch training on a single GPU, the unused weights error could frequently occur when we start to train models on multiple GPUs in parallel. PyTorch distributed framework’s inner mechanism causes this problem. One easy way to solve this error is to add a regularization to all trainable parameters into the loss computation like the code blow.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pred_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_ntype</span><span class="p">],</span> <span class="n">labels</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_ntype</span><span class="p">])</span>
+
+<span class="n">reg_loss</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">pred_loss</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+<span class="c1"># L2 regularization of dense parameters</span>
+<span class="k">for</span> <span class="n">d_para</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+    <span class="n">reg_loss</span> <span class="o">+=</span> <span class="n">d_para</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+<span class="n">reg_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_l2norm</span> <span class="o">*</span> <span class="n">reg_loss</span>
+
+<span class="k">return</span> <span class="n">pred_loss</span> <span class="o">+</span> <span class="n">reg_loss</span>
+</pre></div>
+</div>
+<p>You can add a coefficient, like the <code class="docutils literal notranslate"><span class="pre">alpha_l2norm</span></code>, to control the influence of the regularization.</p>
+</section>
+<section id="step-5-add-local-rank-as-an-argument-of-the-python-main-function">
+<h3>Step 5. Add <code class="docutils literal notranslate"><span class="pre">local_rank</span></code> as an argument of the Python main function<a class="headerlink" href="#step-5-add-local-rank-as-an-argument-of-the-python-main-function" title="Permalink to this heading">#</a></h3>
+<p>Because GraphStorm relys on PyTorch’s distributed framework, which requires an argument, <code class="docutils literal notranslate"><span class="pre">local_rank</span></code>, in PyTorch’s launch script. GraphStorm’s built-in trainers and inferers have this argument configured already. But for customized models, it is required to add <code class="docutils literal notranslate"><span class="pre">local_rank</span></code> as an argument of the Python main function although this argument is not used anywhere in the customized model. A sample code is shown below.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">argparser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="s2">&quot;Training HGT model with the GraphStorm Framework&quot;</span><span class="p">)</span>
+    <span class="o">......</span>
+    <span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--local_rank&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;The rank of the trainer. MUST have this argument!!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>PyTorch v2.0 change the argument <code class="docutils literal notranslate"><span class="pre">local_rank</span></code> to <code class="docutils literal notranslate"><span class="pre">local-rank</span></code>. Therefore, if users use PyTorch v2.0 or later version, please change this argument accordingly.</p>
+</div>
+</section>
+<section id="step-6-setup-graphstorm-configuration-yaml-file">
+<h3>Step 6. Setup GraphStorm configuration YAML file<a class="headerlink" href="#step-6-setup-graphstorm-configuration-yaml-file" title="Permalink to this heading">#</a></h3>
 <p>GraphStorm has a set of parameters that control the various perspectives of the model training and inference process. You can find the details of these parameters in the GraphStorm <a class="reference internal" href="../configuration/configuration-run.html#configurations-run"><span class="std std-ref">Training and Inference Configurations</span></a>. These parameters could be either passed as input arguments or set in a YAML format file. Below is an example of the YAML file.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nn">---</span>
 <span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
@@ -493,23 +525,6 @@
 </pre></div>
 </div>
 <p>For users’ own configurations, you still can pass them as input argument of the training script, and extract them from the <code class="docutils literal notranslate"><span class="pre">args</span></code> object.</p>
-</section>
-<section id="step-5-one-more-thing-the-unused-weights-error">
-<h3>Step 5. One more thing: the unused weights error<a class="headerlink" href="#step-5-one-more-thing-the-unused-weights-error" title="Permalink to this heading">#</a></h3>
-<p>Uncommonly seen in the full-graph training or mini-batch training on a single GPU, the unused weights error could frequently occur when we start to train models on multiple GPUs in parallel. PyTorch distributed framework’s inner mechanism causes this problem. One easy way to solve this error is to add a regularization to all trainable parameters into the loss computation like the code blow.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pred_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_ntype</span><span class="p">],</span> <span class="n">labels</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_ntype</span><span class="p">])</span>
-
-<span class="n">reg_loss</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">pred_loss</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-<span class="c1"># L2 regularization of dense parameters</span>
-<span class="k">for</span> <span class="n">d_para</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
-    <span class="n">reg_loss</span> <span class="o">+=</span> <span class="n">d_para</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-
-<span class="n">reg_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_l2norm</span> <span class="o">*</span> <span class="n">reg_loss</span>
-
-<span class="k">return</span> <span class="n">pred_loss</span> <span class="o">+</span> <span class="n">reg_loss</span>
-</pre></div>
-</div>
-<p>You can add a coefficient, like the <code class="docutils literal notranslate"><span class="pre">alpha_l2norm</span></code>, to control the influence of the regularization.</p>
 </section>
 </section>
 <section id="put-everything-together-and-run-them">
@@ -601,8 +616,9 @@
 <li><a class="reference internal" href="#use-trainer-s-fit-function-to-run-training">Use trainer’s <code class="docutils literal notranslate"><span class="pre">fit()</span></code> function to run training</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#step-4-setup-graphstorm-configuration-yaml-file">Step 4. Setup GraphStorm configuration YAML file</a></li>
-<li><a class="reference internal" href="#step-5-one-more-thing-the-unused-weights-error">Step 5. One more thing: the unused weights error</a></li>
+<li><a class="reference internal" href="#step-4-handle-the-unused-weights-error">Step 4. Handle the unused weights error</a></li>
+<li><a class="reference internal" href="#step-5-add-local-rank-as-an-argument-of-the-python-main-function">Step 5. Add <code class="docutils literal notranslate"><span class="pre">local_rank</span></code> as an argument of the Python main function</a></li>
+<li><a class="reference internal" href="#step-6-setup-graphstorm-configuration-yaml-file">Step 6. Setup GraphStorm configuration YAML file</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#put-everything-together-and-run-them">Put Everything Together and Run them</a></li>
