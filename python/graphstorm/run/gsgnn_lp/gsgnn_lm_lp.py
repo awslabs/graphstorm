@@ -47,7 +47,7 @@ def main(args):
                                     config.part_config,
                                     train_etypes=config.train_etype,
                                     eval_etypes=config.eval_etype,
-                                    node_feat_field=config.feat_name)
+                                    node_feat_field=config.node_feat_name)
     model = gs.create_builtin_lp_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
@@ -57,13 +57,13 @@ def main(args):
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         trainer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.evaluation_frequency,
+            GSgnnMrrLPEvaluator(config.eval_frequency,
                                 train_data,
                                 config.num_negative_edges_eval,
-                                config.use_dot_product,
-                                config.enable_early_stop,
-                                config.call_to_consider_early_stop,
-                                config.window_for_early_stop,
+                                config.lp_decoder_type,
+                                config.use_early_stop,
+                                config.early_stop_burnin_rounds,
+                                config.early_stop_rounds,
                                 config.early_stop_strategy))
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
@@ -73,15 +73,15 @@ def main(args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
-    if config.negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLinkPredictionDataLoader
-    elif config.negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnLPJointNegDataLoader
-    elif config.negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLPLocalUniformNegDataLoader
-    elif config.negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
-    elif config.negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
     else:
         raise Exception('Unknown negative sampler')
@@ -91,9 +91,9 @@ def main(args):
                                 train_task=True)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    if config.test_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.test_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
     else:
         raise Exception('Unknown test negative sampler.'
@@ -116,10 +116,10 @@ def main(args):
     else:
         save_model_path = None
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
-                test_loader=test_dataloader, n_epochs=config.n_epochs,
+                test_loader=test_dataloader, num_epochs=config.num_epochs,
                 save_model_path=save_model_path,
-                mini_batch_infer=config.mini_batch_infer,
-                save_model_per_iters=config.save_model_per_iters,
+                use_mini_batch_infer=config.use_mini_batch_infer,
+                save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path)
 
     if config.save_embed_path is not None:
@@ -135,7 +135,9 @@ def main(args):
         embeddings = do_full_graph_inference(model, train_data,
                                              edge_mask="train_mask", task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size())
+                        th.distributed.get_world_size(),
+                        device=device,
+                        node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
     parser = get_argument_parser()

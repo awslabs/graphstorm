@@ -26,6 +26,8 @@ from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
+from .config import BUILTIN_LP_DOT_DECODER
+from .config import BUILTIN_LP_DISTMULT_DECODER
 from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder
@@ -56,15 +58,15 @@ def initialize(ip_config, backend):
     th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
 
-def get_feat_size(g, feat_names):
+def get_feat_size(g, node_feat_names):
     """ Get the feature's size on each node type in the input graph.
 
     Parameters
     ----------
     g : DistGraph
         The distributed graph.
-    feat_names : str or dict of str
-        The feature names.
+    node_feat_names : str or dict of str
+        The node feature names.
 
     Returns
     -------
@@ -73,12 +75,12 @@ def get_feat_size(g, feat_names):
     feat_size = {}
     for ntype in g.ntypes:
         # user can specify the name of the field
-        if feat_names is None:
+        if node_feat_names is None:
             feat_name = None
-        elif isinstance(feat_names, dict) and ntype in feat_names:
-            feat_name = feat_names[ntype]
-        elif isinstance(feat_names, str):
-            feat_name = feat_names
+        elif isinstance(node_feat_names, dict) and ntype in node_feat_names:
+            feat_name = node_feat_names[ntype]
+        elif isinstance(node_feat_names, str):
+            feat_name = node_feat_names
         else:
             feat_name = None
 
@@ -161,7 +163,7 @@ def create_builtin_node_model(g, config, train_task):
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -263,7 +265,7 @@ def create_builtin_edge_model(g, config, train_task):
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -309,9 +311,9 @@ def create_builtin_lp_model(g, config, train_task):
         else len(g.canonical_etypes) # train_etype is None, every etype is used for training
     # For backword compatibility, we add this check.
     # if train etype is 1, There is no need to use DistMult
-    assert num_train_etype > 1 or config.use_dot_product, \
+    assert num_train_etype > 1 or config.lp_decoder_type == BUILTIN_LP_DOT_DECODER, \
             "If number of train etype is 1, please use dot product"
-    if config.use_dot_product:
+    if config.lp_decoder_type == BUILTIN_LP_DOT_DECODER:
         # if the training set only contains one edge type or it is specified in the arguments,
         # we use dot product as the score function.
         if get_rank() == 0:
@@ -320,7 +322,7 @@ def create_builtin_lp_model(g, config, train_task):
         decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
                                             if model.gnn_encoder is not None \
                                             else model.node_input_encoder.out_dims)
-    else:
+    elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
             print("Using distmult objective for supervision")
         decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
@@ -328,10 +330,12 @@ def create_builtin_lp_model(g, config, train_task):
                                                 if model.gnn_encoder is not None \
                                                 else model.node_input_encoder.out_dims,
                                              config.gamma)
+    else:
+        raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)
     model.set_loss_func(LinkPredictLossFunc())
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -349,23 +353,23 @@ def set_encoder(model, g, config, train_task):
         Whether this model is used for training.
     """
     # Set input layer
-    feat_size = get_feat_size(g, config.feat_name)
+    feat_size = get_feat_size(g, config.node_feat_name)
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:
         if model_encoder_type == "lm":
             # only use language model(s) as input layer encoder(s)
             encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
                                              num_train=config.lm_train_nodes,
-                                             lm_infer_batchszie=config.lm_infer_batchszie)
+                                             lm_infer_batch_size=config.lm_infer_batch_size)
         else:
             encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
-                                                feat_size, config.n_hidden,
+                                                feat_size, config.hidden_size,
                                                 num_train=config.lm_train_nodes,
-                                                lm_infer_batchszie=config.lm_infer_batchszie,
+                                                lm_infer_batch_size=config.lm_infer_batch_size,
                                                 dropout=config.dropout,
                                                 use_node_embeddings=config.use_node_embeddings)
     else:
-        encoder = GSNodeEncoderInputLayer(g, feat_size, config.n_hidden,
+        encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
                                           use_node_embeddings=config.use_node_embeddings)
     model.set_node_input_encoder(encoder)
@@ -374,25 +378,25 @@ def set_encoder(model, g, config, train_task):
     dropout = config.dropout if train_task else 0
     if model_encoder_type == "mlp" or model_encoder_type == "lm":
         # Only input encoder is used
-        assert config.n_layers == 0, "No GNN layers"
+        assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None
     elif model_encoder_type == "rgcn":
-        n_bases = config.n_bases
-        # we need to set the n_layers -1 because there is an output layer
+        num_bases = config.num_bases
+        # we need to set the num_layers -1 because there is an output layer
         # that is hard coded.
         gnn_encoder = RelationalGCNEncoder(g,
-                                           config.n_hidden, config.n_hidden,
-                                           num_bases=n_bases,
-                                           num_hidden_layers=config.n_layers -1,
+                                           config.hidden_size, config.hidden_size,
+                                           num_bases=num_bases,
+                                           num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop)
     elif model_encoder_type == "rgat":
-        # we need to set the n_layers -1 because there is an output layer that is hard coded.
+        # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
-                                           config.n_hidden,
-                                           config.n_hidden,
-                                           config.n_heads,
-                                           num_hidden_layers=config.n_layers -1,
+                                           config.hidden_size,
+                                           config.hidden_size,
+                                           config.num_heads,
+                                           num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop)
     else:

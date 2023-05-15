@@ -23,11 +23,12 @@ import torch as th
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
+from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
-from graphstorm.gconstruct.transform import Noop
+from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
-from graphstorm.gconstruct.utils import ExtMemArrayConverter, partition_graph
+from graphstorm.gconstruct.utils import ExtMemArrayMerger, partition_graph
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -83,6 +84,46 @@ def test_json():
 
     os.remove(tmpfile)
 
+def test_hdf5():
+    handle, tmpfile = tempfile.mkstemp()
+    os.close(handle)
+
+    data = {}
+    data["data1"] = np.random.rand(10, 3)
+    data["data2"] = np.random.rand(10)
+    write_data_hdf5(data, tmpfile)
+    data1 = read_data_hdf5(tmpfile)
+    assert len(data1) == 2
+    assert "data1" in data1
+    assert "data2" in data1
+    np.testing.assert_array_equal(data1['data1'], data['data1'])
+    np.testing.assert_array_equal(data1['data2'], data['data2'])
+
+    data1 = read_data_hdf5(tmpfile, data_fields=['data1'])
+    assert len(data1) == 1
+    assert "data1" in data1
+    assert "data2" not in data1
+    np.testing.assert_array_equal(data1['data1'], data['data1'])
+
+    try:
+        data1 = read_data_hdf5(tmpfile, data_fields=['data1', "data3"])
+        assert False, "This should not happen."
+    except:
+        pass
+
+    # Test HDF5Array
+    data1 = read_data_hdf5(tmpfile, data_fields=['data1'], in_mem=False)
+    assert isinstance(data1['data1'], HDF5Array)
+    np.testing.assert_array_equal(data1['data1'][:], data['data1'][:])
+    idx = np.arange(0, len(data1['data1']), 2)
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
+    idx = th.randint(0, len(data1['data1']), size=(100,))
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
+    idx = np.random.randint(0, len(data1['data1']), size=(100,))
+    np.testing.assert_array_equal(data1['data1'][idx], data['data1'][idx])
+
+    os.remove(tmpfile)
+
 def test_feat_ops():
     # Just get the features without transformation.
     feat_op1 = [{
@@ -127,15 +168,15 @@ def test_feat_ops():
     op = res2[1]
     tokens = op(["hello world", "hello world"])
     assert len(tokens) == 3
-    assert tokens['test4_token_ids'].shape == (2, 16)
-    assert tokens['test4_attention_mask'].shape == (2, 16)
-    assert tokens['test4_token_type_ids'].shape == (2, 16)
-    np.testing.assert_array_equal(tokens['test4_token_ids'][0],
-                                  tokens['test4_token_ids'][1])
-    np.testing.assert_array_equal(tokens['test4_attention_mask'][0],
-                                  tokens['test4_attention_mask'][1])
-    np.testing.assert_array_equal(tokens['test4_token_type_ids'][0],
-                                  tokens['test4_token_type_ids'][1])
+    assert tokens['input_ids'].shape == (2, 16)
+    assert tokens['attention_mask'].shape == (2, 16)
+    assert tokens['token_type_ids'].shape == (2, 16)
+    np.testing.assert_array_equal(tokens['input_ids'][0],
+                                  tokens['input_ids'][1])
+    np.testing.assert_array_equal(tokens['attention_mask'][0],
+                                  tokens['attention_mask'][1])
+    np.testing.assert_array_equal(tokens['token_type_ids'][0],
+                                  tokens['token_type_ids'][1])
 
     data = {
         "test1": np.random.rand(2, 4),
@@ -143,9 +184,52 @@ def test_feat_ops():
     }
     proc_res = process_features(data, res2)
     np.testing.assert_array_equal(data['test1'], proc_res['test2'])
-    assert "test4_token_ids" in proc_res
-    assert "test4_attention_mask" in proc_res
-    assert "test4_token_type_ids" in proc_res
+    assert "input_ids" in proc_res
+    assert "attention_mask" in proc_res
+    assert "token_type_ids" in proc_res
+
+    # Compute BERT embeddings.
+    feat_op3 = [
+        {
+            "feature_col": "test3",
+            "feature_name": "test4",
+            "transform": {"name": 'bert_hf',
+                'bert_model': 'bert-base-uncased',
+                'max_seq_length': 16
+            },
+        },
+    ]
+    res3 = parse_feat_ops(feat_op3)
+    assert len(res3) == 1
+    assert res3[0].col_name == feat_op3[0]["feature_col"]
+    assert res3[0].feat_name == feat_op3[0]["feature_name"]
+    proc_res = process_features(data, res3)
+    assert "test4" in proc_res
+    assert len(proc_res['test4']) == 2
+    # There are two text strings and both of them are "hello world".
+    # The BERT embeddings should be the same.
+    np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
+
+    # Compute BERT embeddings with multiple mini-batches.
+    feat_op4 = [
+        {
+            "feature_col": "test3",
+            "feature_name": "test4",
+            "transform": {"name": 'bert_hf',
+                'bert_model': 'bert-base-uncased',
+                'max_seq_length': 16,
+                'infer_batch_size': 1,
+            },
+        },
+    ]
+    res4 = parse_feat_ops(feat_op4)
+    assert len(res4) == 1
+    assert res4[0].col_name == feat_op4[0]["feature_col"]
+    assert res4[0].feat_name == feat_op4[0]["feature_name"]
+    proc_res2 = process_features(data, res4)
+    assert "test4" in proc_res2
+    assert len(proc_res2['test4']) == 2
+    np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
 
 def verify_split(res):
     assert len(res) == 4
@@ -161,6 +245,44 @@ def verify_split(res):
     assert np.sum(res['label_test_mask']) == 1
     assert np.sum(res['label_train_mask'] + res['label_val_mask'] \
             + res['label_test_mask']) == 10
+
+def test_process_features():
+    # Just get the features without transformation.
+    data = {}
+    data["test1"] = np.random.rand(10, 3)
+    data["test2"] = np.random.rand(10)
+
+    feat_op1 = [{
+        "feature_col": "test1",
+        "feature_name": "test1",
+    },{
+        "feature_col": "test2",
+        "feature_name": "test2",
+    }]
+    ops_rst = parse_feat_ops(feat_op1)
+    rst = process_features(data, ops_rst)
+    assert len(rst) == 2
+    assert 'test1' in rst
+    assert 'test2' in rst
+    assert (len(rst['test1'].shape)) == 2
+    assert (len(rst['test2'].shape)) == 2
+    np.testing.assert_array_equal(rst['test1'], data['test1'])
+    np.testing.assert_array_equal(rst['test2'], data['test2'].reshape(-1, 1))
+    
+def test_label():
+    def check_split(res):
+        assert len(res) == 4
+        assert 'label' in res
+        assert 'train_mask' in res
+        assert 'val_mask' in res
+        assert 'test_mask' in res
+        assert res['train_mask'].shape == (len(data['label']),)
+        assert res['val_mask'].shape == (len(data['label']),)
+        assert res['test_mask'].shape == (len(data['label']),)
+        assert np.sum(res['train_mask']) == 8
+        assert np.sum(res['val_mask']) == 1
+        assert np.sum(res['test_mask']) == 1
+        assert np.sum(res['train_mask'] + res['val_mask'] + res['test_mask']) == 10
 
 def verify_integer(label, res):
     train_mask = res['label_train_mask'] == 1
@@ -184,7 +306,7 @@ def check_classification():
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     check_classification(res)
-    ops = parse_label_ops([conf], False)
+    ops = parse_label_ops([conf], True)
     res = process_labels(data, ops)
     check_classification(res)
 
@@ -215,11 +337,11 @@ def check_classification():
     conf = {'task_type': 'classification',
             'label_col': 'label'}
     ops = parse_label_ops([conf], True)
-    data = {'label' : np.random.randint(3, size=20)}
+    data = {'label' : np.random.randint(3, size=10)}
     res = process_labels(data, ops)
-    assert np.sum(res['label_train_mask']) == 20
-    assert np.sum(res['label_val_mask']) == 0
-    assert np.sum(res['label_test_mask']) == 0
+    assert np.sum(res['train_mask']) == 8
+    assert np.sum(res['val_mask']) == 1
+    assert np.sum(res['test_mask']) == 1
 
 def check_multilabel_classification():
     conf = {'task_type': 'classification',
@@ -243,6 +365,7 @@ def check_multilabel_classification():
     check_classification(res)
 
 def check_regression():
+    # Check regression
     conf = {'task_type': 'regression',
             'label_col': 'label',
             'split_pct': [0.8, 0.1, 0.1]}
@@ -390,18 +513,57 @@ def test_map_node_ids():
     check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map)
     check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
 
-def test_convert2ext_mem():
-    # This is to verify the correctness of ExtMemArrayConverter
-    converters = [ExtMemArrayConverter(None, 0),
-                  ExtMemArrayConverter("/tmp", 2)]
+def test_merge_arrays():
+    # This is to verify the correctness of ExtMemArrayMerger
+    converters = [ExtMemArrayMerger(None, 0),
+                  ExtMemArrayMerger("/tmp", 2)]
     for converter in converters:
-        arr = np.array([str(i) for i in range(10)])
-        em_arr = converter(arr, "test1")
-        np.testing.assert_array_equal(arr, em_arr)
+        # Input are HDF5 arrays.
+        data = {}
+        handle, tmpfile = tempfile.mkstemp()
+        os.close(handle)
+        data["data1"] = np.random.rand(10, 3)
+        data["data2"] = np.random.rand(9, 3)
+        write_data_hdf5(data, tmpfile)
+        data1 = read_data_hdf5(tmpfile, in_mem=False)
+        arrs = [data1['data1'], data1['data2']]
+        res = converter(arrs, "test1")
+        assert isinstance(res, np.ndarray)
+        np.testing.assert_array_equal(res, np.concatenate([data["data1"],
+                                                           data["data2"]]))
 
-        arr = np.random.uniform(size=(1000, 10))
-        em_arr = converter(arr, "test2")
-        np.testing.assert_array_equal(arr, em_arr)
+        # One HDF5 array
+        res = converter([data1['data1']], "test1.5")
+        assert isinstance(res, np.ndarray)
+        np.testing.assert_array_equal(res, data['data1'])
+
+        os.remove(tmpfile)
+
+        # Merge two arrays whose feature dimension is larger than 2.
+        data1 = np.random.uniform(size=(1000, 10))
+        data2 = np.random.uniform(size=(900, 10))
+        em_arr = converter([data1, data2], "test2")
+        assert isinstance(em_arr, np.ndarray)
+        np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
+
+        # Merge two arrays whose feature dimension is smaller than 2.
+        data1 = np.random.uniform(size=(1000,))
+        data2 = np.random.uniform(size=(900,))
+        em_arr = converter([data1, data2], "test3")
+        assert isinstance(em_arr, np.ndarray)
+        np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
+
+        # Input is an array whose feature dimension is larger than 2.
+        data1 = np.random.uniform(size=(1000, 10))
+        em_arr = converter([data1], "test4")
+        assert isinstance(em_arr, np.ndarray)
+        np.testing.assert_array_equal(data1, em_arr)
+
+        # Input is an array whose feature dimension is smaller than 2.
+        data1 = np.random.uniform(size=(1000,))
+        em_arr = converter([data1], "test5")
+        assert isinstance(em_arr, np.ndarray)
+        np.testing.assert_array_equal(data1, em_arr)
 
 def test_partition_graph():
     # This is to verify the correctness of partition_graph.
@@ -425,13 +587,27 @@ def test_partition_graph():
     edge_data1 = []
     with tempfile.TemporaryDirectory() as tmpdirname:
         partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
-                        part_method="random")
+                        part_method="random", save_mapping=True)
         for i in range(num_parts):
             part_dir = os.path.join(tmpdirname, "part" + str(i))
             node_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'node_feat.dgl')))
             edge_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'edge_feat.dgl')))
+
+        # Check saved node ID and edge ID mapping
+        tmp_node_map_file = os.path.join(tmpdirname, f"node_mapping.pt")
+        tmp_edge_map_file = os.path.join(tmpdirname, f"edge_mapping.pt")
+        assert os.path.exists(tmp_node_map_file)
+        assert os.path.exists(tmp_edge_map_file)
+        node_id_map = th.load(tmp_node_map_file)
+        edge_id_map = th.load(tmp_edge_map_file)
+        assert len(node_id_map) == len(num_nodes)
+        assert len(edge_id_map) == len(edges)
+        for node_type, num_node in num_nodes.items():
+            assert node_id_map[node_type].shape[0] == num_node
+        for edge_type, edge in edges.items():
+            assert edge_id_map[edge_type].shape[0] == edge[0].shape[0]
 
     # Partition the graph with DGL's partition_graph.
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
@@ -466,12 +642,127 @@ def test_partition_graph():
             assert name in edata2
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
+def test_multiprocessing_checks():
+    # If the data are stored in multiple HDF5 files and there are
+    # features and labels for processing.
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+                "transform": {"name": 'tokenize_hf',
+                    'bert_model': 'bert-base-uncased',
+                    'max_seq_length': 16
+                },
+            },
+        ],
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = parse_label_ops(conf['labels'], is_node=True)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    # If the data are stored in multiple HDF5 files and there are
+    # labels for processing.
+    conf = {
+        "format": {"name": "hdf5"},
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = None
+    label_ops = parse_label_ops(conf['labels'], is_node=True)
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    # If the data are stored in multiple HDF5 files and there are
+    # features for processing.
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+                "transform": {"name": 'tokenize_hf',
+                    'bert_model': 'bert-base-uncased',
+                    'max_seq_length': 16
+                },
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    # If the data are stored in a single HDF5 file and there are
+    # features for processing.
+    in_files = ["/tmp/test1"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
+
+    # If the data are stored in multiple HDF5 files and there are
+    # features that don't require processing.
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
+
+    # If the data are stored in multiple parquet files and there are
+    # features that don't require processing.
+    conf = {
+        "format": {"name": "parquet"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+            },
+        ],
+    }
+    in_files = ["/tmp/test1", "/tmp/test2"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == True
+
+    # If the data are stored in a single parquet file and there are
+    # features that don't require processing.
+    in_files = ["/tmp/test1"]
+    feat_ops = parse_feat_ops(conf['features'])
+    label_ops = None
+    multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
+    assert multiprocessing == False
+
 if __name__ == '__main__':
+    test_multiprocessing_checks()
+    test_hdf5()
     test_json()
     test_partition_graph()
-    test_convert2ext_mem()
+    test_merge_arrays()
     test_map_node_ids()
     test_id_map()
     test_parquet()
     test_feat_ops()
+    test_process_features()
     test_label()

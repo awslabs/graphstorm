@@ -26,6 +26,7 @@ from .utils import load_model as load_gsgnn_model
 from .utils import save_model as save_gsgnn_model
 from .utils import save_opt_state, load_opt_state
 from .utils import save_sparse_embeds, load_sparse_embeds
+from .utils import create_sparse_embeds_path
 from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
@@ -102,7 +103,8 @@ class GSOptimizer():
     def save_opt_state(self, path):
         """ Save the optimizer states.
         """
-        save_opt_state(path, self.dense_opts, self.lm_opts, self.sparse_opts)
+        if get_rank() == 0:
+            save_opt_state(path, self.dense_opts, self.lm_opts, self.sparse_opts)
 
     def move_to_device(self, device):
         """ Move the optimizer to the specified device.
@@ -434,7 +436,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # before all processes use the model.
         th.distributed.barrier()
 
-    def init_optimizer(self, lr, sparse_lr, weight_decay, lm_lr=None):
+    def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
 
         Parameters
@@ -442,7 +444,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         lr : float
             The learning rate for dense parameters
             The learning rate for general dense parameters
-        sparse_lr : float
+        sparse_optimizer_lr : float
             The learning rate for sparse parameters
         weight_decay : float
             The weight decay for the optimizer.
@@ -452,7 +454,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         sparse_params = self.get_sparse_params()
         if len(sparse_params) > 0:
-            emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_lr)
+            emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_optimizer_lr)
             sparse_opts = [emb_optimizer]
         else:
             sparse_opts = []
@@ -542,18 +544,26 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             The path where all model parameters and optimizer states are saved.
         '''
         start_save_t = time.time()
-        # Only rank0 save dense model parameters
+        # Only rank 0 save dense model parameters
         # We assume the model is written into a shared filesystem accessable
         # to all trainers.
         if get_rank() == 0:
             save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder, self.decoder)
+
         # Saving sparse embedding is done in a distributed way.
+        if get_rank() == 0:
+            # Need to create embedding path and chmod to 0o777 first
+            create_sparse_embeds_path(model_path, self.node_input_encoder)
+        # make sure rank 0 creates the folder and change permission first
+        th.distributed.barrier()
+
         save_sparse_embeds(model_path,
                            self.node_input_encoder,
                            get_rank(),
                            th.distributed.get_world_size())
-        print('successfully save the model to ' + model_path)
-        print('Time on save model {}'.format(time.time() - start_save_t))
+        if get_rank() == 0:
+            print('successfully save the model to ' + model_path)
+            print('Time on save model {}'.format(time.time() - start_save_t))
 
     @property
     def node_input_encoder(self):
@@ -577,7 +587,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
     def num_gnn_layers(self):
         """the number of GNN layers.
         """
-        return self.gnn_encoder.n_layers if self.gnn_encoder is not None else 0
+        return self.gnn_encoder.num_layers if self.gnn_encoder is not None else 0
 
     @property
     def decoder(self):

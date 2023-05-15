@@ -16,12 +16,14 @@ most fields are optional:
 * `files` specifies the input files for the node data. This field is mandatory.
 There are multiple options to specify the input files.
 For a single input file, it contains the path of a single file.
-For multiple files, it contains the path of files with a wildcard,
+For multiple files, it contains the paths of files with a wildcard,
 or a list of file paths.
 * `format` specifies the input file format. This field is mandatory.
 Currently, the pipeline supports two formats: parquet and JSON.
 The detailed format information is specified in the format section.
 * `node_id_col` specifies the column that contains the node IDs. This field is optional.
+If a node type contains multiple blocks to specify the node data, only
+one of the blocks require to specify the node ID column.
 * `features` is a list of dictionaries that define how to get features
 and transform features. This is optional. The format of a feature directionary
 is defined below.
@@ -57,12 +59,12 @@ Currently, its value can be `classification`, `regression` and `link_prediction`
 This has to be specified for classification and regression tasks.
 `label_col` is used as the label name.
 * `split_pct` specifies how to split the data into training/validation/test.
-This is optional. If it's not specified, all data will be used for training.
+This is optional. If it's not specified, the data is split into 80% for training
+10% for validation and 10% for testing.
 The pipeline constructs three additional vectors indicating
 the training/validation/test masks. For classification and regression tasks,
-the names of the mask tensors are "`label_col`_train_mask", "`label_col`_val_mask"
-and "`label_col`_test_mask". For link prediction, the names of the mask tensors
-are "train_mask", "val_mask" and "test_mask".
+the names of the mask tensors are "train_mask", "val_mask"
+and "test_mask"
 
 Below shows an example that contains one node type and an edge type.
 ```
@@ -126,10 +128,11 @@ The command line below shows an example of how to use `construct_graph.py` to
 construct a graph and save it in DistDGL graph format directly.
 ```
 python3 -m graphstorm.gconstruct.construct_graph \
-			--conf_file test_data/test_data.json \
-			--num_processes 2 \
-			--output_dir /tmp/test_out \
-			--graph_name test
+			--conf-file test_data/test_data.json \
+			--num-processes 2 \
+			--num-parts 2 \
+			--output-dir /tmp/test_out \
+			--graph-name test
 ```
 
 ## Input formats
@@ -142,13 +145,27 @@ them in a matrix.
 
 For JSON format, each line of the JSON file is a JSON object. The JSON object can only
 have one level. The value of each field can only be primitive values, such as integers,
-strings and floating points, or a list of primitive values.
+strings and floating points, or a list of integers or floating points.
 
 ## Feature transformation
 Currently, the graph construction pipeline only supports one feature transformation:
-tokenize the text string with HuggingFace tokenizer.
+tokenize the text string with a HuggingFace tokenizer.
 
 For HuggingFace tokenizer, the `name` field in the feature transformation dictionary
 is `tokenize_hf`. The dict should contain two additional fields. `bert_model`
 specifies the BERT model used for tokenization. `max_seq_length` specifies
 the maximal sequence length.
+
+## Output
+Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL.
+By Specifying the `output_format` as "DGL", the output will be an [DGLGraph] (https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html).
+By Specifying the `output_format` as "DistDGL", the output will be a partitioned
+graph named DistDGL graph. (See https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api for more details.)
+It contains the partitioned graph, a JSON config
+describing the meta-information of the partitioned graph, and the mappings for the
+edges and nodes after partition which maps each node and edge in the partitoined
+graph into the original node and edge id space.
+The node ID mapping is stored as a dictionary of 1D tensors whose key is
+the node type and value is a 1D tensor mapping between shuffled node IDs and the original node IDs.
+The edge ID mapping is stored as a dictionary of 1D tensors whose key is
+the edge type and value is a 1D tensor mapping between shuffled edge IDs and the original edge IDs.

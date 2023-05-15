@@ -6,25 +6,22 @@ gsf:
     graph_name: ogbn-arxiv
     backend: gloo
     verbose: false
-    debug: false
   gnn:
     fanout: "15,10"
-    n_layers: 2
-    n_hidden: 128
-    mini_batch_infer: true
+    num_layers: 2
+    hidden_size: 128
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
-    save_predict_path: null
-  hyperparam:
-    eval_batch_size: 1024
+    save_prediction_path: null
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
-    sparse_lr: 1e-2
+    sparse_optimizer_lr: 1e-2
     use_node_embeddings: false
   node_classification:
-    predict_ntype: "node"
+    target_ntype: "node"
     label_field: "labels"
     multilabel: false
     num_classes: 40
