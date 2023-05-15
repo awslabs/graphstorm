@@ -331,6 +331,71 @@ def get_valid_label_index(label):
         raise ValueError("GraphStorm only supports label data of integers and float." + \
                          f"This label data has data type of {label.dtype}.")
 
+class CustomLabelProcessors:
+    def __init__(self, col_name, label_name, task_type,
+                 train_idx, val_idx, test_idx):
+        self._col_name = col_name
+        self._label_name = label_name
+        self._train_idx = train_idx
+        self._val_idx = val_idx
+        self._test_idx = test_idx
+        self._task_type = task_type
+
+    @property
+    def col_name(self):
+        """ The column name that contains the label.
+        """
+        return self._col_name
+
+    @property
+    def label_name(self):
+        """ The label name.
+        """
+        return self._label_name
+
+    def data_split(self, num_samples):
+        train_mask = np.zeros((num_samples,), dtype=np.int8)
+        val_mask = np.zeros((num_samples,), dtype=np.int8)
+        test_mask = np.zeros((num_samples,), dtype=np.int8)
+        train_mask[self._train_idx] = 1
+        val_mask[self._val_idx] = 1
+        test_mask[self._test_idx] = 1
+        train_mask_name = 'train_mask'
+        val_mask_name = 'val_mask'
+        test_mask_name = 'test_mask'
+        return {train_mask_name: train_mask,
+                val_mask_name: val_mask,
+                test_mask_name: test_mask}
+
+    def __call__(self, data):
+        """ Process the label for classification.
+
+        This performs data split on the nodes/edges and generates training/validation/test masks.
+
+        Parameters
+        ----------
+        data : dict of Tensors
+            All data associated with nodes/edges of a node/edge type.
+
+        Returns
+        -------
+        dict of Tensors : it contains the labels as well as training/val/test splits.
+        """
+        assert self.col_name in data, f"The label column {self.col_name} does not exist."
+        if self.col_name in data:
+            label = data[self.col_name]
+            num_samples = len(label)
+        else:
+            assert len(data) > 0, "The edge data is empty."
+            label = None
+            for val in data.values():
+                num_samples = len(val)
+                break
+        res = self.data_split(num_samples)
+        if label is not None and self._task_type == "classification":
+            res[self.label_name] = np.int32(label)
+        return res
+
 class LabelProcessor:
     """ Process labels
 
@@ -503,7 +568,14 @@ def parse_label_ops(confs, is_node):
     label_conf = confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
-    # By default, we use all labels for training.
+    if 'custom_split' in label_conf:
+        custom_split = label_conf['custom_split']
+        train_idx = np.load(custom_split[0])
+        val_idx = np.load(custom_split[1])
+        test_idx = np.load(custom_split[2])
+        return [CustomLabelProcessor(label_col, label_col, task_type,
+                                     train_idx, val_idx, test_idx)]
+
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
     else:
