@@ -231,15 +231,15 @@ def test_feat_ops():
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
 
-def verify_split(res):
+def verify_split(res, label):
     assert len(res) == 4
     assert 'label' in res
     assert 'label_train_mask' in res
     assert 'label_val_mask' in res
     assert 'label_test_mask' in res
-    assert res['label_train_mask'].shape == (len(data['label']),)
-    assert res['label_val_mask'].shape == (len(data['label']),)
-    assert res['label_test_mask'].shape == (len(data['label']),)
+    assert res['label_train_mask'].shape == (len(label),)
+    assert res['label_val_mask'].shape == (len(label),)
+    assert res['label_test_mask'].shape == (len(label),)
     assert np.sum(res['label_train_mask']) == 8
     assert np.sum(res['label_val_mask']) == 1
     assert np.sum(res['label_test_mask']) == 1
@@ -293,8 +293,8 @@ def verify_integer(label, res):
     assert np.all(np.logical_and(label[test_mask] >= 0, label[test_mask] <= 10))
 
 def check_classification():
-    def check_classification(res):
-        verify_split(res)
+    def verify_classification(res):
+        verify_split(res, data['label'])
         assert np.issubdtype(res['label'].dtype, np.integer)
         verify_integer(res['label'], res)
 
@@ -305,23 +305,23 @@ def check_classification():
     ops = parse_label_ops([conf], True)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
-    check_classification(res)
-    ops = parse_label_ops([conf], True)
+    verify_classification(res)
+    ops = parse_label_ops([conf], False)
     res = process_labels(data, ops)
-    check_classification(res)
+    verify_classification(res)
 
     # Check classification with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
     ops = parse_label_ops([conf], True)
     res = process_labels(data, ops)
-    check_classification(res)
+    verify_classification(res)
 
     # Check classification with integer labels.
     data = {'label' : np.random.randint(10, size=10)}
     ops = parse_label_ops([conf], True)
     res = process_labels(data, ops)
-    check_classification(res)
+    verify_classification(res)
 
     # Check classification with integer labels.
     # Data split doesn't use all labeled samples.
@@ -331,7 +331,7 @@ def check_classification():
     ops = parse_label_ops([conf], True)
     data = {'label' : np.random.randint(3, size=20)}
     res = process_labels(data, ops)
-    check_classification(res)
+    verify_classification(res)
 
     # split_pct is not specified.
     conf = {'task_type': 'classification',
@@ -344,16 +344,20 @@ def check_classification():
     assert np.sum(res['test_mask']) == 1
 
 def check_multilabel_classification():
+    def verify_classification(res):
+        verify_split(res, data['label'])
+        assert np.issubdtype(res['label'].dtype, np.integer)
+
     conf = {'task_type': 'classification',
             'label_col': 'label',
             'split_pct': [0.8, 0.1, 0.1]}
     ops = parse_label_ops([conf], True)
     data = {'label' : np.random.uniform(size=(10, 5)) * 10}
     res = process_labels(data, ops)
-    check_classification(res)
+    verify_classification(res)
     ops = parse_label_ops([conf], False)
     res = process_labels(data, ops)
-    check_classification(res)
+    verify_classification(res)
 
     # Check classification with invalid labels.
     data = {'label' : np.random.uniform(size=(13, 5)) * 10}
@@ -362,7 +366,29 @@ def check_multilabel_classification():
     data['label'][2, 2] = np.NAN
     ops = parse_label_ops([conf], True)
     res = process_labels(data, ops)
-    check_classification(res)
+    verify_classification(res)
+
+    # Test the case with two labels.
+    conf = [
+            {
+                'task_type': 'classification',
+                'label_col': 'label1',
+                'split_pct': [0.8, 0.1, 0.1]
+            },
+            {
+                'task_type': 'classification',
+                'label_col': 'label2',
+                'split_pct': [0.8, 0.1, 0.1]
+            }
+    ]
+    ops = parse_label_ops(conf, True)
+    data = {'label1' : np.random.uniform(size=(10, 5)) * 10,
+            'label2' : np.random.uniform(size=(10,)) * 10}
+    res = process_labels(data, ops)
+    assert 'label1' in res
+    assert 'label2' in res
+    assert np.issubdtype(res['label1'].dtype, np.integer)
+    assert np.issubdtype(res['label2'].dtype, np.integer)
 
 def check_regression():
     # Check regression
@@ -372,19 +398,19 @@ def check_regression():
     ops = parse_label_ops([conf], True)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
-    def check_regression(res):
-        verify_split(res)
-    check_regression(res)
+    def verify_regression(res):
+        verify_split(res, data['label'])
+    verify_regression(res)
     ops = parse_label_ops([conf], False)
     res = process_labels(data, ops)
-    check_regression(res)
+    verify_regression(res)
 
     # Check regression with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
     ops = parse_label_ops([conf], True)
     res = process_labels(data, ops)
-    check_regression(res)
+    verify_regression(res)
 
 def check_link_prediction():
     # Check link prediction

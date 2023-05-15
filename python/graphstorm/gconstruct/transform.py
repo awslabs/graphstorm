@@ -508,7 +508,6 @@ def parse_label_ops(confs, is_node):
     """
     ops = []
     for label_conf in confs:
-        label_conf = confs[0]
         assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
         task_type = label_conf['task_type']
         # By default, we use all labels for training.
@@ -554,7 +553,7 @@ def process_labels(data, label_processors):
     res = {}
     for op in label_processors:
         res1 = op(data)
-        for key, val in res1:
+        for key, val in res1.items():
             assert key not in res, f"The label name {key} already exists."
             res[key] = val
     return res
