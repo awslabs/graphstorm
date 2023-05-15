@@ -90,7 +90,7 @@ Third, run the below command to train an RGCN model to perform link prediction o
 ```
 python3 -m graphstorm.run.gs_link_prediction \
         --workspace /tmp/ogbn-mag-lp/ \
-        --num_trainers 1 \
+        --num-trainers 1 \
         --num-servers 1 \
         --num-samplers 0 \
         --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
