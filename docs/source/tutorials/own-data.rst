@@ -365,7 +365,7 @@ For more detailed information of these options, please refer to the :ref:`GraphS
 
 An example ACM  YAML file for node classification
 ..................................................
-Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm's built-in RGCN model for node classification on the ``paper`` nodes. The YAML file can also be found at the `/graphstorm/examples/use_your_own_data/acm_nc.yaml <hhttps://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml>`_.
+Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm's built-in RGCN model for node classification on the ``paper`` nodes. The YAML file can also be found at the `/graphstorm/examples/use_your_own_data/acm_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml>`_.
 
 .. code-block:: yaml
 
