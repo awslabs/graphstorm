@@ -54,7 +54,8 @@ def run_job(input_args, image, unknowargs):
     graph_data_s3 = input_args.graph_data_s3 # S3 location storing partitioned graph data
     infer_yaml_s3 = input_args.infer_yaml_s3 # S3 location storing the yaml file
     infer_yaml_name = input_args.infer_yaml_name # Yaml file name
-    emb_s3_path = input_args.emb_s3_path # S3 location to save node embeddings
+    output_emb_s3_path = input_args.output_emb_s3 # S3 location to save node embeddings
+    output_predict_s3_path = input_args.output_prediction_s3 # S3 location to save prediction results
     enable_bert = input_args.enable_bert # Whether enable bert contraining
     model_artifact_s3 = input_args.model_artifact_s3 # S3 location of saved model artifacts
     model_sub_path = input_args.model_sub_path # Relative path to the trained
@@ -77,7 +78,8 @@ def run_job(input_args, image, unknowargs):
               "graph-data-s3": graph_data_s3,
               "infer-yaml-s3": infer_yaml_s3,
               "infer-yaml-name": infer_yaml_name,
-              "emb-s3-path": emb_s3_path,
+              "output-emb-s3": output_emb_s3_path,
+              "output-prediction-s3": output_predict_s3_path,
               "model-artifact-s3": model_artifact_s3,
               "model-sub-path": model_sub_path,
               "enable-bert": enable_bert}
@@ -153,10 +155,16 @@ def parse_args():
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
-    parser.add_argument("--emb-s3-path", type=str,
-        help="S3 location to save node embeddings")
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 bucket to load the saved model artifacts")
+    parser.add_argument("--output-emb-s3", type=str,
+        help="S3 location to store GraphStorm generated node embeddings."
+        default=None)
+    parser.add_argument("--output-prediction-s3", type=str,
+        help="S3 location to store prediction results. " \
+             "(Only works with node classification/regression " \
+             "and edge classification/regression tasks)"
+        default=None)
     parser.add_argument("--model-sub-path", type=str, default=None,
         help="Relative path to the trained model under <model_artifact_s3>."
              "There can be multiple model checkpoints under"

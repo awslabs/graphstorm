@@ -212,7 +212,7 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
     return os.path.join(graph_path, graph_config)
 
 
-def _upload_data_to_s3(s3_path, data_path, sagemaker_session):
+def upload_data_to_s3(s3_path, data_path, sagemaker_session):
     """ Upload data into S3
 
     Parameters
@@ -249,7 +249,9 @@ def upload_model_artifacts(model_s3_path, model_path, sagemaker_session):
         sagemaker_session to run download
     """
     print(f"Upload model artifacts to {model_s3_path}")
-    return _upload_data_to_s3(model_s3_path, model_path, sagemaker_session)
+    # Rank0 will upload both dense models and learnable embeddings owned by Rank0.
+    # Other ranks will only upload learnable embeddings owned by themselves.
+    return upload_data_to_s3(model_s3_path, model_path, sagemaker_session)
 
 def upload_embs(emb_s3_path, emb_path, sagemaker_session):
     """ Upload generated node embeddings into S3
@@ -267,7 +269,25 @@ def upload_embs(emb_s3_path, emb_path, sagemaker_session):
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
     """
-    return _upload_data_to_s3(emb_s3_path, emb_path, sagemaker_session)
+    return upload_data_to_s3(emb_s3_path, emb_path, sagemaker_session)
+
+def update_gs_params(gs_params, param_name, param_value):
+    """" Update the graphstorm parameter `param_name` with a new
+         value `param_value`
+
+        Parameters
+        ----------
+        gs_params: list
+            List of input parameters
+        param_name: str
+            The parameter to update
+        param_value: str
+            The new value
+    """"
+    for i, pname in enumerate(gs_params):
+        if pname == param_name:
+            gs_params[i+1] = param_value
+            break
 
 def remove_data(path):
     """ Clean up local data under path

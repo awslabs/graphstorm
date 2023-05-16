@@ -36,8 +36,17 @@ from graphstorm.config.config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from graphstorm.config.config import BUILTIN_TASK_EDGE_REGRESSION
 from graphstorm.config.config import BUILTIN_TASK_LINK_PREDICTION
 
-import utils
 import sagemaker
+from graphstorm.sagemaker.run.utils import download_yaml_config
+from graphstorm.sagemaker.run.utils import download_graph
+from graphstorm.sagemaker.run.utils import keep_alive
+from graphstorm.sagemaker.run.utils import barrier_master
+from graphstorm.sagemaker.run.utils import barrier
+from graphstorm.sagemaker.run.utils import terminate_workers
+from graphstorm.sagemaker.run.utils import wait_for_exit
+from graphstorm.sagemaker.run.utils import upload_data_to_s3
+from graphstorm.sagemaker.run.utils import update_gs_params
+
 
 def launch_infer_task(task_type, num_gpus, graph_config,
     load_model_path, save_emb_path, ip_list,
@@ -87,17 +96,17 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     extra_args = " ".join(extra_args)
 
     launch_cmd = ["python3", "-m", cmd,
-        "--num_trainers", f"{num_gpus}",
-        "--num_servers", "1",
-        "--num_samplers", "0",
-        "--part_config", f"{graph_config}",
-        "--ip_config", f"{ip_list}",
-        "--extra_envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
-        "--ssh_port", "22", "--inference"]
+        "--num-trainers", f"{num_gpus}",
+        "--num-servers", "1",
+        "--num-samplers", "0",
+        "--part-config", f"{graph_config}",
+        "--ip-config", f"{ip_list}",
+        "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
+        "--ssh-port", "22", "--inference"]
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
          "--restore-model-path", f"{load_model_path}",
-        "--save-embed-path", f"{save_emb_path}"] + extra_args
+         "--save-embed-path", f"{save_emb_path}"] + extra_args
 
     def run(launch_cmd, state_q):
         try:
@@ -138,6 +147,14 @@ def parse_train_args():
              "Do not store it with partitioned graph")
     parser.add_argument("--infer-yaml-name", type=str,
         help="Training yaml config file name")
+    parser.add_argument("--output-emb-s3", type=str,
+        help="S3 location to store GraphStorm generated node embeddings."
+        default=None)
+    parser.add_argument("--output-prediction-s3", type=str,
+        help="S3 location to store prediction results. " \
+             "(Only works with node classification/regression " \
+             "and edge classification/regression tasks)"
+        default=None)
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
@@ -170,8 +187,8 @@ def main():
 
     parser = parse_train_args()
     args, unknownargs = parser.parse_known_args()
-    print(args)
-    print(unknownargs)
+    print(f"Know args {args}")
+    print(f"Unknow args {unknownargs}")
 
     train_env = json.loads(os.environ['SM_TRAINING_ENV'])
     hosts = train_env['hosts']
@@ -228,11 +245,16 @@ def main():
     enable_bert = args.enable_bert
     model_sub_path = args.model_sub_path
 
+    if args.output_emb_s3 is not None:
+        update_gs_params("--save-embed-path", os.path.join(output_path, "emb"))
+    if args.output_prediction_s3 is not None:
+        update_gs_params("--save-prediction-path", os.path.join(output_path, "predict"))
+
     ### Download Partitioned graph data
     boto_session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
 
-    yaml_path = utils.download_yaml(infer_yaml_s3, infer_yaml_name,
+    yaml_path = download_yaml_config(infer_yaml_s3,
         data_path, sagemaker_session)
     # Download Saved model
     print(f"{model_path} {os.listdir(model_path)}")
@@ -243,18 +265,18 @@ def main():
     if model_sub_path is not None:
         model_path = os.path.join(model_path, model_sub_path)
 
-    graph_config_path = utils.download_graph(graph_data_s3, graph_name,
+    graph_config_path = download_graph(graph_data_s3, graph_name,
         host_rank, data_path, sagemaker_session)
 
     emb_path = os.path.join(output_path, "embs")
 
     err_code = 0
     if host_rank == 0:
-        utils.barrier_master(client_list, world_size)
+        barrier_master(client_list, world_size)
 
         # launch a thread to send keep alive message to all workers
         task_end = Event()
-        thread = Thread(target=utils.keep_alive,
+        thread = Thread(target=keep_alive,
             args=(client_list, world_size, task_end),
             daemon=True)
         thread.start()
@@ -278,21 +300,21 @@ def main():
             print(e)
             err_code = -1
 
-        utils.terminate_workers(client_list, world_size, task_end)
+        terminate_workers(client_list, world_size, task_end)
         print("Master End")
         if err_code != -1:
-            utils.upload_embs(emb_s3_path, emb_path, sagemaker_session)
+            upload_embs(emb_s3_path, emb_path, sagemaker_session)
             # clean embs, so SageMaker does not need to upload embs again
-            utils.remove_embs(emb_path)
+            remove_embs(emb_path)
     else:
-        utils.barrier(sock)
+        barrier(sock)
 
         # Block util training finished
         # Listen to end command
-        utils.wait_for_exit(sock)
-        utils.upload_embs(emb_s3_path, emb_path, sagemaker_session)
+        wait_for_exit(sock)
+        upload_embs(emb_s3_path, emb_path, sagemaker_session)
         # clean embs, so SageMaker does not need to upload embs again
-        utils.remove_embs(emb_path)
+        remove_embs(emb_path)
         print("Worker End")
 
     sock.close()
@@ -300,6 +322,15 @@ def main():
         # Report an error
         print("Task failed")
         sys.exit(-1)
+
+    if args.output_emb_s3 is not None:
+        upload_data_to_s3(args.output_emb_s3,
+                          os.path.join(output_path, "emb"),
+                          sagemaker_session)
+    if args.output_emb_s3 is not None:
+        upload_data_to_s3(args.output_prediction_s3,
+                          os.path.join(output_path, "predict"),
+                          sagemaker_session)
 
 if __name__ == '__main__':
     main()

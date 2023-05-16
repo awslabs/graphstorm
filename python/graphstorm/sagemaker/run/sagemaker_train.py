@@ -44,6 +44,8 @@ from graphstorm.sagemaker.run.utils import barrier
 from graphstorm.sagemaker.run.utils import terminate_workers
 from graphstorm.sagemaker.run.utils import wait_for_exit
 from graphstorm.sagemaker.run.utils import upload_model_artifacts
+from graphstorm.sagemaker.run.utils import upload_data_to_s3
+from graphstorm.sagemaker.run.utils import update_gs_params
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,
@@ -91,16 +93,14 @@ def launch_train_task(task_type, num_gpus, graph_config,
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
-    #extra_args = " ".join(extra_args)
-
     launch_cmd = ["python3", "-m", cmd,
-        "--num_trainers", f"{num_gpus}",
-        "--num_servers", "1",
-        "--num_samplers", "0",
-        "--part_config", f"{graph_config}",
-        "--ip_config", f"{ip_list}",
-        "--extra_envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
-        "--ssh_port", "22"]
+        "--num-trainers", f"{num_gpus}",
+        "--num-servers", "1",
+        "--num-samplers", "0",
+        "--part-config", f"{graph_config}",
+        "--ip-config", f"{ip_list}",
+        "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
+        "--ssh-port", "22"]
     launch_cmd += [custom_script] if custom_script is not None else []
     print(extra_args)
     launch_cmd += ["--cf", f"{yaml_path}",
@@ -141,8 +141,16 @@ def parse_train_args():
     parser.add_argument("--train-yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--output-s3", type=str,
+    parser.add_argument("--output-model-s3", type=str,
         help="S3 location to store the model artifacts.")
+    parser.add_argument("--output-emb-s3", type=str,
+        help="S3 location to store GraphStorm generated node embeddings."
+        default=None)
+    parser.add_argument("--output-prediction-s3", type=str,
+        help="S3 location to store prediction results. " \
+             "(Only works with node classification/regression " \
+             "and edge classification/regression tasks)"
+        default=None)
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
@@ -224,8 +232,14 @@ def main():
     graph_data_s3 = args.graph_data_s3
     task_type = args.task_type
     train_yaml_s3 = args.train_yaml_s3
-    output_s3 = args.output_s3
+    output_model_s3 = args.output_model_s3
     custom_script = args.custom_script
+    if args.output_emb_s3 is not None:
+        update_gs_params(gs_params, "--save-embed-path",
+            os.path.join(output_path, "emb"))
+    if args.output_prediction_s3 is not None:
+        update_gs_params(gs_params, "--save-prediction-path",
+            os.path.join(output_path, "predict"))
 
     boto_session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
@@ -279,7 +293,15 @@ def main():
 
     # If there are saved models
     if os.path.exists(save_model_path):
-        upload_model_artifacts(output_s3, save_model_path, sagemaker_session)
+        upload_model_artifacts(output_model_s3, save_model_path, sagemaker_session)
+    if args.output_emb_s3 is not None:
+        upload_data_to_s3(args.output_emb_s3,
+                          os.path.join(output_path, "emb"),
+                          sagemaker_session)
+    if args.output_emb_s3 is not None:
+        upload_data_to_s3(args.output_prediction_s3,
+                          os.path.join(output_path, "predict"),
+                          sagemaker_session)
 
 if __name__ == '__main__':
     main()

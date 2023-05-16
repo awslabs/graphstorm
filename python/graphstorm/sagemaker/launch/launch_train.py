@@ -50,7 +50,9 @@ def run_job(input_args, image, unknowargs):
     graph_name = input_args.graph_name # Training graph name
     graph_data_s3 = input_args.graph_data_s3 # S3 location storing partitioned graph data
     train_yaml_s3 = input_args.train_yaml_s3 # S3 location storing the yaml file
-    output_s3 = input_args.output_s3 # S3 location to store the model artifacts
+    output_model_s3 = input_args.output_model_s3 # S3 location to store the model artifacts
+    output_emb_s3_path = input_args.output_emb_s3 # S3 location to save node embeddings
+    output_predict_s3_path = input_args.output_prediction_s3 # S3 location to
     enable_bert = input_args.enable_bert # Whether enable bert contraining
     model_artifact_s3 = input_args.model_artifact_s3 # Where to store model artifacts
     custom_script = input_args.custom_script # custom_script if any
@@ -68,7 +70,9 @@ def run_job(input_args, image, unknowargs):
               "graph-name": graph_name,
               "graph-data-s3": graph_data_s3,
               "train-yaml-s3": train_yaml_s3,
-              "output-s3": output_s3,
+              "output-model-s3": output_model_s3,
+              "output-emb-s3": output_emb_s3_path,
+              "output-prediction-s3": output_predict_s3_path,
               "enable-bert": enable_bert}
     if custom_script is not None:
         params["custom-script"] = custom_script
@@ -146,13 +150,21 @@ def parse_args():
     parser.add_argument("--train-yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--output-s3", type=str,
+    parser.add_argument("--output-model-s3", type=str,
         help="S3 location to store the model artifacts.")
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
     parser.add_argument("--model-artifact-s3", type=str, default=None,
         help="S3 bucket to save model artifacts")
+    parser.add_argument("--output-emb-s3", type=str,
+        help="S3 location to store GraphStorm generated node embeddings."
+        default=None)
+    parser.add_argument("--output-prediction-s3", type=str,
+        help="S3 location to store prediction results. " \
+             "(Only works with node classification/regression " \
+             "and edge classification/regression tasks)"
+        default=None)
     parser.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \
             Please provide the path of the script within the docker image")

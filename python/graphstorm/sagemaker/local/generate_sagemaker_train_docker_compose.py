@@ -38,8 +38,16 @@ def parse_args():
     parser.add_argument("--train-yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--output-s3", type=str,
+    parser.add_argument("--output-model-s3", type=str,
         help="S3 location to store the model artifacts")
+    parser.add_argument("--output-emb-s3", type=str,
+        help="S3 location to store GraphStorm generated node embeddings."
+        default=None)
+    parser.add_argument("--output-prediction-s3", type=str,
+        help="S3 location to store prediction results. " \
+             "(Only works with node classification/regression " \
+             "and edge classification/regression tasks)"
+        default=None)
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
         help="Whether enable cotraining Bert with GNN")
@@ -80,7 +88,11 @@ if __name__ == "__main__":
                     f'--graph-name {args.graph_name} ' \
                     f'--train-yaml-s3 {args.train_yaml_s3} ' \
                     f'--enable-bert {args.enable_bert} ' \
-                    f'--output-s3 {args.output_s3} ' \
+                    f'--output-model-s3 {args.output_model_s3} ' \
+                    f'--output-emb-s3 {args.output_emb_s3} ' \
+                        if args.output_emb_s3 is not None else '' \
+                    f'--output-prediction-s3 {args.output_prediction_s3} ' \
+                        if args.output_prediction_s3 is not None else '' \
                     f'{custom_script} ' + \
                     ' '.join(unknownargs)
         return {
