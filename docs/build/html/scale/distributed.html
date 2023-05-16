@@ -209,14 +209,14 @@
         <article role="main">
           <section id="use-graphstorm-in-a-distributed-cluster">
 <span id="distributed-cluster"></span><h1>Use GraphStorm in a Distributed Cluster<a class="headerlink" href="#use-graphstorm-in-a-distributed-cluster" title="Permalink to this heading">#</a></h1>
-<p>GraphStorm can scale to the enterprise-level graphs in the distributed mode with a cluster. To leverage this capacity, there are four steps to follow:</p>
+<p>GraphStorm can scale to the enterprise-level graphs in the distributed mode by using a cluster of instances. To leverage this capacity, there are four steps to follow:</p>
 <ul class="simple">
 <li><p>Create a cluster with instances each of which can run GraphStorm Docker container.</p></li>
-<li><p>Set up IP address configuration and check port 2222 status.</p></li>
+<li><p>Set up the IP address file and check port 2222 status.</p></li>
 <li><p>Partition large graphs into distributed format.</p></li>
-<li><p>Launch the training within one instance’ container.</p></li>
+<li><p>Launch the training command within one instance’ container.</p></li>
 </ul>
-<p>The first section of this tutorial uses the <a class="reference external" href="https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag">OGB-MAG</a> as example data and demonstrate how to use GraphStorm to train an RGCN model (a built-in model) in a cluster with three EC2 instances. The OGB-MAG data is large enough to demonstrate the scalability of GraphStorm, and also small enough to finish this tutorial in one hour.</p>
+<p>The first section of this tutorial uses the <a class="reference external" href="https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag">OGB-MAG</a> as an example data to demonstrate how to use GraphStorm to train an RGCN model (a built-in model) in a cluster with three EC2 instances. The OGB-MAG data is large enough to demonstrate the scalability of GraphStorm, and also small enough to complete training in short time.</p>
 <section id="create-a-graphstorm-cluster">
 <h2>Create a GraphStorm Cluster<a class="headerlink" href="#create-a-graphstorm-cluster" title="Permalink to this heading">#</a></h2>
 <section id="setup-the-instance-of-a-cluster">
@@ -226,8 +226,8 @@
 <section id="setup-of-a-shared-file-system-for-the-cluster">
 <h3>Setup of a shared file system for the cluster<a class="headerlink" href="#setup-of-a-shared-file-system-for-the-cluster" title="Permalink to this heading">#</a></h3>
 <p>A cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.</p>
-<p><a class="reference external" href="https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system">Here</a> is the instruction of setting up NFS for a cluster provided by DGL. As the steps of setup of an NFS could be various for different systems, we suggest users to look for additional information about NFS setting. Here are some available sources: <a class="reference external" href="https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04">NFS tutorial</a> by DigitalOcean, <a class="reference external" href="https://ubuntu.com/server/docs/service-nfs">NFS document</a> for Ubuntu, <a class="reference external" href="https://www.linode.com/docs/guides/using-an-nfs-server-on-ubuntu2004/">NFS guide</a> by Linode, <a class="reference external" href="https://www.tecmint.com/how-to-setup-nfs-server-in-linux/">NFS tutorial</a> at Tecmint, and <a class="reference external" href="https://www.howtoforge.com/how-to-install-nfs-server-and-client-on-ubuntu-22-04/">NFS guide</a> by HowtoForge.</p>
-<p>For an AWS EC2 cluster, users can use EFS as the shared file system. Follow 1) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/gs-step-two-create-efs-resources.html">the instruction of creating EFS</a>; 2) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html">the instruction of installing an EFS client</a>; 3) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/efs-mount-helper.html">the instructions of mounting the EFS filesystem</a>.</p>
+<p><a class="reference external" href="https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system">Here</a> is the instruction of setting up NFS for a cluster provided by DGL. As the steps of setup of an NFS could be various for different systems, we suggest users to look for additional information about NFS setting. Here are some available resources: <a class="reference external" href="https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04">NFS tutorial</a> by DigitalOcean, <a class="reference external" href="https://ubuntu.com/server/docs/service-nfs">NFS document</a> for Ubuntu, <a class="reference external" href="https://www.linode.com/docs/guides/using-an-nfs-server-on-ubuntu2004/">NFS guide</a> by Linode, <a class="reference external" href="https://www.tecmint.com/how-to-setup-nfs-server-in-linux/">NFS tutorial</a> at Tecmint, and <a class="reference external" href="https://www.howtoforge.com/how-to-install-nfs-server-and-client-on-ubuntu-22-04/">NFS guide</a> by HowtoForge.</p>
+<p>For an AWS EC2 cluster, users can also use EFS as the shared file system. Please follow 1) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/gs-step-two-create-efs-resources.html">the instruction of creating EFS</a>; 2) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html">the instruction of installing an EFS client</a>; and 3) <a class="reference external" href="https://docs.aws.amazon.com/efs/latest/ug/efs-mount-helper.html">the instructions of mounting the EFS filesystem</a> to set up EFS.</p>
 <p>After setting up a shared file system, we can keep all partitioned graph data in the shared folder. Then mount the data folder to the <code class="docutils literal notranslate"><span class="pre">/path_to_data/</span></code> of each instances in the cluster so that all GraphStorm containers in the cluster can access these partitioned graph data easily.</p>
 </section>
 <section id="create-graphstorm-container-by-mounting-the-nfs-folder">
@@ -242,8 +242,8 @@
 <p>This command mount the shared <code class="docutils literal notranslate"><span class="pre">/path_to_data/</span></code> folder to each container’s <code class="docutils literal notranslate"><span class="pre">/data/</span></code> folder by which GraphStorm codes can access graph data and save training and inference outcomes.</p>
 </section>
 </section>
-<section id="setup-ip-address-configuration-and-check-port-2222-status">
-<h2>Setup IP address configuration and check port 2222 status<a class="headerlink" href="#setup-ip-address-configuration-and-check-port-2222-status" title="Permalink to this heading">#</a></h2>
+<section id="setup-the-ip-address-file-and-check-port-2222-status">
+<h2>Setup the IP address file and check port 2222 status<a class="headerlink" href="#setup-the-ip-address-file-and-check-port-2222-status" title="Permalink to this heading">#</a></h2>
 <section id="collect-the-ip-list">
 <h3>Collect the IP list<a class="headerlink" href="#collect-the-ip-list" title="Permalink to this heading">#</a></h3>
 <p>The GraphStorm Docker containers use SSH on port <code class="docutils literal notranslate"><span class="pre">2222</span></code> to communicate with each other. Users need to collect all IP addresses of the three instances and put them into a text file, e.g., <code class="docutils literal notranslate"><span class="pre">/data/ip_list.txt</span></code>, which is like:</p>
@@ -258,7 +258,7 @@
 </section>
 <section id="check-port-2222">
 <h3>Check port 2222<a class="headerlink" href="#check-port-2222" title="Permalink to this heading">#</a></h3>
-<p>The GraphStorm Docker container uses port <code class="docutils literal notranslate"><span class="pre">2222</span></code> to <strong>ssh</strong> login to containers running on other machines. Please make sure the host instance does not use this port.</p>
+<p>The GraphStorm Docker container uses port <code class="docutils literal notranslate"><span class="pre">2222</span></code> to <strong>ssh</strong> to containers running on other machines without passwords. Please make sure all host instances do not use this port.</p>
 <p>Users also need to make sure the port <code class="docutils literal notranslate"><span class="pre">2222</span></code> is open for <strong>ssh</strong> commands.</p>
 <p>Pick one instance and run the following command to connect to the GraphStorm Docker container.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>container<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span><span class="nb">test</span><span class="w"> </span>/bin/bash
@@ -268,6 +268,7 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh<span class="w"> </span><span class="m">172</span>.38.12.143<span class="w"> </span>-p<span class="w"> </span><span class="m">2222</span>
 </pre></div>
 </div>
+<p>If succeeds, you should login to the container in the <code class="docutils literal notranslate"><span class="pre">&lt;ip-in-the-cluster&gt;</span></code> instance. If not, please make sure there is no limitation of port 2222.</p>
 </section>
 </section>
 <section id="partition-a-graph">
@@ -276,7 +277,7 @@
 <p class="admonition-title">Note</p>
 <p>All commands below should be run in a GraphStorm Docker container. Please refer to the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">GraphStorm Docker environment setup</span></a> to prepare your environment.</p>
 </div>
-<p>And then download and process the OGBN-MAG data with the command below.</p>
+<p>Now we can download and process the OGBN-MAG data with the command below.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/tools/gen_mag_dataset.py<span class="w"> </span>--savepath<span class="w"> </span>/data/ogbn-mag-lp/<span class="w"> </span>--edge_pct<span class="w"> </span><span class="m">0</span>.2
 </pre></div>
 </div>
@@ -291,7 +292,7 @@
 <span class="w">                                                </span>--output<span class="w"> </span>/data/ogbn_mag_lp_3p
 </pre></div>
 </div>
-<p>After this command completes successfully, the partitioned OGBN-MAG graph is stored in the <code class="docutils literal notranslate"><span class="pre">/data/ogbn_mag_lp_3p</span></code> folder whose structure is like the diagram below. Because the <code class="docutils literal notranslate"><span class="pre">/data/</span></code> folder is actually a shared filesystem, all instances in the cluster can access these files.</p>
+<p>After this command completes successfully, the partitioned OGBN-MAG graph is stored in the <code class="docutils literal notranslate"><span class="pre">/data/ogbn_mag_lp_3p</span></code> folder whose structure is like the diagram below. Because the <code class="docutils literal notranslate"><span class="pre">/data/</span></code> folder is a shared filesystem, all instances in the cluster can access these files.</p>
 <figure class="align-center">
 <img alt="../_images/3partitions-files.png" src="../_images/3partitions-files.png" />
 </figure>
@@ -301,35 +302,35 @@
 <p>When graph partition data is ready, it is easy to launch a distributed training job. Pick a GraphStorm container, e.g. the container with IP address <code class="docutils literal notranslate"><span class="pre">172.37.11.221</span></code>, and run the following command.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_link_prediction<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--workspace<span class="w"> </span>/data/ogbn-mag-lp/<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--num_trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--num_servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--num_samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--part_config<span class="w"> </span>/data/ogbn_mag_lp_3p/ogbn-mag.json<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--ip_config<span class="w"> </span>/data/ip_list.txt<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--ssh_port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--part-config<span class="w"> </span>/data/ogbn_mag_lp_3p/ogbn-mag.json<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--ip-config<span class="w"> </span>/data/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--cf<span class="w"> </span>/graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--save-model-path<span class="w"> </span>/data/ogbn-mag-lp/models/
 </pre></div>
 </div>
-<p>That’s it!</p>
+<p>That’s it! The command will initialize the training in all three GraphStorm containers, each of which will take a partition of the MAG graph and conduct link prediction traing collaborately.</p>
 </section>
 <section id="train-a-large-graph-ogbn-papers100m">
 <h2>Train a Large Graph (OGBN-Papers100M)<a class="headerlink" href="#train-a-large-graph-ogbn-papers100m" title="Permalink to this heading">#</a></h2>
-<p>The previous sections demonstrates GraphStorm’s distributed training feature for a quick start. This section will use GraphStorm to train a large Graph data, i.e., <a class="reference external" href="https://ogb.stanford.edu/docs/nodeprop/#ogbn-papers100M">OGBN-Papers100M</a>,  that can hardly be processed and trained in a single machine. The steps of training a large graph is nearly the same as the above section, and only need a few additional operations.</p>
+<p>The previous sections demonstrates GraphStorm’s distributed capability for a quick start. This section will use GraphStorm to train a large Graph data, i.e., <a class="reference external" href="https://ogb.stanford.edu/docs/nodeprop/#ogbn-papers100M">OGBN-Papers100M</a>,  that can hardly train an RGCN model on it in a single machine. The steps of training this large graph is nearly the same as the above section, and only need a few additional operations.</p>
 <section id="id3">
 <h3>Create a GraphStorm Cluster<a class="headerlink" href="#id3" title="Permalink to this heading">#</a></h3>
-<p>In addition to the three GraphStorm instance created in the OGBN-MAG, to download and partition the OGBN-Papers100M graph, we need a new instance that have large memory, e.g., &gt;800GB. In this tutorial we use an AWS r6a.32xlarge instance, which has 1TB memory. For the instance, please follow the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">Environment Setup</span></a> description to setup GraphStorm Docker container environment. Once building the GraphStorm Docker image in this instance, use the following command to start a GraphStorm Docker container.</p>
+<p>In addition to the three GraphStorm instance created in the OGBN-MAG tutorial, to download and partition the OGBN-Papers100M graph, we need a new instance that has large memory, e.g., &gt;800GB. In this tutorial we use an AWS r6a.32xlarge instance, which has 1TB memory. For the instance, please follow the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">Environment Setup</span></a> description to setup GraphStorm Docker container environment. Once building the GraphStorm Docker image in this instance, use the following command to start a GraphStorm Docker container.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span>/path_to_data/:/data<span class="w"> </span><span class="se">\</span>
-<span class="w">              </span>-v<span class="w"> </span>/dev/shm:/dev/shm<span class="w"> </span><span class="se">\</span>
-<span class="w">              </span>--network<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
-<span class="w">              </span>-d<span class="w"> </span>--name<span class="w"> </span><span class="nb">test</span><span class="w"> </span>graphstorm:local
+<span class="w">           </span>-v<span class="w"> </span>/dev/shm:/dev/shm<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--network<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>-d<span class="w"> </span>--name<span class="w"> </span><span class="nb">test</span><span class="w"> </span>graphstorm:local
 </pre></div>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <ul class="simple">
-<li><p>Use the “<strong>docker</strong>”, instead of “nvidia-docker” command to create the GraphStorm container because the new r6a.32xlarge instance does not have GPUs configured.</p></li>
+<li><p>Use the “<strong>docker</strong>”, instead of “nvidia-docker” command to create the GraphStorm container because the new r6a.32xlarge instance does not have GPUs installed.</p></li>
 <li><p>Make sure there is at least 300GB free space in the /path_to_data/ folder. It is better to use the shared file system folder so that the partitioned graph data can be easily shared to the GraphStorm cluster.</p></li>
 </ul>
 </div>
@@ -350,7 +351,7 @@
 </section>
 <section id="distribute-partitioned-graphs-and-configurations-to-all-instances">
 <h3>Distribute Partitioned Graphs and Configurations to all Instances<a class="headerlink" href="#distribute-partitioned-graphs-and-configurations-to-all-instances" title="Permalink to this heading">#</a></h3>
-<p>In this step, users need to copy these partitioned files to the shared file system of the GraphStorm cluster. And the IP list collection and 2222 port open operations are identical to the above OGBN-MAG section.</p>
+<p>In this step, users need to copy these partitioned files to the shared file system of the GraphStorm cluster. And the IP list file creation and 2222 port open operations are identical to the above OGBN-MAG section.</p>
 <p>For the OGBN-Papers100M data, we use a YAML file, <code class="docutils literal notranslate"><span class="pre">ogbn_papers100M_nc_p3.yaml</span></code>, that has the contents below.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nn">---</span>
 <span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
@@ -399,16 +400,16 @@
 <h3>Launch Training in One Container<a class="headerlink" href="#launch-training-in-one-container" title="Permalink to this heading">#</a></h3>
 <p>Launch the training for the OGBN-Papers100M is similar as the OGBN-MAG data. Pick a GraphStorm container, e.g. the container with IP address <code class="docutils literal notranslate"><span class="pre">172.37.11.221</span></code>, and run the following command.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--workspace<span class="w"> </span>/data/<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--num_trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--num_servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--num_samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--part_config<span class="w"> </span>/data/ogbn_papers100M_3p/ogbn-papers100M.json<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--ip_config<span class="w"> </span>/data/ip_list.txt<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--ssh_port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--graph_format<span class="w"> </span>csc,coo<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--cf<span class="w"> </span>/data/ogbn_papers100M_nc_p3.yaml<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--node-feat-name<span class="w"> </span>feat
+<span class="w">           </span>--workspace<span class="w"> </span>/data/<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--part-config<span class="w"> </span>/data/ogbn_papers100M_3p/ogbn-papers100M.json<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--ip-config<span class="w"> </span>/data/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--graph-format<span class="w"> </span>csc,coo<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--cf<span class="w"> </span>/data/ogbn_papers100M_nc_p3.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--node-feat-name<span class="w"> </span>feat
 </pre></div>
 </div>
 <p>Due to the size of Papers100M graph, it will take around six minutes for all GraphStorm containers in the cluster to load corresponding partitions before the training starts.</p>
@@ -479,7 +480,7 @@
 <li><a class="reference internal" href="#create-graphstorm-container-by-mounting-the-nfs-folder">Create GraphStorm container by mounting the NFS folder</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#setup-ip-address-configuration-and-check-port-2222-status">Setup IP address configuration and check port 2222 status</a><ul>
+<li><a class="reference internal" href="#setup-the-ip-address-file-and-check-port-2222-status">Setup the IP address file and check port 2222 status</a><ul>
 <li><a class="reference internal" href="#collect-the-ip-list">Collect the IP list</a></li>
 <li><a class="reference internal" href="#check-port-2222">Check port 2222</a></li>
 </ul>
