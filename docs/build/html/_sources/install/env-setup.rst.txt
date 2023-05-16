@@ -1,14 +1,14 @@
 .. _setup:
 
 Environment Setup
-=================
+======================
 
 For a quick and easy setup, GraphStorm can be installed as a pip package.
 
-However, configuring an GraphStorm environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we recommend that our users use Docker as the base running environment to use GraphStorm.
+However, configuring an GraphStorm environment is non-trivial. Users need to install dependencies and configure distributed PyTorch running environments. For this reason, we recommend that our users setup Docker as the base running environment to use GraphStorm.
 
 Prerequisites
---------------
+-----------------
 
 1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
@@ -55,7 +55,7 @@ If the build succeeds, there should be a new Docker image, named *<docker-name>:
 
 
 Create a GraphStorm Container
-------------------------------
+-------------------------------
 
 First, you need to create a GraphStorm container based on the Docker image built in the previous step. 
 

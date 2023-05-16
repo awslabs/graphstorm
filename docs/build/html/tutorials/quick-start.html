@@ -221,7 +221,7 @@
 </ol>
 </li>
 <li><ol class="arabic simple" start="3">
-<li><p>Launch GraphStorm inference scripts with saved models.</p></li>
+<li><p>Launch GraphStorm inference scripts with saved models to predict.</p></li>
 </ol>
 </li>
 </ul>
@@ -239,7 +239,7 @@
 <span class="w">                                             </span>--output<span class="w"> </span>/tmp/ogbn_arxiv_nc_1p
 </pre></div>
 </div>
-<p>This command will automatically download ogbn-arxiv data and split the graph into one partition. Outcomes of the command are a set of files saved in the <code class="docutils literal notranslate"><span class="pre">/tmp/ogbn_arxiv_nc_1p/</span></code> folder, as shown below.</p>
+<p>This command will automatically download ogbn-arxiv graph data and split the graph into one partition. Outcomes of the command are a set of files saved in the <code class="docutils literal notranslate"><span class="pre">/tmp/ogbn_arxiv_nc_1p/</span></code> folder, as shown below.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/tmp/ogbn_arxiv_nc_1p:
 ogbn-arxiv.json
 node_mapping.pt
@@ -250,24 +250,24 @@ edge_mapping.pt
 <span class="w">    </span>node_feat.dgl
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">ogbn-arxiv.json</span></code> file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument <code class="docutils literal notranslate"><span class="pre">--num_parts</span> <span class="pre">1</span></code>, there is one sub-folder, named <code class="docutils literal notranslate"><span class="pre">part0</span></code>.  Files in the sub-folder includes three types of data, i.e., the graph structure (<code class="docutils literal notranslate"><span class="pre">graph.dgl</span></code>), the node features (<code class="docutils literal notranslate"><span class="pre">node_feat.dgl</span></code>), and edge features (<code class="docutils literal notranslate"><span class="pre">edge_feat.dgl</span></code>). The <code class="docutils literal notranslate"><span class="pre">node_mapping.pt</span></code> and <code class="docutils literal notranslate"><span class="pre">edge_mapping.pt</span></code> contain the ID mapping between the raw node and edge IDs with the built graph node and edge IDs.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">ogbn-arxiv.json</span></code> file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument <code class="docutils literal notranslate"><span class="pre">--num_parts</span> <span class="pre">1</span></code>, there is one sub-folder, named <code class="docutils literal notranslate"><span class="pre">part0</span></code>.  Files in the sub-folder includes three types of data, i.e., the graph structure (<code class="docutils literal notranslate"><span class="pre">graph.dgl</span></code>), the node features (<code class="docutils literal notranslate"><span class="pre">node_feat.dgl</span></code>), and edge features (<code class="docutils literal notranslate"><span class="pre">edge_feat.dgl</span></code>). The <code class="docutils literal notranslate"><span class="pre">node_mapping.pt</span></code> and <code class="docutils literal notranslate"><span class="pre">edge_mapping.pt</span></code> contain the ID mapping between the raw node and edge IDs with the built graph’s node and edge IDs.</p>
 </section>
 <section id="launch-training">
 <span id="id1"></span><h2>Launch Training<a class="headerlink" href="#launch-training" title="Permalink to this heading">#</a></h2>
-<p>GraphStorm currently relies on <strong>ssh</strong> to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in a <strong>signle machine</strong>, as this tutorial does, users only need to run the following command to create an <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file that has one row ‘<strong>127.0.0.1</strong>’ as its content.</p>
+<p>GraphStorm currently relies on <strong>ssh</strong> to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in the Standalone mode, which run only in a <strong>signle machine</strong>, as this tutorial does, users only need to run the following command to create an <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file that has one row ‘<strong>127.0.0.1</strong>’ as its content.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>touch<span class="w"> </span>/tmp/ogbn-arxiv-nc/ip_list.txt
-<span class="nb">echo</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>&gt;/tmp/ogbn-arxiv-nc/ip_list.txt
+<span class="nb">echo</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>&gt;<span class="w"> </span>/tmp/ogbn-arxiv-nc/ip_list.txt
 </pre></div>
 </div>
-<p>Then run below command to start a training job that train an built-in RGCN model to perform node classification on OGB-arxiv.</p>
+<p>Then run the below command to start a training job that trains an built-in RGCN model to perform node classification on the OGB-arxiv.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w">  </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">            </span>--workspace<span class="w"> </span>/tmp/ogbn-arxiv-nc<span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>--num_trainers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>--num_servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>--num_samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>--part_config<span class="w"> </span>/tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json<span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>--ip_config<span class="w">  </span>/tmp/ogbn-arxiv-nc/ip_list.txt<span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>--ssh_port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">            </span>--num-trainers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">            </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">            </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">            </span>--part-config<span class="w"> </span>/tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json<span class="w"> </span><span class="se">\</span>
+<span class="w">            </span>--ip-config<span class="w">  </span>/tmp/ogbn-arxiv-nc/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">            </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
 <span class="w">            </span>--cf<span class="w"> </span>/graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">            </span>--save-model-path<span class="w"> </span>/tmp/ogbn-arxiv-nc/models
 </pre></div>
@@ -283,21 +283,21 @@ edge_mapping.pt
 <span class="p">|</span>-<span class="w"> </span>epoch-9
 </pre></div>
 </div>
-<p>In a <strong>signle</strong> AWS g4dn.12xlarge instance, it takes around 8 seconds to finish one training and evaluation epoch by using <strong>1 GPU</strong>.</p>
+<p>In a single AWS g4dn.12xlarge instance, it takes around 8 seconds to finish one training and evaluation epoch by using <strong>1 GPU</strong>.</p>
 </section>
 <section id="launch-inference">
 <h2>Launch inference<a class="headerlink" href="#launch-inference" title="Permalink to this heading">#</a></h2>
-<p>The output log of the training command also show which epoch achieve the best performance on the validation node set. Users can use saved model in this best performance epoch, e.g., epoch-7, to do the  inference.</p>
+<p>The output log of the training command also show which epoch achieves the best performance on the validation set. Users can use the saved model in this best performance epoch, e.g., epoch-7, to do inference.</p>
 <p>The inference command is:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--inference<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--workspace<span class="w"> </span>/tmp/ogbn-arxiv-nc<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--num_trainers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--num_servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--num_samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--part_config<span class="w"> </span>/tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--ip_config<span class="w">  </span>/tmp/ogbn-arxiv-nc/ip_list.txt<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--ssh_port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-trainers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--part-config<span class="w"> </span>/tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--ip-config<span class="w">  </span>/tmp/ogbn-arxiv-nc/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--cf<span class="w"> </span>/graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--save-prediction-path<span class="w"> </span>/tmp/ogbn-arxiv-nc/predictions/<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--restore-model-path<span class="w"> </span>/tmp/ogbn-arxiv-nc/models/epoch-7/
@@ -310,7 +310,7 @@ edge_mapping.pt
 <section id="clean-up">
 <h2>Clean Up<a class="headerlink" href="#clean-up" title="Permalink to this heading">#</a></h2>
 <p>Once finish GML tasks, users can exit the GraphStorm Docker container with command <code class="docutils literal notranslate"><span class="pre">exit</span></code> and then stop the container to restore computation resources.</p>
-<p>Run this command in the <strong>container running environment</strong> to leave GraphStorm container.</p>
+<p>Run this command in the <strong>container running environment</strong> to leave the GraphStorm container.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">exit</span>
 </pre></div>
 </div>
@@ -318,8 +318,8 @@ edge_mapping.pt
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>stop<span class="w"> </span><span class="nb">test</span>
 </pre></div>
 </div>
-<p>Make sure you give the correct container name in this above command. Here it stops the container name <code class="docutils literal notranslate"><span class="pre">test</span></code>.</p>
-<p>Then users can use this command to check the status of all Docker containers. The container with name <code class="docutils literal notranslate"><span class="pre">test</span></code> should have a “<strong>STATUS</strong>” like “<strong>Exited (0) ** ago</strong>”.</p>
+<p>Make sure you give the correct container name in the above command. Here it stops the container named <code class="docutils literal notranslate"><span class="pre">test</span></code>.</p>
+<p>Then users can use this command to check the status of all Docker containers. The container with the name <code class="docutils literal notranslate"><span class="pre">test</span></code> should have a “<strong>STATUS</strong>” like “<strong>Exited (0) ** ago</strong>”.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">ps</span> <span class="o">-</span><span class="n">a</span>
 </pre></div>
 </div>
