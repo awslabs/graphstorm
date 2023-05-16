@@ -148,12 +148,12 @@ def parse_train_args():
     parser.add_argument("--infer-yaml-name", type=str,
         help="Training yaml config file name")
     parser.add_argument("--output-emb-s3", type=str,
-        help="S3 location to store GraphStorm generated node embeddings."
+        help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
     parser.add_argument("--output-prediction-s3", type=str,
         help="S3 location to store prediction results. " \
              "(Only works with node classification/regression " \
-             "and edge classification/regression tasks)"
+             "and edge classification/regression tasks)",
         default=None)
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,

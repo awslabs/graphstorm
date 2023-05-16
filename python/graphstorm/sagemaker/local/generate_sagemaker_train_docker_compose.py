@@ -41,12 +41,12 @@ def parse_args():
     parser.add_argument("--output-model-s3", type=str,
         help="S3 location to store the model artifacts")
     parser.add_argument("--output-emb-s3", type=str,
-        help="S3 location to store GraphStorm generated node embeddings."
+        help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
     parser.add_argument("--output-prediction-s3", type=str,
         help="S3 location to store prediction results. " \
              "(Only works with node classification/regression " \
-             "and edge classification/regression tasks)"
+             "and edge classification/regression tasks)",
         default=None)
     parser.add_argument("--enable-bert",
         type=lambda x: (str(x).lower() in ['true', '1']), default=False,
@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
     filename = (
         f'docker-compose-{args.task_type}-'
-        f'{args.num_instances}-train.yml')
+        f'{args.num_instances}-train.yaml')
 
     with open(filename, 'w', encoding='utf-8') as f:
         yaml.dump(compose_dict, f)

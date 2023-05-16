@@ -158,12 +158,12 @@ def parse_args():
     parser.add_argument("--model-artifact-s3", type=str, default=None,
         help="S3 bucket to save model artifacts")
     parser.add_argument("--output-emb-s3", type=str,
-        help="S3 location to store GraphStorm generated node embeddings."
+        help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
     parser.add_argument("--output-prediction-s3", type=str,
         help="S3 location to store prediction results. " \
              "(Only works with node classification/regression " \
-             "and edge classification/regression tasks)"
+             "and edge classification/regression tasks)",
         default=None)
     parser.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \

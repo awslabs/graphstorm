@@ -272,7 +272,7 @@ def upload_embs(emb_s3_path, emb_path, sagemaker_session):
     return upload_data_to_s3(emb_s3_path, emb_path, sagemaker_session)
 
 def update_gs_params(gs_params, param_name, param_value):
-    """" Update the graphstorm parameter `param_name` with a new
+    """ Update the graphstorm parameter `param_name` with a new
          value `param_value`
 
         Parameters
@@ -283,7 +283,7 @@ def update_gs_params(gs_params, param_name, param_value):
             The parameter to update
         param_value: str
             The new value
-    """"
+    """
     for i, pname in enumerate(gs_params):
         if pname == param_name:
             gs_params[i+1] = param_value
