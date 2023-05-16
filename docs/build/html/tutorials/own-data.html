@@ -559,8 +559,8 @@ edge_mapping.pt
 <li><p><strong>train_etype</strong>: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put <code class="docutils literal notranslate"><span class="pre">None</span></code> as the value, all edge types will be used for training, this might not commonly used in practice for most <cite>Link Prediction</cite> related tasks.</p></li>
 <li><p><strong>eval_etype</strong>: it is highly recommended that you set this value to be the same as the value of <code class="docutils literal notranslate"><span class="pre">train_etype</span></code>, so that the evaluation metric can truly demonstrate the performance of models.</p></li>
 </ul>
-<p>Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the yaml files. For example, in an edge-related task, you should provide a canonical edge type, e.g. <strong>user,write,paper</strong> (no white spaces in this string), for edge types, rather than the edge name only, e.g. the <strong>write</strong>.</p>
-<p>For more detailed information of these options, please refer to the <a class="reference internal" href="../configuration/configuration-run.html#configurations-run"><span class="std std-ref">GraphStorm Training and Inference Configurations</span></a> page.</p>
+<p>Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the YAML files. For example, in an edge-related task, you should provide a canonical edge type, e.g. <strong>user,write,paper</strong> (no white spaces in this string), for edge types, rather than the edge name only, e.g. the <strong>write</strong>.</p>
+<p>For more detailed information of these parameters, please refer to the <a class="reference internal" href="../configuration/configuration-run.html#configurations-run"><span class="std std-ref">GraphStorm Training and Inference Configurations</span></a> page.</p>
 <section id="an-example-acm-yaml-file-for-node-classification">
 <h3>An example ACM  YAML file for node classification<a class="headerlink" href="#an-example-acm-yaml-file-for-node-classification" title="Permalink to this heading">#</a></h3>
 <p>Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm’s built-in RGCN model for node classification on the <code class="docutils literal notranslate"><span class="pre">paper</span></code> nodes. The YAML file can also be found at the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml">/graphstorm/examples/use_your_own_data/acm_nc.yaml</a>.</p>
@@ -614,7 +614,7 @@ edge_mapping.pt
 <p>With the partitioned data and configuration YAML file available, it is easy to use GraphStorm’s training scripts to launch the training job.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>We assume an ip_list.txt file has been created in the <code class="docutils literal notranslate"><span class="pre">/tmp/</span></code> folder. Users can use the following commands to create this file.</p>
+<p>We assume an <cite>ip_list.txt</cite> file has been created in the <code class="docutils literal notranslate"><span class="pre">/tmp/</span></code> folder. Users can use the following commands to create this file.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>touch<span class="w"> </span>/tmp/ip_list.txt
 <span class="nb">echo</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>&gt;<span class="w"> </span>/tmp/ip_list.txt
 </pre></div>
@@ -630,23 +630,24 @@ edge_mapping.pt
 <span class="w">        </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--cf<span class="w"> </span>/tmp/acm_nc.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--save-model-path<span class="w"> </span>/tmp/acm_nc/models<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span>author:feat<span class="w"> </span>subject:feat
 </pre></div>
 </div>
 <p>Similar to the <a class="reference internal" href="quick-start.html#quick-start-standalone"><span class="std std-ref">Quick-Start</span></a> tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--inference<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--workspace<span class="w"> </span>/graphstorm/examples/use_your_own_data<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--workspace<span class="w"> </span>/tmp<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--part-config<span class="w"> </span>/tmp/acm_nc/acm.json<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--ip-config<span class="w"> </span>/tmp/ip_list.txt<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--num-trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--cf<span class="w"> </span>/graphstorm/examples/use_your_own_data/acm_nc.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--cf<span class="w"> </span>/tmp/acm_nc.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span>author:feat<span class="w"> </span>subject:feat<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--restore-model-path<span class="w"> </span>/data/acm_nc/models/epoch-0<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--save-prediction-path<span class="w">  </span>/data/acm_nc/predictions
+<span class="w">           </span>--restore-model-path<span class="w"> </span>/tmp/acm_nc/models/epoch-0<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--save-prediction-path<span class="w">  </span>/tmp/acm_nc/predictions
 </pre></div>
 </div>
 </section>

@@ -363,9 +363,9 @@ For `Link Prediction` tasks:
 - **train_etype**: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put ``None`` as the value, all edge types will be used for training, this might not commonly used in practice for most `Link Prediction` related tasks.
 - **eval_etype**: it is highly recommended that you set this value to be the same as the value of ``train_etype``, so that the evaluation metric can truly demonstrate the performance of models.
 
-Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the yaml files. For example, in an edge-related task, you should provide a canonical edge type, e.g. **user,write,paper** (no white spaces in this string), for edge types, rather than the edge name only, e.g. the **write**. 
+Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the YAML files. For example, in an edge-related task, you should provide a canonical edge type, e.g. **user,write,paper** (no white spaces in this string), for edge types, rather than the edge name only, e.g. the **write**. 
 
-For more detailed information of these options, please refer to the :ref:`GraphStorm Training and Inference Configurations <configurations-run>` page.
+For more detailed information of these parameters, please refer to the :ref:`GraphStorm Training and Inference Configurations <configurations-run>` page.
 
 An example ACM  YAML file for node classification
 ..................................................
@@ -421,7 +421,7 @@ Step 3: Launch training script on your own graphs
 
 With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training scripts to launch the training job. 
 
-.. Note:: We assume an ip_list.txt file has been created in the ``/tmp/`` folder. Users can use the following commands to create this file.
+.. Note:: We assume an `ip_list.txt` file has been created in the ``/tmp/`` folder. Users can use the following commands to create this file.
 
     .. code-block:: bash
 
@@ -441,6 +441,7 @@ Below is a launch script example that trains a GraphStorm built-in RGCN model on
             --num-samplers 0 \
             --ssh-port 2222 \
             --cf /tmp/acm_nc.yaml \
+            --save-model-path /tmp/acm_nc/models \
             --node-feat-name paper:feat author:feat subject:feat
 
 Similar to the :ref:`Quick-Start <quick-start-standalone>` tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.
@@ -449,14 +450,14 @@ Similar to the :ref:`Quick-Start <quick-start-standalone>` tutorial, users can l
 
     python3 -m graphstorm.run.gs_node_classification \
                --inference \
-               --workspace /graphstorm/examples/use_your_own_data \
+               --workspace /tmp \
                --part-config /tmp/acm_nc/acm.json \
                --ip-config /tmp/ip_list.txt \
                --num-trainers 4 \
                --num-servers 1 \
                --num-samplers 0 \
                --ssh-port 2222 \
-               --cf /graphstorm/examples/use_your_own_data/acm_nc.yaml \
+               --cf /tmp/acm_nc.yaml \
                --node-feat-name paper:feat author:feat subject:feat \
-               --restore-model-path /data/acm_nc/models/epoch-0 \
-               --save-prediction-path  /data/acm_nc/predictions
+               --restore-model-path /tmp/acm_nc/models/epoch-0 \
+               --save-prediction-path  /tmp/acm_nc/predictions
