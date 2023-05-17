@@ -148,7 +148,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                  target_ntype,     # the node type to be predict
                  use_norm = True,   # use normalization or not, default is True
                  alpha_l2norm = 0,
-                 lr=0.001
+                 lr = 0.001
                  ):
         super(HGT, self).__init__()
         self.node_dict = node_id_dict
