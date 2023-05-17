@@ -186,7 +186,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         # use GSF components
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
 
-    def forward(self, blocks, node_feats, edge_feats, labels, epoch=-1, total_steps=-1):
+    def forward(self, blocks, node_feats, edge_feats, labels, input_nodes):
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
@@ -213,7 +213,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
         return pred_loss + reg_loss
 
-    def predict(self, blocks, node_feats, _):
+    def predict(self, blocks, node_feats, _, input_nodes):
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
@@ -289,7 +289,7 @@ def main(args):
                 alpha_l2norm=config.alpha_l2norm)
 
     # Create a trainer for the node classification task.
-    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=1)
+    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=config.topk_model_to_save)
     trainer.setup_cuda(dev_id=gs.get_rank())
     device = 'cuda:%d' % trainer.dev_id
 
@@ -321,15 +321,17 @@ def main(args):
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.
-    trainer.fit(train_loader=dataloader, num_epochs=config.num_epochs,
+    trainer.fit(train_loader=dataloader,
+                num_epochs=config.num_epochs,
                 val_loader=eval_dataloader,
                 test_loader=test_dataloader,
                 save_model_path=config.save_model_path,
                 use_mini_batch_infer=True)
 
     # After training, get the best model from the trainer.
-    best_model = trainer.get_best_model()
-
+    best_model_path = trainer.get_best_model_path()
+    model.restore_model(best_model_path)
+    
     # Create a dataset for inference.
     infer_data = GSgnnNodeInferData(config.graph_name, config.part_config,
                                     eval_ntypes=config.target_ntype,
@@ -337,7 +339,7 @@ def main(args):
                                     label_field=config.label_field)
 
     # Create an inference for a node task.
-    infer = GSgnnNodePredictionInfer(best_model, gs.get_rank())
+    infer = GSgnnNodePredictionInfer(model, gs.get_rank())
     infer.setup_cuda(dev_id=gs.get_rank())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
@@ -346,7 +348,10 @@ def main(args):
                                     train_task=False)
 
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
-    infer.infer(dataloader, save_embed_path=config.save_embed_path, use_mini_batch_infer=True)
+    infer.infer(dataloader,
+                save_embed_path=config.save_embed_path,
+                save_prediction_path=config.save_prediction_path,
+                use_mini_batch_infer=True)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Training HGT model with the GraphStorm Framework")

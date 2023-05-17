@@ -4,11 +4,7 @@ gsf:
   basic:
     model_encoder_type: rgcn
     backend: gloo
-    ip_config: ip_list.txt
-    part_config: /data/acm_nc/acm.json
     verbose: false
-    no_validation: false
-    alpha_l2norm: 0.
   gnn:
     fanout: "50,50"
     num_layers: 2
@@ -17,8 +13,8 @@ gsf:
   input:
     restore_model_path: null
   output:
-    save_model_path: /data/outputs
-    save_embeds_path: /data/outputs
+    save_model_path: /tmp/acm_nc/models
+    save_embeds_path: /tmp/acm_nc/embeds
   hyperparam:
     dropout: 0.
     lr: 0.0001
@@ -27,6 +23,7 @@ gsf:
     batch_size: 1024
     bert_infer_bs: 128
     wd_l2norm: 0
+    alpha_l2norm: 0.
   rgcn:
     num_bases: -1
     use_self_loop: true

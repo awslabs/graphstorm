@@ -30,7 +30,7 @@ def read_data_parquet(data_file):
     return {key: np.array(pd[key]) for key in pd}
 
 argparser = argparse.ArgumentParser("Preprocess graphs")
-argparser.add_argument("--graph_format", type=str, required=True,
+argparser.add_argument("--graph-format", type=str, required=True,
                        help="The constructed graph format.")
 argparser.add_argument("--graph_dir", type=str, required=True,
                        help="The path of the constructed graph.")
@@ -56,7 +56,7 @@ elif args.graph_format == "DistDGL":
         g.edges[etype].data[name] = val
 else:
     raise ValueError('Invalid graph format: {}'.format(args.graph_format))
-    
+
 node1_map = read_data_parquet(os.path.join(out_dir, "node1_id_remap.parquet"))
 reverse_node1_map = {val: key for key, val in zip(node1_map['orig'], node1_map['new'])}
 node3_map = read_data_parquet(os.path.join(out_dir, "node3_id_remap.parquet"))
