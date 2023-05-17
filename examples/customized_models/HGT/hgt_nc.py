@@ -187,6 +187,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
 
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes):
+        # input layer
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
@@ -198,10 +199,14 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
 
             h[ntype] = F.gelu(n_embed)
-
+        # gnn layers
         for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
+        # output layer
+        for ntype, emb in h.items():
+            h[ntype] = self.out(emb)
 
+        # prediction loss computation
         pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
 
         reg_loss = torch.tensor(0.).to(pred_loss.device)
@@ -214,6 +219,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         return pred_loss + reg_loss
 
     def predict(self, blocks, node_feats, _, input_nodes):
+        # input layer
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
@@ -225,9 +231,12 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
 
             h[ntype] = F.gelu(n_embed)
-
+        # gnn layers
         for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
+        # output layer
+        for ntype, emb in h.items():
+            h[ntype] = self.out(emb)
 
         return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]
 
@@ -357,15 +366,25 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Training HGT model with the GraphStorm Framework")
     argparser.add_argument("--yaml-config-file", type=str, required=True,
                            help="The GraphStorm YAML configuration file path.")
-    argparser.add_argument("--ip-config", type=str, required=True,
-                           help="The IP config file for the cluster.")
     argparser.add_argument("--node-feat", type=str, required=True,
                            help="The name of the node features. \
                                  Format is nodetype1:featname1,featname2-nodetype2:featname1,...")
     argparser.add_argument("--num-heads", type=int, default=4,
                            help="The number of heads for HGT's self-attention module")
+    argparser.add_argument("--part-config", type=str, required=True,
+                           help="The partition config file. \
+                                 For customized models, MUST have this argument!!")
+    argparser.add_argument("--ip-config", type=str, required=True,
+                           help="The IP config file for the cluster. \
+                                 For customized models, MUST have this argument!!")
+    argparser.add_argument("--verbose",
+                           type=lambda x: (str(x).lower() in ['true', '1']),
+                           default=argparse.SUPPRESS,
+                          help="Print more information. \
+                                For customized models, MUST have this argument!!")
     argparser.add_argument("--local_rank", type=int,
-                           help="The rank of the trainer. MUST have this argument!!")
+                           help="The rank of the trainer. \
+                                 For customized models, MUST have this argument!!")
     args = argparser.parse_args()
 
     print(args)
