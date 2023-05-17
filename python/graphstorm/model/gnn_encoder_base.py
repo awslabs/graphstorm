@@ -140,7 +140,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                     output_nodes = {g.ntypes[0]: output_nodes}
 
                 if i == 0:
-                    h = get_input_embeds(blocks[0], input_nodes)
+                    h = get_input_embeds(input_nodes)
                 else:
                     h = {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
                 h = layer(block, h)
