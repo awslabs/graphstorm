@@ -108,6 +108,7 @@ def check_node_prediction(model, data):
         return True
     model.node_input_encoder.require_cache_embed = MethodType(require_cache_embed,
                                                               model.node_input_encoder)
+    assert model.node_input_encoder.require_cache_embed()
     embs2 = do_full_graph_inference(model, data)
     assert len(embs) == len(embs2)
     for ntype in embs:
