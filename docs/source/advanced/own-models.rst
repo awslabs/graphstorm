@@ -2,7 +2,7 @@
 
 Use Your Own Models
 ======================
-Currently GraphStorm has two built-in GNN models, i.e., the RGCN and the RGAT model. If users want to further explore different GNN models and leverage the GraphStorm's ease-of-use and scalability, you can create your own GNN models according to the GraphStorm's customer model APIs. This tutorial will explain in detail how to do this with a runnable `example <https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT>`_ that customizes the HGT DGL model implementation.
+Currently GraphStorm has two built-in GNN models, i.e., the RGCN and the RGAT model. If users want to further explore different GNN models and leverage the GraphStorm's ease-of-use and scalability, you can create your own GNN models according to the GraphStorm's customer model APIs. This tutorial will explain in detail how to do this with a runnable `example <https://github.com/awslabs/graphstorm/tree/main/examples/customized_models/HGT>`_ that customizes the HGT model implementation.
 
 .. _use-own-models-prerequisites:
 
