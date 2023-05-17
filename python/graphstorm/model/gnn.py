@@ -635,6 +635,24 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
                                                    model.node_input_encoder,
                                                    task_tracker=task_tracker,
                                                    feat_field=data.node_feat_field)
+    elif model.node_input_encoder.require_cache_embed():
+        # If the input encoder has heavy computation, we should compute
+        # the embeddings and cache them.
+        input_embeds = compute_node_input_embeddings(data.g,
+                                                     batch_size,
+                                                     model.node_input_encoder,
+                                                     task_tracker=task_tracker,
+                                                     feat_field=data.node_feat_field)
+        model.eval()
+        def get_input_embeds(input_nodes):
+            if not isinstance(input_nodes, dict):
+                assert len(data.g.ntypes) == 1
+                input_nodes = {data.g.ntypes[0]: input_nodes}
+            return {ntype: input_embeds[ntype][ids] for ntype, ids in input_nodes.items()}
+        embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
+                                    batch_size, -1, edge_mask=edge_mask,
+                                    task_tracker=task_tracker)
+        model.train()
     else:
         model.eval()
         device = model.gnn_encoder.device
@@ -648,8 +666,7 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
         embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
                                     batch_size, -1, edge_mask=edge_mask,
                                     task_tracker=task_tracker)
-        # TODO(zhengda) we should avoid getting rank from the graph.
-        if get_rank() == 0:
-            print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
         model.train()
+    if get_rank() == 0:
+        print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
     return embeddings
