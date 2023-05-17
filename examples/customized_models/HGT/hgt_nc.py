@@ -147,7 +147,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                  num_heads,           # number of attention
                  target_ntype,     # the node type to be predict
                  use_norm = True,   # use normalization or not, default is True
-                 alpha_l2norm = 0
+                 alpha_l2norm = 0,
+                 lr=0.001
                  ):
         super(HGT, self).__init__()
         self.node_dict = node_id_dict
@@ -155,6 +156,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         self.num_layers = num_layers
         self.target_ntype=target_ntype
         self.alpha_l2norm = alpha_l2norm
+        self.lr = lr
 
         # set adapt weights according to node id and feature dimension dictionary
         self.adapt_ws = nn.ModuleDict()
@@ -246,9 +248,9 @@ class HGT(gsmodel.GSgnnNodeModelBase):
     def save_model(self, model_path):
         pass
 
-    def create_optimizer(self, lr=0.001):
+    def create_optimizer(self):
         # Here we don't set up an optimizer for sparse embeddings.
-        return torch.optim.Adam(self.parameters(), lr=lr)
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
 
 
 def main(args):
@@ -295,7 +297,8 @@ def main(args):
                 num_heads=args.num_heads,
                 target_ntype=config.target_ntype,
                 use_norm=True,
-                alpha_l2norm=config.alpha_l2norm)
+                alpha_l2norm=config.alpha_l2norm,
+                lr=config.lr)
 
     # Create a trainer for the node classification task.
     trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=config.topk_model_to_save)

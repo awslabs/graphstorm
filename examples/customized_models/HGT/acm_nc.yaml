@@ -22,7 +22,7 @@ gsf:
     save_prediction_path: /data/outputs
   hyperparam:
     dropout: 0.
-    lr: 0.001
+    lr: 0.0001
     num_epochs: 200
     batch_size: 1024
     wd_l2norm: 0
