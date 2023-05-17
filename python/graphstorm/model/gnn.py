@@ -644,11 +644,13 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
                                                      task_tracker=task_tracker,
                                                      feat_field=data.node_feat_field)
         model.eval()
+        device = model.gnn_encoder.device
         def get_input_embeds(input_nodes):
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1
                 input_nodes = {data.g.ntypes[0]: input_nodes}
-            return {ntype: input_embeds[ntype][ids] for ntype, ids in input_nodes.items()}
+            return {ntype: input_embeds[ntype][ids].to(device) \
+                    for ntype, ids in input_nodes.items()}
         embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
                                     batch_size, -1, edge_mask=edge_mask,
                                     task_tracker=task_tracker)
