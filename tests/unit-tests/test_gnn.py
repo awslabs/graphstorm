@@ -97,6 +97,12 @@ def check_node_prediction(model, data):
         Train data
     """
     g = data.g
+    # do_full_graph_inference() runs differently if require_cache_embed()
+    # returns different values. Here we simulate these two use cases and
+    # triggers the different paths in do_full_graph_inference() to compute
+    # embeddings. The embeddings computed by the two paths should be
+    # numerically the same.
+    assert not model.node_input_encoder.require_cache_embed()
     embs = do_full_graph_inference(model, data)
     def require_cache_embed(self):
         return True
