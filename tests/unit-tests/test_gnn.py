@@ -106,7 +106,8 @@ def check_node_prediction(model, data):
     assert len(embs) == len(embs2)
     for ntype in embs:
         assert ntype in embs2
-        assert_almost_equal(embs[ntype].numpy(), embs2[ntype].numpy())
+        assert_almost_equal(embs[ntype][0:len(embs[ntype])].numpy(),
+                            embs2[ntype][0:len(embs2[ntype])].numpy())
 
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
