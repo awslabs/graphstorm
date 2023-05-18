@@ -34,7 +34,7 @@ After running the container as a daemon, you need to connect to your container:
 **Node classification on OGB arxiv graph**
 First, use the below command to download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for the node classification task.
 
-```python3 /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/ --retain_original_features true```
+```python3 /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/ --retain-original-features true```
 
 Second, use the below command to partition this arxiv graph into a distributed graph that GraphStorm can use as its input.
 
@@ -71,7 +71,7 @@ python3 -m graphstorm.run.gs_node_classification \
 First, use the below command to download the [OGB MAG](https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag) data and process it into a DGL graph for the link prediction task. The edge type for prediction is “*author,writes,paper*”. The command also set 80% of the edges of this type for training and validation (default 10%), and the rest 20% for testing.
 
 ```
-python3 /graphstorm/tools/gen_mag_dataset.py --savepath /tmp/ogbn-mag-lp/ --edge_pct 0.8
+python3 /graphstorm/tools/gen_mag_dataset.py --savepath /tmp/ogbn-mag-lp/ --edge-pct 0.8
 ```
 
 Second, use the following command to partition the MAG graph into a distributed format.
