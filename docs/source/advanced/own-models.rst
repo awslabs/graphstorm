@@ -124,12 +124,11 @@ Unlike common cases where forward function returns logits computed by models, th
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
-
             h[ntype] = F.gelu(n_embed)
-
         for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
-
+        for ntype, emb in h.items():
+            h[ntype] = self.out(emb)
         pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
 
         return pred_loss
@@ -150,21 +149,20 @@ The ``predict()`` function is for inference and it will not be used for backward
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
-
             h[ntype] = F.gelu(n_embed)
-
         for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
-
+        for ntype, emb in h.items():
+            h[ntype] = self.out(emb)
         return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]             # return two values: one is the predict results, 
                                                                                     # while another is the computed node representations, which can be saved.
 
-The ``create_optimizer()`` function is for users to define their own optimizer. You can put the optimizer definition from the training flow inside the model, like the code below
+The ``create_optimizer()`` function is for users to define their own optimizer, like the code below.
 
 .. code-block:: python
 
-    def create_optimizer(self, lr=0.001):
-        return torch.optim.Adam(self.parameters(), lr=lr)
+    def create_optimizer(self):
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
 
 There are other optional functions in the `GSgnnNodeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76>`_ class, including ``restore_model(self, restore_model_path)`` and ``save_model(self, model_path)``, which are used to restore and save models. If you want to save or restore models, implement these two functions too.
 
@@ -304,17 +302,29 @@ Uncommonly seen in the full-graph training or mini-batch training on a single GP
 
 You can add a coefficient, like the ``alpha_l2norm``, to control the influence of the regularization.
 
-Step 5. Add ``local_rank`` as an argument of the Python main function
+Step 5. Add a few additional arguments for the Python main function
 ......................................................................
-Because GraphStorm relys on PyTorch's distributed framework, which requires an argument, ``local_rank``, in PyTorch's launch script. GraphStorm's built-in launch scripts have this argument configured already. But for customized models, it is required to add ``local_rank`` as an argument of the Python main function although this argument is not used anywhere in the customized model. A sample code is shown below.
+Because GraphStorm relys on a few arguments to launch training and inference command, including: ``part-config``, ``ip-config``, ``verbose``, and ``local_rank``. GraphStorm's built-in launch scripts have this argument configured already. But for customized models, it is required to add them as arguments of the Python main function although these arguments are not used anywhere in the customized model. A sample code is shown below.
 
 .. code-block:: python
 
     if __name__ == '__main__':
         argparser = argparse.ArgumentParser("Training HGT model with the GraphStorm Framework")
         ......
+        argparser.add_argument("--part-config", type=str, required=True,
+                            help="The partition config file. \
+                                    For customized models, MUST have this argument!!")
+        argparser.add_argument("--ip-config", type=str, required=True,
+                            help="The IP config file for the cluster. \
+                                    For customized models, MUST have this argument!!")
+        argparser.add_argument("--verbose",
+                            type=lambda x: (str(x).lower() in ['true', '1']),
+                            default=argparse.SUPPRESS,
+                            help="Print more information. \
+                                    For customized models, MUST have this argument!!")
         argparser.add_argument("--local_rank", type=int,
-                            help="The rank of the trainer. MUST have this argument!!")
+                            help="The rank of the trainer. \
+                                    For customized models, MUST have this argument!!")
 
 .. note:: PyTorch v2.0 change the argument ``local_rank`` to ``local-rank``. Therefore, if users use PyTorch v2.0 or later version, please change this argument accordingly.
 
@@ -328,9 +338,8 @@ GraphStorm has a set of parameters that control the various perspectives of the 
     version: 1.0
     gsf:
     basic:
+        model_encoder_type: rgcn
         backend: gloo
-        ip_config: ip_list.txt
-        part_config: /data/acm_nc/acm.json
         verbose: false
         alpha_l2norm: 0.
     gnn:
@@ -380,18 +389,17 @@ With all required modifications ready, let's put everything of the modified HGT 
 
 .. code-block:: python
 
-    python3 ~/dgl/tools/launch.py \
-            --workspace /hgt_nc \
-            --part-config /hgt_nc/acm_data.json \
-            --ip-config ip_list.txt \
-            --num-trainers 4 \
+    python3 -m graphstorm.run.launch \
+            --workspace /graphstorm/examples/customized_models/HGT \
+            --part-config /data/acm_nc/acm.json \
+            --ip-config /data/ip_list.txt \
+            --num-trainers 2 \
             --num-servers 1 \
             --num-samplers 0 \
             --ssh-port 2222 \
-            "python3 hgt_nc.py --yaml-config-file acm_nc.yaml \
-                               --part-config acm_data.json \ 
-                               --ip-config ip_list.txt \
-                               --node-feat-name paper:feat-author:feat-subject:feat"
+            hgt_nc.py --yaml-config-file acm_nc.yaml \
+                        --node-feat paper:feat-author:feat-subject:feat \
+                        --num-heads 8
 
 The argument value of ``--part-config`` is the JSON file coming from the :ref:`outputs <output-graph-construction>` of the :ref:`Step 1 <step-1>`.
 

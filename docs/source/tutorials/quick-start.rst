@@ -24,7 +24,7 @@ First run the below command.
 
     python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                                  --filepath /tmp/ogbn-arxiv-nc/ \
-                                                 --num_parts 1 \
+                                                 --num-parts 1 \
                                                  --output /tmp/ogbn_arxiv_nc_1p
 
 This command will automatically download ogbn-arxiv graph data and split the graph into one partition. Outcomes of the command are a set of files saved in the ``/tmp/ogbn_arxiv_nc_1p/`` folder, as shown below.

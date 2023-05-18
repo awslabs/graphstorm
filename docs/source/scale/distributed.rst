@@ -93,11 +93,11 @@ Because we use three GraphStorm instances in the cluster for model training, thi
 
     python3 /graphstorm/tools/partition_graph_lp.py --dataset ogbn-mag \
                                                     --filepath /data/ogbn-mag-lp/ \
-                                                    --num_parts 3 \
-                                                    --balance_train \
-                                                    --balance_edges \
+                                                    --num-parts 3 \
+                                                    --balance-train \
+                                                    --balance-edges \
                                                     --num_trainers_per_machine 4 \
-                                                    --target_etypes author,writes,paper \
+                                                    --target-etypes author,writes,paper \
                                                     --output /data/ogbn_mag_lp_3p
 
 After this command completes successfully, the partitioned OGBN-MAG graph is stored in the ``/data/ogbn_mag_lp_3p`` folder whose structure is like the diagram below. Because the ``/data/`` folder is a shared filesystem, all instances in the cluster can access these files.
@@ -152,10 +152,10 @@ Run the below command to download and partition the OGBN-Papers100M data for a n
 
     python3 /graphstorm/tools/partition_graph.py --dataset ogbn-papers100M \
                                                 --filepath /data \
-                                                --num_parts 3 \
-                                                --train_pct 0.1 \
-                                                --balance_train \
-                                                --balance_edges \
+                                                --num-parts 3 \
+                                                --train-pct 0.1 \
+                                                --balance-train \
+                                                --balance-edges \
                                                 --output /data/ogbn_papers100M_3p \
 
 Given the size of OGBN-Papers100M, the download and partition process could run more than 5 hours and consume around 700GB memory in peak. After the command completes, the partitioned OGBN-Papers100M graphs are stored in the ``/data/ogbn_papers100M_3p`` folder whose structure is the same as the OGBN-MAG's. 

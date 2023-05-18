@@ -66,7 +66,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 
 Input formats
 ..............
-Currently, the graph construction pipeline supports two input formats: ``Parquet``, ``HDF5``, and ``JSON``.
+Currently, the graph construction pipeline supports three input formats: ``Parquet``, ``HDF5``, and ``JSON``.
 
 For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.
 

@@ -328,9 +328,9 @@ The below command partition the DGL ACM graph, the ``acm.dgl`` in the ``/tmp/acm
     python3 /graphstorm/tools/partition_graph.py \
             --dataset acm\
             --filepath /tmp/acm_dgl \
-            --num_parts 1 \
-            --predict_ntype paper \
-            --nlabel_field paper:label \
+            --num-parts 1 \
+            --target-ntype paper \
+            --nlabel-field paper:label \
             --output /tmp/acm_nc
 
 Outputs of the command are under the ``/tmp/acm_nc/`` folder with the same contents as the :ref:`Option 1 <option-1>`.
