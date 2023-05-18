@@ -164,7 +164,15 @@ The ``create_optimizer()`` function is for users to define their own optimizer, 
     def create_optimizer(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
-There are other optional functions in the `GSgnnNodeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76>`_ class, including ``restore_model(self, restore_model_path)`` and ``save_model(self, model_path)``, which are used to restore and save models. If you want to save or restore models, implement these two functions too.
+There are other two required functions in the `GSgnnNodeModelBase <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/model/node_gnn.py#L76>`_ class, including ``restore_model(self, restore_model_path)`` and ``save_model(self, model_path)``, which are used to restore and save models. If you want to save or restore models, implement these two functions too. If not, you can just leave it unimplemented as the below code:
+
+.. code-block:: python
+
+    def restore_model(self, restore_model_path):
+        pass
+
+    def save_model(self, model_path):
+        pass
 
 Step 3. Modify the training/inference flow with the GraphStorm APIs
 ....................................................................
