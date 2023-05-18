@@ -37,9 +37,9 @@ python3 /graphstorm/examples/acm_data.py --output-path /data --output-type dgl
 python3 /graphstorm/tools/partition_graph.py \
         --dataset acm\
         --filepath /data \
-        --num_parts 1 \
-        --target_ntype paper \
-        --nlabel_field paper:label \
+        --num-parts 1 \
+        --target-ntype paper \
+        --nlabel-field paper:label \
         --output /data/acm_nc
 ```
 
