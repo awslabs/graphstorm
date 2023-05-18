@@ -103,18 +103,26 @@ def check_node_prediction(model, data):
     # embeddings. The embeddings computed by the two paths should be
     # numerically the same.
     assert not model.node_input_encoder.require_cache_embed()
-    embs = do_full_graph_inference(model, data, fanout=[-1,-1])
+    embs = do_full_graph_inference(model, data)
     def require_cache_embed(self):
         return True
     model.node_input_encoder.require_cache_embed = MethodType(require_cache_embed,
                                                               model.node_input_encoder)
     assert model.node_input_encoder.require_cache_embed()
-    embs2 = do_full_graph_inference(model, data, fanout=[-1,-1])
+    embs2 = do_full_graph_inference(model, data)
     assert len(embs) == len(embs2)
     for ntype in embs:
         assert ntype in embs2
         assert_almost_equal(embs[ntype][0:len(embs[ntype])].numpy(),
                             embs2[ntype][0:len(embs2[ntype])].numpy())
+
+    embs3 = do_full_graph_inference(model, data, fanout=None)
+    embs4 = do_full_graph_inference(model, data, fanout=[-1, -1])
+    assert len(embs3) == len(embs4)
+    for ntype in embs3:
+        assert ntype in embs4
+        assert_almost_equal(embs3[ntype][0:len(embs3[ntype])].numpy(),
+                            embs4[ntype][0:len(embs4[ntype])].numpy())
 
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
@@ -138,7 +146,7 @@ def check_mlp_node_prediction(model, data):
         Train data
     """
     g = data.g
-    embs = do_full_graph_inference(model, data, fanout=[-1,-1])
+    embs = do_full_graph_inference(model, data)
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
@@ -226,7 +234,7 @@ def check_edge_prediction(model, data):
         Train data
     """
     g = data.g
-    embs = do_full_graph_inference(model, data, fanout=[-1,-1])
+    embs = do_full_graph_inference(model, data)
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
     dataloader1 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False,
@@ -251,7 +259,7 @@ def check_mlp_edge_prediction(model, data):
         Train data
     """
     g = data.g
-    embs = do_full_graph_inference(model, data, fanout=[-1,-1])
+    embs = do_full_graph_inference(model, data)
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
     dataloader1 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False,
@@ -427,7 +435,7 @@ def test_mlp_link_prediction():
                                         node_feat_field='feat')
     model = create_mlp_lp_model(g, lm_config)
     assert model.gnn_encoder is None
-    embs = do_full_graph_inference(model, np_data, fanout=[-1,-1])
+    embs = do_full_graph_inference(model, np_data)
     assert 'n0' in embs
     assert 'n1' in embs
     th.distributed.destroy_process_group()

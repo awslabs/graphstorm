@@ -41,7 +41,7 @@ class GSgnnNodePredictionInfer(GSInfer):
         The rank.
     """
 
-    def infer(self, loader, fanout, save_embed_path, save_prediction_path=None,
+    def infer(self, loader, eval_fanout, save_embed_path, save_prediction_path=None,
               use_mini_batch_infer=False,
               node_id_mapping_file=None):
         """ Do inference
@@ -55,7 +55,7 @@ class GSgnnNodePredictionInfer(GSInfer):
         ----------
         loader : GSNodeDataLoader
             The mini-batch sampler for node prediction task.
-        fanout: list of int
+        eval_fanout: list of int
             The fanout for computing the GNN embeddings in a GNN layer.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
@@ -81,7 +81,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                 "GraphStorm only support single target node type for training and inference"
             embs = {loader.data.eval_ntypes[0]: embs}
         else:
-            embs = do_full_graph_inference(self._model, loader.data, fanout,
+            embs = do_full_graph_inference(self._model, loader.data, fanout=eval_fanout,
                                            task_tracker=self.task_tracker)
             res = node_mini_batch_predict(self._model, embs, loader, return_label=do_eval)
             pred = res[0]
