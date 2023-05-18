@@ -107,6 +107,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
                     part_policy=g.get_edge_partition_policy(etype),
                     # TODO: this makes the tensor persistent in memory.
                     persistent=True)
+                # edges that have predictions may be just a subset of the
+                # entire edge set.
                 pred_data[loader.target_eidx] = pred
 
                 pred = shuffle_predict(pred_data, edge_id_mapping_file, self.rank,
