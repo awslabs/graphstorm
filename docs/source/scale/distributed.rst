@@ -89,7 +89,7 @@ Now we can download and process the OGBN-MAG data with the command below.
 
 .. code-block:: bash
 
-    python3 /graphstorm/tools/gen_mag_dataset.py --savepath /data/ogbn-mag-lp/ --edge_pct 0.2
+    python3 /graphstorm/tools/gen_mag_dataset.py --savepath /data/ogbn-mag-lp/ --edge-pct 0.2
 
 Because we use three GraphStorm instances in the cluster for model training, this command splits the MAG data into three partitions by specifying the **--num_parts** argument to ``3``.
 

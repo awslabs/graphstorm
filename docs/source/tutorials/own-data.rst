@@ -341,8 +341,6 @@ Step 2: Modify the YAML configuration file to include your own data's informatio
 -----------------------------------------------------------------------------------
 It is common that users will copy and reuse GraphStorm's built-in scripts and yaml files to run training/inference on their own graph data, but forget to change the contents of yaml files to match their own data. Below are some parameters that users need to double check and make changes accordingly.
 
-- **part_config**: please change value of this parameter to where you store the partitioned graph's JSON , e.g. the ``/tmp/acm_nc/acm.json``. It is better to use an absolute path to avoid path mis-match.
-- **ip_config**: please make sure the ``ip_list.txt`` created and the path of the ``ip_list.txt`` file is correct.
 - **node_feat_name**: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will ignore any features the nodes might have, hence only using learnable embeddings as their features.
 
 For `Classification/Regression` tasks:
