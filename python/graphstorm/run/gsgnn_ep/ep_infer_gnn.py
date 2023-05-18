@@ -68,7 +68,8 @@ def main(args):
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
     model.prepare_input_encoder(infer_data)
-    infer.infer(dataloader, save_embed_path=config.save_embed_path,
+    infer.infer(dataloader, fanout=config.eval_fanout,
+                save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file)
