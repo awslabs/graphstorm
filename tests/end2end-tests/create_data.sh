@@ -75,7 +75,7 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
     --elabel-field "user,rating,movie:rate" \
     --target-etype "user,rating,movie" \
     --etask-type "regression" \
-	--num-trainers_per_machine 4 \
+	--num-trainers-per-machine 4 \
 	--output movielen_100k_er_1p_4t \
 	--balance-train \
 	--balance-edges \
@@ -91,7 +91,7 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
     --elabel-field "user,rating,movie:rate" \
     --target-etype "user,rating,movie" \
     --etask-type "classification" \
-	--num-trainers_per_machine 4 \
+	--num-trainers-per-machine 4 \
 	--output movielen_100k_ec_1p_4t \
 	--balance-train \
 	--balance-edges \
