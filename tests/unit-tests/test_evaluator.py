@@ -68,6 +68,7 @@ def test_mrr_lp_evaluator():
             "use_early_stop": False,
         })
 
+    etypes = [("n0", "r0", "n1"), ("n0", "r1", "n1")]
     # test compute_score
     val_pos_scores = th.rand((10,1))
     val_neg_scores = th.rand((10,10))
@@ -87,11 +88,6 @@ def test_mrr_lp_evaluator():
                              num_negative_edges_eval=config.num_negative_edges_eval,
                              lp_decoder_type=config.lp_decoder_type,
                              use_early_stop=config.use_early_stop)
-    val_s = lp.compute_score(val_scores)
-    test_s = lp.compute_score(test_scores)
-    val_sc, test_sc = lp.evaluate(val_scores, test_scores, 0)
-    assert_equal(val_s['mrr'], val_sc['mrr'])
-    assert_equal(test_s['mrr'], test_sc['mrr'])
 
     rank = []
     for i in range(len(val_pos_scores)):
@@ -107,8 +103,9 @@ def test_mrr_lp_evaluator():
         _, indices = th.sort(scores, descending=True)
         ranking = th.nonzero(indices == 0) + 1
         rank.append(ranking.cpu().detach())
-    rank = th.cat(rank, dim=0)
-    mrr = 1.0/rank
+    val_ranks = {etypes[0]: th.cat(rank, dim=0)}
+    val_s = lp.compute_score(val_ranks)
+    mrr = 1.0/val_ranks[etypes[0]]
     mrr = th.sum(mrr) / len(mrr)
     assert_almost_equal(val_s['mrr'], mrr.numpy(), decimal=7)
 
@@ -126,10 +123,15 @@ def test_mrr_lp_evaluator():
         _, indices = th.sort(scores, descending=True)
         ranking = th.nonzero(indices == 0) + 1
         rank.append(ranking.cpu().detach())
-    rank = th.cat(rank, dim=0)
-    mrr = 1.0/rank
+    test_ranks =  {etypes[0]: th.cat(rank, dim=0)}
+    test_s = lp.compute_score(test_ranks)
+    mrr = 1.0/test_ranks[etypes[0]]
     mrr = th.sum(mrr) / len(mrr)
     assert_almost_equal(test_s['mrr'], mrr.numpy(), decimal=7)
+
+    val_sc, test_sc = lp.evaluate(val_ranks, test_ranks, 0)
+    assert_equal(val_s['mrr'], val_sc['mrr'])
+    assert_equal(test_s['mrr'], test_sc['mrr'])
 
     # test evaluate
     @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
