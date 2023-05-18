@@ -41,8 +41,8 @@ Second, use the below command to partition this arxiv graph into a distributed g
 ```
 python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
-                                             --num_parts 1 \
-                                             --num_trainers_per_machine 4 \
+                                             --num-parts 1 \
+                                             --num-trainers-per-machine 4 \
                                              --output /tmp/ogbn_arxiv_nc_train_val_1p_4t
 ```
 
@@ -79,9 +79,9 @@ Second, use the following command to partition the MAG graph into a distributed 
 ```
 python3 /graphstorm/tools/partition_graph_lp.py --dataset ogbn-mag \
                                                 --filepath /tmp/ogbn-mag-lp/ \
-                                                --num_parts 1 \
-                                                --num_trainers_per_machine 4 \
-                                                --target_etypes author,writes,paper \
+                                                --num-parts 1 \
+                                                --num-trainers-per-machine 4 \
+                                                --target-etypes author,writes,paper \
                                                 --output /tmp/ogbn_mag_lp_train_val_1p_4t
 ```
 
