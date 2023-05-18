@@ -119,10 +119,10 @@ def check_node_prediction(model, data):
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
-    pred1, _, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
+    pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1, -1],
                                       batch_size=10, device="cuda:0", train_task=False)
-    pred2, _, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 
@@ -142,10 +142,10 @@ def check_mlp_node_prediction(model, data):
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
-    pred1, _, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
+    pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
-    pred2, _, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 

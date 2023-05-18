@@ -233,15 +233,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         teval = time.time()
         sys_tracker.check('before prediction')
         if use_mini_batch_infer:
-            val_pred, _, _, val_label = node_mini_batch_gnn_predict(model, val_loader,
+            val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader,
                                                                  return_label=True)
-            test_pred, _, _, test_label = node_mini_batch_gnn_predict(model, test_loader,
+            test_pred, _, test_label = node_mini_batch_gnn_predict(model, test_loader,
                                                                    return_label=True)
         else:
             emb = do_full_graph_inference(model, val_loader.data, task_tracker=self.task_tracker)
-            val_pred, _, val_label = node_mini_batch_predict(model, emb, val_loader,
+            val_pred, val_label = node_mini_batch_predict(model, emb, val_loader,
                                                           return_label=True)
-            test_pred, _, test_label = node_mini_batch_predict(model, emb, test_loader,
+            test_pred, test_label = node_mini_batch_predict(model, emb, test_loader,
                                                             return_label=True)
         sys_tracker.check('predict')
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
