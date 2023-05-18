@@ -32,6 +32,7 @@ from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_inference
 from ..utils import get_rank
+from ..dataloading.dataset import prepare_batch_input
 
 class GSOptimizer():
     """ A combination of optimizers.
@@ -624,24 +625,50 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
     dict of th.Tensor : node embeddings.
     """
     assert isinstance(model, GSgnnModel), "Only GSgnnModel supports full-graph inference."
-    node_embed = compute_node_input_embeddings(data.g,
-                                               batch_size,
-                                               model.node_input_encoder,
-                                               task_tracker=task_tracker,
-                                               feat_field=data.node_feat_field)
     t1 = time.time() # pylint: disable=invalid-name
     # full graph evaluation
     th.distributed.barrier()
     if model.gnn_encoder is None:
         # Only graph aware but not GNN models
-        embeddings = node_embed
-    else:
+        embeddings = compute_node_input_embeddings(data.g,
+                                                   batch_size,
+                                                   model.node_input_encoder,
+                                                   task_tracker=task_tracker,
+                                                   feat_field=data.node_feat_field)
+    elif model.node_input_encoder.require_cache_embed():
+        # If the input encoder has heavy computation, we should compute
+        # the embeddings and cache them.
+        input_embeds = compute_node_input_embeddings(data.g,
+                                                     batch_size,
+                                                     model.node_input_encoder,
+                                                     task_tracker=task_tracker,
+                                                     feat_field=data.node_feat_field)
         model.eval()
-        embeddings = dist_inference(data.g, model.gnn_encoder, node_embed,
+        device = model.gnn_encoder.device
+        def get_input_embeds(input_nodes):
+            if not isinstance(input_nodes, dict):
+                assert len(data.g.ntypes) == 1
+                input_nodes = {data.g.ntypes[0]: input_nodes}
+            return {ntype: input_embeds[ntype][ids].to(device) \
+                    for ntype, ids in input_nodes.items()}
+        embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
                                     batch_size, -1, edge_mask=edge_mask,
                                     task_tracker=task_tracker)
-        # TODO(zhengda) we should avoid getting rank from the graph.
-        if get_rank() == 0:
-            print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
         model.train()
+    else:
+        model.eval()
+        device = model.gnn_encoder.device
+        def get_input_embeds(input_nodes):
+            if not isinstance(input_nodes, dict):
+                assert len(data.g.ntypes) == 1
+                input_nodes = {data.g.ntypes[0]: input_nodes}
+            feats = prepare_batch_input(data.g, input_nodes, dev=device,
+                                        feat_field=data.node_feat_field)
+            return model.node_input_encoder(feats, input_nodes)
+        embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
+                                    batch_size, -1, edge_mask=edge_mask,
+                                    task_tracker=task_tracker)
+        model.train()
+    if get_rank() == 0:
+        print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
     return embeddings

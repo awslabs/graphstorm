@@ -18,6 +18,7 @@ import os
 import yaml
 import tempfile
 from argparse import Namespace
+from types import MethodType
 
 import torch as th
 from torch import nn
@@ -96,7 +97,25 @@ def check_node_prediction(model, data):
         Train data
     """
     g = data.g
+    # do_full_graph_inference() runs differently if require_cache_embed()
+    # returns different values. Here we simulate these two use cases and
+    # triggers the different paths in do_full_graph_inference() to compute
+    # embeddings. The embeddings computed by the two paths should be
+    # numerically the same.
+    assert not model.node_input_encoder.require_cache_embed()
     embs = do_full_graph_inference(model, data)
+    def require_cache_embed(self):
+        return True
+    model.node_input_encoder.require_cache_embed = MethodType(require_cache_embed,
+                                                              model.node_input_encoder)
+    assert model.node_input_encoder.require_cache_embed()
+    embs2 = do_full_graph_inference(model, data)
+    assert len(embs) == len(embs2)
+    for ntype in embs:
+        assert ntype in embs2
+        assert_almost_equal(embs[ntype][0:len(embs[ntype])].numpy(),
+                            embs2[ntype][0:len(embs2[ntype])].numpy())
+
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
