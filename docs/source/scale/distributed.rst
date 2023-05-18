@@ -41,7 +41,7 @@ In each instance, use the following command to start a GraphStorm Docker contain
 
 This command mount the shared ``/path_to_data/`` folder to each container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
 
-Setup the IP address file and check port 2222 status
+Setup the IP address file and check port status
 ----------------------------------------------------------
 Collect the IP list
 ......................
@@ -54,7 +54,7 @@ The GraphStorm Docker containers use SSH on port ``2222`` to communicate with ea
     
 Put this file into container's ``/data/`` folder.
 
-Check port 2222
+Check port
 ................
 The GraphStorm Docker container uses port ``2222`` to **ssh** to containers running on other machines without passwords. Please make sure all host instances do not use this port.
 
@@ -72,7 +72,11 @@ In the container environment, users can check the connectivity with the command 
 
     ssh 172.38.12.143 -p 2222
 
-If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance. If not, please make sure there is no limitation of port 2222.
+If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance. 
+
+If not, please make sure there is no limitation of port 2222. 
+
+For distributed training, users also need to make sure ports under 65536 is open for DistDGL to use.
 
 Partition a Graph
 -------------------------------
