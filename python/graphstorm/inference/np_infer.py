@@ -79,8 +79,7 @@ class GSgnnNodePredictionInfer(GSInfer):
             res = node_mini_batch_gnn_predict(self._model, loader, return_label=do_eval)
             pred = res[0]
             embs = res[1]
-            pred_idxs = res[1]
-            label = res[3] if do_eval else None
+            label = res[2] if do_eval else None
 
             embs = {ntype: embs}
         else:
@@ -88,8 +87,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                                            task_tracker=self.task_tracker)
             res = node_mini_batch_predict(self._model, embs, loader, return_label=do_eval)
             pred = res[0]
-            pred_idxs = res[1]
-            label = res[2] if do_eval else None
+            label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
         embeddings = {ntype: embs[ntype]}
@@ -115,7 +113,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                     persistent=True)
                 # nodes that have prediction may be just a subset of the
                 # entire node set.
-                pred_data[pred_idxs] = pred
+                pred_data[loader.target_nidx] = pred
                 pred = shuffle_predict(pred_data, node_id_mapping_file, self.rank,
                     th.distributed.get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)

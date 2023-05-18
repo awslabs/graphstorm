@@ -164,7 +164,6 @@ def node_mini_batch_gnn_predict(model, loader, return_label=False):
     preds = []
     embs = []
     labels = []
-    pred_idxs = []
     model.eval()
     with th.no_grad():
         for input_nodes, seeds, blocks in loader:
@@ -176,7 +175,6 @@ def node_mini_batch_gnn_predict(model, loader, return_label=False):
             pred, emb = model.predict(blocks, input_feats, None, input_nodes)
             preds.append(pred.cpu())
             embs.append(emb.cpu())
-            pred_idxs.append(seeds.cpu())
 
             if return_label:
                 lbl = data.get_labels(seeds)
@@ -185,12 +183,11 @@ def node_mini_batch_gnn_predict(model, loader, return_label=False):
     model.train()
     preds = th.cat(preds)
     embs = th.cat(embs)
-    pred_idxs = th.cat(pred_idxs)
     if return_label:
         labels = th.cat(labels)
-        return preds, embs, pred_idxs, labels
+        return preds, embs, labels
     else:
-        return preds, embs, pred_idxs
+        return preds, embs
 
 def node_mini_batch_predict(model, emb, loader, return_label=False):
     """ Perform mini-batch prediction.
@@ -216,7 +213,6 @@ def node_mini_batch_predict(model, emb, loader, return_label=False):
     data = loader.data
     preds = []
     labels = []
-    pred_idxs = []
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
     model.eval()
     with th.no_grad():
@@ -229,13 +225,11 @@ def node_mini_batch_predict(model, emb, loader, return_label=False):
             if return_label:
                 lbl = data.get_labels(seeds)
                 labels.append(lbl[ntype])
-            pred_idxs.append(seeds)
     model.train()
 
     preds = th.cat(preds)
-    pred_idxs = th.cat(pred_idxs)
     if return_label:
         labels = th.cat(labels)
-        return preds, pred_idxs, labels
+        return preds, labels
     else:
-        return preds, pred_idxs
+        return preds
