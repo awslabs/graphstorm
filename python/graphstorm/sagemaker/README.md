@@ -4,6 +4,71 @@ This submodule provides support to run GraphStorm training and inference on Amaz
 ## Launch SageMaker tasks
 Use scripts under graphstorm.sagemaker.launch to launch SageMaker tasks. Please make sure you already setup your SageMaker environments. Please refer to [Amazon SageMaker service](https://aws.amazon.com/pm/sagemaker) for how to get access to Amazon SageMaker.
 
+### Launch GraphStorm training/inference using Amazon SageMaker service
+
+#### Launch train task using built-in training script
+
+##### Preparing training data and training task config.
+```
+cd ~/
+git clone https://github.com/awslabs/graphstorm.git
+GS_HOME=~/graphstorm/
+python3 $GS_HOME/tools/partition_graph.py --dataset ogbn-arxiv \
+                                          --filepath /tmp/ogbn-arxiv-nc/ \
+                                          --num_parts 2 \
+                                          --output /tmp/ogbn_arxiv_nc_2p
+```
+
+You need to upload /tmp/ogbn_arxiv_nc_2p into S3.
+
+##### Launch train task
+```
+python3 -m graphstorm.sagemaker.launch.launch_train \
+        --image-url <AMAZON_ECR_IMAGE_PATH> \
+        --region us-east-1 \
+        --entry-point run/sagemaker_train.py \
+        --role <ARN_ROLE> \
+        --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
+        --graph-name ogbn-arxiv \
+        --task-type "node_classification" \
+        --train-yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
+        --output-s3 <S3_PATH_TO_SAVE_TRAINED_MODEL> \
+        --num-layers 1 --hidden-size 128 --backend gloo --batch-size 128 --node-feat-name node:feat
+```
+
+Please note `save_embed_path` and `save_prediction_path` must be disabled, i.e., set to 'None' when using SageMaker. They only work with shared file system while SageMaker solution does not support using shared file system now.
+
+### Launch train task using user-defined training script
+
+Preparing training data and training task config
+```
+```
+
+Launch train task
+```
+```
+
+
+### Launch inference task using built-in inference script
+
+Preparing inference data and inference task config
+```
+```
+
+Launch inference task
+```
+```
+
+
+### Launch inference task using user-defined inference script
+
+Preparing inference data and inference task config
+```
+```
+
+Launch inference task
+```
+```
 
 ### Test GraphStorm SageMaker runs locally with Docker compose
 This section describes how to launch Docker compose jobs that emulate a SageMaker
@@ -18,7 +83,7 @@ and inference using SageMaker.
 3. Build the SageMaker graph-storm Docker image.
 4. Generate a docker compose file:
 ```
-python3 -m graphstorm.sagemaker.local.generate_sagemaker_train_docker_compose --num-instances $NUM_INSTANCES --input-data $DATASET_S3_PATH --output-data-s3 "s3://${OUTPUT_BUCKET}/test/${DATASET_NAME}${PATH_SUFFIX}/${NUM_INSTANCES}x-${INSTANCE_TYPE}/" --region $REGION
+python3 -m graphstorm.sagemaker.local.generate_sagemaker_docker_compose --num-instances $NUM_INSTANCES --input-data $DATASET_S3_PATH --output-data-s3 "s3://${OUTPUT_BUCKET}/test/${DATASET_NAME}${PATH_SUFFIX}/${NUM_INSTANCES}x-${INSTANCE_TYPE}/" --region $REGION
 ```
 
 Launch the job using docker compose:
@@ -96,7 +161,7 @@ Some explanation on the above elements (see the [official docs](https://docs.doc
 * `command`: Determines the entrypoint, i.e. the command that will be executed once the container launches.
 
 To help you generate yaml file automatically, we provide a Python script that
-builds the docker compose file for your, `generate_sagemaker_train_docker_compose.py`.
+builds the docker compose file for your, `generate_sagemaker_docker_compose.py`.
 Note that the script uses the [PyYAML](https://pypi.org/project/PyYAML/) library.
 
 This file has 4 required arguments that determine the Docker compose file that will be generated:
@@ -112,7 +177,6 @@ The rest of the arguments are passed on to `sagemaker_train.py`
 * `--graph-data-s3`: S3 location of input training graph.
 * `--graph-name`: Name of the input training graph.
 * `--train-yaml-s3`: S3 location of training yaml file.
-* `--enable-bert`: Whether enable cotraining Bert with GNN
 * `--custom-script`: Custom training script provided by a customer to run customer training logic. This should be a path to the python script within the docker image.
 
 If you want to pass other arguements to `sagemaker_train.py`, you can simply append those arguments after the above arguments.
@@ -129,68 +193,3 @@ the `sagemaker_train.py` code. Note that the containers actually
 interact with S3 so you would require valid AWS credentials to run.
 
 #### Dcoker compose for inference
-
-
-### Launch GraphStorm training/inference using Amazon SageMaker service
-
-#### Launch train task using built-in training script
-
-##### Preparing training data and training task config.
-```
-cd ~/
-git clone https://github.com/awslabs/graphstorm.git
-GS_HOME=~/graphstorm/
-python3 $GS_HOME/tools/partition_graph.py --dataset ogbn-arxiv \
-                                          --filepath /tmp/ogbn-arxiv-nc/ \
-                                          --num_parts 2 \
-                                          --output /tmp/ogbn_arxiv_nc_2p
-```
-
-You need to upload /tmp/ogbn_arxiv_nc_2p into S3.
-
-##### Launch train task
-```
-python3 -m graphstorm.sagemaker.launch.launch_train \
-        --image-url <AMAZON_ECR_IMAGE_PATH> \
-        --region us-east-1 \
-        --entry-point run/sagemaker_train.py \
-        --role <ARN_ROLE> \
-        --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
-        --graph-name ogbn-arxiv \
-        --task-type "node_classification" \
-        --train-yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
-        --output-s3 <S3_PATH_TO_SAVE_TRAINED_MODEL> \
-        --num-layers 1 --hidden-size 128 --backend gloo --batch-size 128 --node-feat-name node:feat
-```
-
-### Launch train task using user-defined training script
-
-Preparing training data and training task config
-```
-```
-
-Launch train task
-```
-```
-
-
-### Launch inference task using built-in inference script
-
-Preparing inference data and inference task config
-```
-```
-
-Launch inference task
-```
-```
-
-
-### Launch inference task using user-defined inference script
-
-Preparing inference data and inference task config
-```
-```
-
-Launch inference task
-```
-```

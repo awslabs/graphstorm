@@ -46,7 +46,9 @@ from graphstorm.sagemaker.run.utils import terminate_workers
 from graphstorm.sagemaker.run.utils import wait_for_exit
 from graphstorm.sagemaker.run.utils import upload_data_to_s3
 from graphstorm.sagemaker.run.utils import update_gs_params
-
+from graphstorm.sagemaker.run.utils import download_model
+from graphstorm.sagemaker.run.utils import upload_embs
+from graphstorm.sagemaker.run.utils import remove_embs
 
 def launch_infer_task(task_type, num_gpus, graph_config,
     load_model_path, save_emb_path, ip_list,
@@ -93,8 +95,6 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
-    extra_args = " ".join(extra_args)
-
     launch_cmd = ["python3", "-m", cmd,
         "--num-trainers", f"{num_gpus}",
         "--num-servers", "1",
@@ -136,17 +136,11 @@ def parse_train_args():
     parser.add_argument("--graph-name", type=str, help="Graph name")
     parser.add_argument("--graph-data-s3", type=str,
         help="S3 location of input training graph")
-    parser.add_argument("--model-path-s3", type=str, default=None,
-        help="S3 location of a trained model. If None, use SageMaker default path")
-    parser.add_argument("--emb-s3-path", type=str,
-        help="S3 location to save node embeddings")
     parser.add_argument("--task-type", type=str,
         help=f"Task type in {SUPPORTED_TASKS}")
     parser.add_argument("--infer-yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--infer-yaml-name", type=str,
-        help="Training yaml config file name")
     parser.add_argument("--output-emb-s3", type=str,
         help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
@@ -155,15 +149,11 @@ def parse_train_args():
              "(Only works with node classification/regression " \
              "and edge classification/regression tasks)",
         default=None)
-    parser.add_argument("--enable-bert",
-        type=lambda x: (str(x).lower() in ['true', '1']), default=False,
-        help="Whether enable cotraining Bert with GNN")
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 bucket to load the saved model artifacts")
-    parser.add_argument("--model-sub-path", type=str, default=None,
-        help="Relative path to the trained model under <model_artifact_s3>."
-             "There can be multiple model checkpoints under"
-             "<model_artifact_s3>, this argument is used to choose one.")
+    parser.add_argument("--custom-script", type=str, default=None,
+        help="Custom training script provided by a customer to run customer training logic. \
+            Please provide the path of the script within the docker image")
 
     return parser
 
@@ -179,7 +169,7 @@ def main():
     assert 'SM_CHANNEL_TRAIN' in os.environ, \
         "SageMaker trainer should have the data path in os.environ."
     data_path = str(os.environ['SM_CHANNEL_TRAIN'])
-    model_path = str(os.environ['SM_CHANNEL_MODEL'])
+    model_path = '/opt/ml/model'
     output_path = '/opt/ml/checkpoints'
 
     # start the ssh server
@@ -237,18 +227,18 @@ def main():
     gs_params = unknownargs
     graph_name = args.graph_name
     graph_data_s3 = args.graph_data_s3
+    model_artifact_s3 = args.model_artifact_s3
     task_type = args.task_type
     infer_yaml_s3 = args.infer_yaml_s3
-    infer_yaml_name = args.infer_yaml_name
     # remove tailing /
-    emb_s3_path = args.emb_s3_path.rstrip('/')
-    enable_bert = args.enable_bert
-    model_sub_path = args.model_sub_path
+    output_emb_s3 = args.output_emb_s3.rstrip('/')
+    custom_script = args.custom_script
+    emb_path = os.path.join(output_path, "embs")
 
     if args.output_emb_s3 is not None:
-        update_gs_params("--save-embed-path", os.path.join(output_path, "emb"))
+        update_gs_params(gs_params, "--save-embed-path", emb_path)
     if args.output_prediction_s3 is not None:
-        update_gs_params("--save-prediction-path", os.path.join(output_path, "predict"))
+        update_gs_params(gs_params, "--save-prediction-path", os.path.join(output_path, "predict"))
 
     ### Download Partitioned graph data
     boto_session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
@@ -256,19 +246,14 @@ def main():
 
     yaml_path = download_yaml_config(infer_yaml_s3,
         data_path, sagemaker_session)
-    # Download Saved model
-    print(f"{model_path} {os.listdir(model_path)}")
-    subprocess.run(["tar", "-xvf", os.path.join(model_path, 'model.tar.gz'),
-        "-C", model_path], check=True)
-    print(f"{model_path} {os.listdir(model_path)}")
-
-    if model_sub_path is not None:
-        model_path = os.path.join(model_path, model_sub_path)
 
     graph_config_path = download_graph(graph_data_s3, graph_name,
         host_rank, data_path, sagemaker_session)
 
-    emb_path = os.path.join(output_path, "embs")
+    # Download Saved model
+    download_model(model_artifact_s3, model_path,
+        host_rank, world_size, graph_config_path, sagemaker_session)
+    print(f"{model_path} {os.listdir(model_path)}")
 
     err_code = 0
     if host_rank == 0:
@@ -285,15 +270,15 @@ def main():
             # launch distributed training here
             state_q = queue.Queue()
             train_task = launch_infer_task(task_type,
-                                        num_gpus,
-                                        graph_config_path,
-                                        model_path,
-                                        emb_path,
-                                        ip_list_path,
-                                        enable_bert,
-                                        yaml_path,
-                                        gs_params,
-                                        state_q)
+                                           num_gpus,
+                                           graph_config_path,
+                                           model_path,
+                                           emb_path,
+                                           ip_list_path,
+                                           yaml_path,
+                                           gs_params,
+                                           state_q,
+                                           custom_script)
             train_task.join()
             err_code = state_q.get()
         except RuntimeError as e:
@@ -303,7 +288,7 @@ def main():
         terminate_workers(client_list, world_size, task_end)
         print("Master End")
         if err_code != -1:
-            upload_embs(emb_s3_path, emb_path, sagemaker_session)
+            upload_embs(output_emb_s3, emb_path, sagemaker_session)
             # clean embs, so SageMaker does not need to upload embs again
             remove_embs(emb_path)
     else:
@@ -312,7 +297,7 @@ def main():
         # Block util training finished
         # Listen to end command
         wait_for_exit(sock)
-        upload_embs(emb_s3_path, emb_path, sagemaker_session)
+        upload_embs(output_emb_s3, emb_path, sagemaker_session)
         # clean embs, so SageMaker does not need to upload embs again
         remove_embs(emb_path)
         print("Worker End")
@@ -323,12 +308,10 @@ def main():
         print("Task failed")
         sys.exit(-1)
 
-    if args.output_emb_s3 is not None:
-        upload_data_to_s3(args.output_emb_s3,
-                          os.path.join(output_path, "emb"),
-                          sagemaker_session)
-    if args.output_emb_s3 is not None:
-        upload_data_to_s3(args.output_prediction_s3,
+    if args.output_prediction_s3 is not None:
+        # remove tailing /
+        output_prediction_s3 = args.output_prediction_s3.rstrip('/')
+        upload_data_to_s3(output_prediction_s3,
                           os.path.join(output_path, "predict"),
                           sagemaker_session)
 

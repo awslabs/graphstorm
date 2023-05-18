@@ -35,10 +35,10 @@ def parse_args():
     parser.add_argument("--graph-name", type=str, help="Graph name")
     parser.add_argument("--graph-data-s3", required=True,
         help="S3 location of input training graph")
-    parser.add_argument("--train-yaml-s3", type=str,
+    parser.add_argument("--yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
-    parser.add_argument("--output-model-s3", type=str,
+    parser.add_argument("--model-artifact-s3", type=str,
         help="S3 location to store the model artifacts")
     parser.add_argument("--output-emb-s3", type=str,
         help="S3 location to store GraphStorm generated node embeddings.",
@@ -48,9 +48,6 @@ def parse_args():
              "(Only works with node classification/regression " \
              "and edge classification/regression tasks)",
         default=None)
-    parser.add_argument("--enable-bert",
-        type=lambda x: (str(x).lower() in ['true', '1']), default=False,
-        help="Whether enable cotraining Bert with GNN")
     parser.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \
             Please provide the path of the script within the docker image")
@@ -63,6 +60,12 @@ def parse_args():
         help="AWS secret access key")
     parser.add_argument("--aws-session-token", type=str,
         help="AWS session token")
+    parser.add_argument(
+        "--inference",
+        action="store_true",
+        help="Inidcate that it is a inference task. \
+              Used with built-in training/inference scripts"
+    )
 
     return parser
 
@@ -76,30 +79,58 @@ if __name__ == "__main__":
     compose_dict['networks'] = {'gfs': {
         'external': {'name': 'gfs-network'}}}
 
-    def generate_instance_entry(instance_idx: int, world_size: int) -> Dict[str, str]:
+    def gen_train_cmd(custom_script):
+        entry_point = 'sagemaker_train.py'
+
+        cmd = f'python3  {entry_point} ' \
+            f'--task-type {args.task_type} ' \
+            f'--graph-data-s3 {args.graph_data_s3} ' \
+            f'--graph-name {args.graph_name} ' \
+            f'--train-yaml-s3 {args.yaml_s3} ' \
+            f'--model-artifact-s3 {args.model_artifact_s3} ' \
+            f'{custom_script} ' + ' '.join(unknownargs)
+        return cmd
+
+    def gen_infer_cmd(custom_script):
+        entry_point = 'sagemaker_infer.py'
+        output_emb_s3 = f'--output-emb-s3 {args.output_emb_s3} ' \
+                        if args.output_emb_s3 is not None else ''
+        output_prediction_s3 = f'--output-prediction-s3 {args.output_prediction_s3} ' \
+                        if args.output_prediction_s3 is not None else ''
+
+        cmd = f'python3  {entry_point} ' \
+            f'--task-type {args.task_type} ' \
+            f'--graph-data-s3 {args.graph_data_s3} ' \
+            f'--graph-name {args.graph_name} ' \
+            f'--infer-yaml-s3 {args.yaml_s3} ' \
+            f'--model-artifact-s3 {args.model_artifact_s3} ' \
+            f'{output_emb_s3} {output_prediction_s3} {custom_script} ' + \
+            ' '.join(unknownargs)
+        return cmd
+
+    def generate_instance_entry(instance_idx, world_size):
         inner_host_list = [f'algo-{i}' for i in range(1, world_size+1)]
         quoted_host_list = ', '.join(f'"{host}"' for host in inner_host_list)
         host_list = f'[{quoted_host_list}]'
+
         custom_script = '' if args.custom_script is None \
             else f'custom-script {args.custom_script}'
-        cmd = f'python3 sagemaker_train.py ' \
-                    f'--task-type {args.task_type} ' \
-                    f'--graph-data-s3 {args.graph_data_s3} ' \
-                    f'--graph-name {args.graph_name} ' \
-                    f'--train-yaml-s3 {args.train_yaml_s3} ' \
-                    f'--enable-bert {args.enable_bert} ' \
-                    f'--output-model-s3 {args.output_model_s3} ' \
-                    f'--output-emb-s3 {args.output_emb_s3} ' \
-                        if args.output_emb_s3 is not None else '' \
-                    f'--output-prediction-s3 {args.output_prediction_s3} ' \
-                        if args.output_prediction_s3 is not None else '' \
-                    f'{custom_script} ' + \
-                    ' '.join(unknownargs)
+
+        cmd = gen_infer_cmd(custom_script) if args.inference else gen_train_cmd(custom_script)
         return {
                 'image': args.image,
                 'container_name': f'algo-{instance_idx}',
                 'hostname': f'algo-{instance_idx}',
                 'networks': ['gfs'],
+                'volumes': [
+                    {
+                        'type': 'tmpfs',
+                        'target': '/dev/shm',
+                        'tmpfs': {
+                            'size': 16000000000, # ~16gb
+                        }
+                    },
+                ],
                 'command': cmd,
                 'environment':
                     {
@@ -135,9 +166,10 @@ if __name__ == "__main__":
 
     compose_dict['services'] = service_dicts
 
-    filename = (
-        f'docker-compose-{args.task_type}-'
-        f'{args.num_instances}-train.yaml')
+    filename = \
+        (f'docker-compose-{args.task_type}-{args.num_instances}-infer.yaml') \
+        if args.inference else \
+        (f'docker-compose-{args.task_type}-{args.num_instances}-train.yaml')
 
     with open(filename, 'w', encoding='utf-8') as f:
         yaml.dump(compose_dict, f)
