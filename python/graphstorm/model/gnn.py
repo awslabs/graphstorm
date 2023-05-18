@@ -602,7 +602,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         return self._loss_fn
 
-def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask=None,
+def do_full_graph_inference(model, data, fanout, batch_size=1024, edge_mask=None,
                             task_tracker=None):
     """ Do fullgraph inference
 
@@ -614,10 +614,10 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
         GNN model
     data : GSgnnData
         The GraphStorm dataset
-    batch_size : int
-        The batch size for inferencing a GNN layer
     fanout: list of int
         The fanout for computing the GNN embeddings in a GNN layer.
+    batch_size : int
+        The batch size for inferencing a GNN layer
     edge_mask : str
         The edge mask that indicates what edges are used to compute GNN embeddings.
     task_tracker: GSTaskTrackerAbc
