@@ -155,7 +155,6 @@ def node_mini_batch_gnn_predict(model, loader, return_label=False):
     -------
     Tensor : GNN prediction results.
     Tensor : GNN embeddings.
-    Tensor : Node index corresponding to prediction results.
     Tensor : labels if return_labels is True
     """
     device = model.device
@@ -206,7 +205,6 @@ def node_mini_batch_predict(model, emb, loader, return_label=False):
     Returns
     -------
     Tensor : GNN prediction results.
-    Tensor : Node index corresponding to prediction results.
     Tensor : labels if return_labels is True
     """
     device = model.device
