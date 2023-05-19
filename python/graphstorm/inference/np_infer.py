@@ -17,12 +17,14 @@
 """
 import time
 import torch as th
+import dgl
 from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
+from ..model.utils import LazyDistTensor
 from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
@@ -90,8 +92,20 @@ class GSgnnNodePredictionInfer(GSInfer):
             label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
-        embeddings = {ntype: embs[ntype]}
         if save_embed_path is not None:
+            if use_mini_batch_infer:
+                ntype_emb = DistTensor((g.num_nodes(ntype), embs[ntype].shape[1]),
+                    dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
+                    part_policy=g.get_node_partition_policy(ntype),
+                    # TODO: this makes the tensor persistent in memory.
+                    persistent=True)
+                # nodes that do prediction in mini-batch may be just a subset of the
+                # entire node set.
+                ntype_emb[loader.target_nidx] = embs[ntype]
+            else:
+                ntype_emb = embs[ntype]
+            embeddings = {ntype: ntype_emb}
+
             device = th.device(f"cuda:{self.dev_id}") \
                     if self.dev_id >= 0 else th.device("cpu")
             save_gsgnn_embeddings(save_embed_path,
@@ -99,7 +113,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                 device=device,
                 node_id_mapping_file=node_id_mapping_file)
             th.distributed.barrier()
-        sys_tracker.check('save embeddings')
+            sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
             # shuffle pred results according to node_id_mapping_file
