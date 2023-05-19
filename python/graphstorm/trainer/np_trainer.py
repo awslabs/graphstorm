@@ -154,7 +154,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     self.evaluator.do_eval(total_steps, epoch_end=False) and \
                     val_loader is not None:
                     val_score = self.eval(model.module, val_loader, test_loader,
-                                          use_mini_batch_infer, total_steps)
+                                          use_mini_batch_infer, train_loader.fanout, total_steps)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -187,7 +187,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module, val_loader, test_loader,
-                                      use_mini_batch_infer, total_steps)
+                                      use_mini_batch_infer, train_loader.fanout, total_steps)
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
 
@@ -212,7 +212,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps):
+    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, fanout, total_steps):
         """ do the model evaluation using validiation and test sets
 
         Parameters

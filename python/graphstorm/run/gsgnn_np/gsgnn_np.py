@@ -82,12 +82,10 @@ def main(args):
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
-                                             eval_fanout=config.eval_fanout,
                                              device=device, train_task=False)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
-                                              eval_fanout=config.eval_fanout,
                                               device=device, train_task=False)
 
     # Preparing input layer for training or inference.

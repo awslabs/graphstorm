@@ -42,8 +42,6 @@ class GSgnnEdgeDataLoader():
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size
-    eval_fanout: list of int
-        fan out for each GNN layer
     device: torch.device
         the device trainer is running on.
     train_task : bool
@@ -55,13 +53,12 @@ class GSgnnEdgeDataLoader():
     remove_target_edge_type: bool
         Whether we will exclude all edges of the target edge type in message passing.
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, eval_fanout,
-                 device='cpu', train_task=True, reverse_edge_types_map=None,
+    def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
+                 train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
                  exclude_training_targets=False):
         self._data = dataset
         self._device = device
-        self._eval_fanout = eval_fanout
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -560,14 +557,12 @@ class GSgnnNodeDataLoader():
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size
-    eval_fanout : list of int
-        The fanout for computing the GNN embeddings in a GNN layer
     device: torch.device
         the device trainer is running on.
     train_task : bool
         Whether or not for training.
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, eval_fanout, device,
+    def __init__(self, dataset, target_idx, fanout, batch_size, device,
                  train_task=True):
         self._data = dataset
         assert isinstance(target_idx, dict)
