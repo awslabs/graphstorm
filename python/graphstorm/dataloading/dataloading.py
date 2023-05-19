@@ -59,6 +59,7 @@ class GSgnnEdgeDataLoader():
                  exclude_training_targets=False):
         self._data = dataset
         self._device = device
+        self._fanout = fanout
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -562,9 +563,9 @@ class GSgnnNodeDataLoader():
     train_task : bool
         Whether or not for training.
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, device,
-                 train_task=True):
+    def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True):
         self._data = dataset
+        self._fanout = fanout
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
