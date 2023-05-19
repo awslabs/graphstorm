@@ -17,10 +17,12 @@
 """
 import time
 import torch as th
+from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
+from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict
 
@@ -42,7 +44,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
             use_mini_batch_infer=False, # pylint: disable=unused-argument
-            node_id_mapping_file=None):
+            node_id_mapping_file=None,
+            edge_id_mapping_file=None):
         """ Do inference
 
         The infer can do three things:
@@ -76,6 +79,10 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
         # Only save the embeddings related to target edge types.
         infer_data = loader.data
+        # TODO support multiple etypes
+        assert len(infer_data.eval_etypes) == 1, \
+            "GraphStorm only support single target edge type for training and inference"
+
         target_ntypes = set()
         for etype in infer_data.eval_etypes:
             target_ntypes.add(etype[0])
@@ -92,6 +99,20 @@ class GSgnnEdgePredictionInfer(GSInfer):
         sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
+            if edge_id_mapping_file is not None:
+                g = loader.data.g
+                etype = infer_data.eval_etypes[0]
+                pred_data = DistTensor((g.num_edges(etype), pred.shape[1]),
+                    dtype=pred.dtype, name='predict-'+'-'.join(etype),
+                    part_policy=g.get_edge_partition_policy(etype),
+                    # TODO: this makes the tensor persistent in memory.
+                    persistent=True)
+                # edges that have predictions may be just a subset of the
+                # entire edge set.
+                pred_data[loader.target_eidx] = pred
+
+                pred = shuffle_predict(pred_data, edge_id_mapping_file, self.rank,
+                    th.distributed.get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)
         th.distributed.barrier()
         sys_tracker.check('save predictions')
