@@ -431,6 +431,7 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
             lp_data,
             target_idx=lp_data.train_idxs, # use train edges as val or test edges
             batch_size=batch_size,
+            eval_fanout=[-1,-1],
             num_negative_edges=num_negative_edges)
 
         total_edges = {etype: len(lp_data.train_idxs[etype]) for etype in test_etypes}
@@ -487,6 +488,7 @@ def test_GSgnnLinkPredictionJointTestDataLoader(batch_size, num_negative_edges):
             lp_data,
             target_idx=lp_data.train_idxs, # use train edges as val or test edges
             batch_size=batch_size,
+            eval_fanout=[-1,-1],
             num_negative_edges=num_negative_edges)
 
         total_edges = {etype: len(lp_data.train_idxs[etype]) for etype in test_etypes}

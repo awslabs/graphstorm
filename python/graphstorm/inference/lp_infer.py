@@ -42,7 +42,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
     """
 
     # TODO(zhengda) We only support full-graph inference for now.
-    def infer(self, data, loader, save_embed_path,
+    def infer(self, data, loader, eval_fanout, save_embed_path,
             edge_mask_for_gnn_embeddings='train_mask',
             node_id_mapping_file=None):
         """ Do inference
@@ -57,6 +57,8 @@ class GSgnnLinkPredictionInfer(GSInfer):
             The GraphStorm dataset
         loader : GSgnnLinkPredictionTestDataLoader
             The mini-batch sampler for link prediction task.
+        eval_fanout: list of int
+            The fanout for computing the GNN embeddings in a GNN layer.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
         edge_mask_for_gnn_embeddings : str
@@ -69,7 +71,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
         """
         sys_tracker.check('start inferencing')
         self._model.eval()
-        embs = do_full_graph_inference(self._model, data,
+        embs = do_full_graph_inference(self._model, data, fanout=eval_fanout,
                                        edge_mask=edge_mask_for_gnn_embeddings,
                                        task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')

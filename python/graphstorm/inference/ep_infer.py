@@ -40,7 +40,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
         The rank.
     """
 
-    def infer(self, loader, save_embed_path, save_prediction_path=None,
+    def infer(self, loader, eval_fanout, save_embed_path, save_prediction_path=None,
             use_mini_batch_infer=False, # pylint: disable=unused-argument
             node_id_mapping_file=None):
         """ Do inference
@@ -53,6 +53,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
         ----------
         loader : GSEdgeDataLoader
             The mini-batch sampler for edge prediction task.
+        eval_fanout: list of int
+            The fanout for computing the GNN embeddings in a GNN layer.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
         save_prediction_path : str
@@ -66,7 +68,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
         self._model.eval()
-        embs = do_full_graph_inference(self._model, loader.data,
+        embs = do_full_graph_inference(self._model, loader.data, fanout=eval_fanout,
                                        task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         res = edge_mini_batch_predict(self._model, embs, loader, return_label=do_eval)

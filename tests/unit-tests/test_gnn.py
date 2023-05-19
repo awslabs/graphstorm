@@ -116,6 +116,14 @@ def check_node_prediction(model, data):
         assert_almost_equal(embs[ntype][0:len(embs[ntype])].numpy(),
                             embs2[ntype][0:len(embs2[ntype])].numpy())
 
+    embs3 = do_full_graph_inference(model, data, fanout=None)
+    embs4 = do_full_graph_inference(model, data, fanout=[-1, -1])
+    assert len(embs3) == len(embs4)
+    for ntype in embs3:
+        assert ntype in embs4
+        assert_almost_equal(embs3[ntype][0:len(embs3[ntype])].numpy(),
+                            embs4[ntype][0:len(embs4[ntype])].numpy())
+
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
