@@ -21,13 +21,13 @@ from graphstorm.utils import estimate_mem_train, estimate_mem_infer
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='BertModel')
-    parser.add_argument('--root_path', type=str, help='The root path of the partition files.')
-    parser.add_argument('--supervise_task', type=str, help='The supervision task to train models. It is either node or edge.')
-    parser.add_argument('--is_train', type=lambda x: (str(x).lower() in ['true', '1']),
+    parser.add_argument('--root-path', type=str, help='The root path of the partition files.')
+    parser.add_argument('--supervise-task', type=str, help='The supervision task to train models. It is either node or edge.')
+    parser.add_argument('--is-train', type=lambda x: (str(x).lower() in ['true', '1']),
             help='Indicate whether this is a training or inference task.')
-    parser.add_argument('--hidden_size', type=int, help='The number of hidden dimensions.')
-    parser.add_argument('--num_layers', type=int, help='The number of GNN layers.')
-    parser.add_argument('--graph_name', type=str, help='The graph name.')
+    parser.add_argument('--hidden-size', type=int, help='The number of hidden dimensions.')
+    parser.add_argument('--num-layers', type=int, help='The number of GNN layers.')
+    parser.add_argument('--graph-name', type=str, help='The graph name.')
     args = parser.parse_args()
 
     assert args.is_train is not None
