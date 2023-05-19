@@ -257,7 +257,7 @@ def test_shuffle_predict(num_embs, backend):
         shuffled_pred = np.concatenate([shuffled_pred_1, shuffled_pred_2])
 
         # Load saved embeddings
-        assert_equal(pred[nid_mapping].numpy(), shuffled_pred)
+        assert_equal(pred[nid_mapping["node"]].numpy(), shuffled_pred)
 
 # TODO: Only test gloo now
 # Will add test for nccl once we enable nccl
