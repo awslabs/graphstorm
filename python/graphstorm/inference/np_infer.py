@@ -100,7 +100,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                     persistent=True)
                 # nodes that do prediction in mini-batch may be just a subset of the
                 # entire node set.
-                ntype_emb[loader.target_nidx] = embs[ntype]
+                ntype_emb[loader.target_nidx[ntype]] = embs[ntype]
             else:
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
