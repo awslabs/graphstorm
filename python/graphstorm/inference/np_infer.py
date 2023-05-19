@@ -119,7 +119,9 @@ class GSgnnNodePredictionInfer(GSInfer):
             if node_id_mapping_file is not None:
                 g = loader.data.g
 
-                pred_data = DistTensor((g.num_nodes(ntype), pred.shape[1]),
+                pred_shape = list(pred.shape)
+                pred_shape[0] = g.num_nodes(ntype)
+                pred_data = DistTensor(pred_shape,
                     dtype=pred.dtype, name=f'predict-{ntype}',
                     part_policy=g.get_node_partition_policy(ntype),
                     # TODO: this makes the tensor persistent in memory.

@@ -102,7 +102,9 @@ class GSgnnEdgePredictionInfer(GSInfer):
             if edge_id_mapping_file is not None:
                 g = loader.data.g
                 etype = infer_data.eval_etypes[0]
-                pred_data = DistTensor((g.num_edges(etype), pred.shape[1]),
+                pred_shape = list(pred.shape)
+                pred_shape[0] = g.num_edges(etype)
+                pred_data = DistTensor(pred_shape,
                     dtype=pred.dtype, name='predict-'+'-'.join(etype),
                     part_policy=g.get_edge_partition_policy(etype),
                     # TODO: this makes the tensor persistent in memory.
