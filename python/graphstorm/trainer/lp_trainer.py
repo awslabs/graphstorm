@@ -248,7 +248,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('before prediction')
         model.eval()
-        emb = do_full_graph_inference(model, data, fanout=val_loader._fanout,
+        emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')

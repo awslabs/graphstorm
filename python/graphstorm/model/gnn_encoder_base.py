@@ -118,9 +118,8 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                 partition_book=g.get_partition_book(),
                                                 ntype=ntype, force_even=False)
             # need to provide the fanout as a list, the number of layers is one obviously here
-            sampler = dgl.dataloading.MultiLayerNeighborSampler([fanout[i]]
-                                                                if fanout is not None else [-1],
-                                                                mask=edge_mask)
+            fanout_i = [-1] if fanout is None or len(fanout) == 0 else [fanout[i]]
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout_i, mask=edge_mask)
             dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
                                                             batch_size=batch_size,
                                                             shuffle=True,
