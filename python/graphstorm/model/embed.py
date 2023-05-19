@@ -107,6 +107,19 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         # By default, there is no sparse_embeds
         return []
 
+    def require_cache_embed(self):
+        """ Whether to cache the embeddings for inference.
+
+        If the input encoder has heavy computations, such as BERT computations,
+        it should return True and the inference engine will cache the embeddings
+        from the input encoder.
+
+        Returns
+        -------
+        Bool : True if we need to cache the embeddings for inference.
+        """
+        return False
+
     @property
     def sparse_embeds(self):
         """ Get sparse embeds

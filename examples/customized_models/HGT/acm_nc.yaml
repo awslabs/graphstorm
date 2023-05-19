@@ -2,6 +2,7 @@
 version: 1.0
 gsf:
   basic:
+    model_encoder_type: rgcn
     backend: gloo
     ip_config: ip_list.txt
     part_config: /data/acm_nc/acm.json
