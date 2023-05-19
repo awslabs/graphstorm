@@ -69,7 +69,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
         self._model.eval()
-        embs = do_full_graph_inference(self._model, loader.data, fanout=loader._fanout,
+        embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
                                        task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         res = edge_mini_batch_predict(self._model, embs, loader, return_label=do_eval)

@@ -122,6 +122,12 @@ class GSgnnEdgeDataLoader():
         """
         return self._target_eidx
 
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
+
 ################ Minibatch DataLoader (Link Prediction) #######################
 
 BUILTIN_LP_UNIFORM_NEG_SAMPLER = 'uniform'
@@ -164,6 +170,7 @@ class GSgnnLinkPredictionDataLoader():
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
                  edge_mask_for_gnn_embeddings='train_mask'):
         self._data = dataset
+        self._fanout = fanout
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
@@ -230,6 +237,12 @@ class GSgnnLinkPredictionDataLoader():
         """ The dataset of this dataloader.
         """
         return self._data
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
@@ -538,6 +551,12 @@ class GSgnnLinkPredictionTestDataLoader():
         # return pos, neg pairs
         return cur_iter, self._neg_sample_type
 
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
+
 class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
     """ Link prediction minibatch dataloader for validation and test
         with joint negative sampler
@@ -610,3 +629,9 @@ class GSgnnNodeDataLoader():
         """ The target node ids for prediction.
         """
         return self._target_nidx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
