@@ -113,7 +113,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                 # entire edge set.
                 pred_data[loader.target_eidx[etype]] = pred
 
-                pred = shuffle_predict(pred_data, edge_id_mapping_file, self.rank,
+                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, self.rank,
                     th.distributed.get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)
         th.distributed.barrier()
