@@ -59,6 +59,7 @@ class GSgnnEdgeDataLoader():
                  exclude_training_targets=False):
         self._data = dataset
         self._device = device
+        self._target_eidx = target_idx
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -114,6 +115,11 @@ class GSgnnEdgeDataLoader():
         """
         return self._data
 
+    @property
+    def target_eidx(self):
+        """ Target edge idx for prediction
+        """
+        return self._target_eidx
 
 ################ Minibatch DataLoader (Link Prediction) #######################
 
@@ -561,6 +567,7 @@ class GSgnnNodeDataLoader():
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True):
         self._data = dataset
+        self._target_nidx  = target_idx
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -592,3 +599,9 @@ class GSgnnNodeDataLoader():
         """ The dataset of this dataloader.
         """
         return self._data
+
+    @property
+    def target_nidx(self):
+        """ The target node ids for prediction.
+        """
+        return self._target_nidx

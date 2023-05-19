@@ -413,6 +413,15 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
         with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(emb_info))
 
+def shuffle_predict(predictions, id_mapping_file,
+                    local_rank, world_size, device):
+    """ Shuffle prediction result according to id_mapping
+    """
+    id_mapping = th.load(id_mapping_file) if local_rank == 0 else None
+    local_id_mapping = _exchange_node_id_mapping(
+                local_rank, world_size, device, id_mapping, len(predictions))
+    return predictions[local_id_mapping]
+
 def save_prediction_results(predictions, prediction_path, local_rank):
     """ Save node and edge predictions to the given path
 

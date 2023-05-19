@@ -17,10 +17,12 @@
 """
 import time
 import torch as th
+from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
+from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
@@ -68,16 +70,18 @@ class GSgnnNodePredictionInfer(GSInfer):
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
         self._model.eval()
+        # TODO support multiple ntypes
+        assert len(loader.data.eval_ntypes) == 1, \
+            "GraphStorm only support single target node type for training and inference"
+        ntype = loader.data.eval_ntypes[0]
+
         if use_mini_batch_infer:
             res = node_mini_batch_gnn_predict(self._model, loader, return_label=do_eval)
             pred = res[0]
             embs = res[1]
             label = res[2] if do_eval else None
 
-            # TODO support multiple ntypes
-            assert len(loader.data.eval_ntypes) == 1, \
-                "GraphStorm only support single target node type for training and inference"
-            embs = {loader.data.eval_ntypes[0]: embs}
+            embs = {ntype: embs}
         else:
             embs = do_full_graph_inference(self._model, loader.data,
                                            task_tracker=self.task_tracker)
@@ -86,7 +90,7 @@ class GSgnnNodePredictionInfer(GSInfer):
             label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
-        embeddings = {ntype: embs[ntype] for ntype in loader.data.eval_ntypes}
+        embeddings = {ntype: embs[ntype]}
         if save_embed_path is not None:
             device = th.device(f"cuda:{self.dev_id}") \
                     if self.dev_id >= 0 else th.device("cpu")
@@ -98,6 +102,20 @@ class GSgnnNodePredictionInfer(GSInfer):
         sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
+            # shuffle pred results according to node_id_mapping_file
+            if node_id_mapping_file is not None:
+                g = loader.data.g
+
+                pred_data = DistTensor((g.num_nodes(ntype), pred.shape[1]),
+                    dtype=pred.dtype, name=f'predict-{ntype}',
+                    part_policy=g.get_node_partition_policy(ntype),
+                    # TODO: this makes the tensor persistent in memory.
+                    persistent=True)
+                # nodes that have predictions may be just a subset of the
+                # entire node set.
+                pred_data[loader.target_nidx] = pred
+                pred = shuffle_predict(pred_data, node_id_mapping_file, self.rank,
+                    th.distributed.get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)
         th.distributed.barrier()
         sys_tracker.check('save predictions')
