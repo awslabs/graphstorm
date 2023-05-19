@@ -497,7 +497,7 @@ class GSConfig:
             return self._check_fanout(fanout, "Evaluation")
         else:
             # By default use -1 as full neighbor
-            return [-1] * len(self.fanout)
+            return [-1] * self.num_layers
 
     @property
     def hidden_size(self):
