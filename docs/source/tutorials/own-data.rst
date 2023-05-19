@@ -272,7 +272,10 @@ The above command reads in the JSON file, and matchs its contents with the node 
 
 Because the above command specifies the ``--num-parts`` to be ``1``, there is only one partition created, which is saved in the ``part0`` folder. These files become the inputs of GraphStorm's launch scripts.
 
-.. note:: Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large dataset.
+.. note:: 
+    
+    - Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large dataset.
+    - The two mapping files, ``node_mapping.pt`` and ``edge_mapping.pt``, are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the constructed graph. They are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
 
 .. _option-2:
 

@@ -406,8 +406,8 @@ With all required modifications ready, let's put everything of the modified HGT 
             --num-samplers 0 \
             --ssh-port 2222 \
             hgt_nc.py --yaml-config-file acm_nc.yaml \
-                        --node-feat paper:feat-author:feat-subject:feat \
-                        --num-heads 8
+                      --node-feat paper:feat-author:feat-subject:feat \
+                      --num-heads 8
 
 The argument value of ``--part-config`` is the JSON file coming from the :ref:`outputs <output-graph-construction>` of the :ref:`Step 1 <step-1>`.
 

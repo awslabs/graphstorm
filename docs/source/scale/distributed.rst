@@ -91,7 +91,7 @@ Now we can download and process the OGBN-MAG data with the command below.
 
     python3 /graphstorm/tools/gen_mag_dataset.py --savepath /data/ogbn-mag-lp/ --edge-pct 0.2
 
-Because we use three GraphStorm instances in the cluster for model training, this command splits the MAG data into three partitions by specifying the **--num_parts** argument to ``3``.
+Because we use three GraphStorm instances in the cluster for model training, this command splits the MAG data into three partitions by specifying the ``--num-parts`` argument to ``3``.
 
 .. code-block:: bash
 
@@ -100,14 +100,32 @@ Because we use three GraphStorm instances in the cluster for model training, thi
                                                     --num-parts 3 \
                                                     --balance-train \
                                                     --balance-edges \
-                                                    --num_trainers_per_machine 4 \
+                                                    --num-trainers-per-machine 4 \
                                                     --target-etypes author,writes,paper \
                                                     --output /data/ogbn_mag_lp_3p
 
 After this command completes successfully, the partitioned OGBN-MAG graph is stored in the ``/data/ogbn_mag_lp_3p`` folder whose structure is like the diagram below. Because the ``/data/`` folder is a shared filesystem, all instances in the cluster can access these files.
 
-.. figure:: ../../../tutorial/3partitions-files.png
-    :align: center
+.. code-block:: bash
+
+    /data/ogbn_mag_lp_3p
+    ogbn-mag.json 
+    node_mapping.pt
+    edge_mapping.pt 
+    |- part0
+        edge_feat.dgl
+        graph.dgl
+        node_feat.dgl
+    |- part1
+        edge_feat.dgl
+        graph.dgl
+        node_feat.dgl
+    |- part2
+        edge_feat.dgl
+        graph.dgl
+        node_feat.dgl
+
+.. note:: The two mapping files, ``node_mapping.pt`` and ``edge_mapping.pt``, are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the constructed graph. They are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
 
 Launch Training on One Container
 ---------------------------------
@@ -150,7 +168,7 @@ In addition to the three GraphStorm instance created in the OGBN-MAG tutorial, t
 
 Process and Partition a Graph
 ..............................
-Run the below command to download and partition the OGBN-Papers100M data for a node classification task, which will predict the category of a paper. Because the ogbn-papers100M is one of GraphStorm's built-in datasets, we do not specify some arguments, such as ``target_ntype``, ``nlabel_field``, and ``ntask_type``, which have been automatically handled by GraphStorm's `ogbn_datasets.py <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/data/ogbn_datasets.py>`_. 
+Run the below command to download and partition the OGBN-Papers100M data for a node classification task, which will predict the category of a paper. Because the ogbn-papers100M is one of GraphStorm's built-in datasets, we do not specify some arguments, such as ``target-ntype``, ``nlabel-field``, and ``ntask-type``, which have been automatically handled by GraphStorm's `ogbn_datasets.py <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/data/ogbn_datasets.py>`_. 
 
 .. code-block:: bash
 
@@ -177,10 +195,7 @@ For the OGBN-Papers100M data, we use a YAML file, ``ogbn_papers100M_nc_p3.yaml``
     gsf:
     basic:
         model_encoder_type: rgcn
-        graph_name: ogbn-papers100M
         backend: gloo
-        ip_config: /data/ip_list.txt
-        part_config: /data/ogbn_papers100M_3p/ogbn-papers100M.json
         verbose: false
         no_validation: false
         evaluation_frequency: 500
