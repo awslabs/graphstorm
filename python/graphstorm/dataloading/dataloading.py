@@ -561,6 +561,7 @@ class GSgnnNodeDataLoader():
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True):
         self._data = dataset
+        self._target_nidx  = target_idx
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -592,3 +593,9 @@ class GSgnnNodeDataLoader():
         """ The dataset of this dataloader.
         """
         return self._data
+
+    @property
+    def target_nidx(self):
+        """ The target node ids for prediction.
+        """
+        return self._target_nidx
