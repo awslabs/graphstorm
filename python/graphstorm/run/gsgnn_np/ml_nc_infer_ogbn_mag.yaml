@@ -1,0 +1,31 @@
+---
+version: 1.0
+
+gsf:
+  basic:
+    backend: gloo
+    ip_config: /data/ip_list_p1.txt
+    part_config: /data/ogbn-mag-1p/ogbn-mag.json
+    verbose: false
+    debug: false
+  gnn:
+    model_encoder_type: rgcn
+    fanout: "5"
+    num_layers: 1
+    hidden_size: 16
+  input:
+    restore_model_path: null
+  hyperparam:
+    eval_batch_size: 1024
+    bert_infer_bs: 128
+    no_validation: false
+  rgcn:
+    n_bases: -1
+    use_self_loop: true
+    sparse_lr: 1e-2
+    use_node_embeddings: true
+  node_classification:
+    target_ntype: "paper"
+    label_field: "labels"
+    multilabel: false
+    num_classes: 349

@@ -255,7 +255,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader,
                                                                 return_label=True)
         else:
-            emb = do_full_graph_inference(model, val_loader.data, fanout=config.eval_fanout,
+            emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.eval_fanout,
                                           task_tracker=self.task_tracker)
             val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader,
                                                           return_label=True)

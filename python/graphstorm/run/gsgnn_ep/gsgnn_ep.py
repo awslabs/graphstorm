@@ -87,12 +87,14 @@ def main(args):
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
+            eval_fanout=config.eval_fanout,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
+            eval_fanout=config.eval_fanout,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type)
