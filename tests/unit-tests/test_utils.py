@@ -25,7 +25,7 @@ from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved
 from graphstorm.model.utils import _get_data_range
 from graphstorm.model.utils import _exchange_node_id_mapping
 from graphstorm.model.utils import shuffle_predict
-from graphstorm.gconstruct.utils import _save_maps
+from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
 from data_utils import generate_dummy_dist_graph
@@ -197,7 +197,7 @@ def test_shuffle_predict(num_embs, backend):
     # single embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
         pred, nid_mapping = gen_predict_with_nid_mapping(num_embs)
-        _save_maps(tmpdirname, "node_mapping", nid_mapping)
+        save_maps(tmpdirname, "node_mapping", nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         conn1, conn2 = mp.Pipe()
@@ -236,7 +236,7 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
     # single embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
         emb, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
-        _save_maps(tmpdirname, "node_mapping", nid_mapping)
+        save_maps(tmpdirname, "node_mapping", nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_dist_save_embeddings,
@@ -272,7 +272,7 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         embs['n2'] = emb
         nid_mappings['n2'] = nid_mapping
 
-        _save_maps(tmpdirname, "node_mapping", nid_mappings)
+        save_maps(tmpdirname, "node_mapping", nid_mappings)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_dist_save_embeddings,
