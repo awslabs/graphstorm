@@ -100,9 +100,9 @@ def main(args):
             'Supported test negative samplers include '
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
     val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-        config.eval_batch_size, config.num_negative_edges_eval)
+        config.eval_batch_size, config.eval_fanout, config.num_negative_edges_eval)
     test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-        config.eval_batch_size, config.num_negative_edges_eval)
+        config.eval_batch_size, config.eval_fanout, config.num_negative_edges_eval)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
