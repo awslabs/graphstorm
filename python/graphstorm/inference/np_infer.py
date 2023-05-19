@@ -17,14 +17,12 @@
 """
 import time
 import torch as th
-import dgl
 from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
-from ..model.utils import LazyDistTensor
 from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
@@ -94,6 +92,7 @@ class GSgnnNodePredictionInfer(GSInfer):
 
         if save_embed_path is not None:
             if use_mini_batch_infer:
+                g = loader.data.g
                 ntype_emb = DistTensor((g.num_nodes(ntype), embs[ntype].shape[1]),
                     dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
                     part_policy=g.get_node_partition_policy(ntype),
