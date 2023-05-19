@@ -124,7 +124,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                     part_policy=g.get_node_partition_policy(ntype),
                     # TODO: this makes the tensor persistent in memory.
                     persistent=True)
-                # nodes that have prediction may be just a subset of the
+                # nodes that have predictions may be just a subset of the
                 # entire node set.
                 pred_data[loader.target_nidx] = pred
                 pred = shuffle_predict(pred_data, node_id_mapping_file, self.rank,
