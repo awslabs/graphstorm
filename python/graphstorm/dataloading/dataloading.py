@@ -494,18 +494,15 @@ class GSgnnLinkPredictionTestDataLoader():
         The target edges for prediction
     batch_size: int
         Batch size
-    fanout : list of int
-        The fanout for computing the GNN embeddings in a GNN layer
     num_negative_edges: int
         The number of negative edges per positive edge
     """
-    def __init__(self, dataset, target_idx, batch_size, fanout, num_negative_edges):
+    def __init__(self, dataset, target_idx, batch_size, num_negative_edges):
         self._data = dataset
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
         self._batch_size = batch_size
-        self._fanout = fanout
         self._target_idx = target_idx
         self._negative_sampler = self._prepare_negative_sampler(num_negative_edges)
         self._reinit_dataset()
@@ -550,12 +547,6 @@ class GSgnnLinkPredictionTestDataLoader():
 
         # return pos, neg pairs
         return cur_iter, self._neg_sample_type
-
-    @property
-    def fanout(self):
-        """ The fan out of each GNN layers
-        """
-        return self._fanout
 
 class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
     """ Link prediction minibatch dataloader for validation and test
