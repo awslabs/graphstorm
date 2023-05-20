@@ -26,9 +26,6 @@ from urllib.parse import urlparse
 from sagemaker.s3 import S3Downloader
 from sagemaker.s3 import S3Uploader
 
-from ...model.utils import get_sparse_emb_num_load_iter
-from ...model.utils import get_sparse_emb_file_idx
-
 def barrier_master(client_list, world_size):
     """ Master barrier, called by host_rank == 0
 
@@ -165,8 +162,7 @@ def download_yaml_config(yaml_s3, local_path, sagemaker_session):
 
     return yaml_path
 
-def download_model(model_artifact_s3, model_path, local_rank, world_size,
-    graph_config_path, sagemaker_session):
+def download_model(model_artifact_s3, model_path, sagemaker_session):
     """ Download graph model
 
     Parameters
@@ -175,61 +171,16 @@ def download_model(model_artifact_s3, model_path, local_rank, world_size,
         S3 uri storing the model artifacts
     model_path: str
         Path to store the  graph model locally
-    local_rank: int
-        Local rank.
-    world_size: int
-        Size of the distributed training/inference cluster
-    graph_config_path: str
-        Path to graph config which is used to guide downloading trainable sparse embeddings
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
     """
     # download model.bin first
     try:
-        S3Downloader.download(os.path.join(model_artifact_s3, 'model.bin'),
+        S3Downloader.download(model_artifact_s3,
             model_path, sagemaker_session=sagemaker_session)
     except Exception: # pylint: disable=broad-except
         raise RuntimeError("Can not download saved model artifact" \
                            f"model.bin from {model_artifact_s3}.")
-
-    with open(graph_config_path, "r", encoding='utf-8') as f:
-        graph_config = json.load(f)
-    ntypes = list(graph_config["ntypes"].keys())
-    # download sparse embs if any
-    for ntype in ntypes:
-        ntype_sparse_emb_s3 = os.path.join(model_artifact_s3, ntype)
-        try:
-            emb_files = S3Downloader.list(ntype_sparse_emb_s3, sagemaker_session=sagemaker_session)
-        except Exception: # pylint: disable=broad-except
-            print(f"There is no sparse embedding for {ntype}")
-            continue
-
-        num_files = len(emb_files)
-        sparse_emb_path = os.path.join(model_path, ntype)
-        os.makedirs(sparse_emb_path, exist_ok=True)
-        # Create empty sparse_emb_{idx}.pt files for the sparse
-        # emb files that do not owned by the current rank.
-        # GraphStorm relies on len(os.listdir()) to get
-        # the total number of spare emb files.
-        for i in range(num_files):
-            with open(os.path.join(sparse_emb_path, f'sparse_emb_{i}.pt'), 'w') as f:
-                pass # do nothing
-
-        # Download sparse emb files that belongs to current rank
-        for i in range(get_sparse_emb_num_load_iter(num_files, world_size)):
-            file_idx = get_sparse_emb_file_idx(world_size, local_rank, i)
-            emb_file_s3 = os.path.join(ntype_sparse_emb_s3, f'sparse_emb_{file_idx}.pt')
-            assert emb_file_s3 in emb_files, \
-                f"{emb_file_s3} must exists in S3"
-            try:
-                S3Downloader.download(emb_file_s3,
-                    sparse_emb_path, sagemaker_session=sagemaker_session)
-                print(f"[{local_rank}] Download {emb_file_s3}")
-            except Exception: # pylint: disable=broad-except
-                raise RuntimeError("Can not download sparse emb file" \
-                                   f"from {emb_file_s3}.")
-
-    print(f"Finish download model from {model_artifact_s3}")
 
 def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_session):
     """ download graph data

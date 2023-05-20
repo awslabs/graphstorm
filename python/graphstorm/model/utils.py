@@ -487,15 +487,6 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     if 'decoder' in checkpoint and decoder is not None:
         decoder.load_state_dict(checkpoint['decoder'])
 
-def get_sparse_emb_num_load_iter(num_files, world_size):
-    """
-    """
-    return math.ceil(num_files/world_size)
-
-def get_sparse_emb_file_idx(world_size, local_rank, iter):
-    file_idx = iter * world_size + local_rank
-    return file_idx
-
 def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
     """load sparse embeddings if any
 
@@ -535,8 +526,8 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
             # 1. N == K
             # 2. N > K, some trainers/infers need to load more than one files
             # 3. N < K, some trainers/infers do not need to load any files
-            for i in range(get_sparse_emb_num_load_iter(num_files, world_size)):
-                file_idx = get_sparse_emb_file_idx(world_size, local_rank, i)
+            for i in range(math.ceil(num_files/world_size)):
+                file_idx = iter * world_size + local_rank
                 if file_idx < num_files:
                     emb = th.load(os.path.join(ntype_path, f'sparse_emb_{file_idx}.pt'))
 

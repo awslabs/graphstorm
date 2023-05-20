@@ -251,8 +251,7 @@ def main():
         host_rank, data_path, sagemaker_session)
 
     # Download Saved model
-    download_model(model_artifact_s3, model_path,
-        host_rank, world_size, graph_config_path, sagemaker_session)
+    download_model(model_artifact_s3, model_path, sagemaker_session)
     print(f"{model_path} {os.listdir(model_path)}")
 
     err_code = 0
