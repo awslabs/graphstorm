@@ -496,9 +496,12 @@ class GSgnnLinkPredictionTestDataLoader():
         Batch size
     num_negative_edges: int
         The number of negative edges per positive edge
+    fanout: int
+        Evaluation fanout for computing node embedding
     """
-    def __init__(self, dataset, target_idx, batch_size, num_negative_edges):
+    def __init__(self, dataset, target_idx, batch_size, num_negative_edges, fanout=None):
         self._data = dataset
+        self._fanout = fanout
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
@@ -547,6 +550,12 @@ class GSgnnLinkPredictionTestDataLoader():
 
         # return pos, neg pairs
         return cur_iter, self._neg_sample_type
+
+    @property
+    def fanout(self):
+        """ Get eval fanout
+        """
+        return self._fanout
 
 class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
     """ Link prediction minibatch dataloader for validation and test
