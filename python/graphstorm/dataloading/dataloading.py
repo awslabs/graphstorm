@@ -501,11 +501,11 @@ class GSgnnLinkPredictionTestDataLoader():
     """
     def __init__(self, dataset, target_idx, batch_size, num_negative_edges, fanout=None):
         self._data = dataset
+        self._fanout = fanout
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
         self._batch_size = batch_size
-        self._fanout = fanout
         self._target_idx = target_idx
         self._negative_sampler = self._prepare_negative_sampler(num_negative_edges)
         self._reinit_dataset()
