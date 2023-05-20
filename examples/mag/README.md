@@ -36,9 +36,9 @@ python3 -m graphstorm.gconstruct.construct_graph \
 After constructing the graph, run the following command for distributed training.
 ```
 python3 -m graphstorm.run.gs_link_prediction \
-			--num_trainers 8 --num_servers 4 \
-			--part_config mag_bert_constructed/mag.json \
-			--ip_config ip_list.txt \
+			--num-trainers 8 --num-servers 4 \
+			--part-config mag_bert_constructed/mag.json \
+			--ip-config ip_list.txt \
 			--cf mag_lp.yaml \
 			--num-epochs 1 \
 			--save-model-path ~/mag_model \
