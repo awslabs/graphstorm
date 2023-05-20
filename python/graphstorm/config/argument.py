@@ -71,7 +71,7 @@ def get_argument_parser():
     )
 
     parser.add_argument(
-        "--local-rank",
+        "--local_rank",
         type=int,
         default=-1,
         help="local_rank for distributed training on gpus",
