@@ -174,7 +174,9 @@ def download_model(model_artifact_s3, model_path, sagemaker_session):
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
     """
-    # download model.bin first
+    # download model
+    # TODO: Each instance will download the full set of learnable
+    # sparse embedding. We need to find a more space efficient method.
     try:
         S3Downloader.download(model_artifact_s3,
             model_path, sagemaker_session=sagemaker_session)
