@@ -1,8 +1,11 @@
 # Amazon SageMaker Support
-This submodule provides support to run GraphStorm training and inference on Amazon SageMaker. To build a SageMaker compatible docker image, please refer to [Build GraphStorm SageMaker docker image] (https://github.com/awslabs/graphstorm/docker/sagemaker).
+This submodule provides support to run GraphStorm training and inference on Amazon SageMaker.
+To build a SageMaker compatible docker image, please refer to [Build GraphStorm SageMaker docker image] (https://github.com/awslabs/graphstorm/docker/sagemaker).
 
 ## Launch SageMaker tasks
-Use scripts under graphstorm.sagemaker.launch to launch SageMaker tasks. Please make sure you already setup your SageMaker environments. Please refer to [Amazon SageMaker service](https://aws.amazon.com/pm/sagemaker) for how to get access to Amazon SageMaker.
+Use scripts under graphstorm.sagemaker.launch to launch SageMaker tasks.
+Please make sure you already setup your SageMaker environments.
+Please refer to [Amazon SageMaker service](https://aws.amazon.com/pm/sagemaker) for how to get access to Amazon SageMaker.
 
 ### Launch GraphStorm training/inference using Amazon SageMaker service
 
@@ -19,7 +22,8 @@ python3 $GS_HOME/tools/partition_graph.py --dataset ogbn-arxiv \
                                           --output /tmp/ogbn_arxiv_nc_2p
 ```
 
-You need to upload /tmp/ogbn_arxiv_nc_2p into S3.
+You need to upload /tmp/ogbn_arxiv_nc_2p into S3. You also need to upload the yaml config file into S3.
+You can find the example yaml file in https://github.com/awslabs/graphstorm/blob/main/training_scripts/gsgnn_np/arxiv_nc.yaml.
 
 ##### Launch train task
 ```
@@ -29,45 +33,44 @@ python3 -m graphstorm.sagemaker.launch.launch_train \
         --entry-point run/sagemaker_train.py \
         --role <ARN_ROLE> \
         --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
+        --yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
+        --model-artifact-s3 <S3_PATH_TO_SAVE_TRAINED_MODEL> \
         --graph-name ogbn-arxiv \
         --task-type "node_classification" \
-        --train-yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
-        --output-s3 <S3_PATH_TO_SAVE_TRAINED_MODEL> \
-        --num-layers 1 --hidden-size 128 --backend gloo --batch-size 128 --node-feat-name node:feat
+        --num-layers 1 \
+        --hidden-size 128 \
+        --backend gloo \
+        --batch-size 128 \
+        --node-feat-name node:feat
 ```
-
-Please note `save_embed_path` and `save_prediction_path` must be disabled, i.e., set to 'None' when using SageMaker. They only work with shared file system while SageMaker solution does not support using shared file system now.
-
-### Launch train task using user-defined training script
-
-Preparing training data and training task config
-```
-```
-
-Launch train task
-```
-```
+The trained model artifact will be stored in the S3 address provided through `--model-artifact-s3`.
+Please note `save_embed_path` and `save_prediction_path` must be disabled, i.e., set to 'None' when using SageMaker.
+They only work with shared file system while SageMaker solution does not support using shared file system now.
 
 
 ### Launch inference task using built-in inference script
-
-Preparing inference data and inference task config
-```
-```
+Inference task can use the same graph as training task. You can also run inference on a new graph.
+In this example, we will use the same graph.
 
 Launch inference task
 ```
-```
-
-
-### Launch inference task using user-defined inference script
-
-Preparing inference data and inference task config
-```
-```
-
-Launch inference task
-```
+python3 -m graphstorm.sagemaker.launch.launch_infer \
+        --image-url <AMAZON_ECR_IMAGE_PATH> \
+        --region us-east-1 \
+        --entry-point run/sagemaker_infer.py \
+        --role <ARN_ROLE> \
+        --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
+        --yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
+        --model-artifact-s3 <S3_PATH_TO_SAVED_MODEL> \
+        --output-emb-s3 <S3_PATH_TO_SAVE_GENERATED_NODE_EMBEDDING> \
+        --output-prediction-s3 <S3_PATH_TO_SAVE_PREDICTION_RESULTS> \
+        --graph-name ogbn-arxiv \
+        --task-type "node_classification" \
+        --num-layers 1 \
+        --hidden-size 128 \
+        --backend gloo \
+        --batch-size 128 \
+        --node-feat-name node:feat
 ```
 
 ### Test GraphStorm SageMaker runs locally with Docker compose
