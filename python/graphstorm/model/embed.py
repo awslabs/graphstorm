@@ -209,10 +209,10 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                 self.proj_matrix[ntype] = proj_matrix
                 self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                                           self.embed_size,
-                                                           embed_name + '_' + ntype,
-                                                           init_emb,
-                                                           part_policy=part_policy)
+                                self.embed_size,
+                                embed_name + '_' + ntype,
+                                init_emb,
+                                part_policy=part_policy)
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
