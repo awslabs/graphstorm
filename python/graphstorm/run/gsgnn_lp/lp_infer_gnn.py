@@ -62,8 +62,8 @@ def main(args):
 
     dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
                                      batch_size=config.eval_batch_size,
-                                     fanout=config.eval_fanout,
-                                     num_negative_edges=config.num_negative_edges_eval)
+                                     num_negative_edges=config.num_negative_edges_eval,
+                                     fanout=config.eval_fanout)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
