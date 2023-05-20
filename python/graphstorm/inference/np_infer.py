@@ -90,6 +90,18 @@ class GSgnnNodePredictionInfer(GSInfer):
             label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
+        # do evaluation first
+        # do evaluation if any
+        if do_eval:
+            test_start = time.time()
+            val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
+            sys_tracker.check('run evaluation')
+            if self.rank == 0:
+                self.log_print_metrics(val_score=val_score,
+                                       test_score=test_score,
+                                       dur_eval=time.time() - test_start,
+                                       total_steps=0)
+
         if save_embed_path is not None:
             if use_mini_batch_infer:
                 g = loader.data.g
@@ -134,14 +146,3 @@ class GSgnnNodePredictionInfer(GSInfer):
             save_prediction_results(pred, save_prediction_path, self.rank)
         th.distributed.barrier()
         sys_tracker.check('save predictions')
-
-        # do evaluation if any
-        if do_eval:
-            test_start = time.time()
-            val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
-            sys_tracker.check('run evaluation')
-            if self.rank == 0:
-                self.log_print_metrics(val_score=val_score,
-                                       test_score=test_score,
-                                       dur_eval=time.time() - test_start,
-                                       total_steps=0)

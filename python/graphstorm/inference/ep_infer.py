@@ -83,6 +83,17 @@ class GSgnnEdgePredictionInfer(GSInfer):
         assert len(infer_data.eval_etypes) == 1, \
             "GraphStorm only support single target edge type for training and inference"
 
+        # do evaluation first
+        if do_eval:
+            test_start = time.time()
+            val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
+            sys_tracker.check('run evaluation')
+            if self.rank == 0:
+                self.log_print_metrics(val_score=val_score,
+                                       test_score=test_score,
+                                       dur_eval=time.time() - test_start,
+                                       total_steps=0)
+
         target_ntypes = set()
         for etype in infer_data.eval_etypes:
             target_ntypes.add(etype[0])
@@ -118,13 +129,3 @@ class GSgnnEdgePredictionInfer(GSInfer):
             save_prediction_results(pred, save_prediction_path, self.rank)
         th.distributed.barrier()
         sys_tracker.check('save predictions')
-
-        if do_eval:
-            test_start = time.time()
-            val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
-            sys_tracker.check('run evaluation')
-            if self.rank == 0:
-                self.log_print_metrics(val_score=val_score,
-                                       test_score=test_score,
-                                       dur_eval=time.time() - test_start,
-                                       total_steps=0)
