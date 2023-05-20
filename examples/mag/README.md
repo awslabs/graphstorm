@@ -13,7 +13,10 @@ BERT embeddings on the paper nodes and fos nodes. Please use a GPU machine to ge
 BERT embeddings.
 
 Once all the data are processed, run the following command to construct a graph
-for distributed GNN training in GraphStorm. The MAG graph is large, please use
+for distributed GNN training in GraphStorm. The command takes `mag_bert.json`
+that specifies the input data for graph construction, constructs the graph,
+splits it into 4 partitions and saves the partitions to `mag_bert_constructed3`.
+The MAG graph is large, please use
 r6a.48xlarge instance to construct the graph. Please prepare a disk to store
 some intermediate data in the graph construction process. We can use
 `--ext-mem-workspace` to specify where the intermediate data can be stored.
