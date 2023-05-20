@@ -122,7 +122,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                     persistent=True)
                 # edges that have predictions may be just a subset of the
                 # entire edge set.
-                pred_data[loader.target_eidx[etype]] = pred
+                pred_data[loader.target_eidx[etype]] = pred.cpu()
 
                 pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, self.rank,
                     th.distributed.get_world_size(), device=device)

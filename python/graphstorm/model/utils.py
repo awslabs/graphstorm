@@ -437,7 +437,7 @@ def shuffle_predict(predictions, id_mapping_file, pred_type,
     # For homogeneous graph, it is just a tensor.
     id_mapping = id_mapping[pred_type] if isinstance(id_mapping, dict) else id_mapping
     local_id_mapping = _exchange_node_id_mapping(
-                local_rank, world_size, device, id_mapping, len(predictions))
+                local_rank, world_size, device, id_mapping, len(predictions)).cpu() # predictions are stored in CPU
     return predictions[local_id_mapping]
 
 def save_prediction_results(predictions, prediction_path, local_rank):

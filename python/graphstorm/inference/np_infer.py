@@ -140,7 +140,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                     persistent=True)
                 # nodes that have predictions may be just a subset of the
                 # entire node set.
-                pred_data[loader.target_nidx[ntype]] = pred
+                pred_data[loader.target_nidx[ntype]] = pred.cpu()
                 pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, self.rank,
                     th.distributed.get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)
