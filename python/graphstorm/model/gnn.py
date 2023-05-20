@@ -602,7 +602,8 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         return self._loss_fn
 
-def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_tracker=None):
+def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask=None,
+                            task_tracker=None):
     """ Do fullgraph inference
 
     It may use some of the edges indicated by `edge_mask` to compute GNN embeddings.
@@ -615,6 +616,8 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
         The GraphStorm dataset
     batch_size : int
         The batch size for inferencing a GNN layer
+    fanout: list of int
+        The fanout for computing the GNN embeddings in a GNN layer.
     edge_mask : str
         The edge mask that indicates what edges are used to compute GNN embeddings.
     task_tracker: GSTaskTrackerAbc
@@ -652,7 +655,7 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
             return {ntype: input_embeds[ntype][ids].to(device) \
                     for ntype, ids in input_nodes.items()}
         embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
-                                    batch_size, -1, edge_mask=edge_mask,
+                                    batch_size, fanout, edge_mask=edge_mask,
                                     task_tracker=task_tracker)
         model.train()
     else:
@@ -666,7 +669,7 @@ def do_full_graph_inference(model, data, batch_size=1024, edge_mask=None, task_t
                                         feat_field=data.node_feat_field)
             return model.node_input_encoder(feats, input_nodes)
         embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
-                                    batch_size, -1, edge_mask=edge_mask,
+                                    batch_size, fanout, edge_mask=edge_mask,
                                     task_tracker=task_tracker)
         model.train()
     if get_rank() == 0:

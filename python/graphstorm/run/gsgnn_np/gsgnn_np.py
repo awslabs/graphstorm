@@ -116,7 +116,8 @@ def main(args):
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings
         model.prepare_input_encoder(train_data)
-        embeddings = do_full_graph_inference(model, train_data, task_tracker=tracker)
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
+                                             task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         th.distributed.get_world_size(),
                         device=device,
