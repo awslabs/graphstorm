@@ -494,12 +494,12 @@ class GSgnnLinkPredictionTestDataLoader():
         The target edges for prediction
     batch_size: int
         Batch size
-    fanout : list of int
-        The fanout for computing the GNN embeddings in a GNN layer
     num_negative_edges: int
         The number of negative edges per positive edge
+    fanout: int
+        Evaluation fanout for computing node embedding
     """
-    def __init__(self, dataset, target_idx, batch_size, fanout, num_negative_edges):
+    def __init__(self, dataset, target_idx, batch_size, num_negative_edges, fanout=None):
         self._data = dataset
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
@@ -553,7 +553,7 @@ class GSgnnLinkPredictionTestDataLoader():
 
     @property
     def fanout(self):
-        """ The fan out of each GNN layers
+        """ Get eval fanout
         """
         return self._fanout
 
