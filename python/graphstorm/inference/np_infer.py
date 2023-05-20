@@ -83,7 +83,7 @@ class GSgnnNodePredictionInfer(GSInfer):
 
             embs = {ntype: embs}
         else:
-            embs = do_full_graph_inference(self._model, loader.data,
+            embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
                                            task_tracker=self.task_tracker)
             res = node_mini_batch_predict(self._model, embs, loader, return_label=do_eval)
             pred = res[0]

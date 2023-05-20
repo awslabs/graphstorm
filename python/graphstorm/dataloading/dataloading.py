@@ -59,6 +59,7 @@ class GSgnnEdgeDataLoader():
                  exclude_training_targets=False):
         self._data = dataset
         self._device = device
+        self._fanout = fanout
         self._target_eidx = target_idx
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
@@ -121,6 +122,12 @@ class GSgnnEdgeDataLoader():
         """
         return self._target_eidx
 
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
+
 ################ Minibatch DataLoader (Link Prediction) #######################
 
 BUILTIN_LP_UNIFORM_NEG_SAMPLER = 'uniform'
@@ -163,6 +170,7 @@ class GSgnnLinkPredictionDataLoader():
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
                  edge_mask_for_gnn_embeddings='train_mask'):
         self._data = dataset
+        self._fanout = fanout
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
@@ -229,6 +237,12 @@ class GSgnnLinkPredictionDataLoader():
         """ The dataset of this dataloader.
         """
         return self._data
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
@@ -482,9 +496,12 @@ class GSgnnLinkPredictionTestDataLoader():
         Batch size
     num_negative_edges: int
         The number of negative edges per positive edge
+    fanout: int
+        Evaluation fanout for computing node embedding
     """
-    def __init__(self, dataset, target_idx, batch_size, num_negative_edges):
+    def __init__(self, dataset, target_idx, batch_size, num_negative_edges, fanout=None):
         self._data = dataset
+        self._fanout = fanout
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
@@ -534,6 +551,12 @@ class GSgnnLinkPredictionTestDataLoader():
         # return pos, neg pairs
         return cur_iter, self._neg_sample_type
 
+    @property
+    def fanout(self):
+        """ Get eval fanout
+        """
+        return self._fanout
+
 class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
     """ Link prediction minibatch dataloader for validation and test
         with joint negative sampler
@@ -567,6 +590,7 @@ class GSgnnNodeDataLoader():
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True):
         self._data = dataset
+        self._fanout = fanout
         self._target_nidx  = target_idx
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
@@ -605,3 +629,9 @@ class GSgnnNodeDataLoader():
         """ The target node ids for prediction.
         """
         return self._target_nidx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
