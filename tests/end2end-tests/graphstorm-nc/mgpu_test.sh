@@ -138,7 +138,7 @@ python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOM
 
 error_and_exit ${PIPESTATUS[0]}
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/mini-infer-emb
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/mini-infer-emb --mini-batch-infer
 
 error_and_exit $?
 
