@@ -29,6 +29,8 @@ if __name__ == '__main__':
                            help="Path to embedding saved by trainer")
     argparser.add_argument("--link_prediction", action='store_true',
                            help="Path to embedding saved by trainer")
+    argparser.add_argument("--mini-batch-infer", action='store_true',
+                           help="Inference use minibatch inference.")
     args = argparser.parse_args()
     with open(os.path.join(args.train_embout, "emb_info.json"), 'r', encoding='utf-8') as f:
         train_emb_info = json.load(f)
@@ -69,4 +71,13 @@ if __name__ == '__main__':
 
         assert train_emb.shape[0] == infer_emb.shape[0]
         assert train_emb.shape[1] == infer_emb.shape[1]
-        assert_almost_equal(train_emb.numpy(), infer_emb.numpy(), decimal=2)
+
+        if args.mini_batch_infer:
+            # When inference is done with minibatch inference, only node
+            # embeddings of the test set are computed.
+            for i in range(len(train_emb)):
+                if th.all(infer_emb[i] == 0.):
+                    continue
+                assert_almost_equal(train_emb[i].numpy(), infer_emb[i].numpy(), decimal=4)
+        else:
+            assert_almost_equal(train_emb.numpy(), infer_emb.numpy(), decimal=2)

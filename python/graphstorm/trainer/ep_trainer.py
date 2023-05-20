@@ -162,7 +162,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(model.module, val_loader, test_loader,
-                                        use_mini_batch_infer, total_steps)
+                                          use_mini_batch_infer, total_steps)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -196,7 +196,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module, val_loader, test_loader, use_mini_batch_infer,
-                                    total_steps)
+                                      total_steps)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
@@ -255,7 +255,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader,
                                                                 return_label=True)
         else:
-            emb = do_full_graph_inference(model, val_loader.data, task_tracker=self.task_tracker)
+            emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
+                                          task_tracker=self.task_tracker)
             val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader,
                                                           return_label=True)
             test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader,

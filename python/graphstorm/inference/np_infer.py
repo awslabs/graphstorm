@@ -83,43 +83,14 @@ class GSgnnNodePredictionInfer(GSInfer):
 
             embs = {ntype: embs}
         else:
-            embs = do_full_graph_inference(self._model, loader.data,
+            embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
                                            task_tracker=self.task_tracker)
             res = node_mini_batch_predict(self._model, embs, loader, return_label=do_eval)
             pred = res[0]
             label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
-        embeddings = {ntype: embs[ntype]}
-        if save_embed_path is not None:
-            device = th.device(f"cuda:{self.dev_id}") \
-                    if self.dev_id >= 0 else th.device("cpu")
-            save_gsgnn_embeddings(save_embed_path,
-                embeddings, self.rank, th.distributed.get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
-            th.distributed.barrier()
-        sys_tracker.check('save embeddings')
-
-        if save_prediction_path is not None:
-            # shuffle pred results according to node_id_mapping_file
-            if node_id_mapping_file is not None:
-                g = loader.data.g
-
-                pred_data = DistTensor((g.num_nodes(ntype), pred.shape[1]),
-                    dtype=pred.dtype, name=f'predict-{ntype}',
-                    part_policy=g.get_node_partition_policy(ntype),
-                    # TODO: this makes the tensor persistent in memory.
-                    persistent=True)
-                # nodes that have predictions may be just a subset of the
-                # entire node set.
-                pred_data[loader.target_nidx] = pred
-                pred = shuffle_predict(pred_data, node_id_mapping_file, self.rank,
-                    th.distributed.get_world_size(), device=device)
-            save_prediction_results(pred, save_prediction_path, self.rank)
-        th.distributed.barrier()
-        sys_tracker.check('save predictions')
-
+        # do evaluation first
         # do evaluation if any
         if do_eval:
             test_start = time.time()
@@ -130,3 +101,48 @@ class GSgnnNodePredictionInfer(GSInfer):
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
+
+        if save_embed_path is not None:
+            if use_mini_batch_infer:
+                g = loader.data.g
+                ntype_emb = DistTensor((g.num_nodes(ntype), embs[ntype].shape[1]),
+                    dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
+                    part_policy=g.get_node_partition_policy(ntype),
+                    # TODO: this makes the tensor persistent in memory.
+                    persistent=True)
+                # nodes that do prediction in mini-batch may be just a subset of the
+                # entire node set.
+                ntype_emb[loader.target_nidx[ntype]] = embs[ntype]
+            else:
+                ntype_emb = embs[ntype]
+            embeddings = {ntype: ntype_emb}
+
+            device = th.device(f"cuda:{self.dev_id}") \
+                    if self.dev_id >= 0 else th.device("cpu")
+            save_gsgnn_embeddings(save_embed_path,
+                embeddings, self.rank, th.distributed.get_world_size(),
+                device=device,
+                node_id_mapping_file=node_id_mapping_file)
+            th.distributed.barrier()
+            sys_tracker.check('save embeddings')
+
+        if save_prediction_path is not None:
+            # shuffle pred results according to node_id_mapping_file
+            if node_id_mapping_file is not None:
+                g = loader.data.g
+
+                pred_shape = list(pred.shape)
+                pred_shape[0] = g.num_nodes(ntype)
+                pred_data = DistTensor(pred_shape,
+                    dtype=pred.dtype, name=f'predict-{ntype}',
+                    part_policy=g.get_node_partition_policy(ntype),
+                    # TODO: this makes the tensor persistent in memory.
+                    persistent=True)
+                # nodes that have predictions may be just a subset of the
+                # entire node set.
+                pred_data[loader.target_nidx[ntype]] = pred.cpu()
+                pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, self.rank,
+                    th.distributed.get_world_size(), device=device)
+            save_prediction_results(pred, save_prediction_path, self.rank)
+        th.distributed.barrier()
+        sys_tracker.check('save predictions')
