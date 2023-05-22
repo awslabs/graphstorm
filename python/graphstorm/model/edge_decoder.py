@@ -310,7 +310,13 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         Parameters
         ----------
         batch_embs: dict of tuple
-            Node embeddings stored in a tuple for an edge type
+            The node embeddings of the source and destination nodes of the
+            positive and negative edges stored in a tuple:
+            tuple(positive source embedding, negative source embedding,
+            postive destination embedding, negatve destination embedding).
+            The positive edges: (positive source, positive desitnation)
+            The negative edges: (positive source, negative desitnation) and
+                                (negative source, positive desitnation)
         neg_sample_type: str
             Describe how negative samples are sampled.
                 Uniform: For each positive edge, we sample K negative edges
@@ -326,8 +332,8 @@ class LinkPredictDotDecoder(GSLayerNoParam):
             (positive scores, negative scores)
         """
         assert isinstance(batch_embs, dict) and len(batch_embs) == 1, \
-        "DotDecoder is only applicable to link prediction task with " \
-        "single target training edge type"
+            "DotDecoder is only applicable to link prediction task with " \
+            "single target training edge type"
         canonical_etype = list(batch_embs.keys())[0]
         pos_src_emb, neg_src_emb, pos_dst_emb, neg_dst_emb = batch_embs[canonical_etype]
         pos_src_emb = pos_src_emb.to(device)
@@ -499,7 +505,13 @@ class LinkPredictDistMultDecoder(GSLayer):
         Parameters
         ----------
         batch_embs: dict of tuple
-            Node embeddings stored in a tuple for different edge types
+            The node embeddings of the source and destination nodes of the
+            positive and negative edges stored in a tuple:
+            tuple(positive source embedding, negative source embedding,
+            postive destination embedding, negatve destination embedding).
+            The positive edges: (positive source, positive desitnation)
+            The negative edges: (positive source, negative desitnation) and
+                                (negative source, positive desitnation)
         neg_sample_type: str
             Describe how negative samples are sampled.
                 Uniform: For each positive edge, we sample K negative edges

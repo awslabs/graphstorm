@@ -157,8 +157,9 @@ def get_embs(emb, node_list, neg_sample_type, canonical_etype):
 
 
 def cat_nodelist_of_multiple_batches(pos_neg_tuple, loader, num_batch_to_cat):
-    """ Concatenate node lists from multiple batches and retrieve their embeddings
-        with a single remote pull.
+    """ Concatenate the nodes lists of multiple batches into one so that their
+        embeddings can be retrieved with a single remote pull. The concatenated
+        node lists are stored in a dict where the key is the canonical etype.
 
     Parameters
     ----------
@@ -189,10 +190,12 @@ def cat_nodelist_of_multiple_batches(pos_neg_tuple, loader, num_batch_to_cat):
         pos_neg_tuple_next, _ = next(loader, (None, None))
         if pos_neg_tuple_next is not None:
             canonical_etype = list(pos_neg_tuple_next.keys())[0]
+            # The etype of the current pos_neg_tuple does not match with the etype
+            # of the previous pos_neg_tuple.
             if canonical_etype != prev_canonical_etype:
                 node_list[prev_canonical_etype] = (pos_src, neg_src, pos_dst, neg_dst)
                 pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple_next[canonical_etype]
-            else:
+            else:  # pos_neg_tuple belongs to the same etype
                 pos_src_, neg_src_, pos_dst_, neg_dst_ = pos_neg_tuple_next[canonical_etype]
                 pos_src = th.cat((pos_src, pos_src_), dim=0)
                 neg_src = th.cat((neg_src, neg_src_), dim=0)
@@ -259,10 +262,9 @@ def lp_mini_batch_predict(model, emb, loader, device):
 
                     # Compute score nd ranking of each batch
                     score = decoder.calc_test_scores(batch_emb, neg_sample_type, device)
-                    for canonical_etype, s in score.items():
+                    for canonical_etype, (pos_score, neg_score) in score.items():
                         # We do not concatenate rankings into a single
                         # ranking tensor to avoid unnecessary data copy.
-                        pos_score, neg_score = s
                         if canonical_etype in ranking:
                             ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
                         else:
