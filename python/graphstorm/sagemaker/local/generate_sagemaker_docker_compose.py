@@ -63,7 +63,7 @@ def parse_args():
     parser.add_argument(
         "--inference",
         action="store_true",
-        help="Inidcate that it is a inference task. \
+        help="Inidcate that it is an inference task. \
               Used with built-in training/inference scripts"
     )
 

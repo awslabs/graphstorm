@@ -52,7 +52,7 @@ def run_job(input_args, image, unknowargs):
     task_type = input_args.task_type # Inference task type
     graph_name = input_args.graph_name # Inference graph name
     graph_data_s3 = input_args.graph_data_s3 # S3 location storing partitioned graph data
-    infer_yaml_s3 = input_args.infer_yaml_s3 # S3 location storing the yaml file
+    infer_yaml_s3 = input_args.yaml_s3 # S3 location storing the yaml file
     infer_yaml_name = input_args.infer_yaml_name # Yaml file name
     output_emb_s3_path = input_args.output_emb_s3 # S3 location to save node embeddings
     output_predict_s3_path = input_args.output_prediction_s3 # S3 location to save prediction results
@@ -144,7 +144,7 @@ def parse_args():
         help="S3 location of input inference graph")
     parser.add_argument("--task-type", type=str,
         help=f"Task type in {SUPPORTED_TASKS}")
-    parser.add_argument("--infer-yaml-s3", type=str,
+    parser.add_argument("--yaml-s3", type=str,
         help="S3 location of inference yaml file. "
              "Do not store it with partitioned graph")
     parser.add_argument("--model-artifact-s3", type=str,

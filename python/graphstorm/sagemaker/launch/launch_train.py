@@ -49,7 +49,7 @@ def run_job(input_args, image, unknowargs):
     task_type = input_args.task_type # Training task type
     graph_name = input_args.graph_name # Training graph name
     graph_data_s3 = input_args.graph_data_s3 # S3 location storing partitioned graph data
-    train_yaml_s3 = input_args.train_yaml_s3 # S3 location storing the yaml file
+    train_yaml_s3 = input_args.yaml_s3 # S3 location storing the yaml file
     model_artifact_s3 = input_args.model_artifact_s3 # Where to store model artifacts
     custom_script = input_args.custom_script # custom_script if any
 
@@ -140,7 +140,7 @@ def parse_args():
         help="S3 location of input training graph")
     parser.add_argument("--task-type", type=str,
         help=f"Task type in {SUPPORTED_TASKS}")
-    parser.add_argument("--train-yaml-s3", type=str,
+    parser.add_argument("--yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph")
     parser.add_argument("--model-artifact-s3", type=str, default=None,

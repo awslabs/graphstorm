@@ -4,7 +4,7 @@ To build a SageMaker compatible docker image, please refer to [Build GraphStorm 
 
 ## Launch SageMaker tasks
 Use scripts under graphstorm.sagemaker.launch to launch SageMaker tasks.
-Please make sure you already setup your SageMaker environments.
+Please make sure you already setup your SageMaker environment.
 Please refer to [Amazon SageMaker service](https://aws.amazon.com/pm/sagemaker) for how to get access to Amazon SageMaker.
 
 ### Launch GraphStorm training/inference using Amazon SageMaker service
@@ -12,6 +12,8 @@ Please refer to [Amazon SageMaker service](https://aws.amazon.com/pm/sagemaker) 
 #### Launch train task using built-in training script
 
 ##### Preparing training data and training task config.
+We use the built-int ogbn-arxiv dataset as example.
+First you need to partition the graph dataset by following the instructions:
 ```
 cd ~/
 git clone https://github.com/awslabs/graphstorm.git
@@ -21,20 +23,28 @@ python3 $GS_HOME/tools/partition_graph.py --dataset ogbn-arxiv \
                                           --num_parts 2 \
                                           --output /tmp/ogbn_arxiv_nc_2p
 ```
-
-You need to upload /tmp/ogbn_arxiv_nc_2p into S3. You also need to upload the yaml config file into S3.
-You can find the example yaml file in https://github.com/awslabs/graphstorm/blob/main/training_scripts/gsgnn_np/arxiv_nc.yaml.
+The partitioned graph will be stored at /tmp/ogbn_arxiv_nc_2p.
 
 ##### Launch train task
+Before launching the task, you need to upload the partitioned graph (i.e., /tmp/ogbn_arxiv_nc_2p) into S3.
+You also need to upload the yaml config file into S3.
+You can find the example yaml file in https://github.com/awslabs/graphstorm/blob/main/training_scripts/gsgnn_np/arxiv_nc.yaml.
 ```
-python3 -m graphstorm.sagemaker.launch.launch_train \
+aws s3 cp --recursive /tmp/ogbn_arxiv_nc_2p s3://PATH_TO/ogbn_arxiv_nc_2p/
+aws s3 cp PATH_TO/arxiv_nc.yaml s3://PATH_TO_TRAINING_CONFIG/arxiv_nc.yaml
+```
+
+Then, you can use the following command to launch a sagemaker training task.
+```
+cd $GS_HOME/sagemaker/
+python3 launch/launch_train.py \
         --image-url <AMAZON_ECR_IMAGE_PATH> \
         --region us-east-1 \
         --entry-point run/sagemaker_train.py \
         --role <ARN_ROLE> \
         --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
-        --yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
-        --model-artifact-s3 <S3_PATH_TO_SAVE_TRAINED_MODEL> \
+        --yaml-s3 s3://PATH_TO_TRAINING_CONFIG/arxiv_nc.yaml \
+        --model-artifact-s3 s3://PATH_TO_SAVE_TRAINED_MODEL/ \
         --graph-name ogbn-arxiv \
         --task-type "node_classification" \
         --num-layers 1 \
@@ -44,6 +54,11 @@ python3 -m graphstorm.sagemaker.launch.launch_train \
         --node-feat-name node:feat
 ```
 The trained model artifact will be stored in the S3 address provided through `--model-artifact-s3`.
+You can use following command to check the model artifacts:
+```
+aws s3 ls s3://PATH_TO_SAVE_TRAINED_MODEL/
+```
+
 Please note `save_embed_path` and `save_prediction_path` must be disabled, i.e., set to 'None' when using SageMaker.
 They only work with shared file system while SageMaker solution does not support using shared file system now.
 
@@ -52,18 +67,19 @@ They only work with shared file system while SageMaker solution does not support
 Inference task can use the same graph as training task. You can also run inference on a new graph.
 In this example, we will use the same graph.
 
-Launch inference task
+you can use the following command to launch a sagemaker offline inference task.
 ```
-python3 -m graphstorm.sagemaker.launch.launch_infer \
+cd $GS_HOME/sagemaker/
+python3 launch/launch_infer \
         --image-url <AMAZON_ECR_IMAGE_PATH> \
         --region us-east-1 \
         --entry-point run/sagemaker_infer.py \
         --role <ARN_ROLE> \
         --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
-        --yaml-s3 <S3_PATH_TO_TRAINING_CONFIG> \
-        --model-artifact-s3 <S3_PATH_TO_SAVED_MODEL> \
-        --output-emb-s3 <S3_PATH_TO_SAVE_GENERATED_NODE_EMBEDDING> \
-        --output-prediction-s3 <S3_PATH_TO_SAVE_PREDICTION_RESULTS> \
+        --yaml-s3 s3://PATH_TO_TRAINING_CONFIG/arxiv_nc.yaml \
+        --model-artifact-s3  s3://PATH_TO_SAVED_MODEL/ \
+        --output-emb-s3 s3://PATH_TO_SAVE_GENERATED_NODE_EMBEDDING/ \
+        --output-prediction-s3 s3://PATH_TO_SAVE_PREDICTION_RESULTS \
         --graph-name ogbn-arxiv \
         --task-type "node_classification" \
         --num-layers 1 \
@@ -72,12 +88,18 @@ python3 -m graphstorm.sagemaker.launch.launch_infer \
         --batch-size 128 \
         --node-feat-name node:feat
 ```
+The generated node embeddings will be uploaded into s3://PATH_TO_SAVE_GENERATED_NODE_EMBEDDING/.
+The prediction results of node classification/regression or edge classification/regression tasks will be uploaded into s3://PATH_TO_SAVE_PREDICTION_RESULTS/
+You can use following command to check the corresponding outputs:
+```
+aws s3 ls s3://PATH_TO_SAVE_GENERATED_NODE_EMBEDDING/
+aws s3 ls s3://PATH_TO_SAVE_PREDICTION_RESULTS/
+```
 
 ### Test GraphStorm SageMaker runs locally with Docker compose
 This section describes how to launch Docker compose jobs that emulate a SageMaker
 training execution environment that can be used to test GraphStorm model training
 and inference using SageMaker.
-
 
 #### TLDR
 
@@ -115,15 +137,15 @@ a capable Linux-based machine equiped with GPUs. We recommend at least 32GB of R
 
 #### Prerequisite 2: Install Docker and docker compose
 
-You can follow the official Docker guides for [installation of the Docker engine](https://docs.docker.com/engine/install/).
+You can follow the official Docker guide for [installation of the Docker engine](https://docs.docker.com/engine/install/).
 
 Next you need to install the `Docker compose` plugin that will allow us to spin up
 multiple Docker containers. Instructions for that are [here](https://docs.docker.com/compose/install/linux/).
 
 #### Building the SageMaker GraphStorm docker image
-Following [Build GraphStorm SageMaker docker image] (https://github.com/awslabs/graphstorm/docker/sagemaker) to build your own SageMaker GraphStorm docker image.
+Follow [Build GraphStorm SageMaker docker image] (https://github.com/awslabs/graphstorm/docker/sagemaker) to build your own SageMaker GraphStorm docker image locally.
 
-#### Creating the Docker compose file and run
+#### Creating the Docker compose file and run training
 A Docker compose file is a YAML file that tells Docker which containers to spin up and how to configure them.
 To launch the services with a docker compose file, we can use `docker compose -f docker-compose.yaml up`.
 This will launch the container and execute its entry point.
@@ -164,7 +186,7 @@ Some explanation on the above elements (see the [official docs](https://docs.doc
 * `command`: Determines the entrypoint, i.e. the command that will be executed once the container launches.
 
 To help you generate yaml file automatically, we provide a Python script that
-builds the docker compose file for your, `generate_sagemaker_docker_compose.py`.
+builds the docker compose file for you, `generate_sagemaker_docker_compose.py`.
 Note that the script uses the [PyYAML](https://pypi.org/project/PyYAML/) library.
 
 This file has 4 required arguments that determine the Docker compose file that will be generated:
@@ -182,17 +204,35 @@ The rest of the arguments are passed on to `sagemaker_train.py`
 * `--train-yaml-s3`: S3 location of training yaml file.
 * `--custom-script`: Custom training script provided by a customer to run customer training logic. This should be a path to the python script within the docker image.
 
-If you want to pass other arguements to `sagemaker_train.py`, you can simply append those arguments after the above arguments.
+If you want to pass other arguments to `sagemaker_train.py`, you can simply append those arguments after the above arguments.
+They will be passed on to the `sagemaker_train.py` script during execution.
 
-The above will create a Docker compose file named `docker-compose-${task-type}-${num-instances}-train.yml`, which we can then use to launch the job with (for example):
+The above will create a Docker compose file named `docker-compose-${task-type}-${num-instances}-train.yaml`, which we can then use to launch the job with (for example):
 
 ```bash
-docker compose -f docker-compose-node-classification-4-train.yml up
+docker compose -f docker-compose-node_classification-4-train.yaml up
 ```
 
 Running the above command will launch 4 instances of the image, configured with
 the command and env vars that emulate a SageMaker execution environment and run
-the `sagemaker_train.py` code. Note that the containers actually
+the `sagemaker_train.py` script. Note that the containers actually
 interact with S3 so you would require valid AWS credentials to run.
 
 #### Dcoker compose for inference
+You can use `generate_sagemaker_docker_compose.py` to build docker compose file.
+To create a compose file for inference you need to use the same arguments
+as creating a compose file for the training task and pass another argument
+to `generate_sagemaker_docker_compose.py` script, i.e., `--inference`.
+The generated compose config will use `sagemaker_infer.py` as its entry point.
+If you want to pass other arguments to `sagemaker_infer.py`, you can simply append those arguments after the above arguments.
+
+The above will create a Docker compose file named `docker-compose-${task-type}-${num-instances}-infer.yaml`, which we can then use to launch the job with (for example):
+
+```bash
+docker compose -f docker-compose-node_classification-4-infer.yaml up
+```
+
+Running the above command will launch 4 instances of the image, configured with
+the command and env vars that emulate a SageMaker execution environment and run
+the `sagemaker_infer.py` script. Note that the containers actually
+interact with S3 so you would require valid AWS credentials to run.
