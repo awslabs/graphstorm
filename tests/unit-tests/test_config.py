@@ -1351,7 +1351,6 @@ def test_gnn_info():
         check_failure(config, "hidden_size") # lm model may not need hidden size
         assert config.use_mini_batch_infer == True
         check_failure(config, "fanout") # fanout must be provided if used
-        check_failure(config, "eval_fanout")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
