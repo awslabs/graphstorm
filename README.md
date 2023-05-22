@@ -34,15 +34,15 @@ After running the container as a daemon, you need to connect to your container:
 **Node classification on OGB arxiv graph**
 First, use the below command to download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for the node classification task.
 
-```python3 /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/ --retain_original_features true```
+```python3 /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/ --retain-original-features true```
 
 Second, use the below command to partition this arxiv graph into a distributed graph that GraphStorm can use as its input.
 
 ```
 python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
-                                             --num_parts 1 \
-                                             --num_trainers_per_machine 4 \
+                                             --num-parts 1 \
+                                             --num-trainers-per-machine 4 \
                                              --output /tmp/ogbn_arxiv_nc_train_val_1p_4t
 ```
 
@@ -55,26 +55,23 @@ NOTE: please do *NOT* leave blank lines in the ip_list.txt.
 Third, run the below command to train an RGCN model to perform node classification on the partitioned arxiv graph.
 
 ```
-python3 ~/dgl/tools/launch.py \
+python3 -m graphstorm.run.gs_node_classification \
         --workspace /tmp/ogbn-arxiv-nc \
-        --num_trainers 1 \
-        --num_servers 1 \
-        --num_samplers 0 \
-        --part_config /tmp/ogbn_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
-        --ip_config  /tmp/ogbn-arxiv-nc/ip_list.txt \
-        --ssh_port 2222 \
-        "python3 /graphstorm/training_scripts/gsgnn_np/gsgnn_np.py \
-        --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
-        --ip-config /tmp/ogbn-arxiv-nc/ip_list.txt \
+        --num-trainers 1 \
+        --num-servers 1 \
+        --num-samplers 0 \
         --part-config /tmp/ogbn_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
-        --save-perf-results-path /tmp/ogbn-arxiv-nc/"
+        --ip-config  /tmp/ogbn-arxiv-nc/ip_list.txt \
+        --ssh-port 2222 \
+        --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
+        --save-perf-results-path /tmp/ogbn-arxiv-nc/models
 ```
 
 **Link Prediction on OGB MAG graph**
 First, use the below command to download the [OGB MAG](https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag) data and process it into a DGL graph for the link prediction task. The edge type for prediction is “*author,writes,paper*”. The command also set 80% of the edges of this type for training and validation (default 10%), and the rest 20% for testing.
 
 ```
-python3 /graphstorm/tools/gen_mag_dataset.py --savepath /tmp/ogbn-mag-lp/ --edge_pct 0.8
+python3 /graphstorm/tools/gen_mag_dataset.py --savepath /tmp/ogbn-mag-lp/ --edge-pct 0.8
 ```
 
 Second, use the following command to partition the MAG graph into a distributed format.
@@ -82,30 +79,27 @@ Second, use the following command to partition the MAG graph into a distributed 
 ```
 python3 /graphstorm/tools/partition_graph_lp.py --dataset ogbn-mag \
                                                 --filepath /tmp/ogbn-mag-lp/ \
-                                                --num_parts 1 \
-                                                --num_trainers_per_machine 4 \
-                                                --target_etypes author,writes,paper \
+                                                --num-parts 1 \
+                                                --num-trainers-per-machine 4 \
+                                                --target-etypes author,writes,paper \
                                                 --output /tmp/ogbn_mag_lp_train_val_1p_4t
 ```
 
 Third, run the below command to train an RGCN model to perform link prediction on the partitioned MAG graph.
 
 ```
-python3 -m graphstorm.run.launch \
+python3 -m graphstorm.run.gs_link_prediction \
         --workspace /tmp/ogbn-mag-lp/ \
-        --num_trainers 1 \
-        --num_servers 1 \
-        --num_samplers 0 \
-        --part_config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
-        --ip_config /tmp/ogbn-mag-lp/ip_list.txt \
-        --ssh_port 2222 \
-        /graphstorm/training_scripts/gsgnn_lp/gsgnn_lp.py \
-        --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
-        --ip-config /tmp/ogbn-mag-lp/ip_list.txt \
+        --num-trainers 1 \
+        --num-servers 1 \
+        --num-samplers 0 \
         --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
+        --ip-config /tmp/ogbn-mag-lp/ip_list.txt \
+        --ssh-port 2222 \
+        --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
         --node-feat-name paper:feat \
-        --save-model-path /tmp/ogbn-mag/ \
-        --save-perf-results-path /tmp/ogbn-mag/"
+        --save-model-path /tmp/ogbn-mag/models \
+        --save-perf-results-path /tmp/ogbn-mag/models"
 ```
 
 ## Limitation

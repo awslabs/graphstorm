@@ -22,7 +22,7 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform.conf --graph_format DGL
+python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform.conf --graph-format DGL
 
 error_and_exit $?
 
@@ -32,7 +32,7 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/test_data/test_data_transform.conf
+python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/test_data/test_data_transform.conf
 
 error_and_exit $?
 
@@ -42,7 +42,7 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/test_data/test_data_transform.conf
+python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/test_data/test_data_transform.conf
 
 error_and_exit $?
 
