@@ -102,9 +102,9 @@ def main(args):
             'Supported test negative samplers include '
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
     val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-        config.eval_batch_size, config.num_negative_edges_eval)
+        config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
     test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-        config.eval_batch_size, config.num_negative_edges_eval)
+        config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -135,10 +135,12 @@ def main(args):
         # For example pre-compute all BERT embeddings
         model.prepare_input_encoder(train_data)
         # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
-        embeddings = do_full_graph_inference(model, train_data,
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              edge_mask="train_mask", task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size())
+                        th.distributed.get_world_size(),
+                        device=device,
+                        node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
     parser = get_argument_parser()

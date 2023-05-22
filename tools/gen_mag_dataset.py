@@ -22,7 +22,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Download and process OGBN-MAG data for GraphStorm')
     parser.add_argument("--filepath", type=str, default=None)
     parser.add_argument("--savepath", type=str, default=None)
-    parser.add_argument("--edge_pct", type=float, default=1)
+    parser.add_argument("--edge-pct", type=float, default=1)
     args = parser.parse_args()
 
     dataset = OGBMAGTextFeatDataset(args.filepath,

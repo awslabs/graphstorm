@@ -23,11 +23,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Tools to generate OGBN datasets')
     parser.add_argument("--filepath", type=str, default=None)
     parser.add_argument("--savepath", type=str, default=None)
-    parser.add_argument("--edge_pct", type=float, default=1)
+    parser.add_argument("--edge-pct", type=float, default=1)
     parser.add_argument("--dataset",type=str,default="ogbn-arxiv")
-    parser.add_argument('--bert_model_name',type=str,default="bert-base-uncased")
-    parser.add_argument("--max_sequence_length", type=int, default=512)
-    parser.add_argument("--retain_original_features", type=lambda x: (str(x).lower() in ['true', '1']), default=True)
+    parser.add_argument('--bert-model-name',type=str,default="bert-base-uncased")
+    parser.add_argument("--max-sequence-length", type=int, default=512)
+    parser.add_argument("--retain-original-features",
+                        type=lambda x: (str(x).lower() in ['true', '1']), default=True)
     args = parser.parse_args()
 
     dataset = OGBTextFeatDataset(args.filepath,
