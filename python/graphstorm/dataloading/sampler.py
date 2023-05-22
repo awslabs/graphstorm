@@ -225,8 +225,7 @@ class JointLocalUniform(JointUniform):
     def __init__(self, k, per_trainer=False):
         self._local_neg_nids = {}
         self._per_trainer = per_trainer
-        super(LocalUniform, self).__init__(k)
-
+        super(JointLocalUniform, self).__init__(k)
 
     def _generate(self, g, eids, canonical_etype):
         _, _, vtype = canonical_etype
