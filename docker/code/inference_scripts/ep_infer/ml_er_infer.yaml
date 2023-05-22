@@ -1,0 +1,38 @@
+---
+version: 1.0
+lm_model:
+  bert_models: # bert model(s) definition, one bert model for each node type having text data
+    -
+      node_type: movie
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+gsf:
+  basic:
+    backend: gloo
+    ip_config: ip_list.txt
+    part_config: movielen_100k_er_1p_4t/movie-lens-100k.json
+    verbose: false
+  gnn:
+    model_encoder_type: rgcn
+    fanout: "4"
+    num_layers: 1
+    hidden_size: 128
+    use_mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  hyperparam:
+    batch_size: 64
+    bert_infer_bs: 128
+    no_validation: false
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    use_node_embeddings: false
+  edge_regression:
+    target_etype:
+      - "user,rating,movie"
+    label_field: "rate"
+    num_decoder_basis: 32

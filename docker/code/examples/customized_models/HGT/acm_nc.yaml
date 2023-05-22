@@ -1,0 +1,36 @@
+---
+version: 1.0
+gsf:
+  basic:
+    model_encoder_type: rgcn
+    backend: gloo
+    verbose: false
+    alpha_l2norm: 0.
+  gnn:
+    fanout: "50,50"
+    num_layers: 2
+    hidden_size: 256
+    use_mini_batch_infer: false
+  input:
+    restore_model_path: null
+  output:
+    topk_model_to_save: 7
+    save_model_path: /data/outputs
+    save_embeds_path: /data/outputs
+    save_prediction_path: /data/outputs
+  hyperparam:
+    dropout: 0.
+    lr: 0.0001
+    num_epochs: 200
+    batch_size: 1024
+    wd_l2norm: 0
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  node_classification:
+    target_ntype: "paper"
+    label_field: "label"
+    multilabel: false
+    num_classes: 14

@@ -38,8 +38,6 @@ COPY code/tools /graphstorm/tools
 COPY code/training_scripts /graphstorm/training_scripts
 
 # Set up SSH
-RUN apt-get update
-RUN apt update
 RUN apt-get install -y openssh-client openssh-server
 ENV SSH_PORT=2222
 RUN cat /etc/ssh/sshd_config > /tmp/sshd_config && \
