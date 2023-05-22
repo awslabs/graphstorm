@@ -1576,7 +1576,8 @@ def _add_node_classification_args(parser):
                        help="The cardinality of labels in a classifiction task")
     group.add_argument("--return-proba", type=bool, default=True,
                        help="Whether to return the probabilities of all the predicted \
-                       results or only the maximum one. Set True to return the probabilities. Set False to return the maximum one.")
+                       results or only the maximum one. Set True to return the \
+                       probabilities. Set False to return the maximum one.")
     return parser
 
 def _add_edge_classification_args(parser):
