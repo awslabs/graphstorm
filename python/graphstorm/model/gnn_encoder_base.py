@@ -86,7 +86,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
         The node features of the graph.
     batch_size : int
         The batch size for the GNN inference.
-    fanout : int
+    fanout : list of int
         The fanout for computing the GNN embeddings in a GNN layer.
     edge_mask : str
         The edge mask indicates which edges are used to compute GNN embeddings.
@@ -118,7 +118,8 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                 partition_book=g.get_partition_book(),
                                                 ntype=ntype, force_even=False)
             # need to provide the fanout as a list, the number of layers is one obviously here
-            sampler = dgl.dataloading.MultiLayerNeighborSampler([fanout], mask=edge_mask)
+            fanout_i = [-1] if fanout is None or len(fanout) == 0 else [fanout[i]]
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout_i, mask=edge_mask)
             dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
                                                             batch_size=batch_size,
                                                             shuffle=True,
@@ -128,7 +129,6 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
                 block = blocks[0].to(device)
-
                 if not isinstance(input_nodes, dict):
                     # This happens on a homogeneous graph.
                     assert len(g.ntypes) == 1

@@ -148,7 +148,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
-
                 if i % 20 == 0 and self.rank == 0:
                     print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
                             format(epoch, i, loss.item(), time.time() - batch_tic))
@@ -223,8 +222,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, data, val_loader, test_loader,
-        total_steps, edge_mask_for_gnn_embeddings):
+    def eval(self, model, data, val_loader, test_loader, total_steps,
+             edge_mask_for_gnn_embeddings):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -249,7 +248,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('before prediction')
         model.eval()
-        emb = do_full_graph_inference(model, data,
+        emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')

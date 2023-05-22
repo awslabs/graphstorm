@@ -25,6 +25,7 @@ import time
 from graphstorm.data import OGBTextFeatDataset
 from graphstorm.data import MovieLens100kNCDataset
 from graphstorm.data import ConstructedGraphDataset
+from graphstorm.gconstruct.utils import save_maps
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Partition DGL graphs for node and edge classification "
@@ -297,8 +298,20 @@ if __name__ == '__main__':
     else:
         balance_ntypes = None
 
-    dgl.distributed.partition_graph(g, args.dataset, args.num_parts, args.output,
-                                    part_method=args.part_method,
-                                    balance_ntypes=balance_ntypes,
-                                    balance_edges=args.balance_edges,
-                                    num_trainers_per_machine=args.num_trainers_per_machine)
+    mapping = \
+        dgl.distributed.partition_graph(g, args.dataset, args.num_parts, args.output,
+                                        part_method=args.part_method,
+                                        balance_ntypes=balance_ntypes,
+                                        balance_edges=args.balance_edges,
+                                        num_trainers_per_machine=args.num_trainers_per_machine,
+                                        return_mapping=True)
+
+    new_node_mapping, new_edge_mapping = mapping
+
+    # the new_node_mapping contains per entity type on the ith row
+    # the original node id for the ith node.
+    save_maps(args.output, "node_mapping", new_node_mapping)
+    # the new_edge_mapping contains per edge type on the ith row
+    # the original edge id for the ith edge.
+    save_maps(args.output, "edge_mapping", new_edge_mapping)
+
