@@ -545,8 +545,8 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
             # 1. N == K
             # 2. N > K, some trainers/infers need to load more than one files
             # 3. N < K, some trainers/infers do not need to load any files
-            for _ in range(math.ceil(num_files/world_size)):
-                file_idx = iter * world_size + local_rank
+            for i in range(math.ceil(num_files/world_size)):
+                file_idx = i * world_size + local_rank
                 if file_idx < num_files:
                     emb = th.load(os.path.join(ntype_path, f'sparse_emb_{file_idx}.pt'))
 
