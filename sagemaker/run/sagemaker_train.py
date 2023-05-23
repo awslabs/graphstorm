@@ -27,24 +27,23 @@ import sys
 import queue
 
 import boto3
-from graphstorm.config.config import SUPPORTED_TASKS
-from graphstorm.config.config import BUILTIN_TASK_NODE_CLASSIFICATION
-from graphstorm.config.config import BUILTIN_TASK_NODE_REGRESSION
-from graphstorm.config.config import BUILTIN_TASK_EDGE_CLASSIFICATION
-from graphstorm.config.config import BUILTIN_TASK_EDGE_REGRESSION
-from graphstorm.config.config import BUILTIN_TASK_LINK_PREDICTION
+from graphstorm.config.config import (SUPPORTED_TASKS,
+                                      BUILTIN_TASK_NODE_CLASSIFICATION,
+                                      BUILTIN_TASK_NODE_REGRESSION,
+                                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                      BUILTIN_TASK_EDGE_REGRESSION,
+                                      BUILTIN_TASK_LINK_PREDICTION)
 
 import sagemaker
 
-from graphstorm.sagemaker.run.utils import download_yaml_config
-from graphstorm.sagemaker.run.utils import download_graph
-from graphstorm.sagemaker.run.utils import keep_alive
-from graphstorm.sagemaker.run.utils import barrier_master
-from graphstorm.sagemaker.run.utils import barrier
-from graphstorm.sagemaker.run.utils import terminate_workers
-from graphstorm.sagemaker.run.utils import wait_for_exit
-from graphstorm.sagemaker.run.utils import upload_model_artifacts
-from graphstorm.sagemaker.run.utils import upload_data_to_s3
+from graphstorm.sagemaker.run.utils import (download_yaml_config,
+                                            download_graph,
+                                            keep_alive,
+                                            barrier_master,
+                                            barrier,
+                                            terminate_workers,
+                                            wait_for_exit,
+                                            upload_model_artifacts)
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,

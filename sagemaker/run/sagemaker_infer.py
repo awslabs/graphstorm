@@ -29,26 +29,26 @@ import sys
 import queue
 
 import boto3
-from graphstorm.config.config import SUPPORTED_TASKS
-from graphstorm.config.config import BUILTIN_TASK_NODE_CLASSIFICATION
-from graphstorm.config.config import BUILTIN_TASK_NODE_REGRESSION
-from graphstorm.config.config import BUILTIN_TASK_EDGE_CLASSIFICATION
-from graphstorm.config.config import BUILTIN_TASK_EDGE_REGRESSION
-from graphstorm.config.config import BUILTIN_TASK_LINK_PREDICTION
+from graphstorm.config.config import (SUPPORTED_TASKS,
+                                      BUILTIN_TASK_NODE_CLASSIFICATION,
+                                      BUILTIN_TASK_NODE_REGRESSION,
+                                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                      BUILTIN_TASK_EDGE_REGRESSION,
+                                      BUILTIN_TASK_LINK_PREDICTION)
 
 import sagemaker
-from graphstorm.sagemaker.run.utils import download_yaml_config
-from graphstorm.sagemaker.run.utils import download_graph
-from graphstorm.sagemaker.run.utils import keep_alive
-from graphstorm.sagemaker.run.utils import barrier_master
-from graphstorm.sagemaker.run.utils import barrier
-from graphstorm.sagemaker.run.utils import terminate_workers
-from graphstorm.sagemaker.run.utils import wait_for_exit
-from graphstorm.sagemaker.run.utils import upload_data_to_s3
-from graphstorm.sagemaker.run.utils import update_gs_params
-from graphstorm.sagemaker.run.utils import download_model
-from graphstorm.sagemaker.run.utils import upload_embs
-from graphstorm.sagemaker.run.utils import remove_embs
+from graphstorm.sagemaker.run.utils import (download_yaml_config,
+                                            download_graph,
+                                            keep_alive,
+                                            barrier_master,
+                                            barrier,
+                                            terminate_workers,
+                                            wait_for_exit,
+                                            upload_data_to_s3,
+                                            update_gs_params,
+                                            download_model,
+                                            upload_embs,
+                                            remove_embs)
 
 def launch_infer_task(task_type, num_gpus, graph_config,
     load_model_path, save_emb_path, ip_list,
