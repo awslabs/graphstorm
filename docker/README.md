@@ -9,7 +9,7 @@ e.g. graph data building, you can use the provided scripts to build your own Gra
 
 ## Prerequisites
 -----------------
-You need to install Docker in your environment as the [Docker documentation](https://docs.Docker.com/get-Docker/)
+You need to install Docker in your environment as the [Docker documentation](https://docs.docker.com/get-docker/)
 suggests.
 
 For example, in an AWS EC2 instance created with Deep Learning AMI GPU PyTorch 1.13.0, you can run
