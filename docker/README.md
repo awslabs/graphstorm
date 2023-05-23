@@ -25,7 +25,7 @@ sudo apt install Docker.io
 
 Please use the following command to build a Docker image from source:
 ```shell
-cd /path-to-graphstorm/docker/
+cd /path-to-graphstorm/
 
 bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ docker-name docker-tag
 ```
