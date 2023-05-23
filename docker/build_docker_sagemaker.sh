@@ -27,6 +27,7 @@ fi
 # TODO: use pip install later
 mkdir -p code/graphstorm
 cp -r "${GSF_HOME}/python" code/graphstorm/
+cp -r "${GSF_HOME}/sagemaker" code/graphstorm/sagemaker
 cp -r "${GSF_HOME}/docker/sagemaker/build_artifacts" build_artifacts
 
 # Build OSS docker for EC2 instances that an pull ECR docker images
