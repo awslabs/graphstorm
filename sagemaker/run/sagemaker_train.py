@@ -27,23 +27,21 @@ import sys
 import queue
 
 import boto3
+import sagemaker
 from graphstorm.config.config import (SUPPORTED_TASKS,
                                       BUILTIN_TASK_NODE_CLASSIFICATION,
                                       BUILTIN_TASK_NODE_REGRESSION,
                                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                                       BUILTIN_TASK_EDGE_REGRESSION,
                                       BUILTIN_TASK_LINK_PREDICTION)
-
-import sagemaker
-
-from graphstorm.sagemaker.run.utils import (download_yaml_config,
-                                            download_graph,
-                                            keep_alive,
-                                            barrier_master,
-                                            barrier,
-                                            terminate_workers,
-                                            wait_for_exit,
-                                            upload_model_artifacts)
+from .utils import (download_yaml_config,
+                    download_graph,
+                    keep_alive,
+                    barrier_master,
+                    barrier,
+                    terminate_workers,
+                    wait_for_exit,
+                    upload_model_artifacts)
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,

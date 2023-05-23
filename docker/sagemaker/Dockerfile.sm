@@ -22,7 +22,7 @@ COPY build_artifacts/start_with_right_hostname.sh /usr/local/bin/start_with_righ
 COPY code/graphstorm/ /opt/ml/code/graphstorm/
 ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
 
-RUN cp /opt/ml/code/graphstorm/python/graphstorm/sagemaker/run/* /opt/ml/code/
+RUN cp /opt/ml/code/graphstorm/sagemaker/run/* /opt/ml/code/
 
 WORKDIR /opt/ml/code
 

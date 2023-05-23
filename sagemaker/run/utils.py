@@ -22,8 +22,8 @@ import shutil
 
 from urllib.parse import urlparse
 
-from sagemaker.s3 import S3Downloader
-from sagemaker.s3 import S3Uploader
+from sagemaker.s3 import S3Downloader # pylint: disable=no-name-in-module
+from sagemaker.s3 import S3Uploader   # pylint: disable=no-name-in-module
 
 def barrier_master(client_list, world_size):
     """ Master barrier, called by host_rank == 0
