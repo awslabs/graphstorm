@@ -145,7 +145,7 @@ multiple Docker containers. Instructions for that are [here](https://docs.docker
 #### Building the SageMaker GraphStorm docker image
 Follow [Build GraphStorm SageMaker docker image] (https://github.com/awslabs/graphstorm/docker/sagemaker) to build your own SageMaker GraphStorm docker image locally.
 
-#### Creating the Docker compose file and run training
+#### Creating the Docker compose file
 A Docker compose file is a YAML file that tells Docker which containers to spin up and how to configure them.
 To launch the services with a docker compose file, we can use `docker compose -f docker-compose.yaml up`.
 This will launch the container and execute its entry point.
@@ -197,14 +197,39 @@ This will determine the number of `algo-x` `services` entries our compose file e
 * `--aws-secret-access-key`: The AWS secret access key for accessing S3 data within docker.
 * `--aws-session-token`: The AWS session toekn used for accessing S3 data within docker.
 
-The rest of the arguments are passed on to `sagemaker_train.py`
-* `--task-type`: Training task type.
-* `--graph-data-s3`: S3 location of input training graph.
-* `--graph-name`: Name of the input training graph.
-* `--train-yaml-s3`: S3 location of training yaml file.
+The rest of the arguments are passed on to `sagemaker_train.py` or `sagemaker_infer.py`:
+* `--task-type`: Task type.
+* `--graph-data-s3`: S3 location of the input graph.
+* `--graph-name`: Name of the input graph.
+* `--yaml-s3`: S3 location of yaml file for training and inference.
 * `--custom-script`: Custom training script provided by a customer to run customer training logic. This should be a path to the python script within the docker image.
+* `--output-emb-s3`: S3 location to store GraphStorm generated node embeddings. This is an inference only argument.
+* `--output-prediction-s3`: S3 location to store prediction results. This is an inference only argument.
 
-If you want to pass other arguments to `sagemaker_train.py`, you can simply append those arguments after the above arguments.
+#### Docker compose for training
+If you want to use Docker compose to testing training tasks.
+You can use `generate_sagemaker_docker_compose.py` to generate compose file to run as following:
+
+```
+python3 generate_sagemaker_docker_compose.py \
+    --aws-access-key <AWS_ACCESS_KEY> \
+    --aws-secret-access-key <AWS_SECRET_ACCESS_KEY> \
+    --image GRAPHSTORM_DOCKER_IMAGE \
+    --num-instances 4 \
+    --task-type node_classification \
+    --graph-data-s3 s3://PATH_TO_GRAPH_DATA/ \
+    --yaml-s3 s3://PATH_TO_YAML_FILE/\
+    --model-artifact-s3 s3://PATH_TO_STORE_TRAINED_MODEL \
+    --graph-name ogbn-arxiv \
+    --num-layers 1 \
+    --hidden-size 128 \
+    --backend gloo \
+    --batch-size 128 \
+    --node-feat-name node:feat
+```
+
+As in the above example, if you want to pass other arguments to `sagemaker_train.py`,
+you can simply append those arguments after `generate_sagemaker_docker_compose.py` arguments.
 They will be passed on to the `sagemaker_train.py` script during execution.
 
 The above will create a Docker compose file named `docker-compose-${task-type}-${num-instances}-train.yaml`, which we can then use to launch the job with (for example):
@@ -219,12 +244,35 @@ the `sagemaker_train.py` script. Note that the containers actually
 interact with S3 so you would require valid AWS credentials to run.
 
 #### Dcoker compose for inference
-You can use `generate_sagemaker_docker_compose.py` to build docker compose file.
+You can use `generate_sagemaker_docker_compose.py` to build docker compose file for testing inference tasks.
 To create a compose file for inference you need to use the same arguments
 as creating a compose file for the training task and pass another argument
 to `generate_sagemaker_docker_compose.py` script, i.e., `--inference`.
-The generated compose config will use `sagemaker_infer.py` as its entry point.
-If you want to pass other arguments to `sagemaker_infer.py`, you can simply append those arguments after the above arguments.
+
+```
+python3 generate_sagemaker_docker_compose.py \
+    --aws-access-key <AWS_ACCESS_KEY> \
+    --aws-secret-access-key <AWS_SECRET_ACCESS_KEY> \
+    --image GRAPHSTORM_DOCKER_IMAGE \
+    --num-instances 4 \
+    --task-type node_classification \
+    --graph-data-s3 s3://PATH_TO_GRAPH_DATA/ \
+    --yaml-s3 s3://PATH_TO_YAML_FILE/\
+    --model-artifact-s3 s3://PATH_TO_SAVED_MODEL \
+    --output-emb-s3 s3://PATH_TO_SAVE_NODE_EMBEDING \
+    --output-prediction-s3 s3://PATH_TO_SAVE_PREDICTION_RESULT \
+    --graph-name ogbn-arxiv \
+    --num-layers 1 \
+    --hidden-size 128 \
+    --backend gloo \
+    --batch-size 128 \
+    --node-feat-name node:feat \
+    --inference
+```
+
+As in the above example, if you want to pass other arguments to `sagemaker_infer.py`,
+you can simply append those arguments after `generate_sagemaker_docker_compose.py` arguments.
+They will be passed on to the `sagemaker_infer.py` script during execution.
 
 The above will create a Docker compose file named `docker-compose-${task-type}-${num-instances}-infer.yaml`, which we can then use to launch the job with (for example):
 
