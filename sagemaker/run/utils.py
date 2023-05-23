@@ -18,7 +18,6 @@
 
 import os
 import time
-import json
 import shutil
 
 from urllib.parse import urlparse
