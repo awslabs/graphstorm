@@ -213,9 +213,13 @@ class JointUniform(object):
 
 class JointLocalUniform(JointUniform):
     '''Jointly corrupt a group of edges.
+
     The main idea is to sample a set of nodes and use them to corrupt all edges in a mini-batch.
     This algorithm won't change the sampling probability for each individual edge, but can
     significantly reduce the number of nodes in a mini-batch.
+    The difference between JointUniform and JointLocalUniform is that JointUniform sample
+    negative nodes from the entire graph, but JointLocalUniform only sample negative nodes
+    from the local partition.
 
     Parameters
     ----------
