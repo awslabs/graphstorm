@@ -30,13 +30,13 @@ import queue
 
 import boto3
 import sagemaker
-from graphstorm.config.config import (SUPPORTED_TASKS,
-                                      BUILTIN_TASK_NODE_CLASSIFICATION,
-                                      BUILTIN_TASK_NODE_REGRESSION,
-                                      BUILTIN_TASK_EDGE_CLASSIFICATION,
-                                      BUILTIN_TASK_EDGE_REGRESSION,
-                                      BUILTIN_TASK_LINK_PREDICTION)
-from utils import (download_yaml_config,
+from ..config import (SUPPORTED_TASKS,
+                      BUILTIN_TASK_NODE_CLASSIFICATION,
+                      BUILTIN_TASK_NODE_REGRESSION,
+                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                      BUILTIN_TASK_EDGE_REGRESSION,
+                      BUILTIN_TASK_LINK_PREDICTION)
+from .utils import (download_yaml_config,
                     download_graph,
                     keep_alive,
                     barrier_master,
@@ -123,7 +123,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     time.sleep(0.2)
     return thread
 
-def parse_train_args():
+def parse_infer_args():
     """ Add arguments for model offline inference
     """
     parser = argparse.ArgumentParser(description='gs sagemaker train pipeline')
@@ -156,36 +156,26 @@ def parse_train_args():
 
     return parser
 
-def main():
+def run(args, unknownargs):
     """ main logic
     """
-    if 'SM_NUM_GPUS' in os.environ:
-        num_gpus = int(os.environ['SM_NUM_GPUS'])
-
-    for key, val in os.environ.items():
-        print(f"{key}: {val}")
-
-    assert 'SM_CHANNEL_TRAIN' in os.environ, \
-        "SageMaker trainer should have the data path in os.environ."
-    data_path = str(os.environ['SM_CHANNEL_TRAIN'])
+    num_gpus = args.num_gpus
+    data_path = args.data_path
     model_path = '/opt/ml/model'
     output_path = '/opt/ml/checkpoints'
 
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
 
-    parser = parse_train_args()
-    args, unknownargs = parser.parse_known_args()
     print(f"Know args {args}")
     print(f"Unknow args {unknownargs}")
 
-    train_env = json.loads(os.environ['SM_TRAINING_ENV'])
+    train_env = json.loads(args.sm_dist_env)
     hosts = train_env['hosts']
     current_host = train_env['current_host']
     world_size = len(hosts)
     os.environ['WORLD_SIZE'] = str(world_size)
     host_rank = hosts.index(current_host)
-    assert args.graph_name is not None, "Graph name must be provided"
 
     try:
         for host in hosts:
@@ -193,7 +183,7 @@ def main():
     except:
         raise RuntimeError(f"Can not get host name of {hosts}")
 
-    master_addr = os.environ['MASTER_ADDR']
+    master_addr = args.master_addr
     # sync with all instances in the cluster
     if host_rank == 0:
         # sync with workers
@@ -240,12 +230,10 @@ def main():
         update_gs_params(gs_params, "--save-prediction-path", os.path.join(output_path, "predict"))
 
     ### Download Partitioned graph data
-    boto_session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
+    boto_session = boto3.session.Session(region_name=args.region)
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
-
     yaml_path = download_yaml_config(infer_yaml_s3,
         data_path, sagemaker_session)
-
     graph_config_path = download_graph(graph_data_s3, graph_name,
         host_rank, data_path, sagemaker_session)
 
@@ -312,6 +300,3 @@ def main():
         upload_data_to_s3(output_prediction_s3,
                           os.path.join(output_path, "predict"),
                           sagemaker_session)
-
-if __name__ == '__main__':
-    main()

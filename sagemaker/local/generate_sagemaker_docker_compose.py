@@ -80,7 +80,7 @@ if __name__ == "__main__":
         'external': {'name': 'gfs-network'}}}
 
     def gen_train_cmd(custom_script):
-        entry_point = 'sagemaker_train.py'
+        entry_point = 'train_entry.py'
 
         cmd = f'python3  {entry_point} ' \
             f'--task-type {args.task_type} ' \
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         return cmd
 
     def gen_infer_cmd(custom_script):
-        entry_point = 'sagemaker_infer.py'
+        entry_point = 'infer_entry.py'
         output_emb_s3 = f'--output-emb-s3 {args.output_emb_s3} ' \
                         if args.output_emb_s3 is not None else ''
         output_prediction_s3 = f'--output-prediction-s3 {args.output_prediction_s3} ' \

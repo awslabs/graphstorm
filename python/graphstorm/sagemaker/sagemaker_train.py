@@ -28,12 +28,12 @@ import queue
 
 import boto3
 import sagemaker
-from graphstorm.config.config import (SUPPORTED_TASKS,
-                                      BUILTIN_TASK_NODE_CLASSIFICATION,
-                                      BUILTIN_TASK_NODE_REGRESSION,
-                                      BUILTIN_TASK_EDGE_CLASSIFICATION,
-                                      BUILTIN_TASK_EDGE_REGRESSION,
-                                      BUILTIN_TASK_LINK_PREDICTION)
+from ..config import (SUPPORTED_TASKS,
+                      BUILTIN_TASK_NODE_CLASSIFICATION,
+                      BUILTIN_TASK_NODE_REGRESSION,
+                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                      BUILTIN_TASK_EDGE_REGRESSION,
+                      BUILTIN_TASK_LINK_PREDICTION)
 from utils import (download_yaml_config,
                     download_graph,
                     keep_alive,
@@ -144,31 +144,22 @@ def parse_train_args():
 
     return parser
 
-def main():
+def run(args, unknownargs):
     """ main logic
     """
-    if 'SM_NUM_GPUS' in os.environ:
-        num_gpus = int(os.environ['SM_NUM_GPUS'])
-
-    for key, val in os.environ.items():
-        print(f"{key}: {val}")
-
-    assert 'SM_CHANNEL_TRAIN' in os.environ, \
-        "SageMaker trainer should have the data path in os.environ."
-    data_path = str(os.environ['SM_CHANNEL_TRAIN'])
+    num_gpus = args.num_gpus
+    data_path = args.data_path
     output_path = "/opt/ml/model/"
 
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
 
-    parser = parse_train_args()
-    args, unknownargs = parser.parse_known_args()
     print(f"Know args {args}")
     print(f"Unknow args {unknownargs}")
 
     save_model_path = os.path.join(output_path, "model_checkpoint")
 
-    train_env = json.loads(os.environ['SM_TRAINING_ENV'])
+    train_env = json.loads(args.sm_train_env)
     hosts = train_env['hosts']
     current_host = train_env['current_host']
     world_size = len(hosts)
@@ -181,7 +172,7 @@ def main():
     except:
         raise RuntimeError(f"Can not get host name of {hosts}")
 
-    master_addr = os.environ['MASTER_ADDR']
+    master_addr = args.master_addr
     # sync with all instances in the cluster
     if host_rank == 0:
         # sync with workers
@@ -219,7 +210,7 @@ def main():
     model_artifact_s3 = args.model_artifact_s3.rstrip('/')
     custom_script = args.custom_script
 
-    boto_session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
+    boto_session = boto3.session.Session(region_name=args.region)
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
     yaml_path = download_yaml_config(train_yaml_s3,
         data_path, sagemaker_session)
@@ -272,6 +263,3 @@ def main():
     # If there are saved models
     if os.path.exists(save_model_path):
         upload_model_artifacts(model_artifact_s3, save_model_path, sagemaker_session)
-
-if __name__ == '__main__':
-    main()

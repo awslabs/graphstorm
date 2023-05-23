@@ -40,7 +40,7 @@ cd $GS_HOME/sagemaker/
 python3 launch/launch_train.py \
         --image-url <AMAZON_ECR_IMAGE_PATH> \
         --region us-east-1 \
-        --entry-point run/sagemaker_train.py \
+        --entry-point run/train_entry.py \
         --role <ARN_ROLE> \
         --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
         --yaml-s3 s3://PATH_TO_TRAINING_CONFIG/arxiv_nc.yaml \
@@ -73,7 +73,7 @@ cd $GS_HOME/sagemaker/
 python3 launch/launch_infer \
         --image-url <AMAZON_ECR_IMAGE_PATH> \
         --region us-east-1 \
-        --entry-point run/sagemaker_infer.py \
+        --entry-point run/infer_entry.py \
         --role <ARN_ROLE> \
         --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
         --yaml-s3 s3://PATH_TO_TRAINING_CONFIG/arxiv_nc.yaml \
