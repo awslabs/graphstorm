@@ -29,6 +29,7 @@ import sys
 import queue
 
 import boto3
+import sagemaker
 from graphstorm.config.config import (SUPPORTED_TASKS,
                                       BUILTIN_TASK_NODE_CLASSIFICATION,
                                       BUILTIN_TASK_NODE_REGRESSION,
@@ -36,7 +37,6 @@ from graphstorm.config.config import (SUPPORTED_TASKS,
                                       BUILTIN_TASK_EDGE_REGRESSION,
                                       BUILTIN_TASK_LINK_PREDICTION)
 
-import sagemaker
 from graphstorm.sagemaker.run.utils import (download_yaml_config,
                                             download_graph,
                                             keep_alive,
