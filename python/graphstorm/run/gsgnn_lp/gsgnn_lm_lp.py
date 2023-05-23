@@ -57,13 +57,13 @@ def main(args):
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         trainer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.evaluation_frequency,
+            GSgnnMrrLPEvaluator(config.eval_frequency,
                                 train_data,
                                 config.num_negative_edges_eval,
                                 config.lp_decoder_type,
-                                config.enable_early_stop,
+                                config.use_early_stop,
                                 config.early_stop_burnin_rounds,
-                                config.window_for_early_stop,
+                                config.early_stop_rounds,
                                 config.early_stop_strategy))
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
@@ -116,9 +116,9 @@ def main(args):
     else:
         save_model_path = None
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
-                test_loader=test_dataloader, n_epochs=config.n_epochs,
+                test_loader=test_dataloader, num_epochs=config.num_epochs,
                 save_model_path=save_model_path,
-                mini_batch_infer=config.mini_batch_infer,
+                use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path)
 
@@ -132,10 +132,12 @@ def main(args):
         # For example pre-compute all BERT embeddings
         model.prepare_input_encoder(train_data)
         # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
-        embeddings = do_full_graph_inference(model, train_data,
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              edge_mask="train_mask", task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size())
+                        th.distributed.get_world_size(),
+                        device=device,
+                        node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
     parser = get_argument_parser()

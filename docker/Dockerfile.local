@@ -39,9 +39,9 @@ COPY code/training_scripts /graphstorm/training_scripts
 
 # Set up SSH
 RUN apt-get install -y openssh-client openssh-server
-ENV SSH_PORT=2222
+ENV --ssh-port=2222
 RUN cat /etc/ssh/sshd_config > /tmp/sshd_config && \
-    sed "0,/^#Port 22/s//Port ${SSH_PORT}/" /tmp/sshd_config > /etc/ssh/sshd_config
+    sed "0,/^#Port 22/s//Port ${--ssh-port}/" /tmp/sshd_config > /etc/ssh/sshd_config
 ENV SSHDIR $HOME/.ssh
 RUN mkdir -p ${SSHDIR}
 RUN ssh-keygen -t rsa -f ${SSHDIR}/id_rsa -N ''

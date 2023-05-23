@@ -30,19 +30,19 @@ from graphstorm.model import do_full_graph_inference
 
 def get_evaluator(config):
     if config.task_type == "node_classification":
-        return GSgnnAccEvaluator(config.evaluation_frequency,
+        return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
                                  config.multilabel,
-                                 config.enable_early_stop,
+                                 config.use_early_stop,
                                  config.early_stop_burnin_rounds,
-                                 config.window_for_early_stop,
+                                 config.early_stop_rounds,
                                  config.early_stop_strategy)
     elif config.task_type == "node_regression":
-        return GSgnnRegressionEvaluator(config.evaluation_frequency,
+        return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,
-                                        config.enable_early_stop,
+                                        config.use_early_stop,
                                         config.early_stop_burnin_rounds,
-                                        config.window_for_early_stop,
+                                        config.early_stop_rounds,
                                         config.early_stop_strategy)
     else:
         raise ValueError("Unknown task type")
@@ -53,7 +53,7 @@ def main(args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
-                                    train_ntypes=config.predict_ntype,
+                                    train_ntypes=config.target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
@@ -78,7 +78,7 @@ def main(args):
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
-    fanout = config.eval_fanout if config.mini_batch_infer else []
+    fanout = config.eval_fanout if config.use_mini_batch_infer else []
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
@@ -100,9 +100,9 @@ def main(args):
     else:
         save_model_path = None
     trainer.fit(train_loader=dataloader, val_loader=val_dataloader,
-                test_loader=test_dataloader, n_epochs=config.n_epochs,
+                test_loader=test_dataloader, num_epochs=config.num_epochs,
                 save_model_path=save_model_path,
-                mini_batch_infer=config.mini_batch_infer,
+                use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path,
                 freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
@@ -116,9 +116,12 @@ def main(args):
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings
         model.prepare_input_encoder(train_data)
-        embeddings = do_full_graph_inference(model, train_data, task_tracker=tracker)
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
+                                             task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size())
+                        th.distributed.get_world_size(),
+                        device=device,
+                        node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
     parser = get_argument_parser()

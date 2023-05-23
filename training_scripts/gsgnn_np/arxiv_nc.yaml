@@ -10,9 +10,9 @@ gsf:
     verbose: false
   gnn:
     fanout: "15,10"
-    n_layers: 2
+    num_layers: 2
     hidden_size: 128
-    mini_batch_infer: false
+    use_mini_batch_infer: false
   input:
     restore_model_path: null
   output:
@@ -21,17 +21,16 @@ gsf:
   hyperparam:
     dropout: 0.5
     lr: 0.001
-    n_epochs: 10
+    num_epochs: 10
     batch_size: 1024
-    eval_batch_size: 1024
     wd_l2norm: 0
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
-    sparse_lr: 1e-2
+    sparse_optimizer_lr: 1e-2
     use_node_embeddings: false
   node_classification:
-    predict_ntype: "node"
+    target_ntype: "node"
     label_field: "labels"
     multilabel: false
     num_classes: 40

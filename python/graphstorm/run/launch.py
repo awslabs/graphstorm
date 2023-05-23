@@ -276,8 +276,7 @@ def get_all_remote_pids(hosts, ssh_port, udf_command):
         ip, _ = host
         # When creating training processes in remote machines, we may insert some arguments
         # in the commands. We need to use regular expressions to match the modified command.
-        cmds = udf_command.split()
-        new_udf_command = " .*".join(cmds)
+        new_udf_command = " .*".join(udf_command)
         pids = get_remote_pids(ip, ssh_port, new_udf_command)
         remote_pids[(ip, ssh_port)] = pids
     return remote_pids
@@ -797,9 +796,9 @@ def get_argument_parser():
         a distribute task.
     """
     parser = argparse.ArgumentParser(description="Launch a distributed job")
-    parser.add_argument("--ssh_port", type=int, default=22, help="SSH Port.")
+    parser.add_argument("--ssh-port", type=int, default=22, help="SSH Port.")
     parser.add_argument(
-        "--ssh_username",
+        "--ssh-username",
         default="",
         help="Optional. When issuing commands (via ssh) to cluster, \
               use the provided username in the ssh cmd. "
@@ -822,42 +821,42 @@ def get_argument_parser():
               as PWD",
     )
     parser.add_argument(
-        "--num_trainers",
+        "--num-trainers",
         type=int,
         help="The number of trainer processes per machine",
     )
     parser.add_argument(
-        "--num_omp_threads",
+        "--num-omp-threads",
         type=int,
         help="The number of OMP threads per trainer",
     )
     parser.add_argument(
-        "--num_samplers",
+        "--num-samplers",
         type=int,
         default=0,
         help="The number of sampler processes per trainer process",
     )
     parser.add_argument(
-        "--num_servers",
+        "--num-servers",
         type=int,
         default=1,
         help="The number of server processes per machine",
     )
     parser.add_argument(
-        "--part_config",
+        "--part-config",
         type=str,
         help="The file of the partition config. Absolute path is preferred. \
               Otherwise, the file should be in workspace.",
     )
     parser.add_argument(
-        "--ip_config",
+        "--ip-config",
         type=str,
         help="The file of IP configuration for server processes. \
               Absolute path is preferred. \
               Otherwise, the file should be in workspace.",
     )
     parser.add_argument(
-        "--num_server_threads",
+        "--num-server-threads",
         type=int,
         default=1,
         help="The number of OMP threads in the server process. \
@@ -865,7 +864,7 @@ def get_argument_parser():
                         the same machine. By default, it is 1.",
     )
     parser.add_argument(
-        "--graph_format",
+        "--graph-format",
         type=str,
         default="csc",
         help='The format of the graph structure of each partition. \
@@ -873,13 +872,13 @@ def get_argument_parser():
               formats, separated by ",". For example, the graph format is "csr,csc".',
     )
     parser.add_argument(
-        "--extra_envs",
+        "--extra-envs",
         nargs="+",
         type=str,
         default=[],
         help="Extra environment parameters need to be set. For example, \
               you can set the LD_LIBRARY_PATH and NCCL_DEBUG by adding: \
-              --extra_envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
+              --extra-envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
               NCCL_DEBUG=INFO ",
     )
     parser.add_argument(
@@ -889,7 +888,7 @@ def get_argument_parser():
               Used with built-in training/inference scripts"
     )
     parser.add_argument(
-        "--lm_encoder_only",
+        "--lm-encoder-only",
         action="store_true",
         help="Inidcate that the model is using language model + decoder only. \
             No GNN is involved, only graph structure. \
@@ -907,22 +906,22 @@ def check_input_arguments(args):
     """
     assert (
         args.num_trainers is not None and args.num_trainers > 0
-    ), "--num_trainers must be a positive number."
+    ), "--num-trainers must be a positive number."
     assert (
         args.num_samplers is not None and args.num_samplers >= 0
-    ), "--num_samplers must be a non-negative number."
+    ), "--num-samplers must be a non-negative number."
     assert (
         args.num_servers is not None and args.num_servers > 0
-    ), "--num_servers must be a positive number."
+    ), "--num-servers must be a positive number."
     assert (
         args.num_server_threads > 0
-    ), "--num_server_threads must be a positive number."
+    ), "--num-server-threads must be a positive number."
     assert (
         args.part_config is not None
-    ), "A user has to specify a partition configuration file with --part_config."
+    ), "A user has to specify a partition configuration file with --part-onfig."
     assert (
         args.ip_config is not None
-    ), "A user has to specify an IP configuration file with --ip_config."
+    ), "A user has to specify an IP configuration file with --ip-config."
 
     if args.workspace is None:
         # Get PWD

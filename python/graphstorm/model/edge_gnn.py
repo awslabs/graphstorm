@@ -174,12 +174,12 @@ def edge_mini_batch_gnn_predict(model, loader, return_label=False):
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
                 assert len(batch_graph.etypes) == 1
-                predict_etype = batch_graph.canonical_etypes[0]
+                target_etype = batch_graph.canonical_etypes[0]
                 # TODO(zhengda) the data loader should return labels directly.
-                seeds = batch_graph.edges[predict_etype].data[dgl.EID]
-                lbl = data.get_labels({predict_etype: seeds})
+                seeds = batch_graph.edges[target_etype].data[dgl.EID]
+                lbl = data.get_labels({target_etype: seeds})
                 assert len(lbl) == 1
-                labels.append(lbl[predict_etype])
+                labels.append(lbl[target_etype])
     model.train()
     preds = th.cat(preds)
     if return_label:

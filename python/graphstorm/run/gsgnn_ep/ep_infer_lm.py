@@ -29,10 +29,10 @@ def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
     """
     if config.task_type == "edge_regression":
-        return GSgnnRegressionEvaluator(config.evaluation_frequency,
+        return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric)
     elif config.task_type == 'edge_classification':
-        return GSgnnAccEvaluator(config.evaluation_frequency,
+        return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
                                  config.multilabel)
     else:
@@ -69,7 +69,9 @@ def main(args):
     model.prepare_input_encoder(infer_data)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
-                mini_batch_infer=config.mini_batch_infer)
+                use_mini_batch_infer=config.use_mini_batch_infer,
+                node_id_mapping_file=config.node_id_mapping_file,
+                edge_id_mapping_file=config.edge_id_mapping_file)
 
 def generate_parser():
     parser = get_argument_parser()

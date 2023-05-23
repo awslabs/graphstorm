@@ -15,9 +15,9 @@ gsf:
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
-    n_layers: 1
+    num_layers: 1
     hidden_size: 128
-    mini_batch_infer: true
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
@@ -25,11 +25,10 @@ gsf:
     save_embed_path: null
   hyperparam:
     batch_size: 64
-    eval_batch_size: 1024
     bert_infer_bs: 128
     no_validation: false
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
     use_node_embeddings: false
   edge_regression:

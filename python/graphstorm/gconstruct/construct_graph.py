@@ -34,8 +34,9 @@ from .file_io import get_in_files, write_data_parquet
 from .file_io import HDF5Array
 from .transform import parse_feat_ops, process_features
 from .transform import parse_label_ops, process_labels
+from .transform import do_multiprocess_transform
 from .id_map import NoopMap, IdMap, map_node_ids
-from .utils import multiprocessing_data_read, ExtMemArrayConverter, partition_graph
+from .utils import multiprocessing_data_read, ExtMemArrayMerger, partition_graph
 
 def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     """ Parse node data.
@@ -115,7 +116,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                                     skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
-def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1):
+def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -147,8 +148,8 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
     ----------
     process_confs: list of dicts
         The configurations to process node data.
-    convert2ext_mem : ExtMemArrayConverter
-        A callable to convert a Numpy array to external-memory Numpy array.
+    arr_merger : ExtMemArrayMerger
+        A callable to merge multiple arrays.
     remap_id: bool
         Whether or not to remap node IDs
     num_processes: int
@@ -169,16 +170,15 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
-        assert 'format' in process_conf, \
-                "'format' must be defined for a node type"
-        # If there is only one file, we don't need to concatenate the data.
-        # Potentially, we don't need to read the data in memory if the input
-        # format supports it. Currently, only HDF5 supports this.
-        read_file = parse_node_file_format(process_conf, in_mem=len(in_files) > 1)
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
                 if 'labels' in process_conf else None
+        assert 'format' in process_conf, \
+                "'format' must be defined for a node type"
+        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
+        # If it requires multiprocessing, we need to read data to memory.
+        read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
@@ -186,7 +186,8 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                               node_id_col=node_id_col,
                               read_file=read_file)
         start = time.time()
-        return_dict = multiprocessing_data_read(in_files, num_processes, user_parser)
+        num_proc = num_processes if multiprocessing else 0
+        return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
         print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
 
@@ -197,7 +198,12 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
                 if feat_name not in type_node_data:
                     type_node_data[feat_name] = [None] * len(return_dict)
                 type_node_data[feat_name][i] = data[feat_name]
-            type_node_id_map[i] = node_ids
+            # If it's HDF5Array, it's better to convert it into a Numpy array.
+            # This will make the next operations on it more efficiently.
+            if isinstance(node_ids, HDF5Array):
+                type_node_id_map[i] = node_ids.to_numpy()
+            else:
+                type_node_id_map[i] = node_ids
         return_dict = None
 
         # Construct node Id map.
@@ -222,24 +228,11 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
             type_node_id_map = NoopMap(len(type_node_id_map))
         elif type_node_id_map is not None:
             type_node_id_map = IdMap(type_node_id_map)
-        sys_tracker.check(f'Create node ID map of {node_type}')
+            sys_tracker.check(f'Create node ID map of {node_type}')
 
         for feat_name in type_node_data:
-            # If the node data does not provide node IDs, this node data has to be stored
-            # in a single file.
-            if type_node_id_map is None:
-                assert len(type_node_data[feat_name]) == 1
-            if len(type_node_data[feat_name]) > 1:
-                type_node_data[feat_name] = np.concatenate(type_node_data[feat_name])
-            else:
-                type_node_data[feat_name] = type_node_data[feat_name][0]
-            # If we allow to store features in external memory, we store node features
-            # that have large feature dimensions in a file and use memmap to access
-            # the array.
-            type_node_data[feat_name] = convert2ext_mem(type_node_data[feat_name],
-                                                        node_type + "_" + feat_name)
-            feat_shape = type_node_data[feat_name].shape
-            print(f"node type {node_type} has feature {feat_name} of {feat_shape}")
+            type_node_data[feat_name] = arr_merger(type_node_data[feat_name],
+                                                   node_type + "_" + feat_name)
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
@@ -267,7 +260,7 @@ def process_node_data(process_confs, convert2ext_mem, remap_id, num_processes=1)
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
-def process_edge_data(process_confs, node_id_map, convert2ext_mem,
+def process_edge_data(process_confs, node_id_map, arr_merger,
                       num_processes=1,
                       skip_nonexist_edges=False):
     """ Process edge data
@@ -301,8 +294,8 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         The configurations to process edge data.
     node_id_map: dict
         The node ID map.
-    convert2ext_mem : ExtMemArrayConverter
-        A callable to convert a Numpy array to external-memory Numpy array.
+    arr_merger : ExtMemArrayMerger
+        A callable to merge multiple arrays.
     num_processes: int
         The number of processes to process the input files.
     skip_nonexist_edges : bool
@@ -329,14 +322,13 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         in_files = get_in_files(process_conf['files'])
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
-        # If there is only one file, we don't need to concatenate the data.
-        # Potentially, we don't need to read the data in memory if the input
-        # format supports it. Currently, only HDF5 supports this.
-        read_file = parse_edge_file_format(process_conf, in_mem=len(in_files) > 1)
         feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
                 if 'labels' in process_conf else None
+        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
+        # If it requires multiprocessing, we need to read data to memory.
+        read_file = parse_edge_file_format(process_conf, in_mem=multiprocessing)
 
         # We don't need to copy all node ID maps to the worker processes.
         # Only the node ID maps of the source node type and destination node type
@@ -350,7 +342,8 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
                               conf=process_conf,
                               skip_nonexist_edges=skip_nonexist_edges)
         start = time.time()
-        return_dict = multiprocessing_data_read(in_files, num_processes, user_parser)
+        num_proc = num_processes if multiprocessing else 0
+        return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
         print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
 
@@ -373,17 +366,12 @@ def process_edge_data(process_confs, node_id_map, convert2ext_mem,
         print(f"finish merging edges of {edge_type}")
 
         for feat_name in type_edge_data:
-            type_edge_data[feat_name] = np.concatenate(type_edge_data[feat_name])
-            # If we allow to store features in external memory, we store edge features
-            # that have large feature dimensions in a file and use memmap to access
-            # the array.
             etype_str = "-".join(edge_type)
-            type_edge_data[feat_name] = convert2ext_mem(type_edge_data[feat_name],
-                                                        etype_str + "_" + feat_name)
+            type_edge_data[feat_name] = arr_merger(type_edge_data[feat_name],
+                                                   etype_str + "_" + feat_name)
             assert len(type_edge_data[feat_name]) == len(type_src_ids)
-            feat_shape = type_edge_data[feat_name].shape
-            print(f"edge type {edge_type} has feature {feat_name} of {feat_shape}")
             gc.collect()
+            sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
 
         edge_type = tuple(edge_type)
         edges[edge_type] = (type_src_ids, type_dst_ids)
@@ -421,7 +409,7 @@ def process_graph(args):
     verify_confs(process_confs)
     # We only store data to external memory if we partition a graph for distributed training.
     ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
-    convert2ext_mem = ExtMemArrayConverter(ext_mem_workspace, args.ext_mem_feat_size)
+    convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
     node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
                                                args.remap_node_id,
                                                num_processes=num_processes_for_nodes)
@@ -430,6 +418,7 @@ def process_graph(args):
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
+    sys_tracker.check('Process input data')
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
@@ -441,11 +430,16 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    print(g)
     sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
+        assert args.part_method in ["metis", "random"], \
+                "We only support 'metis' or 'random'."
         partition_graph(g, node_data, edge_data, args.graph_name,
-                        args.num_partitions, args.output_dir)
+                        args.num_parts, args.output_dir,
+                        save_mapping=True, # always save mapping
+                        part_method=args.part_method)
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
@@ -472,32 +466,34 @@ def process_graph(args):
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
-    argparser.add_argument("--conf_file", type=str, required=True,
+    argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
-    argparser.add_argument("--num_processes", type=int, default=1,
+    argparser.add_argument("--num-processes", type=int, default=1,
                            help="The number of processes to process the data simulteneously.")
-    argparser.add_argument("--num_processes_for_nodes", type=int,
+    argparser.add_argument("--num-processes-for-nodes", type=int,
                            help="The number of processes to process node data simulteneously.")
-    argparser.add_argument("--num_processes_for_edges", type=int,
+    argparser.add_argument("--num-processes-for-edges", type=int,
                            help="The number of processes to process edge data simulteneously.")
-    argparser.add_argument("--output_dir", type=str, required=True,
+    argparser.add_argument("--output-dir", type=str, required=True,
                            help="The path of the output data folder.")
-    argparser.add_argument("--graph_name", type=str, required=True,
+    argparser.add_argument("--graph-name", type=str, required=True,
                            help="The graph name")
-    argparser.add_argument("--remap_node_id", action='store_true',
+    argparser.add_argument("--remap-node-id", action='store_true',
                            help="Whether or not to remap node IDs.")
-    argparser.add_argument("--add_reverse_edges", action='store_true',
+    argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
-    argparser.add_argument("--output_format", type=str, default="DistDGL",
+    argparser.add_argument("--output-format", type=str, default="DistDGL",
                            help="The output format of the constructed graph.")
-    argparser.add_argument("--num_partitions", type=int, default=1,
+    argparser.add_argument("--num-parts", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
-    argparser.add_argument("--skip_nonexist_edges", action='store_true',
+    argparser.add_argument("--part-method", type=str, default='metis',
+                           help="The partition method. Currently, we support 'metis' and 'random'.")
+    argparser.add_argument("--skip-nonexist-edges", action='store_true',
                            help="Skip edges that whose endpoint nodes don't exist.")
-    argparser.add_argument("--ext_mem_workspace", type=str,
+    argparser.add_argument("--ext-mem-workspace", type=str,
                            help="The directory where we can store data during graph construction.")
-    argparser.add_argument("--ext_mem_feat_size", type=int, default=64,
+    argparser.add_argument("--ext-mem-feat-size", type=int, default=64,
                            help="The minimal number of feature dimensions that features " + \
                                    "can be stored in external memory.")
     process_graph(argparser.parse_args())

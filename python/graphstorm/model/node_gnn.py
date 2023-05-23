@@ -224,9 +224,10 @@ def node_mini_batch_predict(model, emb, loader, return_label=False):
                 lbl = data.get_labels(seeds)
                 labels.append(lbl[ntype])
     model.train()
+
+    preds = th.cat(preds)
     if return_label:
-        preds = th.cat(preds)
         labels = th.cat(labels)
         return preds, labels
     else:
-        return th.cat(preds)
+        return preds

@@ -20,7 +20,7 @@ import psutil
 import torch as th
 
 from ..model import GSOptimizer
-from ..model import GSgnnModel
+from ..model import GSgnnModel, GSgnnModelBase
 from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
@@ -188,8 +188,8 @@ class GSgnnTrainer():
         '''
         th.distributed.barrier()
         if save_model_path is not None:
-            assert isinstance(model.module, GSgnnModel), \
-                "Please make sure the model derives from GSgnnModel, " \
+            assert isinstance(model.module, (GSgnnModel, GSgnnModelBase)), \
+                "Please make sure the model derives from GSgnnModel or GSgnnModelBase, " \
                 "which provides a scalable model saving implementation."
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
             model.module.save_model(save_model_path)

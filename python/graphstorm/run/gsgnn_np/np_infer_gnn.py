@@ -28,10 +28,10 @@ def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
     """
     if config.task_type == "node_regression":
-        return GSgnnRegressionEvaluator(config.evaluation_frequency,
+        return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric)
     elif config.task_type == 'node_classification':
-        return GSgnnAccEvaluator(config.evaluation_frequency,
+        return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
                                  config.multilabel)
     else:
@@ -43,7 +43,7 @@ def main(args):
 
     infer_data = GSgnnNodeInferData(config.graph_name,
                                     config.part_config,
-                                    eval_ntypes=config.predict_ntype,
+                                    eval_ntypes=config.target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)
@@ -58,7 +58,7 @@ def main(args):
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
     device = 'cuda:%d' % infer.dev_id
-    fanout = config.eval_fanout if config.mini_batch_infer else []
+    fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnNodeDataLoader(infer_data, infer_data.test_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size, device=device,
                                      train_task=False)
@@ -68,7 +68,8 @@ def main(args):
     model.prepare_input_encoder(infer_data)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
-                mini_batch_infer=config.mini_batch_infer)
+                use_mini_batch_infer=config.use_mini_batch_infer,
+                node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
     parser = get_argument_parser()

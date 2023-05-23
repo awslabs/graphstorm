@@ -46,10 +46,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 and isinstance(model, GSgnnModelBase), \
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
 
-    def fit(self, train_loader, n_epochs,
+    def fit(self, train_loader, num_epochs,
             val_loader=None,            # pylint: disable=unused-argument
             test_loader=None,           # pylint: disable=unused-argument
-            mini_batch_infer=True,      # pylint: disable=unused-argument
+            use_mini_batch_infer=True,      # pylint: disable=unused-argument
             save_model_path=None,
             save_model_frequency=None,
             save_perf_results_path=None,
@@ -61,14 +61,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         ----------
         train_loader : GSgnnLinkPredictionDataLoader
             The mini-batch sampler for training.
-        n_epochs : int
+        num_epochs : int
             The max number of epochs to train the model.
         val_loader : GSgnnLinkPredictionDataLoader
             The mini-batch sampler for computing validation scores. The validation scores
             are used for selecting models.
         test_loader : GSgnnLinkPredictionDataLoader
             The mini-batch sampler for computing test scores.
-        mini_batch_infer : bool
+        use_mini_batch_infer : bool
             Whether or not to use mini-batch inference.
         save_model_path : str
             The path where the model is saved.
@@ -85,7 +85,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             the input layer contains language models.
             Default: 0, no freeze.
         """
-        if not mini_batch_infer:
+        if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
@@ -113,7 +113,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         forward_time = 0
         back_time = 0
         sys_tracker.check('start training')
-        for epoch in range(n_epochs):
+        for epoch in range(num_epochs):
             model.train()
             t0 = time.time()
 
@@ -148,7 +148,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
-
                 if i % 20 == 0 and self.rank == 0:
                     print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
                             format(epoch, i, loss.item(), time.time() - batch_tic))
@@ -223,8 +222,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, data, val_loader, test_loader,
-        total_steps, edge_mask_for_gnn_embeddings):
+    def eval(self, model, data, val_loader, test_loader, total_steps,
+             edge_mask_for_gnn_embeddings):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -249,7 +248,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('before prediction')
         model.eval()
-        emb = do_full_graph_inference(model, data,
+        emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')

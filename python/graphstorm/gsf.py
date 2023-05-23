@@ -163,7 +163,7 @@ def create_builtin_node_model(g, config, train_task):
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -265,7 +265,7 @@ def create_builtin_edge_model(g, config, train_task):
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -335,7 +335,7 @@ def create_builtin_lp_model(g, config, train_task):
     model.set_decoder(decoder)
     model.set_loss_func(LinkPredictLossFunc())
     if train_task:
-        model.init_optimizer(lr=config.lr, sparse_lr=config.sparse_lr,
+        model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
                              lm_lr=config.lm_tune_lr)
     return model
@@ -360,12 +360,12 @@ def set_encoder(model, g, config, train_task):
             # only use language model(s) as input layer encoder(s)
             encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
                                              num_train=config.lm_train_nodes,
-                                             lm_infer_batchszie=config.lm_infer_batchszie)
+                                             lm_infer_batch_size=config.lm_infer_batch_size)
         else:
             encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
                                                 feat_size, config.hidden_size,
                                                 num_train=config.lm_train_nodes,
-                                                lm_infer_batchszie=config.lm_infer_batchszie,
+                                                lm_infer_batch_size=config.lm_infer_batch_size,
                                                 dropout=config.dropout,
                                                 use_node_embeddings=config.use_node_embeddings)
     else:
@@ -378,25 +378,25 @@ def set_encoder(model, g, config, train_task):
     dropout = config.dropout if train_task else 0
     if model_encoder_type == "mlp" or model_encoder_type == "lm":
         # Only input encoder is used
-        assert config.n_layers == 0, "No GNN layers"
+        assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None
     elif model_encoder_type == "rgcn":
-        n_bases = config.n_bases
-        # we need to set the n_layers -1 because there is an output layer
+        num_bases = config.num_bases
+        # we need to set the num_layers -1 because there is an output layer
         # that is hard coded.
         gnn_encoder = RelationalGCNEncoder(g,
                                            config.hidden_size, config.hidden_size,
-                                           num_bases=n_bases,
-                                           num_hidden_layers=config.n_layers -1,
+                                           num_bases=num_bases,
+                                           num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop)
     elif model_encoder_type == "rgat":
-        # we need to set the n_layers -1 because there is an output layer that is hard coded.
+        # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
                                            config.hidden_size,
                                            config.hidden_size,
-                                           config.n_heads,
-                                           num_hidden_layers=config.n_layers -1,
+                                           config.num_heads,
+                                           num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop)
     else:

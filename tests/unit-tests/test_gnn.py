@@ -18,6 +18,7 @@ import os
 import yaml
 import tempfile
 from argparse import Namespace
+from types import MethodType
 
 import torch as th
 from torch import nn
@@ -76,7 +77,7 @@ def create_rgat_node_model(g):
     model.set_node_input_encoder(encoder)
 
     gnn_encoder = RelationalGATEncoder(g, 4, 4,
-                                       n_heads=2,
+                                       num_heads=2,
                                        num_hidden_layers=1,
                                        dropout=0,
                                        use_self_loop=True)
@@ -96,14 +97,40 @@ def check_node_prediction(model, data):
         Train data
     """
     g = data.g
+    # do_full_graph_inference() runs differently if require_cache_embed()
+    # returns different values. Here we simulate these two use cases and
+    # triggers the different paths in do_full_graph_inference() to compute
+    # embeddings. The embeddings computed by the two paths should be
+    # numerically the same.
+    assert not model.node_input_encoder.require_cache_embed()
     embs = do_full_graph_inference(model, data)
+    def require_cache_embed(self):
+        return True
+    model.node_input_encoder.require_cache_embed = MethodType(require_cache_embed,
+                                                              model.node_input_encoder)
+    assert model.node_input_encoder.require_cache_embed()
+    embs2 = do_full_graph_inference(model, data)
+    assert len(embs) == len(embs2)
+    for ntype in embs:
+        assert ntype in embs2
+        assert_almost_equal(embs[ntype][0:len(embs[ntype])].numpy(),
+                            embs2[ntype][0:len(embs2[ntype])].numpy())
+
+    embs3 = do_full_graph_inference(model, data, fanout=None)
+    embs4 = do_full_graph_inference(model, data, fanout=[-1, -1])
+    assert len(embs3) == len(embs4)
+    for ntype in embs3:
+        assert ntype in embs4
+        assert_almost_equal(embs3[ntype][0:len(embs3[ntype])].numpy(),
+                            embs4[ntype][0:len(embs4[ntype])].numpy())
+
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1, -1],
                                       batch_size=10, device="cuda:0", train_task=False)
-    pred2, emb2, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 
@@ -126,7 +153,7 @@ def check_mlp_node_prediction(model, data):
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
-    pred2, emb2, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 
@@ -422,7 +449,7 @@ def create_ec_config(tmp_path, file_name):
                 "node_feat_name": ["feat"],
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "model_encoder_type": "rgcn",
                 "lr": 0.001,
@@ -430,7 +457,7 @@ def create_ec_config(tmp_path, file_name):
             "input": {},
             "output": {},
             "rgcn": {
-                "n_bases": 2,
+                "num_bases": 2,
             },
             "edge_classification": {
                 "target_etype": ["n0,r0,n1"],
@@ -459,7 +486,7 @@ def test_edge_classification():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
     assert isinstance(model.decoder, DenseBiDecoder)
@@ -475,7 +502,7 @@ def create_er_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
             },
@@ -508,7 +535,7 @@ def test_edge_regression():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, DenseBiDecoder)
@@ -524,7 +551,7 @@ def create_nr_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
             },
@@ -533,7 +560,7 @@ def create_nr_config(tmp_path, file_name):
             "rgat": {
             },
             "node_regression": {
-                "predict_ntype": "n0",
+                "target_ntype": "n0",
             },
         }
     }
@@ -556,7 +583,7 @@ def test_node_regression():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_node_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, EntityRegression)
@@ -572,7 +599,7 @@ def create_nc_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
             },
@@ -582,7 +609,7 @@ def create_nc_config(tmp_path, file_name):
             },
             "node_classification": {
                 "num_classes": 2,
-                "predict_ntype": "n0",
+                "target_ntype": "n0",
             },
         }
     }
@@ -605,7 +632,7 @@ def test_node_classification():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_node_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, EntityClassifier)
@@ -621,7 +648,7 @@ def create_lp_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "n_layers": 1,
+                "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
             },
@@ -654,7 +681,7 @@ def test_link_prediction():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_lp_gnn_model(g, config, True)
-    assert model.gnn_encoder.n_layers == 1
+    assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, LinkPredictDotDecoder)
