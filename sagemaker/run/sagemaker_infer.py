@@ -36,7 +36,7 @@ from graphstorm.config.config import (SUPPORTED_TASKS,
                                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                                       BUILTIN_TASK_EDGE_REGRESSION,
                                       BUILTIN_TASK_LINK_PREDICTION)
-from .utils import (download_yaml_config,
+from utils import (download_yaml_config,
                     download_graph,
                     keep_alive,
                     barrier_master,
