@@ -29,12 +29,12 @@ requirements = [
     'boto3==1.26.126',
     'botocore==1.29.126',
     'h5py==3.8.0',
-    'scipy==1.10.1',
+    'scipy',
     'tqdm==4.65.0',
     'pyarrow==12.0.0',
     'transformers==4.28.1',
-    'pandas==2.0.1',
-    'scikit-learn==1.2.2',
+    'pandas',
+    'scikit-learn',
     'ogb==1.3.6',
     'psutil==5.9.5'
 ]
