@@ -46,7 +46,7 @@ setup(
     # Metadata
     name='graphstorm',
     version=VERSION,
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     description='GraphStorm',
     long_description_content_type='text/markdown',
     license='Apache-2.0',
