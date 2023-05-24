@@ -126,6 +126,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     assert len(batch_graph.ntypes) == 1
                     input_nodes = {batch_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
+                input_edges = batch_graph.edata[dgl.EID]
+                print(input_edges)
+                input_edge_feats = data.get_edge_feats(input_edges, device)
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
                 assert len(batch_graph.etypes) == 1
@@ -140,7 +143,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
-                loss = model(blocks, batch_graph, input_feats, None, lbl, input_nodes)
+                loss = model(blocks, batch_graph, input_feats, input_edge_feats, lbl, input_nodes)
 
                 t3 = time.time()
                 self.optimizer.zero_grad()

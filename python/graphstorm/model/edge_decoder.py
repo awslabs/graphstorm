@@ -640,7 +640,7 @@ class LinkPredictDistMultDecoder(GSLayer):
         """
         return 1
 
-def LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
+class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
     """Link prediction decoder with the score function of dot product
        with edge weight.
 
@@ -677,9 +677,11 @@ def LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
                         else self._edge_weight_fields
                     weight = g.edges[canonical_etype].data[weight_field][eid]
                     weights.append(weight)
+                else:
+                    weights.append(th.ones_like(scores_etype))
 
                 scores.append(scores_etype)
 
-            scores=th.cat(scores)
+            scores = th.cat(scores)
             weights = th.cat(weights) if len(weights) > 0 else []
-            return scores, weights
+            return (scores, weights)
