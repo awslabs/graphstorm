@@ -2,7 +2,7 @@ import argparse
 import os
 
 from graphstorm.sagemaker.sagemaker_train import parse_train_args as parse_gsf_train_args
-from graphstorm.sagemaker.sagemaker_train import run
+from graphstorm.sagemaker.sagemaker_train import run_train
 
 def parse_train_args():
     """  Add arguments for model training
@@ -24,4 +24,4 @@ if __name__ =='__main__':
     parser = parse_train_args()
     args, unknownargs = parser.parse_known_args()
 
-    run(args, unknownargs)
+    run_train(args, unknownargs)

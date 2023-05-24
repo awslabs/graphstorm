@@ -156,7 +156,7 @@ def parse_infer_args():
 
     return parser
 
-def run(args, unknownargs):
+def run_infer(args, unknownargs):
     """ main logic
     """
     num_gpus = args.num_gpus
