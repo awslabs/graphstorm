@@ -549,11 +549,11 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                 file_idx = i * world_size + local_rank
                 if file_idx < num_files:
                     emb = th.load(os.path.join(ntype_path, f'sparse_emb_{file_idx}.pt'))
+
                     # Get the target idx range for sparse_emb_{local_rank}.pt
                     start, end = _get_sparse_emb_range(num_embs,
                                                        local_rank=file_idx,
                                                        world_size=num_files)
-
                     # write sparse_emb back in an iterative way
                     batch_size = 10240
                     idxs = th.split(th.arange(end - start), batch_size, dim=0)
@@ -571,7 +571,6 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                     "update torch to 1.13.0+")
                 load_sparse_emb(num_embs, os.path.join(model_path, ntype))
             else:
-
                 load_sparse_emb(num_embs, os.path.join(model_path, ntype))
 
 def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
