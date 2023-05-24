@@ -74,7 +74,6 @@ def run_job(input_args, image, unknowargs):
               "graph-name": graph_name,
               "graph-data-s3": graph_data_s3,
               "infer-yaml-s3": infer_yaml_s3,
-              "infer-yaml-name": infer_yaml_name,
               "output-emb-s3": output_emb_s3_path,
               "output-prediction-s3": output_predict_s3_path,
               "model-artifact-s3": model_artifact_s3}

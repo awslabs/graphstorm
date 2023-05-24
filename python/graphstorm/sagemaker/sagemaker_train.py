@@ -159,7 +159,7 @@ def run(args, unknownargs):
 
     save_model_path = os.path.join(output_path, "model_checkpoint")
 
-    train_env = json.loads(args.sm_train_env)
+    train_env = json.loads(args.sm_dist_env)
     hosts = train_env['hosts']
     current_host = train_env['current_host']
     world_size = len(hosts)
