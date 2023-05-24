@@ -26,17 +26,17 @@ if VERSION.endswith('dev'):
     VERSION = VERSION + datetime.today().strftime('%Y%m%d')
 
 requirements = [
-    'boto3',
-    'h5py>=2.10.0',
-    'scipy',
-    'tqdm',
-    'pyarrow>=3',
-    'transformers>=4.3.0',
-    'pandas',
-    'pylint',
-    'scikit-learn',
-    'ogb',
-    'psutil',
+    'boto3==1.26.126',
+    'botocore==1.29.126',
+    'h5py==3.8.0',
+    'scipy==1.10.1',
+    'tqdm==4.65.0',
+    'pyarrow==12.0.0',
+    'transformers==4.28.1',
+    'pandas==2.0.1',
+    'scikit-learn==1.2.2',
+    'ogb==1.3.6',
+    'psutil==5.9.5'
 ]
 
 extensions = []
@@ -46,8 +46,8 @@ setup(
     # Metadata
     name='graphstorm',
     version=VERSION,
-    python_requires='>=3.6',
-    description='Package for Graph Storm',
+    python_requires='>=3.7',
+    description='GraphStorm',
     long_description_content_type='text/markdown',
     license='Apache-2.0',
 
