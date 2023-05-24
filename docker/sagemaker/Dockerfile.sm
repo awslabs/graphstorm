@@ -1,0 +1,29 @@
+# Docker file for building a docker image for running GraphStorm code on Amazon SageMaker
+# Note: Distributed graph partition will use another docker image which will come soon.
+ARG CUDA_VER=11.7
+ARG PYTHON_VERSION=3.9
+
+FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-gpu-py39-cu117-ubuntu20.04-sagemaker
+
+LABEL maintainer="Amazon AI Graph ML team"
+
+# Install DGL
+RUN pip3 install dgl==1.0.2 -f https://data.dgl.ai/wheels/cu117/repo.html
+
+# Install related Python packages
+RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers
+
+# Copy workaround script for incorrect hostname
+COPY build_artifacts/changehostname.c /opt/ml/code/
+COPY build_artifacts/start_with_right_hostname.sh /usr/local/bin/start_with_right_hostname.sh
+
+# /opt/ml and all subdirectories are utilized by SageMaker, we use the /code subdirectory to store our user code.
+# TODO(xiangsx): change to pip install when PIP package is available
+COPY code/graphstorm/ /opt/ml/code/graphstorm/
+ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
+
+RUN cp /opt/ml/code/graphstorm/sagemaker/run/* /opt/ml/code/
+
+WORKDIR /opt/ml/code
+
+CMD ["/bin/bash"]
