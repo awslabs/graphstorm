@@ -132,7 +132,8 @@ def run_train(args, unknownargs):
         model_artifact_s3: str
             S3 location to store the model artifacts.
         custom_script: str
-            Custom training script provided by a customer to run customer training logic. Can be None.
+            Custom training script provided by a customer to run
+            customer training logic. Can be None.
         data_path: str
             Local working path.
         num_gpus: int
