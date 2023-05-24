@@ -34,6 +34,12 @@ class LocalUniform(Uniform):
     ----------
     k : int
         The number of negative examples per edge.
+    per_trainer: bool
+        If it is true, the trainer only sample negative nodes from the partition owned
+        by the trainer process. If it is false, we prioritize assigning negative nodes
+        from the partition owned by the trainer process to the corresponding trainer,
+        but evenly split negative nodes across all trainers.
+
     Examples
     --------
     >>> g = dgl.graph(([0, 1, 2], [1, 2, 3]))
@@ -215,7 +221,7 @@ class JointLocalUniform(JointUniform):
     '''Jointly corrupt a group of edges.
 
     The main idea is to sample a set of nodes and use them to corrupt all edges in a mini-batch.
-    This algorithm won't change the sampling probability for each individual edge, but can
+    This algorithm won't change the sampling probability for each positive edge, but can
     significantly reduce the number of nodes in a mini-batch.
     The difference between JointUniform and JointLocalUniform is that JointUniform sample
     negative nodes from the entire graph, but JointLocalUniform only sample negative nodes
@@ -225,6 +231,11 @@ class JointLocalUniform(JointUniform):
     ----------
     k : int
         The number of negative examples per edge.
+    per_trainer: bool
+        If it is true, the trainer only sample negative nodes from the partition owned
+        by the trainer process. If it is false, we prioritize assigning negative nodes
+        from the partition owned by the trainer process to the corresponding trainer,
+        but evenly split negative nodes across all trainers.
     '''
     def __init__(self, k, per_trainer=False):
         self._local_neg_nids = {}
