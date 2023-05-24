@@ -30,8 +30,7 @@ import queue
 
 import boto3
 import sagemaker
-from ..config import (SUPPORTED_TASKS,
-                      BUILTIN_TASK_NODE_CLASSIFICATION,
+from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
@@ -123,41 +122,34 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     time.sleep(0.2)
     return thread
 
-def parse_infer_args():
-    """ Add arguments for model offline inference
-    """
-    parser = argparse.ArgumentParser(description='gs sagemaker train pipeline')
-
-    parser.add_argument("--task_type", type=str,
-        help=f"task type, builtin task type includes: {SUPPORTED_TASKS}")
-
-    # disrributed training
-    parser.add_argument("--graph-name", type=str, help="Graph name")
-    parser.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input training graph")
-    parser.add_argument("--task-type", type=str,
-        help=f"Task type in {SUPPORTED_TASKS}")
-    parser.add_argument("--infer-yaml-s3", type=str,
-        help="S3 location of training yaml file. "
-             "Do not store it with partitioned graph")
-    parser.add_argument("--output-emb-s3", type=str,
-        help="S3 location to store GraphStorm generated node embeddings.",
-        default=None)
-    parser.add_argument("--output-prediction-s3", type=str,
-        help="S3 location to store prediction results. " \
-             "(Only works with node classification/regression " \
-             "and edge classification/regression tasks)",
-        default=None)
-    parser.add_argument("--model-artifact-s3", type=str,
-        help="S3 bucket to load the saved model artifacts")
-    parser.add_argument("--custom-script", type=str, default=None,
-        help="Custom training script provided by a customer to run customer training logic. \
-            Please provide the path of the script within the docker image")
-
-    return parser
-
 def run_infer(args, unknownargs):
-    """ main logic
+    """ Main logic
+
+        args should provide following arguments
+        task_type: str
+            Training task type.
+        graph_name: str
+            The name of the graph.
+        graph_data_s3: str
+            S3 location of input training graph.
+        infer_yaml_s3: str
+            S3 location of inference yaml file.
+        output_emb_s3: str
+            S3 location to store GraphStorm generated node embeddings. Can be None.
+        output_prediction_s3: str
+            S3 location to store prediction results. Can be None.
+        model_artifact_s3: str
+            S3 location to store the model artifacts.
+        custom_script: str
+            Custom training script provided by a customer to run customer training logic. Can be None.
+        data_path: str
+            Local working path.
+        num_gpus: int
+            Number of gpus.
+        sm_dist_env: json str
+            SageMaker distributed env.
+        region: str
+            AWS Region.
     """
     num_gpus = args.num_gpus
     data_path = args.data_path
