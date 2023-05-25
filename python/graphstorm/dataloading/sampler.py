@@ -19,13 +19,8 @@ from collections.abc import Mapping
 import torch as th
 import numpy as np
 from dgl import backend as F
-from dgl import transforms
 from dgl.distributed import node_split
-from dgl.dataloading import utils
 from dgl.dataloading.negative_sampler import Uniform
-from dgl.dataloading.dist_dataloader import EdgeCollator, _find_exclude_eids
-from dgl.base import EID, NID
-from dgl.convert import heterograph
 
 class LocalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes
