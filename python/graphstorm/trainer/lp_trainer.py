@@ -16,7 +16,6 @@
     GraphStorm trainer for link prediction
 """
 import time
-import dgl
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
