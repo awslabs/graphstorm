@@ -34,11 +34,6 @@ class LocalUniform(Uniform):
     ----------
     k : int
         The number of negative examples per edge.
-    per_trainer: bool
-        If it is true, the trainer only sample negative nodes from the partition owned
-        by the trainer process. If it is false, we prioritize assigning negative nodes
-        from the partition owned by the trainer process to the corresponding trainer,
-        but evenly split negative nodes across all trainers.
 
     Examples
     --------
@@ -47,9 +42,8 @@ class LocalUniform(Uniform):
     >>> neg_sampler(g, [0, 1])
     (tensor([0, 0, 1, 1]), tensor([1, 0, 2, 3]))
     """
-    def __init__(self, k, per_trainer=False):
+    def __init__(self, k):
         self._local_neg_nids = {}
-        self._per_trainer = per_trainer
         super(LocalUniform, self).__init__(k)
 
     def _generate(self, g, eids, canonical_etype):
@@ -63,13 +57,8 @@ class LocalUniform(Uniform):
 
         if vtype not in self._local_neg_nids:
             pb = g.get_partition_book()
-            if self._per_trainer:
-                neg_idx = node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
-                                     pb, ntype=vtype, force_even=False,
-                                     node_trainer_ids=g.nodes[vtype].data['trainer_id'])
-            else:
-                neg_idx = node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
-                                     pb, ntype=vtype, force_even=True)
+            neg_idx = node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
+                                    pb, ntype=vtype, force_even=True)
             self._local_neg_nids[vtype] = neg_idx
 
         dst = F.randint(shape, dtype, ctx, 0, self._local_neg_nids[vtype].shape[0])
@@ -231,15 +220,9 @@ class JointLocalUniform(JointUniform):
     ----------
     k : int
         The number of negative examples per edge.
-    per_trainer: bool
-        If it is true, the trainer only sample negative nodes from the partition owned
-        by the trainer process. If it is false, we prioritize assigning negative nodes
-        from the partition owned by the trainer process to the corresponding trainer,
-        but evenly split negative nodes across all trainers.
     '''
-    def __init__(self, k, per_trainer=False):
+    def __init__(self, k):
         self._local_neg_nids = {}
-        self._per_trainer = per_trainer
         super(JointLocalUniform, self).__init__(k)
 
     def _generate(self, g, eids, canonical_etype):
@@ -252,13 +235,8 @@ class JointLocalUniform(JointUniform):
 
         if vtype not in self._local_neg_nids:
             pb = g.get_partition_book()
-            if self._per_trainer:
-                neg_idx = node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
-                                     pb, ntype=vtype, force_even=False,
-                                     node_trainer_ids=g.nodes[vtype].data['trainer_id'])
-            else:
-                neg_idx = node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
-                                     pb, ntype=vtype, force_even=True)
+            neg_idx = node_split(th.full((g.num_nodes(vtype),), True, dtype=th.bool),
+                                    pb, ntype=vtype, force_even=True)
             self._local_neg_nids[vtype] = neg_idx
 
         dst = th.randint(len(self._local_neg_nids[vtype]), (shape[0],), dtype=dtype, device=ctx)
