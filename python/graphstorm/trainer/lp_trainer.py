@@ -16,6 +16,7 @@
     GraphStorm trainer for link prediction
 """
 import time
+import dgl
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -131,14 +132,17 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
-                input_feats = data.get_node_feats(input_nodes, device)
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
+                input_feats = data.get_node_feats(input_nodes, device)
+                input_edges = pos_graph.edata[dgl.EID]
+                print(input_edges)
+                input_edge_feats = data.get_edge_feats(input_edges, device)
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
-                             input_feats, None, input_nodes)
+                             input_feats, input_edge_feats, input_nodes)
 
                 t3 = time.time()
                 self.optimizer.zero_grad()

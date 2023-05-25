@@ -43,11 +43,16 @@ def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    node_feat_field = config.node_feat_name
+    # only support edge weight field now
+    edge_feat_field = config.lp_edge_weight_for_loss \
+        if config.lp_edge_weight_for_loss is not None else None
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.train_etype,
                                     eval_etypes=config.eval_etype,
-                                    node_feat_field=config.node_feat_name)
+                                    node_feat_field=node_feat_field,
+                                    edge_feat_field=edge_feat_field)
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)

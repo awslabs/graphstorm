@@ -35,11 +35,15 @@ from .model.rgat_encoder import RelationalGATEncoder
 from .model.node_gnn import GSgnnNodeModel
 from .model.edge_gnn import GSgnnEdgeModel
 from .model.lp_gnn import GSgnnLinkPredictionModel
-from .model.loss_func import ClassifyLossFunc, RegressionLossFunc
-from .model.loss_func import LinkPredictLossFunc
+from .model.loss_func import (ClassifyLossFunc,
+                              RegressionLossFunc,
+                              LinkPredictLossFunc,
+                              WeightedLinkPredictLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import DenseBiDecoder, MLPEdgeDecoder
-from .model.edge_decoder import LinkPredictDotDecoder, LinkPredictDistMultDecoder
+from .model.edge_decoder import (LinkPredictDotDecoder,
+                                 LinkPredictDistMultDecoder,
+                                 LinkPredictWeightedDotDecoder)
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config, backend):
@@ -319,9 +323,15 @@ def create_builtin_lp_model(g, config, train_task):
         if get_rank() == 0:
             print('use dot product for single-etype task.')
             print("Using inner product objective for supervision")
-        decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
-                                            if model.gnn_encoder is not None \
-                                            else model.node_input_encoder.out_dims)
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims)
+        else:
+            decoder = LinkPredictWeightedDotDecoder(model.gnn_encoder.out_dims \
+                                                    if model.gnn_encoder is not None \
+                                                    else model.node_input_encoder.out_dims,
+                                                    config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
             print("Using distmult objective for supervision")
@@ -333,7 +343,10 @@ def create_builtin_lp_model(g, config, train_task):
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)
-    model.set_loss_func(LinkPredictLossFunc())
+    if config.lp_edge_weight_for_loss is None:
+        model.set_loss_func(LinkPredictLossFunc())
+    else:
+        model.set_loss_func(WeightedLinkPredictLossFunc())
     if train_task:
         model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
