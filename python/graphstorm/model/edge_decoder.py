@@ -691,10 +691,12 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
     """
     def __init__(self, in_dim, edge_weight_fields):
         self._edge_weight_fields = edge_weight_fields
-        super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
+        super(LinkPredictWeightedDistMultDecoder, self).__init__(in_dim)
 
     @property
     def edge_weight_fields(self):
+        """ edge_weight_fields
+        """
         return self._edge_weight_fields
 
     def forward(self, g, h):
@@ -731,8 +733,8 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
                     weights.append(th.ones_like(scores_etype))
 
                 scores.append(scores_etype)
-            scores=th.cat(scores)
-            weights = th.cat(weights) if len(weights) > 0 else []
+            scores = th.cat(scores)
+            weights = th.cat(weights)
             return (scores, weights)
 
 class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
@@ -747,6 +749,8 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
 
     @property
     def edge_weight_fields(self):
+        """ edge_weight_fields
+        """
         return self._edge_weight_fields
 
     def forward(self, g, h): # pylint: disable=arguments-differ
@@ -768,15 +772,10 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
                 dest_emb = h[dest_type][v]
                 scores_etype = calc_dot_pos_score(src_emb, dest_emb)
 
-                if self.training:
-                    # do train()
-                    weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
-                    weights.append(weight)
-                else:
-                    weights.append(th.ones_like(scores_etype))
-
+                weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
+                weights.append(weight)
                 scores.append(scores_etype)
 
             scores = th.cat(scores)
-            weights = th.cat(weights) if len(weights) > 0 else []
+            weights = th.cat(weights)
             return (scores, weights)
