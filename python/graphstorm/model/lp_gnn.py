@@ -120,8 +120,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             # We do not support edge feature in message passing.
             input_edges = pos_graph.edata[dgl.EID]
             print(input_edges)
-            # edge feats for (blocks, pos_graph, neg_graph)
-            input_edge_feats = (None, data.get_edge_feats(input_edges, device), None)
+            input_edge_feats = data.get_edge_feats(input_edges, device)
 
             # store edge feature into pos_graph
             for etype, feat in input_edge_feats.items():

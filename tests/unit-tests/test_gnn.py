@@ -37,7 +37,8 @@ from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder, MLPEdgeDecoder,
                                            LinkPredictDotDecoder,
-                                           LinkPredictWeightedDotDecoder)
+                                           LinkPredictWeightedDotDecoder,
+                                           LinkPredictWeightedDistMultDecoder)
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnEdgeTrainData
 from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
@@ -711,6 +712,22 @@ def test_link_prediction_weight():
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, LinkPredictWeightedDotDecoder)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+        create_lp_config(Path(tmpdirname), 'gnn_lp.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                         local_rank=0,
+                         lp_edge_weight_for_loss=["weight"],
+                         lp_decoder_type="distmult",
+                         train_etype=[("n0,r0,n1"), ("n0,r1,n1")])
+        config = GSConfig(args)
+    model = create_builtin_lp_gnn_model(g, config, True)
+    assert model.gnn_encoder.num_layers == 1
+    assert model.gnn_encoder.out_dims == 4
+    assert isinstance(model.gnn_encoder, RelationalGATEncoder)
+    assert isinstance(model.decoder, LinkPredictWeightedDistMultDecoder)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 

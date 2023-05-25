@@ -689,9 +689,9 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
 
        When computing loss, edge weights are used to adjust the loss
     """
-    def __init__(self, in_dim, edge_weight_fields):
+    def __init__(self, etypes, h_dim, gamma=40., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
-        super(LinkPredictWeightedDistMultDecoder, self).__init__(in_dim)
+        super(LinkPredictWeightedDistMultDecoder, self).__init__(etypes, h_dim, gamma)
 
     @property
     def edge_weight_fields(self):

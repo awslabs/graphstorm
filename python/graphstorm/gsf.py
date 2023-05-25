@@ -43,7 +43,8 @@ from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import DenseBiDecoder, MLPEdgeDecoder
 from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
-                                 LinkPredictWeightedDotDecoder)
+                                 LinkPredictWeightedDotDecoder,
+                                 LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config, backend):
@@ -335,11 +336,19 @@ def create_builtin_lp_model(g, config, train_task):
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
             print("Using distmult objective for supervision")
-        decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
-                                             model.gnn_encoder.out_dims \
-                                                if model.gnn_encoder is not None \
-                                                else model.node_input_encoder.out_dims,
-                                             config.gamma)
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
+                                                model.gnn_encoder.out_dims \
+                                                    if model.gnn_encoder is not None \
+                                                    else model.node_input_encoder.out_dims,
+                                                config.gamma)
+        else:
+            decoder = LinkPredictWeightedDistMultDecoder(g.canonical_etypes,
+                                                model.gnn_encoder.out_dims \
+                                                    if model.gnn_encoder is not None \
+                                                    else model.node_input_encoder.out_dims,
+                                                config.gamma,
+                                                config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)
