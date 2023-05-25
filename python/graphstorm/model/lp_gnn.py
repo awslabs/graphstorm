@@ -17,9 +17,12 @@
 """
 import abc
 import torch as th
+import dgl
 
 from .gnn import GSgnnModel, GSgnnModelBase
 from ..eval.utils import calc_ranking
+from .edge_decoder import (LinkPredictWeightedDotDecoder,
+                           LinkPredictWeightedDistMultDecoder)
 
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
@@ -55,6 +58,38 @@ class GSgnnLinkPredictionModelInterface:
         The loss of prediction.
         """
 
+    def prepare_pos_graph(self, pos_graph, data, device):
+        """ Prepare edge features for pos_graph
+
+        This method should be called before forward().
+        This method is supposed to load any edge data from graph data into pos_graph
+
+        Parameters
+        ----------
+        pos_graph: DGLGraph
+            Positive graph containing positive edges.
+        data: GSgnnData
+            Graph data.
+        device: torch device
+            Device to store data.
+        """
+
+    def prepare_neg_graph(self, neg_graph, data, device):
+        """ Prepare edge features for neg_graph
+
+        This method should be called before forward().
+        This method is supposed to load any edge data from graph data into neg_graph
+
+        Parameters
+        ----------
+        neg_graph: DGLGraph
+            Negative graph containing negative edges.
+        data: GSgnnData
+            Graph data.
+        device: torch device
+            Device to store data.
+        """
+
 class GSgnnLinkPredictionModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
                                    GSgnnLinkPredictionModelInterface):
     """ The base class for link-prediction GNN
@@ -74,9 +109,26 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
     alpha_l2norm : float
         The alpha for L2 normalization.
     """
-    def __init__(self, alpha_l2norm, edge_weight_for_loss=None):
+    def __init__(self, alpha_l2norm):
         super(GSgnnLinkPredictionModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
+
+    def prepare_pos_graph(self, pos_graph, data, device):
+        if isinstance(self.decoder, (LinkPredictWeightedDotDecoder,
+                                     LinkPredictWeightedDistMultDecoder)):
+            # We only extract edge feature (edge weight) for pos_graph if any
+            # We do not support edge feature in message passing.
+            input_edges = pos_graph.edata[dgl.EID]
+            print(input_edges)
+            # edge feats for (blocks, pos_graph, neg_graph)
+            input_edge_feats = (None, data.get_edge_feats(input_edges, device), None)
+
+            # store edge feature into pos_graph
+            for etype, feat in input_edge_feats.items():
+                weight_field = self.decoder.edge_weight_fields[etype] \
+                    if isinstance(self.decoder.edge_weight_fields, dict) \
+                    else self.decoder.edge_weight_fields
+                pos_graph.edges[etype].data[weight_field] = feat
 
     def forward(self, blocks, pos_graph,
         neg_graph, node_feats, _, input_nodes=None):

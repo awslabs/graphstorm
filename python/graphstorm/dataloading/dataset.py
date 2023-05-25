@@ -190,12 +190,12 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned node features.
+        dict of Tensors : The returned edge features.
         """
         g = self._g
         if not isinstance(input_edges, dict):
             assert len(g.canonical_etypes) == 1, \
-                    "We don't know the input node type, but the graph has more than one node type."
+                    "We don't know the input edge type, but the graph has more than one edge type."
             input_edges = {g.canonical_etypes[0]: input_edges}
         return prepare_batch_edge_input(g, input_edges, dev=device,
                                         feat_field=self._edge_feat_field)

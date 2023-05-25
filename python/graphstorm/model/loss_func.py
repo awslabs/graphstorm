@@ -141,6 +141,10 @@ class WeightedLinkPredictLossFunc(GSLayer):
     def forward(self, pos_score, neg_score):
         """ The forward function.
         """
+        assert len(pos_score) == 2, \
+            "Pos score must include score and weight " \
+            "Please use LinkPredictWeightedDistMultDecoder or " \
+            "LinkPredictWeightedDotDecoder"
         pos_score, pos_weight = pos_score
         score = th.cat([pos_score, neg_score])
         label = th.cat([th.ones_like(pos_score), th.zeros_like(neg_score)])

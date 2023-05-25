@@ -1191,6 +1191,8 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_edge_weight_for_loss"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Edge weight for loss only works with link prediction"
             edge_weights = self._lp_edge_weight_for_loss
             if len(edge_weights) == 1 and \
                 ":" not in edge_weights[0]:
@@ -1675,6 +1677,13 @@ def _add_link_prediction_args(parser):
             default=argparse.SUPPRESS,
             help="Used in DistMult score func"
     )
+    group.add_argument("--lp-edge-weight-for-loss", nargs='+', type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name for edge weights. It can be in following format: "
+            "1) '--lp-edge-weight-for-loss feat_name': global feature name, "
+            "if all edge types use the same edge weight field."
+            "The corresponding feature name is <feat_name>"
+            "2)'--lp-edge-weight-for-loss query,adds,asin:weight0 query,clicks,asin:weight1 ..."
+            "Different edge types have different weight fields.")
 
     return parser
 

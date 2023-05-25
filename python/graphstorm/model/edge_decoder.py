@@ -640,6 +640,101 @@ class LinkPredictDistMultDecoder(GSLayer):
         """
         return 1
 
+def _get_edge_weight(g, edge_weight_fields, etype):
+    """ Get the edge weight feature from g according to etype.
+        If the corresponding edge type does not have edge weight, set the weight to 1.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            Graph.
+        edge_weight_fields: str or dict
+            Edge weight feature field(s) in a graph
+        etype: (str, str, str)
+            Canonical etype
+    """
+    if isinstance(edge_weight_fields, dict):
+        if etype in edge_weight_fields:
+            # current etype has weight
+            weight_field = edge_weight_fields[etype]
+            assert weight_field in g.edges[etype].data, \
+                f"pos_graph must have {weight_field} feature"
+
+            eid = g.edges(form="eid", etype=etype)
+            weight = g.edges[etype].data[weight_field][eid]
+            weight = weight.flatten()
+            assert len(weight) == len(eid), \
+                "Edge weight must be a tensor of shape (num_edges,) " \
+                f"or (num_edges, 1). But get {g.edges[etype].data[weight_field].shape}"
+        else:
+            # current etype does not has weight
+            weight = th.ones((g.num_edges(etype),))
+    else:
+        weight_field = edge_weight_fields
+        if weight_field in g.edges[etype].data:
+            eid = g.edges(form="eid", etype=etype)
+            weight = g.edges[etype].data[weight_field][eid]
+            weight = weight.flatten()
+            assert len(weight) == len(eid), \
+                 "Edge weight must be a tensor of shape (num_edges,) " \
+                f"or (num_edges, 1). But get {g.edges[etype].data[weight_field].shape}"
+        else:
+            # current etype does not has weight
+            weight = th.ones((g.num_edges(etype),))
+    return weight
+
+class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
+    """Link prediction decoder with the score function of DistMult
+       with edge weight.
+
+       When computing loss, edge weights are used to adjust the loss
+    """
+    def __init__(self, in_dim, edge_weight_fields):
+        self._edge_weight_fields = edge_weight_fields
+        super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
+
+    @property
+    def edge_weight_fields(self):
+        return self._edge_weight_fields
+
+    def forward(self, g, h):
+        """Forward function.
+
+        This computes the DistMult score on every edge type.
+        """
+        with g.local_scope():
+            scores=[]
+            weights = []
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                i = self.etype2rid[canonical_etype]
+                self.trained_rels[i] += 1
+                rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
+                rel_embedding = rel_embedding.unsqueeze(dim=1)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                src_emb = h[src_type][u]
+
+                dest_emb = h[dest_type][v]
+                rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
+                scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
+
+                if self.training:
+                    # do train()
+                    weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
+
+                    weights.append(weight)
+                else:
+                    weights.append(th.ones_like(scores_etype))
+
+                scores.append(scores_etype)
+            scores=th.cat(scores)
+            weights = th.cat(weights) if len(weights) > 0 else []
+            return (scores, weights)
+
 class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
     """Link prediction decoder with the score function of dot product
        with edge weight.
@@ -649,6 +744,10 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
     def __init__(self, in_dim, edge_weight_fields):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
+
+    @property
+    def edge_weight_fields(self):
+        return self._edge_weight_fields
 
     def forward(self, g, h): # pylint: disable=arguments-differ
         """Forward function.
@@ -671,11 +770,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
 
                 if self.training:
                     # do train()
-                    eid = g.edges(form="eid", etype=canonical_etype)
-                    weight_field = self._edge_weight_fields[canonical_etype] \
-                        if isinstance(self._edge_weight_fields, dict) \
-                        else self._edge_weight_fields
-                    weight = g.edges[canonical_etype].data[weight_field][eid]
+                    weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
                     weights.append(weight)
                 else:
                     weights.append(th.ones_like(scores_etype))
