@@ -20,6 +20,8 @@ import torch as th
 import dgl
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from .edge_decoder import EDGE_DECODER_FEAT
+from .edge_decoder import MLPEFeatEdgeDecoder
 
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
@@ -98,6 +100,18 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
     def __init__(self, alpha_l2norm):
         super(GSgnnEdgeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
+
+    def prepare_batch_graph(self, batch_graph, data, device):
+        if isinstance(self.decoder, (MLPEFeatEdgeDecoder)):
+            # We only extract edge feature for batch_graph if any
+            # We do not support edge feature in message passing.
+            input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
+                           for etype in batch_graph.canonical_etypes}
+            input_edge_feats = data.get_edge_feats(input_edges, device)
+
+            # store edge feature into pos_graph
+            for etype, feat in input_edge_feats.items():
+                batch_graph.edges[etype].data[EDGE_DECODER_FEAT] = feat
 
     def forward(self, blocks, batch_graph, node_feats, _,
         labels, input_nodes=None):

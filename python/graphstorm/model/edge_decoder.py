@@ -25,6 +25,8 @@ from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score
 from ..eval.utils import calc_distmult_neg_head_score, calc_distmult_neg_tail_score
 
+EDGE_DECODER_FEAT = 'decoder_efeat'
+
 # TODO(zhengda) we need to split it into classifier and regression.
 class DenseBiDecoder(GSLayer):
     r"""Dense bi-linear decoder.
@@ -275,6 +277,169 @@ class MLPEdgeDecoder(GSLayer):
         int : the number of output dimensions.
         """
         return 1 if self.regression else self.out_dim
+
+class MLPEFeatEdgeDecoder(GSLayer):
+    """ MLP based edge classificaiton/regression decoder
+
+    Parameters
+    ----------
+    h_dim : int
+        The input dim of decoder. It is the dim of source or destinatioin node embeddings.
+    feat_dim : int
+        The input dim of edge features which are used with NN output.
+    out_dim : int
+        Output dim. e.g., number of classes
+    multilabel : bool
+        Whether this is a multilabel classification.
+    target_etype : tuple of str
+        Target etype for prediction
+    regression : Bool
+        If this is true then we perform regression
+    dropout: float
+        Dropout
+    """
+    def __init__(self,
+                 h_dim,
+                 feat_dim,
+                 out_dim,
+                 multilabel,
+                 target_etype,
+                 dropout=0,
+                 regression=False):
+        super(MLPEFeatEdgeDecoder, self).__init__()
+        self.h_dim = h_dim
+        self.feat_dim = feat_dim
+        self.multilabel = multilabel
+        self.out_dim = h_dim if regression else out_dim
+        self.target_etype = target_etype
+        self.regression = regression
+        self.relu = th.nn.ReLU()
+
+        # [src_emb | dest_emb] @ W -> h_dim
+        # Here we assume the source and destination nodes have the same dimension.
+        self.nn_decoder = nn.Parameter(th.randn(h_dim * 2, h_dim))
+        # [edge_feat] @ W -> h_dim
+        self.feat_decoder = nn.Parameter(th.randn(feat_dim, h_dim))
+        # combine output of nn_decoder and feat_decoder
+        self.combine_decoder = nn.Parameter(th.randn(h_dim * 2, h_dim))
+        self.decoder = nn.Parameter(th.randn(h_dim, out_dim))
+        self.dropout = nn.Dropout(dropout)
+
+
+        nn.init.xavier_uniform_(self.nn_decoder,
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self.feat_decoder,
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self.combine_decoder,
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self.decoder,
+                                gain=nn.init.calculate_gain('relu'))
+        if regression:
+            self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
+
+    def forward(self, g, h):
+        """Forward function.
+
+        Compute logits for each pair ``(ufeat[i], ifeat[i])``.
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+        Returns
+        -------
+        th.Tensor
+            Predicting scores for each user-movie edge. Shape: (B, num_classes)
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+            efeat = g.edges[self.target_etype].data[EDGE_DECODER_FEAT]
+
+            # [src_emb | dest_emb] @ W -> h_dim
+            h = th.cat([ufeat, ifeat], dim=1)
+            nn_h = th.matmul(h, self.nn_decoder)
+            nn_h = self.relu(nn_h)
+            nn_h = self.dropout(nn_h)
+            # [edge_feat] @ W -> h_dim
+            feat_h = th.matmul(efeat, self.feat_decoder)
+            feat_h = self.relu(feat_h)
+            feat_h = self.dropout(feat_h)
+            # [nn_h | feat_h] @ W -> h_dim
+            combine_h = th.cat([nn_h, feat_h], dim=1)
+            combine_h = th.matmul(combine_h, self.combine_decoder)
+            combine_h = self.relu(combine_h)
+            out = th.matmul(combine_h, self.decoder)
+
+            if self.regression:
+                out = self.regression_head(out)
+
+        return out
+
+    def predict(self, g, h):
+        """predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : the scores of each edge.
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+            efeat = g.edges[self.target_etype].data[EDGE_DECODER_FEAT]
+
+            # [src_emb | dest_emb] @ W -> h_dim
+            h = th.cat([ufeat, ifeat], dim=1)
+            nn_h = th.matmul(h, self.nn_decoder)
+            nn_h = self.relu(nn_h)
+            # [edge_feat] @ W -> h_dim
+            feat_h = th.matmul(efeat, self.feat_decoder)
+            feat_h = self.relu(feat_h)
+            # [nn_h | feat_h] @ W -> h_dim
+            combine_h = th.cat([nn_h, feat_h], dim=1)
+            combine_h = th.matmul(combine_h, self.combine_decoder)
+            combine_h = self.relu(combine_h)
+            out = th.matmul(combine_h, self.decoder)
+
+            if self.regression:
+                out = self.regression_head(out)
+            elif self.multilabel:
+                out = out.argmax(dim=1)
+
+        return out
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return self.h_dim
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return 1 if self.regression else self.out_dim
+
 
 class LinkPredictDotDecoder(GSLayerNoParam):
     """ Link prediction decoder with the score function of dot product

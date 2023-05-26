@@ -51,10 +51,12 @@ def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    # edge predict only handle edge feature in decoder
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.target_etype,
                                     node_feat_field=config.node_feat_name,
+                                    edge_feat_field=config.decoder_edge_feat,
                                     label_field=config.label_field)
     model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnEdgePredictionTrainer(model, gs.get_rank(),

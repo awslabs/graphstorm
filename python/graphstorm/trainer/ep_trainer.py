@@ -139,6 +139,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
 
+                model.module.prepare_batch_graph(batch_graph, data, device)
+
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, batch_graph, input_feats, None, lbl, input_nodes)
