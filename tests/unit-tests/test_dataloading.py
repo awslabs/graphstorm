@@ -622,7 +622,6 @@ def test_prepare_input():
     th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
-    '''
     test_GSgnnNodeData()
     test_GSgnnEdgeData()
     test_lp_dataloader()
@@ -634,6 +633,5 @@ if __name__ == '__main__':
     test_GSgnnLinkPredictionTestDataLoader(10, 20)
     test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
     test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
-    '''
 
     test_prepare_input()

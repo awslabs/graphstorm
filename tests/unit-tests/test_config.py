@@ -1184,8 +1184,8 @@ def test_lp_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 1.0
-        assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == "weight0"
-        assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == "weight1"
+        assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == ["weight0"]
+        assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == ["weight1"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
