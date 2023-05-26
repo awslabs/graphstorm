@@ -83,12 +83,25 @@ class GSgnnEdgePredictionInfer(GSInfer):
         assert len(infer_data.eval_etypes) == 1, \
             "GraphStorm only support single target edge type for training and inference"
 
-        target_ntypes = set()
-        for etype in infer_data.eval_etypes:
-            target_ntypes.add(etype[0])
-            target_ntypes.add(etype[2])
-        embs = {ntype: embs[ntype] for ntype in target_ntypes}
+        # do evaluation first
+        if do_eval:
+            test_start = time.time()
+            val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
+            sys_tracker.check('run evaluation')
+            if self.rank == 0:
+                self.log_print_metrics(val_score=val_score,
+                                       test_score=test_score,
+                                       dur_eval=time.time() - test_start,
+                                       total_steps=0)
+
         if save_embed_path is not None:
+            target_ntypes = set()
+            for etype in infer_data.eval_etypes:
+                target_ntypes.add(etype[0])
+                target_ntypes.add(etype[2])
+
+            # The order of the ntypes must be sorted
+            embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
             device = th.device(f"cuda:{self.dev_id}") \
                 if self.dev_id >= 0 else th.device("cpu")
             save_gsgnn_embeddings(save_embed_path, embs, self.rank,
@@ -102,27 +115,19 @@ class GSgnnEdgePredictionInfer(GSInfer):
             if edge_id_mapping_file is not None:
                 g = loader.data.g
                 etype = infer_data.eval_etypes[0]
-                pred_data = DistTensor((g.num_edges(etype), pred.shape[1]),
+                pred_shape = list(pred.shape)
+                pred_shape[0] = g.num_edges(etype)
+                pred_data = DistTensor(pred_shape,
                     dtype=pred.dtype, name='predict-'+'-'.join(etype),
                     part_policy=g.get_edge_partition_policy(etype),
                     # TODO: this makes the tensor persistent in memory.
                     persistent=True)
                 # edges that have predictions may be just a subset of the
                 # entire edge set.
-                pred_data[loader.target_eidx] = pred
+                pred_data[loader.target_eidx[etype]] = pred.cpu()
 
-                pred = shuffle_predict(pred_data, edge_id_mapping_file, self.rank,
+                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, self.rank,
                     th.distributed.get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)
         th.distributed.barrier()
         sys_tracker.check('save predictions')
-
-        if do_eval:
-            test_start = time.time()
-            val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
-            sys_tracker.check('run evaluation')
-            if self.rank == 0:
-                self.log_print_metrics(val_score=val_score,
-                                       test_score=test_score,
-                                       dur_eval=time.time() - test_start,
-                                       total_steps=0)

@@ -127,7 +127,15 @@ def main(args):
         model.prepare_input_encoder(train_data)
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
-        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
+        # only save node embeddings of nodes with node types from target_etype
+        target_ntypes = set()
+        for etype in config.target_etype:
+            target_ntypes.add(etype[0])
+            target_ntypes.add(etype[2])
+
+        # The order of the ntypes must be sorted
+        embs = {ntype: embeddings[ntype] for ntype in sorted(target_ntypes)}
+        save_embeddings(config.save_embed_path, embs, gs.get_rank(),
                         th.distributed.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)

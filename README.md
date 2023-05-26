@@ -1,4 +1,6 @@
 ## GraphStorm
+|[Document and Tutorial Site](https://github.com/awslabs/graphstorm/wiki) |
+
 GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
 It simplifies the development, training and deployment of GML models for industry-scale graphs
 by providing scalable training and inference pipelines of Graph Machine Learning (GML) models
@@ -17,6 +19,8 @@ provide their own model implementations and use GraphStorm training pipeline to 
 GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.13+, DGL 1.0 and transformers 4.3.0+.
 
 To install GraphStorm in your environment, you can clone the repository and run `python3 setup.py install` to install it. However, running GraphStorm in a distributed environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we highly recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to run GraphStorm. A guideline to build GraphStorm docker image and run it on Amazon EC2 can be found at [here](https://github.com/awslabs/graphstorm/tree/main/docker).
+
+Note: GraphStorm does not work with PyTorch 2.0+.
 
 ### Run GraphStorm with OGB datasets
 
@@ -104,6 +108,8 @@ python3 -m graphstorm.run.gs_link_prediction \
 
 ## Limitation
 GraphStorm framework only works on GPU environments. It was only tested on AWS instances equipped with NVidia GPUs including P4, V100, A10 and A100.
+
+Multiple samplers are not supported for PyTorch versions greater than 1.12. Please use `--num-samplers 0` when your PyTorch version is above 1.12. You can find more details [here](https://github.com/awslabs/graphstorm/issues/199).
 
 ## License
 This project is licensed under the Apache-2.0 License.

@@ -25,7 +25,7 @@ from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved
 from graphstorm.model.utils import _get_data_range
 from graphstorm.model.utils import _exchange_node_id_mapping
 from graphstorm.model.utils import shuffle_predict
-from graphstorm.gconstruct.utils import _save_maps
+from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
 from data_utils import generate_dummy_dist_graph
@@ -171,7 +171,7 @@ def run_dist_save_embeddings(model_path, emb, worker_rank,
         th.distributed.destroy_process_group()
 
 def run_dist_shuffle_predict(pred, worker_rank,
-    world_size, node_id_mapping_file, backend, conn):
+    world_size, node_id_mapping_file, type, backend, conn):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
     th.distributed.init_process_group(backend=backend,
@@ -181,7 +181,7 @@ def run_dist_shuffle_predict(pred, worker_rank,
     th.cuda.set_device(worker_rank)
     device = 'cuda:%d' % worker_rank
 
-    pred = shuffle_predict(pred, node_id_mapping_file, worker_rank, world_size, device)
+    pred = shuffle_predict(pred, node_id_mapping_file, type, worker_rank, world_size, device)
     conn.send(pred.detach().cpu().numpy())
 
     if worker_rank == 0:
@@ -194,18 +194,18 @@ def run_dist_shuffle_predict(pred, worker_rank,
 def test_shuffle_predict(num_embs, backend):
     import tempfile
 
-    # single embedding
+    # node_mapping is tensor
     with tempfile.TemporaryDirectory() as tmpdirname:
         pred, nid_mapping = gen_predict_with_nid_mapping(num_embs)
-        _save_maps(tmpdirname, "node_mapping", nid_mapping)
+        save_maps(tmpdirname, "node_mapping", nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         conn1, conn2 = mp.Pipe()
         p0 = ctx.Process(target=run_dist_shuffle_predict,
-                        args=(pred, 0, 2, nid_mapping_file, backend, conn2))
+                        args=(pred, 0, 2, nid_mapping_file, None, backend, conn2))
         conn3, conn4 = mp.Pipe()
         p1 = ctx.Process(target=run_dist_shuffle_predict,
-                        args=(pred, 1, 2, nid_mapping_file, backend, conn4))
+                        args=(pred, 1, 2, nid_mapping_file, None, backend, conn4))
 
         p0.start()
         p1.start()
@@ -226,6 +226,39 @@ def test_shuffle_predict(num_embs, backend):
         # Load saved embeddings
         assert_equal(pred[nid_mapping].numpy(), shuffled_pred)
 
+     # node mapping is a dict
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        pred, nid_mapping = gen_predict_with_nid_mapping(num_embs)
+        nid_mapping = {"node": nid_mapping}
+        save_maps(tmpdirname, "node_mapping", nid_mapping)
+        nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
+        ctx = mp.get_context('spawn')
+        conn1, conn2 = mp.Pipe()
+        p0 = ctx.Process(target=run_dist_shuffle_predict,
+                        args=(pred, 0, 2, nid_mapping_file, "node", backend, conn2))
+        conn3, conn4 = mp.Pipe()
+        p1 = ctx.Process(target=run_dist_shuffle_predict,
+                        args=(pred, 1, 2, nid_mapping_file, "node", backend, conn4))
+
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+
+        shuffled_pred_1 = conn1.recv()
+        shuffled_pred_2 = conn3.recv()
+        conn1.close()
+        conn2.close()
+        conn3.close()
+        conn4.close()
+
+        shuffled_pred = np.concatenate([shuffled_pred_1, shuffled_pred_2])
+
+        # Load saved embeddings
+        assert_equal(pred[nid_mapping["node"]].numpy(), shuffled_pred)
+
 # TODO: Only test gloo now
 # Will add test for nccl once we enable nccl
 @pytest.mark.parametrize("num_embs", [16, 17])
@@ -236,7 +269,7 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
     # single embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
         emb, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
-        _save_maps(tmpdirname, "node_mapping", nid_mapping)
+        save_maps(tmpdirname, "node_mapping", nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_dist_save_embeddings,
@@ -272,7 +305,7 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         embs['n2'] = emb
         nid_mappings['n2'] = nid_mapping
 
-        _save_maps(tmpdirname, "node_mapping", nid_mappings)
+        save_maps(tmpdirname, "node_mapping", nid_mappings)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_dist_save_embeddings,
