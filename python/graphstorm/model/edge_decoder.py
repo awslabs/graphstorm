@@ -164,7 +164,7 @@ class DenseBiDecoder(GSLayer):
             elif self._multilabel:
                 out = th.sigmoid(out)
             else:
-                out = th.softmax(out, 0)
+                out = th.softmax(out, 1)
         return out
 
     @property
@@ -256,7 +256,6 @@ class MLPEdgeDecoder(GSLayer):
             out = th.matmul(h, self.decoder)
             if self.regression:
                 out = self.regression_head(out)
-
         return out
 
     def predict(self, g, h):
@@ -273,8 +272,21 @@ class MLPEdgeDecoder(GSLayer):
         -------
         Tensor : the scores of each edge.
         """
-        out = self.forward(g, h)
-        return th.softmax(out, 0)
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+
+            h = th.cat([ufeat, ifeat], dim=1)
+            out = th.matmul(h, self.decoder)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self.multilabel:
+                out = (th.sigmoid(out) > .5).long()
+            else:  # not multilabel
+                out = out.argmax(dim=1)
+        return out
 
     def predict_proba(self, g, h):
         """Predict function for this decoder
@@ -290,7 +302,21 @@ class MLPEdgeDecoder(GSLayer):
         -------
         Tensor : the scores of each edge.
         """
-        return self.predict(g,h)
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+
+            h = th.cat([ufeat, ifeat], dim=1)
+            out = th.matmul(h, self.decoder)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self.multilabel:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 1)
+        return out
 
     @property
     def in_dims(self):

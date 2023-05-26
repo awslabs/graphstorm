@@ -91,7 +91,7 @@ class EntityClassifier(GSLayer):
         Tensor : all normalized predicted results
         """
         logits = th.matmul(inputs, self.decoder)
-        return th.sigmoid(logits) if self._multilabel else th.softmax(logits, 0)
+        return th.sigmoid(logits) if self._multilabel else th.softmax(logits, 1)
 
     @property
     def in_dims(self):
