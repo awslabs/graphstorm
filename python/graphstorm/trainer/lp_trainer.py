@@ -25,6 +25,7 @@ from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
+from ..utils import rt_profiler
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -121,34 +122,43 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
+            rt_profiler.check('init')
             for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(train_loader):
+                rt_profiler.check('sample')
                 total_steps += 1
                 batch_tic = time.time()
 
                 if not isinstance(input_nodes, dict):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
+                input_feats = data.get_node_feats(input_nodes, device)
+                rt_profiler.check('node_feats')
+
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
-                input_feats = data.get_node_feats(input_nodes, device)
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
+                rt_profiler.check('graph2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
                              input_feats, None, input_nodes)
+                rt_profiler.check('forward')
 
                 t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
+                rt_profiler.check('backward')
                 self.optimizer.step()
+                rt_profiler.check('step')
                 forward_time += (t3 - t2)
                 back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
                 if i % 20 == 0 and self.rank == 0:
+                    rt_profiler.print_stats()
                     print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
                             format(epoch, i, loss.item(), time.time() - batch_tic))
                     num_input_nodes = forward_time = back_time = 0
@@ -177,6 +187,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                         #    guidance of validation score.
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
+                rt_profiler.check('eval')
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break

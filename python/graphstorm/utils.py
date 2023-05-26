@@ -169,7 +169,12 @@ class SysTracker:
     """
     def __init__(self, verbose=True):
         self._checkpoints = []
-        self._rank = dgl.distributed.rpc.get_rank()
+        # Some system doesn't support DistDGL. We cannot run distributed training job
+        # on these systems.
+        try:
+            self._rank = dgl.distributed.rpc.get_rank()
+        except:
+            self._rank = 0
         self._verbose = verbose
 
     # This is to create only one instance.
@@ -211,4 +216,56 @@ class SysTracker:
                 checkpoint2[3]/1024/1024/1024, checkpoint2[5]/1024/1024/1024,
                 checkpoint2[6]/1024/1024/1024))
 
+class RuntimeProfiler:
+    """ This profiles the runtime performance.
+
+    It tracks the runtime.
+    """
+    def __init__(self, verbose=True):
+        self._checkpoints = []
+        self._runtime = {}
+        # Some system doesn't support DistDGL. We cannot run distributed training job
+        # on these systems.
+        try:
+            self._rank = dgl.distributed.rpc.get_rank()
+        except:
+            self._rank = 0
+        self._verbose = verbose
+
+    # This is to create only one instance.
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
+        """ Only create one instance.
+        """
+        if not isinstance(cls._instance, cls):
+            cls._instance = object.__new__(cls)
+
+        return cls._instance
+
+    def set_rank(self, rank):
+        """ Manually set rank.
+
+        This can be used if the system is not initialized correctly.
+        """
+        self._rank = rank
+
+    def check(self, name):
+        self._checkpoints.append((name, time.time()))
+        if len(self._checkpoints) >= 2:
+            checkpoint1 = self._checkpoints[-2]
+            checkpoint2 = self._checkpoints[-1]
+            runtime = checkpoint2[1] - checkpoint1[1]
+            name = checkpoint2[0]
+            if name not in self._runtime:
+                self._runtime[name] = [runtime]
+            else:
+                self._runtime[name].append(runtime)
+
+    def print_stats(self):
+        if self._rank == 0:
+            for name, runtimes in self._runtime.items():
+                print(name, sum(runtimes) / len(runtimes), "seconds")
+
 sys_tracker = SysTracker()
+rt_profiler = RuntimeProfiler()
