@@ -1254,7 +1254,7 @@ class GSConfig:
                     f"{etype} must in the training edge type list"
                 assert isinstance(weight_info[1], str), \
                     f"Feature name of {etype} should be a string not {weight_info[1]}"
-                weight_dict[etype] = weight_info[1]
+                weight_dict[etype] = [weight_info[1]]
             return weight_dict
 
         return None

@@ -124,9 +124,14 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
 
             # store edge feature into pos_graph
             for etype, feat in input_edge_feats.items():
-                weight_field = self.decoder.edge_weight_fields[etype] \
-                    if isinstance(self.decoder.edge_weight_fields, dict) \
-                    else self.decoder.edge_weight_fields
+                # self.decoder.edge_weight_fields can be a string
+                # or a dict of etype -> list of string, where the length of
+                # the list is 1.
+                # See graphstorm.config.GSConfig.lp_edge_weight_for_loss
+                # for more details.
+                weight_field = self.decoder.edge_weight_fields \
+                    if isinstance(self.decoder.edge_weight_fields, str) \
+                    else self.decoder.edge_weight_fields[etype][0]
                 pos_graph.edges[etype].data[weight_field] = feat
 
     def forward(self, blocks, pos_graph,
