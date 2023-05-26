@@ -5,8 +5,8 @@ paper data (`mag_papers_*.zip`). All data are stored in JSON format.
 
 To construct a graph for GNN training in GraphStorm, we need to preprocess the data
 and convert them to the format supported by GraphStorm in
-[here](https://github.com/awslabs/graphstorm/tree/main/python/graphstorm/gconstruct).
-This data preprocessing is done in the Notebook (`MAG_parser.ipynb`).
+[here](https://github.com/awslabs/graphstorm/wiki/tutorials-own-data#use-own-data).
+This data preprocessing is done in the Notebook (`MAG_parser.ipynb`) on a CPU machine.
 
 After the data preprocessing, we also need to run `ComputeBERTEmbed.ipynb` to compute
 BERT embeddings on the paper nodes and fos nodes. Please use a GPU machine to generate
