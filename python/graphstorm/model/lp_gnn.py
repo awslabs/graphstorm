@@ -118,8 +118,8 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
                                      LinkPredictWeightedDistMultDecoder)):
             # We only extract edge feature (edge weight) for pos_graph if any
             # We do not support edge feature in message passing.
-            input_edges = pos_graph.edata[dgl.EID]
-            print(input_edges)
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                           for etype in pos_graph.canonical_etypes}
             input_edge_feats = data.get_edge_feats(input_edges, device)
 
             # store edge feature into pos_graph

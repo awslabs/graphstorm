@@ -99,7 +99,7 @@ def prepare_batch_edge_input(g, input_edges,
         if feat_name is not None:
             # concatenate multiple features together
             feat[etypes] = th.cat([g.edges[etypes].data[fname][eid].to(dev) \
-                for fname in feat_name], dim=1)
+                for fname in feat_name], dim=-1)
     return feat
 
 class GSgnnData():
