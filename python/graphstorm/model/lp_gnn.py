@@ -126,7 +126,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             for etype, feat in input_edge_feats.items():
                 # self.decoder.edge_weight_fields can be a string
                 # or a dict of etype -> list of string, where the length of
-                # the list is 1.
+                # the list is always 1. (Only one edge weight)
                 # See graphstorm.config.GSConfig.lp_edge_weight_for_loss
                 # for more details.
                 weight_field = self.decoder.edge_weight_fields \
