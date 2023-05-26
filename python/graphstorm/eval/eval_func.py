@@ -209,10 +209,10 @@ def eval_acc(pred, labels):
     """
     if pred.dim() > 1:
         # if pred has dimension > 1, it has full logits instead of final prediction
-        assert th.is_floating_point(pred4)
+        assert th.is_floating_point(pred)
         pred = pred.argmax(dim=1)
     # Check if pred is integer tensor
-    assert(not th.is_floating_point(pred4) and not th.is_complex(pred4))
+    assert(not th.is_floating_point(pred) and not th.is_complex(pred))
     return th.sum(pred.cpu() == labels.cpu()).item() / len(labels)
 
 
