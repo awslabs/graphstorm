@@ -24,6 +24,8 @@ import psutil
 import dgl
 import torch as th
 
+TORCH_MAJOR_VER = int(th.__version__.split('.')[0])
+
 def get_rank():
     """ Get rank of a process
     """
