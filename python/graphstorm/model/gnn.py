@@ -602,7 +602,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         return self._loss_fn
 
-def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask=None,
+def do_full_graph_inference(model, data, batch_size=10240, fanout=None, edge_mask=None,
                             task_tracker=None):
     """ Do fullgraph inference
 
