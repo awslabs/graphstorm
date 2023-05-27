@@ -122,9 +122,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
-            rt_profiler.check('init')
+            rt_profiler.record('train_init')
             for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(train_loader):
-                rt_profiler.check('sample')
+                rt_profiler.record('train_sample')
                 total_steps += 1
                 batch_tic = time.time()
 
@@ -132,27 +132,27 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
-                rt_profiler.check('node_feats')
+                rt_profiler.record('train_node_feats')
 
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
-                rt_profiler.check('graph2GPU')
+                rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
                              input_feats, None, input_nodes)
-                rt_profiler.check('forward')
+                rt_profiler.record('train_forward')
 
                 t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
-                rt_profiler.check('backward')
+                rt_profiler.record('train_backward')
                 self.optimizer.step()
-                rt_profiler.check('step')
+                rt_profiler.record('train_step')
                 forward_time += (t3 - t2)
                 back_time += (time.time() - t3)
 
@@ -187,7 +187,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                         #    guidance of validation score.
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
-                rt_profiler.check('eval')
+                rt_profiler.record('train_eval')
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break
@@ -221,6 +221,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if early_stop is True:
                 break
 
+        rt_profiler.save_profile()
         print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,

@@ -223,7 +223,7 @@ class RuntimeProfiler:
 
     It tracks the runtime.
     """
-    def __init__(self, verbose=True):
+    def __init__(self, profile_path=None):
         self._checkpoints = []
         self._runtime = {}
         # Some system doesn't support DistDGL. We cannot run distributed training job
@@ -232,7 +232,7 @@ class RuntimeProfiler:
             self._rank = dgl.distributed.rpc.get_rank()
         except:
             self._rank = 0
-        self._verbose = verbose
+        self._profile_path = profile_path
 
     # This is to create only one instance.
     _instance = None
@@ -252,7 +252,17 @@ class RuntimeProfiler:
         """
         self._rank = rank
 
-    def check(self, name):
+    def set_profile_path(self, path):
+        """ Set the profile path.
+
+        Setting the profile path enables profiling.
+        """
+        self._profile_path = path
+
+    def record(self, name):
+        if self._profile_path is None:
+            return
+
         self._checkpoints.append((name, time.time()))
         if len(self._checkpoints) >= 2:
             checkpoint1 = self._checkpoints[-2]
@@ -265,9 +275,15 @@ class RuntimeProfiler:
                 self._runtime[name].append(runtime)
 
     def print_stats(self):
-        if self._rank == 0:
+        if self._rank == 0 and self._profile_path is not None:
             for name, runtimes in self._runtime.items():
                 print(name, sum(runtimes) / len(runtimes), "seconds")
+
+    def save_profile(self):
+        if self._profile_path is not None:
+            for name in self._runtime:
+                self._runtime[name] = np.array(self._runtime[name])
+            np.save(self._profile_path, self._runtime)
 
 sys_tracker = SysTracker()
 rt_profiler = RuntimeProfiler()
