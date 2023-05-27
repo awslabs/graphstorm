@@ -128,8 +128,8 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                             shuffle=False,
                                                             drop_last=False)
 
-            start = time.time()
             th.distributed.barrier()
+            start = time.time()
             for iter_l, (input_nodes, output_nodes, blocks) in enumerate(tqdm.tqdm(dataloader)):
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
