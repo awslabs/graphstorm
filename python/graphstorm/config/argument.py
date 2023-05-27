@@ -1574,7 +1574,7 @@ def _add_node_classification_args(parser):
             "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
     group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
                        help="The cardinality of labels in a classifiction task")
-    group.add_argument("--return-proba", type=bool, default=True,
+    group.add_argument("--return-proba", type=bool, default=argparse.SUPPRESS,
                        help="Whether to return the probabilities of all the predicted \
                        results or only the maximum one. Set True to return the \
                        probabilities. Set False to return the maximum one.")

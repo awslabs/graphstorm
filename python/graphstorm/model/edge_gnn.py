@@ -130,7 +130,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-    def predict(self, blocks, batch_graph, node_feats, _, input_nodes, return_proba):
+    def predict(self, blocks, batch_graph, node_feats, _, input_nodes, return_proba=False):
         """ Make prediction on edges.
         """
         if blocks is None or len(blocks) == 0:

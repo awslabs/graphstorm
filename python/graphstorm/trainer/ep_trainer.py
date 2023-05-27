@@ -52,8 +52,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             save_model_path=None,
             save_model_frequency=None,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0,
-            return_proba=True):
+            freeze_input_layer_epochs=0):
         """ The fit function for edge prediction.
 
         Parameters
@@ -79,8 +78,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             Freeze input layer model for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
-        return_proba: bool
-            Whether to return all the predicted results or the maximum prediction.
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -165,7 +162,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(model.module, val_loader, test_loader,
-                                          use_mini_batch_infer, total_steps, return_proba)
+                                          use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -199,7 +196,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module, val_loader, test_loader, use_mini_batch_infer,
-                                      total_steps, return_proba)
+                                      total_steps, return_proba=False)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
