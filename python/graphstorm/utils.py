@@ -23,6 +23,7 @@ import psutil
 
 import dgl
 import torch as th
+import numpy as np
 
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 
@@ -283,7 +284,9 @@ class RuntimeProfiler:
         if self._profile_path is not None:
             for name in self._runtime:
                 self._runtime[name] = np.array(self._runtime[name])
-            np.save(self._profile_path, self._runtime)
+            profile_path = os.path.join(self._profile_path, f"{self._rank}.npy")
+            np.save(profile_path, self._runtime)
+            print(f"save profiling in {profile_path}")
 
 sys_tracker = SysTracker()
 rt_profiler = RuntimeProfiler()
