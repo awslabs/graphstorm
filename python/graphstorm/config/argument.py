@@ -1135,7 +1135,7 @@ class GSConfig:
                 assert len(feat_info) == 2, \
                         f"Unknown format of the feature name: {feat_name}, " + \
                         "must be EDGE_TYPE:FEAT_NAME"
-                etype = feat_info[0].split(",")
+                etype = tuple(feat_info[0].split(","))
                 assert etype in self.target_etype, \
                     f"{etype} must in the training edge type list {self.target_etype}"
 

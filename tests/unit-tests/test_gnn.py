@@ -497,7 +497,7 @@ def test_edge_classification():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def test_edge_classification_weight():
+def test_edge_classification_feat():
     """ Test logic of building a edge classification model
     """
     # initialize the torch distributed environment
@@ -511,7 +511,7 @@ def test_edge_classification_weight():
         create_ec_config(Path(tmpdirname), 'gnn_ec.yaml')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                          local_rank=0,
-                         decoder_edge_feat="feat",
+                         decoder_edge_feat=["feat"],
                          decoder_type="MLPEFeatEdgeDecoder")
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
@@ -552,7 +552,7 @@ def test_edge_classification_weight():
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
     assert isinstance(model.decoder, MLPEFeatEdgeDecoder)
-    assert model.decoder.feat_dim == 2
+    assert model.decoder.feat_dim == 4
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 

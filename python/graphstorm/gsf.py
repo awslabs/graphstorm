@@ -245,8 +245,8 @@ def create_builtin_edge_model(g, config, train_task):
                 assert decoder_edge_feat in g.edges[target_etype].data
                 feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
             else:
-                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1]] \
-                    for fname in decoder_edge_feat[target_etype])
+                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]])
 
             decoder = MLPEFeatEdgeDecoder(
                 h_dim=model.gnn_encoder.out_dims \
