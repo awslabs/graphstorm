@@ -160,5 +160,5 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
             th.distributed.barrier()
             end = time.time()
             if get_rank() == 0:
-                print(f"[Dist Inference] Eval time: {end-start}")
+                print(f"[Dist Inference] Infer time: {end-start}")
     return y
