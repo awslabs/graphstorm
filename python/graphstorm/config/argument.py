@@ -1144,8 +1144,6 @@ class GSConfig:
                         f"You already specify the feature names of {etype}" \
                         f"as {fname_dict[etype]}"
 
-                assert isinstance(feat_info[1], str), \
-                    f"Feature name of {etype} should be a string not {feat_info[1]}"
                 fname_dict[etype] = feat_info[1].split(",")
             return fname_dict
 
