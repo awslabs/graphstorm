@@ -122,7 +122,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
             sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout_i, mask=edge_mask)
             dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
                                                             batch_size=batch_size,
-                                                            shuffle=True,
+                                                            shuffle=False,
                                                             drop_last=False)
 
             for iter_l, (input_nodes, output_nodes, blocks) in enumerate(tqdm.tqdm(dataloader)):
