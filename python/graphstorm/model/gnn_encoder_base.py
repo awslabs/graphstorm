@@ -16,15 +16,12 @@
     Relational GNN
 """
 import tqdm
-import time
 
 import dgl
 import torch as th
 from torch import nn
 from dgl.distributed import DistTensor, node_split
 from .gs_layer import GSLayer
-
-from ..utils import get_rank
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -128,8 +125,6 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                             shuffle=False,
                                                             drop_last=False)
 
-            th.distributed.barrier()
-            start = time.time()
             for iter_l, (input_nodes, output_nodes, blocks) in enumerate(tqdm.tqdm(dataloader)):
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
@@ -158,7 +153,4 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
 
             x = y
             th.distributed.barrier()
-            end = time.time()
-            if get_rank() == 0:
-                print(f"[Dist Inference] Infer time: {end-start}")
     return y
