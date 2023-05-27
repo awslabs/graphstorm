@@ -46,6 +46,7 @@ from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
 from .utils import get_graph_name
+from ..utils import TORCH_MAJOR_VER
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -70,12 +71,20 @@ def get_argument_parser():
         required=True,
     )
 
-    parser.add_argument(
-        "--local_rank",
-        type=int,
-        default=-1,
-        help="local_rank for distributed training on gpus",
-    )
+    if TORCH_MAJOR_VER >= 2:
+        parser.add_argument(
+                "--local-rank",
+                type=int,
+                default=-1,
+                help="local_rank for distributed training on gpus",
+                )
+    else:
+        parser.add_argument(
+                "--local_rank",
+                type=int,
+                default=-1,
+                help="local_rank for distributed training on gpus",
+                )
 
     # Optional parameters to override arguments in yaml config
     parser = _add_initialization_args(parser)
