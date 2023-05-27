@@ -731,7 +731,7 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
                     # do train()
                     weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
 
-                    weights.append(weight)
+                    weights.append(weight.to(scores_etype.device))
                 else:
                     weights.append(th.ones_like(scores_etype))
 
@@ -776,7 +776,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
                 scores_etype = calc_dot_pos_score(src_emb, dest_emb)
 
                 weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
-                weights.append(weight)
+                weights.append(weight.to(scores_etype.device))
                 scores.append(scores_etype)
 
             scores = th.cat(scores)
