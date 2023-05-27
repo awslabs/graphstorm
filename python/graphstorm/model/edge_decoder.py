@@ -819,22 +819,25 @@ def _get_edge_weight(g, edge_weight_fields, etype):
             Canonical etype
     """
     if isinstance(edge_weight_fields, dict):
+        # We restrict edge_weight_fields to a dict of
+        # etype -> list of string, where the length of
+        # the list is always 1. (Only one edge weight)
         if etype in edge_weight_fields:
             # current etype has weight
-            weight_field = edge_weight_fields[etype]
-            assert weight_field in g.edges[etype].data, \
-                f"pos_graph must have {weight_field} feature"
-
-            eid = g.edges(form="eid", etype=etype)
-            weight = g.edges[etype].data[weight_field][eid]
-            weight = weight.flatten()
-            assert len(weight) == len(eid), \
-                "Edge weight must be a tensor of shape (num_edges,) " \
-                f"or (num_edges, 1). But get {g.edges[etype].data[weight_field].shape}"
+            weight_field = edge_weight_fields[etype][0]
+            if weight_field in g.edges[etype].data:
+                eid = g.edges(form="eid", etype=etype)
+                weight = g.edges[etype].data[weight_field][eid]
+                weight = weight.flatten()
+                assert len(weight) == len(eid), \
+                    "Edge weight must be a tensor of shape (num_edges,) " \
+                    f"or (num_edges, 1). But get {g.edges[etype].data[weight_field].shape}"
+            else: # weight_field not in g, it is a neg_graph
+                weight = th.ones((g.num_edges(etype),))
         else:
             # current etype does not has weight
             weight = th.ones((g.num_edges(etype),))
-    else:
+    else: # edge_weight_fields is a str
         weight_field = edge_weight_fields
         if weight_field in g.edges[etype].data:
             eid = g.edges(form="eid", etype=etype)

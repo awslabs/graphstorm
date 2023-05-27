@@ -121,12 +121,11 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                            for etype in pos_graph.canonical_etypes}
             input_edge_feats = data.get_edge_feats(input_edges, device)
-
             # store edge feature into pos_graph
             for etype, feat in input_edge_feats.items():
                 # self.decoder.edge_weight_fields can be a string
                 # or a dict of etype -> list of string, where the length of
-                # the list is 1.
+                # the list is always 1. (Only one edge weight)
                 # See graphstorm.config.GSConfig.lp_edge_weight_for_loss
                 # for more details.
                 weight_field = self.decoder.edge_weight_fields \
