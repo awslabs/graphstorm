@@ -109,6 +109,8 @@ python3 -m graphstorm.run.gs_link_prediction \
 ## Limitation
 GraphStorm framework only works on GPU environments. It was only tested on AWS instances equipped with NVidia GPUs including P4, V100, A10 and A100.
 
+Multiple samplers are not supported for PyTorch versions greater than 1.12. Please use `--num-samplers 0` when your PyTorch version is above 1.12. You can find more details [here](https://github.com/awslabs/graphstorm/issues/199).
+
 ## License
 This project is licensed under the Apache-2.0 License.
 
