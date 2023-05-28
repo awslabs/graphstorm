@@ -175,7 +175,7 @@ class SysTracker:
         # Some system doesn't support DistDGL. We cannot run distributed training job
         # on these systems.
         try:
-            self._rank = dgl.distributed.rpc.get_rank()
+            self._rank = get_rank()
         except:
             self._rank = 0
         self._verbose = verbose
@@ -208,7 +208,7 @@ class SysTracker:
                                   gmem_info.used, gmem_info.shared))
         # We need to get the right rank
         if self._rank < 0:
-            self._rank = dgl.distributed.rpc.get_rank()
+            self._rank = get_rank()
         if len(self._checkpoints) >= 2 and self._verbose and self._rank == 0:
             checkpoint1 = self._checkpoints[-2]
             checkpoint2 = self._checkpoints[-1]
@@ -230,7 +230,7 @@ class RuntimeProfiler:
         # Some system doesn't support DistDGL. We cannot run distributed training job
         # on these systems.
         try:
-            self._rank = dgl.distributed.rpc.get_rank()
+            self._rank = get_rank()
         except:
             self._rank = 0
         self._profile_path = profile_path
@@ -253,12 +253,20 @@ class RuntimeProfiler:
         """
         self._rank = rank
 
-    def set_profile_path(self, path):
-        """ Set the profile path.
+    def init(self, path, rank=None):
+        """ Initialize the profiler.
 
         Setting the profile path enables profiling.
         """
         self._profile_path = path
+        if rank is None:
+            try:
+                self._rank = get_rank()
+            except:
+                self._rank = 0
+        else:
+            self._rank = rank
+        print(f"******** profiling rank: {self._rank}")
 
     def record(self, name):
         if self._profile_path is None:

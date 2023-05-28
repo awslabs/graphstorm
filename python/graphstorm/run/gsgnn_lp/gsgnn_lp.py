@@ -44,7 +44,7 @@ def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    rt_profiler.set_profile_path(config.profile_path)
+    rt_profiler.init(config.profile_path, rank=gs.get_rank())
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.train_etype,

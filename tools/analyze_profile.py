@@ -39,11 +39,13 @@ if __name__ == '__main__':
                 all_profiles[name] = [arrs[name]]
             else:
                 all_profiles[name].append(arrs[name])
+
     for name in all_profiles:
         assert len(all_profiles[name]) == len(profile_files)
         for i in range(len(all_profiles[name])):
             assert len(all_profiles[name][i]) == len(all_profiles[name][0])
         profile = np.stack(all_profiles[name], axis=1)
+        print(f"There are {len(profile)} recordings for {name}.")
         avgs = []
         variances = []
         for i in range(len(profile)):
