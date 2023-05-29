@@ -1,0 +1,105 @@
+{
+	"nodes": [
+		{
+			"node_id_col":  "id",
+			"node_type":    "fos",
+			"format":       {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_fos_bert.parquet",
+			"features":     [
+				{
+					"feature_col":  "feat",
+					"feature_name": "feat"
+				}
+			]
+		},
+                {
+                       "node_id_col":  "paper",
+                       "node_type":    "paper",
+                       "format":       {"name": "hdf5"},
+                       "files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_papers_bert_*.hdf5",
+                       "features":     [
+                               {
+                                       "feature_col":  "feat",
+                                       "feature_name": "feat"
+                               },
+                               {
+                                       "feature_col":  "year",
+                                       "feature_name": "year"
+                               }
+                       ]
+                },
+		{
+			"node_id_col":  "id",
+			"node_type":    "author",
+			"format":       {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_author_id.parquet"
+		},
+		{
+			"node_id_col":  "id",
+			"node_type":    "venue",
+			"format":       {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_venue_id.parquet"
+		},
+		{
+			"node_id_col":  "id",
+			"node_type":    "affiliation",
+			"format":       {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_affs.parquet"
+		}
+	],
+	"edges": [
+		{
+			"source_id_col":    "author",
+			"dest_id_col":      "affiliation",
+			"relation":         ["author", "belong", "affiliation"],
+			"format":           {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_author2aff_*.parquet"
+		},
+		{
+			"source_id_col":    "author",
+			"dest_id_col":      "paper",
+			"relation":         ["author", "write", "paper"],
+			"format":           {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_paper2author_*.parquet",
+			"features":     [
+				{
+					"feature_col":  "order",
+					"feature_name": "order"
+				}
+			]
+		},
+		{
+			"source_id_col":    "venue",
+			"dest_id_col":      "paper",
+			"relation":         ["venue", "publish", "paper"],
+			"format":           {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_paper2venue_*.parquet"
+		},
+		{
+			"source_id_col":    "paper",
+			"dest_id_col":      "fos",
+			"relation":         ["paper", "is", "fos"],
+			"format":           {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_paper2fos_*.parquet",
+			"features":     [
+				{
+					"feature_col":  "w",
+					"feature_name": "w"
+				}
+			],
+			"labels":	[
+				{
+					"task_type":	"link_prediction",
+					"split_pct":   [0.8, 0.1, 0.1]
+				}
+			]
+		},
+		{
+			"source_id_col":    "src_paper",
+			"dest_id_col":      "dst_paper",
+			"relation":         ["paper", "cite", "paper"],
+			"format":           {"name": "parquet"},
+			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_paper2paper_*.parquet"
+		}
+	]
+}
