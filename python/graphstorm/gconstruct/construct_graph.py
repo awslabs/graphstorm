@@ -413,6 +413,36 @@ def get_log_level(log_level):
         raise ValueError(f"Unknown logging level {log_level}. " + \
                 "The possible values are: debug, info, warning, error.")
 
+def print_graph_info(g):
+    logging.info("The graph has %d node types and %d edge types.",
+                 len(g.ntypes), len(g.etypes))
+    for ntype in g.ntypes:
+        feat_names = list(g.nodes[ntype].data.keys())
+        logging.info("Node type %s has %d nodes with features: %s.",
+                     ntype, g.number_of_nodes(ntype), str(feat_names))
+        num_train = th.sum(g.nodes[ntype].data["train_mask"]) \
+                if "train_mask" in g.nodes[ntype].data else 0
+        num_val = th.sum(g.nodes[ntype].data["val_mask"]) \
+                if "val_mask" in g.nodes[ntype].data else 0
+        num_test = th.sum(g.nodes[ntype].data["test_mask"]) \
+                if "test_mask" in g.nodes[ntype].data else 0
+        if num_train + num_val + num_test > 0:
+            logging.info("Train/val/test on %s: %d, %d, %d",
+                         ntype, num_train, num_val, num_test)
+    for etype in g.canonical_etypes:
+        feat_names = list(g.edges[etype].data.keys())
+        logging.info("Edge type %s has %d edges with features: %s.",
+                     str(etype), g.number_of_edges(etype), str(feat_names))
+        num_train = th.sum(g.edges[etype].data["train_mask"]) \
+                if "train_mask" in g.edges[etype].data else 0
+        num_val = th.sum(g.edges[etype].data["val_mask"]) \
+                if "val_mask" in g.edges[etype].data else 0
+        num_test = th.sum(g.edges[etype].data["test_mask"]) \
+                if "test_mask" in g.edges[etype].data else 0
+        if num_train + num_val + num_test > 0:
+            logging.info("Train/val/test on %s: %d, %d, %d",
+                         str(etype), num_train, num_val, num_test)
+
 def process_graph(args):
     """ Process the graph.
     """
@@ -449,12 +479,7 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    logging.info("The graph has %d node types and %d edge types.",
-                 len(g.ntypes), len(g.etypes))
-    for ntype in g.ntypes:
-        logging.info("Node type %s has %d nodes.", ntype, g.number_of_nodes(ntype))
-    for etype in g.canonical_etypes:
-        logging.info("Edge type %s has %d edges.", str(etype), g.number_of_edges(etype))
+    print_graph_info(g)
     sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
