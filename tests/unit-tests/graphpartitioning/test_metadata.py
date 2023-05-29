@@ -23,7 +23,7 @@ import numpy as np
 import pytest
 import torch
 
-from python.graphstorm.graphpartitioning.metadata_schema import MetadataSchema
+from graphstorm.graphpartitioning.metadata_schema import MetadataSchema
 from graph_dataset import *
 
 

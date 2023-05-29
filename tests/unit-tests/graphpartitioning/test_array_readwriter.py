@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 import torch
 
-from graphpartitioning import array_readwriter
+from graphstorm.graphpartitioning import array_readwriter
 
 
 @pytest.mark.parametrize(
@@ -42,6 +42,12 @@ def test_array_readwriter(format, shape):
         assert original_array.shape == array.shape
         assert np.array_equal(original_array, array)
 
+@pytest.mark.parametrize(
+    "shape", [[500, 1], [300, 10]]
+)
+def test_csv_array_readwriter(shape):
+    test_array_readwriter("csv", shape)
 
 if __name__ == "__main__":
     test_array_readwriter()
+    test_csv_array_readwriter()
