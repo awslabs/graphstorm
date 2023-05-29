@@ -71,7 +71,8 @@ def main(args):
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
-                edge_id_mapping_file=config.edge_id_mapping_file)
+                edge_id_mapping_file=config.edge_id_mapping_file,
+                return_proba=config.return_proba)
 
 def generate_parser():
     parser = get_argument_parser()
