@@ -190,7 +190,8 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
-        logging.debug(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
+        logging.debug("Processing data files for node %s takes %.3f seconds.",
+                      node_type, dur)
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -214,7 +215,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 type_node_id_map = np.concatenate(type_node_id_map)
             else:
                 type_node_id_map = type_node_id_map[0]
-            logging.debug(f"node type {node_type} has {len(type_node_id_map)} nodes")
+            logging.debug("node type %s has %d nodes.", node_type, len(type_node_id_map))
         else:
             assert all(id_map is None for id_map in type_node_id_map)
             type_node_id_map = None
@@ -346,7 +347,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
-        logging.debug(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
+        logging.debug("Processing data files for edges of %s takes %.3f seconds",
+                      str(edge_type), dur)
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
@@ -364,7 +366,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         type_dst_ids = np.concatenate(type_dst_ids)
         assert len(type_src_ids) == len(type_dst_ids)
         gc.collect()
-        logging.debug(f"finish merging edges of {edge_type}")
+        logging.debug("Finish merging edges of %s", str(edge_type))
 
         for feat_name in type_edge_data:
             etype_str = "-".join(edge_type)
@@ -447,11 +449,12 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    logging.info(f"The graph has {len(g.ntypes)} node types and {len(g.etypes)} edge types.")
+    logging.info("The graph has %d node types and %d edge types.",
+                 len(g.ntypes), len(g.etypes))
     for ntype in g.ntypes:
-        logging.info(f"Node type {ntype} has {g.number_of_nodes(ntype)} nodes.")
+        logging.info("Node type %s has %d nodes.", ntype, g.number_of_nodes(ntype))
     for etype in g.canonical_etypes:
-        logging.info(f"Edge type {etype} has {g.number_of_edges(etype)} edges.")
+        logging.info("Edge type %s has %d edges.", str(etype), g.number_of_edges(etype))
     sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
@@ -484,8 +487,8 @@ def process_graph(args):
             map_data["orig"], map_data["new"] = kv_pairs
             map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
             write_data_parquet(map_data, map_file)
-            logging.info(f"Graph construction generates new node IDs for '{ntype}'. " + \
-                    "The ID map is saved in {map_file}.")
+            logging.info("Graph construction generates new node IDs for '%s'. " + \
+                    "The ID map is saved in %s.", ntype, map_file)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
