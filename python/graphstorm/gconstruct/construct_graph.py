@@ -414,6 +414,17 @@ def get_log_level(log_level):
                 "The possible values are: debug, info, warning, error.")
 
 def print_graph_info(g, node_data, edge_data):
+    """ Print graph information.
+
+    Parameters
+    ----------
+    g : DGLGraph
+        The constructed graph.
+    node_data : dict of dict of Numpy arrays.
+        Node features
+    edge_data : dict of dict of Numpy arrays.
+        Edge features
+    """
     logging.info("The graph has %d node types and %d edge types.",
                  len(g.ntypes), len(g.etypes))
     for ntype in g.ntypes:
