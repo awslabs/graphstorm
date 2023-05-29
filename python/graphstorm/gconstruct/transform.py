@@ -17,6 +17,7 @@
     node regression, edge classification and edge regression.
 """
 
+import logging
 import os
 import numpy as np
 import torch as th
@@ -507,7 +508,7 @@ def parse_label_ops(confs, is_node):
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
     else:
-        print("'split_pct' is not found. " + \
+        logging.info("'split_pct' is not found. " + \
                 "Use the default data split: train(80%), valid(10%), test(10%).")
         split_pct = [0.8, 0.1, 0.1]
 
