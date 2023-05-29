@@ -427,7 +427,7 @@ def print_graph_info(g, node_data, edge_data):
     """
     logging.info("The graph has %d node types and %d edge types.",
                  len(g.ntypes), len(g.etypes))
-    for ntype in g.ntypes:
+    for ntype in node_data:
         feat_names = list(node_data[ntype].keys())
         logging.info("Node type %s has %d nodes with features: %s.",
                      ntype, g.number_of_nodes(ntype), str(feat_names))
@@ -440,7 +440,7 @@ def print_graph_info(g, node_data, edge_data):
         if num_train + num_val + num_test > 0:
             logging.info("Train/val/test on %s: %d, %d, %d",
                          ntype, num_train, num_val, num_test)
-    for etype in g.canonical_etypes:
+    for etype in edge_data:
         feat_names = list(edge_data[etype].keys())
         logging.info("Edge type %s has %d edges with features: %s.",
                      str(etype), g.number_of_edges(etype), str(feat_names))
