@@ -23,6 +23,7 @@ import os
 import json
 import argparse
 import gc
+import logging
 
 import numpy as np
 import torch as th
@@ -189,7 +190,8 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
-        print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
+        logging.debug("Processing data files for node %s takes %.3f seconds.",
+                      node_type, dur)
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -213,7 +215,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 type_node_id_map = np.concatenate(type_node_id_map)
             else:
                 type_node_id_map = type_node_id_map[0]
-            print(f"node type {node_type} has {len(type_node_id_map)} nodes")
+            logging.debug("node type %s has %d nodes.", node_type, len(type_node_id_map))
         else:
             assert all(id_map is None for id_map in type_node_id_map)
             type_node_id_map = None
@@ -345,7 +347,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
-        print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
+        logging.debug("Processing data files for edges of %s takes %.3f seconds",
+                      str(edge_type), dur)
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
@@ -363,7 +366,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         type_dst_ids = np.concatenate(type_dst_ids)
         assert len(type_src_ids) == len(type_dst_ids)
         gc.collect()
-        print(f"finish merging edges of {edge_type}")
+        logging.debug("Finish merging edges of %s", str(edge_type))
 
         for feat_name in type_edge_data:
             etype_str = "-".join(edge_type)
@@ -395,9 +398,66 @@ def verify_confs(confs):
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
 
+def get_log_level(log_level):
+    """ Map the logging level.
+    """
+    if log_level == "debug":
+        return logging.DEBUG
+    elif log_level == "info":
+        return logging.INFO
+    elif log_level == "warning":
+        return logging.WARNING
+    elif log_level == "error":
+        return logging.ERROR
+    else:
+        raise ValueError(f"Unknown logging level {log_level}. " + \
+                "The possible values are: debug, info, warning, error.")
+
+def print_graph_info(g, node_data, edge_data):
+    """ Print graph information.
+
+    Parameters
+    ----------
+    g : DGLGraph
+        The constructed graph.
+    node_data : dict of dict of Numpy arrays.
+        Node features
+    edge_data : dict of dict of Numpy arrays.
+        Edge features
+    """
+    logging.info("The graph has %d node types and %d edge types.",
+                 len(g.ntypes), len(g.etypes))
+    for ntype in node_data:
+        feat_names = list(node_data[ntype].keys())
+        logging.info("Node type %s has %d nodes with features: %s.",
+                     ntype, g.number_of_nodes(ntype), str(feat_names))
+        num_train = np.sum(node_data[ntype]["train_mask"]) \
+                if "train_mask" in node_data[ntype] else 0
+        num_val = np.sum(node_data[ntype]["val_mask"]) \
+                if "val_mask" in node_data[ntype] else 0
+        num_test = np.sum(node_data[ntype]["test_mask"]) \
+                if "test_mask" in node_data[ntype] else 0
+        if num_train + num_val + num_test > 0:
+            logging.info("Train/val/test on %s: %d, %d, %d",
+                         ntype, num_train, num_val, num_test)
+    for etype in edge_data:
+        feat_names = list(edge_data[etype].keys())
+        logging.info("Edge type %s has %d edges with features: %s.",
+                     str(etype), g.number_of_edges(etype), str(feat_names))
+        num_train = np.sum(edge_data[etype]["train_mask"]) \
+                if "train_mask" in edge_data[etype] else 0
+        num_val = np.sum(edge_data[etype]["val_mask"]) \
+                if "val_mask" in edge_data[etype] else 0
+        num_test = np.sum(edge_data[etype]["test_mask"]) \
+                if "test_mask" in edge_data[etype] else 0
+        if num_train + num_val + num_test > 0:
+            logging.info("Train/val/test on %s: %d, %d, %d",
+                         str(etype), num_train, num_val, num_test)
+
 def process_graph(args):
     """ Process the graph.
     """
+    logging.basicConfig(level=get_log_level(args.logging_level))
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
 
@@ -418,6 +478,7 @@ def process_graph(args):
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
+    sys_tracker.check('Process input data')
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
@@ -429,11 +490,16 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    print_graph_info(g, node_data, edge_data)
     sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
+        assert args.part_method in ["metis", "random"], \
+                "We only support 'metis' or 'random'."
         partition_graph(g, node_data, edge_data, args.graph_name,
-                        args.num_partitions, args.output_dir)
+                        args.num_parts, args.output_dir,
+                        save_mapping=True, # always save mapping
+                        part_method=args.part_method)
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
@@ -455,37 +521,44 @@ def process_graph(args):
         if kv_pairs is not None:
             map_data = {}
             map_data["orig"], map_data["new"] = kv_pairs
-            write_data_parquet(map_data, os.path.join(args.output_dir,
-                                                      ntype + "_id_remap.parquet"))
+            map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
+            write_data_parquet(map_data, map_file)
+            logging.info("Graph construction generates new node IDs for '%s'. " + \
+                    "The ID map is saved in %s.", ntype, map_file)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
-    argparser.add_argument("--conf_file", type=str, required=True,
+    argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
-    argparser.add_argument("--num_processes", type=int, default=1,
+    argparser.add_argument("--num-processes", type=int, default=1,
                            help="The number of processes to process the data simulteneously.")
-    argparser.add_argument("--num_processes_for_nodes", type=int,
+    argparser.add_argument("--num-processes-for-nodes", type=int,
                            help="The number of processes to process node data simulteneously.")
-    argparser.add_argument("--num_processes_for_edges", type=int,
+    argparser.add_argument("--num-processes-for-edges", type=int,
                            help="The number of processes to process edge data simulteneously.")
-    argparser.add_argument("--output_dir", type=str, required=True,
+    argparser.add_argument("--output-dir", type=str, required=True,
                            help="The path of the output data folder.")
-    argparser.add_argument("--graph_name", type=str, required=True,
+    argparser.add_argument("--graph-name", type=str, required=True,
                            help="The graph name")
-    argparser.add_argument("--remap_node_id", action='store_true',
+    argparser.add_argument("--remap-node-id", action='store_true',
                            help="Whether or not to remap node IDs.")
-    argparser.add_argument("--add_reverse_edges", action='store_true',
+    argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
-    argparser.add_argument("--output_format", type=str, default="DistDGL",
+    argparser.add_argument("--output-format", type=str, default="DistDGL",
                            help="The output format of the constructed graph.")
-    argparser.add_argument("--num_partitions", type=int, default=1,
+    argparser.add_argument("--num-parts", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
-    argparser.add_argument("--skip_nonexist_edges", action='store_true',
+    argparser.add_argument("--part-method", type=str, default='metis',
+                           help="The partition method. Currently, we support 'metis' and 'random'.")
+    argparser.add_argument("--skip-nonexist-edges", action='store_true',
                            help="Skip edges that whose endpoint nodes don't exist.")
-    argparser.add_argument("--ext_mem_workspace", type=str,
+    argparser.add_argument("--ext-mem-workspace", type=str,
                            help="The directory where we can store data during graph construction.")
-    argparser.add_argument("--ext_mem_feat_size", type=int, default=64,
+    argparser.add_argument("--ext-mem-feat-size", type=int, default=64,
                            help="The minimal number of feature dimensions that features " + \
                                    "can be stored in external memory.")
+    argparser.add_argument("--logging-level", type=str, default="info",
+                           help="The logging level. The possible values: debug, info, warning, \
+                                   error. The default value is info.")
     process_graph(argparser.parse_args())

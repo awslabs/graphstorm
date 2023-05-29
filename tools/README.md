@@ -54,7 +54,7 @@ Below command can download the OGBN arxiv data, process it into DGL graph, and f
 ```bash
 python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
-                                             --num_parts 2 \
+                                             --num-parts 2 \
                                              --output /tmp/ogbn_arxiv_nc_2p
 ```
 
@@ -62,8 +62,8 @@ Below command can download the OGBN mag data, process it into DGL graph, and fin
 ```bash
 python3 /graphstorm/tools/partition_graph_lp.py --dataset ogbn-mag \
                                                 --filepath /tmp/ogbn-mag-lp/ \
-                                                --num_parts 2 \
-                                                --target_etypes author,writes,paper \
+                                                --num-parts 2 \
+                                                --target-etypes author,writes,paper \
                                                 --output /tmp/ogbn_mag_lp_2p
 ```
 
