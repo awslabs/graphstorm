@@ -21,6 +21,7 @@ import multiprocessing
 from multiprocessing import Process
 import queue
 import gc
+import logging
 
 import numpy as np
 import dgl
@@ -51,7 +52,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
         gpu = worker_id % num_gpus
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
         if worker_id >= num_gpus:
-            print(f"WARNING! there are more than 1 processes are attachd to GPU {gpu}.")
+            logging.warning(f"there are more than 1 processes are attachd to GPU {gpu}.")
     try:
         while True:
             # If the queue is empty, it will raise the Empty exception.

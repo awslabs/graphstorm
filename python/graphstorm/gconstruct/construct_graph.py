@@ -23,6 +23,7 @@ import os
 import json
 import argparse
 import gc
+import logging
 
 import numpy as np
 import torch as th
@@ -189,7 +190,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
-        print(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
+        logging.debug(f"Processing data files for node {node_type} takes {dur:.3f} seconds.")
 
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
@@ -213,7 +214,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 type_node_id_map = np.concatenate(type_node_id_map)
             else:
                 type_node_id_map = type_node_id_map[0]
-            print(f"node type {node_type} has {len(type_node_id_map)} nodes")
+            logging.debug(f"node type {node_type} has {len(type_node_id_map)} nodes")
         else:
             assert all(id_map is None for id_map in type_node_id_map)
             type_node_id_map = None
@@ -345,7 +346,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
-        print(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
+        logging.debug(f"Processing data files for edges of {edge_type} takes {dur:.3f} seconds")
 
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
@@ -363,7 +364,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         type_dst_ids = np.concatenate(type_dst_ids)
         assert len(type_src_ids) == len(type_dst_ids)
         gc.collect()
-        print(f"finish merging edges of {edge_type}")
+        logging.debug(f"finish merging edges of {edge_type}")
 
         for feat_name in type_edge_data:
             etype_str = "-".join(edge_type)
@@ -395,9 +396,25 @@ def verify_confs(confs):
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
 
+def get_log_level(log_level):
+    """ Map the logging level.
+    """
+    if log_level == "debug":
+        return logging.DEBUG
+    elif log_level == "info":
+        return logging.INFO
+    elif log_level == "warning":
+        return logging.WARNING
+    elif log_level == "error":
+        return logging.ERROR
+    else:
+        raise ValueError(f"Unknown logging level {log_level}. " + \
+                "The possible values are: debug, info, warning, error.")
+
 def process_graph(args):
     """ Process the graph.
     """
+    logging.basicConfig(level=get_log_level(args.logging_level))
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
 
@@ -430,7 +447,7 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    print(g)
+    logging.debug(g)
     sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
@@ -496,4 +513,7 @@ if __name__ == '__main__':
     argparser.add_argument("--ext-mem-feat-size", type=int, default=64,
                            help="The minimal number of feature dimensions that features " + \
                                    "can be stored in external memory.")
+    argparser.add_argument("--logging-level", type=str, default="info",
+                           help="The logging level. The possible values: debug, info, warning, \
+                                   error. The default value is info.")
     process_graph(argparser.parse_args())
