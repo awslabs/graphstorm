@@ -19,8 +19,8 @@ import os
 import json
 import time
 import resource
-import psutil
 import logging
+import psutil
 
 import dgl
 import torch as th
