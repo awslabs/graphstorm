@@ -20,8 +20,9 @@ import json
 import logging
 import os
 
-import constants
 import numpy as np
+
+from . import constants
 
 
 class MetadataSchema:
@@ -33,6 +34,100 @@ class MetadataSchema:
 
     This class is designed as a singleton class. Only one instance exists
     in the process address space during normal processing.
+
+    Metadata schema of the input graph contains the following key-values,
+    some of which are mandatory and others are optional.
+        *``graph_name``[mandatory], a string for the graph name,
+        * ``num_nodes_per_type``[mandatory], a list of integers indicating
+                the no. of nodes for a given node type,
+        * ``num_edges_per_type``[mandatory], a list of integers indicating
+                the no. of edges for a given edge type,
+        * ``node_type``[mandatory], a list of strings each of which is the
+                name of a node type in the graph,
+        * ``edge_type``[mandatory], a list of strings each of which is the
+                name of a edge type in the graph,
+        * ``edges``[mandatory], a dictionary which contains the metadata
+                for the edges in the graph. This dictionary has the following
+                key-value pairs,
+                { ``format``: {
+                                ``name``: string,
+                                    # valid values are [``csv``, ``numpy``]
+                                ``delimiter``: string,
+                                    # valid delimiter charactor.
+                              }
+                  ``data``: [file1, file2, file3, ....]
+                        # list of file paths in which edges are stored.
+                }
+        * ``node_data``[optional], a dictionary which contains the metadata
+                for the features associated with node types from the graph.
+                The structure of this dictionary is as follows:
+                {
+                    ntype1: {
+                        feature1: {
+                            ``format``: {
+                                ``name``: string,
+                                    # valid values are [``numpy``, ``parquet``]
+                                ``delimiter``: string
+                                    # valid delimiter
+                                }
+                            ``data``: [file1, file2, file3, ....]
+                                # list of file paths in which features for
+                                # node type ntype1 are located.
+                            }
+                        feature2: {
+                            ...
+                            },
+                        ...
+                        },
+                    ntype2: {
+                        ...
+                        },
+                    ...
+
+                }
+            * ``edge_data``[optional], a dictionary which contains the metadata
+                    for the features associated with edge types from the graph.
+                    This dictionary is identical to the ``node_data``
+                    dicionary, but it will describe the metadata which will
+                    be used to locate files for edge features for edge types
+                    from the input graph.
+
+    A valid metadata.json file should adhere to the following rules.
+        * ``graph_name`` should be a valid string with non-zero length,
+        * ``num_nodes_per_type`` should be a list of positive non-zero integers
+                and the length of list should be more than 0,
+        * ``num_edges_per_type`` should be a list of positive non-zero integers
+                and the length of list should be more than 0,
+        * ``node_type`` should ba list of valid non-None strings of positive
+                length, length of this list should be equal to the
+                ``num_nodes_per_type`` list,
+        * ``edge_type`` should ba list of valid non-None strings of positive
+                length, length of this list should be equal to the
+                ``num_edges_per_type`` list,
+        * ``edges`` should have the same no. of keys are the no. of edge types
+                present in the ``edge_type`` list,
+        * ``node_data``, if present, can contain keys whose count is less than
+                or equal to the node types present in the ``node_type`` list,
+                Each node type in this dictionary is expected to non-zero
+                features,
+        * ``edge_data``, if present, follows the same rules as described for
+                ``node_data`` in the earlier bullet point.
+
+    Examples:
+    ---------
+    Creating and initalizaing the singleton instance during the pipelines
+    initialization process.
+    >>> obj = Metadata()
+    >>> base_dir = "/home/ubuntu/graph-dataset"
+    >>> file_path = "metadata.json"
+    >>> obj.init(file_path, base_dir)
+
+    After initialization is completed, general usage of any method or property
+    in this class is
+    >>> ntypes = Metadata().ntypes # To retrieve node types from the graph
+    >>> # To get the id <-> ntype map
+    >>> # id_ntype_map will be {0: ``ntype0``, 1: ``ntype1``, ...}
+    >>> id_ntype_map = Metadata().id_ntype_map
     """
 
     _instance = None
@@ -483,9 +578,7 @@ class MetadataSchema:
             )
 
     def get_ntype_feature_files(self, ntype, feature_name):
-        """Retrieves a tuple,
-        (``file_type``, ``delimiter``, ``[file1, file2, ...] associated with
-        ntype/feature_name.
+        """Retrieves a tuple, with the metadata for node feature.
 
         Argument
         --------
@@ -493,13 +586,18 @@ class MetadataSchema:
             Node type from the input graph.
         feature_name: str
             Node feature name associated with the ``ntype`` node type.
+
+        Returns
+        -------
+        tuple: (str, str, list(str))
+            File type (valid values are ``numpy``or ``parquet``), delimiter
+            (a valid delimiter) and list of paths for filenames in which
+            node features are stored.
         """
         return self._ntype_feature_files[(ntype, feature_name)]
 
     def get_etype_feature_files(self, etype, feature_name):
-        """Retrieves a tuple,
-        (``file_type``, ``delimiter``, ``[file1, file2, ...] associated with
-        etype/feature_name.
+        """Retrieves a tuple, with the metadata for edge feature.
 
         Argument
         --------
@@ -507,6 +605,13 @@ class MetadataSchema:
             Edge type from the input graph.
         feature_name: str
             Edge feature name associated with the ``etype`` edge type.
+
+        Returns
+        -------
+        tuple: (str, str, list(str))
+            File type (valid values are ``numpy``or ``parquet``), delimiter
+            (a valid delimiter) and list of paths for filenames in which
+            edge features are stored.
         """
         return self._etype_feature_files[(etype, feature_name)]
 
@@ -517,6 +622,11 @@ class MetadataSchema:
         --------
         ntype: str
             Node type from the input graph.
+
+        Returns
+        ------
+        list(str): list of strings
+            List of strings describing the node features.
         """
         return self._ntype_features[ntype]
 
@@ -527,6 +637,11 @@ class MetadataSchema:
         --------
         etype: str
             Edge type from the input graph.
+
+        Returns
+        ------
+        list(str): list of strings
+            List of strings describing the edge features.
         """
         return self._etype_features[etype]
 
@@ -541,6 +656,13 @@ class MetadataSchema:
         --------
         etype: str
             Edge type from the input graph.
+
+        Returns
+        -------
+        tuple: (str, str, list(str))
+            File type (a valid file type which are ``numpy`` or ``csv``),
+            valid delimiter and list of file paths in which edges are
+            stored for the given edge type.
         """
         return self._etype_files[etype]
 
