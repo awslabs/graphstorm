@@ -447,7 +447,11 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    logging.debug(g)
+    logging.info(f"The graph has {len(g.ntypes)} node types and {len(g.etypes)} edge types.")
+    for ntype in g.ntypes:
+        logging.info(f"Node type {ntype} has {g.number_of_nodes(ntype)} nodes.")
+    for etype in g.canonical_etypes:
+        logging.info(f"Edge type {etype} has {g.number_of_edges(etype)} edges.")
     sys_tracker.check('Construct DGL graph')
 
     if args.output_format == "DistDGL":
@@ -478,8 +482,10 @@ def process_graph(args):
         if kv_pairs is not None:
             map_data = {}
             map_data["orig"], map_data["new"] = kv_pairs
-            write_data_parquet(map_data, os.path.join(args.output_dir,
-                                                      ntype + "_id_remap.parquet"))
+            map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
+            write_data_parquet(map_data, map_file)
+            logging.info(f"Graph construction generates new node IDs for '{ntype}'. " + \
+                    "The ID map is saved in {map_file}.")
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
