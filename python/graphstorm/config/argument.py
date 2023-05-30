@@ -1144,8 +1144,10 @@ class GSConfig:
                 "Decoder edge feature only works with " \
                 "edge classification or regression tasks"
             decoder_edge_feats = self._decoder_edge_feat
-            if len(decoder_edge_feats) == 1 and \
-                ":" not in decoder_edge_feats[0]:
+            assert len(decoder_edge_feats) == 1, \
+                "We only support edge classifcation or regression on one edge type"
+
+            if ":" not in decoder_edge_feats[0]:
                 # global feat_name
                 return decoder_edge_feats[0]
 
