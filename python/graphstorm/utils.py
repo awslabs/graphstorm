@@ -19,6 +19,7 @@ import os
 import json
 import time
 import resource
+import logging
 import psutil
 
 import dgl
@@ -170,7 +171,7 @@ class SysTracker:
 
     It tracks the runtime and memory consumption.
     """
-    def __init__(self, verbose=True):
+    def __init__(self):
         self._checkpoints = []
         # Some system doesn't support DistDGL. We cannot run distributed training job
         # on these systems.
@@ -212,8 +213,8 @@ class SysTracker:
         if len(self._checkpoints) >= 2 and self._verbose and self._rank == 0:
             checkpoint1 = self._checkpoints[-2]
             checkpoint2 = self._checkpoints[-1]
-            print("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, shared: {:.3f}, \
-                    global curr: {:.3f}, global shared: {:.3f}) GB".format(
+            logging.debug("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, \
+                    shared: {:.3f}, global curr: {:.3f}, global shared: {:.3f}) GB".format(
                 name, checkpoint2[1] - checkpoint1[1],
                 checkpoint2[2]/1024/1024/1024, checkpoint2[4]/1024/1024,
                 checkpoint2[3]/1024/1024/1024, checkpoint2[5]/1024/1024/1024,
