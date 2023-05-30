@@ -53,6 +53,11 @@ from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_g
 from data_utils import generate_dummy_dist_graph
 from data_utils import create_lm_graph
 
+def is_int(a):
+    if not th.is_floating_point(a) and not th.is_complex(a):
+        return True
+    return False
+
 def create_rgcn_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
@@ -138,6 +143,15 @@ def check_node_prediction(model, data):
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 
+    # Test the return_proba argument.
+    pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    assert(th.is_floating_point(pred3))
+    pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4))
+    assert(th.equal(pred3.argmax(dim=1), pred4))
+
 def check_mlp_node_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnNodeModel without GNN layers.
@@ -160,6 +174,15 @@ def check_mlp_node_prediction(model, data):
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
+
+    # Test the return_proba argument.
+    pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    assert(th.is_floating_point(pred3))
+    pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4))
+    assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def test_rgcn_node_prediction():
     """ Test edge prediction logic correctness with a node prediction model
@@ -226,6 +249,7 @@ def create_rgcn_edge_model(g):
                                      3, multilabel=False, target_etype=("n0", "r1", "n1")))
     return model
 
+
 def check_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnEdgeModel with GNN layers.
@@ -251,6 +275,15 @@ def check_edge_prediction(model, data):
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 
+    # Test the return_proba argument.
+    pred3, labels3 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    assert(th.is_floating_point(pred3))
+    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4))
+    assert(th.equal(pred3.argmax(dim=1), pred4))
+
 def check_mlp_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnEdgeModel without GNN layers.
@@ -275,6 +308,15 @@ def check_mlp_edge_prediction(model, data):
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
+
+    # Test the return_proba argument.
+    pred3, labels3 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    assert(th.is_floating_point(pred3))
+    pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4))
+    assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def test_rgcn_edge_prediction():
     """ Test edge prediction logic correctness with a edge prediction model

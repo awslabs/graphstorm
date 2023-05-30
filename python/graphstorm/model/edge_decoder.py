@@ -123,7 +123,7 @@ class DenseBiDecoder(GSLayer):
 
         Returns
         -------
-        Tensor : the scores of each edge.
+        Tensor : the maximum score of each edge.
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
@@ -134,8 +134,39 @@ class DenseBiDecoder(GSLayer):
             out = self.combine_basis(out)
             if self.regression:
                 out = self.regression_head(out)
-            elif not self._multilabel:
+            elif self._multilabel:
+                out = (th.sigmoid(out) > .5).long()
+            else:  # not multilabel
                 out = out.argmax(dim=1)
+        return out
+
+    def predict_proba(self, g, h):
+        """predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : all the scores of each edge.
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+            out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
+            out = self.combine_basis(out)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self._multilabel:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 1)
         return out
 
     @property
@@ -227,11 +258,10 @@ class MLPEdgeDecoder(GSLayer):
             out = th.matmul(h, self.decoder)
             if self.regression:
                 out = self.regression_head(out)
-
         return out
 
     def predict(self, g, h):
-        """predict function for this decoder
+        """Predict function for this decoder
 
         Parameters
         ----------
@@ -255,7 +285,39 @@ class MLPEdgeDecoder(GSLayer):
             if self.regression:
                 out = self.regression_head(out)
             elif self.multilabel:
+                out = (th.sigmoid(out) > .5).long()
+            else:  # not multilabel
                 out = out.argmax(dim=1)
+        return out
+
+    def predict_proba(self, g, h):
+        """Predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : the scores of each edge.
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+
+            h = th.cat([ufeat, ifeat], dim=1)
+            out = th.matmul(h, self.decoder)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self.multilabel:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 1)
         return out
 
     @property
@@ -892,14 +954,8 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
                 rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
                 scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
 
-                if self.training:
-                    # do train()
-                    weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
-
-                    weights.append(weight)
-                else:
-                    weights.append(th.ones_like(scores_etype))
-
+                weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
+                weights.append(weight.to(scores_etype.device))
                 scores.append(scores_etype)
             scores = th.cat(scores)
             weights = th.cat(weights)
@@ -941,7 +997,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
                 scores_etype = calc_dot_pos_score(src_emb, dest_emb)
 
                 weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
-                weights.append(weight)
+                weights.append(weight.to(scores_etype.device))
                 scores.append(scores_etype)
 
             scores = th.cat(scores)

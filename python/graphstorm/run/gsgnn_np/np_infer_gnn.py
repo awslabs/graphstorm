@@ -69,7 +69,8 @@ def main(args):
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
-                node_id_mapping_file=config.node_id_mapping_file)
+                node_id_mapping_file=config.node_id_mapping_file,
+                return_proba=config.return_proba)
 
 def generate_parser():
     parser = get_argument_parser()

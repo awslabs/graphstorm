@@ -726,6 +726,27 @@ def create_node_class_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail_ml_w3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # test return-proba
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "multilabel": True,
+        "return_proba": True,
+        "multilabel_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,-0.1", # weight can not be negative
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_ml_w3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "multilabel": True,
+        "return_proba": False,
+        "multilabel_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,-0.1", # weight can not be negative
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_ml_w3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
     # test imbalance label
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
