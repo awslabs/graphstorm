@@ -16,6 +16,8 @@
     Generate example graph data using built-in datasets for node classifcation,
     node regression, edge classification and edge regression.
 """
+import logging
+
 import numpy as np
 
 from .file_io import HDF5Array
@@ -157,7 +159,8 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
         bool_mask = np.ones(len(src_ids), dtype=bool)
         bool_mask[orig_locs] = False
         if skip_nonexist_edges:
-            print(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
+            logging.warning("source nodes of %s do not exist: %s",
+                            src_type, str(src_ids[bool_mask]))
         else:
             raise ValueError(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
         dst_ids = dst_ids[orig_locs]
@@ -169,7 +172,8 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
         bool_mask = np.ones(len(dst_ids), dtype=bool)
         bool_mask[orig_locs] = False
         if skip_nonexist_edges:
-            print(f"dest nodes of {dst_type} do not exist: {dst_ids[bool_mask]}")
+            logging.warning("dest nodes of %s do not exist: %s",
+                            dst_type, str(dst_ids[bool_mask]))
         else:
             raise ValueError(f"dest nodes of {dst_type} do not exist: {dst_ids[bool_mask]}")
         # We need to remove the source nodes as well.
