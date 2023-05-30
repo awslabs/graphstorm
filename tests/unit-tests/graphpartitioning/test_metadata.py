@@ -29,6 +29,15 @@ from graph_dataset import *
 
 def test_load_json():
     """Unit test to test json load function."""
+
+    def run_test(root_dir):
+        obj = MetadataSchema()
+        obj.init(METADATA_NAME, root_dir, init_maps=False)
+
+        assert (
+            obj.data == input_dict
+        ), f"Expected and Actual metadata objects does not match."
+
     input_dict = {}
     add_graph_name(input_dict)
 
@@ -38,12 +47,64 @@ def test_load_json():
         with open(metadata_path, "w") as handle:
             json.dump(input_dict, handle, indent=4)
 
-        obj = MetadataSchema()
-        obj.init(METADATA_NAME, root_dir, init_maps=False)
+        run_test(root_dir)
+        MetadataSchema.cleanup()
 
-        assert (
-            obj.data == input_dict
-        ), f"Expected and Actual metadata objects does not match."
+    with open(METADATA_NAME, "w") as handle:
+        json.dump(input_dict, handle, indent=4)
+
+    run_test(None)
+    MetadataSchema.cleanup()
+
+
+def test_singleton():
+    """Run tests to ensure singleton property of the class."""
+    input_dict = {}
+    add_graph_name(input_dict)
+
+    # Add nodes to the metadata.
+    add_nodes(input_dict, {ntype: 10 for ntype in ntypes})
+
+    file_metadata = namedtuple("file_metadata", "")
+    file_metadata.root_dir = os.getcwd()
+    file_metadata.prefix_dir = ""
+    file_metadata.create_files = True
+    file_metadata.is_absolute = False
+    file_metadata.file_prefix = "edges_"
+
+    # Add edges and create edge files, if necessary
+    add_edges_files(
+        input_dict,
+        {etype: 10 for etype in etypes},
+        {etype: idx + 1 for idx, etype in enumerate(etypes)},
+        {"name": "csv", "delimiter": " "},
+        file_metadata,
+    )
+
+    metadata_path = os.path.join(os.getcwd(), METADATA_NAME)
+    with open(metadata_path, "w") as handle:
+        json.dump(input_dict, handle, indent=4)
+
+    # Run tests.
+    obj1 = MetadataSchema()
+
+    # Base directory as current working directory.
+    obj1.init(METADATA_NAME, None)
+
+    # Additional references to the class instance.
+    obj2 = MetadataSchema()
+    obj3 = MetadataSchema()
+
+    assert obj1 == obj2, "Singeton test failed."
+    assert obj1.metadata_path == obj2.metadata_path, "Singleton test failed."
+    assert obj1 == obj3, "Singleton test failed."
+    assert obj2 == obj3, "Singleton test failed."
+
+    # Clean up
+    MetadataSchema.cleanup()
+    obj1 = None
+    obj2 = None
+    obj3 = None
 
 
 @pytest.mark.parametrize("ntypes", [[], [NODE1], [NODE1, NODE2]])
@@ -224,31 +285,10 @@ def test_node_features(
     ntypes, file_type, delimiter, create_files, prefix_dir, is_absolute
 ):
     """Unit tests when node features are present in the input graph."""
-    etypes = [EDGE1, EDGE2]
-    input_dict = {}
-    with tempfile.TemporaryDirectory() as root_dir:
 
-        file_metadata = namedtuple("file_metadata", "")
-        file_metadata.root_dir = root_dir
-        file_metadata.prefix_dir = prefix_dir
-        file_metadata.create_files = create_files
-        file_metadata.is_absolute = is_absolute
-        file_metadata.file_prefix = "node_feature_"
-
-        # Add nodes and node features, if necessary.
-        add_node_features(
-            input_dict,
-            {ntype: 10 for ntype in ntypes},
-            {ntype: [NFEAT1] for ntype in ntypes},
-            {ntype: 5 for ntype in ntypes},
-            {
-                ntype + "/" + NFEAT1: {NAME: file_type, DELIMITER: delimiter}
-                for ntype in ntypes
-            },
-            file_metadata,
-        )
-        # Add edges.
-        add_edges(input_dict, {etype: 10 for etype in etypes})
+    def run_test(root_dir, input_dict):
+        if root_dir is None:
+            root_dir = os.getcwd()
 
         # Create metadata.json
         filename = os.path.join(root_dir, METADATA_NAME)
@@ -284,6 +324,42 @@ def test_node_features(
                 raise exp
             else:
                 pass
+        finally:
+            obj = None
+            MetadataSchema.cleanup()
+
+    def update_schema(input_dict, file_metadata):
+        # Add nodes and node features, if necessary.
+        add_node_features(
+            input_dict,
+            {ntype: 10 for ntype in ntypes},
+            {ntype: [NFEAT1] for ntype in ntypes},
+            {ntype: 5 for ntype in ntypes},
+            {
+                ntype + "/" + NFEAT1: {NAME: file_type, DELIMITER: delimiter}
+                for ntype in ntypes
+            },
+            file_metadata,
+        )
+        # Add edges.
+        add_edges(input_dict, {etype: 10 for etype in etypes})
+
+    input_dict = {}
+    file_metadata = namedtuple("file_metadata", "")
+    file_metadata.prefix_dir = prefix_dir
+    file_metadata.create_files = create_files
+    file_metadata.is_absolute = is_absolute
+    file_metadata.file_prefix = "node_feature_"
+
+    with tempfile.TemporaryDirectory() as root_dir:
+        file_metadata.root_dir = root_dir
+        update_schema(input_dict, file_metadata)
+        run_test(root_dir, input_dict)
+
+    input_dict = {}
+    file_metadata.root_dir = os.getcwd()
+    update_schema(input_dict, file_metadata)
+    run_test(None, input_dict)
 
 
 @pytest.mark.parametrize("etypes", [[], [EDGE1], [EDGE1, EDGE2]])

@@ -138,6 +138,9 @@ class MetadataSchema:
         return cls._instance
 
     def __init__(self):
+        if self._instance is not None:
+            return
+
         self._basedir = None
         self._metadata_path = None
         self._data = None
@@ -189,6 +192,9 @@ class MetadataSchema:
             if not os.path.isfile(file_name):
                 raise ValueError(f"Metadata file does not exist. {file_name}")
             self._metadata_path = file_name
+
+        if self._basedir is None:
+            self._basedir = os.getcwd()
 
         with open(self._metadata_path, "r", encoding="utf-8") as handle:
             self._data = json.load(handle)
@@ -576,6 +582,32 @@ class MetadataSchema:
             raise ValueError(
                 f"Edge Type: {etype} is not present in the list of edge types"
             )
+
+    def __del__(self):
+        self._basedir = None
+        self._metadata_path = None
+        self._data = None
+        self._global_nid_offsets = None
+        self._global_eid_offsets = None
+        self._ntypes = None
+        self._ntype_id_map = None
+        self._id_ntype_map = None
+        self._etype_id_map = None
+        self._id_etype_map = None
+        self._etypes = None
+        self._ntype_features = None
+        self._etype_features = None
+        self._ntype_feature_files = None
+        self._etype_feature_files = None
+        self._etype_files = None
+
+    @classmethod
+    def cleanup(cls):
+        """ Cleanup the local instance to release the object.
+        """
+        if cls._instance is not None:
+            del cls._instance
+            cls._instance = None
 
     def get_ntype_feature_files(self, ntype, feature_name):
         """Retrieves a tuple, with the metadata for node feature.
