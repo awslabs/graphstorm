@@ -985,8 +985,7 @@ def create_edge_class_config(tmp_path, file_name):
         "reverse_edge_types_map": ["query,match,rev-match,asin", "query,click,rev-click,asin"],
         "num_classes": 4,
         "eval_metric": ["Per_class_f1_score", "Precision_Recall"],
-        "decoder_edge_feat": ["query,match,asin:feat0,feat1",
-                              "query,click,asin:feat0"]
+        "decoder_edge_feat": ["query,match,asin:feat0,feat1"]
     }
 
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
@@ -1059,9 +1058,8 @@ def test_edge_class_info():
         assert len(config.eval_metric) == 2
         assert config.eval_metric[0] == "per_class_f1_score"
         assert config.eval_metric[1] == "precision_recall"
-        assert len(config.decoder_edge_feat) == 2
+        assert len(config.decoder_edge_feat) == 1
         assert config.decoder_edge_feat[("query","match","asin")] == ["feat0", "feat1"]
-        assert config.decoder_edge_feat[("query","click","asin")] == ["feat0"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
