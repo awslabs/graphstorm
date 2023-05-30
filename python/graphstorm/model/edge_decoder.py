@@ -727,14 +727,8 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
                 rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
                 scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
 
-                if self.training:
-                    # do train()
-                    weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
-
-                    weights.append(weight.to(scores_etype.device))
-                else:
-                    weights.append(th.ones_like(scores_etype))
-
+                weight = _get_edge_weight(g, self.edge_weight_fields, canonical_etype)
+                weights.append(weight.to(scores_etype.device))
                 scores.append(scores_etype)
             scores = th.cat(scores)
             weights = th.cat(weights)

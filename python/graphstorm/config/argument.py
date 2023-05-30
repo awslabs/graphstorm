@@ -1204,17 +1204,16 @@ class GSConfig:
             for weight_name in edge_weights:
                 weight_info = weight_name.split(":")
                 etype = tuple(weight_info[0].split(","))
-                if etype in weight_dict:
-                    assert False, \
-                        f"You already specify the weight names of {etype}" \
-                        f"as {weight_dict[etype]}"
+                assert etype not in weight_dict, \
+                    f"You already specify the weight names of {etype}" \
+                    f"as {weight_dict[etype]}"
 
                 # TODO: if train_etype is None, we need to check if
                 # etype exists in g.
                 assert self.train_etype is None or etype in self.train_etype, \
                     f"{etype} must in the training edge type list"
                 assert isinstance(weight_info[1], str), \
-                    f"Feature name of {etype} should be a string not {weight_info[1]}"
+                    f"Feature name of {etype} should be a string instead of {weight_info[1]}"
                 weight_dict[etype] = [weight_info[1]]
             return weight_dict
 
