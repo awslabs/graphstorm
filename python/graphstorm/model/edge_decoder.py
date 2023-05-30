@@ -399,20 +399,19 @@ class MLPEFeatEdgeDecoder(GSLayer):
         if regression:
             self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
 
-    def forward(self, g, h):
-        """Forward function.
+    def _compute_logits(self, g, h):
+        """ Compute forword output
 
-        Compute logits for each pair ``(ufeat[i], ifeat[i])``.
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-        Returns
-        -------
-        th.Tensor
-            Predicting scores for each user-movie edge. Shape: (B, num_classes)
+            Parameters
+            ----------
+            g : DGLBlock
+                The minibatch graph
+            h : dict of Tensors
+                The dictionary containing the embeddings
+            Returns
+            -------
+            th.Tensor
+                Output of forward
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
@@ -436,13 +435,31 @@ class MLPEFeatEdgeDecoder(GSLayer):
             combine_h = self.relu(combine_h)
             out = th.matmul(combine_h, self.decoder)
 
-            if self.regression:
-                out = self.regression_head(out)
+        return out
+
+    def forward(self, g, h):
+        """Forward function.
+
+        Compute logits for each pair ``(ufeat[i], ifeat[i])``.
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+        Returns
+        -------
+        th.Tensor
+            Predicting scores for each user-movie edge. Shape: (B, num_classes)
+        """
+        out = self._compute_logits(g, h)
+        if self.regression:
+            out = self.regression_head(out)
 
         return out
 
     def predict(self, g, h):
-        """predict function for this decoder
+        """predict function (return predict result) for this decoder
 
         Parameters
         ----------
@@ -455,30 +472,39 @@ class MLPEFeatEdgeDecoder(GSLayer):
         -------
         Tensor : the scores of each edge.
         """
-        with g.local_scope():
-            u, v = g.edges(etype=self.target_etype)
-            src_type, _, dest_type = self.target_etype
-            ufeat = h[src_type][u]
-            ifeat = h[dest_type][v]
-            efeat = g.edges[self.target_etype].data[EDGE_DECODER_FEAT]
+        out = self._compute_logits(g, h)
 
-            # [src_emb | dest_emb] @ W -> h_dim
-            h = th.cat([ufeat, ifeat], dim=1)
-            nn_h = th.matmul(h, self.nn_decoder)
-            nn_h = self.relu(nn_h)
-            # [edge_feat] @ W -> h_dim
-            feat_h = th.matmul(efeat, self.feat_decoder)
-            feat_h = self.relu(feat_h)
-            # [nn_h | feat_h] @ W -> h_dim
-            combine_h = th.cat([nn_h, feat_h], dim=1)
-            combine_h = th.matmul(combine_h, self.combine_decoder)
-            combine_h = self.relu(combine_h)
-            out = th.matmul(combine_h, self.decoder)
+        if self.regression:
+            out = self.regression_head(out)
+        elif self.multilabel:
+            out = (th.sigmoid(out) > .5).long()
+        else:  # not multilabel
+            out = out.argmax(dim=1)
 
-            if self.regression:
-                out = self.regression_head(out)
-            elif self.multilabel:
-                out = out.argmax(dim=1)
+        return out
+
+    def predict_proba(self, g, h):
+        """Predict function (return probability) for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : the scores of each edge.
+        """
+        out = self._compute_logits(g, h)
+
+        if self.regression:
+            out = self.regression_head(out)
+        elif self.multilabel:
+            out = th.sigmoid(out)
+        else:
+            out = th.softmax(out, 1)
 
         return out
 
