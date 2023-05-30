@@ -65,11 +65,13 @@ def test_ntypes(ntypes):
         obj.init_ntype_maps()
 
         # Test case here.
+        # Check ntype <-> id map.
         expected_ntype_id_map = {ntype: idx for idx, ntype in enumerate(ntypes)}
         assert (
             expected_ntype_id_map == obj.ntype_id_map
         ), f"ntype_id_map initialization failure"
 
+        # Check id <-> ntype map.
         exptected_id_ntype_map = {
             idx: ntype for idx, ntype in enumerate(ntypes)
         }
@@ -77,9 +79,11 @@ def test_ntypes(ntypes):
             exptected_id_ntype_map == obj.id_ntype_map
         ), f"id_ntype_map test failure"
 
+        # Check ntypes array.
         expected_ntypes = ntypes
         assert expected_ntypes == obj.ntypes, f"ntypes failure."
 
+        # Check global node ids offsets for all the node types.
         obj.init_global_nid_offsets()
         counts = np.cumsum([0] + [10 for ntype in ntypes])
         ranges = [
@@ -112,11 +116,13 @@ def test_etypes(etypes):
         obj.init_etype_maps()
 
         # Test case here.
+        # Check etype <-> id map.
         expected_etype_id_map = {etype: idx for idx, etype in enumerate(etypes)}
         assert (
             expected_etype_id_map == obj.etype_id_map
         ), f"etype_id_map initialization failure"
 
+        # Check id <-> etype map.
         exptected_id_etype_map = {
             idx: etype for idx, etype in enumerate(etypes)
         }
@@ -124,9 +130,11 @@ def test_etypes(etypes):
             exptected_id_etype_map == obj.id_etype_map
         ), f"id_etype_map test failure"
 
+        # Check etypes.
         expected_etypes = etypes
         assert expected_etypes == obj.etypes, f"etypes failure."
 
+        # Check global edge ids offsets for etypes.
         obj.init_global_eid_offsets()
         counts = np.cumsum([0] + [10 for etype in etypes])
         ranges = [
@@ -153,6 +161,7 @@ def test_etype_files(
     input_dict = {}
     with tempfile.TemporaryDirectory() as root_dir:
 
+        # Add nodes to the metadata.
         add_nodes(input_dict, {ntype: 10 for ntype in ntypes})
 
         file_metadata = namedtuple("file_metadata", "")
@@ -162,6 +171,7 @@ def test_etype_files(
         file_metadata.is_absolute = is_absolute
         file_metadata.file_prefix = "edges_"
 
+        # Add edges and create edge files, if necessary
         add_edges_files(
             input_dict,
             {etype: 10 for etype in etypes},
@@ -170,16 +180,33 @@ def test_etype_files(
             file_metadata,
         )
 
+        # Create metadata.json file.
         filename = os.path.join(root_dir, METADATA_NAME)
         with open(filename, "w") as input_handle:
             json.dump(input_dict, input_handle, indent=4)
 
+        # Test case here.
         obj = MetadataSchema()
         obj.init(METADATA_NAME, root_dir, init_maps=False)
         obj.init_etype_maps()
 
+        # Check the initialization
         try:
             obj.init_etype_files()
+
+            if create_files:
+                for idx, etype in enumerate(etypes):
+                    (file_type, delimiter, data_files) = obj.get_etype_info(
+                        etype
+                    )
+                    assert file_type == edge_fmt, f"File type does not match."
+                    assert (
+                        delimiter == edge_fmt_del
+                    ), f"Delimiters does not match."
+                    assert (
+                        len(data_files) == idx + 1
+                    ), f"No. of edge files does not match."
+
         except FileNotFoundError as exp:
             if create_files:
                 raise exp
@@ -208,6 +235,7 @@ def test_node_features(
         file_metadata.is_absolute = is_absolute
         file_metadata.file_prefix = "node_feature_"
 
+        # Add nodes and node features, if necessary.
         add_node_features(
             input_dict,
             {ntype: 10 for ntype in ntypes},
@@ -219,8 +247,10 @@ def test_node_features(
             },
             file_metadata,
         )
+        # Add edges.
         add_edges(input_dict, {etype: 10 for etype in etypes})
 
+        # Create metadata.json
         filename = os.path.join(root_dir, METADATA_NAME)
         with open(filename, "w") as input_handle:
             json.dump(input_dict, input_handle, indent=4)
@@ -232,6 +262,23 @@ def test_node_features(
 
         try:
             obj.init_ntype_feature_files()
+            if create_files:
+                for idx, ntype in enumerate(ntypes):
+                    (
+                        actual_file_type,
+                        actual_delimiter,
+                        data_files,
+                    ) = obj.get_ntype_feature_files(ntype, NFEAT1)
+                    assert (
+                        file_type == actual_file_type
+                    ), f"File type does not match."
+                    assert (
+                        delimiter == actual_delimiter
+                    ), f"Delimiters does not match."
+                    assert (
+                        len(data_files) == 5
+                    ), f"No. of node feature files does not match."
+
         except FileNotFoundError as exp:
             if create_files:
                 raise exp
@@ -283,6 +330,22 @@ def test_edge_features(
 
         try:
             obj.init_etype_feature_files()
+            if create_files:
+                for idx, etype in enumerate(etypes):
+                    (
+                        actual_file_type,
+                        actual_delimiter,
+                        data_files,
+                    ) = obj.get_etype_feature_files(etype, EFEAT1)
+                    assert (
+                        file_type == actual_file_type
+                    ), f"File type does not match."
+                    assert (
+                        delimiter == actual_delimiter
+                    ), f"Delimiters does not match."
+                    assert (
+                        len(data_files) == 5
+                    ), f"No. of edge feature files does not match."
         except FileNotFoundError as exp:
             if create_files:
                 raise exp

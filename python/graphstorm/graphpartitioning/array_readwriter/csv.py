@@ -1,3 +1,18 @@
+"""
+    Copyright 2023 Contributors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+"""
 import logging
 
 import pandas as pd
@@ -6,20 +21,22 @@ import pyarrow.csv
 
 from .registry import register_array_parser
 
+
 @register_array_parser("csv")
 class CSVArrayParser(object):
-    """ Wrapper class for CSV read/write operations.
+    """Wrapper class for CSV read/write operations.
 
     Argument
     --------
     delimiter: str
         Delimiter character to use when writing to a file.
     """
+
     def __init__(self, delimiter=","):
         self.delimiter = delimiter
 
     def read(self, path):
-        """ Read operation on a file.
+        """Read operation on a file.
 
         Argument
         --------
@@ -40,7 +57,7 @@ class CSVArrayParser(object):
         return arr.to_pandas().to_numpy()
 
     def write(self, path, arr):
-        """ Write operation to a file.
+        """Write operation to a file.
 
         Argument
         --------
