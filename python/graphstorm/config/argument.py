@@ -46,6 +46,7 @@ from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
 from .utils import get_graph_name
+from ..utils import TORCH_MAJOR_VER
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -70,12 +71,20 @@ def get_argument_parser():
         required=True,
     )
 
-    parser.add_argument(
-        "--local_rank",
-        type=int,
-        default=-1,
-        help="local_rank for distributed training on gpus",
-    )
+    if TORCH_MAJOR_VER >= 2:
+        parser.add_argument(
+                "--local-rank",
+                type=int,
+                default=-1,
+                help="local_rank for distributed training on gpus",
+                )
+    else:
+        parser.add_argument(
+                "--local_rank",
+                type=int,
+                default=-1,
+                help="local_rank for distributed training on gpus",
+                )
 
     # Optional parameters to override arguments in yaml config
     parser = _add_initialization_args(parser)
@@ -953,6 +962,18 @@ class GSConfig:
         return None
 
     @property
+    def return_proba(self):
+        """ Whether to return all the predictions or the maximum prediction.
+            Set True to return predictions and False to return maximum prediction.
+        """
+        if hasattr(self, "_return_proba"):
+            assert self._return_proba in [True, False], \
+                "Return all the predictions when True else return the maximum prediction."
+            return self._return_proba
+        # By default, return all the predictions
+        return True
+
+    @property
     def imbalance_class_weights(self):
         """ Used to specify a manual rescaling weight given to each class
             in a single-label multi-class classification task.
@@ -1605,6 +1626,10 @@ def _add_node_classification_args(parser):
             "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
     group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
                        help="The cardinality of labels in a classifiction task")
+    group.add_argument("--return-proba", type=bool, default=argparse.SUPPRESS,
+                       help="Whether to return the probabilities of all the predicted \
+                       results or only the maximum one. Set True to return the \
+                       probabilities. Set False to return the maximum one.")
     return parser
 
 def _add_edge_classification_args(parser):

@@ -24,7 +24,7 @@ from dgl.dataloading import DistDataLoader
 from dgl.dataloading import EdgeCollator
 from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 
-from .sampler import LocalUniform, JointUniform, GlobalUniform
+from .sampler import LocalUniform, JointUniform, GlobalUniform, JointLocalUniform
 from .utils import trim_data, modify_fanout_for_target_etype
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
@@ -133,6 +133,7 @@ class GSgnnEdgeDataLoader():
 BUILTIN_LP_UNIFORM_NEG_SAMPLER = 'uniform'
 BUILTIN_LP_JOINT_NEG_SAMPLER = 'joint'
 BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER = 'localuniform'
+BUILTIN_LP_LOCALJOINT_NEG_SAMPLER = 'localjoint'
 BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER = 'all_etype_uniform'
 BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER = 'all_etype_joint'
 
@@ -262,6 +263,16 @@ class GSgnnLPLocalUniformNegDataLoader(GSgnnLinkPredictionDataLoader):
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
         negative_sampler = LocalUniform(num_negative_edges)
+        return negative_sampler
+
+class GSgnnLPLocalJointNegDataLoader(GSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with local joint negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # the default negative sampler is uniform sampler
+        negative_sampler = JointLocalUniform(num_negative_edges)
         return negative_sampler
 
 ######## Per etype sampler ########

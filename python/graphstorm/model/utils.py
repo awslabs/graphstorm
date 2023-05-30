@@ -95,6 +95,8 @@ def save_model_results_json(conf, test_model_performance, save_perf_results_path
 
     if save_perf_results_path is not None:
         json_path = os.path.join(save_perf_results_path, 'performance_results.json')
+        if not os.path.isdir(save_perf_results_path):
+            os.makedirs(save_perf_results_path)
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(model_results_and_conf, f, ensure_ascii=False, indent=4)
 

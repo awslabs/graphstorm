@@ -276,6 +276,15 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 
 error_and_exit $?
 
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT, inference: full-graph, negative_sampler: localuniform, exclude_training_targets: true, test_negative_sampler: uniform"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --train-negative-sampler localuniform --eval-negative-sampler uniform
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT, inference: full-graph, negative_sampler: localjoint, exclude_training_targets: true, test_negative_sampler: uniform"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --train-negative-sampler localjoint --eval-negative-sampler uniform
+
+error_and_exit $?
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: true, save model, train_etype: None"
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_none_train_etype.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --save-model-path /data/gsgnn_lp_ml_distmult_all_etype/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_distmult_all_etype/emb/ --lp-decoder-type distmult | tee train_log.txt
