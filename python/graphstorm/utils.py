@@ -179,7 +179,6 @@ class SysTracker:
             self._rank = get_rank()
         except:
             self._rank = 0
-        self._verbose = verbose
 
     # This is to create only one instance.
     _instance = None
@@ -210,7 +209,7 @@ class SysTracker:
         # We need to get the right rank
         if self._rank < 0:
             self._rank = get_rank()
-        if len(self._checkpoints) >= 2 and self._verbose and self._rank == 0:
+        if len(self._checkpoints) >= 2 and self._rank == 0:
             checkpoint1 = self._checkpoints[-2]
             checkpoint2 = self._checkpoints[-1]
             logging.debug("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, \
