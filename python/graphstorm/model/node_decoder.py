@@ -65,10 +65,33 @@ class EntityClassifier(GSLayer):
 
     def predict(self, inputs):
         """ Make prediction on input data.
+
+        Parameters
+        ----------
+        inputs : tensor
+            The input features
+
+        Returns
+        -------
+        Tensor : maximum of the predicted results
         """
         logits = th.matmul(inputs, self.decoder)
-        # TODO(zhengda) we need to extend this to return probability of the prediction.
-        return logits if self._multilabel else logits.argmax(dim=1)
+        return (th.sigmoid(logits) > .5).long() if self._multilabel else logits.argmax(dim=1)
+
+    def predict_proba(self, inputs):
+        """ Make prediction on input data.
+
+        Parameters
+        ----------
+        inputs : tensor
+            The input features
+
+        Returns
+        -------
+        Tensor : all normalized predicted results
+        """
+        logits = th.matmul(inputs, self.decoder)
+        return th.sigmoid(logits) if self._multilabel else th.softmax(logits, 1)
 
     @property
     def in_dims(self):

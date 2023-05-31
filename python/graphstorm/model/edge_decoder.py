@@ -121,7 +121,7 @@ class DenseBiDecoder(GSLayer):
 
         Returns
         -------
-        Tensor : the scores of each edge.
+        Tensor : the maximum score of each edge.
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
@@ -132,8 +132,39 @@ class DenseBiDecoder(GSLayer):
             out = self.combine_basis(out)
             if self.regression:
                 out = self.regression_head(out)
-            elif not self._multilabel:
+            elif self._multilabel:
+                out = (th.sigmoid(out) > .5).long()
+            else:  # not multilabel
                 out = out.argmax(dim=1)
+        return out
+
+    def predict_proba(self, g, h):
+        """predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : all the scores of each edge.
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+            out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
+            out = self.combine_basis(out)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self._multilabel:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 1)
         return out
 
     @property
@@ -225,11 +256,10 @@ class MLPEdgeDecoder(GSLayer):
             out = th.matmul(h, self.decoder)
             if self.regression:
                 out = self.regression_head(out)
-
         return out
 
     def predict(self, g, h):
-        """predict function for this decoder
+        """Predict function for this decoder
 
         Parameters
         ----------
@@ -253,7 +283,39 @@ class MLPEdgeDecoder(GSLayer):
             if self.regression:
                 out = self.regression_head(out)
             elif self.multilabel:
+                out = (th.sigmoid(out) > .5).long()
+            else:  # not multilabel
                 out = out.argmax(dim=1)
+        return out
+
+    def predict_proba(self, g, h):
+        """Predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : the scores of each edge.
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+
+            h = th.cat([ufeat, ifeat], dim=1)
+            out = th.matmul(h, self.decoder)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self.multilabel:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 1)
         return out
 
     @property
