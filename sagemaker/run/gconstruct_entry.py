@@ -39,6 +39,8 @@ if __name__ =='__main__':
     parser = parse_construct_args()
     args, unknownargs = parser.parse_known_args()
 
+    subprocess.check_call(['ls'], cwd=args.input_path, shell=False)
+
     launch_cmd = ['python3', '-m', 'graphstorm.gconstruct.construct_graph',
              '--conf-file', args.graph_config_path, '--output-dir', args.output_path,
              '--graph-name', args.graph_name] + unknownargs

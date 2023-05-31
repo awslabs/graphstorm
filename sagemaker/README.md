@@ -1,18 +1,59 @@
 # Amazon SageMaker Support
-This submodule provides support to run GraphStorm training and inference on Amazon SageMaker.
+This submodule provides support to run GraphStorm graph construction, training and inference on Amazon SageMaker.
 To build a SageMaker compatible docker image, please refer to [Build GraphStorm SageMaker docker image] (https://github.com/awslabs/graphstorm/docker/sagemaker).
+
 
 ## Launch SageMaker tasks
 Use scripts under graphstorm.sagemaker.launch to launch SageMaker tasks.
 Please make sure you already setup your SageMaker environment.
 Please refer to [Amazon SageMaker service](https://aws.amazon.com/pm/sagemaker) for how to get access to Amazon SageMaker.
 
+### Launch GraphStorm graph construction using Amazon SageMaker service
+
+#### Preparing example dataset
+We use the built-in acm dataset as an example.
+You can generate the raw acm dataset in parquet format using the following instructions
+(See [Use Your Own Data Tutorial](https://github.com/awslabs/graphstorm/wiki/tutorials-own-data#use-own-data) for more details):
+```
+cd ~/
+git clone https://github.com/awslabs/graphstorm.git
+GS_HOME=~/graphstorm/
+cd $GS_HOME/examples
+python3 acm_data.py --output-path acm_raw
+```
+The raw graph input data will be stored at ~/graphstorm/examples/acm_raw. The input configuration JSON is also generated and stored in the same path at  ~/graphstorm/examples/acm_raw/config.json.
+
+#### launch grpah processing task
+Before launching the task, you need to upload the raw acm dataset (i.e., /tmp/acm_raw) into S3.
+```
+aws s3 cp --recursive  ~/graphstorm/examples/acm_raw s3://PATH_TO/acm/acm_raw/
+```
+
+Then, you can use the following command to launch a SageMaker graph construction task.
+```
+python3 launch/launch_gconstruct.py \
+        --image-url <AMAZON_ECR_IMAGE_PATH> \
+        --region us-east-1 \
+        --entry-point run/train_entry.py \
+        --role <ARN_ROLE> \
+        --input-graph-s3 s3://PATH_TO/acm/ \
+        --output-graph-s3 s3://PATH_TO/acm_output/ \
+        --volume-size-in-gb 10 \
+        --graph-name acm \
+        --graph-config-file acm_raw/config.json
+```
+The processed graph data is stored at s3://PATH_TO/acm_output/.
+
+Note: The `--input-graph-s3` path will be mapped into `/opt/ml/processing/input` and used as the command working directory when launching the graph construction command.
+The graph configuration file should be stored with the input graph data.
+The argument `--graph-config-file` should be a relative path to `--input-graph-s3`.
+
 ### Launch GraphStorm training/inference using Amazon SageMaker service
 
 #### Launch train task using built-in training script
 
 ##### Preparing training data and training task config.
-We use the built-int ogbn-arxiv dataset as example.
+We use the built-in ogbn-arxiv dataset as an example.
 First you need to partition the graph dataset by following the instructions:
 ```
 cd ~/
@@ -34,7 +75,7 @@ aws s3 cp --recursive /tmp/ogbn_arxiv_nc_2p s3://PATH_TO/ogbn_arxiv_nc_2p/
 aws s3 cp PATH_TO/arxiv_nc.yaml s3://PATH_TO_TRAINING_CONFIG/arxiv_nc.yaml
 ```
 
-Then, you can use the following command to launch a sagemaker training task.
+Then, you can use the following command to launch a SageMaker training task.
 ```
 cd $GS_HOME/sagemaker/
 python3 launch/launch_train.py \
@@ -67,7 +108,7 @@ They only work with shared file system while SageMaker solution does not support
 Inference task can use the same graph as training task. You can also run inference on a new graph.
 In this example, we will use the same graph.
 
-you can use the following command to launch a sagemaker offline inference task.
+you can use the following command to launch a SageMaker offline inference task.
 ```
 cd $GS_HOME/sagemaker/
 python3 launch/launch_infer \

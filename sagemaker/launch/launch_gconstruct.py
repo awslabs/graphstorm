@@ -15,6 +15,7 @@
 
     Launch SageMaker graph construction task
 """
+import os
 import argparse
 import boto3 # pylint: disable=import-error
 
@@ -46,7 +47,7 @@ def run_job(input_args, image, unknowargs):
     input_graph_s3 = input_args.input_graph_s3
     output_graph_s3 = input_args.output_graph_s3
     graph_name = input_args.graph_name # Inference graph name
-    graph_config_name = input_args.graph_config_name # graph config file
+    graph_config_file = input_args.graph_config_file # graph config file
     volume_size_in_gb = input_args.volume_size_in_gb # instance disk size
 
     boto_session = boto3.session.Session(region_name=region)
@@ -55,7 +56,7 @@ def run_job(input_args, image, unknowargs):
         sagemaker_client=sagemaker_client)
 
     input_path = '/opt/ml/processing/input'
-    config_path = f'/opt/ml/processing/input/{graph_config_name}'
+    config_path = os.path.join(input_path, graph_config_file)
     output_path = '/opt/ml/processing/output'
     command=['python3']
 
@@ -74,10 +75,10 @@ def run_job(input_args, image, unknowargs):
 
     script_processor.run(
         code=entry_point,
-        arguments=['--conf-file', config_path,
-                   '--input-dir', input_path,
-                   '--output-dir', output_path,
-                   '--graph-name', graph_name],
+        arguments=['--graph-config-path', config_path,
+                   '--input-path', input_path,
+                   '--output-path', output_path,
+                   '--graph-name', graph_name] + unknowargs,
         inputs=[
             ProcessingInput(
                 source=input_graph_s3,
@@ -122,8 +123,8 @@ def parse_args():
 
     parser.add_argument("--graph-name", type=str,
         required=True, help="Graph name")
-    parser.add_argument("--graph-config-name", type=str,
-        required=True, help="Graph configuration file")
+    parser.add_argument("--graph-config-file", type=str,
+        required=True, help="Graph configuration file. It must be a relative path to --input-graph-s3.")
 
     return parser
 
