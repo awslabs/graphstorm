@@ -241,10 +241,7 @@ class RuntimeProfiler:
         """
         self._profile_path = path
         if rank is None:
-            try:
-                self._rank = get_rank()
-            except:
-                self._rank = 0
+            self._rank = get_rank()
         else:
             self._rank = rank
         print(f"******** profiling rank: {self._rank}")
