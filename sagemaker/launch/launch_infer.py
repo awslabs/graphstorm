@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Launch SageMaker training task
+    Launch SageMaker inference task
 """
 import os
 import sagemaker
@@ -118,12 +118,12 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--image-url", type=str,
-        help="Training docker image")
+        help="Inference docker image")
     parser.add_argument("--role", type=str,
         help="SageMaker role")
     parser.add_argument("--instance-type", type=str,
         default=INSTANCE_TYPE,
-        help="instance type used to train models")
+        help="instance type used to do inference")
     parser.add_argument("--instance-count", type=int,
         default=2,
         help="number of infernece instances")
@@ -131,8 +131,8 @@ def parse_args():
         default="us-east-1",
         help="Region")
     parser.add_argument("--entry-point", type=str,
-        default="graphstorm/sagemaker/scripts/sagemaker_infer.py",
-        help="PATH-TO graphstorm/sagemaker/scripts/sagemaker_infer.py")
+        default="graphstorm/sagemaker/run/infer_entry.py",
+        help="PATH-TO graphstorm/sagemaker/run/infer_entry.py")
     parser.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
 
