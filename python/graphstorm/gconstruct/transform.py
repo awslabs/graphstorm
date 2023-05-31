@@ -327,7 +327,7 @@ def get_valid_label_index(label):
         if label.ndim == 1:
             return np.logical_not(np.isnan(label)).nonzero()[0]
         else:
-            return np.nonzero(np.sum(np.isnan(label), axis=1) < label.shape[1])[0]
+            return np.nonzero(np.sum(np.isnan(label), axis=1) == 0)[0]
     elif np.issubdtype(label.dtype, np.integer):
         return np.arange(len(label))
     else:
