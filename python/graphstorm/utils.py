@@ -173,12 +173,6 @@ class SysTracker:
     """
     def __init__(self):
         self._checkpoints = []
-        # Some system doesn't support DistDGL. We cannot run distributed training job
-        # on these systems.
-        try:
-            self._rank = get_rank()
-        except:
-            self._rank = 0
 
     # This is to create only one instance.
     _instance = None
@@ -227,12 +221,6 @@ class RuntimeProfiler:
     def __init__(self, profile_path=None):
         self._checkpoints = []
         self._runtime = {}
-        # Some system doesn't support DistDGL. We cannot run distributed training job
-        # on these systems.
-        try:
-            self._rank = get_rank()
-        except:
-            self._rank = 0
         self._profile_path = profile_path
 
     # This is to create only one instance.
@@ -245,13 +233,6 @@ class RuntimeProfiler:
             cls._instance = object.__new__(cls)
 
         return cls._instance
-
-    def set_rank(self, rank):
-        """ Manually set rank.
-
-        This can be used if the system is not initialized correctly.
-        """
-        self._rank = rank
 
     def init(self, path, rank=None):
         """ Initialize the profiler.
