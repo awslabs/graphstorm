@@ -16,16 +16,20 @@
     Launch SageMaker training task
 """
 import os
-import sagemaker
 import argparse
+
 import boto3 # pylint: disable=import-error
-
-from graphstorm.config import SUPPORTED_TASKS
-
-from sagemaker.pytorch.estimator import PyTorch
 import sagemaker
+from sagemaker.pytorch.estimator import PyTorch
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
+SUPPORTED_TASKS = {
+    "node_classification",
+    "node_regression",
+    "edge_classification",
+    "edge_regression",
+    "link_prediction"
+}
 
 def run_job(input_args, image, unknowargs):
     """ Run job using SageMaker estimator.PyTorch
