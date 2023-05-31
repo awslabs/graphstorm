@@ -162,7 +162,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(model.module, val_loader, test_loader,
-                                          use_mini_batch_infer, total_steps)
+                                          use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -196,7 +196,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module, val_loader, test_loader, use_mini_batch_infer,
-                                      total_steps)
+                                      total_steps, return_proba=False)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
@@ -225,7 +225,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps):
+    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
+             return_proba=True):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -240,6 +241,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             Whether or not to use mini-batch inference.
         total_steps: int
             Total number of iterations.
+        return_proba: bool
+            Whether to return all the predictions or the maximum prediction.
 
         Returns
         -------
@@ -248,18 +251,18 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('start prediction')
         model.eval()
-        print("call model.eval()")
         if use_mini_batch_infer:
-            val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader,
+            val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                               return_label=True)
-            test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader,
+            test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader, return_proba,
                                                                 return_label=True)
         else:
             emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
                                           task_tracker=self.task_tracker)
-            val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader,
+            val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader, return_proba,
                                                           return_label=True)
-            test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader,
+
+            test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader, return_proba,
                                                             return_label=True)
         model.train()
         sys_tracker.check('predict')
