@@ -301,8 +301,9 @@ def test_label():
     check_classification(res)
 
     # Check multi-label classification with invalid labels.
-    data = {'label' : np.random.randint(2, size=(13,5)).astype(np.float32)}
-    data['label'][[0, 3, 4]] = np.NAN
+    data = {'label' : np.random.randint(2, size=(15,5)).astype(np.float32)}
+    data['label'][[0,3,4]] = np.NAN
+    data['label'][[1,2], [3,4]] = np.NAN
     ops = parse_label_ops([conf], True)
     res = process_labels(data, ops)
     check_classification(res)
