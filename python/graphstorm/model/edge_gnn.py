@@ -105,6 +105,21 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         self.alpha_l2norm = alpha_l2norm
 
     def prepare_batch_graph(self, batch_graph, data, device):
+        """ Prepare edge features for batch_graph in edge
+            classification or regression tasks.
+
+        This method should be called before forward().
+        This method is supposed to load any edge data from graph data into batch_graph
+
+        Parameters
+        ----------
+        batch_graph: DGLGraph
+            Batch_graph hosting all test edges.
+        data: GSgnnData
+            Graph data.
+        device: torch device
+            Device to store data.
+        """
         if isinstance(self.decoder, (MLPEFeatEdgeDecoder)):
             # We only extract edge feature for batch_graph if any
             # We do not support edge feature in message passing.

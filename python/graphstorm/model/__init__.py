@@ -37,7 +37,6 @@ from .edge_decoder import (DenseBiDecoder,
 from .edge_decoder import (LinkPredictDotDecoder,
                            LinkPredictDistMultDecoder,
                            LinkPredictWeightedDotDecoder,
-                           LinkPredictWeightedDistMultDecoder,
-                           MLPEFeatEdgeDecoder)
+                           LinkPredictWeightedDistMultDecoder)
 
 from .loss_func import ClassifyLossFunc, RegressionLossFunc, LinkPredictLossFunc
