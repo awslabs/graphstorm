@@ -20,4 +20,3 @@ pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/sagemaker/
 
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/graphpartitioning/
-pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/graphpartitioning/array_readwriter/

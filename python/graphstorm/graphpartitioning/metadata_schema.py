@@ -19,11 +19,20 @@
 import json
 import logging
 import os
-
-import constants
-
 import numpy as np
 
+from .constants import STR_NODE_TYPE
+from .constants import STR_NUM_NODES_PER_TYPE
+from .constants import STR_EDGE_TYPE
+from .constants import STR_NUM_EDGES_PER_TYPE
+from .constants import STR_NODE_DATA
+from .constants import STR_EDGE_DATA
+from .constants import STR_EDGES
+from .constants import STR_DATA
+from .constants import STR_FORMAT
+from .constants import STR_FORMAT_DELIMITER
+from .constants import STR_NAME
+from .constants import STR_GRAPH_NAME
 
 class MetadataSchema:
     """MetadataSchema class is designed to capture and encapsulate all the
@@ -278,8 +287,8 @@ class MetadataSchema:
             and [a, b) is the range of global_node_ids for the node type
             `ntype1`.
         """
-        ntypes = self._data[constants.STR_NODE_TYPE]
-        ntype_counts = self._data[constants.STR_NUM_NODES_PER_TYPE]
+        ntypes = self._data[STR_NODE_TYPE]
+        ntype_counts = self._data[STR_NUM_NODES_PER_TYPE]
         for count in ntype_counts:
             if isinstance(count, int) and count > 0:
                 continue
@@ -308,8 +317,8 @@ class MetadataSchema:
             and [a, b) is the range of global_edge_ids for the edge type
             `etype1`.
         """
-        etypes = self._data[constants.STR_EDGE_TYPE]
-        etype_counts = self._data[constants.STR_NUM_EDGES_PER_TYPE]
+        etypes = self._data[STR_EDGE_TYPE]
+        etype_counts = self._data[STR_NUM_EDGES_PER_TYPE]
         for count in etype_counts:
             if isinstance(count, int) and count > 0:
                 continue
@@ -327,7 +336,7 @@ class MetadataSchema:
         the input graph. This function creates a list of node types present in
         the graph, and unique-id <-> node type and reverse maps.
         """
-        self._ntypes = self._data[constants.STR_NODE_TYPE]
+        self._ntypes = self._data[STR_NODE_TYPE]
         self._ntype_id_map = {
             ntype_name: idx for idx, ntype_name in enumerate(self._ntypes)
         }
@@ -338,7 +347,7 @@ class MetadataSchema:
         the input graph. This function creates a list of edge types present in
         the graph, and unique-id <-> edge type and reverse maps.
         """
-        self._etypes = self._data[constants.STR_EDGE_TYPE]
+        self._etypes = self._data[STR_EDGE_TYPE]
         self._etype_id_map = {
             etype_name: idx for idx, etype_name in enumerate(self._etypes)
         }
@@ -354,8 +363,8 @@ class MetadataSchema:
             the ntype1 node type.
         """
         self._ntype_features = {}
-        node_data = self._data.get(constants.STR_NODE_DATA, {})
-        for ntype in self._data[constants.STR_NODE_TYPE]:
+        node_data = self._data.get(STR_NODE_DATA, {})
+        for ntype in self._data[STR_NODE_TYPE]:
             features = node_data.get(ntype, {})
             if len(features) > 0:
                 self._ntype_features[ntype] = list(features.keys())
@@ -370,8 +379,8 @@ class MetadataSchema:
             the etype1 edge type.
         """
         self._etype_features = {}
-        edge_data = self._data.get(constants.STR_EDGE_DATA, {})
-        for etype in self._data[constants.STR_EDGE_TYPE]:
+        edge_data = self._data.get(STR_EDGE_DATA, {})
+        for etype in self._data[STR_EDGE_TYPE]:
             features = edge_data.get(etype, {})
             if len(features) > 0:
                 self._etype_features[etype] = list(features.keys())
@@ -391,18 +400,18 @@ class MetadataSchema:
                   are stored for this node type.
         """
         self._ntype_feature_files = {}
-        node_data = self._data.get(constants.STR_NODE_DATA, {})
+        node_data = self._data.get(STR_NODE_DATA, {})
         for ntype, ntype_info in node_data.items():
             for feature_name, feature_info in ntype_info.items():
-                data_files = feature_info.get(constants.STR_DATA, [])
+                data_files = feature_info.get(STR_DATA, [])
                 file_type = None
                 delimiter = None
                 if len(data_files) > 0:
-                    file_type = feature_info[constants.STR_FORMAT][
-                        constants.STR_NAME
+                    file_type = feature_info[STR_FORMAT][
+                        STR_NAME
                     ]
-                    delimiter = feature_info[constants.STR_FORMAT].get(
-                        constants.STR_FORMAT_DELIMITER, ","
+                    delimiter = feature_info[STR_FORMAT].get(
+                        STR_FORMAT_DELIMITER, ","
                     )
 
                 self._check_ifexists(data_files, f"{ntype}/{feature_name}")
@@ -429,18 +438,18 @@ class MetadataSchema:
                   are stored for this edge type.
         """
         self._etype_feature_files = {}
-        edge_data = self._data.get(constants.STR_EDGE_DATA, {})
+        edge_data = self._data.get(STR_EDGE_DATA, {})
         for etype, etype_info in edge_data.items():
             for feature_name, feature_info in etype_info.items():
-                data_files = feature_info.get(constants.STR_DATA, [])
+                data_files = feature_info.get(STR_DATA, [])
                 file_type = None
                 delimiter = None
                 if len(data_files) > 0:
-                    file_type = feature_info[constants.STR_FORMAT][
-                        constants.STR_NAME
+                    file_type = feature_info[STR_FORMAT][
+                        STR_NAME
                     ]
-                    delimiter = feature_info[constants.STR_FORMAT].get(
-                        constants.STR_FORMAT_DELIMITER, ","
+                    delimiter = feature_info[STR_FORMAT].get(
+                        STR_FORMAT_DELIMITER, ","
                     )
 
                 self._check_ifexists(data_files, f"{etype}/{feature_name}")
@@ -465,12 +474,12 @@ class MetadataSchema:
         """
         self._etype_files = {}
         try:
-            for etype, etype_info in self._data[constants.STR_EDGES].items():
-                file_type = etype_info[constants.STR_FORMAT][constants.STR_NAME]
-                delimiter = etype_info[constants.STR_FORMAT][
-                    constants.STR_FORMAT_DELIMITER
+            for etype, etype_info in self._data[STR_EDGES].items():
+                file_type = etype_info[STR_FORMAT][STR_NAME]
+                delimiter = etype_info[STR_FORMAT][
+                    STR_FORMAT_DELIMITER
                 ]
-                data_files = etype_info[constants.STR_DATA]
+                data_files = etype_info[STR_DATA]
 
                 self._check_ifexists(data_files, etype)
                 self._etype_files[etype] = (file_type, delimiter, data_files)
@@ -513,28 +522,28 @@ class MetadataSchema:
                 valid edge types are in the ``edge_type`` list
         """
         assert isinstance(
-            self._data[constants.STR_GRAPH_NAME], str
+            self._data[STR_GRAPH_NAME], str
         ), "Invalid graph name"
         assert (
-            len(self._data[constants.STR_GRAPH_NAME]) > 0
+            len(self._data[STR_GRAPH_NAME]) > 0
         ), "Invalid graph name"
 
         assert (
-            len(self._data[constants.STR_NUM_NODES_PER_TYPE]) > 0
+            len(self._data[STR_NUM_NODES_PER_TYPE]) > 0
         ), "Invalid number of nodes"
         assert (
-            len(self._data[constants.STR_NUM_EDGES_PER_TYPE]) > 0
+            len(self._data[STR_NUM_EDGES_PER_TYPE]) > 0
         ), "Invalid number of edges"
 
         assert (
-            len(self._data[constants.STR_NUM_NODES_PER_TYPE]) > 0
+            len(self._data[STR_NUM_NODES_PER_TYPE]) > 0
         ), "Invalid number of nodes"
         assert (
-            len(self._data[constants.STR_NUM_EDGES_PER_TYPE]) > 0
+            len(self._data[STR_NUM_EDGES_PER_TYPE]) > 0
         ), "Invalid number of edges"
 
         for idx, num_nodes in enumerate(
-            self._data[constants.STR_NUM_NODES_PER_TYPE]
+            self._data[STR_NUM_NODES_PER_TYPE]
         ):
             if num_nodes > 0:
                 continue
@@ -543,7 +552,7 @@ class MetadataSchema:
             )
 
         for idx, num_edges in enumerate(
-            self._data[constants.STR_NUM_EDGES_PER_TYPE]
+            self._data[STR_NUM_EDGES_PER_TYPE]
         ):
             if num_edges > 0:
                 continue
@@ -551,18 +560,18 @@ class MetadataSchema:
                 f"No. of edges at index: {idx} is not a valie value."
             )
 
-        assert len(self._data[constants.STR_NODE_TYPE]) == len(
-            self._data[constants.STR_NUM_NODES_PER_TYPE]
+        assert len(self._data[STR_NODE_TYPE]) == len(
+            self._data[STR_NUM_NODES_PER_TYPE]
         ), "No. of node types does not match with No. of nodes per node type."
-        assert len(self._data[constants.STR_EDGE_TYPE]) == len(
-            self._data[constants.STR_NUM_EDGES_PER_TYPE]
+        assert len(self._data[STR_EDGE_TYPE]) == len(
+            self._data[STR_NUM_EDGES_PER_TYPE]
         ), "No. of edge types does not match with No. of edges per edge type."
 
         assert len(self._ntype_features) <= len(
-            self._data[constants.STR_NUM_NODES_PER_TYPE]
+            self._data[STR_NUM_NODES_PER_TYPE]
         ), "Node types with features does not match node type counts."
         assert len(self._etype_features) <= len(
-            self._data[constants.STR_NUM_EDGES_PER_TYPE]
+            self._data[STR_NUM_EDGES_PER_TYPE]
         ), "Edge types with features does not match edge type counts."
 
         # Check for each existing node feature, corresponding node type is valid
