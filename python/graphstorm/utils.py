@@ -250,6 +250,15 @@ class RuntimeProfiler:
         print(f"******** profiling rank: {self._rank}")
 
     def record(self, name):
+        """ Record the computation step.
+
+        It basically adds a checkpoint in the place where it is called.
+
+        Parameters
+        ----------
+        name : str
+            The name of the check point.
+        """
         if self._profile_path is None:
             return
 
@@ -265,11 +274,15 @@ class RuntimeProfiler:
                 self._runtime[name].append(runtime)
 
     def print_stats(self):
+        """ Print the statistics
+        """
         if self._rank == 0 and self._profile_path is not None:
             for name, runtimes in self._runtime.items():
                 print(name, sum(runtimes) / len(runtimes), "seconds")
 
     def save_profile(self):
+        """ Save the profiling result to a file.
+        """
         if self._profile_path is not None:
             for name in self._runtime:
                 self._runtime[name] = np.array(self._runtime[name])
