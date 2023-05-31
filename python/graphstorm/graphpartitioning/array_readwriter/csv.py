@@ -44,8 +44,9 @@ class CSVArrayParser(object):
             Path of a file from which to read.
         """
         logging.debug(
-            "Reading from %s using CSV format with configuration %s"
-            % (path, self.__dict__)
+            "Reading from %s using CSV format with configuration %s",
+            path,
+            self.__dict__,
         )
         # do not read the first line as header
         read_options = pyarrow.csv.ReadOptions(autogenerate_column_names=True)
@@ -53,7 +54,7 @@ class CSVArrayParser(object):
         arr = pyarrow.csv.read_csv(
             path, read_options=read_options, parse_options=parse_options
         )
-        logging.debug("Done reading from %s" % path)
+        logging.debug("Done reading from %s", path)
         return arr.to_pandas().to_numpy()
 
     def write(self, path, arr):
@@ -67,12 +68,13 @@ class CSVArrayParser(object):
             Numpy ndarray to write to a file.
         """
         logging.debug(
-            "Writing to %s using CSV format with configuration %s"
-            % (path, self.__dict__)
+            "Writing to %s using CSV format with configuration %s",
+            path,
+            self.__dict__,
         )
         write_options = pyarrow.csv.WriteOptions(
             include_header=False, delimiter=self.delimiter
         )
         arr = pyarrow.Table.from_pandas(pd.DataFrame(arr))
         pyarrow.csv.write_csv(arr, path, write_options=write_options)
-        logging.debug("Done writing to %s" % path)
+        logging.debug("Done writing to %s", path)

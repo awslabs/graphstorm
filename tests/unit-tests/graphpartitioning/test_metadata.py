@@ -780,10 +780,10 @@ def test_error_cases(metadata):
 
 
 if __name__ == "__main__":
+    test_singleton()
     test_load_json()
-    test_load_json()
-    test_ntypes(ntypes)
-    test_etypes(etypes)
+    test_ntypes([NODE1])
+    test_etypes([EDGE1])
     test_etype_files()
     test_node_features()
     test_edge_features()

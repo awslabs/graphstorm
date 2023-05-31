@@ -20,9 +20,9 @@ import json
 import logging
 import os
 
-import numpy as np
+import constants
 
-from . import constants
+import numpy as np
 
 
 class MetadataSchema:
@@ -603,8 +603,7 @@ class MetadataSchema:
 
     @classmethod
     def cleanup(cls):
-        """ Cleanup the local instance to release the object.
-        """
+        """Cleanup the local instance to release the object."""
         if cls._instance is not None:
             del cls._instance
             cls._instance = None
