@@ -19,20 +19,24 @@
 import json
 import logging
 import os
+
 import numpy as np
 
-from .constants import STR_NODE_TYPE
-from .constants import STR_NUM_NODES_PER_TYPE
-from .constants import STR_EDGE_TYPE
-from .constants import STR_NUM_EDGES_PER_TYPE
-from .constants import STR_NODE_DATA
-from .constants import STR_EDGE_DATA
-from .constants import STR_EDGES
-from .constants import STR_DATA
-from .constants import STR_FORMAT
-from .constants import STR_FORMAT_DELIMITER
-from .constants import STR_NAME
-from .constants import STR_GRAPH_NAME
+from .constants import (
+    STR_DATA,
+    STR_EDGE_DATA,
+    STR_EDGE_TYPE,
+    STR_EDGES,
+    STR_FORMAT,
+    STR_FORMAT_DELIMITER,
+    STR_GRAPH_NAME,
+    STR_NAME,
+    STR_NODE_DATA,
+    STR_NODE_TYPE,
+    STR_NUM_EDGES_PER_TYPE,
+    STR_NUM_NODES_PER_TYPE,
+)
+
 
 class MetadataSchema:
     """MetadataSchema class is designed to capture and encapsulate all the
@@ -124,7 +128,7 @@ class MetadataSchema:
 
     Examples:
     ---------
-    Creating and initalizaing the singleton instance during the pipelines
+    Creating and initializing the singleton instance during the pipelines
     initialization process.
     >>> obj = Metadata()
     >>> base_dir = "/home/ubuntu/graph-dataset"
@@ -168,7 +172,7 @@ class MetadataSchema:
         self._etype_files = None
 
     def _load_json(self, file_name, base_dir):
-        """Helpper function to read the metadata schema file of the input
+        """Helper function to read the metadata schema file of the input
         graph dataset. ``file_name`` input argument can be either in absolute
         or relative path formats. ``base_dir`` is used as the root directory
         for the input graph dataset where all the files (of the dataset) are
@@ -184,31 +188,19 @@ class MetadataSchema:
             Base directory, if provided, is used as the root directory for
             the input graph dataset
         """
-        if file_name is None or not isinstance(file_name, str):
-            raise ValueError(f"File path is not valid. = {file_name}")
-
         self._basedir = None
-        if base_dir is not None and os.path.isdir(base_dir):
-            if not os.path.isfile(os.path.join(base_dir, file_name)):
-                raise ValueError(
-                    f"Metadata file does not exist. {base_dir}, {file_name}"
-                )
-            self._metadata_path = os.path.join(
-                os.path.join(base_dir, file_name)
-            )
-            self._basedir = base_dir
-        else:
-            if not os.path.isfile(file_name):
-                raise ValueError(f"Metadata file does not exist. {file_name}")
-            self._metadata_path = file_name
-
-        if self._basedir is None:
+        if base_dir is None:
             self._basedir = os.getcwd()
+        else:
+            self._basedir = base_dir
 
+        self._metadata_path = os.path.join(
+            os.path.join(self._basedir, file_name)
+        )
         with open(self._metadata_path, "r", encoding="utf-8") as handle:
             self._data = json.load(handle)
 
-    def _check_ifexists(self, data_files, src_type):
+    def _check_ifexists(self, data_files, file_type):
         """Helper function to verify the presence of a set of filenames.
 
         Argument
@@ -218,20 +210,18 @@ class MetadataSchema:
         src_type: str
             Either node type or edge type from the input graph.
         """
-        if not isinstance(data_files, list):
-            raise ValueError(
-                f"Incorrect value encountered when iterating over files for {src_type}."
-            )
-
         for filename in data_files:
             if not os.path.isabs(filename):
                 if not os.path.isfile(os.path.join(self._basedir, filename)):
                     raise FileNotFoundError(
-                        f"File: {os.path.join(self._basedir, filename)} does not exist"
+                        f"File: {os.path.join(self._basedir, filename)} "
+                        f"does not exist for {file_type}"
                     )
             else:
                 if not os.path.isfile(filename):
-                    raise FileNotFoundError(f"File: {filename} does not exist.")
+                    raise FileNotFoundError(
+                        f"File: {filename} does not exist for {file_type}."
+                    )
 
     def init(self, file_path, base_dir, init_maps=True):
         """Initialization function of this class to create all the data
@@ -249,7 +239,7 @@ class MetadataSchema:
         init_maps: bool
             Boolean flag to indicate whether to build all the necessary data
             structures during initialization. Otherwise the user of this class
-            is exptected to invoke the appropriate initialization function.
+            is expected to invoke the appropriate initialization function.
         """
         self._load_json(file_path, base_dir)
         if init_maps:
@@ -275,7 +265,7 @@ class MetadataSchema:
         node types present in the input graph.
 
         global_node_ids, or global_nids, are unique ids assigned to each
-        node of the input graph. These ids are exptected to be unique ids
+        node of the input graph. These ids are expected to be unique ids
         across the input graph.
 
         The range of global_node_ids for each node type in the graph are
@@ -407,9 +397,7 @@ class MetadataSchema:
                 file_type = None
                 delimiter = None
                 if len(data_files) > 0:
-                    file_type = feature_info[STR_FORMAT][
-                        STR_NAME
-                    ]
+                    file_type = feature_info[STR_FORMAT][STR_NAME]
                     delimiter = feature_info[STR_FORMAT].get(
                         STR_FORMAT_DELIMITER, ","
                     )
@@ -445,9 +433,7 @@ class MetadataSchema:
                 file_type = None
                 delimiter = None
                 if len(data_files) > 0:
-                    file_type = feature_info[STR_FORMAT][
-                        STR_NAME
-                    ]
+                    file_type = feature_info[STR_FORMAT][STR_NAME]
                     delimiter = feature_info[STR_FORMAT].get(
                         STR_FORMAT_DELIMITER, ","
                     )
@@ -476,9 +462,7 @@ class MetadataSchema:
         try:
             for etype, etype_info in self._data[STR_EDGES].items():
                 file_type = etype_info[STR_FORMAT][STR_NAME]
-                delimiter = etype_info[STR_FORMAT][
-                    STR_FORMAT_DELIMITER
-                ]
+                delimiter = etype_info[STR_FORMAT][STR_FORMAT_DELIMITER]
                 data_files = etype_info[STR_DATA]
 
                 self._check_ifexists(data_files, etype)
@@ -521,12 +505,8 @@ class MetadataSchema:
            * Edge type with edge features should be a valie edge type,
                 valid edge types are in the ``edge_type`` list
         """
-        assert isinstance(
-            self._data[STR_GRAPH_NAME], str
-        ), "Invalid graph name"
-        assert (
-            len(self._data[STR_GRAPH_NAME]) > 0
-        ), "Invalid graph name"
+        assert isinstance(self._data[STR_GRAPH_NAME], str), "Invalid graph name"
+        assert len(self._data[STR_GRAPH_NAME]) > 0, "Invalid graph name"
 
         assert (
             len(self._data[STR_NUM_NODES_PER_TYPE]) > 0
@@ -542,18 +522,14 @@ class MetadataSchema:
             len(self._data[STR_NUM_EDGES_PER_TYPE]) > 0
         ), "Invalid number of edges"
 
-        for idx, num_nodes in enumerate(
-            self._data[STR_NUM_NODES_PER_TYPE]
-        ):
+        for idx, num_nodes in enumerate(self._data[STR_NUM_NODES_PER_TYPE]):
             if num_nodes > 0:
                 continue
             raise ValueError(
                 f"No. of nodes at index: {idx} is not a valid value."
             )
 
-        for idx, num_edges in enumerate(
-            self._data[STR_NUM_EDGES_PER_TYPE]
-        ):
+        for idx, num_edges in enumerate(self._data[STR_NUM_EDGES_PER_TYPE]):
             if num_edges > 0:
                 continue
             raise ValueError(
@@ -591,31 +567,6 @@ class MetadataSchema:
             raise ValueError(
                 f"Edge Type: {etype} is not present in the list of edge types"
             )
-
-    def __del__(self):
-        self._basedir = None
-        self._metadata_path = None
-        self._data = None
-        self._global_nid_offsets = None
-        self._global_eid_offsets = None
-        self._ntypes = None
-        self._ntype_id_map = None
-        self._id_ntype_map = None
-        self._etype_id_map = None
-        self._id_etype_map = None
-        self._etypes = None
-        self._ntype_features = None
-        self._etype_features = None
-        self._ntype_feature_files = None
-        self._etype_feature_files = None
-        self._etype_files = None
-
-    @classmethod
-    def cleanup(cls):
-        """Cleanup the local instance to release the object."""
-        if cls._instance is not None:
-            del cls._instance
-            cls._instance = None
 
     def get_ntype_feature_files(self, ntype, feature_name):
         """Retrieves a tuple, with the metadata for node feature.

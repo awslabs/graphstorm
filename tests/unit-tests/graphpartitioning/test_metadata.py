@@ -46,15 +46,15 @@ def test_load_json():
         metadata_path = os.path.join(root_dir, METADATA_NAME)
         with open(metadata_path, "w") as handle:
             json.dump(input_dict, handle, indent=4)
-
         run_test(root_dir)
-        MetadataSchema.cleanup()
 
     with open(METADATA_NAME, "w") as handle:
         json.dump(input_dict, handle, indent=4)
-
     run_test(None)
-    MetadataSchema.cleanup()
+
+    with open(METADATA_NAME, "w") as handle:
+        json.dump(input_dict, handle, indent=4)
+    run_test("")
 
 
 def test_singleton():
@@ -101,7 +101,6 @@ def test_singleton():
     assert obj2 == obj3, "Singleton test failed."
 
     # Clean up
-    MetadataSchema.cleanup()
     obj1 = None
     obj2 = None
     obj3 = None
@@ -326,7 +325,6 @@ def test_node_features(
                 pass
         finally:
             obj = None
-            MetadataSchema.cleanup()
 
     def update_schema(input_dict, file_metadata):
         # Add nodes and node features, if necessary.

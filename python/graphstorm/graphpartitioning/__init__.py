@@ -17,14 +17,16 @@
     graph dataset.
 """
 
-from .constants import STR_NODE_TYPE
-from .constants import STR_NUM_NODES_PER_TYPE
-from .constants import STR_EDGE_TYPE
-from .constants import STR_NUM_EDGES_PER_TYPE
-from .constants import STR_NODE_DATA
-from .constants import STR_EDGE_DATA
-from .constants import STR_DATA
-from .constants import STR_FORMAT
-from .constants import STR_FORMAT_DELIMITER
-from .constants import STR_NAME
-from .constants import STR_GRAPH_NAME
+from .constants import (
+    STR_DATA,
+    STR_EDGE_DATA,
+    STR_EDGE_TYPE,
+    STR_FORMAT,
+    STR_FORMAT_DELIMITER,
+    STR_GRAPH_NAME,
+    STR_NAME,
+    STR_NODE_DATA,
+    STR_NODE_TYPE,
+    STR_NUM_EDGES_PER_TYPE,
+    STR_NUM_NODES_PER_TYPE,
+)
