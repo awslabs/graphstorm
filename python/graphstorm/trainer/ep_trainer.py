@@ -139,7 +139,16 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
 
-                model.module.prepare_batch_graph(batch_graph, data, device)
+                block_efeat_names = model.module.get_blocks_efeat_names()
+                if block_efeat_names is not None:
+                    blocks_efeat = data.get_edge_feats(blocks, block_efeat_names, device)
+                    add_efeats(blocks, blocks_efeat)
+                batch_graph_efeat_names = model.module.get_batch_graph_efeat_names()
+                if batch_graph_efeat_names is not None:
+                    batch_graph_efeat = data.get_edge_feats(batch_graph,
+                                                            batch_graph_efeat_names,
+                                                            device)
+                    add_efeats(batch_graph, batch_graph_efeat)
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
