@@ -45,7 +45,7 @@ if __name__ == '__main__':
     argparser.add_argument('--val-pct', type=float, default=0.1,
                            help='The pct of validation nodes/edges. Should be > 0 and < 1.')
     # graph modification arguments
-    argparser.add_argument('--undirected', action='store_true',
+    argparser.add_argument('--add-reverse-edges', action='store_true',
                            help='turn the graph into an undirected graph.')
     argparser.add_argument('--train-graph-only', action='store_true',
                            help='Only partition the training graph.')
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     g = dataset[0]
 
     if constructed_graph:
-        if args.undirected:
+        if args.add_reverse_edges:
             print("Creating reverse edges ...")
             edges = {}
             for src_ntype, etype, dst_ntype in g.canonical_etypes:

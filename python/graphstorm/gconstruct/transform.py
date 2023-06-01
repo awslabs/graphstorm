@@ -325,7 +325,10 @@ def get_valid_label_index(label):
     Numpy array : the index of the samples with valid labels in the list.
     """
     if np.issubdtype(label.dtype, np.floating):
-        return np.logical_not(np.isnan(label)).nonzero()[0]
+        if label.ndim == 1:
+            return np.logical_not(np.isnan(label)).nonzero()[0]
+        else:
+            return np.nonzero(np.sum(np.isnan(label), axis=1) == 0)[0]
     elif np.issubdtype(label.dtype, np.integer):
         return np.arange(len(label))
     else:
