@@ -10,7 +10,7 @@ Please refer to [Amazon SageMaker service](https://aws.amazon.com/pm/sagemaker) 
 
 ### Launch GraphStorm graph construction using Amazon SageMaker service
 
-#### Preparing example dataset
+#### Preparing the example dataset
 We use the built-in acm dataset as an example.
 You can generate the raw acm dataset in parquet format using the following instructions
 (See [Use Your Own Data Tutorial](https://github.com/awslabs/graphstorm/wiki/tutorials-own-data#use-own-data) for more details):
@@ -23,7 +23,7 @@ python3 acm_data.py --output-path acm_raw
 ```
 The raw graph input data will be stored at ~/graphstorm/examples/acm_raw. The input configuration JSON is also generated and stored in the same path at  ~/graphstorm/examples/acm_raw/config.json.
 
-#### launch grpah processing task
+#### launch graph processing task
 Before launching the task, you need to upload the raw acm dataset (i.e., /tmp/acm_raw) into S3.
 ```
 aws s3 cp --recursive  ~/graphstorm/examples/acm_raw s3://PATH_TO/acm/acm_raw/
@@ -32,10 +32,10 @@ aws s3 cp --recursive  ~/graphstorm/examples/acm_raw s3://PATH_TO/acm/acm_raw/
 Then, you can use the following command to launch a SageMaker graph construction task.
 ```
 python3 launch/launch_gconstruct.py \
-        --image-url <AMAZON_ECR_IMAGE_PATH> \
+        --image-url <AMAZON_ECR_IMAGE_URI> \
         --region us-east-1 \
         --entry-point run/train_entry.py \
-        --role <ARN_ROLE> \
+        --role <ROLE_ARN> \
         --input-graph-s3 s3://PATH_TO/acm/ \
         --output-graph-s3 s3://PATH_TO/acm_output/ \
         --volume-size-in-gb 10 \
@@ -79,10 +79,10 @@ Then, you can use the following command to launch a SageMaker training task.
 ```
 cd $GS_HOME/sagemaker/
 python3 launch/launch_train.py \
-        --image-url <AMAZON_ECR_IMAGE_PATH> \
+        --image-url <AMAZON_ECR_IMAGE_URI> \
         --region us-east-1 \
         --entry-point run/train_entry.py \
-        --role <ARN_ROLE> \
+        --role <ROLE_ARN> \
         --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
         --yaml-s3 s3://PATH_TO_TRAINING_CONFIG/arxiv_nc.yaml \
         --model-artifact-s3 s3://PATH_TO_SAVE_TRAINED_MODEL/ \
@@ -112,10 +112,10 @@ you can use the following command to launch a SageMaker offline inference task.
 ```
 cd $GS_HOME/sagemaker/
 python3 launch/launch_infer \
-        --image-url <AMAZON_ECR_IMAGE_PATH> \
+        --image-url <AMAZON_ECR_IMAGE_URI> \
         --region us-east-1 \
         --entry-point run/infer_entry.py \
-        --role <ARN_ROLE> \
+        --role <ROLE_ARN> \
         --graph-data-s3 s3://PATH_TO/ogbn_arxiv_nc_2p/ \
         --yaml-s3 s3://PATH_TO_TRAINING_CONFIG/arxiv_nc.yaml \
         --model-artifact-s3  s3://PATH_TO_SAVED_MODEL/ \

@@ -17,8 +17,8 @@
 """
 import os
 import argparse
-import boto3 # pylint: disable=import-error
 
+import boto3 # pylint: disable=import-error
 from sagemaker.processing import (ScriptProcessor,
                                   ProcessingInput,
                                   ProcessingOutput)
