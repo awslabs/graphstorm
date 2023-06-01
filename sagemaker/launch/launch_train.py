@@ -126,7 +126,7 @@ def parse_args():
         default="us-east-1",
         help="Region")
     parser.add_argument("--entry-point", type=str,
-        default="graphstorm/sagemaker/scripts/sagemaker_train.py",
+        default="graphstorm/sagemaker/run/train_entry.py",
         help="PATH-TO graphstorm/sagemaker/scripts/sagemaker_train.py")
     parser.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
