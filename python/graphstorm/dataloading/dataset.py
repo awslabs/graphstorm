@@ -178,13 +178,15 @@ class GSgnnData():
         return prepare_batch_input(g, input_nodes, dev=device,
                                    feat_field=self._node_feat_field)
 
-    def get_edge_feats(self, input_edges, device='cpu'):
+    def get_edge_feats(self, input_edges, edge_feat_field, device='cpu'):
         """ Get the node features
 
         Parameters
         ----------
         input_edges : Tensor or dict of Tensors
             The input edge IDs
+        edge_feat_field: str or dict of [str ..]
+            The edge data fields that stores the edge features to retrieve
         device : Pytorch device
             The device where the returned edge features are stored.
 
@@ -198,7 +200,7 @@ class GSgnnData():
                     "We don't know the input edge type, but the graph has more than one edge type."
             input_edges = {g.canonical_etypes[0]: input_edges}
         return prepare_batch_edge_input(g, input_edges, dev=device,
-                                        feat_field=self._edge_feat_field)
+                                        feat_field=edge_feat_field)
 
 class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     """ Data for edge tasks

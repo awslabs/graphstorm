@@ -675,21 +675,3 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
     if get_rank() == 0:
         print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
     return embeddings
-
-def update_edge_feats(graph, data, efeat_names, device):
-    if isinstance(graph, list):
-        # graph is blocks
-        for g in graph:
-            update_edge_feats(g, data, efeat_names, device)
-    else:
-        input_efeat_names, output_efeat_name = efeat_names
-        assert isinstance(output_efeat_name, str), \
-            "The new edge feature name which is used to store the retrived edge features " \
-            f"should be a string, but get {output_efeat_name}."
-        input_edges = {etype: graph.edges[etype].data[dgl.EID] \
-                    for etype in graph.canonical_etypes}
-        input_edge_feats = data.get_edge_feats(input_edges, input_efeat_names, device)
-
-        # store edge feature into graph
-        for etype, feat in input_edge_feats.items():
-            graph.edges[etype].data[output_efeat_name] = feat
