@@ -68,7 +68,7 @@ if __name__ == '__main__':
                            help='The pct of validation nodes/edges. Should be > 0 and < 1, and only work in '
                                 + 'generating new split')
     # graph modification arguments
-    argparser.add_argument('--undirected', action='store_true',
+    argparser.add_argument('--add-reverse-edges', action='store_true',
                            help='turn the graph into an undirected graph.')
     argparser.add_argument('--retain-original-features',  type=lambda x: (str(x).lower() in ['true', '1']),
                            default=True, help= "If true we will use the original features either wise we "
@@ -188,7 +188,7 @@ if __name__ == '__main__':
             raise NotImplementedError('Currently only support either edge classification or '
                                       + 'edge regression ...')
     # add reverse edges
-    if args.undirected:
+    if args.add_reverse_edges:
         print("Creating reverse edges ...")
         edges = {}
         for src_ntype, etype, dst_ntype in g.canonical_etypes:

@@ -33,8 +33,8 @@ from .rgat_encoder import RelationalGATEncoder
 from .node_decoder import EntityClassifier, EntityRegression
 from .edge_decoder import (DenseBiDecoder,
                            MLPEdgeDecoder,
-                           MLPEFeatEdgeDecoder)
-from .edge_decoder import (LinkPredictDotDecoder,
+                           MLPEFeatEdgeDecoder,
+                           LinkPredictDotDecoder,
                            LinkPredictDistMultDecoder,
                            LinkPredictWeightedDotDecoder,
                            LinkPredictWeightedDistMultDecoder)

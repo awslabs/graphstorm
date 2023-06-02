@@ -35,7 +35,8 @@ from graphstorm.model import GSLMNodeEncoderInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
-from graphstorm.model.edge_decoder import (DenseBiDecoder, MLPEdgeDecoder,
+from graphstorm.model.edge_decoder import (DenseBiDecoder,
+                                           MLPEdgeDecoder,
                                            MLPEFeatEdgeDecoder,
                                            LinkPredictDotDecoder,
                                            LinkPredictWeightedDotDecoder,

@@ -375,5 +375,5 @@ Link Prediction Task
             ``lp_edge_weight_for_loss:``
                 | ``- "ntype0,rel0,ntype1:weight0"``
                 | ``- "ntype0,rel1,ntype1:weight1"``
-    - Argument: ``--lp_edge_weight_for_loss weight`` Or ``--lp-edge-weight-for-loss ntype0,rel0,ntype1:weight0 ntype0,rel1,ntype1:weight1``
+    - Argument: ``--lp-edge-weight-for-loss ntype0,rel0,ntype1:weight0 ntype0,rel1,ntype1:weight1``
     - Default value: None
