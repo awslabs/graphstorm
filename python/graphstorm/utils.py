@@ -173,6 +173,7 @@ class SysTracker:
     """
     def __init__(self):
         self._checkpoints = []
+        self._rank = -1
 
     # This is to create only one instance.
     _instance = None
@@ -222,6 +223,7 @@ class RuntimeProfiler:
         self._checkpoints = []
         self._runtime = {}
         self._profile_path = profile_path
+        self._rank = -1
 
     # This is to create only one instance.
     _instance = None
