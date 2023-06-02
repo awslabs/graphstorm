@@ -222,16 +222,48 @@ class MLPEdgeDecoder(GSLayer):
         self.h_dim = h_dim
         self.multilabel = multilabel
         self.out_dim = h_dim if regression else out_dim
-        # Here we assume the source and destination nodes have the same dimension.
-        self.decoder = nn.Parameter(th.randn(h_dim * 2, out_dim))
         self.target_etype = target_etype
-        assert num_hidden_layers == 1, "More than one layers not supported"
+        self.regression = regression
+        self.dropout = dropout
+        self.num_hidden_layers = num_hidden_layers
+
+        self._init_model()
+
+    def _init_model(self):
+        """ Init decoder model
+        """
+        # Here we assume the source and destination nodes have the same dimension.
+        self.decoder = nn.Parameter(th.randn(self.h_dim * 2, self.out_dim))
+        assert self.num_hidden_layers == 1, "More than one layers not supported"
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
-        self.dropout = nn.Dropout(dropout)
-        self.regression = regression
-        if regression:
+        self.dropout = nn.Dropout(self.dropout)
+        if self.regression:
             self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
+
+    def _compute_logits(self, g, h):
+        """ Compute forword output
+
+            Parameters
+            ----------
+            g : DGLBlock
+                The minibatch graph
+            h : dict of Tensors
+                The dictionary containing the embeddings
+            Returns
+            -------
+            th.Tensor
+                Output of forward
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+
+            h = th.cat([ufeat, ifeat], dim=1)
+            out = th.matmul(h, self.decoder)
+        return out
 
     def forward(self, g, h):
         """Forward function.
@@ -248,16 +280,10 @@ class MLPEdgeDecoder(GSLayer):
         th.Tensor
             Predicting scores for each user-movie edge. Shape: (B, num_classes)
         """
-        with g.local_scope():
-            u, v = g.edges(etype=self.target_etype)
-            src_type, _, dest_type = self.target_etype
-            ufeat = h[src_type][u]
-            ifeat = h[dest_type][v]
+        out = self._compute_logits(g, h)
 
-            h = th.cat([ufeat, ifeat], dim=1)
-            out = th.matmul(h, self.decoder)
-            if self.regression:
-                out = self.regression_head(out)
+        if self.regression:
+            out = self.regression_head(out)
         return out
 
     def predict(self, g, h):
@@ -274,20 +300,14 @@ class MLPEdgeDecoder(GSLayer):
         -------
         Tensor : the scores of each edge.
         """
-        with g.local_scope():
-            u, v = g.edges(etype=self.target_etype)
-            src_type, _, dest_type = self.target_etype
-            ufeat = h[src_type][u]
-            ifeat = h[dest_type][v]
+        out = self._compute_logits(g, h)
 
-            h = th.cat([ufeat, ifeat], dim=1)
-            out = th.matmul(h, self.decoder)
-            if self.regression:
-                out = self.regression_head(out)
-            elif self.multilabel:
-                out = (th.sigmoid(out) > .5).long()
-            else:  # not multilabel
-                out = out.argmax(dim=1)
+        if self.regression:
+            out = self.regression_head(out)
+        elif self.multilabel:
+            out = (th.sigmoid(out) > .5).long()
+        else:  # not multilabel
+            out = out.argmax(dim=1)
         return out
 
     def predict_proba(self, g, h):
@@ -304,20 +324,14 @@ class MLPEdgeDecoder(GSLayer):
         -------
         Tensor : the scores of each edge.
         """
-        with g.local_scope():
-            u, v = g.edges(etype=self.target_etype)
-            src_type, _, dest_type = self.target_etype
-            ufeat = h[src_type][u]
-            ifeat = h[dest_type][v]
+        out = self._compute_logits(g, h)
 
-            h = th.cat([ufeat, ifeat], dim=1)
-            out = th.matmul(h, self.decoder)
-            if self.regression:
-                out = self.regression_head(out)
-            elif self.multilabel:
-                out = th.sigmoid(out)
-            else:
-                out = th.softmax(out, 1)
+        if self.regression:
+            out = self.regression_head(out)
+        elif self.multilabel:
+            out = th.sigmoid(out)
+        else:
+            out = th.softmax(out, 1)
         return out
 
     @property
@@ -340,7 +354,7 @@ class MLPEdgeDecoder(GSLayer):
         """
         return 1 if self.regression else self.out_dim
 
-class MLPEFeatEdgeDecoder(GSLayer):
+class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
     """ MLP based edge classificaiton/regression decoder
 
     Parameters
@@ -368,24 +382,28 @@ class MLPEFeatEdgeDecoder(GSLayer):
                  target_etype,
                  dropout=0,
                  regression=False):
-        super(MLPEFeatEdgeDecoder, self).__init__()
-        self.h_dim = h_dim
         self.feat_dim = feat_dim
-        self.multilabel = multilabel
-        self.out_dim = h_dim if regression else out_dim
-        self.target_etype = target_etype
-        self.regression = regression
+        super(MLPEFeatEdgeDecoder, self).__init__(h_dim=h_dim,
+                                                  out_dim=out_dim,
+                                                  multilabel=multilabel,
+                                                  target_etype=target_etype,
+                                                  dropout=dropout,
+                                                  regression=regression)
+
+    def _init_model(self):
+        """ Init decoder model
+        """
         self.relu = th.nn.ReLU()
 
         # [src_emb | dest_emb] @ W -> h_dim
         # Here we assume the source and destination nodes have the same dimension.
-        self.nn_decoder = nn.Parameter(th.randn(h_dim * 2, h_dim))
+        self.nn_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
         # [edge_feat] @ W -> h_dim
-        self.feat_decoder = nn.Parameter(th.randn(feat_dim, h_dim))
+        self.feat_decoder = nn.Parameter(th.randn(self.feat_dim, self.h_dim))
         # combine output of nn_decoder and feat_decoder
-        self.combine_decoder = nn.Parameter(th.randn(h_dim * 2, h_dim))
-        self.decoder = nn.Parameter(th.randn(h_dim, out_dim))
-        self.dropout = nn.Dropout(dropout)
+        self.combine_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
+        self.decoder = nn.Parameter(th.randn(self.h_dim, self.out_dim))
+        self.dropout = nn.Dropout(self.dropout)
 
 
         nn.init.xavier_uniform_(self.nn_decoder,
@@ -396,7 +414,7 @@ class MLPEFeatEdgeDecoder(GSLayer):
                                 gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
-        if regression:
+        if self.regression:
             self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
 
     def _compute_logits(self, g, h):
@@ -436,98 +454,6 @@ class MLPEFeatEdgeDecoder(GSLayer):
             out = th.matmul(combine_h, self.decoder)
 
         return out
-
-    def forward(self, g, h):
-        """Forward function.
-
-        Compute logits for each pair ``(ufeat[i], ifeat[i])``.
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-        Returns
-        -------
-        th.Tensor
-            Predicting scores for each user-movie edge. Shape: (B, num_classes)
-        """
-        out = self._compute_logits(g, h)
-        if self.regression:
-            out = self.regression_head(out)
-
-        return out
-
-    def predict(self, g, h):
-        """predict function (return predict result) for this decoder
-
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-
-        Returns
-        -------
-        Tensor : the scores of each edge.
-        """
-        out = self._compute_logits(g, h)
-
-        if self.regression:
-            out = self.regression_head(out)
-        elif self.multilabel:
-            out = (th.sigmoid(out) > .5).long()
-        else:  # not multilabel
-            out = out.argmax(dim=1)
-
-        return out
-
-    def predict_proba(self, g, h):
-        """Predict function (return probability) for this decoder
-
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-
-        Returns
-        -------
-        Tensor : the scores of each edge.
-        """
-        out = self._compute_logits(g, h)
-
-        if self.regression:
-            out = self.regression_head(out)
-        elif self.multilabel:
-            out = th.sigmoid(out)
-        else:
-            out = th.softmax(out, 1)
-
-        return out
-
-    @property
-    def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int : the number of input dimensions.
-        """
-        return self.h_dim
-
-    @property
-    def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int : the number of output dimensions.
-        """
-        return 1 if self.regression else self.out_dim
-
 
 class LinkPredictDotDecoder(GSLayerNoParam):
     """ Link prediction decoder with the score function of dot product
