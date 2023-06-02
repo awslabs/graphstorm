@@ -131,9 +131,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
+                input_feats = data.get_node_feats(input_nodes, device)
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
-                input_feats = data.get_node_feats(input_nodes, device)
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
