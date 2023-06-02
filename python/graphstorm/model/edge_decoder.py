@@ -455,6 +455,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
         return out
 
+##################### Link Prediction Decoders #######################
 class LinkPredictDotDecoder(GSLayerNoParam):
     """ Link prediction decoder with the score function of dot product
     """

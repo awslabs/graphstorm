@@ -1152,23 +1152,15 @@ class GSConfig:
                 return decoder_edge_feats[0]
 
             # per edge type feature
-            fname_dict = {}
-            for feat_name in decoder_edge_feats:
-                feat_info = feat_name.split(":")
-                assert len(feat_info) == 2, \
-                        f"Unknown format of the feature name: {feat_name}, " + \
-                        "must be EDGE_TYPE:FEAT_NAME"
-                etype = tuple(feat_info[0].split(","))
-                assert etype in self.target_etype, \
-                    f"{etype} must in the training edge type list {self.target_etype}"
-
-                if etype in fname_dict:
-                    assert False, \
-                        f"You already specify the feature names of {etype}" \
-                        f"as {fname_dict[etype]}"
-
-                fname_dict[etype] = feat_info[1].split(",")
-            return fname_dict
+            feat_name = decoder_edge_feats[0]
+            feat_info = feat_name.split(":")
+            assert len(feat_info) == 2, \
+                    f"Unknown format of the feature name: {feat_name}, " + \
+                    "must be EDGE_TYPE:FEAT_NAME"
+            etype = tuple(feat_info[0].split(","))
+            assert etype in self.target_etype, \
+                f"{etype} must in the training edge type list {self.target_etype}"
+            return {etype: feat_info[1].split(",")}
 
         return None
 
@@ -1684,9 +1676,8 @@ def _add_edge_classification_args(parser):
     group.add_argument("--decoder-edge-feat", nargs='+', type=str, default=argparse.SUPPRESS,
                        help="A list of edge features that can be used by a decoder to "
                             "enhance its performance. It can be in following format: "
-                            "--decoder-edge-feat query,clicks,asin:feat0,feat1 or "
-                            "--decoder-edge-feat query,clicks,asin:feat0,feat1 or "
-                            "query,view,asin:feat2"
+                            "--decoder-edge-feat feat or "
+                            "--decoder-edge-feat query,clicks,asin:feat0,feat1 "
                             "If not specified, decoder will not use edge feats")
 
     group.add_argument("--num-decoder-basis", type=int, default=argparse.SUPPRESS,

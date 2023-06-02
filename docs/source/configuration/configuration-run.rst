@@ -318,7 +318,7 @@ Edge Classification/Regression Specific
         Or
             ``decoder_edge_feat:``
             | ``- query,adds,asin:count,price``
-    - Argument: ``--decoder-edge-feat fanme`` Or ``--decoder-edge-feat query,adds,asin:count,price``
+    - Argument: ``--decoder-edge-feat fanme`` or ``--decoder-edge-feat query,adds,asin:count,price``
     - Default value: ``None``
 
 Link Prediction Task
