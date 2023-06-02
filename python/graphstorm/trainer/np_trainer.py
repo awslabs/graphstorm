@@ -25,6 +25,7 @@ from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
+from ..utils import rt_profiler
 
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ A trainer for node prediction
@@ -118,7 +119,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
             # TODO(zhengda) the dataloader should return node features and labels directly.
+            rt_profiler.record('train_init')
             for i, (input_nodes, seeds, blocks) in enumerate(train_loader):
+                rt_profiler.record('train_sample')
                 total_steps += 1
                 batch_tic = time.time()
 
@@ -127,24 +130,31 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     input_nodes = {g.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
                 lbl = data.get_labels(seeds, device)
+                rt_profiler.record('train_node_feats')
+
                 blocks = [block.to(device) for block in blocks]
                 for _, feats in input_feats.items():
                     num_input_nodes += feats.shape[0]
+                rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, input_feats, None, lbl, input_nodes)
+                rt_profiler.record('train_forward')
 
                 t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
+                rt_profiler.record('train_backward')
                 self.optimizer.step()
+                rt_profiler.record('train_step')
                 forward_time += (t3 - t2)
                 back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
 
                 if i % 20 == 0 and self.rank == 0:
+                    rt_profiler.print_stats()
                     print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
                             format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
                     num_input_nodes = forward_time = back_time = 0
@@ -173,6 +183,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                         #    guidance of validation score.
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
+                rt_profiler.record('train_eval')
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break
@@ -201,6 +212,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             if early_stop is True:
                 break
 
+        rt_profiler.save_profile()
         print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
