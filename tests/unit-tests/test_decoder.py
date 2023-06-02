@@ -24,11 +24,12 @@ from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictWeightedDotDecoder,
                               LinkPredictWeightedDistMultDecoder,
                               MLPEFeatEdgeDecoder)
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
+                                    EP_DECODER_EDGE_FEAT)
 from graphstorm.eval.utils import calc_distmult_pos_score
 from graphstorm.eval.utils import calc_dot_pos_score
-from graphstorm.model.edge_decoder import _get_edge_weight, EDGE_DECODER_FEAT
+from graphstorm.model.edge_decoder import _get_edge_weight
 
 from numpy.testing import assert_equal
 
@@ -372,7 +373,7 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim):
         "n1": th.randn(g.num_nodes("n1"), h_dim)
     }
     efeat = th.randn(g.num_edges(target_etype), feat_dim)
-    g.edges[target_etype].data[EDGE_DECODER_FEAT] = efeat
+    g.edges[target_etype].data[EP_DECODER_EDGE_FEAT] = efeat
 
 
     decoder = MLPEFeatEdgeDecoder(h_dim,
