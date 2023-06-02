@@ -384,32 +384,6 @@ def test_get_edge_weight():
     assert_equal(g.edges[("n0", "r1", "n1")].data['weight'].numpy(),
                  weight.numpy())
 
-    edge_weight_fields = {("n0", "r0", "n1"): ["weight"]}
-    weight = _get_edge_weight(g, edge_weight_fields, ("n0", "r1", "n1"))
-    assert_equal(th.ones(g.num_edges(("n0", "r1", "n1")),).numpy(),
-                 weight.numpy())
-
-    edge_weight_fields = {("n0", "r1", "n1"): ["weight"]}
-    weight = _get_edge_weight(g, edge_weight_fields, ("n0", "r1", "n1"))
-    assert_equal(g.edges[("n0", "r1", "n1")].data['weight'].numpy(),
-                 weight.numpy())
-
-    edge_weight_fields = {("n0", "r0", "n1"): ["weight"],
-                          ("n0", "r1", "n1"): ["weight1"]}
-    weight = _get_edge_weight(g, edge_weight_fields, ("n0", "r1", "n1"))
-    assert_equal(g.edges[("n0", "r1", "n1")].data['weight1'].reshape((-1,)).numpy(),
-                 weight.numpy())
-
-    # check error shape
-    edge_weight_fields = {("n0", "r0", "n1"): ["weight"],
-                          ("n0", "r1", "n1"): ["weight2"]}
-    fail = False
-    try:
-        weight = _get_edge_weight(g, edge_weight_fields, ("n0", "r1", "n1"))
-    except:
-        fail = True
-    assert fail
-
 if __name__ == '__main__':
     test_LinkPredictDistMultDecoder(16, 8, 1, "cpu")
     test_LinkPredictDistMultDecoder(16, 32, 32, "cuda:0")

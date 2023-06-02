@@ -21,7 +21,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
-from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
+from ..model.gnn import do_full_graph_inference, update_edge_feats, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
@@ -134,10 +134,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
                 input_feats = data.get_node_feats(input_nodes, device)
-
-                # Preparing edge feature for pos_graph and neg_graph if any.
-                model.module.prepare_pos_graph(pos_graph, data, device)
-                model.module.prepare_neg_graph(neg_graph, data, device)
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
