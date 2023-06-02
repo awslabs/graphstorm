@@ -56,38 +56,6 @@ class GSgnnLinkPredictionModelInterface:
         The loss of prediction.
         """
 
-    def prepare_pos_graph(self, pos_graph, data, device):
-        """ Prepare edge features for pos_graph
-
-        This method should be called before forward().
-        This method is supposed to load any edge data from graph data into pos_graph
-
-        Parameters
-        ----------
-        pos_graph: DGLGraph
-            Positive graph containing positive edges.
-        data: GSgnnData
-            Graph data.
-        device: torch device
-            Device to store data.
-        """
-
-    def prepare_neg_graph(self, neg_graph, data, device):
-        """ Prepare edge features for neg_graph
-
-        This method should be called before forward().
-        This method is supposed to load any edge data from graph data into neg_graph
-
-        Parameters
-        ----------
-        neg_graph: DGLGraph
-            Negative graph containing negative edges.
-        data: GSgnnData
-            Graph data.
-        device: torch device
-            Device to store data.
-        """
-
 class GSgnnLinkPredictionModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
                                    GSgnnLinkPredictionModelInterface):
     """ The base class for link-prediction GNN
@@ -110,26 +78,6 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
     def __init__(self, alpha_l2norm):
         super(GSgnnLinkPredictionModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
-
-    def prepare_pos_graph(self, pos_graph, data, device):
-        if isinstance(self.decoder, (LinkPredictWeightedDotDecoder,
-                                     LinkPredictWeightedDistMultDecoder)):
-            # We only extract edge feature (edge weight) for pos_graph if any
-            # We do not support edge feature in message passing.
-            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
-                           for etype in pos_graph.canonical_etypes}
-            input_edge_feats = data.get_edge_feats(input_edges, device)
-            # store edge feature into pos_graph
-            for etype, feat in input_edge_feats.items():
-                # self.decoder.edge_weight_fields can be a string
-                # or a dict of etype -> list of string, where the length of
-                # the list is always 1. (Only one edge weight)
-                # See graphstorm.config.GSConfig.lp_edge_weight_for_loss
-                # for more details.
-                weight_field = self.decoder.edge_weight_fields \
-                    if isinstance(self.decoder.edge_weight_fields, str) \
-                    else self.decoder.edge_weight_fields[etype][0]
-                pos_graph.edges[etype].data[weight_field] = feat
 
     def forward(self, blocks, pos_graph,
         neg_graph, node_feats, _, input_nodes=None):

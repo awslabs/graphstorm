@@ -135,10 +135,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     num_input_nodes += nodes.shape[0]
                 input_feats = data.get_node_feats(input_nodes, device)
 
-                # Preparing edge feature for pos_graph and neg_graph if any.
-                model.module.prepare_pos_graph(pos_graph, data, device)
-                model.module.prepare_neg_graph(neg_graph, data, device)
-
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,

@@ -40,13 +40,9 @@ from .model.loss_func import (ClassifyLossFunc,
                               LinkPredictLossFunc,
                               WeightedLinkPredictLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
-<<<<<<< HEAD
 from .model.edge_decoder import (DenseBiDecoder,
                                  MLPEdgeDecoder,
                                  MLPEFeatEdgeDecoder)
-=======
-from .model.edge_decoder import DenseBiDecoder, MLPEdgeDecoder
->>>>>>> master
 from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,

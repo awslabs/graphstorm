@@ -56,7 +56,6 @@ def main(args):
                                     config.part_config,
                                     train_etypes=config.target_etype,
                                     node_feat_field=config.node_feat_name,
-                                    edge_feat_field=config.decoder_edge_feat,
                                     label_field=config.label_field)
     model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnEdgePredictionTrainer(model, gs.get_rank(),
@@ -81,7 +80,8 @@ def main(args):
                                      batch_size=config.batch_size, device=device, train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
-                                     exclude_training_targets=config.exclude_training_targets)
+                                     exclude_training_targets=config.exclude_training_targets,
+                                     decoder_edge_feat=config.decoder_edge_feat)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
@@ -91,13 +91,15 @@ def main(args):
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
-            remove_target_edge_type=config.remove_target_edge_type)
+            remove_target_edge_type=config.remove_target_edge_type,
+            decoder_edge_feat=config.decoder_edge_feat)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
-            remove_target_edge_type=config.remove_target_edge_type)
+            remove_target_edge_type=config.remove_target_edge_type,
+            decoder_edge_feat=config.decoder_edge_feat)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
