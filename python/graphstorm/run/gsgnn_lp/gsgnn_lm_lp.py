@@ -92,7 +92,8 @@ def main(args):
     device = 'cuda:%d' % trainer.dev_id
     dataloader = dataloader_cls(train_data, train_data.train_idxs, [],
                                 config.batch_size, config.num_negative_edges, device,
-                                train_task=True)
+                                train_task=True,
+                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss)
 
     # TODO(zhengda) let's use full-graph inference for now.
     if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:

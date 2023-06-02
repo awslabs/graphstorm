@@ -17,7 +17,6 @@
 """
 import abc
 import torch as th
-
 from .gnn import GSgnnModel, GSgnnModelBase
 from ..eval.utils import calc_ranking
 
