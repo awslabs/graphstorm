@@ -17,12 +17,8 @@
 """
 import abc
 import torch as th
-import dgl
-
 from .gnn import GSgnnModel, GSgnnModelBase
 from ..eval.utils import calc_ranking
-from .edge_decoder import (LinkPredictWeightedDotDecoder,
-                           LinkPredictWeightedDistMultDecoder)
 
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
