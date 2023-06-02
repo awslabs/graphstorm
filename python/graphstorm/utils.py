@@ -269,6 +269,9 @@ class RuntimeProfiler:
                 self._runtime[name] = [runtime]
             else:
                 self._runtime[name].append(runtime)
+        # We put a barrier here so that the next operation starts
+        # at the same time.
+        th.distributed.barrier()
 
     def print_stats(self):
         """ Print the statistics
