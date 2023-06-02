@@ -19,12 +19,19 @@ import pytest
 import torch as th
 from numpy.testing import assert_almost_equal
 
-from graphstorm.model import LinkPredictDotDecoder
-from graphstorm.model import LinkPredictDistMultDecoder
+from graphstorm.model import (LinkPredictDotDecoder,
+                              LinkPredictDistMultDecoder,
+                              LinkPredictWeightedDotDecoder,
+                              LinkPredictWeightedDistMultDecoder)
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.eval.utils import calc_distmult_pos_score
 from graphstorm.eval.utils import calc_dot_pos_score
+from graphstorm.model.edge_decoder import _get_edge_weight
+
+from numpy.testing import assert_equal
+
+from data_utils import generate_dummy_hetero_graph
 
 def _check_scores(score, pos_score, neg_scores, etype, num_neg, batch_size):
     # pos scores
@@ -353,8 +360,34 @@ def test_LinkPredictDotDecoder(h_dim, num_pos, num_neg, device):
     check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_neg, device)
     check_calc_test_scores_dot_joint_neg(decoder, etype, h_dim, num_pos, num_neg, device)
 
+def test_get_edge_weight():
+    g = generate_dummy_hetero_graph()
+    g.edges[("n0", "r0", "n1")].data['weight'] = \
+        th.randn(g.num_edges(("n0", "r0", "n1")))
+    g.edges[("n0", "r1", "n1")].data['weight'] = \
+        th.randn(g.num_edges(("n0", "r1", "n1")))
+    g.edges[("n0", "r1", "n1")].data['weight1'] = \
+        th.randn((g.num_edges(("n0", "r1", "n1")), 1))
+    # edata with wrong shape
+    g.edges[("n0", "r1", "n1")].data['weight2'] = \
+        th.randn((g.num_edges(("n0", "r1", "n1")), 2))
+
+    weight = _get_edge_weight(g, "weight", ("n0", "r0", "n1"))
+    assert_equal(g.edges[("n0", "r0", "n1")].data['weight'].numpy(),
+                 weight.numpy())
+    # weight1 does not exist in g.edges(("n0", "r0", "n1"))
+    weight = _get_edge_weight(g, "weight1", ("n0", "r0", "n1"))
+    assert_equal(th.ones(g.num_edges(("n0", "r0", "n1")),).numpy(),
+                 weight.numpy())
+
+    weight = _get_edge_weight(g, "weight", ("n0", "r1", "n1"))
+    assert_equal(g.edges[("n0", "r1", "n1")].data['weight'].numpy(),
+                 weight.numpy())
+
 if __name__ == '__main__':
     test_LinkPredictDistMultDecoder(16, 8, 1, "cpu")
     test_LinkPredictDistMultDecoder(16, 32, 32, "cuda:0")
     test_LinkPredictDotDecoder(16, 8, 1, "cpu")
     test_LinkPredictDotDecoder(16, 32, 32, "cuda:0")
+
+    test_get_edge_weight()

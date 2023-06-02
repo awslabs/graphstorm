@@ -68,6 +68,40 @@ def prepare_batch_input(g, input_nodes,
                 for fname in feat_name], dim=1)
     return feat
 
+def prepare_batch_edge_input(g, input_edges,
+                             dev='cpu', feat_field='feat'):
+    """ Prepare minibatch edge input features
+
+    Note: The output is stored in dev.
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph.
+    input_edges: dict of tensor
+        Input edges.
+    dev: th.device
+        Device to put output in.
+    feat_field: str or dict of list of str
+        Fields to extract features
+
+    Return:
+    -------
+    Dict of tensors.
+        If a node type has features, it will get node features.
+    """
+    feat = {}
+    for etypes, eid in input_edges.items():
+        feat_name = None if feat_field is None else \
+            [feat_field] if isinstance(feat_field, str) \
+            else feat_field[etypes] if etypes in feat_field else None
+
+        if feat_name is not None:
+            # concatenate multiple features together
+            feat[etypes] = th.cat([g.edges[etypes].data[fname][eid].to(dev) \
+                for fname in feat_name], dim=-1)
+    return feat
+
 class GSgnnData():
     """ The GraphStorm data
 
@@ -143,6 +177,30 @@ class GSgnnData():
             input_nodes = {g.ntypes[0]: input_nodes}
         return prepare_batch_input(g, input_nodes, dev=device,
                                    feat_field=self._node_feat_field)
+
+    def get_edge_feats(self, input_edges, edge_feat_field, device='cpu'):
+        """ Get the node features
+
+        Parameters
+        ----------
+        input_edges : Tensor or dict of Tensors
+            The input edge IDs
+        edge_feat_field: str or dict of [str ..]
+            The edge data fields that stores the edge features to retrieve
+        device : Pytorch device
+            The device where the returned edge features are stored.
+
+        Returns
+        -------
+        dict of Tensors : The returned edge features.
+        """
+        g = self._g
+        if not isinstance(input_edges, dict):
+            assert len(g.canonical_etypes) == 1, \
+                    "We don't know the input edge type, but the graph has more than one edge type."
+            input_edges = {g.canonical_etypes[0]: input_edges}
+        return prepare_batch_edge_input(g, input_edges, dev=device,
+                                        feat_field=edge_feat_field)
 
 class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     """ Data for edge tasks

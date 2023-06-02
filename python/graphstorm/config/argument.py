@@ -1198,6 +1198,49 @@ class GSConfig:
         return BUILTIN_LP_DISTMULT_DECODER
 
     @property
+    def lp_edge_weight_for_loss(self):
+        """ The edge data fields that stores the edge weights used
+            in computing link prediction loss
+
+            The edge_weight can be in following format:
+            1) [weight_name]: global weight name, if an edge has weight,
+            the corresponding weight name is <weight_name>
+            2) ["src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...]:
+            different edge types have different edge weights.
+
+            By default, it is none.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_lp_edge_weight_for_loss"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Edge weight for loss only works with link prediction"
+            edge_weights = self._lp_edge_weight_for_loss
+            if len(edge_weights) == 1 and \
+                ":" not in edge_weights[0]:
+                # global feat_name
+                return edge_weights[0]
+
+            # per edge type feature
+            weight_dict = {}
+            for weight_name in edge_weights:
+                weight_info = weight_name.split(":")
+                etype = tuple(weight_info[0].split(","))
+                assert etype not in weight_dict, \
+                    f"You already specify the weight names of {etype}" \
+                    f"as {weight_dict[etype]}"
+
+                # TODO: if train_etype is None, we need to check if
+                # etype exists in g.
+                assert self.train_etype is None or etype in self.train_etype, \
+                    f"{etype} must in the training edge type list"
+                assert isinstance(weight_info[1], str), \
+                    f"Feature name of {etype} should be a string instead of {weight_info[1]}"
+                weight_dict[etype] = [weight_info[1]]
+            return weight_dict
+
+        return None
+
+    @property
     def train_etype(self):
         """ The list of canonical etype that will be added as
             training target with the target e type(s)
@@ -1658,6 +1701,13 @@ def _add_link_prediction_args(parser):
             default=argparse.SUPPRESS,
             help="Used in DistMult score func"
     )
+    group.add_argument("--lp-edge-weight-for-loss", nargs='+', type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name for edge weights. It can be in following format: "
+            "1) '--lp-edge-weight-for-loss feat_name': global feature name, "
+            "if all edge types use the same edge weight field."
+            "The corresponding feature name is <feat_name>"
+            "2)'--lp-edge-weight-for-loss query,adds,asin:weight0 query,clicks,asin:weight1 ..."
+            "Different edge types have different weight fields.")
 
     return parser
 
