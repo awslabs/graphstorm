@@ -22,6 +22,7 @@ from torch import nn
 from .gs_layer import GSLayer, GSLayerNoParam
 from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from ..dataloading import LP_DECODER_EDGE_WEIGHT
 from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score
 from ..eval.utils import calc_distmult_neg_head_score, calc_distmult_neg_tail_score
 
@@ -338,6 +339,8 @@ class MLPEdgeDecoder(GSLayer):
         """
         return 1 if self.regression else self.out_dim
 
+
+##################### Link Prediction Decoders #######################
 class LinkPredictDotDecoder(GSLayerNoParam):
     """ Link prediction decoder with the score function of dot product
     """
@@ -701,3 +704,108 @@ class LinkPredictDistMultDecoder(GSLayer):
         int : the number of output dimensions.
         """
         return 1
+
+def _get_edge_weight(g, weight_field, etype):
+    """ Get the edge weight feature from g according to etype.
+        If the corresponding edge type does not have edge weight, set the weight to 1.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            Graph.
+        weight_field: str
+            Edge weight feature field in a graph
+        etype: (str, str, str)
+            Canonical etype
+    """
+    # edge_weight_fields is a str
+    if weight_field in g.edges[etype].data:
+        eid = g.edges(form="eid", etype=etype)
+        weight = g.edges[etype].data[weight_field][eid]
+        weight = weight.flatten()
+        assert len(weight) == len(eid), \
+                "Edge weight must be a tensor of shape (num_edges,) " \
+            f"or (num_edges, 1). But get {g.edges[etype].data[weight_field].shape}"
+    else:
+        # current etype does not has weight
+        weight = th.ones((g.num_edges(etype),))
+    return weight
+
+class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
+    """Link prediction decoder with the score function of DistMult
+       with edge weight.
+
+       When computing loss, edge weights are used to adjust the loss
+    """
+    def __init__(self, etypes, h_dim, gamma=40., edge_weight_fields=None):
+        self._edge_weight_fields = edge_weight_fields
+        super(LinkPredictWeightedDistMultDecoder, self).__init__(etypes, h_dim, gamma)
+
+    def forward(self, g, h):
+        """Forward function.
+
+        This computes the DistMult score on every edge type.
+        """
+        with g.local_scope():
+            scores=[]
+            weights = []
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                i = self.etype2rid[canonical_etype]
+                self.trained_rels[i] += 1
+                rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
+                rel_embedding = rel_embedding.unsqueeze(dim=1)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                src_emb = h[src_type][u]
+
+                dest_emb = h[dest_type][v]
+                rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
+                scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
+
+                weight = _get_edge_weight(g, LP_DECODER_EDGE_WEIGHT, canonical_etype)
+                weights.append(weight.to(scores_etype.device))
+                scores.append(scores_etype)
+            scores = th.cat(scores)
+            weights = th.cat(weights)
+            return (scores, weights)
+
+class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
+    """Link prediction decoder with the score function of dot product
+       with edge weight.
+
+       When computing loss, edge weights are used to adjust the loss
+    """
+    def __init__(self, in_dim, edge_weight_fields):
+        self._edge_weight_fields = edge_weight_fields
+        super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
+
+    def forward(self, g, h): # pylint: disable=arguments-differ
+        """Forward function.
+
+        This computes the dot product score on every edge type.
+        """
+        with g.local_scope():
+            scores = []
+            weights = []
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                src_emb = h[src_type][u]
+                dest_emb = h[dest_type][v]
+                scores_etype = calc_dot_pos_score(src_emb, dest_emb)
+
+                weight = _get_edge_weight(g, LP_DECODER_EDGE_WEIGHT, canonical_etype)
+                weights.append(weight.to(scores_etype.device))
+                scores.append(scores_etype)
+
+            scores = th.cat(scores)
+            weights = th.cat(weights)
+            return (scores, weights)

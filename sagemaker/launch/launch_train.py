@@ -17,14 +17,19 @@
 """
 import os
 import argparse
+
 import boto3 # pylint: disable=import-error
-
-from graphstorm.config import SUPPORTED_TASKS
-
 from sagemaker.pytorch.estimator import PyTorch
 import sagemaker
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
+SUPPORTED_TASKS = {
+    "node_classification",
+    "node_regression",
+    "edge_classification",
+    "edge_regression",
+    "link_prediction"
+}
 
 def run_job(input_args, image, unknowargs):
     """ Run job using SageMaker estimator.PyTorch
@@ -126,7 +131,7 @@ def parse_args():
         default="us-east-1",
         help="Region")
     parser.add_argument("--entry-point", type=str,
-        default="graphstorm/sagemaker/scripts/sagemaker_train.py",
+        default="graphstorm/sagemaker/run/train_entry.py",
         help="PATH-TO graphstorm/sagemaker/scripts/sagemaker_train.py")
     parser.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
