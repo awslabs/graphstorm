@@ -306,7 +306,7 @@ class RuntimeProfiler:
             runtime = {}
             for name in self._runtime:
                 runtime[name] = np.array(self._runtime[name])
-            profile_path = os.path.join(self._profile_path, f"{self._rank}.cvs")
+            profile_path = os.path.join(self._profile_path, f"{self._rank}.csv")
             data_frame = pd.DataFrame(runtime)
             data_frame.to_csv(profile_path, float_format='%.3f', index=False)
             print(f"save profiling in {profile_path}")
