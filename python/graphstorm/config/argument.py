@@ -228,6 +228,14 @@ class GSConfig:
         return None
 
     @property
+    def profile_path(self):
+        """ The path of the folder where the profiling results are saved.
+        """
+        if hasattr(self, "_profile_path"):
+            return self._profile_path
+        return None
+
+    @property
     def graph_name(self):
         """ Name of the graph
         """
@@ -1447,6 +1455,9 @@ def _add_gsgnn_basic_args(parser):
             type=str,
             default=argparse.SUPPRESS,
             help="Folder path to save performance results of model evaluation.")
+    group.add_argument("--profile-path",
+            type=str,
+            help="The path of the folder that contains the profiling results.")
     return parser
 
 def _add_gnn_args(parser):
