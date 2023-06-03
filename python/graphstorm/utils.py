@@ -31,7 +31,12 @@ TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 def get_rank():
     """ Get rank of a process
     """
-    return th.distributed.get_rank()
+    try:
+        return th.distributed.get_rank()
+    except RuntimeError:
+        # If Pytorch distributed is not set up correctly, we should set
+        # the rank to 0.
+        return 0
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.
