@@ -251,7 +251,6 @@ class RuntimeProfiler:
             self._rank = get_rank()
         else:
             self._rank = rank
-        print(f"******** profiling rank: {self._rank}")
 
     def record(self, name):
         """ Record the computation step.
@@ -291,10 +290,12 @@ class RuntimeProfiler:
         """ Save the profiling result to a file.
         """
         if self._profile_path is not None:
+            runtime = {}
             for name in self._runtime:
-                self._runtime[name] = np.array(self._runtime[name])
-            profile_path = os.path.join(self._profile_path, f"{self._rank}.npy")
-            np.save(profile_path, self._runtime)
+                runtime[name] = np.array(self._runtime[name])
+            profile_path = os.path.join(self._profile_path, f"{self._rank}.cvs")
+            df = pd.DataFrame(runtime)
+            df.to_csv(profile_path, float_format='%.3f')
             print(f"save profiling in {profile_path}")
 
 sys_tracker = SysTracker()
