@@ -21,6 +21,7 @@ import os
 import argparse
 
 import numpy as np
+import pandas as pd
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Analyze profiling results.")
@@ -32,8 +33,8 @@ if __name__ == '__main__':
     profile_files = os.listdir(args.profile_path)
     for profile_file in profile_files:
         profile_file = os.path.join(args.profile_path, profile_file)
-        arrs = np.load(profile_file, allow_pickle=True)
-        arrs = arrs.item()
+        df = pd.read_csv(profile_file)
+        arrs = {name: np.array(df[name]) for name in df}
         for name in arrs:
             if name not in all_profiles:
                 all_profiles[name] = [arrs[name]]

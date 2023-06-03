@@ -22,6 +22,7 @@ import resource
 import logging
 import psutil
 
+import pandas as pd
 import dgl
 import torch as th
 import numpy as np
@@ -295,7 +296,7 @@ class RuntimeProfiler:
                 runtime[name] = np.array(self._runtime[name])
             profile_path = os.path.join(self._profile_path, f"{self._rank}.cvs")
             df = pd.DataFrame(runtime)
-            df.to_csv(profile_path, float_format='%.3f')
+            df.to_csv(profile_path, float_format='%.3f', index=False)
             print(f"save profiling in {profile_path}")
 
 sys_tracker = SysTracker()
