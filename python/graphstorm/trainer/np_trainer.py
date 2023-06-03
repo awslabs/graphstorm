@@ -119,7 +119,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
             # TODO(zhengda) the dataloader should return node features and labels directly.
-            rt_profiler.record('train_init')
+            rt_profiler.start_record()
             for i, (input_nodes, seeds, blocks) in enumerate(train_loader):
                 rt_profiler.record('train_sample')
                 total_steps += 1

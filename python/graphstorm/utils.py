@@ -253,6 +253,18 @@ class RuntimeProfiler:
         else:
             self._rank = rank
 
+    def start_record(self):
+        """ Start recording.
+
+        This records the first time for the following operations.
+        """
+        if self._profile_path is None:
+            return
+        self._checkpoints.append(("", time.time()))
+        # We put a barrier here so that the next operation starts
+        # at the same time.
+        th.distributed.barrier()
+
     def record(self, name):
         """ Record the computation step.
 

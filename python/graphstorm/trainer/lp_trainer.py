@@ -122,7 +122,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
-            rt_profiler.record('train_init')
+            rt_profiler.start_record()
             for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(train_loader):
                 rt_profiler.record('train_sample')
                 total_steps += 1
