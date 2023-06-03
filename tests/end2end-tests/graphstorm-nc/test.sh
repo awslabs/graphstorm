@@ -32,10 +32,21 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 
 error_and_exit $?
 
+mkdir -p /tmp/ML_np_profile
+
 echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, with profiling"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --profile-path /tmp/ML_np_profile
 
 error_and_exit $?
+
+cnt=$(ls /tmp/ML_np_profile/*.csv | wc -l)
+if test $cnt -lt 1
+then
+    echo "Cannot find the profiling files."
+    exit -1
+fi
+
+rm -R /tmp/ML_np_profile
 
 echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --use-mini-batch-infer false
