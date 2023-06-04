@@ -111,7 +111,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         alpha_l2norm = self.alpha_l2norm
         if blocks is None or len(blocks) == 0:
             # no GNN message passing
-            encode_embs = self.comput_input_embed(input_nodes, node_feats)
+            encode_embs = self.compute_input_embed(input_nodes, node_feats)
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats)
         # TODO(zhengda) we only support prediction on one edge type now
@@ -135,7 +135,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         """
         if blocks is None or len(blocks) == 0:
             # no GNN message passing in encoder
-            encode_embs = self.comput_input_embed(input_nodes, node_feats)
+            encode_embs = self.compute_input_embed(input_nodes, node_feats)
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats)
         if return_proba:

@@ -107,7 +107,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         alpha_l2norm = self.alpha_l2norm
         if blocks is None or len(blocks) == 0:
             # no GNN message passing
-            encode_embs = self.comput_input_embed(input_nodes, node_feats)
+            encode_embs = self.compute_input_embed(input_nodes, node_feats)
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats)
         # TODO(zhengda) we only support node prediction on one node type now
@@ -133,7 +133,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         """
         if blocks is None or len(blocks) == 0:
             # no GNN message passing in encoder
-            encode_embs = self.comput_input_embed(input_nodes, node_feats)
+            encode_embs = self.compute_input_embed(input_nodes, node_feats)
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats)
         # TODO(zhengda) we only support node prediction on one node type.

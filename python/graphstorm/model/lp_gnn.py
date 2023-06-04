@@ -86,7 +86,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         alpha_l2norm = self.alpha_l2norm
         if blocks is None or len(blocks) == 0:
             # no GNN message passing
-            encode_embs = self.comput_input_embed(input_nodes, node_feats)
+            encode_embs = self.compute_input_embed(input_nodes, node_feats)
         else:
             # GNN message passing
             encode_embs = self.compute_embed_step(blocks, node_feats)

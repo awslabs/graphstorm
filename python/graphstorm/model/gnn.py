@@ -486,7 +486,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         return self._optimizer
 
-    def comput_input_embed(self, input_nodes, input_feats):
+    def compute_input_embed(self, input_nodes, input_feats):
         """ Compute input encoder embedding on a minibatch
 
         Parameters
