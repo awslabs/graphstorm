@@ -214,6 +214,22 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                                 init_emb,
                                 part_policy=part_policy)
 
+    def _merge_feats(self, input_feats):
+        """ Merge the node features.
+        """
+        new_input_feats = {}
+        for ntype, input_feat in input_feats.items():
+            # There are multiple input features on this node type.
+            if isinstance(input_feat, dict):
+                feat_names = list(input_feat.keys())
+                # We need to make sure that we always merge the features in the same way.
+                feat_names.sort()
+                new_input_feats[ntype] = th.cat([input_feat[fname] for fname in feat_names],
+                                                dim=1)
+            else:
+                new_input_feats[ntype] = input_feat
+        return new_input_feats
+
     def forward(self, input_feats, input_nodes):
         """Forward computation
 
@@ -232,6 +248,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
         embs = {}
         for ntype in input_nodes:
+            input_feats = self._merge_feats(input_feats)
             if ntype in input_feats:
                 assert ntype in self.input_projs, \
                         f"We need a projection for node type {ntype}"
