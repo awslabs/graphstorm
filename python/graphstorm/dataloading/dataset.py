@@ -62,10 +62,12 @@ def prepare_batch_input(g, input_nodes,
             [feat_field] if isinstance(feat_field, str) \
             else feat_field[ntype] if ntype in feat_field else None
 
-        if feat_name is not None:
+        if feat_name is not None and len(feat_name) == 1:
+            feat[ntype] = g.nodes[ntype].data[feat_name[0]][nid].to(dev)
+        elif feat_name is not None:
             # concatenate multiple features together
-            feat[ntype] = th.cat([g.nodes[ntype].data[fname][nid].to(dev) \
-                for fname in feat_name], dim=1)
+            feat[ntype] = {fname: g.nodes[ntype].data[fname][nid].to(dev) \
+                for fname in feat_name}
     return feat
 
 def prepare_batch_edge_input(g, input_edges,
@@ -96,10 +98,12 @@ def prepare_batch_edge_input(g, input_edges,
             [feat_field] if isinstance(feat_field, str) \
             else feat_field[etypes] if etypes in feat_field else None
 
-        if feat_name is not None:
+        if feat_name is not None and len(feat_name) == 1:
+            feat[etypes] = g.edges[etypes].data[feat_name[0]][eid].to(dev)
+        elif feat_name is not None:
             # concatenate multiple features together
-            feat[etypes] = th.cat([g.edges[etypes].data[fname][eid].to(dev) \
-                for fname in feat_name], dim=-1)
+            feat[etypes] = {fname: g.edges[etypes].data[fname][eid].to(dev) \
+                for fname in feat_name}
     return feat
 
 class GSgnnData():
