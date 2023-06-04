@@ -28,6 +28,7 @@ from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
 from ..utils import rt_profiler
+from ..dataloading.dataset import copy_feats2device
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
@@ -128,21 +129,23 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 if not isinstance(input_nodes, dict):
                     assert len(batch_graph.ntypes) == 1
                     input_nodes = {batch_graph.ntypes[0]: input_nodes}
-                input_feats = data.get_node_feats(input_nodes, device)
-                rt_profiler.record('train_node_feats')
-
+                input_feats = data.get_node_feats(input_nodes)
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
                 assert len(batch_graph.etypes) == 1
                 target_etype = batch_graph.canonical_etypes[0]
                 # TODO(zhengda) the data loader should return labels directly.
                 seeds = batch_graph.edges[target_etype[1]].data[dgl.EID]
-                lbl = data.get_labels({target_etype: seeds}, device)
+                lbl = data.get_labels({target_etype: seeds})
+                rt_profiler.record('train_node_feats')
+
+                input_feats = copy_feats2device(input_feats, device)
+                lbl = copy_feats2device(lbl, device)
                 blocks = [block.to(device) for block in blocks]
                 batch_graph = batch_graph.to(device)
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
-                rt_profiler.record('train_graph2GPU')
+                rt_profiler.record('train_copy2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.

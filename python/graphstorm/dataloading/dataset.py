@@ -106,6 +106,34 @@ def prepare_batch_edge_input(g, input_edges,
                 for fname in feat_name}
     return feat
 
+def copy_feats2device(feats, device):
+    """ Copy the features to the device.
+
+    The input features can be a tensor or a dict of tensors.
+
+    Parameters:
+    -----------
+    feats : Tensor or a dict of Tensors.
+        The input features.
+    device : th.device
+        The device where the features should be copied to.
+
+    Returns
+    -------
+    Tensor or dict of tensors.
+        The tensors in the target device.
+    """
+    if isinstance(feats, dict):
+        new_feats = {}
+        for type_name in feats:
+            if isinstance(feats[type_name], dict):
+                new_feats[type_name] = {fname: feats[type_name][fname].to(device) \
+                        for fname in feats[type_name]}
+            else:
+                new_feats[type_name] = feats[type_name].to(device)
+    else:
+        return feats.to(device)
+
 class GSgnnData():
     """ The GraphStorm data
 

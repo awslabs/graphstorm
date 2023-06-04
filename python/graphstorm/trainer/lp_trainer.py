@@ -26,6 +26,7 @@ from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
 from ..utils import rt_profiler
+from ..dataloading.dataset import copy_feats2device
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -131,15 +132,16 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 if not isinstance(input_nodes, dict):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
-                input_feats = data.get_node_feats(input_nodes, device)
+                input_feats = data.get_node_feats(input_nodes)
                 rt_profiler.record('train_node_feats')
 
+                input_feats = copy_feats2device(input_feats, device)
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
-                rt_profiler.record('train_graph2GPU')
+                rt_profiler.record('train_copy2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
