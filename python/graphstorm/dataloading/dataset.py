@@ -131,6 +131,7 @@ def copy_feats2device(feats, device):
                         for fname in feats[type_name]}
             else:
                 new_feats[type_name] = feats[type_name].to(device)
+        return new_feats
     else:
         return feats.to(device)
 
