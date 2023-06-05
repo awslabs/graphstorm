@@ -336,6 +336,25 @@ def get_valid_label_index(label):
                          f"This label data has data type of {label.dtype}.")
 
 class CustomLabelProcessor:
+    """ Process labels with custom data split.
+
+    This allows users to define custom data split for training/validation/test.
+
+    Parameters
+    ----------
+    col_name : str
+        The column name for labels.
+    label_name : str
+        The label name.
+    task_type : str
+        The task type.
+    train_idx : Numpy array
+        The array that contains the index of training data points.
+    val_idx : Numpy array
+        The array that contains the index of validation data points.
+    test_idx : Numpy array
+        The array that contains the index of test data points.
+    """
     def __init__(self, col_name, label_name, task_type,
                  train_idx, val_idx, test_idx):
         self._col_name = col_name
@@ -358,6 +377,18 @@ class CustomLabelProcessor:
         return self._label_name
 
     def data_split(self, num_samples):
+        """ Split the data for training/validation/test.
+
+        Parameters
+        ----------
+        num_samples : int
+            The total number of data points.
+
+        Returns
+        -------
+        dict of Numpy array
+            The arrays for training/validation/test masks.
+        """
         train_mask = np.zeros((num_samples,), dtype=np.int8)
         val_mask = np.zeros((num_samples,), dtype=np.int8)
         test_mask = np.zeros((num_samples,), dtype=np.int8)
