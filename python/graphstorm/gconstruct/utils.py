@@ -17,6 +17,7 @@
     node regression, edge classification and edge regression.
 """
 import os
+import sys
 import multiprocessing
 from multiprocessing import Process
 import queue
@@ -29,6 +30,8 @@ import torch as th
 
 from ..utils import sys_tracker
 from .file_io import HDF5Array
+
+SHARED_MEM_OBJECT_THRESHOLD = 3 * 1024 * 1024 * 1024
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -58,6 +61,14 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
             data = user_parser(in_file)
+            size = sys.getsizeof(data)
+            # Max pickle obj size is 4 GByte
+            if size > SHARED_MEM_OBJECT_THRESHOLD:
+                # Use torch shared memory as a workaround
+                # This will consume shared memory and cause an additional
+                # data copy, i.e., general memory to torch shared memory.
+                new_data = {name: th.tensor(d).share_memory_() for name, d in data.items()}
+                data = new_data
             res_queue.put((i, data))
             gc.collect()
     except queue.Empty:
@@ -104,6 +115,12 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         return_dict = {}
         while len(return_dict) < num_files:
             file_idx, vals= res_queue.get()
+            # If the size of `vals`` is larger than utils.SHARED_MEM_OBJECT_THRESHOLD
+            # we will automatically convert tensors in `vals` into torch tensor
+            # and copy the tensor into shared memory.
+            # This helps avoid the pickle max obj size issue.
+            vals = {name: data.numpy() if th.is_tensor(data) else data \
+                    for name, data in vals.items()}
             return_dict[file_idx] = vals
             sys_tracker.check(f'process data file: {file_idx}')
             gc.collect()
