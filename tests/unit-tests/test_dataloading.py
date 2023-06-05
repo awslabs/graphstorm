@@ -606,17 +606,18 @@ def test_prepare_input():
         assert len(edge_feat) == 2
         assert_equal(node_feat["n0"].numpy(),
                      g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
-        assert_equal(node_feat["n1"].numpy(),
-                     th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
-                             g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
+        assert len(node_feat["n1"]) == 2
+        assert_equal(node_feat["n1"]["feat"].numpy(),
+                     g.nodes["n1"].data["feat"][input_nodes["n1"]].numpy())
+        assert_equal(node_feat["n1"]["feat2"].numpy(),
+                     g.nodes["n1"].data["feat2"][input_nodes["n1"]].numpy())
         assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
                      g.edges[("n0", "r1", "n1")].data["feat"][
                          input_edges[("n0", "r1", "n1")]].numpy())
-        assert_equal(edge_feat[("n0", "r0", "n1")].numpy(),
-                     th.cat([g.edges[("n0", "r0", "n1")].data["feat"][
-                                 input_edges[("n0", "r0", "n1")]],
-                             g.edges[("n0", "r0", "n1")].data["feat2"][
-                                 input_edges[("n0", "r0", "n1")]]], dim=-1).numpy())
+        assert_equal(edge_feat[("n0", "r0", "n1")]["ferat"].numpy(),
+                     g.edges[("n0", "r0", "n1")].data["feat"][input_edges[("n0", "r0", "n1")]].numpy())
+        assert_equal(edge_feat[("n0", "r0", "n1")]["ferat2"].numpy(),
+                     g.edges[("n0", "r0", "n1")].data["feat2"][input_edges[("n0", "r0", "n1")]].numpy())
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
