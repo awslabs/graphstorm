@@ -17,7 +17,6 @@
     node regression, edge classification and edge regression.
 """
 import os
-import sys
 import multiprocessing
 from multiprocessing import Process
 import queue
