@@ -30,7 +30,7 @@ import torch as th
 from ..utils import sys_tracker
 from .file_io import HDF5Array
 
-SHARED_MEM_OBJECT_THRESHOLD = 3 * 1024 * 1024 * 1024
+SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
 SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 
@@ -45,7 +45,13 @@ def _to_shared_memory(data):
     if th.is_tensor(data):
         return data.share_memory_()
     elif isinstance(data, np.ndarray):
-        return th.tensor(data).share_memory_()
+        # only handle data that can be converted to torch tensor
+        if data.dtype in [np.float64, np.float32, np.float16,
+                          np.complex64, np.complex128, np.int64,
+                          np.int32, np.int16, np.int8,
+                          np.uint8, np.bool]:
+            return th.tensor(data).share_memory_()
+        return data
     elif isinstance(data, dict):
         new_data = {}
         for name, val in data.items():
@@ -77,6 +83,8 @@ def _to_numpy_array(data):
     """
     if th.is_tensor(data):
         return data.numpy()
+    elif isinstance(data, np.ndarray):
+        return data # do nothing
     elif isinstance(data, dict):
         new_data = {}
         for name, val in data.items():
@@ -157,7 +165,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
             i, in_file = task_queue.get_nowait()
             data = user_parser(in_file)
             size = _estimate_sizeof(data)
-            # Max pickle obj size is 4 GByte
+            # Max pickle obj size is 2 GByte
             if size > SHARED_MEM_OBJECT_THRESHOLD:
                 # Use torch shared memory as a workaround
                 # This will consume shared memory and cause an additional
