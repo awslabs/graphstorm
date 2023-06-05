@@ -27,12 +27,37 @@ from graphstorm.graphpartitioning.metadata_schema import MetadataSchema
 from graph_dataset import *
 
 
+class UTMetadataSchema(MetadataSchema):
+    def __init__(self, filename, base_dir, init_maps=True):
+        super().__init__(filename, base_dir, init_maps=init_maps)
+
+    def init_global_nid_offsets(self):
+        super()._init_global_nid_offsets()
+
+    def init_global_eid_offsets(self):
+        super()._init_global_eid_offsets()
+
+    def init_ntype_maps(self):
+        super()._init_ntype_maps()
+
+    def init_etype_maps(self):
+        super()._init_etype_maps()
+
+    def init_etype_files(self):
+        super()._init_etype_files()
+
+    def init_ntype_feature_files(self):
+        super()._init_ntype_feature_files()
+
+    def init_etype_feature_files(self):
+        super()._init_etype_feature_files()
+
+
 def test_load_json():
     """Unit test to test json load function."""
 
     def run_test(root_dir):
-        obj = MetadataSchema()
-        obj.init(METADATA_NAME, root_dir, init_maps=False)
+        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
 
         assert (
             obj.data == input_dict
@@ -57,55 +82,6 @@ def test_load_json():
     run_test("")
 
 
-def test_singleton():
-    """Run tests to ensure singleton property of the class."""
-    input_dict = {}
-    add_graph_name(input_dict)
-
-    # Add nodes to the metadata.
-    add_nodes(input_dict, {ntype: 10 for ntype in ntypes})
-
-    file_metadata = namedtuple("file_metadata", "")
-    file_metadata.root_dir = os.getcwd()
-    file_metadata.prefix_dir = ""
-    file_metadata.create_files = True
-    file_metadata.is_absolute = False
-    file_metadata.file_prefix = "edges_"
-
-    # Add edges and create edge files, if necessary
-    add_edges_files(
-        input_dict,
-        {etype: 10 for etype in etypes},
-        {etype: idx + 1 for idx, etype in enumerate(etypes)},
-        {"name": "csv", "delimiter": " "},
-        file_metadata,
-    )
-
-    metadata_path = os.path.join(os.getcwd(), METADATA_NAME)
-    with open(metadata_path, "w") as handle:
-        json.dump(input_dict, handle, indent=4)
-
-    # Run tests.
-    obj1 = MetadataSchema()
-
-    # Base directory as current working directory.
-    obj1.init(METADATA_NAME, None)
-
-    # Additional references to the class instance.
-    obj2 = MetadataSchema()
-    obj3 = MetadataSchema()
-
-    assert obj1 == obj2, "Singeton test failed."
-    assert obj1.metadata_path == obj2.metadata_path, "Singleton test failed."
-    assert obj1 == obj3, "Singleton test failed."
-    assert obj2 == obj3, "Singleton test failed."
-
-    # Clean up
-    obj1 = None
-    obj2 = None
-    obj3 = None
-
-
 @pytest.mark.parametrize("ntypes", [[], [NODE1], [NODE1, NODE2]])
 def test_ntypes(ntypes):
     """Unit Tests to test various scenarios when only nodes are in the input
@@ -120,8 +96,7 @@ def test_ntypes(ntypes):
         with open(filename, "w") as input_handle:
             json.dump(input_dict, input_handle, indent=4)
 
-        obj = MetadataSchema()
-        obj.init(METADATA_NAME, root_dir, init_maps=False)
+        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
         obj.init_ntype_maps()
 
         # Test case here.
@@ -171,8 +146,7 @@ def test_etypes(etypes):
         with open(filename, "w") as input_handle:
             json.dump(input_dict, input_handle, indent=4)
 
-        obj = MetadataSchema()
-        obj.init(METADATA_NAME, root_dir, init_maps=False)
+        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
         obj.init_etype_maps()
 
         # Test case here.
@@ -246,8 +220,7 @@ def test_etype_files(
             json.dump(input_dict, input_handle, indent=4)
 
         # Test case here.
-        obj = MetadataSchema()
-        obj.init(METADATA_NAME, root_dir, init_maps=False)
+        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
         obj.init_etype_maps()
 
         # Check the initialization
@@ -295,8 +268,7 @@ def test_node_features(
             json.dump(input_dict, input_handle, indent=4)
 
         # Tests here.
-        obj = MetadataSchema()
-        obj.init(METADATA_NAME, root_dir, init_maps=False)
+        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
         obj.init_ntype_maps()
 
         try:
@@ -398,8 +370,7 @@ def test_edge_features(
         with open(filename, "w") as input_handle:
             json.dump(input_dict, input_handle, indent=4)
 
-        obj = MetadataSchema()
-        obj.init(METADATA_NAME, root_dir, init_maps=False)
+        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
         obj.init_etype_maps()
 
         try:
@@ -500,8 +471,7 @@ def test_generic_usecase(metadata):
             json.dump(metadata, input_handle, indent=4)
 
         # Test here.
-        obj = MetadataSchema()
-        obj.init(METADATA_NAME, root_dir)
+        obj = UTMetadataSchema(METADATA_NAME, root_dir)
 
         # Check base directory for the dataset.
         assert obj.metadata_path == os.path.join(
@@ -768,9 +738,8 @@ def test_error_cases(metadata):
             json.dump(metadata, input_handle, indent=4)
 
         # Test here.
-        obj = MetadataSchema()
         try:
-            obj.init(METADATA_NAME, root_dir)
+            obj = UTMetadataSchema(METADATA_NAME, root_dir)
         except KeyError as exp:
             pass
         except ValueError as exp:
@@ -778,7 +747,6 @@ def test_error_cases(metadata):
 
 
 if __name__ == "__main__":
-    test_singleton()
     test_load_json()
     test_ntypes([NODE1])
     test_etypes([EDGE1])
