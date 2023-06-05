@@ -108,7 +108,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         # training loop
         dur = []
         best_epoch = 0
-        num_input_nodes = 0
         forward_time = 0
         back_time = 0
         total_steps = 0
@@ -143,8 +142,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 lbl = copy_feats2device(lbl, device)
                 blocks = [block.to(device) for block in blocks]
                 batch_graph = batch_graph.to(device)
-                for _, nodes in input_nodes.items():
-                    num_input_nodes += nodes.shape[0]
                 rt_profiler.record('train_copy2GPU')
 
                 t2 = time.time()
@@ -169,7 +166,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     print(
                         "Part {} | Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
                         format(self.rank, epoch, i, loss.item(), time.time() - batch_tic))
-                    num_input_nodes = forward_time = back_time = 0
+                    forward_time = back_time = 0
 
                 val_score = None
                 if self.evaluator is not None and \

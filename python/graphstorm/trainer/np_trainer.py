@@ -106,7 +106,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         # training loop
         dur = []
         total_steps = 0
-        num_input_nodes = 0
         forward_time = 0
         back_time = 0
         early_stop = False # used when early stop is True
@@ -136,8 +135,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 input_feats = copy_feats2device(input_feats, device)
                 lbl = copy_feats2device(lbl, device)
                 blocks = [block.to(device) for block in blocks]
-                for _, feats in input_feats.items():
-                    num_input_nodes += feats.shape[0]
                 rt_profiler.record('train_copy2GPU')
 
                 t2 = time.time()
@@ -160,7 +157,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     rt_profiler.print_stats()
                     print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
                             format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
-                    num_input_nodes = forward_time = back_time = 0
+                    forward_time = back_time = 0
 
                 val_score = None
                 if self.evaluator is not None and \
