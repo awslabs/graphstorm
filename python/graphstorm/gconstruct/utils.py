@@ -32,6 +32,102 @@ from ..utils import sys_tracker
 from .file_io import HDF5Array
 
 SHARED_MEM_OBJECT_THRESHOLD = 3 * 1024 * 1024 * 1024
+SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
+PICKLE_CROSS_PROCESS_STORAGE = "pickle"
+
+def _to_shared_memory(data):
+    """ Move all tensor objects into torch shared memory
+
+    Parameters
+    ----------
+    data: dict/tuple/list of tensors
+        Data returned by user_parser
+    """
+    if th.is_tensor(data):
+        return data.share_memory_()
+    elif isinstance(data, np.ndarray):
+        return th.tensor(data).share_memory_()
+    elif isinstance(data, dict):
+        new_data = {}
+        for name, val in data.items():
+            new_data[name] = _to_shared_memory(val)
+        return new_data
+    elif isinstance(data, list):
+        new_data = []
+        for val in data:
+            new_data.append(_to_shared_memory(val))
+        return new_data
+    elif isinstance(data, tuple):
+        new_data = []
+        for val in list(data):
+            new_data.append(_to_shared_memory(val))
+        return tuple(new_data)
+    else:
+        assert False, f"Unknown object type {type(data)}. " \
+            "User data parser should "
+
+    return None
+
+def _to_numpy_array(data):
+    """ Move all data objects back to numpy array
+
+    Parameters
+    ----------
+    data: dict/tuple/list of tensors
+        Data returned by user_parser
+    """
+    if th.is_tensor(data):
+        return data.numpy()
+    elif isinstance(data, dict):
+        new_data = {}
+        for name, val in data.items():
+            new_data[name] = _to_numpy_array(val)
+        return new_data
+    elif isinstance(data, list):
+        new_data = []
+        for val in data:
+            new_data.append(_to_numpy_array(val))
+        return new_data
+    elif isinstance(data, tuple):
+        new_data = []
+        for val in list(data):
+            new_data.append(_to_numpy_array(val))
+        return tuple(new_data)
+    else:
+        assert False, f"Unknown object type {type(data)}. " \
+            "User data parser should "
+
+    return None
+
+def _estimate_sizeof(data):
+    """ Estimate the size of a data
+
+    Parameters
+    ----------
+    data: dict/tuple/list of tensors
+        Data returned by user_parser
+    """
+    if th.is_tensor(data):
+        return data.element_size() * data.nelement()
+    elif isinstance(data, np.ndarray):
+        return data.size * data.itemsize
+    elif isinstance(data, dict):
+        data_size = 0
+        for _, val in data.items():
+            data_size += _estimate_sizeof(val)
+    elif isinstance(data, list):
+        data_size = 0
+        for val in data:
+            data_size += _estimate_sizeof(val)
+    elif isinstance(data, tuple):
+        data_size = 0
+        for val in list(data):
+            data_size += _estimate_sizeof(val)
+    else:
+        assert False, f"Unknown object type {type(data)}. " \
+            "User data parser should "
+
+    return data_size
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -61,14 +157,15 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
             data = user_parser(in_file)
-            size = sys.getsizeof(data)
+            size = _estimate_sizeof(data)
             # Max pickle obj size is 4 GByte
             if size > SHARED_MEM_OBJECT_THRESHOLD:
                 # Use torch shared memory as a workaround
                 # This will consume shared memory and cause an additional
                 # data copy, i.e., general memory to torch shared memory.
-                new_data = {name: th.tensor(d).share_memory_() for name, d in data.items()}
-                data = new_data
+                data = (SHARED_MEMORY_CROSS_PROCESS_STORAGE, _to_shared_memory(data))
+            else:
+                data = (PICKLE_CROSS_PROCESS_STORAGE, data)
             res_queue.put((i, data))
             gc.collect()
     except queue.Empty:
@@ -119,8 +216,9 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
             # we will automatically convert tensors in `vals` into torch tensor
             # and copy the tensor into shared memory.
             # This helps avoid the pickle max obj size issue.
-            vals = {name: data.numpy() if th.is_tensor(data) else data \
-                    for name, data in vals.items()}
+            storage_type, vals = vals
+            if storage_type == SHARED_MEMORY_CROSS_PROCESS_STORAGE:
+                vals = _to_numpy_array(vals)
             return_dict[file_idx] = vals
             sys_tracker.check(f'process data file: {file_idx}')
             gc.collect()
