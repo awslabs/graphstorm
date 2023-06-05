@@ -27,6 +27,7 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
+from graphstorm.utils import rt_profiler
 
 def get_evaluator(config):
     if config.task_type == "node_classification":
@@ -51,6 +52,7 @@ def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    rt_profiler.init(config.profile_path, rank=gs.get_rank())
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.target_ntype,
@@ -116,7 +118,8 @@ def main(args):
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings
         model.prepare_input_encoder(train_data)
-        embeddings = do_full_graph_inference(model, train_data, task_tracker=tracker)
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
+                                             task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         th.distributed.get_world_size(),
                         device=device,

@@ -21,6 +21,7 @@ import multiprocessing
 from multiprocessing import Process
 import queue
 import gc
+import logging
 
 import numpy as np
 import dgl
@@ -51,7 +52,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
         gpu = worker_id % num_gpus
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
         if worker_id >= num_gpus:
-            print(f"WARNING! there are more than 1 processes are attachd to GPU {gpu}.")
+            logging.warning("There are more than 1 processes are attachd to GPU %d.", gpu)
     try:
         while True:
             # If the queue is empty, it will raise the Empty exception.
@@ -227,7 +228,7 @@ class ExtMemArrayMerger:
             em_arr[:] = arr[:]
             return em_arr
 
-def _save_maps(output_dir, fname, map_data):
+def save_maps(output_dir, fname, map_data):
     """ Save node id mapping or edge id mapping
 
     Parameters
@@ -329,7 +330,7 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
 
         # the new_node_mapping contains per entity type on the ith row
         # the original node id for the ith node.
-        _save_maps(output_dir, "node_mapping", new_node_mapping)
+        save_maps(output_dir, "node_mapping", new_node_mapping)
         # the new_edge_mapping contains per edge type on the ith row
         # the original edge id for the ith edge.
-        _save_maps(output_dir, "edge_mapping", new_edge_mapping)
+        save_maps(output_dir, "edge_mapping", new_edge_mapping)

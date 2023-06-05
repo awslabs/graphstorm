@@ -26,6 +26,7 @@ from graphstorm.dataloading import GSgnnEdgeTrainData
 from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
 from graphstorm.dataloading import GSgnnLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnLPLocalUniformNegDataLoader
+from graphstorm.dataloading import GSgnnLPLocalJointNegDataLoader
 from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
@@ -33,16 +34,19 @@ from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
+from graphstorm.dataloading import BUILTIN_LP_LOCALJOINT_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
+from graphstorm.utils import rt_profiler
 
 def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    rt_profiler.init(config.profile_path, rank=gs.get_rank())
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.train_etype,
@@ -79,6 +83,8 @@ def main(args):
         dataloader_cls = GSgnnLPJointNegDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLPLocalUniformNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALJOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPLocalJointNegDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
@@ -88,7 +94,8 @@ def main(args):
     device = 'cuda:%d' % trainer.dev_id
     dataloader = dataloader_cls(train_data, train_data.train_idxs, [],
                                 config.batch_size, config.num_negative_edges, device,
-                                train_task=True)
+                                train_task=True,
+                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss)
 
     # TODO(zhengda) let's use full-graph inference for now.
     if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
@@ -132,7 +139,7 @@ def main(args):
         # For example pre-compute all BERT embeddings
         model.prepare_input_encoder(train_data)
         # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
-        embeddings = do_full_graph_inference(model, train_data,
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              edge_mask="train_mask", task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         th.distributed.get_world_size(),

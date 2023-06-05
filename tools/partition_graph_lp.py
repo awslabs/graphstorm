@@ -36,43 +36,43 @@ if __name__ == '__main__':
                            help="dataset to use")
     argparser.add_argument("--filepath", type=str, default=None)
     # link prediction arguments
-    argparser.add_argument('--target_etypes', type=str, help='The canonical edge types for making'
+    argparser.add_argument('--target-etypes', type=str, help='The canonical edge types for making'
                            + ' prediction. Multiple edge types can be separated by " ". '
                            + 'For example, "EntA,Links,EntB EntC,Links,EntD"')
     # label split arguments
-    argparser.add_argument('--train_pct', type=float, default=0.8,
+    argparser.add_argument('--train-pct', type=float, default=0.8,
                            help='The pct of train nodes/edges. Should be > 0 and < 1.')
-    argparser.add_argument('--val_pct', type=float, default=0.1,
+    argparser.add_argument('--val-pct', type=float, default=0.1,
                            help='The pct of validation nodes/edges. Should be > 0 and < 1.')
     # graph modification arguments
-    argparser.add_argument('--undirected', action='store_true',
+    argparser.add_argument('--add-reverse-edges', action='store_true',
                            help='turn the graph into an undirected graph.')
-    argparser.add_argument('--train_graph_only', action='store_true',
+    argparser.add_argument('--train-graph-only', action='store_true',
                            help='Only partition the training graph.')
-    argparser.add_argument('--retain_original_features',  type=lambda x: (str(x).lower() in ['true', '1']),
+    argparser.add_argument('--retain-original-features',  type=lambda x: (str(x).lower() in ['true', '1']),
                            default=True, help= "whether to use the original features or use the paper title or abstract"
                                                 "for the ogbn-arxiv dataset")
-    argparser.add_argument('--retain_etypes', nargs='+', type=str, default=[],
+    argparser.add_argument('--retain-etypes', nargs='+', type=str, default=[],
         help='The list of canonical etype that will be retained before partitioning the graph. '
               + 'This might be helpfull to remove noise edges in this application. Format example: '
               + '--retain_etypes query,clicks,asin query,adds,asin query,purchases,asin '
               + 'asin,rev-clicks,query asin,rev-adds,query asin,rev-purchases,query')
     # partition arguments
-    argparser.add_argument('--num_parts', type=int, default=4,
+    argparser.add_argument('--num-parts', type=int, default=4,
                            help='number of partitions')
-    argparser.add_argument('--part_method', type=str, default='metis',
+    argparser.add_argument('--part-method', type=str, default='metis',
                            help='the partition method')
-    argparser.add_argument('--balance_train', action='store_true',
+    argparser.add_argument('--balance-train', action='store_true',
                            help='balance the training size in each partition.')
-    argparser.add_argument('--balance_edges', action='store_true',
+    argparser.add_argument('--balance-edges', action='store_true',
                            help='balance the number of edges in each partition.')
-    argparser.add_argument('--num_trainers_per_machine', type=int, default=1,
+    argparser.add_argument('--num-trainers-per-machine', type=int, default=1,
                            help='the number of trainers per machine. The trainer ids are stored\
                                 in the node feature \'trainer_id\'')
     # output arguments
     argparser.add_argument('--output', type=str, default='data',
                            help='The output directory to store the partitioned results.')
-    argparser.add_argument('--save_mappings', action='store_true',
+    argparser.add_argument('--save-mappings', action='store_true',
                            help='Store the mappings for the edges and nodes after partition.')
 
     args = argparser.parse_args()
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     g = dataset[0]
 
     if constructed_graph:
-        if args.undirected:
+        if args.add_reverse_edges:
             print("Creating reverse edges ...")
             edges = {}
             for src_ntype, etype, dst_ntype in g.canonical_etypes:

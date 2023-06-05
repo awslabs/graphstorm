@@ -27,6 +27,7 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
+from graphstorm.utils import rt_profiler
 
 def get_evaluator(config):
     if config.task_type == "edge_classification":
@@ -51,6 +52,7 @@ def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    rt_profiler.init(config.profile_path, rank=gs.get_rank())
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.target_etype,
@@ -125,8 +127,17 @@ def main(args):
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings
         model.prepare_input_encoder(train_data)
-        embeddings = do_full_graph_inference(model, train_data, task_tracker=tracker)
-        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
+                                             task_tracker=tracker)
+        # only save node embeddings of nodes with node types from target_etype
+        target_ntypes = set()
+        for etype in config.target_etype:
+            target_ntypes.add(etype[0])
+            target_ntypes.add(etype[2])
+
+        # The order of the ntypes must be sorted
+        embs = {ntype: embeddings[ntype] for ntype in sorted(target_ntypes)}
+        save_embeddings(config.save_embed_path, embs, gs.get_rank(),
                         th.distributed.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)

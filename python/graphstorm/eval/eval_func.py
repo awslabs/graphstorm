@@ -207,6 +207,13 @@ def eval_roc_auc(logits,labels):
 def eval_acc(pred, labels):
     """compute evaluation accuracy.
     """
+    if pred.dim() > 1:
+        # if pred has dimension > 1, it has full logits instead of final prediction
+        assert th.is_floating_point(pred), "Logits are expected to be float type"
+        pred = pred.argmax(dim=1)
+    # Check if pred is integer tensor
+    assert(not th.is_floating_point(pred) and not th.is_complex(pred)), "Predictions are " \
+        "expected to be integer type"
     return th.sum(pred.cpu() == labels.cpu()).item() / len(labels)
 
 

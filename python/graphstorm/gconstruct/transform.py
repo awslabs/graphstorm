@@ -17,6 +17,7 @@
     node regression, edge classification and edge regression.
 """
 
+import logging
 import os
 import numpy as np
 import torch as th
@@ -324,7 +325,10 @@ def get_valid_label_index(label):
     Numpy array : the index of the samples with valid labels in the list.
     """
     if np.issubdtype(label.dtype, np.floating):
-        return np.logical_not(np.isnan(label)).nonzero()[0]
+        if label.ndim == 1:
+            return np.logical_not(np.isnan(label)).nonzero()[0]
+        else:
+            return np.nonzero(np.sum(np.isnan(label), axis=1) == 0)[0]
     elif np.issubdtype(label.dtype, np.integer):
         return np.arange(len(label))
     else:
@@ -583,7 +587,7 @@ def parse_label_ops(confs, is_node):
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
     else:
-        print("'split_pct' is not found. " + \
+        logging.info("'split_pct' is not found. " + \
                 "Use the default data split: train(80%), valid(10%), test(10%).")
         split_pct = [0.8, 0.1, 0.1]
 

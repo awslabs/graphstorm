@@ -27,6 +27,7 @@ from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
+from ..utils import rt_profiler
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
@@ -118,7 +119,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             if freeze_input_layer_epochs <= epoch:
                 self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
+            rt_profiler.start_record()
             for i, (input_nodes, batch_graph, blocks) in enumerate(train_loader):
+                rt_profiler.record('train_sample')
                 total_steps += 1
                 batch_tic = time.time()
 
@@ -126,6 +129,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     assert len(batch_graph.ntypes) == 1
                     input_nodes = {batch_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
+                rt_profiler.record('train_node_feats')
+
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
                 assert len(batch_graph.etypes) == 1
@@ -137,21 +142,26 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 batch_graph = batch_graph.to(device)
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
+                rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, batch_graph, input_feats, None, lbl, input_nodes)
+                rt_profiler.record('train_forward')
 
                 t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
+                rt_profiler.record('train_backward')
                 self.optimizer.step()
+                rt_profiler.record('train_step')
                 forward_time += (t3 - t2)
                 back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
 
                 if i % 20 == 0 and self.rank == 0:
+                    rt_profiler.print_stats()
                     # Print task specific info.
                     print(
                         "Part {} | Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
@@ -162,7 +172,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(model.module, val_loader, test_loader,
-                                        use_mini_batch_infer, total_steps)
+                                          use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -181,6 +191,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                         #    guidance of validation score.
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
+                rt_profiler.record('train_eval')
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break
@@ -196,7 +207,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module, val_loader, test_loader, use_mini_batch_infer,
-                                    total_steps)
+                                      total_steps, return_proba=False)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
@@ -213,6 +224,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             if early_stop is True:
                 break
 
+        rt_profiler.save_profile()
         print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
@@ -225,7 +237,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps):
+    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
+             return_proba=True):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -240,6 +253,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             Whether or not to use mini-batch inference.
         total_steps: int
             Total number of iterations.
+        return_proba: bool
+            Whether to return all the predictions or the maximum prediction.
 
         Returns
         -------
@@ -248,17 +263,18 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('start prediction')
         model.eval()
-        print("call model.eval()")
         if use_mini_batch_infer:
-            val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader,
+            val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                               return_label=True)
-            test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader,
+            test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader, return_proba,
                                                                 return_label=True)
         else:
-            emb = do_full_graph_inference(model, val_loader.data, task_tracker=self.task_tracker)
-            val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader,
+            emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
+                                          task_tracker=self.task_tracker)
+            val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader, return_proba,
                                                           return_label=True)
-            test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader,
+
+            test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader, return_proba,
                                                             return_label=True)
         model.train()
         sys_tracker.check('predict')

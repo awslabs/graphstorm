@@ -25,6 +25,7 @@ from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
+from ..utils import rt_profiler
 
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ A trainer for node prediction
@@ -118,7 +119,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
             # TODO(zhengda) the dataloader should return node features and labels directly.
+            rt_profiler.start_record()
             for i, (input_nodes, seeds, blocks) in enumerate(train_loader):
+                rt_profiler.record('train_sample')
                 total_steps += 1
                 batch_tic = time.time()
 
@@ -127,24 +130,31 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     input_nodes = {g.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
                 lbl = data.get_labels(seeds, device)
+                rt_profiler.record('train_node_feats')
+
                 blocks = [block.to(device) for block in blocks]
                 for _, feats in input_feats.items():
                     num_input_nodes += feats.shape[0]
+                rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, input_feats, None, lbl, input_nodes)
+                rt_profiler.record('train_forward')
 
                 t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
+                rt_profiler.record('train_backward')
                 self.optimizer.step()
+                rt_profiler.record('train_step')
                 forward_time += (t3 - t2)
                 back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
 
                 if i % 20 == 0 and self.rank == 0:
+                    rt_profiler.print_stats()
                     print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
                             format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
                     num_input_nodes = forward_time = back_time = 0
@@ -154,7 +164,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     self.evaluator.do_eval(total_steps, epoch_end=False) and \
                     val_loader is not None:
                     val_score = self.eval(model.module, val_loader, test_loader,
-                                          use_mini_batch_infer, total_steps)
+                                          use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -173,6 +183,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                         #    guidance of validation score.
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
+                rt_profiler.record('train_eval')
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break
@@ -187,7 +198,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module, val_loader, test_loader,
-                                      use_mini_batch_infer, total_steps)
+                                      use_mini_batch_infer, total_steps, return_proba=False)
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
 
@@ -201,6 +212,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             if early_stop is True:
                 break
 
+        rt_profiler.save_profile()
         print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
@@ -212,7 +224,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps):
+    def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
+             return_proba=True):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -225,6 +238,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             The dataloader for test data.
         total_steps: int
             Total number of iterations.
+        return_proba: bool
+            Whether to return all the predictions or the maximum prediction.
 
         Returns
         -------
@@ -233,15 +248,16 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         teval = time.time()
         sys_tracker.check('before prediction')
         if use_mini_batch_infer:
-            val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader,
+            val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                                  return_label=True)
-            test_pred, _, test_label = node_mini_batch_gnn_predict(model, test_loader,
+            test_pred, _, test_label = node_mini_batch_gnn_predict(model, test_loader, return_proba,
                                                                    return_label=True)
         else:
-            emb = do_full_graph_inference(model, val_loader.data, task_tracker=self.task_tracker)
-            val_pred, val_label = node_mini_batch_predict(model, emb, val_loader,
+            emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
+                                          task_tracker=self.task_tracker)
+            val_pred, val_label = node_mini_batch_predict(model, emb, val_loader, return_proba,
                                                           return_label=True)
-            test_pred, test_label = node_mini_batch_predict(model, emb, test_loader,
+            test_pred, test_label = node_mini_batch_predict(model, emb, test_loader, return_proba,
                                                             return_label=True)
         sys_tracker.check('predict')
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,

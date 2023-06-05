@@ -726,6 +726,27 @@ def create_node_class_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail_ml_w3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # test return-proba
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "multilabel": True,
+        "return_proba": True,
+        "multilabel_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,-0.1", # weight can not be negative
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_ml_w3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "multilabel": True,
+        "return_proba": False,
+        "multilabel_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,-0.1", # weight can not be negative
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_ml_w3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
     # test imbalance label
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
@@ -1068,6 +1089,7 @@ def create_lp_config(tmp_path, file_name):
         "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
         "eval_metric": "MRR",
         "lp_decoder_type": "dot_product",
+        "lp_edge_weight_for_loss": ["weight"]
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
@@ -1081,6 +1103,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
         "gamma": 1.0,
+        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"]
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1094,6 +1117,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
         "lp_decoder_type": "transe",
+        "lp_edge_weight_for_loss": ["query,click,asin:weight1"]
     }
     # config for check error value
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
@@ -1102,6 +1126,8 @@ def create_lp_config(tmp_path, file_name):
     yaml_object["gsf"]["link_prediction"] = {
         "exclude_training_targets": True,
         "reverse_edge_types_map": [],
+        "train_etype": "query,exactmatch,asin",
+        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,exactmatch,asin:weight1"] # define edge weight multiple times
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1143,6 +1169,7 @@ def test_lp_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 12.0
+        assert config.lp_edge_weight_for_loss == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1162,6 +1189,7 @@ def test_lp_info():
         assert config.lp_loss_func == BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
+        assert config.lp_edge_weight_for_loss == "weight"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1177,6 +1205,8 @@ def test_lp_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 1.0
+        assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == ["weight0"]
+        assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == ["weight1"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1188,6 +1218,7 @@ def test_lp_info():
         check_failure(config, "reverse_edge_types_map")
         check_failure(config, "lp_loss_func")
         check_failure(config, "lp_decoder_type")
+        check_failure(config, "lp_edge_weight_for_loss")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1351,7 +1382,6 @@ def test_gnn_info():
         check_failure(config, "hidden_size") # lm model may not need hidden size
         assert config.use_mini_batch_infer == True
         check_failure(config, "fanout") # fanout must be provided if used
-        check_failure(config, "eval_fanout")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)

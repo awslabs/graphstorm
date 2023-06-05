@@ -25,6 +25,7 @@ import time
 from graphstorm.data import OGBTextFeatDataset
 from graphstorm.data import MovieLens100kNCDataset
 from graphstorm.data import ConstructedGraphDataset
+from graphstorm.gconstruct.utils import save_maps
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Partition DGL graphs for node and edge classification "
@@ -34,55 +35,55 @@ if __name__ == '__main__':
                            help="dataset to use")
     argparser.add_argument("--filepath", type=str, default=None)
     # node arguments
-    argparser.add_argument('--target_ntype', type=str, help='The node type for making prediction'
+    argparser.add_argument('--target-ntype', type=str, help='The node type for making prediction'
                            + 'Currently only support one node type.')
-    argparser.add_argument('--ntask_type', type=str, default='classification', nargs='?',
+    argparser.add_argument('--ntask-type', type=str, default='classification', nargs='?',
                            choices=['classification', 'regression'],
                            help='The node prediction type. Only support either \"classsification\" or '
                                 '\"regression\". Default is \"classification\"')
-    argparser.add_argument('--nlabel_field', type=str, help='The field that stores label on nodes.'
+    argparser.add_argument('--nlabel-field', type=str, help='The field that stores label on nodes.'
                            + 'The format is \"nodetype:label\", e.g., paper:subject')
     # edge arguments
-    argparser.add_argument('--target_etype', type=str, help='The canonical edge type for making '
+    argparser.add_argument('--target-etype', type=str, help='The canonical edge type for making '
                            + 'prediction. The format is \"scr_ntype,etype,dst_ntype\". '
                            + 'Currently only support one edge type.')
-    argparser.add_argument('--etask_type', type=str, default='classification',nargs='?',
+    argparser.add_argument('--etask-type', type=str, default='classification',nargs='?',
                            choices=['classification', 'regression'],
                            help='The edge prediction type. Only support either \"classsification\" or '
                                 '\"regression\". Default is \"classification\"')
-    argparser.add_argument('--elabel_field', type=str, help='The field that stores label on edges.'
+    argparser.add_argument('--elabel-field', type=str, help='The field that stores label on edges.'
                            + 'The format is \"srcnodetype,etype,dstnodetype:label\", e.g., '
                            + '\"user,review,movie:stars\".')
     # label split arguments
-    argparser.add_argument("--generate_new_node_split", type=lambda x:(str(x).lower() in ['true', '1']),
+    argparser.add_argument("--generate-new-node-split", type=lambda x:(str(x).lower() in ['true', '1']),
                            default=False, help="If we are splitting the data from scatch we should "
                            + "not do it by default.")
-    argparser.add_argument("--generate_new_edge_split", type=lambda x:(str(x).lower() in ['true', '1']),
+    argparser.add_argument("--generate-new-edge-split", type=lambda x:(str(x).lower() in ['true', '1']),
                            default=False, help="If we are splitting the data from scatch we should "
                            + "not do it by default.")
-    argparser.add_argument('--train_pct', type=float, default=0.8,
+    argparser.add_argument('--train-pct', type=float, default=0.8,
                            help='The pct of train nodes/edges. Should be > 0 and < 1, and only work in '
                                 + 'generating new split')
-    argparser.add_argument('--val_pct', type=float, default=0.1,
+    argparser.add_argument('--val-pct', type=float, default=0.1,
                            help='The pct of validation nodes/edges. Should be > 0 and < 1, and only work in '
                                 + 'generating new split')
     # graph modification arguments
-    argparser.add_argument('--undirected', action='store_true',
+    argparser.add_argument('--add-reverse-edges', action='store_true',
                            help='turn the graph into an undirected graph.')
-    argparser.add_argument('--retain_original_features',  type=lambda x: (str(x).lower() in ['true', '1']),
+    argparser.add_argument('--retain-original-features',  type=lambda x: (str(x).lower() in ['true', '1']),
                            default=True, help= "If true we will use the original features either wise we "
                                                "will use the tokenized title or abstract"
                                                 "for the ogbn datasets")
     # partition arguments
-    argparser.add_argument('--num_parts', type=int, default=4,
+    argparser.add_argument('--num-parts', type=int, default=4,
                            help='number of partitions')
-    argparser.add_argument('--part_method', type=str, default='metis',
+    argparser.add_argument('--part-method', type=str, default='metis',
                            help='the partition method')
-    argparser.add_argument('--balance_train', action='store_true',
+    argparser.add_argument('--balance-train', action='store_true',
                            help='balance the training size in each partition.')
-    argparser.add_argument('--balance_edges', action='store_true',
+    argparser.add_argument('--balance-edges', action='store_true',
                            help='balance the number of edges in each partition.')
-    argparser.add_argument('--num_trainers_per_machine', type=int, default=1,
+    argparser.add_argument('--num-trainers-per-machine', type=int, default=1,
                            help='the number of trainers per machine. The trainer ids are stored\
                                 in the node feature \'trainer_id\'')
     # output arguments
@@ -187,7 +188,7 @@ if __name__ == '__main__':
             raise NotImplementedError('Currently only support either edge classification or '
                                       + 'edge regression ...')
     # add reverse edges
-    if args.undirected:
+    if args.add_reverse_edges:
         print("Creating reverse edges ...")
         edges = {}
         for src_ntype, etype, dst_ntype in g.canonical_etypes:
@@ -297,8 +298,20 @@ if __name__ == '__main__':
     else:
         balance_ntypes = None
 
-    dgl.distributed.partition_graph(g, args.dataset, args.num_parts, args.output,
-                                    part_method=args.part_method,
-                                    balance_ntypes=balance_ntypes,
-                                    balance_edges=args.balance_edges,
-                                    num_trainers_per_machine=args.num_trainers_per_machine)
+    mapping = \
+        dgl.distributed.partition_graph(g, args.dataset, args.num_parts, args.output,
+                                        part_method=args.part_method,
+                                        balance_ntypes=balance_ntypes,
+                                        balance_edges=args.balance_edges,
+                                        num_trainers_per_machine=args.num_trainers_per_machine,
+                                        return_mapping=True)
+
+    new_node_mapping, new_edge_mapping = mapping
+
+    # the new_node_mapping contains per entity type on the ith row
+    # the original node id for the ith node.
+    save_maps(args.output, "node_mapping", new_node_mapping)
+    # the new_edge_mapping contains per edge type on the ith row
+    # the original edge id for the ith edge.
+    save_maps(args.output, "edge_mapping", new_edge_mapping)
+

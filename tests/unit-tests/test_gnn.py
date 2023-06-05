@@ -18,6 +18,7 @@ import os
 import yaml
 import tempfile
 from argparse import Namespace
+from types import MethodType
 
 import torch as th
 from torch import nn
@@ -34,7 +35,10 @@ from graphstorm.model import GSLMNodeEncoderInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
-from graphstorm.model.edge_decoder import DenseBiDecoder, MLPEdgeDecoder, LinkPredictDotDecoder
+from graphstorm.model.edge_decoder import (DenseBiDecoder, MLPEdgeDecoder,
+                                           LinkPredictDotDecoder,
+                                           LinkPredictWeightedDotDecoder,
+                                           LinkPredictWeightedDistMultDecoder)
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnEdgeTrainData
 from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
@@ -47,6 +51,11 @@ from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_g
 
 from data_utils import generate_dummy_dist_graph
 from data_utils import create_lm_graph
+
+def is_int(a):
+    if not th.is_floating_point(a) and not th.is_complex(a):
+        return True
+    return False
 
 def create_rgcn_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
@@ -96,16 +105,51 @@ def check_node_prediction(model, data):
         Train data
     """
     g = data.g
+    # do_full_graph_inference() runs differently if require_cache_embed()
+    # returns different values. Here we simulate these two use cases and
+    # triggers the different paths in do_full_graph_inference() to compute
+    # embeddings. The embeddings computed by the two paths should be
+    # numerically the same.
+    assert not model.node_input_encoder.require_cache_embed()
     embs = do_full_graph_inference(model, data)
+    def require_cache_embed(self):
+        return True
+    model.node_input_encoder.require_cache_embed = MethodType(require_cache_embed,
+                                                              model.node_input_encoder)
+    assert model.node_input_encoder.require_cache_embed()
+    embs2 = do_full_graph_inference(model, data)
+    assert len(embs) == len(embs2)
+    for ntype in embs:
+        assert ntype in embs2
+        assert_almost_equal(embs[ntype][0:len(embs[ntype])].numpy(),
+                            embs2[ntype][0:len(embs2[ntype])].numpy())
+
+    embs3 = do_full_graph_inference(model, data, fanout=None)
+    embs4 = do_full_graph_inference(model, data, fanout=[-1, -1])
+    assert len(embs3) == len(embs4)
+    for ntype in embs3:
+        assert ntype in embs4
+        assert_almost_equal(embs3[ntype][0:len(embs3[ntype])].numpy(),
+                            embs4[ntype][0:len(embs4[ntype])].numpy())
+
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1, -1],
                                       batch_size=10, device="cuda:0", train_task=False)
-    pred2, emb2, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
+
+    # Test the return_proba argument.
+    pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    assert(th.is_floating_point(pred3))
+    pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4))
+    assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def check_mlp_node_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
@@ -126,9 +170,18 @@ def check_mlp_node_prediction(model, data):
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
-    pred2, emb2, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
+
+    # Test the return_proba argument.
+    pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    assert(th.is_floating_point(pred3))
+    pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4))
+    assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def test_rgcn_node_prediction():
     """ Test edge prediction logic correctness with a node prediction model
@@ -195,6 +248,7 @@ def create_rgcn_edge_model(g):
                                      3, multilabel=False, target_etype=("n0", "r1", "n1")))
     return model
 
+
 def check_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnEdgeModel with GNN layers.
@@ -220,6 +274,15 @@ def check_edge_prediction(model, data):
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
 
+    # Test the return_proba argument.
+    pred3, labels3 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    assert(th.is_floating_point(pred3))
+    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4))
+    assert(th.equal(pred3.argmax(dim=1), pred4))
+
 def check_mlp_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnEdgeModel without GNN layers.
@@ -244,6 +307,15 @@ def check_mlp_edge_prediction(model, data):
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
     assert_equal(labels1.numpy(), labels2.numpy())
+
+    # Test the return_proba argument.
+    pred3, labels3 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    assert(th.is_floating_point(pred3))
+    pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4))
+    assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def test_rgcn_edge_prediction():
     """ Test edge prediction logic correctness with a edge prediction model
@@ -661,6 +733,46 @@ def test_link_prediction():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_link_prediction_weight():
+    """ Test logic of building a link prediction model
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+        create_lp_config(Path(tmpdirname), 'gnn_lp.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                         local_rank=0,
+                         lp_edge_weight_for_loss=["weight"])
+        config = GSConfig(args)
+    model = create_builtin_lp_gnn_model(g, config, True)
+    assert model.gnn_encoder.num_layers == 1
+    assert model.gnn_encoder.out_dims == 4
+    assert isinstance(model.gnn_encoder, RelationalGATEncoder)
+    assert isinstance(model.decoder, LinkPredictWeightedDotDecoder)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+        create_lp_config(Path(tmpdirname), 'gnn_lp.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                         local_rank=0,
+                         lp_edge_weight_for_loss=["weight"],
+                         lp_decoder_type="distmult",
+                         train_etype=[("n0,r0,n1"), ("n0,r1,n1")])
+        config = GSConfig(args)
+    model = create_builtin_lp_gnn_model(g, config, True)
+    assert model.gnn_encoder.num_layers == 1
+    assert model.gnn_encoder.out_dims == 4
+    assert isinstance(model.gnn_encoder, RelationalGATEncoder)
+    assert isinstance(model.decoder, LinkPredictWeightedDistMultDecoder)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 if __name__ == '__main__':
     test_rgcn_edge_prediction()
     test_rgcn_node_prediction()
@@ -670,6 +782,7 @@ if __name__ == '__main__':
     test_node_classification()
     test_node_regression()
     test_link_prediction()
+    test_link_prediction_weight()
 
     test_mlp_edge_prediction()
     test_mlp_node_prediction()

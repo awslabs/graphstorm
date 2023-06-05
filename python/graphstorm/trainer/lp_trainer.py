@@ -25,6 +25,7 @@ from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
+from ..utils import rt_profiler
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -121,35 +122,43 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
+            rt_profiler.start_record()
             for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(train_loader):
+                rt_profiler.record('train_sample')
                 total_steps += 1
                 batch_tic = time.time()
 
                 if not isinstance(input_nodes, dict):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
+                input_feats = data.get_node_feats(input_nodes, device)
+                rt_profiler.record('train_node_feats')
+
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
-                input_feats = data.get_node_feats(input_nodes, device)
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
+                rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
                              input_feats, None, input_nodes)
+                rt_profiler.record('train_forward')
 
                 t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
+                rt_profiler.record('train_backward')
                 self.optimizer.step()
+                rt_profiler.record('train_step')
                 forward_time += (t3 - t2)
                 back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
-
                 if i % 20 == 0 and self.rank == 0:
+                    rt_profiler.print_stats()
                     print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
                             format(epoch, i, loss.item(), time.time() - batch_tic))
                     num_input_nodes = forward_time = back_time = 0
@@ -178,6 +187,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                         #    guidance of validation score.
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
+                rt_profiler.record('train_eval')
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break
@@ -211,6 +221,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if early_stop is True:
                 break
 
+        rt_profiler.save_profile()
         print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,
@@ -223,8 +234,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, data, val_loader, test_loader,
-        total_steps, edge_mask_for_gnn_embeddings):
+    def eval(self, model, data, val_loader, test_loader, total_steps,
+             edge_mask_for_gnn_embeddings):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -249,7 +260,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('before prediction')
         model.eval()
-        emb = do_full_graph_inference(model, data,
+        emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')

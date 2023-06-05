@@ -19,15 +19,25 @@ import os
 import json
 import time
 import resource
+import logging
 import psutil
 
+import pandas as pd
 import dgl
 import torch as th
+import numpy as np
+
+TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 
 def get_rank():
     """ Get rank of a process
     """
-    return th.distributed.get_rank()
+    try:
+        return th.distributed.get_rank()
+    except RuntimeError:
+        # If Pytorch distributed is not set up correctly, we should set
+        # the rank to 0.
+        return 0
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.
@@ -167,10 +177,9 @@ class SysTracker:
 
     It tracks the runtime and memory consumption.
     """
-    def __init__(self, verbose=True):
+    def __init__(self):
         self._checkpoints = []
-        self._rank = dgl.distributed.rpc.get_rank()
-        self._verbose = verbose
+        self._rank = -1
 
     # This is to create only one instance.
     _instance = None
@@ -200,15 +209,107 @@ class SysTracker:
                                   gmem_info.used, gmem_info.shared))
         # We need to get the right rank
         if self._rank < 0:
-            self._rank = dgl.distributed.rpc.get_rank()
-        if len(self._checkpoints) >= 2 and self._verbose and self._rank == 0:
+            self._rank = get_rank()
+        if len(self._checkpoints) >= 2 and self._rank == 0:
             checkpoint1 = self._checkpoints[-2]
             checkpoint2 = self._checkpoints[-1]
-            print("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, shared: {:.3f}, \
-                    global curr: {:.3f}, global shared: {:.3f}) GB".format(
+            logging.debug("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, \
+                    shared: {:.3f}, global curr: {:.3f}, global shared: {:.3f}) GB".format(
                 name, checkpoint2[1] - checkpoint1[1],
                 checkpoint2[2]/1024/1024/1024, checkpoint2[4]/1024/1024,
                 checkpoint2[3]/1024/1024/1024, checkpoint2[5]/1024/1024/1024,
                 checkpoint2[6]/1024/1024/1024))
 
+class RuntimeProfiler:
+    """ This profiles the runtime performance.
+
+    It tracks the runtime.
+    """
+    def __init__(self, profile_path=None):
+        self._checkpoints = []
+        self._runtime = {}
+        self._profile_path = profile_path
+        self._rank = -1
+
+    # This is to create only one instance.
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
+        """ Only create one instance.
+        """
+        if not isinstance(cls._instance, cls):
+            cls._instance = object.__new__(cls)
+
+        return cls._instance
+
+    def init(self, path, rank=None):
+        """ Initialize the profiler.
+
+        Setting the profile path enables profiling.
+        """
+        self._profile_path = path
+        if rank is None:
+            self._rank = get_rank()
+        else:
+            self._rank = rank
+
+    def start_record(self):
+        """ Start recording.
+
+        This records the first time for the following operations.
+        """
+        if self._profile_path is None:
+            return
+        self._checkpoints.append(("", time.time()))
+        # We put a barrier here so that the next operation starts
+        # at the same time.
+        th.distributed.barrier()
+
+    def record(self, name):
+        """ Record the computation step.
+
+        It basically adds a checkpoint in the place where it is called.
+
+        Parameters
+        ----------
+        name : str
+            The name of the check point.
+        """
+        if self._profile_path is None:
+            return
+
+        self._checkpoints.append((name, time.time()))
+        if len(self._checkpoints) >= 2:
+            checkpoint1 = self._checkpoints[-2]
+            checkpoint2 = self._checkpoints[-1]
+            runtime = checkpoint2[1] - checkpoint1[1]
+            name = checkpoint2[0]
+            if name not in self._runtime:
+                self._runtime[name] = [runtime]
+            else:
+                self._runtime[name].append(runtime)
+        # We put a barrier here so that the next operation starts
+        # at the same time.
+        th.distributed.barrier()
+
+    def print_stats(self):
+        """ Print the statistics
+        """
+        if self._rank == 0 and self._profile_path is not None:
+            for name, runtimes in self._runtime.items():
+                print(name, sum(runtimes) / len(runtimes), "seconds")
+
+    def save_profile(self):
+        """ Save the profiling result to a file.
+        """
+        if self._profile_path is not None:
+            runtime = {}
+            for name in self._runtime:
+                runtime[name] = np.array(self._runtime[name])
+            profile_path = os.path.join(self._profile_path, f"{self._rank}.csv")
+            data_frame = pd.DataFrame(runtime)
+            data_frame.to_csv(profile_path, float_format='%.3f', index=False)
+            print(f"save profiling in {profile_path}")
+
 sys_tracker = SysTracker()
+rt_profiler = RuntimeProfiler()
