@@ -27,6 +27,7 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
+from graphstorm.utils import rt_profiler
 
 def get_evaluator(config):
     if config.task_type == "edge_classification":
@@ -51,7 +52,7 @@ def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    # edge predict only handle edge feature in decoder
+    rt_profiler.init(config.profile_path, rank=gs.get_rank())
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.target_etype,

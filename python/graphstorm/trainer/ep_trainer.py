@@ -27,6 +27,7 @@ from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
+from ..utils import rt_profiler
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
@@ -118,7 +119,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             if freeze_input_layer_epochs <= epoch:
                 self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
+            rt_profiler.start_record()
             for i, (input_nodes, batch_graph, blocks) in enumerate(train_loader):
+                rt_profiler.record('train_sample')
                 total_steps += 1
                 batch_tic = time.time()
 
@@ -126,6 +129,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     assert len(batch_graph.ntypes) == 1
                     input_nodes = {batch_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
+                rt_profiler.record('train_node_feats')
+
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
                 assert len(batch_graph.etypes) == 1
@@ -137,21 +142,26 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 batch_graph = batch_graph.to(device)
                 for _, nodes in input_nodes.items():
                     num_input_nodes += nodes.shape[0]
+                rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, batch_graph, input_feats, None, lbl, input_nodes)
+                rt_profiler.record('train_forward')
 
                 t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
+                rt_profiler.record('train_backward')
                 self.optimizer.step()
+                rt_profiler.record('train_step')
                 forward_time += (t3 - t2)
                 back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
 
                 if i % 20 == 0 and self.rank == 0:
+                    rt_profiler.print_stats()
                     # Print task specific info.
                     print(
                         "Part {} | Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
@@ -181,6 +191,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                         #    guidance of validation score.
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
+                rt_profiler.record('train_eval')
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break
@@ -213,6 +224,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             if early_stop is True:
                 break
 
+        rt_profiler.save_profile()
         print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
