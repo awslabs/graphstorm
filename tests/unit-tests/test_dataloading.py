@@ -614,9 +614,9 @@ def test_prepare_input():
         assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
                      g.edges[("n0", "r1", "n1")].data["feat"][
                          input_edges[("n0", "r1", "n1")]].numpy())
-        assert_equal(edge_feat[("n0", "r0", "n1")]["ferat"].numpy(),
+        assert_equal(edge_feat[("n0", "r0", "n1")]["feat"].numpy(),
                      g.edges[("n0", "r0", "n1")].data["feat"][input_edges[("n0", "r0", "n1")]].numpy())
-        assert_equal(edge_feat[("n0", "r0", "n1")]["ferat2"].numpy(),
+        assert_equal(edge_feat[("n0", "r0", "n1")]["feat2"].numpy(),
                      g.edges[("n0", "r0", "n1")].data["feat2"][input_edges[("n0", "r0", "n1")]].numpy())
 
     # after test pass, destroy all process group
