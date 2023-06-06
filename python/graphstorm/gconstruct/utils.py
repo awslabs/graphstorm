@@ -116,12 +116,15 @@ def _estimate_sizeof(data):
     elif isinstance(data, np.ndarray):
         data_size = data.size * data.itemsize
     elif isinstance(data, dict):
+        data_size = 0
         for _, val in data.items():
             data_size += _estimate_sizeof(val)
     elif isinstance(data, list):
+        data_size = 0
         for val in data:
             data_size += _estimate_sizeof(val)
     elif isinstance(data, tuple):
+        data_size = 0
         for val in list(data):
             data_size += _estimate_sizeof(val)
     else:
