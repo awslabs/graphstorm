@@ -35,7 +35,9 @@ from graphstorm.model import GSLMNodeEncoderInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
-from graphstorm.model.edge_decoder import (DenseBiDecoder, MLPEdgeDecoder,
+from graphstorm.model.edge_decoder import (DenseBiDecoder,
+                                           MLPEdgeDecoder,
+                                           MLPEFeatEdgeDecoder,
                                            LinkPredictDotDecoder,
                                            LinkPredictWeightedDotDecoder,
                                            LinkPredictWeightedDistMultDecoder)
@@ -538,6 +540,65 @@ def test_edge_classification():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_edge_classification_feat():
+    """ Test logic of building a edge classification model
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+        create_ec_config(Path(tmpdirname), 'gnn_ec.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                         local_rank=0,
+                         decoder_edge_feat=["feat"],
+                         decoder_type="MLPEFeatEdgeDecoder")
+        config = GSConfig(args)
+    model = create_builtin_edge_gnn_model(g, config, True)
+    assert model.gnn_encoder.num_layers == 1
+    assert model.gnn_encoder.out_dims == 4
+    assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
+    assert isinstance(model.decoder, MLPEFeatEdgeDecoder)
+    assert model.decoder.feat_dim == 2
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+        create_ec_config(Path(tmpdirname), 'gnn_ec.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                         local_rank=0,
+                         decoder_edge_feat=["n0,r0,n1:feat"],
+                         decoder_type="MLPEFeatEdgeDecoder")
+        config = GSConfig(args)
+    model = create_builtin_edge_gnn_model(g, config, True)
+    assert model.gnn_encoder.num_layers == 1
+    assert model.gnn_encoder.out_dims == 4
+    assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
+    assert isinstance(model.decoder, MLPEFeatEdgeDecoder)
+    assert model.decoder.feat_dim == 2
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+        g.edges['r0'].data['feat1'] = g.edges['r0'].data['feat']
+        create_ec_config(Path(tmpdirname), 'gnn_ec.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                         local_rank=0,
+                         decoder_edge_feat=["n0,r0,n1:feat,feat1"],
+                         decoder_type="MLPEFeatEdgeDecoder")
+        config = GSConfig(args)
+    model = create_builtin_edge_gnn_model(g, config, True)
+    assert model.gnn_encoder.num_layers == 1
+    assert model.gnn_encoder.out_dims == 4
+    assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
+    assert isinstance(model.decoder, MLPEFeatEdgeDecoder)
+    assert model.decoder.feat_dim == 4
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def create_er_config(tmp_path, file_name):
     conf_object = {
         "version": 1.0,
@@ -778,6 +839,7 @@ if __name__ == '__main__':
     test_rgcn_node_prediction()
     test_rgat_node_prediction()
     test_edge_classification()
+    test_edge_classification_feat()
     test_edge_regression()
     test_node_classification()
     test_node_regression()

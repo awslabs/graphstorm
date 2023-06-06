@@ -1140,6 +1140,39 @@ class GSConfig:
         # By default, return 2
         return 2
 
+    @property
+    def decoder_edge_feat(self):
+        """ A list of edge features that can be used by a decoder to
+            enhance its performance.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_decoder_edge_feat"):
+            assert self.task_type in \
+                (BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION), \
+                "Decoder edge feature only works with " \
+                "edge classification or regression tasks"
+            decoder_edge_feats = self._decoder_edge_feat
+            assert len(decoder_edge_feats) == 1, \
+                "We only support edge classifcation or regression on one edge type"
+
+            if ":" not in decoder_edge_feats[0]:
+                # global feat_name
+                return decoder_edge_feats[0]
+
+            # per edge type feature
+            feat_name = decoder_edge_feats[0]
+            feat_info = feat_name.split(":")
+            assert len(feat_info) == 2, \
+                    f"Unknown format of the feature name: {feat_name}, " + \
+                    "must be EDGE_TYPE:FEAT_NAME"
+            etype = tuple(feat_info[0].split(","))
+            assert etype in self.target_etype, \
+                f"{etype} must in the training edge type list {self.target_etype}"
+            return {etype: feat_info[1].split(",")}
+
+        return None
+
+
     ### Link Prediction specific ###
     @property
     def train_negative_sampler(self):
@@ -1191,8 +1224,6 @@ class GSConfig:
     @property
     def lp_decoder_type(self):
         """ Type of link prediction decoder
-
-
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_decoder_type"):
@@ -1653,6 +1684,12 @@ def _add_edge_classification_args(parser):
                 "--train-etype query,clicks,asin query,search,asin if not specified"
                 "then no aditional training target will "
                 "be considered")
+    group.add_argument("--decoder-edge-feat", nargs='+', type=str, default=argparse.SUPPRESS,
+                       help="A list of edge features that can be used by a decoder to "
+                            "enhance its performance. It can be in following format: "
+                            "--decoder-edge-feat feat or "
+                            "--decoder-edge-feat query,clicks,asin:feat0,feat1 "
+                            "If not specified, decoder will not use edge feats")
 
     group.add_argument("--num-decoder-basis", type=int, default=argparse.SUPPRESS,
                        help="The number of basis for the decoder in edge prediction task")

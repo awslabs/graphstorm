@@ -22,9 +22,11 @@ from numpy.testing import assert_almost_equal
 from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictDistMultDecoder,
                               LinkPredictWeightedDotDecoder,
-                              LinkPredictWeightedDistMultDecoder)
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+                              LinkPredictWeightedDistMultDecoder,
+                              MLPEFeatEdgeDecoder)
+from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
+                                    EP_DECODER_EDGE_FEAT)
 from graphstorm.eval.utils import calc_distmult_pos_score
 from graphstorm.eval.utils import calc_dot_pos_score
 from graphstorm.model.edge_decoder import _get_edge_weight
@@ -360,6 +362,49 @@ def test_LinkPredictDotDecoder(h_dim, num_pos, num_neg, device):
     check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_neg, device)
     check_calc_test_scores_dot_joint_neg(decoder, etype, h_dim, num_pos, num_neg, device)
 
+@pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("feat_dim", [8, 32])
+@pytest.mark.parametrize("out_dim", [2, 32])
+def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim):
+    g = generate_dummy_hetero_graph()
+    target_etype = ("n0", "r0", "n1")
+    encoder_feat = {
+        "n0": th.randn(g.num_nodes("n0"), h_dim),
+        "n1": th.randn(g.num_nodes("n1"), h_dim)
+    }
+    efeat = th.randn(g.num_edges(target_etype), feat_dim)
+    g.edges[target_etype].data[EP_DECODER_EDGE_FEAT] = efeat
+
+
+    decoder = MLPEFeatEdgeDecoder(h_dim,
+                                  feat_dim,
+                                  out_dim,
+                                  multilabel=False,
+                                  target_etype=target_etype)
+    with th.no_grad():
+        decoder.eval()
+        output = decoder(g, encoder_feat)
+        u, v = g.edges(etype=target_etype)
+        ufeat = encoder_feat["n0"][u]
+        ifeat = encoder_feat["n1"][v]
+        h = th.cat([ufeat, ifeat], dim=1)
+        nn_h = th.matmul(h, decoder.nn_decoder)
+        nn_h = decoder.relu(nn_h)
+
+        feat_h = th.matmul(efeat, decoder.feat_decoder)
+        feat_h = decoder.relu(feat_h)
+        combine_h = th.cat([nn_h, feat_h], dim=1)
+        combine_h = th.matmul(combine_h, decoder.combine_decoder)
+        combine_h = decoder.relu(combine_h)
+        out = th.matmul(combine_h, decoder.decoder)
+
+        assert_almost_equal(output.cpu().numpy(), out.cpu().numpy())
+
+        prediction = decoder.predict(g, encoder_feat)
+        pred = out.argmax(dim=1)
+        assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
+
+
 def test_get_edge_weight():
     g = generate_dummy_hetero_graph()
     g.edges[("n0", "r0", "n1")].data['weight'] = \
@@ -389,5 +434,8 @@ if __name__ == '__main__':
     test_LinkPredictDistMultDecoder(16, 32, 32, "cuda:0")
     test_LinkPredictDotDecoder(16, 8, 1, "cpu")
     test_LinkPredictDotDecoder(16, 32, 32, "cuda:0")
+
+    test_MLPEFeatEdgeDecoder(16,8,2)
+    test_MLPEFeatEdgeDecoder(16,32,2)
 
     test_get_edge_weight()
