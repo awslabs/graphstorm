@@ -125,8 +125,6 @@ class GSgnnNodePredictionInfer(GSInfer):
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
 
-            # device = th.device(f"cuda:{self.dev_id}") \
-            #         if self.dev_id >= 0 else th.device("cpu")
             save_gsgnn_embeddings(save_embed_path,
                 embeddings, self.rank, th.distributed.get_world_size(),
                 device=device,
