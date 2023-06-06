@@ -27,37 +27,11 @@ from graphstorm.graphpartitioning.metadata_schema import MetadataSchema
 from graph_dataset import *
 
 
-class UTMetadataSchema(MetadataSchema):
-    def __init__(self, filename, base_dir, init_maps=True):
-        super().__init__(filename, base_dir, init_maps=init_maps)
-
-    def init_global_nid_offsets(self):
-        super()._init_global_nid_offsets()
-
-    def init_global_eid_offsets(self):
-        super()._init_global_eid_offsets()
-
-    def init_ntype_maps(self):
-        super()._init_ntype_maps()
-
-    def init_etype_maps(self):
-        super()._init_etype_maps()
-
-    def init_etype_files(self):
-        super()._init_etype_files()
-
-    def init_ntype_feature_files(self):
-        super()._init_ntype_feature_files()
-
-    def init_etype_feature_files(self):
-        super()._init_etype_feature_files()
-
-
 def test_load_json():
     """Unit test to test json load function."""
 
     def run_test(root_dir):
-        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
+        obj = MetadataSchema(METADATA_NAME, root_dir, init_maps=False)
 
         assert (
             obj.data == input_dict
@@ -96,8 +70,8 @@ def test_ntypes(ntypes):
         with open(filename, "w") as input_handle:
             json.dump(input_dict, input_handle, indent=4)
 
-        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
-        obj.init_ntype_maps()
+        obj = MetadataSchema(METADATA_NAME, root_dir, init_maps=False)
+        obj._init_ntype_maps()
 
         # Test case here.
         # Check ntype <-> id map.
@@ -119,7 +93,7 @@ def test_ntypes(ntypes):
         assert expected_ntypes == obj.ntypes, f"ntypes failure."
 
         # Check global node ids offsets for all the node types.
-        obj.init_global_nid_offsets()
+        obj._init_global_nid_offsets()
         counts = np.cumsum([0] + [10 for ntype in ntypes])
         ranges = [
             (counts[idx], counts[idx + 1]) for idx in range(len(counts) - 1)
@@ -146,8 +120,8 @@ def test_etypes(etypes):
         with open(filename, "w") as input_handle:
             json.dump(input_dict, input_handle, indent=4)
 
-        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
-        obj.init_etype_maps()
+        obj = MetadataSchema(METADATA_NAME, root_dir, init_maps=False)
+        obj._init_etype_maps()
 
         # Test case here.
         # Check etype <-> id map.
@@ -169,7 +143,7 @@ def test_etypes(etypes):
         assert expected_etypes == obj.etypes, f"etypes failure."
 
         # Check global edge ids offsets for etypes.
-        obj.init_global_eid_offsets()
+        obj._init_global_eid_offsets()
         counts = np.cumsum([0] + [10 for etype in etypes])
         ranges = [
             (counts[idx], counts[idx + 1]) for idx in range(len(counts) - 1)
@@ -220,12 +194,12 @@ def test_etype_files(
             json.dump(input_dict, input_handle, indent=4)
 
         # Test case here.
-        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
-        obj.init_etype_maps()
+        obj = MetadataSchema(METADATA_NAME, root_dir, init_maps=False)
+        obj._init_etype_maps()
 
         # Check the initialization
         try:
-            obj.init_etype_files()
+            obj._init_etype_files()
 
             if create_files:
                 for idx, etype in enumerate(etypes):
@@ -268,11 +242,11 @@ def test_node_features(
             json.dump(input_dict, input_handle, indent=4)
 
         # Tests here.
-        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
-        obj.init_ntype_maps()
+        obj = MetadataSchema(METADATA_NAME, root_dir, init_maps=False)
+        obj._init_ntype_maps()
 
         try:
-            obj.init_ntype_feature_files()
+            obj._init_ntype_feature_files()
             if create_files:
                 for idx, ntype in enumerate(ntypes):
                     (
@@ -370,11 +344,11 @@ def test_edge_features(
         with open(filename, "w") as input_handle:
             json.dump(input_dict, input_handle, indent=4)
 
-        obj = UTMetadataSchema(METADATA_NAME, root_dir, init_maps=False)
-        obj.init_etype_maps()
+        obj = MetadataSchema(METADATA_NAME, root_dir, init_maps=False)
+        obj._init_etype_maps()
 
         try:
-            obj.init_etype_feature_files()
+            obj._init_etype_feature_files()
             if create_files:
                 for idx, etype in enumerate(etypes):
                     (
@@ -471,7 +445,7 @@ def test_generic_usecase(metadata):
             json.dump(metadata, input_handle, indent=4)
 
         # Test here.
-        obj = UTMetadataSchema(METADATA_NAME, root_dir)
+        obj = MetadataSchema(METADATA_NAME, root_dir)
 
         # Check base directory for the dataset.
         assert obj.metadata_path == os.path.join(
@@ -739,7 +713,7 @@ def test_error_cases(metadata):
 
         # Test here.
         try:
-            obj = UTMetadataSchema(METADATA_NAME, root_dir)
+            obj = MetadataSchema(METADATA_NAME, root_dir)
         except KeyError as exp:
             pass
         except ValueError as exp:
