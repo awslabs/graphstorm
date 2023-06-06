@@ -112,25 +112,24 @@ def _estimate_sizeof(data):
         Data returned by user_parser
     """
     if th.is_tensor(data):
-        return data.element_size() * data.nelement()
+        data_size = data.element_size() * data.nelement()
     elif isinstance(data, np.ndarray):
-        return data.size * data.itemsize
+        data_size = data.size * data.itemsize
     elif isinstance(data, dict):
-        data_size = 0
         for _, val in data.items():
             data_size += _estimate_sizeof(val)
     elif isinstance(data, list):
-        data_size = 0
         for val in data:
             data_size += _estimate_sizeof(val)
     elif isinstance(data, tuple):
-        data_size = 0
         for val in list(data):
             data_size += _estimate_sizeof(val)
+    else:
+        # for other types like primitives
+        # ignore their size.
+        data_size = 0
 
-    # other types like primitives
-    # ignore its size.
-    return 0
+    return data_size
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
