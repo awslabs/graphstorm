@@ -15,12 +15,12 @@ GraphStorm's `graphstorm.run.launch <https://github.com/awslabs/graphstorm/blob/
 - **num-trainers**: The number of trainer processes per machine. Should >0.
 - **num-servers**: The number of server processes per machine. Should >0.
 - **num-samplers**: The number of sampler processes per trainer process. Should >=0.
-- **num-server-threads**: The number of OMP threads in the server process. It should be small if server processes and trainer processes run on the same machine. Should >0. By default, it is 1. 
+- **num-server-threads**: The number of OMP threads in the server process. It should be small if server processes and trainer processes run on the same machine. Should >0. By default, it is 1.
 - **ssh-port**: SSH port used by the host node to communicate with the other nodes in the cluster.
 - **ssh-username**: Optional. When issuing commands (via ssh) to cluster, use the provided username in the ssh command.
 - **graph-format**: The format of the graph structure of each partition. The allowed formats are csr, csc and coo. A user can specify multiple formats, separated by ",". For example, the graph format is "csr,csc".
 - **extra-envs**: Extra environment parameters need to be set. For example, you can set the LD_LIBRARY_PATH and NCCL_DEBUG by adding:
-    
+
     - --extra_envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     - --extra-envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     - NCCL_DEBUG=INFO
@@ -84,13 +84,13 @@ RGAT
 
 Model Save/Restore Configurations
 ---------------------------------------------
-GraphStorm provides a set of parameters to control how and where to save and restore models. 
+GraphStorm provides a set of parameters to control how and where to save and restore models.
 
-- **save_model_path**: A path to save GraphStorm model parameters and the corresponding optimizer status. The saved model parameters can be used in inference or model fine-tuning. See restore_model_path for how to retrieve a saved model and restore_optimizer_path for how to retrieve optimizer status.  
+- **save_model_path**: A path to save GraphStorm model parameters and the corresponding optimizer status. The saved model parameters can be used in inference or model fine-tuning. See restore_model_path for how to retrieve a saved model and restore_optimizer_path for how to retrieve optimizer status.
     - Yaml: ``save_model_path: /model/checkpoint/``
     - Argument: ``--save-model-path /model/checkpoint/``
     - Default value: If not provide, models will not be saved.
-- **save_embed_path**: A path to save generated node embeddings.   
+- **save_embed_path**: A path to save generated node embeddings.
     - Yaml: ``save_embed_path: /model/emb/``
     - Argument: ``--save-embed-path /model/emb/``
     - Default value: If not provide, models will not be saved.
@@ -98,7 +98,7 @@ GraphStorm provides a set of parameters to control how and where to save and res
     - Yaml: ``save_model_frequency: 1000``
     - Argument: ``--save-model-frequency 1000``
     - Default value: ``-1``. GraphStorm will not save models within an epoch.
-- **topk_model_to_save**: The number of top best GraphStorm model to save. By default, GraphStorm will keep all the saved models in disk, which will consume huge number of disk space. Users can set a positive integer, e.g. `K`, to let GraphStorm only save `K`` models with the best performance.     
+- **topk_model_to_save**: The number of top best GraphStorm model to save. By default, GraphStorm will keep all the saved models in disk, which will consume huge number of disk space. Users can set a positive integer, e.g. `K`, to let GraphStorm only save `K`` models with the best performance.
     - Yaml: ``topk_model_to_save: 3``
     - Argument: ``--topk-model-to-save 3``
     - Default value: ``0``. GraphStorm will save all the saved models in disk.
@@ -114,11 +114,11 @@ GraphStorm provides a set of parameters to control how and where to save and res
     - Yaml: ``log_report_frequency: 1000``
     - Argument: ``--log-report-frequency 1000``
     - Default value: ``1000``
-- **restore_model_path**: A path where GraphStorm model parameters were saved. For training, if restore_model_path is set, GraphStom will retrieve the model parameters from restore_model_path instead of initializing the parameters. For inference, restore_model_path must be provided.   
+- **restore_model_path**: A path where GraphStorm model parameters were saved. For training, if restore_model_path is set, GraphStom will retrieve the model parameters from restore_model_path instead of initializing the parameters. For inference, restore_model_path must be provided.
     - Yaml: ``restore_model_path: /model/checkpoint/``
     - Argument: ``--restore-model-path /model/checkpoint/``
     - Default value: This parameter must be provided if users want to restore a saved model.
-- **restore_optimizer_path**: A path storing optimizer status corresponding to GraphML model parameters. This is used when a user wants to fine-tune a model from a pre-trained one.   
+- **restore_optimizer_path**: A path storing optimizer status corresponding to GraphML model parameters. This is used when a user wants to fine-tune a model from a pre-trained one.
     - Yaml: ``restore_optimizer_path: /model/checkpoint/optimizer``
     - Argument: ``--restore-optimizer-path /model/checkpoint/optimizer``
     - Default value: This parameter must be provided if users want to restore a saved optimizer.
@@ -139,15 +139,15 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``lr: 0.5``
     - Argument: ``--lr 0.5``
     - Default value: This parameter must be provided by user.
-- **num_epochs**: Number of training epochs. Must be integer.  
+- **num_epochs**: Number of training epochs. Must be integer.
     - Yaml: ``num_epochs: 5``
     - Argument: ``--num-epochs 5``
     - Default value: ``0``. By default only do testing/inference.
-- **batch_size**: (**Required**) Mini-batch size. It defines the batch size of each trainer. The global batch size equals to the number of trainers multiply the batch_size. For example, suppose we have 2 machines each with 8 GPUs and set batch_size to 128. The global batch size will be 2 * 8 * 128 = 2048.  
+- **batch_size**: (**Required**) Mini-batch size. It defines the batch size of each trainer. The global batch size equals to the number of trainers multiply the batch_size. For example, suppose we have 2 machines each with 8 GPUs and set batch_size to 128. The global batch size will be 2 * 8 * 128 = 2048.
     - Yaml: ``batch_size: 128``
     - Argument: ``--batch_size 128``
     - Default value: This parameter must be provided by user.
-- **sparse_optimizer_lr**: Learning rate of sparse optimizer. Learning rate for the optimizer corresponding to learnable sparse embeddings.  
+- **sparse_optimizer_lr**: Learning rate of sparse optimizer. Learning rate for the optimizer corresponding to learnable sparse embeddings.
     - Yaml: ``sparse_optimizer_lr: 0.5``
     - Argument: ``--sparse-optimizer-lr 0.5``
     - Default value: Same as lr.
@@ -166,7 +166,7 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
 
 Early stop configurations
 ..........................
-GraphStorm provides a set of parameters to control early stop of training. By default, GraphStorm finishes training after num_epochs. One can use early stop to exit model training earlier. 
+GraphStorm provides a set of parameters to control early stop of training. By default, GraphStorm finishes training after num_epochs. One can use early stop to exit model training earlier.
 
 Every time evaluation is triggered, GraphStorm checks early stop criteria. For the rounds within early_stop_burnin_rounds evaluation calls, GraphStorm will not use early stop. After early_stop_burnin_rounds, GraphStorm decides if stop early based on the **early_stop_strategy**. There are two strategies: 1) **consecutive_increase**, early stop is triggered if the current validation score is lower than the average of the last **early_stop_rounds** validation scores and 2) **average_increase**, early stop is triggered if for the last **early_stop_rounds** consecutive steps, the validation scores are `decreasing`.
 
@@ -191,7 +191,7 @@ Model Evaluation Configurations
 --------------------------------------------
 GraphStorm provides a set of parameters to control model evaluation.
 
-- **eval_batch_size**: Mini-batch size for computing GNN embeddings in evaluation. You can set eval_batch_size larger than batch_size to speedup GNN embedding computation. To be noted, a larger eval_batch_size will consume more GPU memory.  
+- **eval_batch_size**: Mini-batch size for computing GNN embeddings in evaluation. You can set eval_batch_size larger than batch_size to speedup GNN embedding computation. To be noted, a larger eval_batch_size will consume more GPU memory.
     - Yaml: ``eval_batch_size: 1024``
     - Argument: ``--eval-batch-size 1024``
     - Default value: 10000.
@@ -207,7 +207,7 @@ GraphStorm provides a set of parameters to control model evaluation.
     - Yaml: ``eval_frequency: 10000``
     - Argument: ``--eval-frequency 10000``
     - Default value: ``sys.maxsize``. The system will not do evaluation.
-- **no_validation**: Set true to avoid do model evaluation (validation) during training.  
+- **no_validation**: Set true to avoid do model evaluation (validation) during training.
     - Yaml: ``no_validation: true``
     - Argument: ``--no-validation true``
     - Default value: ``false``
@@ -216,7 +216,7 @@ Language Model Specific Configurations
 ---------------------------------------------------
 GraphStorm supports co-training language models with GNN. GraphStorm provides a set of parameters to control language model fine-tuning.
 
-- **lm_tune_lr**: Learning rate for fine-tuning language model.  
+- **lm_tune_lr**: Learning rate for fine-tuning language model.
     - Yaml: ``lm_tune_lr: 0.0001``
     - Argument: ``--lm-tune-lr 0.0001``
     - Default value: same as **lr**
@@ -248,7 +248,7 @@ General Configurations
         | ``- accuracy``
         | ``- precision_recall``
     - Argument: ``--eval-metric accuracy precision_recall``
-    - Default value: 
+    - Default value:
             - For classification tasks, the default value is ``accuracy``.
             - For regression tasks, the default value is ``rmse``.
             - For link prediction tasks, the default value is ``mrr``.
@@ -312,6 +312,14 @@ Edge Classification/Regression Specific
     - Yaml: ``num_decoder_basis: 2``
     - Argument: ``--num-decoder-basis 2``
     - Default value: ``2``
+- **decoder_edge_feat**: A list of edge features that can be used by a decoder to enhance its performance.
+    - Yaml: ``decoder_edge_feat:``
+            | ``- "fname"``
+        Or
+            ``decoder_edge_feat:``
+            | ``- query,adds,asin:count,price``
+    - Argument: ``--decoder-edge-feat fanme`` or ``--decoder-edge-feat query,adds,asin:count,price``
+    - Default value: ``None``
 
 Link Prediction Task
 ......................
@@ -331,11 +339,11 @@ Link Prediction Task
     - Yaml: ``exclude_training_targets: false``
     - Argument: ``--exclude-training-targets false``
     - Default value: ``true``
-- **train_negative_sampler**: The negative sampler used for link prediction training. Built-in samplers include ``uniform``, ``joint``, ``localuniform``, ``all_etype_uniform`` and ``all_etype_joint``. 
+- **train_negative_sampler**: The negative sampler used for link prediction training. Built-in samplers include ``uniform``, ``joint``, ``localuniform``, ``all_etype_uniform`` and ``all_etype_joint``.
     - Yaml: ``train_negative_sampler: uniform``
     - Argument: ``--train-negative-sampler joint``
     - Default value: ``uniform``
-- **eval_negative_sampler**: The negative sampler used for link prediction testing and evaluation. Built-in samplers include ``uniform``, ``joint``, ``localuniform``, ``all_etype_uniform`` and ``all_etype_joint``. 
+- **eval_negative_sampler**: The negative sampler used for link prediction testing and evaluation. Built-in samplers include ``uniform``, ``joint``, ``localuniform``, ``all_etype_uniform`` and ``all_etype_joint``.
     - Yaml: ``eval_negative_sampler: uniform``
     - Argument: ``--eval-negative-sampler joint``
     - Default value: ``joint``
@@ -359,3 +367,13 @@ Link Prediction Task
     - Yaml: ``lp_loss_func: cross_entropy``
     - Argument: ``--lp-loss-func logsigmoid``
     - Default value: ``cross_entropy``
+
+- **lp_edge_weight_for_loss**: Edge feature field name for edge weight. The edge weight is used to rescale the positive edge loss for link prediction tasks.
+    - Yaml: ``lp_edge_weight_for_loss:``
+                | ``- "weight"``
+        Or
+            ``lp_edge_weight_for_loss:``
+                | ``- "ntype0,rel0,ntype1:weight0"``
+                | ``- "ntype0,rel1,ntype1:weight1"``
+    - Argument: ``--lp-edge-weight-for-loss ntype0,rel0,ntype1:weight0 ntype0,rel1,ntype1:weight1``
+    - Default value: None

@@ -40,16 +40,19 @@ from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
+from graphstorm.utils import rt_profiler
 
 def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    rt_profiler.init(config.profile_path, rank=gs.get_rank())
+    node_feat_field = config.node_feat_name
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.train_etype,
                                     eval_etypes=config.eval_etype,
-                                    node_feat_field=config.node_feat_name)
+                                    node_feat_field=node_feat_field)
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
@@ -94,7 +97,8 @@ def main(args):
                                 config.batch_size, config.num_negative_edges, device,
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
-                                exclude_training_targets=config.exclude_training_targets)
+                                exclude_training_targets=config.exclude_training_targets,
+                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss)
 
     # TODO(zhengda) let's use full-graph inference for now.
     if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:

@@ -27,6 +27,7 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
+from graphstorm.utils import rt_profiler
 
 def get_evaluator(config):
     if config.task_type == "edge_classification":
@@ -51,6 +52,7 @@ def main(args):
     config = GSConfig(args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    rt_profiler.init(config.profile_path, rank=gs.get_rank())
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.target_etype,
@@ -77,7 +79,8 @@ def main(args):
     device = 'cuda:%d' % trainer.dev_id
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=[],
                                      batch_size=config.batch_size, device=device, train_task=True,
-                                     remove_target_edge_type=False)
+                                     remove_target_edge_type=False,
+                                     decoder_edge_feat=config.decoder_edge_feat)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
@@ -86,12 +89,14 @@ def main(args):
         val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
-            remove_target_edge_type=False)
+            remove_target_edge_type=False,
+            decoder_edge_feat=config.decoder_edge_feat)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
-            remove_target_edge_type=False)
+            remove_target_edge_type=False,
+            decoder_edge_feat=config.decoder_edge_feat)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

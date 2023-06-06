@@ -973,7 +973,8 @@ def create_edge_class_config(tmp_path, file_name):
         "num_classes": 4,
         "num_decoder_basis": 4,
         "remove_target_edge_type": False,
-        "decoder_type": "MLPDecoder"
+        "decoder_type": "MLPDecoder",
+        "decoder_edge_feat": ["feat"]
     }
 
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
@@ -983,7 +984,8 @@ def create_edge_class_config(tmp_path, file_name):
         "target_etype": ["query,match,asin", "query,click,asin"],
         "reverse_edge_types_map": ["query,match,rev-match,asin", "query,click,rev-click,asin"],
         "num_classes": 4,
-        "eval_metric": ["Per_class_f1_score", "Precision_Recall"]
+        "eval_metric": ["Per_class_f1_score", "Precision_Recall"],
+        "decoder_edge_feat": ["query,match,asin:feat0,feat1"]
     }
 
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
@@ -997,6 +999,7 @@ def create_edge_class_config(tmp_path, file_name):
         "num_classes": 1,
         "num_decoder_basis": 1,
         "remove_target_edge_type": "error",
+        "decoder_edge_feat": ["query,no-match,asin:feat0,feat1"]
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
@@ -1005,7 +1008,8 @@ def create_edge_class_config(tmp_path, file_name):
     yaml_object["gsf"]["edge_classification"] = {
         "target_etype": [],
         "num_classes": 4,
-        "eval_metric": ["per_class_f1_score", "rmse"]
+        "eval_metric": ["per_class_f1_score", "rmse"],
+        "decoder_edge_feat": ["query,no-match,asin::feat0,feat1"]
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1038,6 +1042,7 @@ def test_edge_class_info():
         assert config.num_classes == 4
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "accuracy"
+        assert config.decoder_edge_feat == "feat"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1053,6 +1058,8 @@ def test_edge_class_info():
         assert len(config.eval_metric) == 2
         assert config.eval_metric[0] == "per_class_f1_score"
         assert config.eval_metric[1] == "precision_recall"
+        assert len(config.decoder_edge_feat) == 1
+        assert config.decoder_edge_feat[("query","match","asin")] == ["feat0", "feat1"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1062,11 +1069,13 @@ def test_edge_class_info():
         check_failure(config, "num_classes")
         check_failure(config, "num_decoder_basis")
         check_failure(config, "remove_target_edge_type")
+        check_failure(config, "decoder_edge_feat")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "target_etype")
         check_failure(config, "eval_metric")
+        check_failure(config, "decoder_edge_feat")
 
 def create_lp_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -1089,6 +1098,7 @@ def create_lp_config(tmp_path, file_name):
         "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
         "eval_metric": "MRR",
         "lp_decoder_type": "dot_product",
+        "lp_edge_weight_for_loss": ["weight"]
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
@@ -1102,6 +1112,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
         "gamma": 1.0,
+        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"]
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1115,6 +1126,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
         "lp_decoder_type": "transe",
+        "lp_edge_weight_for_loss": ["query,click,asin:weight1"]
     }
     # config for check error value
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
@@ -1123,6 +1135,8 @@ def create_lp_config(tmp_path, file_name):
     yaml_object["gsf"]["link_prediction"] = {
         "exclude_training_targets": True,
         "reverse_edge_types_map": [],
+        "train_etype": "query,exactmatch,asin",
+        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,exactmatch,asin:weight1"] # define edge weight multiple times
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1164,6 +1178,7 @@ def test_lp_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 12.0
+        assert config.lp_edge_weight_for_loss == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1183,6 +1198,7 @@ def test_lp_info():
         assert config.lp_loss_func == BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
+        assert config.lp_edge_weight_for_loss == "weight"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1198,6 +1214,8 @@ def test_lp_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 1.0
+        assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == ["weight0"]
+        assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == ["weight1"]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1209,6 +1227,7 @@ def test_lp_info():
         check_failure(config, "reverse_edge_types_map")
         check_failure(config, "lp_loss_func")
         check_failure(config, "lp_decoder_type")
+        check_failure(config, "lp_edge_weight_for_loss")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)

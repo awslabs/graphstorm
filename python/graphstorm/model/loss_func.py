@@ -133,3 +133,41 @@ class LinkPredictLossFunc(GSLayer):
         int : the number of output dimensions.
         """
         return None
+
+class WeightedLinkPredictLossFunc(GSLayer):
+    """ Loss function for link prediction.
+    """
+
+    def forward(self, pos_score, neg_score):
+        """ The forward function.
+        """
+        assert len(pos_score) == 2, \
+            "Pos score must include score and weight " \
+            "Please use LinkPredictWeightedDistMultDecoder or " \
+            "LinkPredictWeightedDotDecoder"
+        pos_score, pos_weight = pos_score
+        neg_score, _ = neg_score # neg_weight is always all 1
+        score = th.cat([pos_score, neg_score])
+        label = th.cat([th.ones_like(pos_score), th.zeros_like(neg_score)])
+        weight = th.cat([pos_weight, th.ones_like(neg_score)])
+        return F.binary_cross_entropy_with_logits(score, label, weight=weight)
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None

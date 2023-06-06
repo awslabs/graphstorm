@@ -33,6 +33,9 @@ from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
+from graphstorm.dataloading.dataset import (prepare_batch_input,
+                                            prepare_batch_edge_input)
+
 from numpy.testing import assert_equal
 
 def get_nonzero(mask):
@@ -522,6 +525,102 @@ def test_GSgnnLinkPredictionJointTestDataLoader(batch_size, num_negative_edges):
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
+def test_prepare_input():
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    test_etypes = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=test_etypes, label_field='label')
+        lp_data.g.nodes['n1'].data['feat2'] = \
+            lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))] * 2
+        lp_data.g.edges['r0'].data['feat2'] = \
+            lp_data.g.edges['r0'].data['feat'][th.arange(lp_data.g.num_edges('r0'))] * 2
+        g = lp_data.g
+
+        # single ntype/edge, single feat
+        input_nodes = {
+            "n0": th.randint(g.num_nodes("n0"), (10,))
+        }
+        input_edges = {
+            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
+        }
+
+        node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
+        edge_feat = prepare_batch_edge_input(g, input_edges, feat_field='feat')
+        assert len(node_feat) == 1
+        assert len(edge_feat) == 1
+        assert_equal(node_feat["n0"].numpy(),
+                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
+        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
+                     g.edges[("n0", "r1", "n1")].data["feat"][
+                         input_edges[("n0", "r1", "n1")]].numpy())
+
+        # multiple ntype/edge, single feat
+        input_nodes = {
+            "n0": th.randint(g.num_nodes("n0"), (10,)),
+            "n1": th.randint(g.num_nodes("n1"), (20,)),
+        }
+        input_edges = {
+            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
+            ("n0", "r0", "n1"): th.randint(g.num_edges(("n0", "r0", "n1")), (10,)),
+        }
+
+        node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
+        edge_feat = prepare_batch_edge_input(g, input_edges, feat_field='feat')
+        assert len(node_feat) == 2
+        assert len(edge_feat) == 2
+        assert_equal(node_feat["n0"].numpy(),
+                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
+        assert_equal(node_feat["n1"].numpy(),
+                     g.nodes["n1"].data["feat"][input_nodes["n1"]].numpy())
+        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
+                     g.edges[("n0", "r1", "n1")].data["feat"][
+                         input_edges[("n0", "r1", "n1")]].numpy())
+        assert_equal(edge_feat[("n0", "r0", "n1")].numpy(),
+                     g.edges[("n0", "r0", "n1")].data["feat"][
+                         input_edges[("n0", "r0", "n1")]].numpy())
+
+        # multiple ntype/edge, multiple feat
+        input_nodes = {
+            "n0": th.randint(g.num_nodes("n0"), (10,)),
+            "n1": th.randint(g.num_nodes("n1"), (20,)),
+        }
+        input_edges = {
+            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
+            ("n0", "r0", "n1"): th.randint(g.num_edges(("n0", "r0", "n1")), (10,)),
+        }
+
+        node_feat = prepare_batch_input(g, input_nodes,
+                                        feat_field={"n0":["feat"],
+                                                    "n1":["feat", "feat2"]})
+        edge_feat = prepare_batch_edge_input(g, input_edges,
+                                             feat_field={
+                                                 ("n0", "r1", "n1"): ["feat"],
+                                                 ("n0", "r0", "n1"): ["feat", "feat2"]})
+        assert len(node_feat) == 2
+        assert len(edge_feat) == 2
+        assert_equal(node_feat["n0"].numpy(),
+                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
+        assert_equal(node_feat["n1"].numpy(),
+                     th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
+                             g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
+        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
+                     g.edges[("n0", "r1", "n1")].data["feat"][
+                         input_edges[("n0", "r1", "n1")]].numpy())
+        assert_equal(edge_feat[("n0", "r0", "n1")].numpy(),
+                     th.cat([g.edges[("n0", "r0", "n1")].data["feat"][
+                                 input_edges[("n0", "r0", "n1")]],
+                             g.edges[("n0", "r0", "n1")].data["feat2"][
+                                 input_edges[("n0", "r0", "n1")]]], dim=-1).numpy())
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
 if __name__ == '__main__':
     test_GSgnnNodeData()
     test_GSgnnEdgeData()
@@ -534,3 +633,5 @@ if __name__ == '__main__':
     test_GSgnnLinkPredictionTestDataLoader(10, 20)
     test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
     test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+
+    test_prepare_input()

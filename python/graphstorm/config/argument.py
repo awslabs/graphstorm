@@ -228,6 +228,14 @@ class GSConfig:
         return None
 
     @property
+    def profile_path(self):
+        """ The path of the folder where the profiling results are saved.
+        """
+        if hasattr(self, "_profile_path"):
+            return self._profile_path
+        return None
+
+    @property
     def graph_name(self):
         """ Name of the graph
         """
@@ -1132,6 +1140,39 @@ class GSConfig:
         # By default, return 2
         return 2
 
+    @property
+    def decoder_edge_feat(self):
+        """ A list of edge features that can be used by a decoder to
+            enhance its performance.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_decoder_edge_feat"):
+            assert self.task_type in \
+                (BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION), \
+                "Decoder edge feature only works with " \
+                "edge classification or regression tasks"
+            decoder_edge_feats = self._decoder_edge_feat
+            assert len(decoder_edge_feats) == 1, \
+                "We only support edge classifcation or regression on one edge type"
+
+            if ":" not in decoder_edge_feats[0]:
+                # global feat_name
+                return decoder_edge_feats[0]
+
+            # per edge type feature
+            feat_name = decoder_edge_feats[0]
+            feat_info = feat_name.split(":")
+            assert len(feat_info) == 2, \
+                    f"Unknown format of the feature name: {feat_name}, " + \
+                    "must be EDGE_TYPE:FEAT_NAME"
+            etype = tuple(feat_info[0].split(","))
+            assert etype in self.target_etype, \
+                f"{etype} must in the training edge type list {self.target_etype}"
+            return {etype: feat_info[1].split(",")}
+
+        return None
+
+
     ### Link Prediction specific ###
     @property
     def train_negative_sampler(self):
@@ -1183,8 +1224,6 @@ class GSConfig:
     @property
     def lp_decoder_type(self):
         """ Type of link prediction decoder
-
-
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_decoder_type"):
@@ -1196,6 +1235,49 @@ class GSConfig:
 
         # Set default value to distmult
         return BUILTIN_LP_DISTMULT_DECODER
+
+    @property
+    def lp_edge_weight_for_loss(self):
+        """ The edge data fields that stores the edge weights used
+            in computing link prediction loss
+
+            The edge_weight can be in following format:
+            1) [weight_name]: global weight name, if an edge has weight,
+            the corresponding weight name is <weight_name>
+            2) ["src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...]:
+            different edge types have different edge weights.
+
+            By default, it is none.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_lp_edge_weight_for_loss"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Edge weight for loss only works with link prediction"
+            edge_weights = self._lp_edge_weight_for_loss
+            if len(edge_weights) == 1 and \
+                ":" not in edge_weights[0]:
+                # global feat_name
+                return edge_weights[0]
+
+            # per edge type feature
+            weight_dict = {}
+            for weight_name in edge_weights:
+                weight_info = weight_name.split(":")
+                etype = tuple(weight_info[0].split(","))
+                assert etype not in weight_dict, \
+                    f"You already specify the weight names of {etype}" \
+                    f"as {weight_dict[etype]}"
+
+                # TODO: if train_etype is None, we need to check if
+                # etype exists in g.
+                assert self.train_etype is None or etype in self.train_etype, \
+                    f"{etype} must in the training edge type list"
+                assert isinstance(weight_info[1], str), \
+                    f"Feature name of {etype} should be a string instead of {weight_info[1]}"
+                weight_dict[etype] = [weight_info[1]]
+            return weight_dict
+
+        return None
 
     @property
     def train_etype(self):
@@ -1404,6 +1486,9 @@ def _add_gsgnn_basic_args(parser):
             type=str,
             default=argparse.SUPPRESS,
             help="Folder path to save performance results of model evaluation.")
+    group.add_argument("--profile-path",
+            type=str,
+            help="The path of the folder that contains the profiling results.")
     return parser
 
 def _add_gnn_args(parser):
@@ -1599,6 +1684,12 @@ def _add_edge_classification_args(parser):
                 "--train-etype query,clicks,asin query,search,asin if not specified"
                 "then no aditional training target will "
                 "be considered")
+    group.add_argument("--decoder-edge-feat", nargs='+', type=str, default=argparse.SUPPRESS,
+                       help="A list of edge features that can be used by a decoder to "
+                            "enhance its performance. It can be in following format: "
+                            "--decoder-edge-feat feat or "
+                            "--decoder-edge-feat query,clicks,asin:feat0,feat1 "
+                            "If not specified, decoder will not use edge feats")
 
     group.add_argument("--num-decoder-basis", type=int, default=argparse.SUPPRESS,
                        help="The number of basis for the decoder in edge prediction task")
@@ -1658,6 +1749,13 @@ def _add_link_prediction_args(parser):
             default=argparse.SUPPRESS,
             help="Used in DistMult score func"
     )
+    group.add_argument("--lp-edge-weight-for-loss", nargs='+', type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name for edge weights. It can be in following format: "
+            "1) '--lp-edge-weight-for-loss feat_name': global feature name, "
+            "if all edge types use the same edge weight field."
+            "The corresponding feature name is <feat_name>"
+            "2)'--lp-edge-weight-for-loss query,adds,asin:weight0 query,clicks,asin:weight1 ..."
+            "Different edge types have different weight fields.")
 
     return parser
 
