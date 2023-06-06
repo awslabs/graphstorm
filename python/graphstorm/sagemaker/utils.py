@@ -233,7 +233,6 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
     """
     # Download partitioned graph data.
     # Each training instance only download 1 partition.
-    graph_config = f"{graph_name}.json"
     graph_part = f"part{part_id}"
 
     graph_path = os.path.join(local_path, graph_name)
@@ -249,18 +248,21 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
     s3_input_key = graph_data_s3.split("/", maxsplit=3)[3]
 
     s3_client = boto3.client('s3')
-
-    try:
-        s3_client.head_object(Bucket=s3_input_bucket, Key=f"{s3_input_key}/{graph_config}")
-    except ClientError as err:
-        if err.response['ResponseMetadata']['HTTPStatusCode'] == 404:
-            # The key does not exist.
-            raise RuntimeError(f"Metadata key {s3_input_key}/{graph_config} does not exist")
-        if err.response['Error']['Code'] == 403:
-            # Unauthorized, including invalid bucket
-            raise RuntimeError("Authorization error, check the path and auth again:" \
+    for graph_config  in [f"{graph_name}.json", "metadata.json"]:
+        try:
+            s3_client.head_object(Bucket=s3_input_bucket, Key=f"{s3_input_key}/{graph_config}")
+        except ClientError as err:
+            if err.response['ResponseMetadata']['HTTPStatusCode'] == 404:
+                # The key does not exist.
+                logging.debug("Metadata key %s does not exist",
                             f"{s3_input_key}/{graph_config}")
-        raise err
+            elif err.response['Error']['Code'] == 403:
+                # Unauthorized, including invalid bucket
+                logging.error("Authorization error, check the path again: %s",
+                            f"{s3_input_key}/{graph_config}")
+            else:
+                # Something else has gone wrong.
+                raise err
 
     S3Downloader.download(os.path.join(graph_data_s3, graph_config),
             graph_path, sagemaker_session=sagemaker_session)

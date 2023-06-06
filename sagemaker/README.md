@@ -63,14 +63,13 @@ python launch/launch_partition.py --graph-data-s3 ${DATASET_S3_PATH} \
     --role ${ROLE}  --entry-point "run/partition_entry.py" \
     --job-prefix part-${ALGORITHM}-${DATASET_NAME}-${NUM_PARTITIONS}parts --metadata-filename ${METADATA_FILE} \
     --log-level INFO --partition-algorithm ${ALGORITHM}
-
 ```
 
 Running the above will take as input the dataset in chunked format from `${DATASET_S3_PATH}`
 and create a DistDGL graph with `${NUM_PARTITIONS}` under the output path,
 `${OUTPUT_PATH}`. Currently we only support `random` as the partitioning algorithm.
 
-### Launch GraphStorm trainingusing Amazon SageMaker service
+### Launch GraphStorm training using Amazon SageMaker service
 
 #### Preparing training data and training task config.
 
@@ -132,7 +131,7 @@ In this example, we will use the same graph.
 You can use the following command to launch a SageMaker offline inference task.
 ```bash
 cd $GS_HOME/sagemaker/
-python3 launch/launch_infer \
+python3 launch/launch_infer.py \
         --image-url <AMAZON_ECR_IMAGE_URI> \
         --region us-east-1 \
         --entry-point run/infer_entry.py \
@@ -158,6 +157,34 @@ You can use following command to check the corresponding outputs:
 aws s3 ls s3://PATH_TO_SAVE_GENERATED_NODE_EMBEDDING/
 aws s3 ls s3://PATH_TO_SAVE_PREDICTION_RESULTS/
 ```
+
+### Passing additional arguments to the SageMaker Estimator
+
+Sometimes you might want to pass additional arguments to the constructor of the SageMaker
+Estimator object we use to launch SageMaker tasks, e.g. to set a max runtime, or
+set a VPC configuration. Our launch scripts support forwarding arguments to the estimator
+object through a `kwargs` dictionary.
+
+To pass additional `kwargs` directly to the Estimator object, you can use
+the `--sm-estimator-parameters` argument, providing a string of space-separated arguments
+(enclosed in double quotes `"` to ensure correct parsing) and the
+format `<argname>=<value>` for each argument.
+
+`<argname>` needs to be a valid SageMaker Estimator
+argument name and `<value>` a value that can be parsed as a Python literal, **without
+spaces**.
+
+For example, to pass a specific max runtime, subnet list, and enable inter-container
+traffic encryption you'd use:
+
+```bash
+python3 launch/launch_[infer|train|partition|gconstruct] \
+    --sm-estimator-parameters "max_run=3600 volume_size=100 encrypt_inter_container_traffic=True subnets=['subnet-1234','subnet-4567']"
+```
+
+Notice how we don't include any spaces in `['subnet-1234','subnet-4567']` to ensure correct parsing of the list.
+
+For a full list of Estimator parameters see: https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html#sagemaker.estimator.EstimatorBase
 
 ---
 
