@@ -45,7 +45,6 @@ def run_job(input_args, image, unknowargs):
     unknowargs: dict
         GraphStorm parameters
     """
-    sm_task_name = input_args.task_name # SageMaker task name
     role = input_args.role # SageMaker ARN role
     instance_type = input_args.instance_type # SageMaker instance type
     instance_count = input_args.instance_count # Number of infernece instances
@@ -65,7 +64,7 @@ def run_job(input_args, image, unknowargs):
 
     container_image_uri = image
 
-    prefix = "script-mode-container"
+    job_prefix = input_args.task_name if input_args.task_name else f"train-{input_args.graph_name}"
 
     params = {"task-type": task_type,
               "graph-name": graph_name,
@@ -102,59 +101,71 @@ def run_job(input_args, image, unknowargs):
         instance_type=instance_type,
         output_path=model_artifact_s3,
         py_version="py3",
-        base_job_name=prefix,
+        base_job_name=job_prefix,
         hyperparameters=params,
         sagemaker_session=sess,
+        volume_size=input_args.volume_size,
         tags=[{"Key":"GraphStorm", "Value":"oss"},
               {"Key":"GraphStorm_Task", "Value":"Training"}],
     )
 
-    est.fit({"train": train_yaml_s3}, job_name=sm_task_name, wait=True)
+    est.fit(
+        {"train": train_yaml_s3},
+        wait=not input_args.async_execution)
 
-def parse_args():
+def get_train_parser():
     """ Add arguments
     """
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--image-url", type=str,
-        help="Training docker image")
+        help="Training docker image URI", required=True)
     parser.add_argument("--role", type=str,
-        help="SageMaker role")
+        help="SageMaker role", required=True)
     parser.add_argument("--instance-type", type=str,
         default=INSTANCE_TYPE,
         help="instance type used to train models")
-
     parser.add_argument("--instance-count", type=int,
-        default=2,
-        help="number of infernece instances")
+        required=True,
+        help="number of training instances")
+    # TODO: Auto-determine region from input bucket
     parser.add_argument("--region", type=str,
-        default="us-east-1",
-        help="Region")
+        required=True,
+        help="Region to launch training jobs in.")
     parser.add_argument("--entry-point", type=str,
         default="graphstorm/sagemaker/run/train_entry.py",
-        help="PATH-TO graphstorm/sagemaker/scripts/sagemaker_train.py")
+        help="PATH-TO graphstorm/sagemaker/run/train_entry.py")
     parser.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
+    parser.add_argument("--async-execution", action="store_true",
+        help="Run training asynchronously, without waiting for the job to finish")
+    parser.add_argument("--volume-size", type=int, default=50,
+        help="Size of the EBS volume to use for storing data during training")
 
     # task specific
-    parser.add_argument("--graph-name", type=str, help="Graph name")
+    parser.add_argument("--graph-name", type=str, help="Graph name",
+        required=True)
     parser.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input training graph")
+        help="S3 location of input training graph",
+        required=True)
     parser.add_argument("--task-type", type=str,
-        help=f"Task type in {SUPPORTED_TASKS}")
+        choices=SUPPORTED_TASKS,
+        help=f"Task type in {SUPPORTED_TASKS}",
+        required=True)
     parser.add_argument("--yaml-s3", type=str,
         help="S3 location of training yaml file. "
-             "Do not store it with partitioned graph")
-    parser.add_argument("--model-artifact-s3", type=str, default=None,
-        help="S3 bucket to save model artifacts")
+             "Do not store it with partitioned graph",
+             required=True)
+    parser.add_argument("--model-artifact-s3", type=str, required=True,
+        help="S3 prefix under which to save model artifacts",)
     parser.add_argument("--custom-script", type=str, default=None,
-        help="Custom training script provided by a customer to run customer training logic. \
+        help="Custom training script provided by a customer to run custom training logic. \
             Please provide the path of the script within the docker image")
 
     return parser
 
 if __name__ == "__main__":
-    arg_parser = parse_args()
+    arg_parser = get_train_parser()
     args, unknownargs = arg_parser.parse_known_args()
     print(args)
 

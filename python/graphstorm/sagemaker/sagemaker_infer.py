@@ -138,10 +138,10 @@ def run_infer(args, unknownargs):
         output_prediction_s3: str
             S3 location to store prediction results. Can be None.
         model_artifact_s3: str
-            S3 location to store the model artifacts.
+            S3 location to load the model artifacts from.
         custom_script: str
-            Custom training script provided by a customer to run
-            customer training logic. Can be None.
+            Custom inference script provided by a customer to run
+            customer inference logic. Can be None.
         data_path: str
             Local working path.
         num_gpus: int
@@ -159,8 +159,8 @@ def run_infer(args, unknownargs):
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
 
-    print(f"Know args {args}")
-    print(f"Unknow args {unknownargs}")
+    print(f"Known args {args}")
+    print(f"Unknown args {unknownargs}")
 
     train_env = json.loads(args.sm_dist_env)
     hosts = train_env['hosts']
