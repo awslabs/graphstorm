@@ -67,11 +67,9 @@ def _to_shared_memory(data):
         for val in list(data):
             new_data.append(_to_shared_memory(val))
         return tuple(new_data)
-    else:
-        assert False, f"Unknown object type {type(data)}. " \
-            "User data parser should "
 
-    return None
+    # ignore other types
+    return data
 
 def _to_numpy_array(data):
     """ Move all data objects back to numpy array
@@ -100,14 +98,13 @@ def _to_numpy_array(data):
         for val in list(data):
             new_data.append(_to_numpy_array(val))
         return tuple(new_data)
-    else:
-        assert False, f"Unknown object type {type(data)}. " \
-            "User data parser should "
 
-    return None
+    # ignore other types
+    return data
 
 def _estimate_sizeof(data):
-    """ Estimate the size of a data
+    """ Estimate the size of a data.
+        We assume the most memory consuming objects are tensors.
 
     Parameters
     ----------
@@ -130,11 +127,10 @@ def _estimate_sizeof(data):
         data_size = 0
         for val in list(data):
             data_size += _estimate_sizeof(val)
-    else:
-        assert False, f"Unknown object type {type(data)}. " \
-            "User data parser should "
 
-    return data_size
+    # other types like primitives
+    # ignore its size.
+    return 0
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
