@@ -312,6 +312,14 @@ Edge Classification/Regression Specific
     - Yaml: ``num_decoder_basis: 2``
     - Argument: ``--num-decoder-basis 2``
     - Default value: ``2``
+- **decoder_edge_feat**: A list of edge features that can be used by a decoder to enhance its performance.
+    - Yaml: ``decoder_edge_feat:``
+            | ``- "fname"``
+        Or
+            ``decoder_edge_feat:``
+            | ``- query,adds,asin:count,price``
+    - Argument: ``--decoder-edge-feat fanme`` or ``--decoder-edge-feat query,adds,asin:count,price``
+    - Default value: ``None``
 
 Link Prediction Task
 ......................

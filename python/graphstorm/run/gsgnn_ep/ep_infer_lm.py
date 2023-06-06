@@ -62,7 +62,8 @@ def main(args):
     dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=[],
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
-                                     remove_target_edge_type=False)
+                                     remove_target_edge_type=False,
+                                     decoder_edge_feat=config.decoder_edge_feat)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings

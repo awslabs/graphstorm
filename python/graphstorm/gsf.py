@@ -40,7 +40,9 @@ from .model.loss_func import (ClassifyLossFunc,
                               LinkPredictLossFunc,
                               WeightedLinkPredictLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
-from .model.edge_decoder import DenseBiDecoder, MLPEdgeDecoder
+from .model.edge_decoder import (DenseBiDecoder,
+                                 MLPEdgeDecoder,
+                                 MLPEFeatEdgeDecoder)
 from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
@@ -233,6 +235,28 @@ def create_builtin_edge_model(g, config, train_task):
                                      num_classes,
                                      multilabel=config.multilabel,
                                      target_etype=target_etype)
+        elif decoder_type == "MLPEFeatEdgeDecoder":
+            decoder_edge_feat = config.decoder_edge_feat
+            assert decoder_edge_feat is not None, \
+                "decoder-edge-feat must be provided when " \
+                "decoder_type == MLPEFeatEdgeDecoder"
+            # We need to get the edge_feat input dim.
+            if isinstance(decoder_edge_feat, str):
+                assert decoder_edge_feat in g.edges[target_etype].data
+                feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
+            else:
+                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]])
+
+            decoder = MLPEFeatEdgeDecoder(
+                h_dim=model.gnn_encoder.out_dims \
+                    if model.gnn_encoder is not None \
+                    else model.node_input_encoder.out_dims,
+                feat_dim=feat_dim,
+                out_dim=num_classes,
+                multilabel=config.multilabel,
+                target_etype=target_etype,
+                dropout=config.dropout)
         else:
             assert False, f"decoder {decoder_type} is not supported."
         model.set_decoder(decoder)

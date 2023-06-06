@@ -95,6 +95,9 @@ class GSgnnNodePredictionInfer(GSInfer):
             label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
+        device = th.device(f"cuda:{self.dev_id}") \
+                if self.dev_id >= 0 else th.device("cpu")
+
         # do evaluation first
         # do evaluation if any
         if do_eval:
@@ -122,8 +125,6 @@ class GSgnnNodePredictionInfer(GSInfer):
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
 
-            device = th.device(f"cuda:{self.dev_id}") \
-                    if self.dev_id >= 0 else th.device("cpu")
             save_gsgnn_embeddings(save_embed_path,
                 embeddings, self.rank, th.distributed.get_world_size(),
                 device=device,
