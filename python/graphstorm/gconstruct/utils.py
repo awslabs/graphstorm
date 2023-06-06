@@ -49,7 +49,7 @@ def _to_shared_memory(data):
         if data.dtype in [np.float64, np.float32, np.float16,
                           np.complex64, np.complex128, np.int64,
                           np.int32, np.int16, np.int8,
-                          np.uint8, np.bool]:
+                          np.uint8]:
             return th.tensor(data).share_memory_()
         return data
     elif isinstance(data, dict):
