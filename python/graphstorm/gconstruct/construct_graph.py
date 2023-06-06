@@ -497,9 +497,12 @@ def process_graph(args):
     for srctype_etype_dsttype in edge_data:
         if "train_mask" in edge_data[srctype_etype_dsttype].keys() and \
             len(edge_data[srctype_etype_dsttype]["train_mask"].shape) == 2:
-            edge_data[srctype_etype_dsttype]["train_mask"] = edge_data[srctype_etype_dsttype]["train_mask"].squeeze(1).astype('int8')
-            edge_data[srctype_etype_dsttype]["val_mask"] = edge_data[srctype_etype_dsttype]["val_mask"].squeeze(1).astype('int8')
-            edge_data[srctype_etype_dsttype]["test_mask"] = edge_data[srctype_etype_dsttype]["test_mask"].squeeze(1).astype('int8')
+            edge_data[srctype_etype_dsttype]["train_mask"] = \
+                edge_data[srctype_etype_dsttype]["train_mask"].squeeze(1).astype('int8')
+            edge_data[srctype_etype_dsttype]["val_mask"] = \
+                edge_data[srctype_etype_dsttype]["val_mask"].squeeze(1).astype('int8')
+            edge_data[srctype_etype_dsttype]["test_mask"] = \
+                edge_data[srctype_etype_dsttype]["test_mask"].squeeze(1).astype('int8')
             
     if args.output_format == "DistDGL":
         assert args.part_method in ["metis", "random"], \
