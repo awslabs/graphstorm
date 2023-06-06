@@ -52,6 +52,10 @@ class FeatTransform:
         """
         return self._feat_name
 
+class FloatingPointTransform(FeatTransform):
+    def __init__(self, col_name, feat_name):
+
+
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
 
