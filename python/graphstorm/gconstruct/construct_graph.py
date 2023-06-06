@@ -39,6 +39,32 @@ from .transform import do_multiprocess_transform
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import multiprocessing_data_read, ExtMemArrayMerger, partition_graph
 
+def prepare_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
+    """ Parse node data.
+
+    The function parses a node file that contains node IDs, features and labels
+    The node file is parsed according to users' configuration
+    and performs some feature transformation.
+
+    Parameters
+    ----------
+    in_file : str
+        The path of the input node file.
+    feat_ops : dict of FeatTransform
+        The operations run on the node features of the node file.
+    read_file : callable
+        The function to read the node file
+
+    Returns
+    -------
+    tuple : node ID array and a dict of node feature tensors.
+    """
+    data = read_file(in_file)
+    assert feat_ops is not None, "feat_ops must exist when prepare_node_data is called."
+    feat_data = preprocess_features(data, feat_ops)
+
+    return (feat_ops, feat_data)
+
 def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     """ Parse node data.
 
@@ -171,7 +197,8 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
-        feat_ops = parse_feat_ops(process_conf['features']) \
+        one_phase_feat_ops, two_phase_feat_ops = \
+            parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
                 if 'labels' in process_conf else None
@@ -181,13 +208,25 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         # If it requires multiprocessing, we need to read data to memory.
         read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
+        num_proc = num_processes if multiprocessing else 0
+
+        user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
+                                  node_id_col=node_id_col,
+                                  read_file=read_file)
+        start = time.time()
+        pre_return_dict = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+        two_phase_feat_ops = update_two_phase_feat_ops(pre_return_dict)
+        feat_ops = one_phase_feat_ops + two_phase_feat_ops
+
+        dur = time.time() - start
+        logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
+                      node_type, dur)
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_col=node_id_col,
                               read_file=read_file)
         start = time.time()
-        num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
         logging.debug("Processing data files for node %s takes %.3f seconds.",
