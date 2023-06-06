@@ -3,7 +3,7 @@ GraphStorm can run on Amazon Sagemaker. This doc shows how to build a SageMaker 
 
 ## Prerequisites
 -----------------
-You need to install Docker in your environment as the [Docker documentation](https://docs.Docker.com/get-Docker/) suggests.
+You need to install Docker in your environment as the [Docker documentation](https://docs.docker.com/get-docker/) suggests.
 
 
 For example, in an AWS EC2 instance created with Deep Learning AMI GPU PyTorch 1.13.0, you can run

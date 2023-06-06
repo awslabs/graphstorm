@@ -10,7 +10,7 @@ However, configuring an GraphStorm environment is non-trivial. Users need to ins
 Prerequisites
 -----------------
 
-1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.Docker.com/get-docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
+1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
 For example, in an AWS EC2 instance without Docker preinstalled, you can run the following commands to install Docker.
 
