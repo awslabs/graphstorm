@@ -24,7 +24,7 @@ import torch as th
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
-from .file_io import HDF5Array
+from .file_io import HDF5Array, read_index_json
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -356,7 +356,7 @@ class CustomLabelProcessor:
         The array that contains the index of test data points.
     """
     def __init__(self, col_name, label_name, task_type,
-                 train_idx, val_idx, test_idx):
+                 train_idx, val_idx=None, test_idx=None):
         self._col_name = col_name
         self._label_name = label_name
         self._train_idx = train_idx
@@ -393,8 +393,10 @@ class CustomLabelProcessor:
         val_mask = np.zeros((num_samples,), dtype=np.int8)
         test_mask = np.zeros((num_samples,), dtype=np.int8)
         train_mask[self._train_idx] = 1
-        val_mask[self._val_idx] = 1
-        test_mask[self._test_idx] = 1
+        if self._val_idx is not None:
+            val_mask[self._val_idx] = 1
+        if self._test_idx is not None:
+            test_mask[self._test_idx] = 1
         train_mask_name = 'train_mask'
         val_mask_name = 'val_mask'
         test_mask_name = 'test_mask'
@@ -604,13 +606,14 @@ def parse_label_ops(confs, is_node):
     label_conf = confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
-    if 'custom_split' in label_conf:
-        custom_split = label_conf['custom_split']
-        assert len(custom_split) == 3, \
+    if 'custom_split_filenames' in label_conf:
+        custom_split = label_conf['custom_split_filenames']
+        assert isinstance(custom_split, dict) and assert len(custom_split) == 3, \
                 "Custom data split needs to provide train/val/test index."
-        train_idx = np.load(custom_split[0])
-        val_idx = np.load(custom_split[1])
-        test_idx = np.load(custom_split[2])
+        assert 'train' in custom_split
+        train_idx = read_index_json(custom_split['train'])
+        val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
+        test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         return [CustomLabelProcessor(label_col, label_col, task_type,
                                      train_idx, val_idx, test_idx)]
