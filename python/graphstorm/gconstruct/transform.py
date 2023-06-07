@@ -106,7 +106,7 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
     min_bound : float
         The minimum float value
     """
-    def __init__(self, col_name, feat_name, max_bound=sys.float_info.max, min_bound=sys.float_info.min):
+    def __init__(self, col_name, feat_name, max_bound=sys.float_info.max, min_bound=-sys.float_info.max):
         self._max_bound = max_bound
         self._min_bound = min_bound
         super(FloatingPointTransform, self).__init__(col_name, feat_name)
@@ -119,7 +119,7 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
         feats: np.array
             Data to be processed
         """
-        assert isinstance(feats, np.ndarray, HDF5Array), \
+        assert isinstance(feats, np.ndarray) or isinstance(feats, HDF5Array), \
             "Feature of FloatingPointTransform must be numpy array or HDF5Array"
         if isinstance(feats, HDF5Array):
             feats = feats.to_numpy()
@@ -130,12 +130,12 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
             "or integers"
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
         max_val = np.amax(feats, axis=1) if len(feats.shape) == 2 \
-            else np.amax(feats, axis=0)
+            else np.array([np.amax(feats, axis=0)])
         min_val = np.amin(feats, axis=1) if len(feats.shape) == 2 \
-            else np.amin(feats, axis=0)
+            else np.array([np.amin(feats, axis=0)])
+
         max_val[max_val > self._max_bound] = self._max_bound
         min_val[min_val < self._min_bound] = self._min_bound
-
         return (max_val, min_val)
 
     def collect_info(self, info):
