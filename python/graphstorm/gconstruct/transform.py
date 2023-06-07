@@ -356,7 +356,7 @@ class CustomLabelProcessor:
         The array that contains the index of test data points.
     """
     def __init__(self, col_name, label_name, task_type,
-                 train_idx, val_idx=None, test_idx=None):
+                 train_idx=None, val_idx=None, test_idx=None):
         self._col_name = col_name
         self._label_name = label_name
         self._train_idx = train_idx
@@ -392,7 +392,8 @@ class CustomLabelProcessor:
         train_mask = np.zeros((num_samples,), dtype=np.int8)
         val_mask = np.zeros((num_samples,), dtype=np.int8)
         test_mask = np.zeros((num_samples,), dtype=np.int8)
-        train_mask[self._train_idx] = 1
+        if self._train_idx is not None:
+            train_mask[self._train_idx] = 1
         if self._val_idx is not None:
             val_mask[self._val_idx] = 1
         if self._test_idx is not None:
@@ -610,8 +611,7 @@ def parse_label_ops(confs, is_node):
         custom_split = label_conf['custom_split_filenames']
         assert isinstance(custom_split, dict), \
                 "Custom data split needs to provide train/val/test index."
-        assert 'train' in custom_split
-        train_idx = read_index_json(custom_split['train'])
+        train_idx = read_index_json(custom_split['train']) if 'train' in custom_split else None
         val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
         test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
