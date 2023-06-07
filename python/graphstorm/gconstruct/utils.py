@@ -45,6 +45,8 @@ def _to_shared_memory(data):
     if th.is_tensor(data):
         return data.share_memory_()
     elif isinstance(data, np.ndarray):
+        assert data.dtype is not np.object_, \
+            "Numpy array of python objects can not be handled by graph construction"
         # only handle data that can be converted to torch tensor
         if data.dtype in [np.float64, np.float32, np.float16,
                           np.complex64, np.complex128, np.int64,
@@ -114,6 +116,8 @@ def _estimate_sizeof(data):
     if th.is_tensor(data):
         data_size = data.element_size() * data.nelement()
     elif isinstance(data, np.ndarray):
+        assert data.dtype is not np.object_, \
+            "Numpy array of python objects can not be handled by graph construction"
         data_size = data.size * data.itemsize
     elif isinstance(data, dict):
         data_size = 0
