@@ -164,7 +164,7 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
 
 class FloatingPointMinMaxTransform(TwoPhaseFeatTransform):
     """ Floating Point with Min-Max normalization.
-        $val = val / (max-min)$
+        $val = (val-min) / (max-min)$
     """
 
     def __call__(self, feats):
@@ -189,7 +189,11 @@ class FloatingPointMinMaxTransform(TwoPhaseFeatTransform):
         if isinstance(feats, HDF5Array):
             feats = feats.to_numpy()
 
-        return feats / (self._max_val - self._min_val)
+        feats = (feats - self._min_val) / (self._max_val - self._min_val)
+        feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
+        feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
+
+        return feats
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
@@ -379,7 +383,8 @@ def parse_feat_ops(confs):
     -------
     list of FeatTransform : The operations that transform features.
     """
-    ops = []
+    one_phase_ops = []
+    two_phase_ops = []
     assert isinstance(confs, list), \
             "The feature configurations need to be in a list."
     for feat in confs:
@@ -388,6 +393,7 @@ def parse_feat_ops(confs):
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
         if 'transform' not in feat:
             transform = Noop(feat['feature_col'], feat_name)
+            one_phase_ops.append(transform)
         else:
             conf = feat['transform']
             assert 'name' in conf, "'name' must be defined in the transformation field."
@@ -398,6 +404,7 @@ def parse_feat_ops(confs):
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
                 transform = Tokenizer(feat['feature_col'], feat_name, conf['bert_model'],
                                       int(conf['max_seq_length']))
+                one_phase_ops.append(transform)
             elif conf['name'] == 'bert_hf':
                 assert 'bert_model' in conf, \
                         "'bert_hf' needs to have the 'bert_model' field."
@@ -411,10 +418,19 @@ def parse_feat_ops(confs):
                                                 int(conf['max_seq_length'])),
                                       conf['bert_model'],
                                       infer_batch_size=infer_batch_size)
+                one_phase_ops.append(transform)
+            elif conf['name'] == 'float_max_min':
+                max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
+                min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
+                transform = FloatingPointMinMaxTransform(feat['feature_col'],
+                                                         feat_name,
+                                                         max_bound,
+                                                         min_bound)
+                two_phase_ops.append(transform)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
-        ops.append(transform)
-    return ops
+
+    return one_phase_ops, two_phase_ops
 
 def preprocess_features(data, ops):
     """ Pre-process the data with the specified operations.

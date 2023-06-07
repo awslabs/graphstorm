@@ -122,21 +122,28 @@ def test_fp_min_max_transform():
     transform._min_val = min_val
     feats = np.random.randn(100)
     norm_feats = transform(feats)
-    assert_equal(norm_feats, feats/(max_val-min_val))
+    feats[feats > max_val] = max_val
+    feats[feats < min_val] = min_val
+    assert_equal(norm_feats, (feats-min_val)/(max_val-min_val))
 
     feats = np.random.randn(100, 1)
     norm_feats = transform(feats)
-    assert_equal(norm_feats, feats/(max_val-min_val))
+    feats[feats > max_val] = max_val
+    feats[feats < min_val] = min_val
+    assert_equal(norm_feats, (feats-min_val)/(max_val-min_val))
 
     transform = FloatingPointMinMaxTransform("test", "test")
     max_val = np.array([2., 3., 0.])
     min_val = np.array([-1., 1., -0.5])
     transform._max_val = max_val
     transform._min_val = min_val
-    feats = np.random.randn(100, 3)
+    feats = np.random.randn(10, 3)
     norm_feats = transform(feats)
     for i in range(3):
-        assert_equal(norm_feats[:,i], feats[:,i]/(max_val[i]-min_val[i]))
+        new_feats = feats[:,i]
+        new_feats[new_feats > max_val[i]] = max_val[i]
+        new_feats[new_feats < min_val[i]] = min_val[i]
+        assert_equal(norm_feats[:,i], (new_feats-min_val[i])/(max_val[i]-min_val[i]))
 
 if __name__ == '__main__':
     test_fp_transform()
