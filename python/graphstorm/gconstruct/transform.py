@@ -129,9 +129,9 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
             "Feature of FloatingPointTransform must be floating points" \
             "or integers"
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
-        max_val = np.amax(feats, axis=1) if len(feats.shape) == 2 \
+        max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
             else np.array([np.amax(feats, axis=0)])
-        min_val = np.amin(feats, axis=1) if len(feats.shape) == 2 \
+        min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
             else np.array([np.amin(feats, axis=0)])
 
         max_val[max_val > self._max_bound] = self._max_bound
@@ -151,14 +151,13 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
         for (max_val, min_val) in info:
             max_vals.append(max_val)
             min_vals.append(min_val)
-        max_val = np.stack(max_val)
-        min_val = np.stack(min_val)
+        max_vals = np.stack(max_vals)
+        min_vals = np.stack(min_vals)
 
-        max_val = np.amax(max_val, axis=1)
-        min_val = np.amin(min_val, axis=1)
-
-        assert np.any(max_val == min_val) is False, \
-            f"At least one element of Max Val {max_val} and Min Val {min_val} is equal"
+        max_val = np.amax(max_vals, axis=0) if len(max_vals.shape) == 2 \
+            else np.array([np.amax(max_vals, axis=0)])
+        min_val = np.amin(min_vals, axis=0) if len(min_vals.shape) == 2 \
+            else np.array([np.amin(min_vals, axis=0)])
 
         self._max_val = max_val
         self._min_val = min_val
@@ -180,11 +179,16 @@ class FloatingPointMinMaxTransform(TwoPhaseFeatTransform):
         -------
         np.array
         """
-        assert isinstance(feats, np.ndarray, HDF5Array), \
+        assert isinstance(feats, np.ndarray) or isinstance(feats, HDF5Array), \
             "Feature of FloatingPointTransform must be numpy array or HDF5Array"
+
+        assert not np.any(self._max_val == self._min_val), \
+            f"At least one element of Max Val {self._max_val} " \
+            f"and Min Val {self._min_val} is equal. This will cause divide by zero error"
 
         if isinstance(feats, HDF5Array):
             feats = feats.to_numpy()
+
         return feats / (self._max_val - self._min_val)
 
 class Tokenizer(FeatTransform):
