@@ -47,6 +47,20 @@ def read_index_json(data_file):
             indices.append(json.loads(line))
     return np.array(indices)
 
+def write_index_json(data, data_file):
+    """ Write the index to a json file.
+
+    Parameters
+    ----------
+    data : Numpy array
+        The index array
+    data_file : str
+        The data file where the indices are written to.
+    """
+    with open(data_file, 'w', encoding="utf8") as json_file:
+        for index in data:
+            json_file.write(json.dumps(index) + "\n")
+
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
 
