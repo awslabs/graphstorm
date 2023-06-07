@@ -503,7 +503,7 @@ def process_graph(args):
                 edge_data[srctype_etype_dsttype]["val_mask"].squeeze(1).astype('int8')
             edge_data[srctype_etype_dsttype]["test_mask"] = \
                 edge_data[srctype_etype_dsttype]["test_mask"].squeeze(1).astype('int8')
-            
+
     if args.output_format == "DistDGL":
         assert args.part_method in ["metis", "random"], \
                 "We only support 'metis' or 'random'."
