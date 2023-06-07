@@ -33,13 +33,15 @@ from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files, write_data_parquet
 from .file_io import HDF5Array
-from .transform import parse_feat_ops, process_features
+from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
 from .transform import do_multiprocess_transform
 from .id_map import NoopMap, IdMap, map_node_ids
-from .utils import multiprocessing_data_read, ExtMemArrayMerger, partition_graph
+from .utils import (multiprocessing_data_read,
+                    update_two_phase_feat_ops, ExtMemArrayMerger,
+                    partition_graph)
 
-def prepare_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
+def prepare_node_data(in_file, feat_ops, read_file):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -57,13 +59,13 @@ def prepare_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
 
     Returns
     -------
-    tuple : node ID array and a dict of node feature tensors.
+    dict : A dict of node feature info.
     """
     data = read_file(in_file)
     assert feat_ops is not None, "feat_ops must exist when prepare_node_data is called."
-    feat_data = preprocess_features(data, feat_ops)
+    feat_info = preprocess_features(data, feat_ops)
 
-    return (feat_ops, feat_data)
+    return feat_info
 
 def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     """ Parse node data.
@@ -214,8 +216,8 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                                   node_id_col=node_id_col,
                                   read_file=read_file)
         start = time.time()
-        pre_return_dict = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
-        two_phase_feat_ops = update_two_phase_feat_ops(pre_return_dict)
+        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+        two_phase_feat_ops = update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
         feat_ops = one_phase_feat_ops + two_phase_feat_ops
 
         dur = time.time() - start

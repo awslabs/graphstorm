@@ -63,6 +63,26 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
     except queue.Empty:
         pass
 
+def update_two_phase_feat_ops(phase_one_info, ops):
+    """ Update the ops for the second phase feat processing
+
+    Parameters
+    ----------
+    phase_one_info: dict
+        A dict mapping file index to node/edge features info corresponding to ops.
+    ops: dict of FeatTransform
+        The operations run on the node/edge features of the node/edge files.
+    """
+    feat_info = {}
+    for i, finfo in phase_one_info.items():
+        for feat_name, info in finfo.items():
+            if i == 0:
+                feat_info[feat_name] = [info]
+            else:
+                feat_info[feat_name].append(info)
+    for op in ops:
+        op.update_info(feat_info[op.col_name])
+
 def multiprocessing_data_read(in_files, num_processes, user_parser):
     """ Read data from multiple files with multiprocessing.
 
