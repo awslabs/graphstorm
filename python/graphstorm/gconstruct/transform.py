@@ -608,7 +608,7 @@ def parse_label_ops(confs, is_node):
     task_type = label_conf['task_type']
     if 'custom_split_filenames' in label_conf:
         custom_split = label_conf['custom_split_filenames']
-        assert isinstance(custom_split, dict) and assert len(custom_split) == 3, \
+        assert isinstance(custom_split, dict), \
                 "Custom data split needs to provide train/val/test index."
         assert 'train' in custom_split
         train_idx = read_index_json(custom_split['train'])

@@ -337,9 +337,9 @@ def test_label():
 
     # Check custom data split for classification.
     data = {'label' : np.random.randint(3, size=10)}
-    write_index_json("/tmp/train_idx.json", np.arange(8))
-    write_index_json("/tmp/val_idx.json", np.arange(8, 9))
-    write_index_json("/tmp/test_idx.json", np.arange(9, 10))
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
+    write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
     conf = {'task_type': 'classification',
             'label_col': 'label',
             'custom_split_filenames': {"train": "/tmp/train_idx.json",
@@ -349,22 +349,22 @@ def test_label():
     ops = parse_label_ops([conf], True)
     res = process_labels(data, ops)
     check_classification(res)
-    assert "train_mask" in res
-    assert np.sum(res["train_mask"]) == 8
-    assert "val_mask" in res
-    assert np.sum(res["val_mask"]) == 0
-    assert "test_mask" in res
-    assert np.sum(res["test_mask"]) == 0
 
     # Check custom data split with only training set.
     data = {'label' : np.random.randint(3, size=10)}
-    write_index_json("/tmp/train_idx.json", np.arange(8))
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
     conf = {'task_type': 'classification',
             'label_col': 'label',
             'custom_split_filenames': {"train": "/tmp/train_idx.json"}
             }
     ops = parse_label_ops([conf], True)
     res = process_labels(data, ops)
+    assert "train_mask" in res
+    assert np.sum(res["train_mask"]) == 8
+    assert "val_mask" in res
+    assert np.sum(res["val_mask"]) == 0
+    assert "test_mask" in res
+    assert np.sum(res["test_mask"]) == 0
 
     # Check regression
     conf = {'task_type': 'regression',
@@ -389,9 +389,9 @@ def test_label():
 
     # Check custom data split for regression.
     data = {'label' : np.random.uniform(size=10) * 10}
-    write_index_json("/tmp/train_idx.json", np.arange(8))
-    write_index_json("/tmp/val_idx.json", np.arange(8, 9))
-    write_index_json("/tmp/test_idx.json", np.arange(9, 10))
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
+    write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
     conf = {'task_type': 'regression',
             'label_col': 'label',
             'custom_split_filenames': {"train": "/tmp/train_idx.json",

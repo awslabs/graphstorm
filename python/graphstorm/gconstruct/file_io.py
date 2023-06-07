@@ -59,7 +59,7 @@ def write_index_json(data, data_file):
     """
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
-            json_file.write(json.dumps(index) + "\n")
+            json_file.write(json.dumps(int(index)) + "\n")
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
