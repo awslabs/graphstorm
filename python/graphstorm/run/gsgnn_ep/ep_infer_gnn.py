@@ -63,7 +63,8 @@ def main(args):
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
-                                     remove_target_edge_type=config.remove_target_edge_type)
+                                     remove_target_edge_type=config.remove_target_edge_type,
+                                     decoder_edge_feat=config.decoder_edge_feat)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings

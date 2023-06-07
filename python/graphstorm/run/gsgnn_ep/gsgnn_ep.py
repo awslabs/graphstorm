@@ -53,6 +53,7 @@ def main(args):
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
+    # edge predict only handle edge feature in decoder
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.target_etype,
@@ -81,7 +82,8 @@ def main(args):
                                      batch_size=config.batch_size, device=device, train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
-                                     exclude_training_targets=config.exclude_training_targets)
+                                     exclude_training_targets=config.exclude_training_targets,
+                                     decoder_edge_feat=config.decoder_edge_feat)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
@@ -91,13 +93,15 @@ def main(args):
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
-            remove_target_edge_type=config.remove_target_edge_type)
+            remove_target_edge_type=config.remove_target_edge_type,
+            decoder_edge_feat=config.decoder_edge_feat)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
-            remove_target_edge_type=config.remove_target_edge_type)
+            remove_target_edge_type=config.remove_target_edge_type,
+            decoder_edge_feat=config.decoder_edge_feat)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
