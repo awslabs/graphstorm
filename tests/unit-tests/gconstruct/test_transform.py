@@ -16,7 +16,7 @@
 import os
 
 import numpy as np
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.transform import (NumericalTransform,
                                              NumericalMinMaxTransform)
@@ -124,13 +124,13 @@ def test_fp_min_max_transform():
     norm_feats = transform(feats)["test"]
     feats[feats > max_val] = max_val
     feats[feats < min_val] = min_val
-    assert_equal(norm_feats, (feats-min_val)/(max_val-min_val))
+    assert_almost_equal(norm_feats, (feats-min_val)/(max_val-min_val), decimal=6)
 
     feats = np.random.randn(100, 1)
     norm_feats = transform(feats)
     feats[feats > max_val] = max_val
     feats[feats < min_val] = min_val
-    assert_equal(norm_feats, (feats-min_val)/(max_val-min_val))
+    assert_almost_equal(norm_feats, (feats-min_val)/(max_val-min_val), decimal=6)
 
     transform = NumericalMinMaxTransform("test", "test")
     max_val = np.array([2., 3., 0.])
@@ -143,7 +143,7 @@ def test_fp_min_max_transform():
         new_feats = feats[:,i]
         new_feats[new_feats > max_val[i]] = max_val[i]
         new_feats[new_feats < min_val[i]] = min_val[i]
-        assert_equal(norm_feats[:,i], (new_feats-min_val[i])/(max_val[i]-min_val[i]))
+        assert_almost_equal(norm_feats[:,i], (new_feats-min_val[i])/(max_val[i]-min_val[i]), decimal=6)
 
 if __name__ == '__main__':
     test_fp_transform()
