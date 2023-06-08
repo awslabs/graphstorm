@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 import torch
 
-from graphstorm.graphpartitioning import array_readwriter
+import array_readwriter
 
 
 @pytest.mark.parametrize(
