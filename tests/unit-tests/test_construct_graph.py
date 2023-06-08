@@ -24,6 +24,7 @@ import torch as th
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
+from graphstorm.gconstruct.file_io import write_index_json, read_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
@@ -334,6 +335,37 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
+    # Check custom data split for classification.
+    data = {'label' : np.random.randint(3, size=10)}
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
+    write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                       "valid": "/tmp/val_idx.json",
+                                       "test": "/tmp/test_idx.json"}
+            }
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    check_classification(res)
+
+    # Check custom data split with only training set.
+    data = {'label' : np.random.randint(3, size=10)}
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'custom_split_filenames': {"train": "/tmp/train_idx.json"}
+            }
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    assert "train_mask" in res
+    assert np.sum(res["train_mask"]) == 8
+    assert "val_mask" in res
+    assert np.sum(res["val_mask"]) == 0
+    assert "test_mask" in res
+    assert np.sum(res["test_mask"]) == 0
+
     # Check regression
     conf = {'task_type': 'regression',
             'label_col': 'label',
@@ -355,9 +387,43 @@ def test_label():
     res = process_labels(data, ops)
     check_regression(res)
 
+    # Check custom data split for regression.
+    data = {'label' : np.random.uniform(size=10) * 10}
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
+    write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
+    conf = {'task_type': 'regression',
+            'label_col': 'label',
+            'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                       "valid": "/tmp/val_idx.json",
+                                       "test": "/tmp/test_idx.json"}
+            }
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    check_regression(res)
+
     # Check link prediction
     conf = {'task_type': 'link_prediction',
             'split_pct': [0.8, 0.1, 0.1]}
+    ops = parse_label_ops([conf], False)
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 3
+    assert 'train_mask' in res
+    assert 'val_mask' in res
+    assert 'test_mask' in res
+    assert np.sum(res['train_mask']) == 8
+    assert np.sum(res['val_mask']) == 1
+    assert np.sum(res['test_mask']) == 1
+
+    # Check custom data split for link prediction.
+    np.save("/tmp/train_idx.npy", np.arange(8))
+    np.save("/tmp/val_idx.npy", np.arange(8, 9))
+    np.save("/tmp/test_idx.npy", np.arange(9, 10))
+    conf = {'task_type': 'link_prediction',
+            'custom_split': ["/tmp/train_idx.npy",
+                             "/tmp/val_idx.npy",
+                             "/tmp/test_idx.npy"]}
     ops = parse_label_ops([conf], False)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
