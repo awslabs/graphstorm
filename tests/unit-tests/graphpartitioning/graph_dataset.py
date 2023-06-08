@@ -23,7 +23,7 @@ import numpy as np
 import pyarrow as pa
 import torch
 
-from graphstorm.graphpartitioning import array_readwriter, constants
+import array_readwriter
 
 ################### Constants used in pipelines unit tests ####################
 
