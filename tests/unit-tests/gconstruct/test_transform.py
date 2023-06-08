@@ -127,7 +127,7 @@ def test_fp_min_max_transform():
     assert_almost_equal(norm_feats, (feats-min_val)/(max_val-min_val), decimal=6)
 
     feats = np.random.randn(100, 1)
-    norm_feats = transform(feats)
+    norm_feats = transform(feats)["test"]
     feats[feats > max_val] = max_val
     feats[feats < min_val] = min_val
     assert_almost_equal(norm_feats, (feats-min_val)/(max_val-min_val), decimal=6)
