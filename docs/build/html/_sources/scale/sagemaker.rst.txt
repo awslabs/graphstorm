@@ -135,21 +135,21 @@ Users can use the following commands to launch a GraphStorm link prediction trai
     cd /path-to-graphstorm/sagemaker/
     
     python3 launch/launch_train.py \
-        --image-url <AMAZON_ECR_IMAGE_URI> \
-        --region <REGION> \
-        --entry-point run/train_entry.py \
-        --role <ROLE_ARN> \
-        --instance-count 3 \
-        --graph-data-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p \
-        --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG>/mag_lp.yaml \
-        --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL>/ \
-        --graph-name ogbn-mag \
-        --task-type link_prediction \
-        --lp-decoder-type dot_product \
-        --num-layers 1 \
-        --hidden-size 128 \
-        --backend gloo \
-        --batch-size 128 \
+            --image-url <AMAZON_ECR_IMAGE_URI> \
+            --region <REGION> \
+            --entry-point run/train_entry.py \
+            --role <ROLE_ARN> \
+            --instance-count 3 \
+            --graph-data-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p \
+            --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG>/mag_lp.yaml \
+            --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL>/ \
+            --graph-name ogbn-mag \
+            --task-type link_prediction \
+            --lp-decoder-type dot_product \
+            --num-layers 1 \
+            --hidden-size 128 \
+            --backend gloo \
+            --batch-size 128
 
 Please replace the `<AMAZON_ECR_IMAGE_URI>` with the `<DOCKER_NAME>:<DOCKER_TAG>` that used in the Step 2, e.g., ``911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm-sagemaker-oss:v0.1``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
 
@@ -165,3 +165,32 @@ The trained model artifact will be stored in the S3 address provided through ``-
 
 Launch inference
 .................
+Users can use the following command to launch a GraphStorm link prediction training job with the OGB-MAG graph.
+
+.. code-block:: bash
+
+    python3 launch/launch_infer.py \
+            --image-url <AMAZON_ECR_IMAGE_URI> \
+            --region <REGION> \
+            --entry-point run/infer_entry.py \
+            --role <ROLE_ARN> \
+            --instance-count 3 \
+            --graph-data-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p \
+            --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG>/mag_lp.yaml \
+            --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL>/ \
+            --output-emb-s3 s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/ \
+            --graph-name ogbn-mag \
+            --task-type link_prediction \
+            --num-layers 1 \
+            --hidden-size 128 \
+            --backend gloo \
+            --batch-size 128
+
+The generated node embeddings will be uploaded into ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3``to specify location of saving prediction results. 
+
+Users can use following command to check the corresponding outputs:
+
+.. code-block:: bash
+
+    aws s3 ls s3://PATH_TO_SAVE_GENERATED_NODE_EMBEDDING/
+    aws s3 ls s3://PATH_TO_SAVE_PREDICTION_RESULTS/
