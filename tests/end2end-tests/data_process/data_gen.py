@@ -41,6 +41,7 @@ node_data1 = {
     'data': node_id1,
     'text': node_text,
     'label': node_id1 % 100,
+    'float': np.random.rand(node_id1.shape[0], 2),
 }
 
 node_data1_2 = {
@@ -51,6 +52,7 @@ node_id2 = np.arange(20000)
 node_data2 = {
     'id': node_id2,
     'data': np.repeat(node_id2, 5).reshape(len(node_id2), 5),
+    'float': np.random.rand(node_id1.shape[0], 2),
 }
 
 node_id3 = np.unique(np.random.randint(0, 1000000000, 5000))
@@ -119,6 +121,11 @@ node_conf = [
                 "feature_col": "data",
                 "feature_name": "feat1",
             },
+            {
+                "feature_col": "float",
+                "feature_name": "feat2",
+                "transform": {"name": 'float_max_min'}
+            }
         ],
     },
     {
@@ -146,6 +153,13 @@ node_conf = [
                               "bert_model": "bert-base-uncased",
                               "max_seq_length": 16},
             },
+            {
+                "feature_col": "float",
+                "feature_name": "feat2",
+                "transform": {"name": 'float_max_min',
+                              "max_bound": 2.,
+                              "min_bound": -2.}
+            }
         ],
         "labels":       [
             {

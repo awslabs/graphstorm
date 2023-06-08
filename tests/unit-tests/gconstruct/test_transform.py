@@ -26,7 +26,7 @@ def test_fp_transform():
     transform = FloatingPointTransform("test", "test")
     feats = np.random.randn(100)
 
-    max_val, min_val = transform.pre_process(feats)
+    max_val, min_val = transform.pre_process(feats)["test"]
     max_v = np.amax(feats)
     min_v = np.amin(feats)
     assert len(max_val.shape) == 1
@@ -35,7 +35,7 @@ def test_fp_transform():
     assert_equal(min_val[0], min_v)
 
     feats = np.random.randn(100, 1)
-    max_val, min_val = transform.pre_process(feats)
+    max_val, min_val = transform.pre_process(feats)["test"]
     max_v = np.amax(feats)
     min_v = np.amin(feats)
     assert len(max_val.shape) == 1
@@ -44,7 +44,7 @@ def test_fp_transform():
     assert_equal(min_val[0], min_v)
 
     feats = np.random.randn(100, 10)
-    max_val, min_val = transform.pre_process(feats)
+    max_val, min_val = transform.pre_process(feats)["test"]
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
     assert len(max_val) == 10
@@ -59,7 +59,7 @@ def test_fp_transform():
     feats[0] = 10.
     feats[1] = -10.
     transform = FloatingPointTransform("test", "test", max_bound=5., min_bound=-5.)
-    max_val, min_val = transform.pre_process(feats)
+    max_val, min_val = transform.pre_process(feats)["test"]
     max_v = np.amax(feats)
     min_v = np.amin(feats)
     assert len(max_val.shape) == 1
@@ -71,7 +71,7 @@ def test_fp_transform():
     feats[0][0] = 10.
     feats[1][0] = -10.
     transform = FloatingPointTransform("test", "test", max_bound=5., min_bound=-5.)
-    max_val, min_val = transform.pre_process(feats)
+    max_val, min_val = transform.pre_process(feats)["test"]
     max_v = np.amax(feats)
     min_v = np.amin(feats)
     assert len(max_val.shape) == 1
@@ -83,7 +83,7 @@ def test_fp_transform():
     feats[0] = 10.
     feats[1] = -10.
     transform = FloatingPointTransform("test", "test", max_bound=5., min_bound=-5.)
-    max_val, min_val = transform.pre_process(feats)
+    max_val, min_val = transform.pre_process(feats)["test"]
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
     assert len(max_val) == 10
@@ -99,7 +99,7 @@ def test_fp_transform():
     info = [(np.array([1.]), np.array([-1.])),
             (np.array([2.]), np.array([-0.5])),
             (np.array([0.5]), np.array([-0.1]))]
-    transform.collect_info(info)
+    transform.update_info(info)
     assert len(transform._max_val) == 1
     assert len(transform._min_val) == 1
     assert_equal(transform._max_val[0], 2.)
@@ -108,7 +108,7 @@ def test_fp_transform():
     info = [(np.array([1., 2., 3.]), np.array([-1., -2., 0.5])),
             (np.array([2., 1., 3.]), np.array([-0.5, -3., 0.1])),
             (np.array([0.5, 3., 1.]), np.array([-0.1, -2., 0.3]))]
-    transform.collect_info(info)
+    transform.update_info(info)
     assert len(transform._max_val) == 3
     assert len(transform._min_val) == 3
     assert_equal(transform._max_val[0], 2.)
@@ -121,7 +121,7 @@ def test_fp_min_max_transform():
     transform._max_val = max_val
     transform._min_val = min_val
     feats = np.random.randn(100)
-    norm_feats = transform(feats)
+    norm_feats = transform(feats)["test"]
     feats[feats > max_val] = max_val
     feats[feats < min_val] = min_val
     assert_equal(norm_feats, (feats-min_val)/(max_val-min_val))
@@ -138,7 +138,7 @@ def test_fp_min_max_transform():
     transform._max_val = max_val
     transform._min_val = min_val
     feats = np.random.randn(10, 3)
-    norm_feats = transform(feats)
+    norm_feats = transform(feats)["test"]
     for i in range(3):
         new_feats = feats[:,i]
         new_feats[new_feats > max_val[i]] = max_val[i]

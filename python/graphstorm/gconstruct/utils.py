@@ -200,7 +200,7 @@ def update_two_phase_feat_ops(phase_one_info, ops):
             else:
                 feat_info[feat_name].append(info)
     for op in ops:
-        op.update_info(feat_info[op.col_name])
+        op.update_info(feat_info[op.feat_name])
 
 def multiprocessing_data_read(in_files, num_processes, user_parser):
     """ Read data from multiple files with multiprocessing.

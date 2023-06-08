@@ -35,7 +35,7 @@ from .file_io import get_in_files, write_data_parquet
 from .file_io import HDF5Array
 from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
-from .transform import do_multiprocess_transform
+from .transform import do_multiprocess_transform, TwoPhaseFeatTransform
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
@@ -199,8 +199,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
-        one_phase_feat_ops, two_phase_feat_ops = \
-            parse_feat_ops(process_conf['features']) \
+        feat_ops = parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
                 if 'labels' in process_conf else None
@@ -212,13 +211,17 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
         num_proc = num_processes if multiprocessing else 0
 
-        user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
-                                  node_id_col=node_id_col,
-                                  read_file=read_file)
-        start = time.time()
-        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
-        two_phase_feat_ops = update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
-        feat_ops = one_phase_feat_ops + two_phase_feat_ops
+        two_phase_feat_ops = []
+        for op in feat_ops:
+            if isinstance(op, TwoPhaseFeatTransform):
+                two_phase_feat_ops.append(op)
+        if len(two_phase_feat_ops) > 0:
+            user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
+                                    node_id_col=node_id_col,
+                                    read_file=read_file)
+            start = time.time()
+            phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
 
         dur = time.time() - start
         logging.debug("Preprocessing data files for node %s takes %.3f seconds.",

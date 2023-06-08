@@ -136,9 +136,9 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
 
         max_val[max_val > self._max_bound] = self._max_bound
         min_val[min_val < self._min_bound] = self._min_bound
-        return (max_val, min_val)
+        return {self.feat_name: (max_val, min_val)}
 
-    def collect_info(self, info):
+    def update_info(self, info):
         """ Store global information for the second phase data processing
 
         Parameters
@@ -162,7 +162,7 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
         self._max_val = max_val
         self._min_val = min_val
 
-class FloatingPointMinMaxTransform(TwoPhaseFeatTransform):
+class FloatingPointMinMaxTransform(FloatingPointTransform):
     """ Floating Point with Min-Max normalization.
         $val = (val-min) / (max-min)$
     """
@@ -193,7 +193,7 @@ class FloatingPointMinMaxTransform(TwoPhaseFeatTransform):
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
 
-        return feats
+        return {self.feat_name: feats}
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
@@ -383,8 +383,7 @@ def parse_feat_ops(confs):
     -------
     list of FeatTransform : The operations that transform features.
     """
-    one_phase_ops = []
-    two_phase_ops = []
+    ops = []
     assert isinstance(confs, list), \
             "The feature configurations need to be in a list."
     for feat in confs:
@@ -393,7 +392,6 @@ def parse_feat_ops(confs):
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
         if 'transform' not in feat:
             transform = Noop(feat['feature_col'], feat_name)
-            one_phase_ops.append(transform)
         else:
             conf = feat['transform']
             assert 'name' in conf, "'name' must be defined in the transformation field."
@@ -404,7 +402,6 @@ def parse_feat_ops(confs):
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
                 transform = Tokenizer(feat['feature_col'], feat_name, conf['bert_model'],
                                       int(conf['max_seq_length']))
-                one_phase_ops.append(transform)
             elif conf['name'] == 'bert_hf':
                 assert 'bert_model' in conf, \
                         "'bert_hf' needs to have the 'bert_model' field."
@@ -418,7 +415,6 @@ def parse_feat_ops(confs):
                                                 int(conf['max_seq_length'])),
                                       conf['bert_model'],
                                       infer_batch_size=infer_batch_size)
-                one_phase_ops.append(transform)
             elif conf['name'] == 'float_max_min':
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
@@ -426,11 +422,10 @@ def parse_feat_ops(confs):
                                                          feat_name,
                                                          max_bound,
                                                          min_bound)
-                two_phase_ops.append(transform)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
-
-    return one_phase_ops, two_phase_ops
+        ops.append(transform)
+    return ops
 
 def preprocess_features(data, ops):
     """ Pre-process the data with the specified operations.
@@ -452,7 +447,10 @@ def preprocess_features(data, ops):
     """
     pre_data = {}
     for op in ops:
-        pre_data[op.col_name] = op.pre_process(data[op.col_name])
+        res = op.pre_process(data[op.col_name])
+        assert isinstance(res, dict)
+        for key, val in res.items():
+            pre_data[key] = val
 
     return pre_data
 
