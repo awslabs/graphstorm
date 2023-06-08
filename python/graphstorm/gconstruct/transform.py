@@ -277,7 +277,7 @@ def parse_feat_ops(confs):
         ops.append(transform)
     return ops
 
-def process_features(data, ops):
+def process_features(data, ops, feat_dtype=np.flaot32 ):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
@@ -289,6 +289,8 @@ def process_features(data, ops):
         The data stored as a dict.
     ops : list of FeatTransform
         The operations that transform features.
+    feat_dtype: np dtype
+        The dtype of features to be stored into graph.
 
     Returns
     -------
@@ -305,7 +307,12 @@ def process_features(data, ops):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
-
+            if isinstance(val, HDF5Array):
+                if val.dtype in [np.float64, np.float32, np.float16]:
+                    val = val.astype(feat_dtype)
+            if isinstance(val, np.ndarray):
+                if val.dtype in [np.float64, np.float32, np.float16]:
+                    val = val.astype(feat_dtype)
             new_data[key] = val
     return new_data
 
