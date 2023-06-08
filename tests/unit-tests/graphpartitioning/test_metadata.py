@@ -214,7 +214,7 @@ def test_etype_files(
                         len(data_files) == idx + 1
                     ), f"No. of edge files does not match."
 
-        except FileNotFoundError as exp:
+        except AssertionError as exp:
             if create_files:
                 raise exp
             else:
@@ -264,7 +264,7 @@ def test_node_features(
                         len(data_files) == 5
                     ), f"No. of node feature files does not match."
 
-        except FileNotFoundError as exp:
+        except AssertionError as exp:
             if create_files:
                 raise exp
             else:
@@ -365,7 +365,7 @@ def test_edge_features(
                     assert (
                         len(data_files) == 5
                     ), f"No. of edge feature files does not match."
-        except FileNotFoundError as exp:
+        except AssertionError as exp:
             if create_files:
                 raise exp
             else:
@@ -714,9 +714,9 @@ def test_error_cases(metadata):
         # Test here.
         try:
             obj = MetadataSchema(METADATA_NAME, root_dir)
-        except KeyError as exp:
+        except AssertionError:
             pass
-        except ValueError as exp:
+        except KeyError:
             pass
 
 

@@ -17,7 +17,6 @@
     the metadata schema for the input dataset.
 """
 import json
-import logging
 import os
 
 import numpy as np
@@ -178,18 +177,13 @@ class MetadataSchema:
         src_type: str
             Either node type or edge type from the input graph.
         """
-        for filename in data_files:
-            if not os.path.isabs(filename):
-                if not os.path.isfile(os.path.join(self._basedir, filename)):
-                    raise FileNotFoundError(
-                        f"File: {os.path.join(self._basedir, filename)} "
-                        f"does not exist for {file_type}"
-                    )
-            else:
-                if not os.path.isfile(filename):
-                    raise FileNotFoundError(
-                        f"File: {filename} does not exist for {file_type}."
-                    )
+        for file_name in data_files:
+            file_path = file_name
+            if not os.path.isabs(file_path):
+                file_path = os.path.join(self._basedir, file_path)
+            assert os.path.isfile(
+                file_path
+            ), f"File: {file_path} does not exist for {file_type}."
 
     def __init_maps(self):
         """Initialization function to build all the necessary data structures
@@ -272,18 +266,14 @@ class MetadataSchema:
         ), "Invalid number of edges"
 
         for idx, num_nodes in enumerate(self._data[STR_NUM_NODES_PER_TYPE]):
-            if num_nodes > 0:
-                continue
-            raise ValueError(
-                f"No. of nodes at index: {idx} is not a valid value."
-            )
+            assert (
+                num_nodes > 0
+            ), f"No. of nodes at index: {idx} is not a valid value."
 
         for idx, num_edges in enumerate(self._data[STR_NUM_EDGES_PER_TYPE]):
-            if num_edges > 0:
-                continue
-            raise ValueError(
-                f"No. of edges at index: {idx} is not a valie value."
-            )
+            assert (
+                num_edges > 0
+            ), f"No. of edges at index: {idx} is not a valie value."
 
         assert len(self._data[STR_NODE_TYPE]) == len(
             self._data[STR_NUM_NODES_PER_TYPE]
@@ -302,20 +292,16 @@ class MetadataSchema:
         # Check for each existing node feature, corresponding node type is valid
         for key, _ in self._ntype_feature_files.items():
             ntype = key[0]
-            if ntype in self.ntypes:
-                continue
-            raise ValueError(
-                f"Node Type: {ntype} is not present in the list of node types."
-            )
+            assert (
+                ntype in self.ntypes
+            ), f"Node Type: {ntype} is not present in the list of node types."
 
         # Check for each existing edge feature, corresponding edge type is valid
         for key, _ in self._etype_feature_files.items():
             etype = key[0]
-            if etype in self.etypes:
-                continue
-            raise ValueError(
-                f"Edge Type: {etype} is not present in the list of edge types"
-            )
+            assert (
+                etype in self.etypes
+            ), f"Edge Type: {etype} is not present in the list of edge types"
 
     ########################## Prrotected Methods ##############################
 
@@ -339,9 +325,9 @@ class MetadataSchema:
         etypes = self._data[STR_EDGE_TYPE]
         etype_counts = self._data[STR_NUM_EDGES_PER_TYPE]
         for count in etype_counts:
-            if isinstance(count, int) and count > 0:
-                continue
-            raise ValueError("Invalid value for No. of nodes per type")
+            assert (
+                isinstance(count, int) and count > 0
+            ), "Invalid value for No. of nodes per type"
 
         prefix_sum = np.cumsum([0] + etype_counts)
         starts = prefix_sum[:-1]
@@ -370,9 +356,9 @@ class MetadataSchema:
         ntypes = self._data[STR_NODE_TYPE]
         ntype_counts = self._data[STR_NUM_NODES_PER_TYPE]
         for count in ntype_counts:
-            if isinstance(count, int) and count > 0:
-                continue
-            raise ValueError("Invalid value for No. of nodes per type")
+            assert (
+                isinstance(count, int) and count > 0
+            ), "Invalid value for No. of nodes per type"
 
         prefix_sum = np.cumsum([0] + ntype_counts)
         starts = prefix_sum[:-1]
@@ -381,7 +367,7 @@ class MetadataSchema:
         self._global_nid_offsets = dict(zip(ntypes, ranges))
 
     def _init_etype_maps(self):
-        """Initialization function to build unique id maps for node types of
+        """Initialization function to build unique id maps for edge types of
         the input graph. This function creates a list of edge types present in
         the graph, and unique-id <-> edge type and reverse maps.
         """
@@ -457,31 +443,21 @@ class MetadataSchema:
                   edges are stored for the corresponding edge type.
         """
         self._etype_files = {}
-        try:
-            for etype, etype_info in self._data[STR_EDGES].items():
-                file_type = etype_info[STR_FORMAT][STR_NAME]
-                delimiter = etype_info[STR_FORMAT][STR_FORMAT_DELIMITER]
-                data_files = etype_info[STR_DATA]
+        for etype, etype_info in self._data[STR_EDGES].items():
+            file_type = etype_info[STR_FORMAT][STR_NAME]
+            delimiter = etype_info[STR_FORMAT][STR_FORMAT_DELIMITER]
+            data_files = etype_info[STR_DATA]
 
-                self.__check_ifexists(data_files, etype)
-                self._etype_files[etype] = (file_type, delimiter, data_files)
+            self.__check_ifexists(data_files, etype)
+            self._etype_files[etype] = (file_type, delimiter, data_files)
 
-        except KeyError as exp:
-            logging.error(
-                "Error while reading files for edeges of the input graph."
-                "Please check the metadata file for correctness for loading "
-                "edge files."
-            )
-            raise exp
-
-        if len(self._etype_files) is not len(self._etypes):
-            raise ValueError(
-                f"In the metadata file there are some edges"
-                f" for which there are no corresponding edge files."
-                f" etypes = {self._etypes} are all the edge files. "
-                f" etypes, for which edge files are present: "
-                f" {self.etype_files.keys()}"
-            )
+        assert len(self._etype_files) == len(self._etypes), (
+            f"In the metadata file there are some edges"
+            f" for which there are no corresponding edge files."
+            f" etypes = {self._etypes} are all the edge files. "
+            f" etypes, for which edge files are present: "
+            f" {self.etype_files.keys()}"
+        )
 
     def _init_ntype_maps(self):
         """Initialization function to build unique id maps for node types of
