@@ -70,8 +70,6 @@ class TwoPhaseFeatTransform(FeatTransform):
     feat_name : str
         The feature name used in the constructed graph.
     """
-    def __init__(self, col_name, feat_name):
-        super(TwoPhaseFeatTransform, self).__init__(col_name, feat_name)
 
     def pre_process(self, feats):
         """ Pre-process data
@@ -91,9 +89,9 @@ class TwoPhaseFeatTransform(FeatTransform):
             Information to be collected
         """
 
-class FloatingPointTransform(TwoPhaseFeatTransform):
-    """ Floating Point Transform ops
-        Do floating Point transformation
+class NumericalTransform(TwoPhaseFeatTransform):
+    """ Numerical data Transform ops
+        Do numerical data transformation
 
     Parameters
     ----------
@@ -106,10 +104,12 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
     min_bound : float
         The minimum float value
     """
-    def __init__(self, col_name, feat_name, max_bound=sys.float_info.max, min_bound=-sys.float_info.max):
+    def __init__(self, col_name, feat_name,
+                 max_bound=sys.float_info.max,
+                 min_bound=-sys.float_info.max):
         self._max_bound = max_bound
         self._min_bound = min_bound
-        super(FloatingPointTransform, self).__init__(col_name, feat_name)
+        super(NumericalTransform, self).__init__(col_name, feat_name)
 
     def pre_process(self, feats):
         """ Pre-process data
@@ -119,14 +119,14 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
         feats: np.array
             Data to be processed
         """
-        assert isinstance(feats, np.ndarray) or isinstance(feats, HDF5Array), \
-            "Feature of FloatingPointTransform must be numpy array or HDF5Array"
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of NumericalTransform must be numpy array or HDF5Array"
         if isinstance(feats, HDF5Array):
             feats = feats.to_numpy()
 
         assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
                               np.int32, np.int16, np.int8], \
-            "Feature of FloatingPointTransform must be floating points" \
+            "Feature of NumericalTransform must be floating points" \
             "or integers"
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
         max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
@@ -162,8 +162,8 @@ class FloatingPointTransform(TwoPhaseFeatTransform):
         self._max_val = max_val
         self._min_val = min_val
 
-class FloatingPointMinMaxTransform(FloatingPointTransform):
-    """ Floating Point with Min-Max normalization.
+class NumericalMinMaxTransform(NumericalTransform):
+    """ Numerical value with Min-Max normalization.
         $val = (val-min) / (max-min)$
     """
 
@@ -173,14 +173,14 @@ class FloatingPointMinMaxTransform(FloatingPointTransform):
         Parameters
         ----------
         feats : np array
-            Floating point data to be normalized
+            Data to be normalized
 
         Returns
         -------
         np.array
         """
-        assert isinstance(feats, np.ndarray) or isinstance(feats, HDF5Array), \
-            "Feature of FloatingPointTransform must be numpy array or HDF5Array"
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of NumericalTransform must be numpy array or HDF5Array"
 
         assert not np.any(self._max_val == self._min_val), \
             f"At least one element of Max Val {self._max_val} " \
@@ -418,10 +418,10 @@ def parse_feat_ops(confs):
             elif conf['name'] == 'float_max_min':
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
-                transform = FloatingPointMinMaxTransform(feat['feature_col'],
-                                                         feat_name,
-                                                         max_bound,
-                                                         min_bound)
+                transform = NumericalMinMaxTransform(feat['feature_col'],
+                                                     feat_name,
+                                                     max_bound,
+                                                     min_bound)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
