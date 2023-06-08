@@ -98,6 +98,9 @@ class GSgnnEdgePredictionInfer(GSInfer):
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
 
+        device = th.device(f"cuda:{self.dev_id}") \
+            if self.dev_id >= 0 else th.device("cpu")
+
         if save_embed_path is not None:
             target_ntypes = set()
             for etype in infer_data.eval_etypes:
@@ -106,8 +109,6 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-            device = th.device(f"cuda:{self.dev_id}") \
-                if self.dev_id >= 0 else th.device("cpu")
             save_gsgnn_embeddings(save_embed_path, embs, self.rank,
                 th.distributed.get_world_size(),
                 device=device,

@@ -220,7 +220,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
         return pred_loss + reg_loss
 
-    def predict(self, blocks, node_feats, _, input_nodes):
+    def predict(self, blocks, node_feats, _, input_nodes, return_proba):
         # input layer
         h = {}
         for ntype in blocks[0].ntypes:
@@ -240,7 +240,10 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         for ntype, emb in h.items():
             h[ntype] = self.out(emb)
 
-        return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]
+        if return_proba:
+            return h[self.target_ntype].argmax(dim=1), torch.softmax(h[self.target_ntype], 1)
+        else:
+            return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]
 
     def restore_model(self, restore_model_path):
         pass

@@ -28,6 +28,7 @@ from .sampler import LocalUniform, JointUniform, GlobalUniform, JointLocalUnifor
 from .utils import trim_data, modify_fanout_for_target_etype
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
+EP_DECODER_EDGE_FEAT = "ep_edge_feat"
 
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
@@ -56,11 +57,13 @@ class GSgnnEdgeDataLoader():
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
-                 exclude_training_targets=False):
+                 exclude_training_targets=False,
+                 decoder_edge_feat=None):
         self._data = dataset
         self._device = device
         self._fanout = fanout
         self._target_eidx = target_idx
+        self._decoder_edge_feat = decoder_edge_feat
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -108,7 +111,17 @@ class GSgnnEdgeDataLoader():
         return self.dataloader.__iter__()
 
     def __next__(self):
-        return self.dataloader.__next__()
+        input_nodes, batch_graph, blocks = self.dataloader.__next__()
+        if self._decoder_edge_feat is not None:
+            input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
+                           for etype in batch_graph.canonical_etypes}
+            edge_feats = self._data.get_edge_feats(input_edges,
+                                                   self._decoder_edge_feat,
+                                                   self._device)
+            # store edge feature into graph
+            for etype, feat in edge_feats.items():
+                batch_graph.edges[etype].data[EP_DECODER_EDGE_FEAT] = feat
+        return (input_nodes, batch_graph, blocks)
 
     @property
     def data(self):

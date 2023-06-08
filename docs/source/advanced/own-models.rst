@@ -135,11 +135,11 @@ Unlike common cases where forward function returns logits computed by models, th
 
 You may notice that GraphStorm already provides common loss functions for classification, regression and link prediction, which can be easily imported and used in your model. But you are free to use any PyTorch loss functions or even your own loss function. In the above example, we also change the to-be predicted node type as a class variable, and use it for computing the loss value.
 
-The ``predict()`` function is for inference and it will not be used for backward. Its input arguments are similar to the forward() function, but no need for labels. The ``predict()`` function will return two values. The first is the prediction results. The second is the the logits, which could be used for some specific purposes (this return value is uncommon for some users, and we are working on the fix this confusion). With these requirements, the ``predict()`` function of the modified HGT model is like the code below.
+The ``predict()`` function is for inference and it will not be used for backward. Its input arguments are similar to the forward() function, but no need for labels. The ``predict()`` will return two values. The first is the prediction results. The second will be the probability if the argument ``return_proba`` is True, otherwise will return the raw logits, which could be used for some specific purposes. With these requirements, the ``predict()`` function of the modified HGT model is like the code below.
 
 .. code-block:: python
 
-    def predict(self, blocks, node_feats, _, input_nodes):
+    def predict(self, blocks, node_feats, _, input_nodes, return_proba):
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
@@ -154,8 +154,10 @@ The ``predict()`` function is for inference and it will not be used for backward
             h = self.gcs[i](blocks[i], h)
         for ntype, emb in h.items():
             h[ntype] = self.out(emb)
-        return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]             # return two values: one is the predict results, 
-                                                                                    # while another is the computed node representations, which can be saved.
+        if return_proba:
+            return h[self.target_ntype].argmax(dim=1), torch.softmax(h[self.target_ntype], 1)
+        else:
+            return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]
 
 The ``create_optimizer()`` function is for users to define their own optimizer, like the code below.
 
