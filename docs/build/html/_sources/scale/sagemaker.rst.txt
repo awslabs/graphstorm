@@ -165,4 +165,3 @@ The trained model artifact will be stored in the S3 address provided through ``-
 
 Launch inference
 .................
-
