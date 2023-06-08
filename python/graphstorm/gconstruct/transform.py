@@ -25,7 +25,7 @@ import torch as th
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
-from .file_io import HDF5Array
+from .file_io import HDF5Array, read_index_json
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -512,6 +512,106 @@ def get_valid_label_index(label):
         raise ValueError("GraphStorm only supports label data of integers and float." + \
                          f"This label data has data type of {label.dtype}.")
 
+class CustomLabelProcessor:
+    """ Process labels with custom data split.
+
+    This allows users to define custom data split for training/validation/test.
+
+    Parameters
+    ----------
+    col_name : str
+        The column name for labels.
+    label_name : str
+        The label name.
+    task_type : str
+        The task type.
+    train_idx : Numpy array
+        The array that contains the index of training data points.
+    val_idx : Numpy array
+        The array that contains the index of validation data points.
+    test_idx : Numpy array
+        The array that contains the index of test data points.
+    """
+    def __init__(self, col_name, label_name, task_type,
+                 train_idx=None, val_idx=None, test_idx=None):
+        self._col_name = col_name
+        self._label_name = label_name
+        self._train_idx = train_idx
+        self._val_idx = val_idx
+        self._test_idx = test_idx
+        self._task_type = task_type
+
+    @property
+    def col_name(self):
+        """ The column name that contains the label.
+        """
+        return self._col_name
+
+    @property
+    def label_name(self):
+        """ The label name.
+        """
+        return self._label_name
+
+    def data_split(self, num_samples):
+        """ Split the data for training/validation/test.
+
+        Parameters
+        ----------
+        num_samples : int
+            The total number of data points.
+
+        Returns
+        -------
+        dict of Numpy array
+            The arrays for training/validation/test masks.
+        """
+        train_mask = np.zeros((num_samples,), dtype=np.int8)
+        val_mask = np.zeros((num_samples,), dtype=np.int8)
+        test_mask = np.zeros((num_samples,), dtype=np.int8)
+        if self._train_idx is not None:
+            train_mask[self._train_idx] = 1
+        if self._val_idx is not None:
+            val_mask[self._val_idx] = 1
+        if self._test_idx is not None:
+            test_mask[self._test_idx] = 1
+        train_mask_name = 'train_mask'
+        val_mask_name = 'val_mask'
+        test_mask_name = 'test_mask'
+        return {train_mask_name: train_mask,
+                val_mask_name: val_mask,
+                test_mask_name: test_mask}
+
+    def __call__(self, data):
+        """ Process the label for classification.
+
+        This performs data split on the nodes/edges and generates training/validation/test masks.
+
+        Parameters
+        ----------
+        data : dict of Tensors
+            All data associated with nodes/edges of a node/edge type.
+
+        Returns
+        -------
+        dict of Tensors : it contains the labels as well as training/val/test splits.
+        """
+        if self.col_name in data:
+            label = data[self.col_name]
+            num_samples = len(label)
+        else:
+            assert len(data) > 0, "The edge data is empty."
+            label = None
+            for val in data.values():
+                num_samples = len(val)
+                break
+        res = self.data_split(num_samples)
+        if label is not None and self._task_type == "classification":
+            res[self.label_name] = np.int32(label)
+        elif label is not None:
+            res[self.label_name] = label
+        return res
+
 class LabelProcessor:
     """ Process labels
 
@@ -684,7 +784,17 @@ def parse_label_ops(confs, is_node):
     label_conf = confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
-    # By default, we use all labels for training.
+    if 'custom_split_filenames' in label_conf:
+        custom_split = label_conf['custom_split_filenames']
+        assert isinstance(custom_split, dict), \
+                "Custom data split needs to provide train/val/test index."
+        train_idx = read_index_json(custom_split['train']) if 'train' in custom_split else None
+        val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
+        test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
+        label_col = label_conf['label_col'] if 'label_col' in label_conf else None
+        return [CustomLabelProcessor(label_col, label_col, task_type,
+                                     train_idx, val_idx, test_idx)]
+
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
     else:

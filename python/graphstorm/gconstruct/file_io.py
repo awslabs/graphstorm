@@ -27,6 +27,40 @@ import numpy as np
 import torch as th
 import h5py
 
+def read_index_json(data_file):
+    """ Read the index from a JSON file.
+
+    Each row is a JSON object that contains an index.
+
+    Parameters
+    ----------
+    data_file : str
+        The JSON file that contains the index.
+
+    Returns
+    -------
+    Numpy array : the index array.
+    """
+    with open(data_file, 'r', encoding="utf8") as json_file:
+        indices = []
+        for line in json_file.readlines():
+            indices.append(json.loads(line))
+    return np.array(indices)
+
+def write_index_json(data, data_file):
+    """ Write the index to a json file.
+
+    Parameters
+    ----------
+    data : Numpy array
+        The index array
+    data_file : str
+        The data file where the indices are written to.
+    """
+    with open(data_file, 'w', encoding="utf8") as json_file:
+        for index in data:
+            json_file.write(json.dumps(int(index)) + "\n")
+
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
 
