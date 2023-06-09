@@ -532,12 +532,8 @@ def process_graph(args):
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
     for ntype in node_id_map:
-        kv_pairs = node_id_map[ntype].get_key_vals()
-        if kv_pairs is not None:
-            map_data = {}
-            map_data["orig"], map_data["new"] = kv_pairs
-            map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
-            write_data_parquet(map_data, map_file)
+        map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
+        if node_id_map[ntype].save(map_file):
             logging.info("Graph construction generates new node IDs for '%s'. " + \
                     "The ID map is saved in %s.", ntype, map_file)
 
