@@ -17,8 +17,9 @@ gsf:
   input:
     restore_model_path: null
   output:
-    save_model_path: /data/ogbn-map-lp/model/
-    save_embeds_path: /data/ogbn-map-lp/embed/
+    save_model_path: null
+    save_embeds_path: null
+    save_prediction_path: null
     save_model_frequency: 1000
   hyperparam:
     dropout: 0.

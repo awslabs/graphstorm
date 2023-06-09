@@ -76,8 +76,8 @@ if __name__ == "__main__":
     compose_dict = dict()
 
     compose_dict['version'] = '3.7'
-    compose_dict['networks'] = {'gfs': {
-        'external': {'name': 'gfs-network'}}}
+    compose_dict['networks'] = {'gsf': {
+        'external': {'name': 'gsf-network'}}}
 
     def gen_train_cmd(custom_script):
         entry_point = 'train_entry.py'
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                 'image': args.image,
                 'container_name': f'algo-{instance_idx}',
                 'hostname': f'algo-{instance_idx}',
-                'networks': ['gfs'],
+                'networks': ['gsf'],
                 'volumes': [
                     {
                         'type': 'tmpfs',
