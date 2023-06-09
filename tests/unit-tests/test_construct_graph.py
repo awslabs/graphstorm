@@ -484,6 +484,24 @@ def test_id_map():
     check_id_map_not_exist(id_map, str_ids)
     check_id_map_dtype_not_match(id_map, str_ids)
 
+    # Test saving ID map with random IDs.
+    ids = np.random.permutation(100)
+    str_ids = np.array([str(i) for i in ids])
+    id_map = IdMap(str_ids)
+    id_map.save("/tmp/id_map.parquet")
+
+    # Reconstruct the ID map from the parquet file.
+    table = pq.read_table("/tmp/id_map.parquet")
+    df_table = table.to_pandas()
+    keys = np.array(df_table['orig'])
+    vals = np.array(df_table['new'])
+    new_id_map = {key: val for key, val in zip(keys, vals)}
+
+    assert len(new_id_map) == len(id_map)
+    new_ids1, _ = id_map.map_id(str_ids)
+    new_ids2 = np.array([new_id_map[i] for i in str_ids])
+    assert np.all(new_ids1 == new_ids2)
+
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
