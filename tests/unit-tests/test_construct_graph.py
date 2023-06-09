@@ -16,6 +16,7 @@
 import random
 import os
 import tempfile
+import pyarrow.parquet as pq
 import numpy as np
 import graphstorm as gs
 import dgl
