@@ -218,13 +218,13 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         if len(two_phase_feat_ops) > 0:
             user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
                                       read_file=read_file)
-            start = time.time()
+            pre_parse_start = time.time()
             phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
             update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
 
-        dur = time.time() - start
-        logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
-                      node_type, dur)
+            dur = time.time() - pre_parse_start
+            logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
+                        node_type, dur)
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,

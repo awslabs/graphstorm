@@ -124,7 +124,7 @@ node_conf = [
             {
                 "feature_col": "float_2",
                 "feature_name": "feat3",
-                "transform": {"name": 'float_max_min'}
+                "transform": {"name": 'max_min_norm'}
             }
         ],
     },
@@ -156,7 +156,7 @@ node_conf = [
             {
                 "feature_col": "float",
                 "feature_name": "feat2",
-                "transform": {"name": 'float_max_min',
+                "transform": {"name": "max_min_norm",
                               "max_bound": 2.,
                               "min_bound": -2.}
             }

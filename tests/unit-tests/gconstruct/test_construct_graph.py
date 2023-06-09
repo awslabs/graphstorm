@@ -247,7 +247,7 @@ def test_feat_ops():
         {
             "feature_col": "test1",
             "feature_name": "test5",
-            "transform": {"name": 'float_max_min',
+            "transform": {"name": 'max_min_norm',
             },
         },
     ]
@@ -288,7 +288,7 @@ def test_feat_ops():
         {
             "feature_col": "test1",
             "feature_name": "test6",
-            "transform": {"name": 'float_max_min',
+            "transform": {"name": 'max_min_norm',
                           "max_bound": 2.,
                           "min_bound": -2.
             },

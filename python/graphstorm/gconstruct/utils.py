@@ -193,9 +193,9 @@ def update_two_phase_feat_ops(phase_one_info, ops):
         The operations run on the node/edge features of the node/edge files.
     """
     feat_info = {}
-    for i, finfo in phase_one_info.items():
+    for _, finfo in phase_one_info.items():
         for feat_name, info in finfo.items():
-            if i == 0:
+            if feat_name not in feat_info:
                 feat_info[feat_name] = [info]
             else:
                 feat_info[feat_name].append(info)

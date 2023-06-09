@@ -122,6 +122,8 @@ class NumericalTransform(TwoPhaseFeatTransform):
         assert isinstance(feats, (np.ndarray, HDF5Array)), \
             "Feature of NumericalTransform must be numpy array or HDF5Array"
         if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
             feats = feats.to_numpy()
 
         assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
@@ -187,6 +189,8 @@ class NumericalMinMaxTransform(NumericalTransform):
             f"and Min Val {self._min_val} is equal. This will cause divide by zero error"
 
         if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
             feats = feats.to_numpy()
 
         feats = (feats - self._min_val) / (self._max_val - self._min_val)
@@ -415,7 +419,7 @@ def parse_feat_ops(confs):
                                                 int(conf['max_seq_length'])),
                                       conf['bert_model'],
                                       infer_batch_size=infer_batch_size)
-            elif conf['name'] == 'float_max_min':
+            elif conf['name'] == 'max_min_norm':
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
                 transform = NumericalMinMaxTransform(feat['feature_col'],
