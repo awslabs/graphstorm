@@ -43,7 +43,7 @@ FEATURE_STORE_PRECISION_FP32 = "fp32"
 FEATURE_STORE_PRECISION_FP16 = "fp16"
 
 def parse_node_data(in_file, feat_ops, label_ops, node_id_col,
-                    read_file, feat_dtype=np.flaot32):
+                    read_file, feat_dtype=np.float32):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -80,7 +80,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col,
     return (node_ids, feat_data)
 
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
-                    conf, skip_nonexist_edges, feat_dtype=np.flaot32):
+                    conf, skip_nonexist_edges, feat_dtype=np.float32):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node

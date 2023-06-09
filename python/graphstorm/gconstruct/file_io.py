@@ -245,7 +245,7 @@ class HDF5Array:
     def to_tensor(self):
         """ Return Pytorch tensor.
         """
-        arr = th.tensor(arr)
+        arr = th.tensor(self._arr)
         if self._out_dtype is not None:
             if self._out_dtype is np.float32:
                 arr = arr.to(th.float32)
@@ -265,6 +265,7 @@ class HDF5Array:
         """ Set the output dtype.
         """
         self._out_dtype = dtype
+        print("astype")
         return self
 
     @property

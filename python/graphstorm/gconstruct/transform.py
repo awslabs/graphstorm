@@ -277,7 +277,7 @@ def parse_feat_ops(confs):
         ops.append(transform)
     return ops
 
-def process_features(data, ops, feat_dtype=np.flaot32 ):
+def process_features(data, ops, feat_dtype=np.float32):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
@@ -307,11 +307,11 @@ def process_features(data, ops, feat_dtype=np.flaot32 ):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
-            if isinstance(val, HDF5Array):
-                if val.dtype in [np.float64, np.float32, np.float16]:
+            if val.dtype in [np.float64, np.float32, np.float16] and \
+                val.dtype != feat_dtype:
+                if isinstance(val, HDF5Array):
                     val = val.astype(feat_dtype)
-            if isinstance(val, np.ndarray):
-                if val.dtype in [np.float64, np.float32, np.float16]:
+                if isinstance(val, np.ndarray):
                     val = val.astype(feat_dtype)
             new_data[key] = val
     return new_data

@@ -180,7 +180,7 @@ def test_feat_ops():
                                   tokens['token_type_ids'][1])
 
     data = {
-        "test1": np.random.rand(2, 4),
+        "test1": np.random.rand(2, 4).astype(np.float32),
         "test3": ["hello world", "hello world"],
     }
     proc_res = process_features(data, res2)
@@ -232,11 +232,52 @@ def test_feat_ops():
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
 
-def test_process_features():
+def test_process_features_fp16():
     # Just get the features without transformation.
     data = {}
     data["test1"] = np.random.rand(10, 3)
     data["test2"] = np.random.rand(10)
+    handle, tmpfile = tempfile.mkstemp()
+    os.close(handle)
+    write_data_hdf5(data, tmpfile)
+
+    feat_op1 = [{
+        "feature_col": "test1",
+        "feature_name": "test1",
+    },{
+        "feature_col": "test2",
+        "feature_name": "test2",
+    }]
+    ops_rst = parse_feat_ops(feat_op1)
+    rst = process_features(data, ops_rst, feat_dtype=np.float16)
+    assert len(rst) == 2
+    assert 'test1' in rst
+    assert 'test2' in rst
+    assert (len(rst['test1'].shape)) == 2
+    assert (len(rst['test2'].shape)) == 2
+    assert rst['test1'].dtype == np.float16
+    assert rst['test2'].dtype == np.float16
+    np.testing.assert_almost_equal(rst['test1'], data['test1'], decimal=3)
+    np.testing.assert_almost_equal(rst['test2'], data['test2'].reshape(-1, 1), decimal=3)
+
+    data1 = read_data_hdf5(tmpfile, ['test1', 'test2'], in_mem=False)
+    rst2 = process_features(data1, ops_rst, feat_dtype=np.float16)
+    assert isinstance(rst2["test1"], HDF5Array)
+    assert len(rst2) == 2
+    assert 'test1' in rst2
+    assert 'test2' in rst2
+    assert (len(rst2['test1'].to_tensor().shape)) == 2
+    assert (len(rst2['test2'].shape)) == 2
+    assert rst2['test1'].to_tensor().dtype == th.float16
+    assert rst2['test2'].dtype == np.float16
+    np.testing.assert_almost_equal(rst2['test1'].to_tensor().numpy(), data['test1'], decimal=3)
+    np.testing.assert_almost_equal(rst2['test2'], data['test2'].reshape(-1, 1), decimal=3)
+
+def test_process_features():
+    # Just get the features without transformation.
+    data = {}
+    data["test1"] = np.random.rand(10, 3).astype(np.float32)
+    data["test2"] = np.random.rand(10).astype(np.float32)
 
     feat_op1 = [{
         "feature_col": "test1",
@@ -254,7 +295,7 @@ def test_process_features():
     assert (len(rst['test2'].shape)) == 2
     np.testing.assert_array_equal(rst['test1'], data['test1'])
     np.testing.assert_array_equal(rst['test2'], data['test2'].reshape(-1, 1))
-    
+
 def test_label():
     def check_split(res):
         assert len(res) == 4
@@ -793,4 +834,5 @@ if __name__ == '__main__':
     test_parquet()
     test_feat_ops()
     test_process_features()
+    test_process_features_fp16()
     test_label()
