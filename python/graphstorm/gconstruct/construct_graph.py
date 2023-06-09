@@ -499,11 +499,11 @@ def process_graph(args):
             len(edge_data[srctype_etype_dsttype]["train_mask"].shape) == 2:
             edge_data[srctype_etype_dsttype]["train_mask"] = \
                 edge_data[srctype_etype_dsttype]["train_mask"].squeeze(1).astype('int8')
-            if "val_mask" in edge_data[srctype_etype_dsttype].keys() and \
+        if "val_mask" in edge_data[srctype_etype_dsttype].keys() and \
             len(edge_data[srctype_etype_dsttype]["val_mask"].shape) == 2:
             edge_data[srctype_etype_dsttype]["val_mask"] = \
                 edge_data[srctype_etype_dsttype]["val_mask"].squeeze(1).astype('int8')
-            if "test_mask" in edge_data[srctype_etype_dsttype].keys() and \
+        if "test_mask" in edge_data[srctype_etype_dsttype].keys() and \
             len(edge_data[srctype_etype_dsttype]["test_mask"].shape) == 2:
             edge_data[srctype_etype_dsttype]["test_mask"] = \
                 edge_data[srctype_etype_dsttype]["test_mask"].squeeze(1).astype('int8')
