@@ -46,14 +46,13 @@ node_data1 = {
 
 node_data1_2 = {
     'data': node_id1,
-    'float': np.random.rand(node_id1.shape[0], 2),
+    'float_2': np.random.rand(node_id1.shape[0], 2),
 }
 
 node_id2 = np.arange(20000)
 node_data2 = {
     'id': node_id2,
     'data': np.repeat(node_id2, 5).reshape(len(node_id2), 5),
-    'float': np.random.rand(node_id1.shape[0], 2),
 }
 
 node_id3 = np.unique(np.random.randint(0, 1000000000, 5000))
@@ -123,8 +122,8 @@ node_conf = [
                 "feature_name": "feat1",
             },
             {
-                "feature_col": "float",
-                "feature_name": "feat2",
+                "feature_col": "float_2",
+                "feature_name": "feat3",
                 "transform": {"name": 'float_max_min'}
             }
         ],
