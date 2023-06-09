@@ -419,14 +419,6 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </section>
 <section id="generate-a-docker-compose-file">
 <h4>Generate a Docker Compose file<a class="headerlink" href="#generate-a-docker-compose-file" title="Permalink to this heading">#</a></h4>
-<p>Use the following command to create a Docker Compose file.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.sagemaker.local.generate_sagemaker_docker_compose<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--num-instances<span class="w"> </span>&lt;NUM_INSTANCES&gt;<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--input-data<span class="w"> </span>&lt;DATASET_S3_PATH&gt;<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--output-data-s3<span class="w"> </span><span class="s2">&quot;s3://&lt;OUTPUT_BUCKET&gt;/test/&lt;DATASET_NAME&gt;&lt;PATH_SUFFIX&gt;/&lt;NUM_INSTANCES&gt;x-&lt;INSTANCE_TYPE&gt;/&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--region<span class="w"> </span>&lt;REGION&gt;
-</pre></div>
-</div>
 <p>A Docker Compose file is a YAML file that tells Docker which containers to spin up and how to configure them. To launch the services with a Docker Compose file, we can use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">-f</span> <span class="pre">docker-compose.yaml</span> <span class="pre">up</span></code>. This will launch the container and execute its entry point.</p>
 <p>To emulate a SageMaker distributed execution environment based on the image (suppose the docker image is named <code class="docutils literal notranslate"><span class="pre">graphstorm:sm</span></code>) built previously, you would need a Docker Compose file that looks like this:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.7&#39;</span>
@@ -462,20 +454,89 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 <li><p><strong>environment</strong>: Determines the environment variables that will be set for the container once it launches.</p></li>
 <li><p><strong>command</strong>: Determines the entrypoint, i.e. the command that will be executed once the container launches.</p></li>
 </ul>
-<p>To help you generate yaml file automatically, we provide a Python script that builds the docker compose file for you, generate_sagemaker_docker_compose.py. Note that the script uses the PyYAML library.</p>
-<p>This file has 4 required arguments that determine the Docker compose file that will be generated:</p>
-<p>–num-instances: The number of instances we want to launch. This will determine the number of algo-x services entries our compose file ends up with.
-–aws-access-key-id: The AWS access key ID for accessing S3 data within docker
-–aws-secret-access-key: The AWS secret access key for accessing S3 data within docker.
-–aws-session-token: The AWS session toekn used for accessing S3 data within docker.
-The rest of the arguments are passed on to sagemaker_train.py or sagemaker_infer.py:</p>
-<p>–task-type: Task type.
-–graph-data-s3: S3 location of the input graph.
-–graph-name: Name of the input graph.
-–yaml-s3: S3 location of yaml file for training and inference.
-–custom-script: Custom training script provided by a customer to run customer training logic. This should be a path to the python script within the docker image.
-–output-emb-s3: S3 location to store GraphStorm generated node embeddings. This is an inference only argument.
-–output-prediction-s3: S3 location to store prediction results. This is an inference only argument.</p>
+<p>To help users generate yaml file automatically, we provide a Python script, <code class="docutils literal notranslate"><span class="pre">generate_sagemaker_docker_compose.py</span></code>, that builds the docker compose file for users.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The script uses the <a class="reference external" href="https://pypi.org/project/PyYAML/">PyYAML</a> library. Please use the below commnd to install it.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>pyyaml
+</pre></div>
+</div>
+</div>
+<p>This file has 4 required arguments that determine the Docker Compose file that will be generated:</p>
+<ul class="simple">
+<li><p><strong>–aws-access-key-id</strong>: The AWS access key ID for accessing S3 data within docker</p></li>
+<li><p><strong>–aws-secret-access-key</strong>: The AWS secret access key for accessing S3 data within docker.</p></li>
+<li><p><strong>–aws-session-token</strong>: The AWS session toekn used for accessing S3 data within docker.</p></li>
+<li><p><strong>–num-instances</strong>: The number of instances we want to launch. This will determine the number of algo-x services entries our compose file ends up with.</p></li>
+</ul>
+<p>The rest of the arguments are passed on to <code class="docutils literal notranslate"><span class="pre">sagemaker_train.py</span></code> or <code class="docutils literal notranslate"><span class="pre">sagemaker_infer.py</span></code>:</p>
+<ul class="simple">
+<li><p><strong>–task-type</strong>: Task type.</p></li>
+<li><p><strong>–graph-data-s3</strong>: S3 location of the input graph.</p></li>
+<li><p><strong>–graph-name</strong>: Name of the input graph.</p></li>
+<li><p><strong>–yaml-s3</strong>: S3 location of yaml file for training and inference.</p></li>
+<li><p><strong>–custom-script</strong>: Custom training script provided by a customer to run customer training logic. This should be a path to the python script within the docker image.</p></li>
+<li><p><strong>–output-emb-s3</strong>: S3 location to store GraphStorm generated node embeddings. This is an inference only argument.</p></li>
+<li><p><strong>–output-prediction-s3</strong>: S3 location to store prediction results. This is an inference only argument.</p></li>
+</ul>
+</section>
+<section id="run-graphstorm-on-docek-compose-for-training">
+<h4>Run GraphStorm on Docek Compose for Training<a class="headerlink" href="#run-graphstorm-on-docek-compose-for-training" title="Permalink to this heading">#</a></h4>
+<p>First, use the following command to generate a Compose YAML file for the Link Prediction training on OGB-MAG graph.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>generate_sagemaker_docker_compose.py<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--aws-access-key<span class="w"> </span><span class="s">&lt;&lt;AWS_ACCESS_KEY&gt;&gt; \</span>
+<span class="s">        --aws-secret-access-key &lt;AWS_</span>SECRET_ACCESS_KEY&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--aws-session-token<span class="w"> </span>&lt;AWS_SESSION_TOKEN&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-instances<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--image<span class="w"> </span>&lt;GRAPHSTORM_DOCKER_IMAGE&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--graph-data-s3<span class="w"> </span>s3://&lt;PATH_TO_DATA&gt;/ogbn_mag_lp_3p<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--yaml-s3<span class="w"> </span>s3://&lt;PATH_TO_TRAINING_CONFIG&gt;/map_lp.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--model-artifact-s3<span class="w"> </span>s3://&lt;PATH_TO_SAVE_TRAINED_MODEL&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--graph-name<span class="w"> </span>ogbn-mag<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--task-type<span class="w"> </span>link_prediction<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-layers<span class="w">  </span><span class="se">\</span>
+<span class="w">        </span>--fanout<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--hidden-size<span class="w"> </span><span class="m">128</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--backend<span class="w"> </span>gloo<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--batch-size<span class="w"> </span><span class="m">128</span>
+</pre></div>
+</div>
+<p>The above command will create a Docker compose file named <code class="docutils literal notranslate"><span class="pre">docker-compose-&lt;task-type&gt;-&lt;num-instances&gt;-train.yaml</span></code>, which we can then use to launch the job. Use the following command to run the Link Prediction training on OGB-MAG graph.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose-link_prediction-3-train.yaml<span class="w"> </span>up
+</pre></div>
+</div>
+<p>Running the above command will launch 3 instances of the image, configured with the command and env vars that emulate a SageMaker execution environment and run the sagemaker_train.py script.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The containers actually interact with S3 so you would require valid AWS credentials to run.</p>
+</div>
+</section>
+<section id="run-graphstorm-on-docek-compose-for-inference">
+<h4>Run GraphStorm on Docek Compose for Inference<a class="headerlink" href="#run-graphstorm-on-docek-compose-for-inference" title="Permalink to this heading">#</a></h4>
+<p>Similar to training, the <code class="docutils literal notranslate"><span class="pre">generate_sagemaker_docker_compose.py</span></code> can build Compose file for infernece task with the same arguments as for training, and in addition, adding a new argument, <code class="docutils literal notranslate"><span class="pre">--inference</span></code>. The below command create the Compose file for the Linke Prediction inference on OGB-MAG graph.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>generate_sagemaker_docker_compose.py<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--aws-access-key<span class="w"> </span><span class="s">&lt;&lt;AWS_ACCESS_KEY&gt;&gt; \</span>
+<span class="s">        --aws-secret-access-key &lt;AWS_</span>SECRET_ACCESS_KEY&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--aws-session-token<span class="w"> </span>&lt;AWS_SESSION_TOKEN&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-instances<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--image<span class="w"> </span>&lt;GRAPHSTORM_DOCKER_IMAGE&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--graph-data-s3<span class="w"> </span>s3://&lt;PATH_TO_DATA&gt;/ogbn_mag_lp_3p<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--yaml-s3<span class="w"> </span>s3://&lt;PATH_TO_TRAINING_CONFIG&gt;/map_lp.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--model-artifact-s3<span class="w"> </span>s3://&lt;PATH_TO_SAVE_TRAINED_MODEL&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--graph-name<span class="w"> </span>ogbn-mag<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--task-type<span class="w"> </span>link_prediction<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-layers<span class="w">  </span><span class="se">\</span>
+<span class="w">        </span>--fanout<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--hidden-size<span class="w"> </span><span class="m">128</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--backend<span class="w"> </span>gloo<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--batch-size<span class="w"> </span><span class="m">128</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--inference
+</pre></div>
+</div>
+<p>The command will create a Docker compose file named <code class="docutils literal notranslate"><span class="pre">docker-compose-&lt;task-type&gt;-&lt;num-instances&gt;-infer.yaml</span></code>. And then, we can use the same command to spin up the inference job.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose-link_prediction-3-infer.yaml<span class="w"> </span>up
+</pre></div>
+</div>
 </section>
 </section>
 </section>
@@ -553,6 +614,8 @@ The rest of the arguments are passed on to sagemaker_train.py or sagemaker_infer
 <li><a class="reference internal" href="#run-graphstorm-sagemaker-with-docker-compose">Run GraphStorm SageMaker with Docker Compose</a><ul>
 <li><a class="reference internal" href="#get-started">Get Started</a></li>
 <li><a class="reference internal" href="#generate-a-docker-compose-file">Generate a Docker Compose file</a></li>
+<li><a class="reference internal" href="#run-graphstorm-on-docek-compose-for-training">Run GraphStorm on Docek Compose for Training</a></li>
+<li><a class="reference internal" href="#run-graphstorm-on-docek-compose-for-inference">Run GraphStorm on Docek Compose for Inference</a></li>
 </ul>
 </li>
 </ul>
