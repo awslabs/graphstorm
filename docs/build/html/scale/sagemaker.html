@@ -226,7 +226,7 @@
 <h2>Setup GraphStorm SageMaker Docker Repository<a class="headerlink" href="#setup-graphstorm-sagemaker-docker-repository" title="Permalink to this heading">#</a></h2>
 <p>GraphStorm uses SageMaker’s “Bring Your Own Container (BYOC)” mode. Therefore, before launch GraphStorm on SageMaker, there are two steps required to set up a GraphStorm SageMaker Docker repository.</p>
 <section id="step-1-build-a-sagemaker-compatible-docker-image">
-<h3>Step 1: Build a SageMaker compatible Docker image<a class="headerlink" href="#step-1-build-a-sagemaker-compatible-docker-image" title="Permalink to this heading">#</a></h3>
+<span id="build-docker"></span><h3>Step 1: Build a SageMaker compatible Docker image<a class="headerlink" href="#step-1-build-a-sagemaker-compatible-docker-image" title="Permalink to this heading">#</a></h3>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <ul class="simple">
@@ -262,7 +262,7 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 <p>Once the <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> command completes successfully. There will be a Docker image, named <code class="docutils literal notranslate"><span class="pre">&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;</span></code>, such as <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm</span></code>, in the local repository.</p>
 </section>
 <section id="step-2-upload-the-docker-image-to-ecr">
-<h3>Step 2: Upload the Docker Image to ECR<a class="headerlink" href="#step-2-upload-the-docker-image-to-ecr" title="Permalink to this heading">#</a></h3>
+<span id="upload-docker"></span><h3>Step 2: Upload the Docker Image to ECR<a class="headerlink" href="#step-2-upload-the-docker-image-to-ecr" title="Permalink to this heading">#</a></h3>
 <p>Because SageMaker relies on Amazon ECR to access customers’ own Docker images, users need to upload the Docker image built in the Step 1 to their own ECR repository.</p>
 <p>The following command will authenticate the user account to access to user’s ECR repository via AWS CLI.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>ecr<span class="w"> </span>get-login-password<span class="w"> </span>--region<span class="w"> </span>&lt;REGION&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>login<span class="w"> </span>--username<span class="w"> </span>AWS<span class="w"> </span>--password-stdin<span class="w"> </span>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com
@@ -282,10 +282,10 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 <p>There are two ways to run GraphStorm on SageMaker.</p>
 <ul class="simple">
 <li><p>Run with Amazon SageMaker service. In this way, users will use GraphStorm’s tools to submit SageMaker API calls, which will request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls in a cheap EC2 instance or a SageMaker Notebook instance without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production.</p></li>
-<li><p>Run with Docker composes in local environment. In this way, users do not call the SageMaker service, but use Docker compose to run SageMaker locally in an EC2 instance or a SageMaker Notebook instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.</p></li>
+<li><p>Run with Docker compose in local environment. In this way, users do not call the SageMaker service, but use Docker compose to run SageMaker locally in an EC2 instance or a SageMaker Notebook instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.</p></li>
 </ul>
-<section id="run-with-amazon-sagemaker-service">
-<h3>Run with Amazon SageMaker service<a class="headerlink" href="#run-with-amazon-sagemaker-service" title="Permalink to this heading">#</a></h3>
+<section id="run-graphstorm-with-amazon-sagemaker-service">
+<h3>Run GraphStorm with Amazon SageMaker service<a class="headerlink" href="#run-graphstorm-with-amazon-sagemaker-service" title="Permalink to this heading">#</a></h3>
 <p>To call Amazon SageMaker service, users should set up an instance with SageMaker library installed and GraphStorm’s SageMaker tools copied.</p>
 <ol class="arabic simple">
 <li><p>Use the below command to install SageMaker.</p></li>
@@ -294,7 +294,7 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 </pre></div>
 </div>
 <ol class="arabic simple" start="2">
-<li><p>copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository with the following command, or copy the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/sagemaker">sagemaker folder</a> to the instance.</p></li>
+<li><p>Copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository with the following command, or copy the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/sagemaker">sagemaker folder</a> to the instance.</p></li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
 </pre></div>
@@ -340,6 +340,7 @@ python3<span class="w"> </span>launch/launch_train.py<span class="w"> </span><sp
 <span class="w">        </span>--task-type<span class="w"> </span>link_prediction<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--lp-decoder-type<span class="w"> </span>dot_product<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--num-layers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--fanout<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--hidden-size<span class="w"> </span><span class="m">128</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--backend<span class="w"> </span>gloo<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--batch-size<span class="w"> </span><span class="m">128</span>
@@ -356,9 +357,8 @@ python3<span class="w"> </span>launch/launch_train.py<span class="w"> </span><sp
 <p>the <code class="docutils literal notranslate"><span class="pre">save_embed_path</span></code> and <code class="docutils literal notranslate"><span class="pre">save_prediction_path</span></code> <strong>MUST</strong> be disabled, i.e., set to ‘None’ when using SageMaker. They only work with local disk (in the Standalone mode) or shared file system (in the Distributed mode).</p>
 </div>
 </section>
-</section>
 <section id="launch-inference">
-<h3>Launch inference<a class="headerlink" href="#launch-inference" title="Permalink to this heading">#</a></h3>
+<h4>Launch inference<a class="headerlink" href="#launch-inference" title="Permalink to this heading">#</a></h4>
 <p>Users can use the following command to launch a GraphStorm link prediction training job with the OGB-MAG graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>launch/launch_infer.py<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--image-url<span class="w"> </span>&lt;AMAZON_ECR_IMAGE_URI&gt;<span class="w"> </span><span class="se">\</span>
@@ -370,20 +370,113 @@ python3<span class="w"> </span>launch/launch_train.py<span class="w"> </span><sp
 <span class="w">        </span>--yaml-s3<span class="w"> </span>s3://&lt;PATH_TO_TRAINING_CONFIG&gt;/mag_lp.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--model-artifact-s3<span class="w"> </span>s3://&lt;PATH_TO_SAVE_TRAINED_MODEL&gt;/<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--output-emb-s3<span class="w"> </span>s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--output-prediction-s3<span class="w"> </span>s3://&lt;PATH_TO_SAVE_PREDICTION_RESULTS&gt;<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--graph-name<span class="w"> </span>ogbn-mag<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--task-type<span class="w"> </span>link_prediction<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--num-layers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--fanout<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--hidden-size<span class="w"> </span><span class="m">128</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--backend<span class="w"> </span>gloo<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--batch-size<span class="w"> </span><span class="m">128</span>
 </pre></div>
 </div>
-<p>The generated node embeddings will be uploaded into <code class="docutils literal notranslate"><span class="pre">s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/</span></code>. For node classification/regression or edge classification/regression tasks, users can use <a href="#id1"><span class="problematic" id="id2">``</span></a>–output-prediction-s3``to specify location of saving prediction results.</p>
+<p>The generated node embeddings will be uploaded into <code class="docutils literal notranslate"><span class="pre">s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/</span></code>. For node classification/regression or edge classification/regression tasks, users can use <code class="docutils literal notranslate"><span class="pre">--output-prediction-s3</span></code> to specify location of saving prediction results.</p>
 <p>Users can use following command to check the corresponding outputs:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s3://PATH_TO_SAVE_GENERATED_NODE_EMBEDDING/
-aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s3://PATH_TO_SAVE_PREDICTION_RESULTS/
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/
+aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s3://&lt;PATH_TO_SAVE_PREDICTION_RESULTS&gt;/
 </pre></div>
 </div>
+</section>
+</section>
+<section id="run-graphstorm-sagemaker-with-docker-compose">
+<h3>Run GraphStorm SageMaker with Docker Compose<a class="headerlink" href="#run-graphstorm-sagemaker-with-docker-compose" title="Permalink to this heading">#</a></h3>
+<p>This section describes how to launch Docker compose jobs that emulate a SageMaker training execution environment. This can be used to develop and test GraphStorm model training and inference using SageMaker.</p>
+<p>If users have never worked with Docker compose before the official description provides a great intro:</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Compose is a tool for defining and running multi-container Docker applications. With Compose, you use a YAML file to configure your application’s services. Then, with a single command, you create and start all the services from your configuration.</p>
+</div>
+<p>We will use this capability to launch multiple worker instances locally, that will be configured to “look like” a SageMaker training instance and communicate over a virtual network created by Docker compose. This way our test environment will be as close to a real SageMaker distributed job as we can get, without needing to launch SageMaker jobs, or launch and configure multiple EC2 instances when developing features.</p>
+<section id="get-started">
+<h4>Get Started<a class="headerlink" href="#get-started" title="Permalink to this heading">#</a></h4>
+<p>To run GraphStorm SageMaker with Docker compose, we need to set up a local Linux instance with the following contents.</p>
+<ol class="arabic simple">
+<li><p>Use the below command to install SageMaker.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>sagemaker
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>Copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository with the following command, or copy the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/sagemaker">sagemaker folder</a> to the instance.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>Build a SageMaker compatible Docker image following the <a class="reference internal" href="#build-docker"><span class="std std-ref">Step 1</span></a>.</p></li>
+<li><p>Install <a class="reference external" href="https://docs.docker.com/compose/install/linux/">docker compose</a>.</p></li>
+</ol>
+</section>
+<section id="generate-a-docker-compose-file">
+<h4>Generate a Docker Compose file<a class="headerlink" href="#generate-a-docker-compose-file" title="Permalink to this heading">#</a></h4>
+<p>Use the following command to create a Docker Compose file.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.sagemaker.local.generate_sagemaker_docker_compose<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-instances<span class="w"> </span>&lt;NUM_INSTANCES&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--input-data<span class="w"> </span>&lt;DATASET_S3_PATH&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--output-data-s3<span class="w"> </span><span class="s2">&quot;s3://&lt;OUTPUT_BUCKET&gt;/test/&lt;DATASET_NAME&gt;&lt;PATH_SUFFIX&gt;/&lt;NUM_INSTANCES&gt;x-&lt;INSTANCE_TYPE&gt;/&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--region<span class="w"> </span>&lt;REGION&gt;
+</pre></div>
+</div>
+<p>A Docker Compose file is a YAML file that tells Docker which containers to spin up and how to configure them. To launch the services with a Docker Compose file, we can use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">-f</span> <span class="pre">docker-compose.yaml</span> <span class="pre">up</span></code>. This will launch the container and execute its entry point.</p>
+<p>To emulate a SageMaker distributed execution environment based on the image (suppose the docker image is named <code class="docutils literal notranslate"><span class="pre">graphstorm:sm</span></code>) built previously, you would need a Docker Compose file that looks like this:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.7&#39;</span>
+
+<span class="nt">networks</span><span class="p">:</span>
+<span class="nt">gfs</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gfs-network</span>
+
+<span class="nt">services</span><span class="p">:</span>
+<span class="nt">algo-1</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">graphstorm:sm</span>
+<span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">algo-1</span>
+<span class="w">    </span><span class="nt">hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">algo-1</span>
+<span class="w">    </span><span class="nt">networks</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gfs</span>
+<span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;xxx&#39;</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">SM_TRAINING_ENV</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;{&quot;hosts&quot;:</span><span class="nv"> </span><span class="s">[&quot;algo-1&quot;,</span><span class="nv"> </span><span class="s">&quot;algo-2&quot;,</span><span class="nv"> </span><span class="s">&quot;algo-3&quot;,</span><span class="nv"> </span><span class="s">&quot;algo-4&quot;],</span><span class="nv"> </span><span class="s">&quot;current_host&quot;:</span><span class="nv"> </span><span class="s">&quot;algo-1&quot;}&#39;</span>
+<span class="w">    </span><span class="nt">WORLD_SIZE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">    </span><span class="nt">MASTER_ADDR</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;algo-1&#39;</span>
+<span class="w">    </span><span class="nt">AWS_REGION</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;us-west-2&#39;</span>
+<span class="w">    </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">22</span>
+<span class="w">    </span><span class="nt">working_dir</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;/opt/ml/code/&#39;</span>
+
+<span class="nt">algo-2</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">[</span><span class="nv">...</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>Some explanation on the above elements (see the <a class="reference external" href="https://docs.docker.com/compose/compose-file/">official docs</a> for more details):</p>
+<ul class="simple">
+<li><p><strong>image</strong>: Determines which image you will use for the container launched.</p></li>
+<li><p><strong>environment</strong>: Determines the environment variables that will be set for the container once it launches.</p></li>
+<li><p><strong>command</strong>: Determines the entrypoint, i.e. the command that will be executed once the container launches.</p></li>
+</ul>
+<p>To help you generate yaml file automatically, we provide a Python script that builds the docker compose file for you, generate_sagemaker_docker_compose.py. Note that the script uses the PyYAML library.</p>
+<p>This file has 4 required arguments that determine the Docker compose file that will be generated:</p>
+<p>–num-instances: The number of instances we want to launch. This will determine the number of algo-x services entries our compose file ends up with.
+–aws-access-key-id: The AWS access key ID for accessing S3 data within docker
+–aws-secret-access-key: The AWS secret access key for accessing S3 data within docker.
+–aws-session-token: The AWS session toekn used for accessing S3 data within docker.
+The rest of the arguments are passed on to sagemaker_train.py or sagemaker_infer.py:</p>
+<p>–task-type: Task type.
+–graph-data-s3: S3 location of the input graph.
+–graph-name: Name of the input graph.
+–yaml-s3: S3 location of yaml file for training and inference.
+–custom-script: Custom training script provided by a customer to run customer training logic. This should be a path to the python script within the docker image.
+–output-emb-s3: S3 location to store GraphStorm generated node embeddings. This is an inference only argument.
+–output-prediction-s3: S3 location to store prediction results. This is an inference only argument.</p>
+</section>
 </section>
 </section>
 </section>
@@ -451,12 +544,17 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </ul>
 </li>
 <li><a class="reference internal" href="#run-graphstorm-on-sagemaker">Run GraphStorm on SageMaker</a><ul>
-<li><a class="reference internal" href="#run-with-amazon-sagemaker-service">Run with Amazon SageMaker service</a><ul>
+<li><a class="reference internal" href="#run-graphstorm-with-amazon-sagemaker-service">Run GraphStorm with Amazon SageMaker service</a><ul>
 <li><a class="reference internal" href="#prepare-graph-data">Prepare graph data</a></li>
 <li><a class="reference internal" href="#launch-training">Launch training</a></li>
+<li><a class="reference internal" href="#launch-inference">Launch inference</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#launch-inference">Launch inference</a></li>
+<li><a class="reference internal" href="#run-graphstorm-sagemaker-with-docker-compose">Run GraphStorm SageMaker with Docker Compose</a><ul>
+<li><a class="reference internal" href="#get-started">Get Started</a></li>
+<li><a class="reference internal" href="#generate-a-docker-compose-file">Generate a Docker Compose file</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
