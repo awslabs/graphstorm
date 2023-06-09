@@ -144,6 +144,21 @@ class EntityRegression(GSLayer):
         """
         return th.matmul(inputs, self.decoder)
 
+    def predict_proba(self, inputs):
+        """ Make prediction on input data.
+            For regression task, it is same as predict
+
+        Parameters
+        ----------
+        inputs : tensor
+            The input features
+
+        Returns
+        -------
+        Tensor : all normalized predicted results
+        """
+        return self.predict(inputs)
+
     @property
     def in_dims(self):
         """ The number of input dimensions.
