@@ -27,7 +27,7 @@ Configuration JSON Explanations
 
 The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: ``nodes`` and ``edges``.
 
-``nodes`` 
+``nodes``
 ...........
 ``nodes`` contains a list of node types and the information of a node type is stored in a dictionary. A node dictionary contains multiple fields and most fields are optional.
 
@@ -70,7 +70,7 @@ Currently, the graph construction pipeline supports three input formats: ``Parqu
 
 For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.
 
-The HDF5 format is similar as the parquet format, but have larger capacity. Therefore suggest to use HDF5 format if users' data is large. 
+The HDF5 format is similar as the parquet format, but have larger capacity. Therefore suggest to use HDF5 format if users' data is large.
 
 For JSON format, each line of the JSON file is a JSON object. The JSON object can only have one level. The value of each field can only be primitive values, such as integers, strings and floating points, or a list of integers or floating points.
 
@@ -78,9 +78,11 @@ For JSON format, each line of the JSON file is a JSON object. The JSON object ca
 
 Feature transformation
 .........................
-Currently, the graph construction pipeline only supports one feature transformation: tokenize the text string with a HuggingFace tokenizer.
+Currently, the graph construction pipeline only supports three feature transformation:
 
-For HuggingFace tokenizer, the ``name`` field in the feature transformation dictionary is ``tokenize_hf``. The dict should contain two additional fields. ``bert_model`` specifies the BERT model used for tokenization. ``max_seq_length`` specifies the maximal sequence length.
+* **HuggingFace tokenizer transformation** tokenizes text strings with a HuggingFace tokenizer. The ``name`` field in the feature transformation dictionary is ``tokenize_hf``. The dict should contain two additional fields. ``bert_model`` specifies the BERT model used for tokenization. ``max_seq_length`` specifies the maximal sequence length.
+* **HuggingFace BERT transformation** encodes text strings with a HuggingFace BERT model.  The ``name`` field in the feature transformation dictionary is ``bert_hf``. The dict should contain two additional fields. ``bert_model`` specifies the BERT model used for tokenization. ``max_seq_length`` specifies the maximal sequence length.
+* **Numerical MAX_MIN transformation** normalizes numerical input features with $val = (val-min)/(max-min)$, where $val$ is the feature value, $max$ is the maximum number in the feature and $min$ is the minimum number in the feature. The ``name`` field in the feature transformation dictionary is ``max_min_norm``. The dict can contains two optional fields. ``max_bound`` specifies the maximum value allowed in the feature. Any number larger than ``max_bound`` will be set to ``max_bound``. ``min_bound`` specifies the minimum value allowed in the feature. Any number smaller than ``min_bound`` will be set to ``min_bound``.
 
 .. _output-format:
 

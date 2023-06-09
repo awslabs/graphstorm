@@ -19,6 +19,7 @@
 
 import logging
 import os
+import sys
 import numpy as np
 import torch as th
 from transformers import BertTokenizer
@@ -51,6 +52,147 @@ class FeatTransform:
         """ The feature name.
         """
         return self._feat_name
+
+class TwoPhaseFeatTransform(FeatTransform):
+    """ The base class for two phasefeature transformation.
+
+        The first phase is going to collect global information
+        for data processing, e.g., collecting max and min value of floating
+        point data or collecting the cardinality of categorical data.
+        The second phase is to transform data using
+        the global
+        information collected in the first phase
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    """
+
+    def pre_process(self, feats):
+        """ Pre-process data
+
+        Parameters
+        ----------
+        feats:
+            feats to be processed
+        """
+
+    def collect_info(self, info):
+        """ Store global information for the second phase data processing
+
+        Parameters
+        ----------
+        info:
+            Information to be collected
+        """
+
+class NumericalMinMaxTransform(TwoPhaseFeatTransform):
+    """ Numerical value with Min-Max normalization.
+        $val = (val-min) / (max-min)$
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    max_bound : float
+        The maximum float value.
+    min_bound : float
+        The minimum float value
+    """
+    def __init__(self, col_name, feat_name,
+                 max_bound=sys.float_info.max,
+                 min_bound=-sys.float_info.max):
+        self._max_bound = max_bound
+        self._min_bound = min_bound
+        super(NumericalMinMaxTransform, self).__init__(col_name, feat_name)
+
+    def pre_process(self, feats):
+        """ Pre-process data
+
+        Parameters
+        ----------
+        feats: np.array
+            Data to be processed
+        """
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
+        if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8], \
+            "Feature of NumericalMinMaxTransform must be floating points" \
+            "or integers"
+        assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
+        max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
+            else np.array([np.amax(feats, axis=0)])
+        min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
+            else np.array([np.amin(feats, axis=0)])
+
+        max_val[max_val > self._max_bound] = self._max_bound
+        min_val[min_val < self._min_bound] = self._min_bound
+        return {self.feat_name: (max_val, min_val)}
+
+    def update_info(self, info):
+        """ Store global information for the second phase data processing
+
+        Parameters
+        ----------
+        info: list
+            Information to be collected
+        """
+        max_vals = []
+        min_vals = []
+        for (max_val, min_val) in info:
+            max_vals.append(max_val)
+            min_vals.append(min_val)
+        max_vals = np.stack(max_vals)
+        min_vals = np.stack(min_vals)
+
+        max_val = np.amax(max_vals, axis=0) if len(max_vals.shape) == 2 \
+            else np.array([np.amax(max_vals, axis=0)])
+        min_val = np.amin(min_vals, axis=0) if len(min_vals.shape) == 2 \
+            else np.array([np.amin(min_vals, axis=0)])
+
+        self._max_val = max_val
+        self._min_val = min_val
+
+    def __call__(self, feats):
+        """ Do normalization for feats
+
+        Parameters
+        ----------
+        feats : np array
+            Data to be normalized
+
+        Returns
+        -------
+        np.array
+        """
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
+
+        assert not np.any(self._max_val == self._min_val), \
+            f"At least one element of Max Val {self._max_val} " \
+            f"and Min Val {self._min_val} is equal. This will cause divide by zero error"
+
+        if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        feats = (feats - self._min_val) / (self._max_val - self._min_val)
+        feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
+        feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
+
+        return {self.feat_name: feats}
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
@@ -272,10 +414,44 @@ def parse_feat_ops(confs):
                                                 int(conf['max_seq_length'])),
                                       conf['bert_model'],
                                       infer_batch_size=infer_batch_size)
+            elif conf['name'] == 'max_min_norm':
+                max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
+                min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
+                transform = NumericalMinMaxTransform(feat['feature_col'],
+                                                     feat_name,
+                                                     max_bound,
+                                                     min_bound)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
     return ops
+
+def preprocess_features(data, ops):
+    """ Pre-process the data with the specified operations.
+
+    This function runs the input pre-process operations on the corresponding data
+    and returns the pre-process results. An example of preprocessing is getting
+    the cardinality of a categorical feature.
+
+    Parameters
+    ----------
+    data : dict
+        The data stored as a dict.
+    ops : list of FeatTransform
+        The operations that transform features.
+
+    Returns
+    -------
+    dict : the key is the data name, the value is the pre-processed data.
+    """
+    pre_data = {}
+    for op in ops:
+        res = op.pre_process(data[op.col_name])
+        assert isinstance(res, dict)
+        for key, val in res.items():
+            pre_data[key] = val
+
+    return pre_data
 
 def process_features(data, ops):
     """ Process the data with the specified operations.
