@@ -46,6 +46,7 @@ node_data1 = {
 
 node_data1_2 = {
     'data': node_id1,
+    'float': np.random.rand(node_id1.shape[0], 2),
 }
 
 node_id2 = np.arange(20000)
