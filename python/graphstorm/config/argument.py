@@ -977,6 +977,12 @@ class GSConfig:
         if hasattr(self, "_return_proba"):
             assert self._return_proba in [True, False], \
                 "Return all the predictions when True else return the maximum prediction."
+
+            if self._return_proba is True and \
+                self.task_type in [BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_EDGE_REGRESSION]:
+                print("WARNING: node regression and edge regression tasks "
+                      "automatically ignore --return-proba flag. Regression "
+                      "prediction results will be returned.")
             return self._return_proba
         # By default, return all the predictions
         return True
