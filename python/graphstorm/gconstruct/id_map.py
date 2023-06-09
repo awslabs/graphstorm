@@ -59,8 +59,12 @@ class NoopMap:
 
     def save(self, file_path):
         """ Save the ID map.
+
+        Parameters
+        ----------
+        file_path : str
+            The file where the ID map is saved to.
         """
-        return False
 
 class IdMap:
     """ Map an ID to a new ID.
