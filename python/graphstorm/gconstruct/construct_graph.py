@@ -217,8 +217,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 two_phase_feat_ops.append(op)
         if len(two_phase_feat_ops) > 0:
             user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
-                                    node_id_col=node_id_col,
-                                    read_file=read_file)
+                                      read_file=read_file)
             start = time.time()
             phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
             update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
