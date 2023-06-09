@@ -89,9 +89,9 @@ class TwoPhaseFeatTransform(FeatTransform):
             Information to be collected
         """
 
-class NumericalTransform(TwoPhaseFeatTransform):
-    """ Numerical data Transform ops
-        Do numerical data transformation
+class NumericalMinMaxTransform(TwoPhaseFeatTransform):
+    """ Numerical value with Min-Max normalization.
+        $val = (val-min) / (max-min)$
 
     Parameters
     ----------
@@ -109,7 +109,7 @@ class NumericalTransform(TwoPhaseFeatTransform):
                  min_bound=-sys.float_info.max):
         self._max_bound = max_bound
         self._min_bound = min_bound
-        super(NumericalTransform, self).__init__(col_name, feat_name)
+        super(NumericalMinMaxTransform, self).__init__(col_name, feat_name)
 
     def pre_process(self, feats):
         """ Pre-process data
@@ -120,7 +120,7 @@ class NumericalTransform(TwoPhaseFeatTransform):
             Data to be processed
         """
         assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalTransform must be numpy array or HDF5Array"
+            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
         if isinstance(feats, HDF5Array):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
@@ -128,7 +128,7 @@ class NumericalTransform(TwoPhaseFeatTransform):
 
         assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
                               np.int32, np.int16, np.int8], \
-            "Feature of NumericalTransform must be floating points" \
+            "Feature of NumericalMinMaxTransform must be floating points" \
             "or integers"
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
         max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
@@ -164,11 +164,6 @@ class NumericalTransform(TwoPhaseFeatTransform):
         self._max_val = max_val
         self._min_val = min_val
 
-class NumericalMinMaxTransform(NumericalTransform):
-    """ Numerical value with Min-Max normalization.
-        $val = (val-min) / (max-min)$
-    """
-
     def __call__(self, feats):
         """ Do normalization for feats
 
@@ -182,7 +177,7 @@ class NumericalMinMaxTransform(NumericalTransform):
         np.array
         """
         assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalTransform must be numpy array or HDF5Array"
+            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
 
         assert not np.any(self._max_val == self._min_val), \
             f"At least one element of Max Val {self._max_val} " \

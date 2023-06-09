@@ -18,12 +18,11 @@ import os
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal
 
-from graphstorm.gconstruct.transform import (NumericalTransform,
-                                             NumericalMinMaxTransform)
+from graphstorm.gconstruct.transform import (NumericalMinMaxTransform)
 
 def test_fp_transform():
-    # test NumericalTransform pre-process
-    transform = NumericalTransform("test", "test")
+    # test NumericalMinMaxTransform pre-process
+    transform = NumericalMinMaxTransform("test", "test")
     feats = np.random.randn(100)
 
     max_val, min_val = transform.pre_process(feats)["test"]
@@ -58,7 +57,7 @@ def test_fp_transform():
     feats = np.random.randn(100)
     feats[0] = 10.
     feats[1] = -10.
-    transform = NumericalTransform("test", "test", max_bound=5., min_bound=-5.)
+    transform = NumericalMinMaxTransform("test", "test", max_bound=5., min_bound=-5.)
     max_val, min_val = transform.pre_process(feats)["test"]
     max_v = np.amax(feats)
     min_v = np.amin(feats)
@@ -70,7 +69,7 @@ def test_fp_transform():
     feats = np.random.randn(100, 1)
     feats[0][0] = 10.
     feats[1][0] = -10.
-    transform = NumericalTransform("test", "test", max_bound=5., min_bound=-5.)
+    transform = NumericalMinMaxTransform("test", "test", max_bound=5., min_bound=-5.)
     max_val, min_val = transform.pre_process(feats)["test"]
     max_v = np.amax(feats)
     min_v = np.amin(feats)
@@ -82,7 +81,7 @@ def test_fp_transform():
     feats = np.random.randn(100, 10)
     feats[0] = 10.
     feats[1] = -10.
-    transform = NumericalTransform("test", "test", max_bound=5., min_bound=-5.)
+    transform = NumericalMinMaxTransform("test", "test", max_bound=5., min_bound=-5.)
     max_val, min_val = transform.pre_process(feats)["test"]
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
@@ -95,7 +94,7 @@ def test_fp_transform():
         assert_equal(min_val[i], -5.)
 
     # Test collect info
-    transform = NumericalTransform("test", "test")
+    transform = NumericalMinMaxTransform("test", "test")
     info = [(np.array([1.]), np.array([-1.])),
             (np.array([2.]), np.array([-0.5])),
             (np.array([0.5]), np.array([-0.1]))]
