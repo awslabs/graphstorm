@@ -224,11 +224,27 @@ To run GraphStorm SageMaker with Docker compose, we need to set up a local Linux
 
     pip install sagemaker
 
-2. Copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository with the following command, or copy the `sagemaker folder <https://github.com/awslabs/graphstorm/tree/main/sagemaker>`_ to the instance.
+2. Clone GraphStorm and install dependencies.
 
 .. code-block:: bash
 
     git clone https://github.com/awslabs/graphstorm.git
+
+    pip install boto3==1.26.126
+    pip install botocore==1.29.126
+    pip install h5py==3.8.0
+    pip install scipy
+    pip install tqdm==4.65.0
+    pip install pyarrow==12.0.0
+    pip install transformers==4.28.1
+    pip install pandas
+    pip install scikit-learn
+    pip install ogb==1.3.6
+    pip install psutil==5.9.5
+    pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+    pip3 install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
+
+    export PYTHONPATH=/PATH_TO_GRAPHSTORM/python:$PYTHONPATH
 
 3. Build a SageMaker compatible Docker image following the :ref:`Step 1 <build_docker>`.
 
@@ -316,13 +332,21 @@ First, use the following command to generate a Compose YAML file for the Link Pr
             --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL> \
             --graph-name ogbn-mag \
             --task-type link_prediction \
-            --num-layers  \
+            --num-layers 1 \
             --fanout 10 \
             --hidden-size 128 \
             --backend gloo \
             --batch-size 128
 
-The above command will create a Docker compose file named ``docker-compose-<task-type>-<num-instances>-train.yaml``, which we can then use to launch the job. Use the following command to run the Link Prediction training on OGB-MAG graph.
+The above command will create a Docker compose file named ``docker-compose-<task-type>-<num-instances>-train.yaml``, which we can then use to launch the job. 
+
+As our Docker Compose will use a Docker network, ``gfs-network``, for container communications, users need to run the following command to create the network first.
+
+.. code-block:: bash
+
+    docker network create "gsf-network"
+
+Then, use the following command to run the Link Prediction training on OGB-MAG graph.
 
 .. code-block:: bash
 

@@ -407,9 +407,25 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </pre></div>
 </div>
 <ol class="arabic simple" start="2">
-<li><p>Copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository with the following command, or copy the <a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/sagemaker">sagemaker folder</a> to the instance.</p></li>
+<li><p>Clone GraphStorm and install dependencies.</p></li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
+
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">boto3</span><span class="o">==</span><span class="m">1</span>.26.126
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">botocore</span><span class="o">==</span><span class="m">1</span>.29.126
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">h5py</span><span class="o">==</span><span class="m">3</span>.8.0
+pip<span class="w"> </span>install<span class="w"> </span>scipy
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">tqdm</span><span class="o">==</span><span class="m">4</span>.65.0
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">pyarrow</span><span class="o">==</span><span class="m">12</span>.0.0
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">transformers</span><span class="o">==</span><span class="m">4</span>.28.1
+pip<span class="w"> </span>install<span class="w"> </span>pandas
+pip<span class="w"> </span>install<span class="w"> </span>scikit-learn
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">ogb</span><span class="o">==</span><span class="m">1</span>.3.6
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">psutil</span><span class="o">==</span><span class="m">5</span>.9.5
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">1</span>.13.1+cu116<span class="w"> </span>--extra-index-url<span class="w"> </span>https://download.pytorch.org/whl/cu116
+pip3<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.0<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels/cu116/repo.html
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">PYTHONPATH</span><span class="o">=</span>/PATH_TO_GRAPHSTORM/python:<span class="nv">$PYTHONPATH</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="3">
@@ -494,14 +510,19 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 <span class="w">        </span>--model-artifact-s3<span class="w"> </span>s3://&lt;PATH_TO_SAVE_TRAINED_MODEL&gt;<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--graph-name<span class="w"> </span>ogbn-mag<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--task-type<span class="w"> </span>link_prediction<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--num-layers<span class="w">  </span><span class="se">\</span>
+<span class="w">        </span>--num-layers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--fanout<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--hidden-size<span class="w"> </span><span class="m">128</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--backend<span class="w"> </span>gloo<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--batch-size<span class="w"> </span><span class="m">128</span>
 </pre></div>
 </div>
-<p>The above command will create a Docker compose file named <code class="docutils literal notranslate"><span class="pre">docker-compose-&lt;task-type&gt;-&lt;num-instances&gt;-train.yaml</span></code>, which we can then use to launch the job. Use the following command to run the Link Prediction training on OGB-MAG graph.</p>
+<p>The above command will create a Docker compose file named <code class="docutils literal notranslate"><span class="pre">docker-compose-&lt;task-type&gt;-&lt;num-instances&gt;-train.yaml</span></code>, which we can then use to launch the job.</p>
+<p>As our Docker Compose will use a Docker network, <code class="docutils literal notranslate"><span class="pre">gfs-network</span></code>, for container communications, users need to run the following command to create the network first.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>network<span class="w"> </span>create<span class="w"> </span><span class="s2">&quot;gsf-network&quot;</span>
+</pre></div>
+</div>
+<p>Then, use the following command to run the Link Prediction training on OGB-MAG graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose-link_prediction-3-train.yaml<span class="w"> </span>up
 </pre></div>
 </div>
