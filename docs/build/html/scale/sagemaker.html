@@ -441,7 +441,7 @@ pip3<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl<
 
 <span class="nt">networks</span><span class="p">:</span>
 <span class="nt">gfs</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gfs-network</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gsf-network</span>
 
 <span class="nt">services</span><span class="p">:</span>
 <span class="nt">algo-1</span><span class="p">:</span>
@@ -449,7 +449,7 @@ pip3<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl<
 <span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">algo-1</span>
 <span class="w">    </span><span class="nt">hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">algo-1</span>
 <span class="w">    </span><span class="nt">networks</span><span class="p">:</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gfs</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gsf</span>
 <span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;xxx&#39;</span>
 <span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">SM_TRAINING_ENV</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;{&quot;hosts&quot;:</span><span class="nv"> </span><span class="s">[&quot;algo-1&quot;,</span><span class="nv"> </span><span class="s">&quot;algo-2&quot;,</span><span class="nv"> </span><span class="s">&quot;algo-3&quot;,</span><span class="nv"> </span><span class="s">&quot;algo-4&quot;],</span><span class="nv"> </span><span class="s">&quot;current_host&quot;:</span><span class="nv"> </span><span class="s">&quot;algo-1&quot;}&#39;</span>
@@ -518,7 +518,7 @@ pip3<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl<
 </pre></div>
 </div>
 <p>The above command will create a Docker compose file named <code class="docutils literal notranslate"><span class="pre">docker-compose-&lt;task-type&gt;-&lt;num-instances&gt;-train.yaml</span></code>, which we can then use to launch the job.</p>
-<p>As our Docker Compose will use a Docker network, <code class="docutils literal notranslate"><span class="pre">gfs-network</span></code>, for container communications, users need to run the following command to create the network first.</p>
+<p>As our Docker Compose will use a Docker network, <code class="docutils literal notranslate"><span class="pre">gsf-network</span></code>, for container communications, users need to run the following command to create the network first.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>network<span class="w"> </span>create<span class="w"> </span><span class="s2">&quot;gsf-network&quot;</span>
 </pre></div>
 </div>
@@ -546,7 +546,7 @@ pip3<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl<
 <span class="w">        </span>--model-artifact-s3<span class="w"> </span>s3://&lt;PATH_TO_SAVE_TRAINED_MODEL&gt;<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--graph-name<span class="w"> </span>ogbn-mag<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--task-type<span class="w"> </span>link_prediction<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span>--num-layers<span class="w">  </span><span class="se">\</span>
+<span class="w">        </span>--num-layers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--fanout<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--hidden-size<span class="w"> </span><span class="m">128</span><span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--backend<span class="w"> </span>gloo<span class="w"> </span><span class="se">\</span>

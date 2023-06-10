@@ -262,7 +262,7 @@ To emulate a SageMaker distributed execution environment based on the image (sup
 
     networks:
     gfs:
-        name: gfs-network
+        name: gsf-network
 
     services:
     algo-1:
@@ -270,7 +270,7 @@ To emulate a SageMaker distributed execution environment based on the image (sup
         container_name: algo-1
         hostname: algo-1
         networks:
-        - gfs
+        - gsf
         command: 'xxx'
         environment:
         SM_TRAINING_ENV: '{"hosts": ["algo-1", "algo-2", "algo-3", "algo-4"], "current_host": "algo-1"}'
@@ -340,7 +340,7 @@ First, use the following command to generate a Compose YAML file for the Link Pr
 
 The above command will create a Docker compose file named ``docker-compose-<task-type>-<num-instances>-train.yaml``, which we can then use to launch the job. 
 
-As our Docker Compose will use a Docker network, ``gfs-network``, for container communications, users need to run the following command to create the network first.
+As our Docker Compose will use a Docker network, ``gsf-network``, for container communications, users need to run the following command to create the network first.
 
 .. code-block:: bash
 
@@ -373,7 +373,7 @@ Similar to training, the ``generate_sagemaker_docker_compose.py`` can build Comp
             --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL> \
             --graph-name ogbn-mag \
             --task-type link_prediction \
-            --num-layers  \
+            --num-layers 1 \
             --fanout 10 \
             --hidden-size 128 \
             --backend gloo \
