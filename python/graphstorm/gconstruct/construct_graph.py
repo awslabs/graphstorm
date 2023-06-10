@@ -33,17 +33,42 @@ from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files, write_data_parquet
 from .file_io import HDF5Array
-from .transform import parse_feat_ops, process_features
+from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
-from .transform import do_multiprocess_transform
+from .transform import do_multiprocess_transform, TwoPhaseFeatTransform
 from .id_map import NoopMap, IdMap, map_node_ids
-from .utils import multiprocessing_data_read, ExtMemArrayMerger, partition_graph
+from .utils import (multiprocessing_data_read,
+                    update_two_phase_feat_ops, ExtMemArrayMerger,
+                    partition_graph)
 
-FEATURE_STORE_PRECISION_FP32 = "fp32"
-FEATURE_STORE_PRECISION_FP16 = "fp16"
+def prepare_node_data(in_file, feat_ops, read_file):
+    """ Parse node data.
+
+    The function parses a node file that contains node IDs, features and labels
+    The node file is parsed according to users' configuration
+    and performs some feature transformation.
+
+    Parameters
+    ----------
+    in_file : str
+        The path of the input node file.
+    feat_ops : dict of FeatTransform
+        The operations run on the node features of the node file.
+    read_file : callable
+        The function to read the node file
+
+    Returns
+    -------
+    dict : A dict of node feature info.
+    """
+    data = read_file(in_file)
+    assert feat_ops is not None, "feat_ops must exist when prepare_node_data is called."
+    feat_info = preprocess_features(data, feat_ops)
+
+    return feat_info
 
 def parse_node_data(in_file, feat_ops, label_ops, node_id_col,
-                    read_file, feat_dtype=np.float32):
+                    read_file):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -62,15 +87,13 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col,
         The column name that contains the node ID.
     read_file : callable
         The function to read the node file
-    feat_dtype: np dtype
-        The dtype of features to be stored into graph.
 
     Returns
     -------
     tuple : node ID array and a dict of node feature tensors.
     """
     data = read_file(in_file)
-    feat_data = process_features(data, feat_ops, feat_dtype) \
+    feat_data = process_features(data, feat_ops) \
         if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
@@ -80,7 +103,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col,
     return (node_ids, feat_data)
 
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
-                    conf, skip_nonexist_edges, feat_dtype=np.float32):
+                    conf, skip_nonexist_edges):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
@@ -103,8 +126,6 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
         The configuration for parsing edge data.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
-    feat_dtype: np dtype
-        The dtype of features to be stored into graph.
 
     Returns
     -------
@@ -115,7 +136,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     edge_type = conf['relation']
 
     data = read_file(in_file)
-    feat_data = process_features(data, feat_ops, feat_dtype) \
+    feat_data = process_features(data, feat_ops) \
         if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
@@ -128,7 +149,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     return (src_ids, dst_ids, feat_data)
 
 def process_node_data(process_confs, arr_merger, remap_id,
-                      num_processes=1, feat_dtype=np.float32):
+                      num_processes=1):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -166,8 +187,6 @@ def process_node_data(process_confs, arr_merger, remap_id,
         Whether or not to remap node IDs
     num_processes: int
         The number of processes to process the input files.
-    feat_dtype: np dtype
-        The dtype of features to be stored into graph.
 
     Returns
     -------
@@ -194,14 +213,28 @@ def process_node_data(process_confs, arr_merger, remap_id,
         # If it requires multiprocessing, we need to read data to memory.
         read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
+        num_proc = num_processes if multiprocessing else 0
+
+        two_phase_feat_ops = []
+        for op in feat_ops:
+            if isinstance(op, TwoPhaseFeatTransform):
+                two_phase_feat_ops.append(op)
+        if len(two_phase_feat_ops) > 0:
+            user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
+                                      read_file=read_file)
+            pre_parse_start = time.time()
+            phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
+
+            dur = time.time() - pre_parse_start
+            logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
+                        node_type, dur)
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_col=node_id_col,
-                              read_file=read_file,
-                              feat_dtype=feat_dtype)
+                              read_file=read_file)
         start = time.time()
-        num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
         logging.debug("Processing data files for node %s takes %.3f seconds.",
@@ -278,8 +311,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
 
 def process_edge_data(process_confs, node_id_map, arr_merger,
                       num_processes=1,
-                      skip_nonexist_edges=False,
-                      feat_dtype=np.float32):
+                      skip_nonexist_edges=False):
     """ Process edge data
 
     The edge data of an edge type is defined as follows:
@@ -317,8 +349,6 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         The number of processes to process the input files.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
-    feat_dtype: np dtype
-        The dtype of features to be stored into graph.
 
     Returns
     -------
@@ -488,21 +518,13 @@ def process_graph(args):
     ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
     convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
 
-    if args.feature_store_precision == FEATURE_STORE_PRECISION_FP32:
-        feat_dtype = np.float32
-    elif args.feature_store_precision == FEATURE_STORE_PRECISION_FP16:
-        feat_dtype = np.float16
-    else:
-        assert False, f"Unknown feature store precision {args.feature_store_precision}"
     node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
                                                args.remap_node_id,
-                                               num_processes=num_processes_for_nodes,
-                                               feat_dtype=feat_dtype)
+                                               num_processes=num_processes_for_nodes)
     edges, edge_data = process_edge_data(process_confs['edges'], node_id_map,
                                          convert2ext_mem,
                                          num_processes=num_processes_for_edges,
-                                         skip_nonexist_edges=args.skip_nonexist_edges,
-                                         feat_dtype=feat_dtype)
+                                         skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     sys_tracker.check('Process input data')
     if args.add_reverse_edges:
@@ -518,6 +540,21 @@ def process_graph(args):
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data)
     sys_tracker.check('Construct DGL graph')
+
+    # reshape customized mask
+    for srctype_etype_dsttype in edge_data:
+        if "train_mask" in edge_data[srctype_etype_dsttype].keys() and \
+            len(edge_data[srctype_etype_dsttype]["train_mask"].shape) == 2:
+            edge_data[srctype_etype_dsttype]["train_mask"] = \
+                edge_data[srctype_etype_dsttype]["train_mask"].squeeze(1).astype('int8')
+        if "val_mask" in edge_data[srctype_etype_dsttype].keys() and \
+            len(edge_data[srctype_etype_dsttype]["val_mask"].shape) == 2:
+            edge_data[srctype_etype_dsttype]["val_mask"] = \
+                edge_data[srctype_etype_dsttype]["val_mask"].squeeze(1).astype('int8')
+        if "test_mask" in edge_data[srctype_etype_dsttype].keys() and \
+            len(edge_data[srctype_etype_dsttype]["test_mask"].shape) == 2:
+            edge_data[srctype_etype_dsttype]["test_mask"] = \
+                edge_data[srctype_etype_dsttype]["test_mask"].squeeze(1).astype('int8')
 
     if args.output_format == "DistDGL":
         assert args.part_method in ["metis", "random"], \
@@ -587,8 +624,4 @@ if __name__ == '__main__':
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")
-    argparser.add_argument("--feature-store-precision", type=str,
-                           choices=[FEATURE_STORE_PRECISION_FP32, FEATURE_STORE_PRECISION_FP16],
-                           help="How (data type) to store features in the processed "
-                                "graph. Right now we support float32 and float16.")
     process_graph(argparser.parse_args())

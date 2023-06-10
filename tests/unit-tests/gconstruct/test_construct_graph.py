@@ -21,15 +21,19 @@ import graphstorm as gs
 import dgl
 import torch as th
 
+from numpy.testing import assert_equal
+
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
-from graphstorm.gconstruct.file_io import write_index_json, read_index_json
-from graphstorm.gconstruct.transform import parse_feat_ops, process_features
+from graphstorm.gconstruct.file_io import write_index_json
+from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
-from graphstorm.gconstruct.utils import ExtMemArrayMerger, partition_graph
+from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
+                                         partition_graph,
+                                         update_two_phase_feat_ops)
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -231,6 +235,99 @@ def test_feat_ops():
     assert "test4" in proc_res2
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
+     # Compute BERT embeddings with multiple mini-batches.
+    data0 = {
+        "test1": np.random.rand(4, 2),
+    }
+    data1 = {
+        "test1": np.random.rand(4, 2),
+    }
+    feat_op5 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test5",
+            "transform": {"name": 'max_min_norm',
+            },
+        },
+    ]
+    res5 = parse_feat_ops(feat_op5)
+    assert len(res5) == 1
+    assert res5[0].col_name == feat_op5[0]["feature_col"]
+    assert res5[0].feat_name == feat_op5[0]["feature_name"]
+    preproc_res0 = preprocess_features(data0, res5)
+    preproc_res1 = preprocess_features(data1, res5)
+    assert "test5" in preproc_res0
+    assert isinstance(preproc_res0["test5"], tuple)
+    assert "test5" in preproc_res1
+    assert isinstance(preproc_res1["test5"], tuple)
+    return_dict = {
+        0: preproc_res0,
+        1: preproc_res1
+    }
+    update_two_phase_feat_ops(return_dict, res5)
+    data_col0 = data0["test1"][:,0].tolist() + data1["test1"][:,0].tolist()
+    data_col1 = data0["test1"][:,1].tolist() + data1["test1"][:,1].tolist()
+    max0 = max(data_col0)
+    min0 = min(data_col0)
+    max1 = max(data_col1)
+    min1 = min(data_col1)
+
+    proc_res3 = process_features(data0, res5)
+    assert "test5" in proc_res3
+    proc_res4 = process_features(data1, res5)
+    assert "test5" in proc_res4
+    proc_res5 = np.concatenate([proc_res3["test5"], proc_res4["test5"]], axis=0)
+    data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
+    data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
+    assert_equal(proc_res5[:,0], data_col0)
+    assert_equal(proc_res5[:,1], data_col1)
+
+
+    feat_op6 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test6",
+            "transform": {"name": 'max_min_norm',
+                          "max_bound": 2.,
+                          "min_bound": -2.
+            },
+        },
+    ]
+    res6 = parse_feat_ops(feat_op6)
+    assert len(res6) == 1
+    assert res6[0].col_name == feat_op6[0]["feature_col"]
+    assert res6[0].feat_name == feat_op6[0]["feature_name"]
+    preproc_res0 = preprocess_features(data0, res6)
+    preproc_res1 = preprocess_features(data1, res6)
+    assert "test6" in preproc_res0
+    assert isinstance(preproc_res0["test6"], tuple)
+    assert "test6" in preproc_res1
+    assert isinstance(preproc_res1["test6"], tuple)
+    return_dict = {
+        0: preproc_res0,
+        1: preproc_res1
+    }
+    update_two_phase_feat_ops(return_dict, res6)
+    data_col0 = data0["test1"][:,0].tolist() + data1["test1"][:,0].tolist()
+    data_col1 = data0["test1"][:,1].tolist() + data1["test1"][:,1].tolist()
+    max0 = max(data_col0)
+    min0 = min(data_col0)
+    max1 = max(data_col1)
+    min1 = min(data_col1)
+    data_col0 = [val if val < max0 else max0 for val in data_col0]
+    data_col0 = [val if val > min0 else min0 for val in data_col0]
+    data_col1 = [val if val < max1 else max1 for val in data_col1]
+    data_col1 = [val if val > min1 else min1 for val in data_col1]
+
+    proc_res3 = process_features(data0, res6)
+    assert "test6" in proc_res3
+    proc_res4 = process_features(data1, res6)
+    assert "test6" in proc_res4
+    proc_res6 = np.concatenate([proc_res3["test6"], proc_res4["test6"]], axis=0)
+    data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
+    data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
+    assert_equal(proc_res6[:,0], data_col0)
+    assert_equal(proc_res6[:,1], data_col1)
 
 def test_process_features_fp16():
     # Just get the features without transformation.
@@ -244,12 +341,14 @@ def test_process_features_fp16():
     feat_op1 = [{
         "feature_col": "test1",
         "feature_name": "test1",
+        "out_dtype": "float16",
     },{
         "feature_col": "test2",
         "feature_name": "test2",
+        "out_dtype": "float16",
     }]
     ops_rst = parse_feat_ops(feat_op1)
-    rst = process_features(data, ops_rst, feat_dtype=np.float16)
+    rst = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
     assert 'test2' in rst
@@ -261,7 +360,7 @@ def test_process_features_fp16():
     np.testing.assert_almost_equal(rst['test2'], data['test2'].reshape(-1, 1), decimal=3)
 
     data1 = read_data_hdf5(tmpfile, ['test1', 'test2'], in_mem=False)
-    rst2 = process_features(data1, ops_rst, feat_dtype=np.float16)
+    rst2 = process_features(data1, ops_rst)
     assert isinstance(rst2["test1"], HDF5Array)
     assert len(rst2) == 2
     assert 'test1' in rst2

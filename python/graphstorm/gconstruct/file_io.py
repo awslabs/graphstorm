@@ -265,7 +265,6 @@ class HDF5Array:
         """ Set the output dtype.
         """
         self._out_dtype = dtype
-        print("astype")
         return self
 
     @property
