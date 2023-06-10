@@ -353,7 +353,6 @@ class Text2BERT(FeatTransform):
                 out_embs.append(outputs.pooler_output.cpu().numpy())
         if len(out_embs) > 1:
             feats = np.concatenate(out_embs)
-            return {self.feat_name: feats}
         else:
             feats = out_embs[0]
 
@@ -476,7 +475,7 @@ def preprocess_features(data, ops):
 
     return pre_data
 
-def process_features(data, ops, feat_dtype=np.float32):
+def process_features(data, ops):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
@@ -488,8 +487,6 @@ def process_features(data, ops, feat_dtype=np.float32):
         The data stored as a dict.
     ops : list of FeatTransform
         The operations that transform features.
-    feat_dtype: np dtype
-        The dtype of features to be stored into graph.
 
     Returns
     -------
@@ -506,12 +503,6 @@ def process_features(data, ops, feat_dtype=np.float32):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
-            if val.dtype in [np.float64, np.float32, np.float16] and \
-                val.dtype != feat_dtype:
-                if isinstance(val, HDF5Array):
-                    val = val.astype(feat_dtype)
-                if isinstance(val, np.ndarray):
-                    val = val.astype(feat_dtype)
             new_data[key] = val
     return new_data
 

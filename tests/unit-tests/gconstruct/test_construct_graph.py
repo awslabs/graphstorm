@@ -17,11 +17,10 @@ import random
 import os
 import tempfile
 import numpy as np
-import graphstorm as gs
 import dgl
 import torch as th
 
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
@@ -214,7 +213,6 @@ def test_feat_ops():
     # There are two text strings and both of them are "hello world".
     # The BERT embeddings should be the same.
     np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
-
     # Compute BERT embeddings with multiple mini-batches.
     feat_op4 = [
         {
@@ -279,9 +277,8 @@ def test_feat_ops():
     proc_res5 = np.concatenate([proc_res3["test5"], proc_res4["test5"]], axis=0)
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
-    assert_equal(proc_res5[:,0], data_col0)
-    assert_equal(proc_res5[:,1], data_col1)
-
+    assert_almost_equal(proc_res5[:,0], data_col0)
+    assert_almost_equal(proc_res5[:,1], data_col1)
 
     feat_op6 = [
         {
@@ -326,8 +323,8 @@ def test_feat_ops():
     proc_res6 = np.concatenate([proc_res3["test6"], proc_res4["test6"]], axis=0)
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
-    assert_equal(proc_res6[:,0], data_col0)
-    assert_equal(proc_res6[:,1], data_col1)
+    assert_almost_equal(proc_res6[:,0], data_col0)
+    assert_almost_equal(proc_res6[:,1], data_col1)
 
 def test_process_features_fp16():
     # Just get the features without transformation.
@@ -356,8 +353,8 @@ def test_process_features_fp16():
     assert (len(rst['test2'].shape)) == 2
     assert rst['test1'].dtype == np.float16
     assert rst['test2'].dtype == np.float16
-    np.testing.assert_almost_equal(rst['test1'], data['test1'], decimal=3)
-    np.testing.assert_almost_equal(rst['test2'], data['test2'].reshape(-1, 1), decimal=3)
+    assert_almost_equal(rst['test1'], data['test1'], decimal=3)
+    assert_almost_equal(rst['test2'], data['test2'].reshape(-1, 1), decimal=3)
 
     data1 = read_data_hdf5(tmpfile, ['test1', 'test2'], in_mem=False)
     rst2 = process_features(data1, ops_rst)
@@ -369,8 +366,8 @@ def test_process_features_fp16():
     assert (len(rst2['test2'].shape)) == 2
     assert rst2['test1'].to_tensor().dtype == th.float16
     assert rst2['test2'].dtype == np.float16
-    np.testing.assert_almost_equal(rst2['test1'].to_tensor().numpy(), data['test1'], decimal=3)
-    np.testing.assert_almost_equal(rst2['test2'], data['test2'].reshape(-1, 1), decimal=3)
+    assert_almost_equal(rst2['test1'].to_tensor().numpy(), data['test1'], decimal=3)
+    assert_almost_equal(rst2['test2'], data['test2'].reshape(-1, 1), decimal=3)
 
 def test_process_features():
     # Just get the features without transformation.

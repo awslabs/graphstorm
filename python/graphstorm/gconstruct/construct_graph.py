@@ -67,8 +67,7 @@ def prepare_node_data(in_file, feat_ops, read_file):
 
     return feat_info
 
-def parse_node_data(in_file, feat_ops, label_ops, node_id_col,
-                    read_file):
+def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -93,8 +92,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col,
     tuple : node ID array and a dict of node feature tensors.
     """
     data = read_file(in_file)
-    feat_data = process_features(data, feat_ops) \
-        if feat_ops is not None else {}
+    feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
@@ -136,8 +134,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     edge_type = conf['relation']
 
     data = read_file(in_file)
-    feat_data = process_features(data, feat_ops) \
-        if feat_ops is not None else {}
+    feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
@@ -148,8 +145,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                                     skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
-def process_node_data(process_confs, arr_merger, remap_id,
-                      num_processes=1):
+def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -517,7 +513,6 @@ def process_graph(args):
     # We only store data to external memory if we partition a graph for distributed training.
     ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
     convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
-
     node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
                                                args.remap_node_id,
                                                num_processes=num_processes_for_nodes)
