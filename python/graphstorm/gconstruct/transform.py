@@ -27,6 +27,17 @@ from transformers import BertModel, BertConfig
 
 from .file_io import HDF5Array, read_index_json
 
+def _get_output_dtype(dtype_str):
+    if dtype_str == 'float16':
+        return np.float16
+    elif dtype_str == 'float32':
+        return np.float32
+    else:
+        assert False, f"Unknown dtype {dtype_str}, only support float16 and float32"
+
+def _feat_astype(feats, dtype):
+    return feats.astype(dtype) if dtype is not None else feats
+
 class FeatTransform:
     """ The base class for feature transformation.
 
@@ -36,10 +47,14 @@ class FeatTransform:
         The name of the column that contains the feature.
     feat_name : str
         The feature name used in the constructed graph.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
     """
-    def __init__(self, col_name, feat_name):
+    def __init__(self, col_name, feat_name, out_dtype=None):
         self._col_name = col_name
         self._feat_name = feat_name
+        self._out_dtype = out_dtype
 
     @property
     def col_name(self):
@@ -62,13 +77,6 @@ class TwoPhaseFeatTransform(FeatTransform):
         The second phase is to transform data using
         the global
         information collected in the first phase
-
-    Parameters
-    ----------
-    col_name : str
-        The name of the column that contains the feature.
-    feat_name : str
-        The feature name used in the constructed graph.
     """
 
     def pre_process(self, feats):
@@ -103,13 +111,17 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         The maximum float value.
     min_bound : float
         The minimum float value
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
     """
     def __init__(self, col_name, feat_name,
                  max_bound=sys.float_info.max,
-                 min_bound=-sys.float_info.max):
+                 min_bound=-sys.float_info.max,
+                 out_dtype=None):
         self._max_bound = max_bound
         self._min_bound = min_bound
-        super(NumericalMinMaxTransform, self).__init__(col_name, feat_name)
+        super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def pre_process(self, feats):
         """ Pre-process data
@@ -191,6 +203,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats = (feats - self._min_val) / (self._max_val - self._min_val)
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
+        feats = _feat_astype(feats, self._out_dtype)
 
         return {self.feat_name: feats}
 
@@ -263,10 +276,13 @@ class Text2BERT(FeatTransform):
         The BERT model name.
     infer_batch_size : int
         The inference batch size.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
     """
     def __init__(self, col_name, feat_name, tokenizer, model_name,
-                 infer_batch_size=None):
-        super(Text2BERT, self).__init__(col_name, feat_name)
+                 infer_batch_size=None, out_dtype=None):
+        super(Text2BERT, self).__init__(col_name, feat_name, out_dtype)
         self.model_name = model_name
         self.lm_model = None
         self.tokenizer = tokenizer
@@ -336,9 +352,12 @@ class Text2BERT(FeatTransform):
                                             token_type_ids=token_types.long())
                 out_embs.append(outputs.pooler_output.cpu().numpy())
         if len(out_embs) > 1:
-            return {self.feat_name: np.concatenate(out_embs)}
+            feats = np.concatenate(out_embs)
         else:
-            return {self.feat_name: out_embs[0]}
+            feats = out_embs[0]
+
+        feats = _feat_astype(feats, self._out_dtype)
+        return {self.feat_name: feats}
 
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
@@ -361,6 +380,7 @@ class Noop(FeatTransform):
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
+        feats = _feat_astype(feats, self._out_dtype)
         return {self.feat_name: feats}
 
 def parse_feat_ops(confs):
@@ -389,8 +409,9 @@ def parse_feat_ops(confs):
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
+        out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
         if 'transform' not in feat:
-            transform = Noop(feat['feature_col'], feat_name)
+            transform = Noop(feat['feature_col'], feat_name, out_dtype=out_dtype)
         else:
             conf = feat['transform']
             assert 'name' in conf, "'name' must be defined in the transformation field."
@@ -413,7 +434,8 @@ def parse_feat_ops(confs):
                                                 conf['bert_model'],
                                                 int(conf['max_seq_length'])),
                                       conf['bert_model'],
-                                      infer_batch_size=infer_batch_size)
+                                      infer_batch_size=infer_batch_size,
+                                      out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
@@ -481,7 +503,6 @@ def process_features(data, ops):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
-
             new_data[key] = val
     return new_data
 

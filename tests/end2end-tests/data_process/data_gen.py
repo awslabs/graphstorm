@@ -149,6 +149,7 @@ node_conf = [
             {
                 "feature_col": "text",
                 "feature_name": "bert",
+                "out_dtype": 'float32',
                 "transform": {"name": "bert_hf",
                               "bert_model": "bert-base-uncased",
                               "max_seq_length": 16},
@@ -156,6 +157,7 @@ node_conf = [
             {
                 "feature_col": "float",
                 "feature_name": "feat2",
+                "out_dtype": 'float16',
                 "transform": {"name": "max_min_norm",
                               "max_bound": 2.,
                               "min_bound": -2.}

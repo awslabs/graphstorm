@@ -209,6 +209,7 @@ class HDF5Array:
     def __init__(self, arr, handle):
         self._arr = arr
         self._handle = handle
+        self._out_dtype = None # Use the dtype of self._arr
 
     def __len__(self):
         return self._arr.shape[0]
@@ -244,13 +245,32 @@ class HDF5Array:
     def to_tensor(self):
         """ Return Pytorch tensor.
         """
-        arr = self._arr[:]
-        return th.tensor(arr)
+        arr = th.tensor(self._arr)
+        if self._out_dtype is not None:
+            if self._out_dtype is np.float32:
+                arr = arr.to(th.float32)
+            elif self._out_dtype is np.float16:
+                arr = arr.to(th.float16)
+        return arr
 
     def to_numpy(self):
         """ Return Numpy array.
         """
-        return self._arr[:]
+        res = self._arr[:]
+        if self._out_dtype is not None:
+            res = res.astype(self._out_dtype)
+        return res
+
+    def astype(self, dtype):
+        """ Set the output dtype.
+
+        Parameters
+        ----------
+        dtype: numpy.dtype
+            Output dtype
+        """
+        self._out_dtype = dtype
+        return self
 
     @property
     def shape(self):
