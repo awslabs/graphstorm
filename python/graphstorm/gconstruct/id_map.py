@@ -18,6 +18,9 @@
 """
 import logging
 
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import numpy as np
 
 from .file_io import HDF5Array
@@ -54,10 +57,14 @@ class NoopMap:
         """
         return ids, np.arange(len(ids))
 
-    def get_key_vals(self):
-        """ Get the key value pairs.
+    def save(self, file_path):
+        """ Save the ID map.
+
+        Parameters
+        ----------
+        file_path : str
+            The file where the ID map is saved to.
         """
-        return None
 
 class IdMap:
     """ Map an ID to a new ID.
@@ -118,14 +125,25 @@ class IdMap:
                 idx.append(i)
         return np.array(new_ids), np.array(idx)
 
-    def get_key_vals(self):
-        """ Get the key value pairs.
+    def save(self, file_path):
+        """ Save the ID map to a parquet file.
+
+        Parameters
+        ----------
+        file_path : str
+            The file where the ID map will be saved to.
+        file_format : str
+            The file format that the ID map will be saved with.
 
         Returns
         -------
-        tuple of tensors : The first one has keys and the second has corresponding values.
+        bool : whether the ID map is saved to a file.
         """
-        return np.array(list(self._ids.keys())), np.array(list(self._ids.values()))
+        keys = list(self._ids.keys())
+        vals = list(self._ids.values())
+        table = pa.Table.from_pandas(pd.DataFrame({'orig': keys, 'new': vals}))
+        pq.write_table(table, file_path)
+        return True
 
 def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     """ Map node IDs of source and destination nodes of edges.
