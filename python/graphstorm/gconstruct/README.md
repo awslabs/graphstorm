@@ -47,6 +47,10 @@ A feature dictionary is defined:
 If `feature_name` is not provided, `feature_col` is used as the feature name.
 If the feature transformation generates multiple tensors, `feature_name` becomes
 the prefix of the names of the generated tensors.
+* `out_dtype` specifies the data type of the transformed feature. `out_dtype` is
+optional. If it is not set, no data type casting is applied to the transformed feature.
+If it is set, the output feature will be cast into the corresponding data type.
+Now only flaot16 and float32 are supported.
 * `transform` specifies the actual feature transformation. This is a dictionary
 and its `name` field indicates the feature transformation. Each transformation
 has its own argument. The list of feature transformations supported by the pipeline

@@ -263,6 +263,11 @@ class HDF5Array:
 
     def astype(self, dtype):
         """ Set the output dtype.
+
+        Parameters
+        ----------
+        dtype: numpy.dtype
+            Output dtype
         """
         self._out_dtype = dtype
         return self
