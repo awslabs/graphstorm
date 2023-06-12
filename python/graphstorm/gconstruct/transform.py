@@ -205,8 +205,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
         feats = _feat_astype(feats, self._out_dtype)
 
-        print(self._out_dtype)
-        print(feats.dtype)
         return {self.feat_name: feats}
 
 class Tokenizer(FeatTransform):
