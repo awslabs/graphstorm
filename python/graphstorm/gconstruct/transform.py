@@ -23,7 +23,7 @@ import sys
 import numpy as np
 import torch as th
 
-from scipy.special import erfinv
+from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
@@ -262,19 +262,18 @@ class RankGaussTransform(GlobalProcessFeatTransform):
 
         return {self.feat_name: feats}
 
-    def after_merge_transform(self, feat):
-        # The feat can be a numpy array or a numpy memmaped object
+    def after_merge_transform(self, feats):
+        # The feats can be a numpy array or a numpy memmaped object
         # Get ranking information.
-        feat = feat.argsort(axis=0).argsort(axis=0)
-        feat_range = len(feat) - 1
+        feats = feats.argsort(axis=0).argsort(axis=0)
+        feat_range = len(feats) - 1
         # norm to [-1, 1]
-        feat = (feat / feat_range - 0.5) * 2
-        feat = np.clip(feat, -1 + self._epsilon, 1 - self._epsilon)
-        feat = erfinv(feat)
+        feats = (feats / feat_range - 0.5) * 2
+        feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
+        feats = erfinv(feats)
 
-        feat = _feat_astype(feat, self._out_dtype)
-        print(f"{self.feat_name}, {feat.dtype}")
-        return feat
+        feats = _feat_astype(feats, self._out_dtype)
+        return feats
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
