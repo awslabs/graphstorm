@@ -47,6 +47,8 @@ node_data1 = {
 node_data1_2 = {
     'data': node_id1,
     'float_2': np.random.rand(node_id1.shape[0], 2),
+    'float_3': np.random.rand(node_id1.shape[0], 2),
+    'float_4': np.random.rand(node_id1.shape[0], 2),
 }
 
 node_id2 = np.arange(20000)
@@ -125,6 +127,17 @@ node_conf = [
                 "feature_col": "float_2",
                 "feature_name": "feat3",
                 "transform": {"name": 'max_min_norm'}
+            },
+            {
+                "feature_col": "float_3",
+                "feature_name": "feat_rank_gauss",
+                "transform": {"name": 'rank_gauss'}
+            },
+            {
+                "feature_col": "float_4",
+                "feature_name": "feat_rank_gauss_fp16",
+                "out_dtype": 'float16',
+                "transform": {"name": 'rank_gauss'}
             }
         ],
     },

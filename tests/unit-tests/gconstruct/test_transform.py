@@ -18,11 +18,13 @@ import inspect
 
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_raises
+from scipy.special import erfinv
 
 from graphstorm.gconstruct.transform import (_feat_astype,
                                              _get_output_dtype,
                                              NumericalMinMaxTransform,
-                                             Noop)
+                                             Noop,
+                                             RankGaussTransform)
 
 def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
@@ -190,6 +192,38 @@ def test_noop_transform(out_dtype):
     else:
         assert norm_feats["test"].dtype == np.float32
 
+@pytest.mark.parametrize("out_dtype", [None, np.float16])
+def test_rank_gauss_transform(out_dtype):
+    eps = 1e-6
+    transform = RankGaussTransform("test", "test", out_dtype=out_dtype, epsilon=eps)
+    feat_0 = np.random.randn(100,2).astype(np.float32)
+    feat_trans_0 = transform(feat_0)['test']
+    feat_1 = np.random.randn(100,2).astype(np.float32)
+    feat_trans_1 = transform(feat_1)['test']
+    def rank_gauss(feat):
+        lower = -1 + eps
+        upper = 1 - eps
+        range = upper - lower
+        i = np.argsort(feat, axis=0)
+        j = np.argsort(i, axis=0)
+        j_range = len(j) - 1
+        divider = j_range / range
+        feat = j / divider
+        feat = feat - upper
+        return erfinv(feat)
+
+    feat = np.concatenate([feat_0, feat_1])
+    feat = rank_gauss(feat)
+    new_feat = np.concatenate([feat_trans_0, feat_trans_1])
+    trans_feat = transform.after_merge_transform(new_feat)
+
+    if out_dtype is not None:
+        assert trans_feat.dtype == np.float16
+        assert_almost_equal(feat.astype(np.float16), trans_feat, decimal=3)
+    else:
+        assert trans_feat.dtype != np.float16
+        assert_almost_equal(feat, trans_feat, decimal=4)
+
 if __name__ == '__main__':
     test_feat_astype()
     test_get_output_dtype()
@@ -198,3 +232,6 @@ if __name__ == '__main__':
     test_fp_min_max_transform(np.float16)
     test_noop_transform(None)
     test_noop_transform(np.float16)
+
+    test_rank_gauss_transform(None)
+    test_rank_gauss_transform(np.float16)
