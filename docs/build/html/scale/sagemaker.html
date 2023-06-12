@@ -380,6 +380,10 @@ python3<span class="w"> </span>launch/launch_train.py<span class="w"> </span><sp
 <span class="w">        </span>--batch-size<span class="w"> </span><span class="m">128</span>
 </pre></div>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Diffferent from the training command’s argument, in the inference command, the value of argument <code class="docutils literal notranslate"><span class="pre">--model-artifact-s3</span></code> needs to be a specific training epoch or epoch plus iterations, e.g., <code class="docutils literal notranslate"><span class="pre">s3://models/epoch-0-iter-999</span></code> where the trained model artifacts were saved.</p>
+</div>
 <p>The generated node embeddings will be uploaded into <code class="docutils literal notranslate"><span class="pre">s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/</span></code>. For node classification/regression or edge classification/regression tasks, users can use <code class="docutils literal notranslate"><span class="pre">--output-prediction-s3</span></code> to specify location of saving prediction results.</p>
 <p>Users can use following command to check the corresponding outputs:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/

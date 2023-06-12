@@ -193,6 +193,10 @@ Users can use the following command to launch a GraphStorm link prediction train
             --backend gloo \
             --batch-size 128
 
+.. note:: 
+
+    Diffferent from the training command's argument, in the inference command, the value of argument ``--model-artifact-s3`` needs to be a specific training epoch or epoch plus iterations, e.g., ``s3://models/epoch-0-iter-999`` where the trained model artifacts were saved.
+
 The generated node embeddings will be uploaded into ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3`` to specify location of saving prediction results. 
 
 Users can use following command to check the corresponding outputs:
