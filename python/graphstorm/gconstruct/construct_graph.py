@@ -31,13 +31,40 @@ import dgl
 
 from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
-from .file_io import get_in_files, write_data_parquet
-from .file_io import HDF5Array
-from .transform import parse_feat_ops, process_features
+from .file_io import get_in_files, HDF5Array
+from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
-from .transform import do_multiprocess_transform
+from .transform import do_multiprocess_transform, TwoPhaseFeatTransform
 from .id_map import NoopMap, IdMap, map_node_ids
-from .utils import multiprocessing_data_read, ExtMemArrayMerger, partition_graph
+from .utils import (multiprocessing_data_read,
+                    update_two_phase_feat_ops, ExtMemArrayMerger,
+                    partition_graph)
+
+def prepare_node_data(in_file, feat_ops, read_file):
+    """ Parse node data.
+
+    The function parses a node file that contains node IDs, features and labels
+    The node file is parsed according to users' configuration
+    and performs some feature transformation.
+
+    Parameters
+    ----------
+    in_file : str
+        The path of the input node file.
+    feat_ops : dict of FeatTransform
+        The operations run on the node features of the node file.
+    read_file : callable
+        The function to read the node file
+
+    Returns
+    -------
+    dict : A dict of node feature info.
+    """
+    data = read_file(in_file)
+    assert feat_ops is not None, "feat_ops must exist when prepare_node_data is called."
+    feat_info = preprocess_features(data, feat_ops)
+
+    return feat_info
 
 def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     """ Parse node data.
@@ -181,13 +208,28 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         # If it requires multiprocessing, we need to read data to memory.
         read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
+        num_proc = num_processes if multiprocessing else 0
+
+        two_phase_feat_ops = []
+        for op in feat_ops:
+            if isinstance(op, TwoPhaseFeatTransform):
+                two_phase_feat_ops.append(op)
+        if len(two_phase_feat_ops) > 0:
+            user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
+                                      read_file=read_file)
+            pre_parse_start = time.time()
+            phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
+
+            dur = time.time() - pre_parse_start
+            logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
+                        node_type, dur)
 
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_col=node_id_col,
                               read_file=read_file)
         start = time.time()
-        num_proc = num_processes if multiprocessing else 0
         return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
         dur = time.time() - start
         logging.debug("Processing data files for node %s takes %.3f seconds.",
@@ -493,6 +535,21 @@ def process_graph(args):
     print_graph_info(g, node_data, edge_data)
     sys_tracker.check('Construct DGL graph')
 
+    # reshape customized mask
+    for srctype_etype_dsttype in edge_data:
+        if "train_mask" in edge_data[srctype_etype_dsttype].keys() and \
+            len(edge_data[srctype_etype_dsttype]["train_mask"].shape) == 2:
+            edge_data[srctype_etype_dsttype]["train_mask"] = \
+                edge_data[srctype_etype_dsttype]["train_mask"].squeeze(1).astype('int8')
+        if "val_mask" in edge_data[srctype_etype_dsttype].keys() and \
+            len(edge_data[srctype_etype_dsttype]["val_mask"].shape) == 2:
+            edge_data[srctype_etype_dsttype]["val_mask"] = \
+                edge_data[srctype_etype_dsttype]["val_mask"].squeeze(1).astype('int8')
+        if "test_mask" in edge_data[srctype_etype_dsttype].keys() and \
+            len(edge_data[srctype_etype_dsttype]["test_mask"].shape) == 2:
+            edge_data[srctype_etype_dsttype]["test_mask"] = \
+                edge_data[srctype_etype_dsttype]["test_mask"].squeeze(1).astype('int8')
+
     if args.output_format == "DistDGL":
         assert args.part_method in ["metis", "random"], \
                 "We only support 'metis' or 'random'."
@@ -517,12 +574,8 @@ def process_graph(args):
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
     for ntype in node_id_map:
-        kv_pairs = node_id_map[ntype].get_key_vals()
-        if kv_pairs is not None:
-            map_data = {}
-            map_data["orig"], map_data["new"] = kv_pairs
-            map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
-            write_data_parquet(map_data, map_file)
+        map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
+        if node_id_map[ntype].save(map_file):
             logging.info("Graph construction generates new node IDs for '%s'. " + \
                     "The ID map is saved in %s.", ntype, map_file)
 

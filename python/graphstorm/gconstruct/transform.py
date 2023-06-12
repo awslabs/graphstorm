@@ -19,12 +19,24 @@
 
 import logging
 import os
+import sys
 import numpy as np
 import torch as th
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
-from .file_io import HDF5Array
+from .file_io import HDF5Array, read_index_json
+
+def _get_output_dtype(dtype_str):
+    if dtype_str == 'float16':
+        return np.float16
+    elif dtype_str == 'float32':
+        return np.float32
+    else:
+        assert False, f"Unknown dtype {dtype_str}, only support float16 and float32"
+
+def _feat_astype(feats, dtype):
+    return feats.astype(dtype) if dtype is not None else feats
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -35,10 +47,14 @@ class FeatTransform:
         The name of the column that contains the feature.
     feat_name : str
         The feature name used in the constructed graph.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
     """
-    def __init__(self, col_name, feat_name):
+    def __init__(self, col_name, feat_name, out_dtype=None):
         self._col_name = col_name
         self._feat_name = feat_name
+        self._out_dtype = out_dtype
 
     @property
     def col_name(self):
@@ -51,6 +67,145 @@ class FeatTransform:
         """ The feature name.
         """
         return self._feat_name
+
+class TwoPhaseFeatTransform(FeatTransform):
+    """ The base class for two phasefeature transformation.
+
+        The first phase is going to collect global information
+        for data processing, e.g., collecting max and min value of floating
+        point data or collecting the cardinality of categorical data.
+        The second phase is to transform data using
+        the global
+        information collected in the first phase
+    """
+
+    def pre_process(self, feats):
+        """ Pre-process data
+
+        Parameters
+        ----------
+        feats:
+            feats to be processed
+        """
+
+    def collect_info(self, info):
+        """ Store global information for the second phase data processing
+
+        Parameters
+        ----------
+        info:
+            Information to be collected
+        """
+
+class NumericalMinMaxTransform(TwoPhaseFeatTransform):
+    """ Numerical value with Min-Max normalization.
+        $val = (val-min) / (max-min)$
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    max_bound : float
+        The maximum float value.
+    min_bound : float
+        The minimum float value
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    """
+    def __init__(self, col_name, feat_name,
+                 max_bound=sys.float_info.max,
+                 min_bound=-sys.float_info.max,
+                 out_dtype=None):
+        self._max_bound = max_bound
+        self._min_bound = min_bound
+        super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
+
+    def pre_process(self, feats):
+        """ Pre-process data
+
+        Parameters
+        ----------
+        feats: np.array
+            Data to be processed
+        """
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
+        if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8], \
+            "Feature of NumericalMinMaxTransform must be floating points" \
+            "or integers"
+        assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
+        max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
+            else np.array([np.amax(feats, axis=0)])
+        min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
+            else np.array([np.amin(feats, axis=0)])
+
+        max_val[max_val > self._max_bound] = self._max_bound
+        min_val[min_val < self._min_bound] = self._min_bound
+        return {self.feat_name: (max_val, min_val)}
+
+    def update_info(self, info):
+        """ Store global information for the second phase data processing
+
+        Parameters
+        ----------
+        info: list
+            Information to be collected
+        """
+        max_vals = []
+        min_vals = []
+        for (max_val, min_val) in info:
+            max_vals.append(max_val)
+            min_vals.append(min_val)
+        max_vals = np.stack(max_vals)
+        min_vals = np.stack(min_vals)
+
+        max_val = np.amax(max_vals, axis=0) if len(max_vals.shape) == 2 \
+            else np.array([np.amax(max_vals, axis=0)])
+        min_val = np.amin(min_vals, axis=0) if len(min_vals.shape) == 2 \
+            else np.array([np.amin(min_vals, axis=0)])
+
+        self._max_val = max_val
+        self._min_val = min_val
+
+    def __call__(self, feats):
+        """ Do normalization for feats
+
+        Parameters
+        ----------
+        feats : np array
+            Data to be normalized
+
+        Returns
+        -------
+        np.array
+        """
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
+
+        assert not np.any(self._max_val == self._min_val), \
+            f"At least one element of Max Val {self._max_val} " \
+            f"and Min Val {self._min_val} is equal. This will cause divide by zero error"
+
+        if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        feats = (feats - self._min_val) / (self._max_val - self._min_val)
+        feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
+        feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
+        feats = _feat_astype(feats, self._out_dtype)
+
+        return {self.feat_name: feats}
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
@@ -121,10 +276,13 @@ class Text2BERT(FeatTransform):
         The BERT model name.
     infer_batch_size : int
         The inference batch size.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
     """
     def __init__(self, col_name, feat_name, tokenizer, model_name,
-                 infer_batch_size=None):
-        super(Text2BERT, self).__init__(col_name, feat_name)
+                 infer_batch_size=None, out_dtype=None):
+        super(Text2BERT, self).__init__(col_name, feat_name, out_dtype)
         self.model_name = model_name
         self.lm_model = None
         self.tokenizer = tokenizer
@@ -194,9 +352,12 @@ class Text2BERT(FeatTransform):
                                             token_type_ids=token_types.long())
                 out_embs.append(outputs.pooler_output.cpu().numpy())
         if len(out_embs) > 1:
-            return {self.feat_name: np.concatenate(out_embs)}
+            feats = np.concatenate(out_embs)
         else:
-            return {self.feat_name: out_embs[0]}
+            feats = out_embs[0]
+
+        feats = _feat_astype(feats, self._out_dtype)
+        return {self.feat_name: feats}
 
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
@@ -219,6 +380,7 @@ class Noop(FeatTransform):
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
+        feats = _feat_astype(feats, self._out_dtype)
         return {self.feat_name: feats}
 
 def parse_feat_ops(confs):
@@ -247,8 +409,9 @@ def parse_feat_ops(confs):
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
+        out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
         if 'transform' not in feat:
-            transform = Noop(feat['feature_col'], feat_name)
+            transform = Noop(feat['feature_col'], feat_name, out_dtype=out_dtype)
         else:
             conf = feat['transform']
             assert 'name' in conf, "'name' must be defined in the transformation field."
@@ -271,11 +434,46 @@ def parse_feat_ops(confs):
                                                 conf['bert_model'],
                                                 int(conf['max_seq_length'])),
                                       conf['bert_model'],
-                                      infer_batch_size=infer_batch_size)
+                                      infer_batch_size=infer_batch_size,
+                                      out_dtype=out_dtype)
+            elif conf['name'] == 'max_min_norm':
+                max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
+                min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
+                transform = NumericalMinMaxTransform(feat['feature_col'],
+                                                     feat_name,
+                                                     max_bound,
+                                                     min_bound)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
     return ops
+
+def preprocess_features(data, ops):
+    """ Pre-process the data with the specified operations.
+
+    This function runs the input pre-process operations on the corresponding data
+    and returns the pre-process results. An example of preprocessing is getting
+    the cardinality of a categorical feature.
+
+    Parameters
+    ----------
+    data : dict
+        The data stored as a dict.
+    ops : list of FeatTransform
+        The operations that transform features.
+
+    Returns
+    -------
+    dict : the key is the data name, the value is the pre-processed data.
+    """
+    pre_data = {}
+    for op in ops:
+        res = op.pre_process(data[op.col_name])
+        assert isinstance(res, dict)
+        for key, val in res.items():
+            pre_data[key] = val
+
+    return pre_data
 
 def process_features(data, ops):
     """ Process the data with the specified operations.
@@ -305,7 +503,6 @@ def process_features(data, ops):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
-
             new_data[key] = val
     return new_data
 
@@ -334,6 +531,106 @@ def get_valid_label_index(label):
     else:
         raise ValueError("GraphStorm only supports label data of integers and float." + \
                          f"This label data has data type of {label.dtype}.")
+
+class CustomLabelProcessor:
+    """ Process labels with custom data split.
+
+    This allows users to define custom data split for training/validation/test.
+
+    Parameters
+    ----------
+    col_name : str
+        The column name for labels.
+    label_name : str
+        The label name.
+    task_type : str
+        The task type.
+    train_idx : Numpy array
+        The array that contains the index of training data points.
+    val_idx : Numpy array
+        The array that contains the index of validation data points.
+    test_idx : Numpy array
+        The array that contains the index of test data points.
+    """
+    def __init__(self, col_name, label_name, task_type,
+                 train_idx=None, val_idx=None, test_idx=None):
+        self._col_name = col_name
+        self._label_name = label_name
+        self._train_idx = train_idx
+        self._val_idx = val_idx
+        self._test_idx = test_idx
+        self._task_type = task_type
+
+    @property
+    def col_name(self):
+        """ The column name that contains the label.
+        """
+        return self._col_name
+
+    @property
+    def label_name(self):
+        """ The label name.
+        """
+        return self._label_name
+
+    def data_split(self, num_samples):
+        """ Split the data for training/validation/test.
+
+        Parameters
+        ----------
+        num_samples : int
+            The total number of data points.
+
+        Returns
+        -------
+        dict of Numpy array
+            The arrays for training/validation/test masks.
+        """
+        train_mask = np.zeros((num_samples,), dtype=np.int8)
+        val_mask = np.zeros((num_samples,), dtype=np.int8)
+        test_mask = np.zeros((num_samples,), dtype=np.int8)
+        if self._train_idx is not None:
+            train_mask[self._train_idx] = 1
+        if self._val_idx is not None:
+            val_mask[self._val_idx] = 1
+        if self._test_idx is not None:
+            test_mask[self._test_idx] = 1
+        train_mask_name = 'train_mask'
+        val_mask_name = 'val_mask'
+        test_mask_name = 'test_mask'
+        return {train_mask_name: train_mask,
+                val_mask_name: val_mask,
+                test_mask_name: test_mask}
+
+    def __call__(self, data):
+        """ Process the label for classification.
+
+        This performs data split on the nodes/edges and generates training/validation/test masks.
+
+        Parameters
+        ----------
+        data : dict of Tensors
+            All data associated with nodes/edges of a node/edge type.
+
+        Returns
+        -------
+        dict of Tensors : it contains the labels as well as training/val/test splits.
+        """
+        if self.col_name in data:
+            label = data[self.col_name]
+            num_samples = len(label)
+        else:
+            assert len(data) > 0, "The edge data is empty."
+            label = None
+            for val in data.values():
+                num_samples = len(val)
+                break
+        res = self.data_split(num_samples)
+        if label is not None and self._task_type == "classification":
+            res[self.label_name] = np.int32(label)
+        elif label is not None:
+            res[self.label_name] = label
+        return res
 
 class LabelProcessor:
     """ Process labels
@@ -507,7 +804,17 @@ def parse_label_ops(confs, is_node):
     label_conf = confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
-    # By default, we use all labels for training.
+    if 'custom_split_filenames' in label_conf:
+        custom_split = label_conf['custom_split_filenames']
+        assert isinstance(custom_split, dict), \
+                "Custom data split needs to provide train/val/test index."
+        train_idx = read_index_json(custom_split['train']) if 'train' in custom_split else None
+        val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
+        test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
+        label_col = label_conf['label_col'] if 'label_col' in label_conf else None
+        return [CustomLabelProcessor(label_col, label_col, task_type,
+                                     train_idx, val_idx, test_idx)]
+
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
     else:

@@ -16,19 +16,24 @@
 import random
 import os
 import tempfile
+import pyarrow.parquet as pq
 import numpy as np
-import graphstorm as gs
 import dgl
 import torch as th
+
+from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
-from graphstorm.gconstruct.transform import parse_feat_ops, process_features
+from graphstorm.gconstruct.file_io import write_index_json
+from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
-from graphstorm.gconstruct.utils import ExtMemArrayMerger, partition_graph
+from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
+                                         partition_graph,
+                                         update_two_phase_feat_ops)
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -179,7 +184,7 @@ def test_feat_ops():
                                   tokens['token_type_ids'][1])
 
     data = {
-        "test1": np.random.rand(2, 4),
+        "test1": np.random.rand(2, 4).astype(np.float32),
         "test3": ["hello world", "hello world"],
     }
     proc_res = process_features(data, res2)
@@ -209,7 +214,6 @@ def test_feat_ops():
     # There are two text strings and both of them are "hello world".
     # The BERT embeddings should be the same.
     np.testing.assert_array_equal(proc_res['test4'][0], proc_res['test4'][1])
-
     # Compute BERT embeddings with multiple mini-batches.
     feat_op4 = [
         {
@@ -230,12 +234,147 @@ def test_feat_ops():
     assert "test4" in proc_res2
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
+     # Compute BERT embeddings with multiple mini-batches.
+    data0 = {
+        "test1": np.random.rand(4, 2),
+    }
+    data1 = {
+        "test1": np.random.rand(4, 2),
+    }
+    feat_op5 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test5",
+            "transform": {"name": 'max_min_norm',
+            },
+        },
+    ]
+    res5 = parse_feat_ops(feat_op5)
+    assert len(res5) == 1
+    assert res5[0].col_name == feat_op5[0]["feature_col"]
+    assert res5[0].feat_name == feat_op5[0]["feature_name"]
+    preproc_res0 = preprocess_features(data0, res5)
+    preproc_res1 = preprocess_features(data1, res5)
+    assert "test5" in preproc_res0
+    assert isinstance(preproc_res0["test5"], tuple)
+    assert "test5" in preproc_res1
+    assert isinstance(preproc_res1["test5"], tuple)
+    return_dict = {
+        0: preproc_res0,
+        1: preproc_res1
+    }
+    update_two_phase_feat_ops(return_dict, res5)
+    data_col0 = data0["test1"][:,0].tolist() + data1["test1"][:,0].tolist()
+    data_col1 = data0["test1"][:,1].tolist() + data1["test1"][:,1].tolist()
+    max0 = max(data_col0)
+    min0 = min(data_col0)
+    max1 = max(data_col1)
+    min1 = min(data_col1)
 
-def test_process_features():
+    proc_res3 = process_features(data0, res5)
+    assert "test5" in proc_res3
+    proc_res4 = process_features(data1, res5)
+    assert "test5" in proc_res4
+    proc_res5 = np.concatenate([proc_res3["test5"], proc_res4["test5"]], axis=0)
+    data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
+    data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
+    assert_almost_equal(proc_res5[:,0], data_col0)
+    assert_almost_equal(proc_res5[:,1], data_col1)
+
+    feat_op6 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test6",
+            "transform": {"name": 'max_min_norm',
+                          "max_bound": 2.,
+                          "min_bound": -2.
+            },
+        },
+    ]
+    res6 = parse_feat_ops(feat_op6)
+    assert len(res6) == 1
+    assert res6[0].col_name == feat_op6[0]["feature_col"]
+    assert res6[0].feat_name == feat_op6[0]["feature_name"]
+    preproc_res0 = preprocess_features(data0, res6)
+    preproc_res1 = preprocess_features(data1, res6)
+    assert "test6" in preproc_res0
+    assert isinstance(preproc_res0["test6"], tuple)
+    assert "test6" in preproc_res1
+    assert isinstance(preproc_res1["test6"], tuple)
+    return_dict = {
+        0: preproc_res0,
+        1: preproc_res1
+    }
+    update_two_phase_feat_ops(return_dict, res6)
+    data_col0 = data0["test1"][:,0].tolist() + data1["test1"][:,0].tolist()
+    data_col1 = data0["test1"][:,1].tolist() + data1["test1"][:,1].tolist()
+    max0 = max(data_col0)
+    min0 = min(data_col0)
+    max1 = max(data_col1)
+    min1 = min(data_col1)
+    data_col0 = [val if val < max0 else max0 for val in data_col0]
+    data_col0 = [val if val > min0 else min0 for val in data_col0]
+    data_col1 = [val if val < max1 else max1 for val in data_col1]
+    data_col1 = [val if val > min1 else min1 for val in data_col1]
+
+    proc_res3 = process_features(data0, res6)
+    assert "test6" in proc_res3
+    proc_res4 = process_features(data1, res6)
+    assert "test6" in proc_res4
+    proc_res6 = np.concatenate([proc_res3["test6"], proc_res4["test6"]], axis=0)
+    data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
+    data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
+    assert_almost_equal(proc_res6[:,0], data_col0)
+    assert_almost_equal(proc_res6[:,1], data_col1)
+
+def test_process_features_fp16():
     # Just get the features without transformation.
     data = {}
     data["test1"] = np.random.rand(10, 3)
     data["test2"] = np.random.rand(10)
+    handle, tmpfile = tempfile.mkstemp()
+    os.close(handle)
+    write_data_hdf5(data, tmpfile)
+
+    feat_op1 = [{
+        "feature_col": "test1",
+        "feature_name": "test1",
+        "out_dtype": "float16",
+    },{
+        "feature_col": "test2",
+        "feature_name": "test2",
+        "out_dtype": "float16",
+    }]
+    ops_rst = parse_feat_ops(feat_op1)
+    rst = process_features(data, ops_rst)
+    assert len(rst) == 2
+    assert 'test1' in rst
+    assert 'test2' in rst
+    assert (len(rst['test1'].shape)) == 2
+    assert (len(rst['test2'].shape)) == 2
+    assert rst['test1'].dtype == np.float16
+    assert rst['test2'].dtype == np.float16
+    assert_almost_equal(rst['test1'], data['test1'], decimal=3)
+    assert_almost_equal(rst['test2'], data['test2'].reshape(-1, 1), decimal=3)
+
+    data1 = read_data_hdf5(tmpfile, ['test1', 'test2'], in_mem=False)
+    rst2 = process_features(data1, ops_rst)
+    assert isinstance(rst2["test1"], HDF5Array)
+    assert len(rst2) == 2
+    assert 'test1' in rst2
+    assert 'test2' in rst2
+    assert (len(rst2['test1'].to_tensor().shape)) == 2
+    assert (len(rst2['test2'].shape)) == 2
+    assert rst2['test1'].to_tensor().dtype == th.float16
+    assert rst2['test2'].dtype == np.float16
+    assert_almost_equal(rst2['test1'].to_tensor().numpy(), data['test1'], decimal=3)
+    assert_almost_equal(rst2['test2'], data['test2'].reshape(-1, 1), decimal=3)
+
+def test_process_features():
+    # Just get the features without transformation.
+    data = {}
+    data["test1"] = np.random.rand(10, 3).astype(np.float32)
+    data["test2"] = np.random.rand(10).astype(np.float32)
 
     feat_op1 = [{
         "feature_col": "test1",
@@ -253,7 +392,7 @@ def test_process_features():
     assert (len(rst['test2'].shape)) == 2
     np.testing.assert_array_equal(rst['test1'], data['test1'])
     np.testing.assert_array_equal(rst['test2'], data['test2'].reshape(-1, 1))
-    
+
 def test_label():
     def check_split(res):
         assert len(res) == 4
@@ -334,6 +473,37 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
+    # Check custom data split for classification.
+    data = {'label' : np.random.randint(3, size=10)}
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
+    write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                       "valid": "/tmp/val_idx.json",
+                                       "test": "/tmp/test_idx.json"}
+            }
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    check_classification(res)
+
+    # Check custom data split with only training set.
+    data = {'label' : np.random.randint(3, size=10)}
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    conf = {'task_type': 'classification',
+            'label_col': 'label',
+            'custom_split_filenames': {"train": "/tmp/train_idx.json"}
+            }
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    assert "train_mask" in res
+    assert np.sum(res["train_mask"]) == 8
+    assert "val_mask" in res
+    assert np.sum(res["val_mask"]) == 0
+    assert "test_mask" in res
+    assert np.sum(res["test_mask"]) == 0
+
     # Check regression
     conf = {'task_type': 'regression',
             'label_col': 'label',
@@ -355,9 +525,43 @@ def test_label():
     res = process_labels(data, ops)
     check_regression(res)
 
+    # Check custom data split for regression.
+    data = {'label' : np.random.uniform(size=10) * 10}
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
+    write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
+    conf = {'task_type': 'regression',
+            'label_col': 'label',
+            'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                       "valid": "/tmp/val_idx.json",
+                                       "test": "/tmp/test_idx.json"}
+            }
+    ops = parse_label_ops([conf], True)
+    res = process_labels(data, ops)
+    check_regression(res)
+
     # Check link prediction
     conf = {'task_type': 'link_prediction',
             'split_pct': [0.8, 0.1, 0.1]}
+    ops = parse_label_ops([conf], False)
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 3
+    assert 'train_mask' in res
+    assert 'val_mask' in res
+    assert 'test_mask' in res
+    assert np.sum(res['train_mask']) == 8
+    assert np.sum(res['val_mask']) == 1
+    assert np.sum(res['test_mask']) == 1
+
+    # Check custom data split for link prediction.
+    np.save("/tmp/train_idx.npy", np.arange(8))
+    np.save("/tmp/val_idx.npy", np.arange(8, 9))
+    np.save("/tmp/test_idx.npy", np.arange(9, 10))
+    conf = {'task_type': 'link_prediction',
+            'custom_split': ["/tmp/train_idx.npy",
+                             "/tmp/val_idx.npy",
+                             "/tmp/test_idx.npy"]}
     ops = parse_label_ops([conf], False)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
@@ -417,6 +621,24 @@ def test_id_map():
     check_id_map_exist(id_map, str_ids)
     check_id_map_not_exist(id_map, str_ids)
     check_id_map_dtype_not_match(id_map, str_ids)
+
+    # Test saving ID map with random IDs.
+    ids = np.random.permutation(100)
+    str_ids = np.array([str(i) for i in ids])
+    id_map = IdMap(str_ids)
+    id_map.save("/tmp/id_map.parquet")
+
+    # Reconstruct the ID map from the parquet file.
+    table = pq.read_table("/tmp/id_map.parquet")
+    df_table = table.to_pandas()
+    keys = np.array(df_table['orig'])
+    vals = np.array(df_table['new'])
+    new_id_map = {key: val for key, val in zip(keys, vals)}
+
+    assert len(new_id_map) == len(id_map)
+    new_ids1, _ = id_map.map_id(str_ids)
+    new_ids2 = np.array([new_id_map[i] for i in str_ids])
+    assert np.all(new_ids1 == new_ids2)
 
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
@@ -727,4 +949,5 @@ if __name__ == '__main__':
     test_parquet()
     test_feat_ops()
     test_process_features()
+    test_process_features_fp16()
     test_label()

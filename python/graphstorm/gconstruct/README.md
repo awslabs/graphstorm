@@ -47,6 +47,10 @@ A feature dictionary is defined:
 If `feature_name` is not provided, `feature_col` is used as the feature name.
 If the feature transformation generates multiple tensors, `feature_name` becomes
 the prefix of the names of the generated tensors.
+* `out_dtype` specifies the data type of the transformed feature. `out_dtype` is
+optional. If it is not set, no data type casting is applied to the transformed feature.
+If it is set, the output feature will be cast into the corresponding data type.
+Now only flaot16 and float32 are supported.
 * `transform` specifies the actual feature transformation. This is a dictionary
 and its `name` field indicates the feature transformation. Each transformation
 has its own argument. The list of feature transformations supported by the pipeline
@@ -64,7 +68,12 @@ This is optional. If it's not specified, the data is split into 80% for training
 The pipeline constructs three additional vectors indicating
 the training/validation/test masks. For classification and regression tasks,
 the names of the mask tensors are "train_mask", "val_mask"
-and "test_mask"
+and "test_mask".
+* `custom_split_filenames` customizes the data split and specifies individual
+nodes/edges are used in training/validation/test sets. It specifies a dict with
+file names that contains training/validation/test node IDs or edge IDs. The keys
+of the dict are "train", "valid" and "test". A node ID or edge ID in the files
+is stored as a JSON object.
 
 Below shows an example that contains one node type and an edge type.
 ```
