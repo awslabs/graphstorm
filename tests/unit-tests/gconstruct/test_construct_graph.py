@@ -367,7 +367,10 @@ def test_process_features_fp16():
     assert (len(rst2['test2'].shape)) == 2
     assert rst2['test1'].to_tensor().dtype == th.float16
     assert rst2['test2'].dtype == np.float16
+    data_slice = rst2['test1'][np.arange(10)]
+    assert data_slice.dtype == np.float16
     assert_almost_equal(rst2['test1'].to_tensor().numpy(), data['test1'], decimal=3)
+    assert_almost_equal(rst2['test1'].to_tensor().numpy(), data_slice)
     assert_almost_equal(rst2['test2'], data['test2'].reshape(-1, 1), decimal=3)
 
 def test_process_features():

@@ -480,3 +480,7 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         # the new_edge_mapping contains per edge type on the ith row
         # the original edge id for the ith edge.
         save_maps(output_dir, "edge_mapping", new_edge_mapping)
+
+
+def feat_astype(feats, dtype):
+    return feats.astype(dtype) if dtype is not None else feats
