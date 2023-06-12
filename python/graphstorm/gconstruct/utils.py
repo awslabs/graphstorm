@@ -17,8 +17,6 @@
     node regression, edge classification and edge regression.
 """
 import os
-import multiprocessing
-from multiprocessing import Process
 import queue
 import gc
 import logging
@@ -26,6 +24,8 @@ import logging
 import numpy as np
 import dgl
 import torch as th
+from torch import multiprocessing
+from torch.multiprocessing import Process
 
 from ..utils import sys_tracker
 from .file_io import HDF5Array
