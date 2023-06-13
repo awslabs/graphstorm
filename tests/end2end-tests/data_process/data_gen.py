@@ -85,6 +85,9 @@ edge_data3 = {
     'data': src3 + node_id3[dst_idx],
     'data1': np.repeat(src3 + node_id3[dst_idx], 5).reshape(len(src3), 5),
 }
+edge_data3_2 = {
+    'data': src3 + node_id3[dst_idx],
+}
 
 in_dir = '/tmp/test_data/'
 out_dir = '/tmp/test_out/'
@@ -112,6 +115,7 @@ for i, edge_data in enumerate(split_data(edge_data2, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data2_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data3, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{i}.parquet'))
+write_data_hdf5(edge_data3_2, os.path.join(in_dir, f'edge_data3_2.hdf5'))
 
 node_conf = [
     {
@@ -246,6 +250,17 @@ edge_conf = [
             {
                 "feature_col": "data",
                 "feature_name": "feat",
+            },
+        ],
+    },
+    {
+        "relation":         ("node2", "relation3", "node3"),
+        "format":           {"name": "hdf5"},
+        "files":            os.path.join(in_dir, "edge_data3_2.hdf5"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat2",
             },
         ],
     },
