@@ -20,6 +20,10 @@
 import logging
 import os
 import sys
+
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import numpy as np
 import torch as th
 from transformers import BertTokenizer
@@ -96,6 +100,74 @@ class TwoPhaseFeatTransform(FeatTransform):
         info:
             Information to be collected
         """
+
+class CategoricalTransform(TwoPhaseFeatTransform):
+    """ Convert the data into categorical values.
+
+    The categorical values are stored as integers.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column.
+    feat_name : str
+        The name of the feature.
+    """
+    def __init__(self, col_name, feat_name):
+        self._val_dict = {}
+        super(CategoricalTransform, self).__init__(col_name, feat_name)
+
+    def pre_process(self, feats):
+        """ Pre-process data
+
+        Parameters
+        ----------
+        feats: np.array
+            Data to be processed
+        """
+        return {self.feat_name: np.unique(feats)}
+
+    def update_info(self, info):
+        """ Store global information for the second phase data processing
+
+        Parameters
+        ----------
+        info: list
+            Information to be collected
+        """
+        self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+
+    def __call__(self, feats):
+        """ Assign IDs to categorical values.
+
+        Parameters
+        ----------
+        feats : np array
+            Data with categorical values.
+
+        Returns
+        -------
+        np.array
+        """
+        return {self.feat_name: np.array([self._val_dict[val] for val in feats])}
+
+    def save(self, file_path):
+        """ Save the ID map to a parquet file.
+
+        Parameters
+        ----------
+        file_path : str
+            The file where the ID map will be saved to.
+
+        Returns
+        -------
+        bool : whether the ID map is saved to a file.
+        """
+        keys = list(self._val_dict.keys())
+        vals = list(self._val_dict.values())
+        table = pa.Table.from_pandas(pd.DataFrame({'orig': keys, 'new': vals}))
+        pq.write_table(table, file_path)
+        return True
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     """ Numerical value with Min-Max normalization.
@@ -443,6 +515,8 @@ def parse_feat_ops(confs):
                                                      feat_name,
                                                      max_bound,
                                                      min_bound)
+            elif conf['name'] == 'categorize':
+                transform = CategoricalTransform(feat['feature_col'], feat_name)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)

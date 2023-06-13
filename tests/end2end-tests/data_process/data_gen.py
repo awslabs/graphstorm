@@ -52,7 +52,7 @@ node_data1_2 = {
 node_id2 = np.arange(20000)
 node_data2 = {
     'id': node_id2,
-    'data': np.repeat(node_id2, 5).reshape(len(node_id2), 5),
+    'data': [str(i) for i in np.random.randint(0, 10, len(node_id2))],
 }
 
 node_id3 = np.unique(np.random.randint(0, 1000000000, 5000))
@@ -101,7 +101,7 @@ for i, node_data in enumerate(split_data(node_data1, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
 write_data_hdf5(node_data1_2, os.path.join(in_dir, f'node_data1_2.hdf5'))
 for i, node_data in enumerate(split_data(node_data2, 5)):
-    write_data_hdf5(node_data, os.path.join(in_dir, f'node_data2_{i}.hdf5'))
+    write_data_parquet(node_data, os.path.join(in_dir, f'node_data2_{i}.parquet'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
     write_data_json(node_data, os.path.join(in_dir, f'node_data3_{i}.json'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
@@ -174,12 +174,13 @@ node_conf = [
     {
         "node_id_col": "id",
         "node_type": "node2",
-        "format": {"name": "hdf5"},
-        "files": os.path.join(in_dir, "node_data2_*.hdf5"),
+        "format": {"name": "parquet"},
+        "files": os.path.join(in_dir, "node_data2_*.parquet"),
         "features": [
             {
                 "feature_col": "data",
-                "feature_name": "feat",
+                "feature_name": "category",
+                "transform": {"name": "categorize"},
             },
         ],
     },
