@@ -55,8 +55,6 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
     def __init__(self, g):
         super(GSNodeInputLayer, self).__init__()
         self.g = g
-        # By default, there is no learnable embeddings
-        self._embed_layers = {}
 
     def prepare(self, _):
         """ Preparing input layer for training or inference.
@@ -119,12 +117,6 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         Bool : True if we need to cache the embeddings for inference.
         """
         return False
-
-    @property
-    def sparse_embeds(self):
-        """ Get sparse embeds
-        """
-        return self._sparse_embeds
 
     @property
     def in_dims(self):
@@ -194,6 +186,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
+        self._embed_layers = {}
         for ntype in g.ntypes:
             feat_dim = 0
             if feat_size[ntype] > 0:
