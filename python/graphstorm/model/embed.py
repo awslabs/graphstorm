@@ -133,6 +133,10 @@ class ZeroEmbedding:
     def __call__(self, input_nodes, device):
         return th.zeros(len(input_nodes), self._embed_size, device=device)
 
+    @property
+    def embedding_dim(self):
+        return self._embed_size
+
 def _get_node_embed(g, ntype, embed_size, embed_type):
     if embed_type == "learnable":
         part_policy = g.get_node_partition_policy(ntype)
@@ -176,7 +180,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
-                 embed_type="learnable"):
+                 embed_type="zero"):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.activation = activation
