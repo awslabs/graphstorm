@@ -41,12 +41,14 @@ node_data1 = {
     'data': node_id1,
     'text': node_text,
     'label': node_id1 % 100,
-    'float': np.random.rand(node_id1.shape[0], 2),
+    'float_max_min': np.random.rand(node_id1.shape[0], 2),
+    'float2': node_id1,
 }
 
 node_data1_2 = {
     'data': node_id1,
-    'float_2': np.random.rand(node_id1.shape[0], 2),
+    'float_max_min_2': np.random.rand(node_id1.shape[0], 2),
+    'float3': node_id1,
 }
 
 node_id2 = np.arange(20000)
@@ -122,10 +124,15 @@ node_conf = [
                 "feature_name": "feat1",
             },
             {
-                "feature_col": "float_2",
+                "feature_col": "float_max_min_2",
                 "feature_name": "feat3",
                 "transform": {"name": 'max_min_norm'}
-            }
+            },
+            {
+                "feature_col": "float3",
+                "feature_name": "feat_fp16_hdf5",
+                "out_dtype": 'float16',
+            },
         ],
     },
     {
@@ -155,13 +162,18 @@ node_conf = [
                               "max_seq_length": 16},
             },
             {
-                "feature_col": "float",
+                "feature_col": "float_max_min",
                 "feature_name": "feat2",
                 "out_dtype": 'float16',
                 "transform": {"name": "max_min_norm",
                               "max_bound": 2.,
                               "min_bound": -2.}
-            }
+            },
+            {
+                "feature_col": "float2",
+                "feature_name": "feat_fp16",
+                "out_dtype": 'float16',
+            },
         ],
         "labels":       [
             {

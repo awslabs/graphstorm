@@ -514,7 +514,8 @@ def parse_feat_ops(confs):
                 transform = NumericalMinMaxTransform(feat['feature_col'],
                                                      feat_name,
                                                      max_bound,
-                                                     min_bound)
+                                                     min_bound,
+                                                     out_dtype=out_dtype)
             elif conf['name'] == 'categorize':
                 transform = CategoricalTransform(feat['feature_col'], feat_name)
             else:
