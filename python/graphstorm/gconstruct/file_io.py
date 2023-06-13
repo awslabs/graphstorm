@@ -233,14 +233,18 @@ class HDF5Array:
             idx = idx.numpy()
         # If the idx are sorted.
         if np.all(idx[1:] - idx[:-1] > 0):
-            return self._arr[idx]
+            arr = self._arr[idx]
         else:
             # There are two cases here: 1) there are duplicated IDs,
             # 2) the IDs are not sorted. Unique can return unique
             # IDs in the ascending order that meets the requirement of
             # HDF5 indexing.
             uniq_ids, reverse_idx = np.unique(idx, return_inverse=True)
-            return self._arr[uniq_ids][reverse_idx]
+            arr = self._arr[uniq_ids][reverse_idx]
+
+        if self._out_dtype is not None:
+            arr = arr.astype(self._out_dtype)
+        return arr
 
     def to_tensor(self):
         """ Return Pytorch tensor.
