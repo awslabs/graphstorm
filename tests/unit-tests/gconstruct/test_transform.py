@@ -22,6 +22,7 @@ from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 from graphstorm.gconstruct.transform import (_feat_astype,
                                              _get_output_dtype,
                                              NumericalMinMaxTransform,
+                                             CategoricalTransform,
                                              Noop)
 
 def test_get_output_dtype():
@@ -180,6 +181,24 @@ def test_fp_min_max_transform(out_dtype):
         new_feats = new_feats if out_dtype is None else new_feats.astype(out_dtype)
         assert_almost_equal(norm_feats[:,i], new_feats, decimal=6)
 
+def test_categorize_transform():
+    transform = CategoricalTransform("test1", "test")
+    str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
+    str_ids = str_ids + [str(i) for i in range(10)]
+    res = transform.pre_process(str_ids)
+    assert "test" in res
+    assert len(res["test"]) == 10
+    for i in range(10):
+        assert str(i) in res["test"]
+    info = [ np.array([str(i) for i in range(6)]),
+            np.array([str(i) for i in range(4, 10)]) ]
+    transform.update_info(info)
+    feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for i, str_i in zip(cat_feat["test"], feat):
+        assert int(str_i) == i
+
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_noop_transform(out_dtype):
     transform = Noop("test", "test", out_dtype=out_dtype)
@@ -191,6 +210,7 @@ def test_noop_transform(out_dtype):
         assert norm_feats["test"].dtype == np.float32
 
 if __name__ == '__main__':
+    test_categorize_transform()
     test_feat_astype()
     test_get_output_dtype()
     test_fp_transform()
