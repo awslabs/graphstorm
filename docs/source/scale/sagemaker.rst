@@ -18,7 +18,7 @@ Setup GraphStorm SageMaker Docker Repository
 ----------------------------------------------
 GraphStorm uses SageMaker's "Bring Your Own Container (BYOC)" mode. Therefore, before launch GraphStorm on SageMaker, there are two steps required to set up a GraphStorm SageMaker Docker repository.
 
-.. _build_docker:
+.. _build_sagemaker_docker:
 
 Step 1: Build a SageMaker compatible Docker image
 ...................................................
@@ -57,7 +57,7 @@ The ``build_docker_sagemaker.sh`` command take three arguments:
 
 Once the ``build_docker_sagemaker.sh`` command completes successfully. There will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, in the local repository.
 
-.. _upload_docker:
+.. _upload_sagemaker_docker:
 
 Step 2: Upload the Docker Image to ECR
 ........................................
@@ -250,7 +250,7 @@ To run GraphStorm SageMaker with Docker compose, we need to set up a local Linux
 
     export PYTHONPATH=/PATH_TO_GRAPHSTORM/python:$PYTHONPATH
 
-3. Build a SageMaker compatible Docker image following the :ref:`Step 1 <build_docker>`.
+3. Build a SageMaker compatible Docker image following the :ref:`Step 1 <build_sagemaker_docker>`.
 
 4. Install `docker compose <https://docs.docker.com/compose/install/linux/>`_.
 

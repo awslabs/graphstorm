@@ -3,12 +3,65 @@
 Environment Setup
 ======================
 
-For a quick and easy setup, GraphStorm can be installed as a pip package.
+For a quick and easy setup, GraphStorm can be installed as a pip package. However, configuring a GraphStorm environment in various Operation Systems is non-trivial, therefore, GraphStorm also provides Docker-based running environment for easy deployment.
 
-However, configuring an GraphStorm environment is non-trivial. Users need to install dependencies and configure distributed PyTorch running environments. For this reason, we recommend that our users setup Docker as the base running environment to use GraphStorm.
+1. Setup GraphStorm with pip Package
+-------------------------------------
+Prerequisites
+...............
+
+1. **Linux OS**: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.
+
+2. **GPU**: The current version of GraphStorm requires **at least one GPU** installed in the instance.
+
+Install GraphStorm
+...................
+Users can use ``pip`` or ``pip3`` to install GraphStorm.
+
+.. code-block:: bash
+
+    pip install graphstorm
+
+Install Dependencies
+.....................
+GraphStorm requires a set of dependencies, which can be installed with the following ``pip`` or ``pip3`` commands.
+
+.. code-block:: bash
+
+    pip install boto3==1.26.126
+    pip install botocore==1.29.126
+    pip install h5py==3.8.0
+    pip install scipy
+    pip install tqdm==4.65.0
+    pip install pyarrow==12.0.0
+    pip install transformers==4.28.1
+    pip install pandas
+    pip install scikit-learn
+    pip install ogb==1.3.6
+    pip install psutil==5.9.5
+    pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+    pip install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
+
+Clone GraphStorm Tools (Optional)
+..................................
+GraphStorm provides a set of scripts, tools, and examples, which can facilitate the use of GraphStrom.
+
+* **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include examplar configuration yaml files that used in GraphStorm documents and tutorials.
+* **graphstorm/examples** includes Python codes for customized models and customized data preparation.
+* **graphstorm/tools** includes graph data partition and related Python codes.
+* **graphstorm/sagemaker** include commands and codes to run GraphStorm on Amazon SageMaker.
+
+Users can clone GraphStorm source code to obtain them.
+
+.. code-block:: bash
+
+    git clone https://github.com/awslabs/graphstorm.git
+
+2. Setup GraphStorm Docker Environment
+---------------------------------------
 
 Prerequisites
------------------
+...............
 
 1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
@@ -27,7 +80,7 @@ If using AWS `Deep Learning AMI GPU version`, the Nvidia Container Toolkit has b
 .. _build_docker:
 
 Build a GraphStorm Docker image from source code
---------------------------------------------------
+.................................................
 
 Please use the following command to build a Docker image from source:
 
@@ -53,9 +106,8 @@ You can use the below command to check if the new Docker image is created succes
 
 If the build succeeds, there should be a new Docker image, named *<docker-name>:<docker-tag>*, e.g., ``graphstorm:local``.
 
-
 Create a GraphStorm Container
--------------------------------
+..............................
 
 First, you need to create a GraphStorm container based on the Docker image built in the previous step. 
 
@@ -63,7 +115,7 @@ Run the following command:
 
 .. code:: bash
 
-    nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstomr:local
+    nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local
 
 This command will create a GraphStorm contained, named ``test`` and run the container as a daemon. 
 

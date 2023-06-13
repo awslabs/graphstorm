@@ -226,7 +226,7 @@
 <h2>Setup GraphStorm SageMaker Docker Repository<a class="headerlink" href="#setup-graphstorm-sagemaker-docker-repository" title="Permalink to this heading">#</a></h2>
 <p>GraphStorm uses SageMaker’s “Bring Your Own Container (BYOC)” mode. Therefore, before launch GraphStorm on SageMaker, there are two steps required to set up a GraphStorm SageMaker Docker repository.</p>
 <section id="step-1-build-a-sagemaker-compatible-docker-image">
-<span id="build-docker"></span><h3>Step 1: Build a SageMaker compatible Docker image<a class="headerlink" href="#step-1-build-a-sagemaker-compatible-docker-image" title="Permalink to this heading">#</a></h3>
+<span id="build-sagemaker-docker"></span><h3>Step 1: Build a SageMaker compatible Docker image<a class="headerlink" href="#step-1-build-a-sagemaker-compatible-docker-image" title="Permalink to this heading">#</a></h3>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <ul class="simple">
@@ -262,7 +262,7 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 <p>Once the <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> command completes successfully. There will be a Docker image, named <code class="docutils literal notranslate"><span class="pre">&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;</span></code>, such as <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm</span></code>, in the local repository.</p>
 </section>
 <section id="step-2-upload-the-docker-image-to-ecr">
-<span id="upload-docker"></span><h3>Step 2: Upload the Docker Image to ECR<a class="headerlink" href="#step-2-upload-the-docker-image-to-ecr" title="Permalink to this heading">#</a></h3>
+<span id="upload-sagemaker-docker"></span><h3>Step 2: Upload the Docker Image to ECR<a class="headerlink" href="#step-2-upload-the-docker-image-to-ecr" title="Permalink to this heading">#</a></h3>
 <p>Because SageMaker relies on Amazon ECR to access customers’ own Docker images, users need to upload the Docker image built in the Step 1 to their own ECR repository.</p>
 <p>The following command will authenticate the user account to access to user’s ECR repository via AWS CLI.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>ecr<span class="w"> </span>get-login-password<span class="w"> </span>--region<span class="w"> </span>&lt;REGION&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>login<span class="w"> </span>--username<span class="w"> </span>AWS<span class="w"> </span>--password-stdin<span class="w"> </span>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com
@@ -433,7 +433,7 @@ pip3<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl<
 </pre></div>
 </div>
 <ol class="arabic simple" start="3">
-<li><p>Build a SageMaker compatible Docker image following the <a class="reference internal" href="#build-docker"><span class="std std-ref">Step 1</span></a>.</p></li>
+<li><p>Build a SageMaker compatible Docker image following the <a class="reference internal" href="#build-sagemaker-docker"><span class="std std-ref">Step 1</span></a>.</p></li>
 <li><p>Install <a class="reference external" href="https://docs.docker.com/compose/install/linux/">docker compose</a>.</p></li>
 </ol>
 </section>
