@@ -167,7 +167,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
         while True:
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
-            logging.debug(f"{worker_id} Processing {in_file}")
+            logging.debug("%d Processing %s", worker_id, in_file)
             data = user_parser(in_file)
             size = _estimate_sizeof(data)
             # Max pickle obj size is 2 GByte
