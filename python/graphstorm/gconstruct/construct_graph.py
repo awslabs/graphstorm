@@ -211,9 +211,10 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         num_proc = num_processes if multiprocessing else 0
 
         two_phase_feat_ops = []
-        for op in feat_ops:
-            if isinstance(op, TwoPhaseFeatTransform):
-                two_phase_feat_ops.append(op)
+        if feat_ops is not None:
+            for op in feat_ops:
+                if isinstance(op, TwoPhaseFeatTransform):
+                    two_phase_feat_ops.append(op)
         if len(two_phase_feat_ops) > 0:
             user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
                                       read_file=read_file)
