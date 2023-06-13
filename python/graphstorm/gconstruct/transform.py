@@ -442,7 +442,8 @@ def parse_feat_ops(confs):
                 transform = NumericalMinMaxTransform(feat['feature_col'],
                                                      feat_name,
                                                      max_bound,
-                                                     min_bound)
+                                                     min_bound,
+                                                     out_dtype=out_dtype)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
