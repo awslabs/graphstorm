@@ -16,7 +16,6 @@
     Inference script for link prediction tasks with GNN
 """
 
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -28,8 +27,10 @@ from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
-def main(args):
-    config = GSConfig(args)
+def main(config_args):
+    """ main function
+    """
+    config = GSConfig(config_args)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
@@ -56,7 +57,7 @@ def main(args):
     elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
     else:
-        raise Exception('Unknown test negative sampler.'
+        raise ValueError('Unknown test negative sampler.'
             'Supported test negative samplers include '
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
 
@@ -72,12 +73,14 @@ def main(args):
                 node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
+    """ Generate an argument parser
+    """
     parser = get_argument_parser()
     return parser
 
 if __name__ == '__main__':
-    parser=generate_parser()
+    arg_parser=generate_parser()
 
-    args = parser.parse_args()
+    args = arg_parser.parse_args()
     print(args)
     main(args)
