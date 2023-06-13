@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    SageMaker training entry point.
+    SageMaker partitioning entry point.
 """
 from dataclasses import dataclass
 import os
@@ -39,6 +39,23 @@ DGL_TOOL_PATH = "/root/dgl/tools"
 class PartitionJobConfig():
     """
     Configuration object for a SageMaker partitioning job.
+
+    Parameters
+    ----------
+    graph_data_s3: str
+        S3 path to the graph data in chunked format.
+    output_data_s3: str
+        S3 path to store the partitioned graph data.
+    num_parts: int
+        Number of partitions to create.
+    metadata_filename: str
+        The filename for the graph partitioning metadata file we'll use to determine data sources.
+    partition_algorithm: str
+        The name of the partition algorithm to use.
+    skip_partitioning: bool
+        When true we skip partitioning and skip to the DistDGL file creation step.
+    log_level: str
+        The log level to use. Choose from [DEBUG, INFO, WARNING, ERROR, CRITICAL].
     """
     graph_data_s3: str
     output_data_s3: str

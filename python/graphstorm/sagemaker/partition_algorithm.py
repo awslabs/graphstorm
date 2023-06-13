@@ -1,5 +1,19 @@
 """
-A module to gather partitioning algorithm implementations to be executed in SageMaker.
+    Copyright Contributors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    A module to gather partitioning algorithm implementations to be executed in SageMaker.
 """
 from typing import List, Tuple
 import abc
@@ -64,7 +78,6 @@ class PartitionAlgorithm(abc.ABC):
         self.graph_name = self.metadata["graph_name"]
 
         os.makedirs(self.local_output_path, exist_ok=True)
-
 
     def create_partitions(self, output_s3_path: str, num_partitions: int) -> Tuple[str, str]:
         """

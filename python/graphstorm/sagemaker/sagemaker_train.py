@@ -150,8 +150,8 @@ def run_train(args, unknownargs):
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
 
-    print(f"Known args {args}")
-    print(f"Unknown args {unknownargs}")
+    print(f"Know args {args}")
+    print(f"Unknow args {unknownargs}")
 
     save_model_path = os.path.join(output_path, "model_checkpoint")
 

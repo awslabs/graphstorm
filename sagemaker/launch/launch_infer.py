@@ -47,6 +47,7 @@ def run_job(input_args, image, unknowargs):
     unknowargs: dict
         GraphStorm parameters
     """
+    sm_task_name = input_args.task_name # SageMaker task name
     role = input_args.role # SageMaker ARN role
     instance_type = input_args.instance_type # SageMaker instance type
     instance_count = input_args.instance_count # Number of infernece instances
@@ -70,7 +71,7 @@ def run_job(input_args, image, unknowargs):
 
     container_image_uri = image
 
-    job_prefix = input_args.task_name if input_args.task_name else f"infer-{input_args.graph_name}"
+    prefix = "script-mode-container"
 
     params = {"task-type": task_type,
               "graph-name": graph_name,
@@ -108,58 +109,48 @@ def run_job(input_args, image, unknowargs):
         instance_type=instance_type,
         model_uri=model_artifact_s3,
         py_version="py3",
-        base_job_name=job_prefix,
+        base_job_name=prefix,
         hyperparameters=params,
         sagemaker_session=sess,
         tags=[{"Key":"GraphStorm", "Value":"beta"},
               {"Key":"GraphStorm_Task", "Value":"Inference"}],
     )
 
-    est.fit(inputs={"train": infer_yaml_s3},
-            wait=not input_args.async_execution)
+    est.fit(inputs={"train": infer_yaml_s3}, job_name=sm_task_name, wait=True)
 
-def get_inference_parser():
+def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--image-url", type=str,
-        required=True,
         help="Inference docker image")
     parser.add_argument("--role", type=str,
-        required=True,
         help="SageMaker role")
     parser.add_argument("--instance-type", type=str,
         default=INSTANCE_TYPE,
         help="instance type used to do inference")
     parser.add_argument("--instance-count", type=int,
-        required=True,
-        help="number of inference instances")
+        default=2,
+        help="number of infernece instances")
     parser.add_argument("--region", type=str,
-        required=True,
+        default="us-east-1",
         help="Region")
     parser.add_argument("--entry-point", type=str,
         default="graphstorm/sagemaker/run/infer_entry.py",
         help="PATH-TO graphstorm/sagemaker/run/infer_entry.py")
     parser.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
-    parser.add_argument("--async-execution", action="store_true",
-        help="Run inference asynchronously, without waiting for the job to finish")
 
     # task specific
-    parser.add_argument("--graph-name", type=str, help="Graph name",
-        required=True,)
+    parser.add_argument("--graph-name", type=str, help="Graph name")
     parser.add_argument("--graph-data-s3", type=str,
-        required=True,
         help="S3 location of input inference graph")
     parser.add_argument("--task-type", type=str,
-        required=True,
         help=f"Task type in {SUPPORTED_TASKS}")
     parser.add_argument("--yaml-s3", type=str,
-        required=True,
         help="S3 location of inference yaml file. "
              "Do not store it with partitioned graph")
     parser.add_argument("--model-artifact-s3", type=str,
-        required=True,
-        help="S3 prefix to load the saved model artifacts from")
+        help="S3 bucket to load the saved model artifacts")
     parser.add_argument("--output-emb-s3", type=str,
         help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
@@ -176,7 +167,7 @@ def get_inference_parser():
     return parser
 
 if __name__ == "__main__":
-    arg_parser = get_inference_parser()
+    arg_parser = parse_args()
     args, unknownargs = arg_parser.parse_known_args()
     print(args)
 
