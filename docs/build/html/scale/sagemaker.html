@@ -317,18 +317,17 @@ aws<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>/
 <h4>Launch training<a class="headerlink" href="#launch-training" title="Permalink to this heading">#</a></h4>
 <p>Launch GraphStorm training on SageMaker is similar as launch in the <a class="reference internal" href="../tutorials/quick-start.html#quick-start-standalone"><span class="std std-ref">Standalone mode</span></a> and <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">the Distributed mode</span></a>, except for three diffences:</p>
 <ul class="simple">
-<li><p>The launch command is under the <code class="docutils literal notranslate"><span class="pre">graphstorm/sagemaker</span></code> folder, and</p></li>
+<li><p>The launch commands are under the <code class="docutils literal notranslate"><span class="pre">graphstorm/sagemaker</span></code> folder, and</p></li>
 <li><p>Users need to provide AWS service-related information in the command.</p></li>
 <li><p>All paths for saving models, embeddings, and predict results should be an S3 location specified through the <code class="docutils literal notranslate"><span class="pre">--model-artifact-s3</span></code> argument.</p></li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Before running SageMaker tasks, login to the ECR where the image is present.
-.. code-block:: bash</p>
-<blockquote>
-<div><p>aws ecr get-login-password –region &lt;REGION&gt; | docker login –username AWS –password-stdin &lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com</p>
-</div></blockquote>
-<p>Please replace the <cite>&lt;REGION&gt;</cite> and <cite>&lt;AWS_ACCOUNT_ID&gt;</cite> with your own account information and be consistent with the values used in the Step 1.</p>
+<p>Before running SageMaker tasks, users need to login to the ECR where the image is present.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>ecr<span class="w"> </span>get-login-password<span class="w"> </span>--region<span class="w"> </span>&lt;REGION&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>login<span class="w"> </span>--username<span class="w"> </span>AWS<span class="w"> </span>--password-stdin<span class="w"> </span>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com
+</pre></div>
+</div>
+<p>Please replace the <cite>&lt;REGION&gt;</cite> and <cite>&lt;AWS_ACCOUNT_ID&gt;</cite> with your own account information and be consistent with the values used in the <strong>Step 1</strong>.</p>
 </div>
 <p>Users can use the following commands to launch a GraphStorm link prediction training job with the OGB-MAG graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/path-to-graphstorm/sagemaker/
@@ -352,20 +351,20 @@ python3<span class="w"> </span>launch/launch_train.py<span class="w"> </span><sp
 <span class="w">        </span>--batch-size<span class="w"> </span><span class="m">128</span>
 </pre></div>
 </div>
-<p>Please replace the <cite>&lt;AMAZON_ECR_IMAGE_URI&gt;</cite> with the <cite>&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;</cite> that used in the Step 2, e.g., <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm-sagemaker-oss:v0.1</span></code>, replace the <cite>&lt;REGION&gt;</cite> with the region where ECR image repository is located, e.g., <code class="docutils literal notranslate"><span class="pre">us-east-1</span></code>, and replace the <cite>&lt;ROLE_ARN&gt;</cite> with your AWS account ARN that has SageMaker execution role, e.g., <code class="docutils literal notranslate"><span class="pre">&quot;arn:aws:iam::&lt;ACCOUNT_ID&gt;:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571&quot;</span></code>.</p>
+<p>Please replace the <cite>&lt;AMAZON_ECR_IMAGE_URI&gt;</cite> with the <cite>&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;</cite> that are uploaded in the Step 2, e.g., <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm-sagemaker-oss:v0.1</span></code>, replace the <cite>&lt;REGION&gt;</cite> with the region where ECR image repository is located, e.g., <code class="docutils literal notranslate"><span class="pre">us-east-1</span></code>, and replace the <cite>&lt;ROLE_ARN&gt;</cite> with your AWS account ARN that has SageMaker execution role, e.g., <code class="docutils literal notranslate"><span class="pre">&quot;arn:aws:iam::&lt;ACCOUNT_ID&gt;:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571&quot;</span></code>.</p>
 <p>Because we use three-partition OGB-MAG graph, we need to set the <code class="docutils literal notranslate"><span class="pre">--instance-count</span></code> to 3 in this command.</p>
-<p>The trained model artifact will be stored in the S3 address provided through <code class="docutils literal notranslate"><span class="pre">--model-artifact-s3</span></code>. You can use following command to check the model artifacts:</p>
+<p>The trained model artifact will be stored in the S3 location provided through <code class="docutils literal notranslate"><span class="pre">--model-artifact-s3</span></code>. You can use following command to check the model artifacts after the training completes.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s3://&lt;PATH_TO_SAVE_TRAINED_MODEL&gt;/
 </pre></div>
 </div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>the <code class="docutils literal notranslate"><span class="pre">save_embed_path</span></code> and <code class="docutils literal notranslate"><span class="pre">save_prediction_path</span></code> <strong>MUST</strong> be disabled, i.e., set to ‘None’ when using SageMaker. They only work with local disk (in the Standalone mode) or shared file system (in the Distributed mode).</p>
 </div>
 </section>
 <section id="launch-inference">
 <h4>Launch inference<a class="headerlink" href="#launch-inference" title="Permalink to this heading">#</a></h4>
-<p>Users can use the following command to launch a GraphStorm link prediction training job with the OGB-MAG graph.</p>
+<p>Users can use the following command to launch a GraphStorm link prediction inference job on the OGB-MAG graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>launch/launch_infer.py<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--image-url<span class="w"> </span>&lt;AMAZON_ECR_IMAGE_URI&gt;<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--region<span class="w"> </span>&lt;REGION&gt;<span class="w"> </span><span class="se">\</span>
@@ -388,9 +387,9 @@ python3<span class="w"> </span>launch/launch_train.py<span class="w"> </span><sp
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Diffferent from the training command’s argument, in the inference command, the value of argument <code class="docutils literal notranslate"><span class="pre">--model-artifact-s3</span></code> needs to be a specific training epoch or epoch plus iterations, e.g., <code class="docutils literal notranslate"><span class="pre">s3://models/epoch-0-iter-999</span></code> where the trained model artifacts were saved.</p>
+<p>Diffferent from the training command’s argument, in the inference command, the value of argument <code class="docutils literal notranslate"><span class="pre">--model-artifact-s3</span></code> needs to be a specific training epoch or epoch plus iterations, e.g., <code class="docutils literal notranslate"><span class="pre">s3://models/epoch-0-iter-999</span></code>, where the trained model artifacts were saved.</p>
 </div>
-<p>The generated node embeddings will be uploaded into <code class="docutils literal notranslate"><span class="pre">s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/</span></code>. For node classification/regression or edge classification/regression tasks, users can use <code class="docutils literal notranslate"><span class="pre">--output-prediction-s3</span></code> to specify location of saving prediction results.</p>
+<p>As the outcomes of the inference command, generated node embeddings will be uploaded into <code class="docutils literal notranslate"><span class="pre">s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/</span></code>. For node classification/regression or edge classification/regression tasks, users can use <code class="docutils literal notranslate"><span class="pre">--output-prediction-s3</span></code> to specify saving locations of prediction results.</p>
 <p>Users can use following command to check the corresponding outputs:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s3://&lt;PATH_TO_SAVE_GENERATED_NODE_EMBEDDING&gt;/
 aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s3://&lt;PATH_TO_SAVE_PREDICTION_RESULTS&gt;/
@@ -400,16 +399,16 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </section>
 <section id="run-graphstorm-sagemaker-with-docker-compose">
 <h3>Run GraphStorm SageMaker with Docker Compose<a class="headerlink" href="#run-graphstorm-sagemaker-with-docker-compose" title="Permalink to this heading">#</a></h3>
-<p>This section describes how to launch Docker compose jobs that emulate a SageMaker training execution environment. This can be used to develop and test GraphStorm model training and inference using SageMaker.</p>
+<p>This section describes how to launch Docker compose jobs that emulate a SageMaker training execution environment. This can be used to develop and test GraphStorm model training and inference on SageMaker locally.</p>
 <p>If users have never worked with Docker compose before the official description provides a great intro:</p>
 <div class="admonition hint">
 <p class="admonition-title">Hint</p>
 <p>Compose is a tool for defining and running multi-container Docker applications. With Compose, you use a YAML file to configure your application’s services. Then, with a single command, you create and start all the services from your configuration.</p>
 </div>
-<p>We will use this capability to launch multiple worker instances locally, that will be configured to “look like” a SageMaker training instance and communicate over a virtual network created by Docker compose. This way our test environment will be as close to a real SageMaker distributed job as we can get, without needing to launch SageMaker jobs, or launch and configure multiple EC2 instances when developing features.</p>
+<p>We will use this capability to launch multiple worker instances locally, that will be configured to “look like” a SageMaker training instance and communicate over a virtual network created by Docker Compose. This way our test environment will be as close to a real SageMaker distributed job as we can get, without needing to launch SageMaker jobs, or launch and configure multiple EC2 instances when developing features.</p>
 <section id="get-started">
 <h4>Get Started<a class="headerlink" href="#get-started" title="Permalink to this heading">#</a></h4>
-<p>To run GraphStorm SageMaker with Docker compose, we need to set up a local Linux instance with the following contents.</p>
+<p>To run GraphStorm SageMaker with Docker Compose, we need to set up a local Linux instance with the following contents.</p>
 <ol class="arabic simple">
 <li><p>Use the below command to install SageMaker.</p></li>
 </ol>
@@ -433,14 +432,18 @@ pip<span class="w"> </span>install<span class="w"> </span>scikit-learn
 pip<span class="w"> </span>install<span class="w"> </span><span class="nv">ogb</span><span class="o">==</span><span class="m">1</span>.3.6
 pip<span class="w"> </span>install<span class="w"> </span><span class="nv">psutil</span><span class="o">==</span><span class="m">5</span>.9.5
 pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">1</span>.13.1+cu116<span class="w"> </span>--extra-index-url<span class="w"> </span>https://download.pytorch.org/whl/cu116
-pip3<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.0<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels/cu116/repo.html
-
-<span class="nb">export</span><span class="w"> </span><span class="nv">PYTHONPATH</span><span class="o">=</span>/PATH_TO_GRAPHSTORM/python:<span class="nv">$PYTHONPATH</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.0<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels/cu116/repo.html
 </pre></div>
 </div>
 <ol class="arabic simple" start="3">
+<li><p>Setup GraphStorm in the PYTHONPATH variable.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">PYTHONPATH</span><span class="o">=</span>/PATH_TO_GRAPHSTORM/python:<span class="nv">$PYTHONPATH</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
 <li><p>Build a SageMaker compatible Docker image following the <a class="reference internal" href="#build-sagemaker-docker"><span class="std std-ref">Step 1</span></a>.</p></li>
-<li><p>Install <a class="reference external" href="https://docs.docker.com/compose/install/linux/">docker compose</a>.</p></li>
+<li><p>Follow the <a class="reference external" href="https://docs.docker.com/compose/install/linux/">Docker Compose</a> document to install Docker Compose.</p></li>
 </ol>
 </section>
 <section id="generate-a-docker-compose-file">
