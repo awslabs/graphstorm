@@ -94,11 +94,9 @@ assert th.sum(g.nodes['node1'].data['test_mask']) == 0
 
 # Test the second node data
 data = g.nodes['node2'].data['category'].numpy()
-orig_ids = np.arange(g.number_of_nodes('node2'))
-assert data.shape[1] == 1
-assert data.dtype == np.int64
-assert np.all(data <= 10)
-assert np.all(data >= 0)
+assert data.shape[1] == 10
+assert data.dtype == np.int8
+assert np.all(np.sum(data, axis=1) == 1)
 
 # Test the edge data of edge type 1
 src_ids, dst_ids = g.edges(etype=('node1', 'relation1', 'node2'))

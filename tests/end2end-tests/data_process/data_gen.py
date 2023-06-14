@@ -54,7 +54,8 @@ node_data1_2 = {
 node_id2 = np.arange(20000)
 node_data2 = {
     'id': node_id2,
-    'data': [str(i) for i in np.random.randint(0, 10, len(node_id2))],
+    'data': [str(i) for i in np.random.randint(0, 10, len(node_id2) - 10)] \
+            + [str(i) for i in range(10)],
 }
 
 node_id3 = np.unique(np.random.randint(0, 1000000000, 5000))
