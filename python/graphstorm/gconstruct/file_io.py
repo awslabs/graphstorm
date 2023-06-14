@@ -352,8 +352,10 @@ def _parse_file_format(conf, is_node, in_mem):
         keys = [conf["node_id_col"]]
     elif is_node:
         keys = []
-    else:
+    elif "source_id_col" in conf and "dest_id_col" in conf:
         keys = [conf["source_id_col"], conf["dest_id_col"]]
+    else:
+        keys = []
     if "features" in conf:
         for feat_conf in conf["features"]:
             assert "feature_col" in feat_conf, "A feature config needs a feature_col."
