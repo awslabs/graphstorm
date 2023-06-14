@@ -45,6 +45,8 @@ from .config import SUPPORTED_TASKS
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
+from .config import GRAPHSTORM_MODEL_ALL_LAYERS
+
 from .utils import get_graph_name
 from ..utils import TORCH_MAJOR_VER
 
@@ -562,6 +564,22 @@ class GSConfig:
 
     ###################### I/O related ######################
     ### Restore model ###
+    @property
+    def restore_model_layers(self):
+        """ GraphStorm model layers to load.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_restore_model_layers"):
+            assert self.restore_model_path is not None, \
+                "restore-model-path must be provided"
+            model_layers = self._restore_model_layers.split(',')
+            for layer in model_layers:
+                assert layer in GRAPHSTORM_MODEL_ALL_LAYERS, \
+                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_ALL_LAYERS}"
+            return model_layers
+
+        return GRAPHSTORM_MODEL_ALL_LAYERS
+
     @property
     def restore_model_path(self):
         """ Path to the entire model including embed layer, encoder and decoder
@@ -1530,6 +1548,10 @@ def _add_gnn_args(parser):
 
 def _add_input_args(parser):
     group = parser.add_argument_group(title="input")
+    group.add_argument('--restore-model-layers', nargs='+', type=str, default=argparse.SUPPRESS,
+                       help='Which GraphStorm neurial network layers to load.'
+                            'The argument ca be --restore-model-layers embed or '
+                            '--restore-model-layers embed,gnn,decoder')
     group.add_argument('--restore-model-path', type=str, default=argparse.SUPPRESS,
             help='Restore the model weights saved in the specified directory.')
     group.add_argument('--restore-optimizer-path', type=str, default=argparse.SUPPRESS,

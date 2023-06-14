@@ -74,6 +74,18 @@ fi
 best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
 echo "The best model is saved in epoch $best_epoch"
 
+echo "**************dataset: Generated multilabel MovieLens EC, load only embed layer and GNN layer of the saved model to retrain"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name feat --use-mini-batch-infer false --topk-model-to-save 1  --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --restore-model-layers embed,gnn --save-model-path /data/gsgnn_ec_retrain/ --save-model-frequency 1000 | tee train_log.txt
+
+error_and_exit ${PIPESTATUS[0]}
+
+cnt=$(ls -l /data/gsgnn_ec_retrain/ | grep epoch | wc -l)
+if test $cnt != 1
+then
+    echo "The number of save models $cnt is not equal to the specified topk 1"
+    exit -1
+fi
+
 echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model"
 python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ | tee log.txt
 

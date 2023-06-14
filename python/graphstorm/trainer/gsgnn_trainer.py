@@ -24,6 +24,7 @@ from ..model import GSgnnModel, GSgnnModelBase
 from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
+from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
 
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
@@ -318,15 +319,18 @@ class GSgnnTrainer():
         print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(
             epoch, i, gnn_forward_time, back_time))
 
-    def restore_model(self, model_path):
+    def restore_model(self, model_path, model_layer_to_load=GRAPHSTORM_MODEL_ALL_LAYERS):
         """ Restore a GNN model and the optimizer.
 
         Parameters
         ----------
         model_path : str
             The path where the model and the optimizer state has been saved.
+        model_layer_to_load: list of str
+            list of model layers to load. Supported layers include
+            'gnn', 'embed', 'decoder'
         """
-        self._model.restore_model(model_path)
+        self._model.restore_model(model_path, model_layer_to_load)
         self._optimizer.load_opt_state(model_path, self._model.device)
 
     @property
