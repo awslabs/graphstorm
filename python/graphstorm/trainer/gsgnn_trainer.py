@@ -332,11 +332,10 @@ class GSgnnTrainer():
         """
         self._model.restore_model(model_path, model_layer_to_load)
 
-        """ If we only load part of a saved model for model fine-tuning,
-            we do not load optimizer states as the model states of
-            two models (pre-training and fine-tuning) are not 100%
-            compatible.
-        """
+        # If we only load part of a saved model for model fine-tuning,
+        # we do not load optimizer states as the model states of
+        # two models (pre-training and fine-tuning) are not 100%
+        # compatible.
         if model_layer_to_load == GRAPHSTORM_MODEL_ALL_LAYERS:
             self._optimizer.load_opt_state(model_path, self._model.device)
 
