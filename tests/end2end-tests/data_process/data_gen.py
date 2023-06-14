@@ -192,7 +192,7 @@ node_conf = [
             {
                 "feature_col": "data",
                 "feature_name": "category",
-                "transform": {"name": "categorize"},
+                "transform": {"name": "to_categorical"},
             },
         ],
     },

@@ -533,7 +533,7 @@ def parse_feat_ops(confs):
                                                      max_bound,
                                                      min_bound,
                                                      out_dtype=out_dtype)
-            elif conf['name'] == 'categorize':
+            elif conf['name'] == 'to_categorical':
                 separator = feat['separator'] if 'separator' in feat else None
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator)
