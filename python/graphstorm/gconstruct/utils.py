@@ -232,7 +232,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
-        res_queue = manager.Queue(8)
+        res_queue = manager.Queue(8 if num_processes < 8 else num_processes)
         num_files = len(in_files)
         for i, in_file in enumerate(in_files):
             task_queue.put((i, in_file))
