@@ -20,6 +20,7 @@ from functools import partial
 import operator
 import numpy as np
 import torch as th
+import warnings
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import precision_recall_curve, auc, classification_report
 
@@ -338,17 +339,31 @@ def compute_acc(pred, labels, multilabel):
 def compute_rmse(pred, labels):
     """ compute RMSE for regression.
     """
-    assert pred.dtype == labels.dtype, \
-            "prediction and labels have different data types. {} vs. {}".format(pred.dtype,
-                                                                                labels.dtype)
+    assert th.is_floating_point(pred) and th.is_floating_point(labels), \
+        "prediction and labels must be floating points"
+
     assert pred.shape == labels.shape, \
             "prediction and labels have different shapes. {} vs. {}".format(pred.shape,
                                                                             labels.shape)
+    if pred.dtype != labels.dtype:
+        warnings.warn(f"prediction and labels have different data types. {pred.dtype} vs. {labels.dtype}")
+        pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
+
     diff = pred.cpu() - labels.cpu()
     return th.sqrt(th.mean(diff * diff)).cpu().item()
 
 def compute_mse(pred, labels):
     """ compute MSE for regression
     """
+    assert th.is_floating_point(pred) and th.is_floating_point(labels), \
+        "prediction and labels must be floating points"
+
+    assert pred.shape == labels.shape, \
+            "prediction and labels have different shapes. {} vs. {}".format(pred.shape,
+                                                                            labels.shape)
+    if pred.dtype != labels.dtype:
+        warnings.warn(f"prediction and labels have different data types. {pred.dtype} vs. {labels.dtype}")
+        pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
+
     diff = pred.cpu() - labels.cpu()
     return th.mean(diff * diff).cpu().item()
