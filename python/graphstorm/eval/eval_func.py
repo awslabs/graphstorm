@@ -18,6 +18,7 @@
 from enum import Enum
 from functools import partial
 import operator
+import warnings
 import numpy as np
 import torch as th
 from sklearn.metrics import roc_auc_score
@@ -338,17 +339,35 @@ def compute_acc(pred, labels, multilabel):
 def compute_rmse(pred, labels):
     """ compute RMSE for regression.
     """
-    assert pred.dtype == labels.dtype, \
-            "prediction and labels have different data types. {} vs. {}".format(pred.dtype,
-                                                                                labels.dtype)
+    # TODO: check dtype of label before training or evaluation
+    assert th.is_floating_point(pred) and th.is_floating_point(labels), \
+        "prediction and labels must be floating points"
+
     assert pred.shape == labels.shape, \
-            "prediction and labels have different shapes. {} vs. {}".format(pred.shape,
-                                                                            labels.shape)
+        f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
+    if pred.dtype != labels.dtype:
+        warnings.warn("prediction and labels have different data types: "
+                      f"{pred.dtype} vs. {labels.dtype}")
+        warnings.warn("casting pred to the same dtype as labels")
+        pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
+
     diff = pred.cpu() - labels.cpu()
     return th.sqrt(th.mean(diff * diff)).cpu().item()
 
 def compute_mse(pred, labels):
     """ compute MSE for regression
     """
+    # TODO: check dtype of label before training or evaluation
+    assert th.is_floating_point(pred) and th.is_floating_point(labels), \
+        "prediction and labels must be floating points"
+
+    assert pred.shape == labels.shape, \
+        f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
+    if pred.dtype != labels.dtype:
+        warnings.warn("prediction and labels have different data types: "
+                      f"{pred.dtype} vs. {labels.dtype}")
+        warnings.warn("casting pred to the same dtype as labels")
+        pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
+
     diff = pred.cpu() - labels.cpu()
     return th.mean(diff * diff).cpu().item()
