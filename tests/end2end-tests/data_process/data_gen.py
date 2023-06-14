@@ -65,6 +65,12 @@ node_data3 = {
     'data1': node_id3,
 }
 
+node_id4 = np.unique(np.random.randint(0, 1000000000, 5000))
+node_id4_str = np.array([str(nid) for nid in node_id3])
+node_data4 = {
+    'id': node_id4_str,
+}
+
 src1 = node_data1['id'][np.random.randint(0, 9999, 100000)]
 dst1 = node_data2['id'][np.random.randint(0, 19999, 100000)]
 edge_data1 = {
@@ -106,6 +112,8 @@ for i, node_data in enumerate(split_data(node_data2, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data2_{i}.parquet'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
     write_data_json(node_data, os.path.join(in_dir, f'node_data3_{i}.json'))
+for i, node_data in enumerate(split_data(node_data4, 10)):
+    write_data_json(node_data, os.path.join(in_dir, f'node_data4_{i}.json'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data1_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data2, 10)):
@@ -207,6 +215,13 @@ node_conf = [
                 "feature_name": "feat",
             },
         ],
+    },
+    {
+        "node_id_col": "id",
+        "node_type": "node4",
+        "format": {"name": "json"},
+        "files": os.path.join(in_dir, "node_data4_*.json"),
+        # No feature
     },
 ]
 edge_conf = [
