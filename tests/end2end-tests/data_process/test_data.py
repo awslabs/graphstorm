@@ -98,6 +98,9 @@ assert data.shape[1] == 10
 assert data.dtype == np.int8
 assert np.all(np.sum(data, axis=1) == 1)
 
+# id remap for node4 exists
+assert os.path.isfile(os.path.join(out_dir, "node4_id_remap.parquet"))
+
 # Test the edge data of edge type 1
 src_ids, dst_ids = g.edges(etype=('node1', 'relation1', 'node2'))
 assert 'label' in g.edges[('node1', 'relation1', 'node2')].data
