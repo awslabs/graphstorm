@@ -422,7 +422,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             self._edge_input_encoder.unfreeze()
 
     def restore_model(self, restore_model_path,
-                      model_layer_to_load=GRAPHSTORM_MODEL_ALL_LAYERS):
+                      model_layer_to_load=None):
         """load saving checkpoints for GNN models.
 
         Parameters
@@ -437,6 +437,8 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if restore_model_path is not None:
             print('load GNN model from ', restore_model_path)
             # TODO(zhengda) we need to load edge_input_encoder.
+            model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
+                if model_layer_to_load is None else model_layer_to_load
             load_gsgnn_model(restore_model_path,
                 self.gnn_encoder \
                     if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,

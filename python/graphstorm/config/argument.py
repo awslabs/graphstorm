@@ -1549,7 +1549,7 @@ def _add_gnn_args(parser):
 def _add_input_args(parser):
     group = parser.add_argument_group(title="input")
     group.add_argument('--restore-model-layers', nargs='+', type=str, default=argparse.SUPPRESS,
-                       help='Which GraphStorm neurial network layers to load.'
+                       help='Which GraphStorm neural network layers to load.'
                             'The argument ca be --restore-model-layers embed or '
                             '--restore-model-layers embed,gnn,decoder')
     group.add_argument('--restore-model-path', type=str, default=argparse.SUPPRESS,

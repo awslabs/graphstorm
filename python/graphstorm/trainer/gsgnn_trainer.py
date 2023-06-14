@@ -319,7 +319,7 @@ class GSgnnTrainer():
         print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(
             epoch, i, gnn_forward_time, back_time))
 
-    def restore_model(self, model_path, model_layer_to_load=GRAPHSTORM_MODEL_ALL_LAYERS):
+    def restore_model(self, model_path, model_layer_to_load=None):
         """ Restore a GNN model and the optimizer.
 
         Parameters
