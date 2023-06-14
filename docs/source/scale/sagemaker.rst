@@ -130,12 +130,13 @@ Launch GraphStorm training on SageMaker is similar as launch in the :ref:`Standa
 * All paths for saving models, embeddings, and predict results should be an S3 location specified through the ``--model-artifact-s3`` argument.
 
 .. note::
-    Before running SageMaker tasks, login to the ECR where the image is present.
+    Before running SageMaker tasks, users need to login to the ECR where the image is present.
+    
     .. code-block:: bash
 
         aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
 
-    Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account information and be consistent with the values used in the Step 1.
+    Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account information and be consistent with the values used in the **Step 1**.
 
 Users can use the following commands to launch a GraphStorm link prediction training job with the OGB-MAG graph.
 
