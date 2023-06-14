@@ -41,12 +41,14 @@ node_data1 = {
     'data': node_id1,
     'text': node_text,
     'label': node_id1 % 100,
-    'float': np.random.rand(node_id1.shape[0], 2),
+    'float_max_min': np.random.rand(node_id1.shape[0], 2),
+    'float2': node_id1,
 }
 
 node_data1_2 = {
     'data': node_id1,
-    'float_2': np.random.rand(node_id1.shape[0], 2),
+    'float_max_min_2': np.random.rand(node_id1.shape[0], 2),
+    'float3': node_id1,
 }
 
 node_id2 = np.arange(20000)
@@ -61,6 +63,12 @@ node_data3 = {
     'id': node_id3_str,
     'data': np.repeat(node_id3, 5).reshape(len(node_id3), 5),
     'data1': node_id3,
+}
+
+node_id4 = np.unique(np.random.randint(0, 1000000000, 5000))
+node_id4_str = np.array([str(nid) for nid in node_id3])
+node_data4 = {
+    'id': node_id4_str,
 }
 
 src1 = node_data1['id'][np.random.randint(0, 9999, 100000)]
@@ -104,6 +112,8 @@ for i, node_data in enumerate(split_data(node_data2, 5)):
     write_data_hdf5(node_data, os.path.join(in_dir, f'node_data2_{i}.hdf5'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
     write_data_json(node_data, os.path.join(in_dir, f'node_data3_{i}.json'))
+for i, node_data in enumerate(split_data(node_data4, 10)):
+    write_data_json(node_data, os.path.join(in_dir, f'node_data4_{i}.json'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data1_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data2, 10)):
@@ -122,10 +132,15 @@ node_conf = [
                 "feature_name": "feat1",
             },
             {
-                "feature_col": "float_2",
+                "feature_col": "float_max_min_2",
                 "feature_name": "feat3",
                 "transform": {"name": 'max_min_norm'}
-            }
+            },
+            {
+                "feature_col": "float3",
+                "feature_name": "feat_fp16_hdf5",
+                "out_dtype": 'float16',
+            },
         ],
     },
     {
@@ -155,13 +170,18 @@ node_conf = [
                               "max_seq_length": 16},
             },
             {
-                "feature_col": "float",
+                "feature_col": "float_max_min",
                 "feature_name": "feat2",
                 "out_dtype": 'float16',
                 "transform": {"name": "max_min_norm",
                               "max_bound": 2.,
                               "min_bound": -2.}
-            }
+            },
+            {
+                "feature_col": "float2",
+                "feature_name": "feat_fp16",
+                "out_dtype": 'float16',
+            },
         ],
         "labels":       [
             {
@@ -194,6 +214,13 @@ node_conf = [
                 "feature_name": "feat",
             },
         ],
+    },
+    {
+        "node_id_col": "id",
+        "node_type": "node4",
+        "format": {"name": "json"},
+        "files": os.path.join(in_dir, "node_data4_*.json"),
+        # No feature
     },
 ]
 edge_conf = [
