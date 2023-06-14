@@ -112,7 +112,7 @@ Prepare graph data
 `````````````````````
 Unlike GraphStorm's :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>` that rely on local disk or shared file system to store the partitioned graph, SageMaker uses Amaonz S3 as the shared data storage to distribute partitioned graphs and the configuration YAML file.
 
-This tutorial uses the same three-partition OGB-MAG graph and the link prediction task as those introduced in the :ref:`Partition a Graph<partition-a-graph>` section of the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial. After generate the partitioned OGB-MAG graphs, use the following commands to upload them and the configuration YAML file to an S3 bucket.
+This tutorial uses the same three-partition OGB-MAG graph and the Link Prediction task as those introduced in the :ref:`Partition a Graph<partition-a-graph>` section of the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial. After generate the partitioned OGB-MAG graphs, use the following commands to upload them and the configuration YAML file to an S3 bucket.
 
 .. code-block:: bash
 
@@ -138,7 +138,7 @@ Launch GraphStorm training on SageMaker is similar as launch in the :ref:`Standa
 
     Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account information and be consistent with the values used in the **Step 1**.
 
-Users can use the following commands to launch a GraphStorm link prediction training job with the OGB-MAG graph.
+Users can use the following commands to launch a GraphStorm Link Prediction training job with the OGB-MAG graph.
 
 .. code-block:: bash
 
@@ -176,7 +176,7 @@ The trained model artifact will be stored in the S3 location provided through ``
 
 Launch inference
 `````````````````````
-Users can use the following command to launch a GraphStorm link prediction inference job on the OGB-MAG graph.
+Users can use the following command to launch a GraphStorm Link Prediction inference job on the OGB-MAG graph.
 
 .. code-block:: bash
 
@@ -304,7 +304,7 @@ Some explanation on the above elements (see the `official docs <https://docs.doc
 * **environment**: Determines the environment variables that will be set for the container once it launches.
 * **command**: Determines the entrypoint, i.e. the command that will be executed once the container launches.
 
-To help users generate yaml file automatically, we provide a Python script, ``generate_sagemaker_docker_compose.py``, that builds the docker compose file for users. 
+To help users generate yaml file automatically, GraphStorm provides a Python script, ``generate_sagemaker_docker_compose.py``, that builds the docker compose file for users. 
 
 .. Note:: The script uses the `PyYAML <https://pypi.org/project/PyYAML/>`_ library. Please use the below commnd to install it.
 
@@ -312,7 +312,7 @@ To help users generate yaml file automatically, we provide a Python script, ``ge
 
         pip install pyyaml
 
-This file has 4 required arguments that determine the Docker Compose file that will be generated:
+This Python script has 4 required arguments that determine the Docker Compose file that will be generated:
 
 * **--aws-access-key-id**: The AWS access key ID for accessing S3 data within docker
 * **--aws-secret-access-key**: The AWS secret access key for accessing S3 data within docker.
@@ -325,7 +325,7 @@ The rest of the arguments are passed on to ``sagemaker_train.py`` or ``sagemaker
 * **--graph-data-s3**: S3 location of the input graph.
 * **--graph-name**: Name of the input graph.
 * **--yaml-s3**: S3 location of yaml file for training and inference.
-* **--custom-script**: Custom training script provided by a customer to run customer training logic. This should be a path to the python script within the docker image.
+* **--custom-script**: Custom training script provided by customers to run customer training logic. This should be a path to the Python script within the Docker image.
 * **--output-emb-s3**: S3 location to store GraphStorm generated node embeddings. This is an inference only argument.
 * **--output-prediction-s3**: S3 location to store prediction results. This is an inference only argument.
 
@@ -352,9 +352,9 @@ First, use the following command to generate a Compose YAML file for the Link Pr
             --backend gloo \
             --batch-size 128
 
-The above command will create a Docker compose file named ``docker-compose-<task-type>-<num-instances>-train.yaml``, which we can then use to launch the job. 
+The above command will create a Docker Compose file named ``docker-compose-<task-type>-<num-instances>-train.yaml``, which we can then use to launch the job. 
 
-As our Docker Compose will use a Docker network, ``gsf-network``, for container communications, users need to run the following command to create the network first.
+As our Docker Compose will use a Docker network, named ``gsf-network``, for inter-container communications, users need to run the following command to create the network before luanch Docker Compose.
 
 .. code-block:: bash
 
@@ -366,13 +366,13 @@ Then, use the following command to run the Link Prediction training on OGB-MAG g
 
     docker compose -f docker-compose-link_prediction-3-train.yaml up
 
-Running the above command will launch 3 instances of the image, configured with the command and env vars that emulate a SageMaker execution environment and run the sagemaker_train.py script. 
+Running the above command will launch 3 instances of the image, configured with the command and env vars that emulate a SageMaker execution environment and run the ``sagemaker_train.py`` script. 
 
-.. Note:: The containers actually interact with S3 so you would require valid AWS credentials to run.
+.. Note:: The containers actually interact with S3, so the provided AWS assess key, security access key, and session token should be valid for access S3 bucket.
 
 Run GraphStorm on Docek Compose for Inference
 ```````````````````````````````````````````````
-Similar to training, the ``generate_sagemaker_docker_compose.py`` can build Compose file for infernece task with the same arguments as for training, and in addition, adding a new argument, ``--inference``. The below command create the Compose file for the Linke Prediction inference on OGB-MAG graph.
+Similar to training, the ``generate_sagemaker_docker_compose.py`` can build Compose file for infernece task with the same arguments as for training, and in addition, add a new argument, ``--inference``. The below command create the Compose file for the Linke Prediction inference on OGB-MAG graph.
 
 .. code-block:: bash
 
