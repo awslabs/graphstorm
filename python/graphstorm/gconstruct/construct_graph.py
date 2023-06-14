@@ -128,8 +128,11 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     -------
     a tuple : source ID vector, destination ID vector, a dict of edge feature tensors.
     """
-    src_id_col = conf['source_id_col']
-    dst_id_col = conf['dest_id_col']
+    src_id_col = conf['source_id_col'] if 'source_id_col' in conf else None
+    dst_id_col = conf['dest_id_col'] if 'dest_id_col' in conf else None
+    assert not ((src_id_col is None) ^ (dst_id_col is None)), \
+        f"{in_file} should either have both source_id_col and dest_id_col" \
+        "or have none."
     edge_type = conf['relation']
 
     data = read_file(in_file)
@@ -138,10 +141,11 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
             feat_data[key] = val
-    src_ids = data[src_id_col]
-    dst_ids = data[dst_id_col]
-    src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
-                                    skip_nonexist_edges)
+    src_ids = data[src_id_col] if src_id_col is not None else None
+    dst_ids = data[dst_id_col] if dst_id_col is not None else None
+    if src_ids is not None:
+        src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
+                                        skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
 def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
@@ -355,10 +359,6 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
 
     for process_conf in process_confs:
         # each iteration is to process an edge type.
-        assert 'source_id_col' in process_conf, \
-                "'source_id_col' is not defined for an edge type."
-        assert 'dest_id_col' in process_conf, \
-                "'dest_id_col' is not defined for an edge type."
         assert 'relation' in process_conf, \
                 "'relation' is not defined for an edge type."
         edge_type = process_conf['relation']
@@ -405,25 +405,46 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 type_edge_data[feat_name][i] = part_data[feat_name]
         return_dict = None
 
-        type_src_ids = np.concatenate(type_src_ids)
-        type_dst_ids = np.concatenate(type_dst_ids)
-        assert len(type_src_ids) == len(type_dst_ids)
-        gc.collect()
-        logging.debug("Finish merging edges of %s", str(edge_type))
-
+        # handle edge type
         for feat_name in type_edge_data:
             etype_str = "-".join(edge_type)
             type_edge_data[feat_name] = arr_merger(type_edge_data[feat_name],
                                                    etype_str + "_" + feat_name)
-            assert len(type_edge_data[feat_name]) == len(type_src_ids)
             gc.collect()
             sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
 
         edge_type = tuple(edge_type)
-        edges[edge_type] = (type_src_ids, type_dst_ids)
-        # Some edge types don't have edge data.
-        if len(type_edge_data) > 0:
+        if type_src_ids[0] is not None: # handle src_ids and dst_ids
+            assert all(src_ids is not None for src_ids in type_src_ids)
+            assert all(dst_ids is not None for dst_ids in type_dst_ids)
+            type_src_ids = np.concatenate(type_src_ids)
+            type_dst_ids = np.concatenate(type_dst_ids)
+            assert len(type_src_ids) == len(type_dst_ids)
+
+            edges[edge_type] = (type_src_ids, type_dst_ids)
+        gc.collect()
+        logging.debug("Finish merging edges of %s", str(edge_type))
+
+        # If we didn't see the edge data for this edge type before.
+        if len(type_edge_data) > 0 and edge_type not in edge_data:
             edge_data[edge_type] = type_edge_data
+        # If we have seen the edge data for this edge type before
+        # because there are multiple blocks that contain data for the same edge type.
+        elif len(type_edge_data) > 0:
+            for key, val in type_edge_data.items():
+                # Make sure the edge data has duplicated names.
+                assert key not in edge_data[edge_type], \
+                        f"The edge data {key} has exist in edge type {edge_type}."
+                edge_data[edge_type][key] = val
+
+    for edge_type, edge_feats in edge_data.items():
+        assert edge_type in edges, \
+            f"source_id_col and dest_id_col is not defined for {edge_type}"
+        for feat_name, efeats in edge_feats.items():
+            assert len(efeats) == len(edges[edge_type][0]), \
+                f"The length of edge feature {feat_name} of etype {edge_type} " \
+                f"does not match the number of edges of {edge_type}. " \
+                f"Expecting {len(edges[edge_type][0])}, but get {len(efeats)}"
 
     return edges, edge_data
 
