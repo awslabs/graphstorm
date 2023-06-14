@@ -214,29 +214,29 @@
 <p>GraphStorm can run on Amazon Sagemaker to leverage SageMaker’s ML DevOps capabilities.</p>
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">#</a></h2>
-<p>In order to use GraphStorm in Amazon SageMaker, users need to have AWS access to the following AWS services.</p>
+<p>In order to use GraphStorm on Amazon SageMaker, users need to have AWS access to the following AWS services.</p>
 <ul class="simple">
-<li><p>SageMaker service. Please refer to <a class="reference external" href="https://aws.amazon.com/pm/sagemaker/">Anmazon SageMaker service</a> for how to get access to Amazon SageMaker.</p></li>
-<li><p>Amazon ECR. Please refer to <a class="reference external" href="https://aws.amazon.com/ecr/">Amazon Elastic Container Registry service</a> for how to get access to Amazon ECR.</p></li>
-<li><p>S3 service. Please refer to <a class="reference external" href="https://aws.amazon.com/s3/">Amazon S3 service</a> for how to get access to Amazon S3.</p></li>
-<li><p>SageMaker Framework Containers. Please follow <a class="reference external" href="https://github.com/aws/deep-learning-containers">AWS Deep Learning Containers guideline</a> to get access to the image.</p></li>
-<li><p>Amazon EC2 (optional). Please refer to <a class="reference external" href="https://aws.amazon.com/ec2/">Amazon EC2 service</a> for how to get access to Amazon ECR.</p></li>
+<li><p><strong>SageMaker service</strong>. Please refer to <a class="reference external" href="https://aws.amazon.com/pm/sagemaker/">Anmazon SageMaker service</a> for how to get access to Amazon SageMaker.</p></li>
+<li><p><strong>Amazon ECR</strong>. Please refer to <a class="reference external" href="https://aws.amazon.com/ecr/">Amazon Elastic Container Registry service</a> for how to get access to Amazon ECR.</p></li>
+<li><p><strong>S3 service</strong>. Please refer to <a class="reference external" href="https://aws.amazon.com/s3/">Amazon S3 service</a> for how to get access to Amazon S3.</p></li>
+<li><p><strong>SageMaker Framework Containers</strong>. Please follow <a class="reference external" href="https://github.com/aws/deep-learning-containers">AWS Deep Learning Containers guideline</a> to get access to the image.</p></li>
+<li><p><strong>Amazon EC2</strong> (optional). Please refer to <a class="reference external" href="https://aws.amazon.com/ec2/">Amazon EC2 service</a> for how to get access to Amazon EC2.</p></li>
 </ul>
 </section>
-<section id="setup-graphstorm-sagemaker-docker-repository">
-<h2>Setup GraphStorm SageMaker Docker Repository<a class="headerlink" href="#setup-graphstorm-sagemaker-docker-repository" title="Permalink to this heading">#</a></h2>
-<p>GraphStorm uses SageMaker’s “Bring Your Own Container (BYOC)” mode. Therefore, before launch GraphStorm on SageMaker, there are two steps required to set up a GraphStorm SageMaker Docker repository.</p>
+<section id="setup-graphstorm-sagemaker-docker-image">
+<h2>Setup GraphStorm SageMaker Docker Image<a class="headerlink" href="#setup-graphstorm-sagemaker-docker-image" title="Permalink to this heading">#</a></h2>
+<p>GraphStorm uses SageMaker’s <strong>BYOC</strong> (Bring Your Own Container) mode. Therefore, before launch GraphStorm on SageMaker, there are two steps required to setup a GraphStorm SageMaker Docker image.</p>
 <section id="step-1-build-a-sagemaker-compatible-docker-image">
 <span id="build-sagemaker-docker"></span><h3>Step 1: Build a SageMaker compatible Docker image<a class="headerlink" href="#step-1-build-a-sagemaker-compatible-docker-image" title="Permalink to this heading">#</a></h3>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <ul class="simple">
-<li><p>Please make sure your account has AWS access key (AK) and security access key (SK) configured to authenticate access to AWS services.</p></li>
-<li><p>For more details of Amazon ECR operation via CLI, users can refer to <a class="reference external" href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html">Using Amazon ECR with the AWS CLI document</a>.</p></li>
+<li><p>Please make sure your account has access key (AK) and security access key (SK) configured to authenticate accesses to AWS services.</p></li>
+<li><p>For more details of Amazon ECR operation via CLI, users can refer to the <a class="reference external" href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html">Using Amazon ECR with the AWS CLI document</a>.</p></li>
 </ul>
 </div>
 <p>First, in either a Linux EC2 instance or a SageMaker Notebook Linux instance, configure a Docker environment by following the <a class="reference external" href="https://docs.docker.com/get-docker/">Docker documentent</a> suggestions.</p>
-<p>In order to use the SageMaker base Docker image, users need to authenticate to use SageMaker images with the following command.</p>
+<p>In order to use the SageMaker base Docker image, users need to use the following command to authenticate to pull SageMaker images.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>ecr<span class="w"> </span>get-login-password<span class="w"> </span>--region<span class="w"> </span>us-east-1<span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>login<span class="w"> </span>--username<span class="w"> </span>AWS<span class="w"> </span>--password-stdin<span class="w"> </span><span class="m">763104351884</span>.dkr.ecr.us-east-1.amazonaws.com
 </pre></div>
 </div>
@@ -248,42 +248,45 @@
 bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh<span class="w"> </span>/path-to-graphstorm/<span class="w"> </span>&lt;DOCKER_NAME&gt;<span class="w"> </span>&lt;DOCKER_TAG&gt;
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> command take three arguments:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> script takes three arguments:</p>
 <ol class="arabic simple">
-<li><p><strong>path-to-graphstorm</strong> (<strong>required</strong>), is the absolute path of the “graphstorm” folder, where you clone and download the GraphStorm source code. For example, the path could be <code class="docutils literal notranslate"><span class="pre">/code/graphstorm</span></code>.</p></li>
-<li><p><strong>DOCKER_NAME</strong> (optional), is the assigned name of the to be built Docker image. Default is <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code>.</p></li>
+<li><p><strong>path-to-graphstorm</strong> (<strong>required</strong>), is the absolute path of the <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code> folder, where you clone and download the GraphStorm source code. For example, the path could be <code class="docutils literal notranslate"><span class="pre">/code/graphstorm</span></code>.</p></li>
+<li><p><strong>DOCKER_NAME</strong> (optional), is the assigned name of the to-be built Docker image. Default is <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code>.</p></li>
 </ol>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>In order to upload the GraphStorm SageMaker Docker image to ECR, users need to define the &lt;DOCKER_NAME&gt; to include the ECR URI string, &lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com, e.g., <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm</span></code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the &lt;DOCKER_NAME&gt; to include the ECR URI string, <strong>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com</strong>, e.g., <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm</span></code>.</p>
 </div>
 <ol class="arabic simple" start="3">
-<li><p><strong>DOCKER_TAG</strong> (optional), is the assigned tag name of the to be built docker image. Default is <code class="docutils literal notranslate"><span class="pre">sm</span></code>.</p></li>
+<li><p><strong>DOCKER_TAG</strong> (optional), is the assigned tag name of the to-be built docker image. Default is <code class="docutils literal notranslate"><span class="pre">sm</span></code>.</p></li>
 </ol>
-<p>Once the <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> command completes successfully. There will be a Docker image, named <code class="docutils literal notranslate"><span class="pre">&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;</span></code>, such as <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm</span></code>, in the local repository.</p>
+<p>Once the <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> command completes successfully. There will be a Docker image, named <code class="docutils literal notranslate"><span class="pre">&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;</span></code>, such as <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm</span></code>, in the local repository, which could be listed by running:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>image<span class="w"> </span>ls
+</pre></div>
+</div>
 </section>
-<section id="step-2-upload-the-docker-image-to-ecr">
-<span id="upload-sagemaker-docker"></span><h3>Step 2: Upload the Docker Image to ECR<a class="headerlink" href="#step-2-upload-the-docker-image-to-ecr" title="Permalink to this heading">#</a></h3>
-<p>Because SageMaker relies on Amazon ECR to access customers’ own Docker images, users need to upload the Docker image built in the Step 1 to their own ECR repository.</p>
+<section id="step-2-upload-docker-images-to-amazon-ecr-repository">
+<span id="upload-sagemaker-docker"></span><h3>Step 2: Upload Docker Images to Amazon ECR Repository<a class="headerlink" href="#step-2-upload-docker-images-to-amazon-ecr-repository" title="Permalink to this heading">#</a></h3>
+<p>Because SageMaker relies on Amazon ECR to access customers’ own Docker images, users need to upload Docker images built in the Step 1 to their own ECR repository.</p>
 <p>The following command will authenticate the user account to access to user’s ECR repository via AWS CLI.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>ecr<span class="w"> </span>get-login-password<span class="w"> </span>--region<span class="w"> </span>&lt;REGION&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>login<span class="w"> </span>--username<span class="w"> </span>AWS<span class="w"> </span>--password-stdin<span class="w"> </span>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com
 </pre></div>
 </div>
-<p>Please replace the <cite>&lt;REGION&gt;</cite> and <cite>&lt;AWS_ACCOUNT_ID&gt;</cite> with your own account information and be consistent with the values used in the Step 1.</p>
+<p>Please replace the <cite>&lt;REGION&gt;</cite> and <cite>&lt;AWS_ACCOUNT_ID&gt;</cite> with your own account information and be consistent with the values used in the <strong>Step 1</strong>.</p>
 <p>In addition, users need to create an ECR repository at the specified <cite>&lt;REGION&gt;</cite> with the name as <cite>&lt;DOCKER_NAME&gt;</cite> <strong>WITHOUT</strong> the ECR URI string, e.g., <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code>.</p>
-<p>And then use below command to push the built GraphStorm Docker image to users’ own ECR repository.</p>
+<p>And then use th below command to push the built GraphStorm Docker image to users’ own ECR repository.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>push<span class="w"> </span>&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;
 </pre></div>
 </div>
-<p>Please replace the <cite>&lt;DOCKER_NAME&gt;</cite> and <cite>&lt;DOCKER_TAG&gt;</cite> with the actual Docker image name, e.g., <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm</span></code>.</p>
+<p>Please replace the <cite>&lt;DOCKER_NAME&gt;</cite> and <cite>&lt;DOCKER_TAG&gt;</cite> with the actual Docker image name and tag, e.g., <code class="docutils literal notranslate"><span class="pre">911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm</span></code>.</p>
 </section>
 </section>
 <section id="run-graphstorm-on-sagemaker">
 <h2>Run GraphStorm on SageMaker<a class="headerlink" href="#run-graphstorm-on-sagemaker" title="Permalink to this heading">#</a></h2>
 <p>There are two ways to run GraphStorm on SageMaker.</p>
 <ul class="simple">
-<li><p>Run with Amazon SageMaker service. In this way, users will use GraphStorm’s tools to submit SageMaker API calls, which will request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls in a cheap EC2 instance or a SageMaker Notebook instance without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production.</p></li>
-<li><p>Run with Docker compose in local environment. In this way, users do not call the SageMaker service, but use Docker compose to run SageMaker locally in an EC2 instance or a SageMaker Notebook instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.</p></li>
+<li><p><strong>Run with Amazon SageMaker service</strong>. In this way, users will use GraphStorm’s tools to submit SageMaker API calls, which request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls in a cheap EC2 instance or a SageMaker Notebook instance without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production environment.</p></li>
+<li><p><strong>Run with Docker Compose in local environment</strong>. In this way, users do not call the SageMaker service, but use Docker Compose to run SageMaker locally in an EC2 instance or a SageMaker Notebook instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.</p></li>
 </ul>
 <section id="run-graphstorm-with-amazon-sagemaker-service">
 <h3>Run GraphStorm with Amazon SageMaker service<a class="headerlink" href="#run-graphstorm-with-amazon-sagemaker-service" title="Permalink to this heading">#</a></h3>
@@ -303,7 +306,7 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 <section id="prepare-graph-data">
 <h4>Prepare graph data<a class="headerlink" href="#prepare-graph-data" title="Permalink to this heading">#</a></h4>
 <p>Unlike GraphStorm’s <a class="reference internal" href="../tutorials/quick-start.html#quick-start-standalone"><span class="std std-ref">Standalone mode</span></a> and <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">the Distributed mode</span></a> that rely on local disk or shared file system to store the partitioned graph, SageMaker uses Amaonz S3 as the shared data storage to distribute partitioned graphs and the configuration YAML file.</p>
-<p>This tutorial uses the same three-partition OGB-MAG graph and the link prediction task as those introduced in the <a class="reference internal" href="distributed.html#partition-a-graph"><span class="std std-ref">Partition a Graph</span></a> section of the <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">Use GraphStorm in a Distributed Cluster</span></a> tutorial. After generate the partitioned OGB-MAG graphs, use the following commands to upload them and the GraphStorm configuration YAML file to an S3 bucket.</p>
+<p>This tutorial uses the same three-partition OGB-MAG graph and the link prediction task as those introduced in the <a class="reference internal" href="distributed.html#partition-a-graph"><span class="std std-ref">Partition a Graph</span></a> section of the <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">Use GraphStorm in a Distributed Cluster</span></a> tutorial. After generate the partitioned OGB-MAG graphs, use the following commands to upload them and the configuration YAML file to an S3 bucket.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>--recursive<span class="w"> </span>/data/ogbn_mag_lp_3p<span class="w"> </span>s3://&lt;PATH_TO_DATA&gt;/ogbn_mag_lp_3p
 aws<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>/graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml<span class="w"> </span>s3://&lt;PATH_TO_TRAINING_CONFIG&gt;/mag_lp.yaml
 </pre></div>
@@ -312,10 +315,12 @@ aws<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>/
 </section>
 <section id="launch-training">
 <h4>Launch training<a class="headerlink" href="#launch-training" title="Permalink to this heading">#</a></h4>
-<p>Launch GraphStorm training on SageMaker is similar as launch in the <a class="reference internal" href="../tutorials/quick-start.html#quick-start-standalone"><span class="std std-ref">Standalone mode</span></a> and <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">the Distributed mode</span></a>, except for three diffences:
-* The launch command is under the <code class="docutils literal notranslate"><span class="pre">graphstorm/sagemaker</span></code> folder, and
-* Users need to provide AWS service-related information in the command.
-* All paths for saving models, embeddings, and predict results should be an S3 location specified through the <code class="docutils literal notranslate"><span class="pre">--model-artifact-s3</span></code> argument.</p>
+<p>Launch GraphStorm training on SageMaker is similar as launch in the <a class="reference internal" href="../tutorials/quick-start.html#quick-start-standalone"><span class="std std-ref">Standalone mode</span></a> and <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">the Distributed mode</span></a>, except for three diffences:</p>
+<ul class="simple">
+<li><p>The launch command is under the <code class="docutils literal notranslate"><span class="pre">graphstorm/sagemaker</span></code> folder, and</p></li>
+<li><p>Users need to provide AWS service-related information in the command.</p></li>
+<li><p>All paths for saving models, embeddings, and predict results should be an S3 location specified through the <code class="docutils literal notranslate"><span class="pre">--model-artifact-s3</span></code> argument.</p></li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Before running SageMaker tasks, login to the ECR where the image is present.
@@ -625,9 +630,9 @@ pip3<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl<
             <ul>
 <li><a class="reference internal" href="#">Use GraphStorm on SageMaker</a><ul>
 <li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
-<li><a class="reference internal" href="#setup-graphstorm-sagemaker-docker-repository">Setup GraphStorm SageMaker Docker Repository</a><ul>
+<li><a class="reference internal" href="#setup-graphstorm-sagemaker-docker-image">Setup GraphStorm SageMaker Docker Image</a><ul>
 <li><a class="reference internal" href="#step-1-build-a-sagemaker-compatible-docker-image">Step 1: Build a SageMaker compatible Docker image</a></li>
-<li><a class="reference internal" href="#step-2-upload-the-docker-image-to-ecr">Step 2: Upload the Docker Image to ECR</a></li>
+<li><a class="reference internal" href="#step-2-upload-docker-images-to-amazon-ecr-repository">Step 2: Upload Docker Images to Amazon ECR Repository</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#run-graphstorm-on-sagemaker">Run GraphStorm on SageMaker</a><ul>
