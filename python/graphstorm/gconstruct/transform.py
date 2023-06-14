@@ -112,9 +112,12 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         The name of the column.
     feat_name : str
         The name of the feature.
+    separator : str
+        The separator to split data into multiple categorical values.
     """
-    def __init__(self, col_name, feat_name):
+    def __init__(self, col_name, feat_name, separator=None):
         self._val_dict = {}
+        self._separator = separator
         super(CategoricalTransform, self).__init__(col_name, feat_name)
 
     def pre_process(self, feats):
@@ -125,7 +128,13 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         feats: np.array
             Data to be processed
         """
-        return {self.feat_name: np.unique(feats)}
+        if self._separator is None:
+            return {self.feat_name: np.unique(feats)}
+        else:
+            vals = []
+            for feat in feats:
+                vals.extend(feat.split(self._separator))
+            return {self.feat_name: np.unique(vals)}
 
     def update_info(self, info):
         """ Store global information for the second phase data processing
@@ -149,7 +158,15 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         -------
         np.array
         """
-        return {self.feat_name: np.array([self._val_dict[val] for val in feats])}
+        encoding = np.zeros((len(feats), len(self._val_dict)), dtype=np.int8)
+        if self._separator is None:
+            for i, feat in enumerate(feats):
+                encoding[i, self._val_dict[feat]] = 1
+        else:
+            for i, feat in enumerate(feats):
+                idx = [self._val_dict[val] for val in feat.split(self._separator)]
+                encoding[i, idx] = 1
+        return {self.feat_name: encoding}
 
     def save(self, file_path):
         """ Save the ID map to a parquet file.
@@ -517,7 +534,9 @@ def parse_feat_ops(confs):
                                                      min_bound,
                                                      out_dtype=out_dtype)
             elif conf['name'] == 'categorize':
-                transform = CategoricalTransform(feat['feature_col'], feat_name)
+                separator = feat['separator'] if 'separator' in feat else None
+                transform = CategoricalTransform(feat['feature_col'], feat_name,
+                                                 separator=separator)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)

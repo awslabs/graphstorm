@@ -196,8 +196,10 @@ def test_categorize_transform():
     feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
     cat_feat = transform(feat)
     assert "test" in cat_feat
-    for i, str_i in zip(cat_feat["test"], feat):
-        assert int(str_i) == i
+    for feat, str_i in zip(cat_feat["test"], feat):
+        assert feat[int(str_i)] == 1
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
 
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_noop_transform(out_dtype):
