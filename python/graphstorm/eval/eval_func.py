@@ -18,9 +18,9 @@
 from enum import Enum
 from functools import partial
 import operator
+import warnings
 import numpy as np
 import torch as th
-import warnings
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import precision_recall_curve, auc, classification_report
 
