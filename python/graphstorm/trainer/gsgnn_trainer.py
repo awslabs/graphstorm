@@ -24,7 +24,6 @@ from ..model import GSgnnModel, GSgnnModelBase
 from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
-from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
 
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
