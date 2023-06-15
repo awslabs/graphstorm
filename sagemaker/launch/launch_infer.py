@@ -73,6 +73,7 @@ def run_job(input_args, image, unknowargs):
 
     prefix = "script-mode-container"
 
+    # In Link Prediction, no prediction outputs
     if task_type == "link_prediction":
         params = {"task-type": task_type,
                   "graph-name": graph_name,
