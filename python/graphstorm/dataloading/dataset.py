@@ -229,8 +229,8 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         if label_field is not None:
             self._labels = {}
             for etype in self._g.canonical_etypes:
-                if label_field in self._g.edges[etype[1]].data:
-                    self._labels[etype] = self._g.edges[etype[1]].data[label_field]
+                if label_field in self._g.edges[etype].data:
+                    self._labels[etype] = self._g.edges[etype].data[label_field]
         else:
             self._labels = None
 
