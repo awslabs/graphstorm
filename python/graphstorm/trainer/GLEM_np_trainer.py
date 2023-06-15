@@ -20,10 +20,9 @@ import time
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
-from ..model.node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
 from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model.node_glem import GLEM
-from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
+from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
 from ..utils import sys_tracker
@@ -45,6 +44,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         super(GLEMNodePredictionTrainer, self).__init__(model, rank, topk_model_to_save)
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GLEM), \
                 "The input model is not a GLEM node model. Please implement GLEM."
+        self.early_stop = False # used when early stop is True
 
     def fit(self, train_loader, num_epochs,
             val_loader=None,
@@ -84,9 +84,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
-        
+
         # computation graph will be changed during training.
-        # static_graph = freeze_input_layer_epochs == 0
         model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
                                         output_device=self.dev_id,
                                         find_unused_parameters=True,
@@ -97,7 +96,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         # training loop
         dur = []
         total_steps = 0
-        self.early_stop = False # used when early stop is True
+
         sys_tracker.check('start training')
         g = data.g # dgl.DistGraph
         # (TODO) Pre-train LM and infer labels 
@@ -105,9 +104,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         # (TODO) Train GNN and infer labels
         # model._pre_train_gnn()
         for epoch in range(num_epochs):
-            # n_params = sum(param.numel() for param in model.parameters())
-            # n_trainable_params = sum(param.numel() for param in model.parameters() if param.requires_grad)            
-            # print('number of params, trainable params: ', n_params, n_trainable_params )
             t0 = time.time()
             rt_profiler.start_record()
 
@@ -115,7 +111,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             use_gnn = False
             self._model.unfreeze_params('lm')
             self._model.freeze_params('gnn')
-         
+
             self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader, device, rt_profiler, epoch, total_steps, use_mini_batch_infer, save_model_path, save_model_frequency)
 
             # 2nd round: train GNN, fix LM

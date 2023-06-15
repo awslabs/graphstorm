@@ -15,11 +15,10 @@
 
     GLEM model for node prediction task in GraphStorm.
 """
-import abc
 import torch as th
 import dgl
 
-from .gnn import GSgnnModel, GSgnnModelBase, GSOptimizer
+from .gnn import GSOptimizer
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
 
 class GLEM(GSgnnNodeModelBase):
@@ -68,11 +67,11 @@ class GLEM(GSgnnNodeModelBase):
             lm_opts = []
         self._optimizer = GSOptimizer(dense_opts=dense_opts,
                                       lm_opts=lm_opts,
-                                      sparse_opts=sparse_opts)        
+                                      sparse_opts=sparse_opts)
 
     def create_optimizer(self):
         return self._optimizer
-    
+
     def set_node_input_encoder(self, encoder):
         """Set the node input LM encoder for lm, shared with gnn. 
         """
@@ -199,7 +198,7 @@ class GLEM(GSgnnNodeModelBase):
         # Get the projected LM embeddings without GNN message passing
         encode_embs = self.lm.comput_input_embed(input_nodes, node_feats)
         # GNN message passing:
-        encode_embs = self.gnn.gnn_encoder(blocks, encode_embs)
+        encode_embs = self.gnn.gnn_encoder.forward(blocks, encode_embs)
         target_ntype = list(encode_embs.keys())[0]
         emb = encode_embs[target_ntype]        
         return emb
