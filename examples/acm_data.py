@@ -24,6 +24,7 @@ import scipy.io
 import urllib.request
 import os
 import json
+import pickle
 import dgl
 import pandas as pd
 import numpy as np
@@ -332,10 +333,17 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         output_path = '/tmp'
 
     if output_path is not None:
-        output_file_path = os.path.join(output_path, dataset_name + '.dgl')
-        print(f'Saving ACM data to {output_file_path} ......')
-        save_graphs(output_file_path, [graph_acm], None)
-        print(f'{output_file_path} saved.')
+        # Save DGL graph
+        output_graph_file_path = os.path.join(output_path, dataset_name + '.dgl')
+        print(f'Saving ACM data to {output_graph_file_path} ......')
+        save_graphs(output_graph_file_path, [graph_acm], None)
+        print(f'{output_graph_file_path} saved.')
+        # Save raw node text
+        output_text_file_path = os.path.join(output_path, dataset_name + '_text.pkl')
+        print(f'Saving ACM node text to {output_text_file_path} ......')
+        with open(output_text_file_path, 'wb') as tfile:
+            pickle.dump(text_feat, tfile)
+        print(f'{output_text_file_path} saved.')
 
     return graph_acm, text_feat
 
