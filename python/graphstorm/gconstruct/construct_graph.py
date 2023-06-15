@@ -550,7 +550,10 @@ def process_graph(args):
             assert isinstance(e, tuple) and len(e) == 2
             assert isinstance(etype, tuple) and len(etype) == 3
             edges1[etype] = e
-            edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
+            if etype[0] == etype[2]:
+                edges1[etype[2], etype[1], etype[0]] = (e[1], e[0])
+            else:
+                edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
