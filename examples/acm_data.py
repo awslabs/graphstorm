@@ -81,11 +81,12 @@ def create_acm_raw_data(graph,
                 node_dict[feat_name] = convert_tensor_to_list_arrays(val)
 
         # generate the raw text features column
-        if text_df:
-            node_dict['text'] = text_df[ntype]
+        if text_feat is not None:
+            node_dict['text'] = text_feat[ntype]
 
         # generate the pandas DataFrame that combine ids, and, if have, features and labels
         node_df = pd.DataFrame(node_dict)
+        print(f'{ntype} nodes have: {node_df.columns} columns ......')
         # add node type name and node dataframe as a tuple
         node_list.append((ntype, node_df))
 
@@ -166,8 +167,10 @@ def create_acm_raw_data(graph,
             elif col == 'text':
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = col
-                feat_dict['transform']: {"name": "tokenize_hf",
-                                         "bert": "huggingface-basic"}
+                feat_dict['transform'] = {"name": "tokenize_hf",
+                                          "bert_model": "bert-base-uncased",
+                                          "max_seq_length": 16}
+                feats_list.append(feat_dict)
             else:
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = col
@@ -282,11 +285,11 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
     for subject in data['L']:
         subject_text.append(subject[0][0])
 
-    text_df = pd.DataFrame({
+    text_feat = {
         'paper': paper_text,
         'author': author_text,
         'subject': subject_text
-    })
+    }
 
     pvc = data['PvsC'].tocsr()
     p_selected = pvc.tocoo()
@@ -334,7 +337,7 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         save_graphs(output_file_path, [graph_acm], None)
         print(f'{output_file_path} saved.')
 
-    return graph_acm, text_df
+    return graph_acm, text_feat
 
 
 if __name__ == '__main__':
@@ -367,12 +370,12 @@ if __name__ == '__main__':
                                     is_split=False,
                                     dataset_name=args.dataset_name)
         create_acm_raw_data(graph=g,
-                            text_df=None,
+                            text_feat=None,
                             output_path=args.output_path)
     elif args.output_type == 'raw_w_text':
-        g, text_df = create_acm_dgl_graph(dowload_path=args.download_path,
-                                          is_split=False,
-                                          dataset_name=args.dataset_name)
+        g, text_feat = create_acm_dgl_graph(dowload_path=args.download_path,
+                                            is_split=False,
+                                            dataset_name=args.dataset_name)
         create_acm_raw_data(graph=g,
-                            text_df=text_df,
+                            text_feat=text_feat,
                             output_path=args.output_path)
