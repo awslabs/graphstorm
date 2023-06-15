@@ -19,11 +19,11 @@ import tempfile
 
 from collections import namedtuple
 
+import array_readwriter
+
 import numpy as np
 import pyarrow as pa
 import torch
-
-import array_readwriter
 
 ################### Constants used in pipelines unit tests ####################
 
@@ -41,12 +41,12 @@ FORMAT = "format"
 NAME = "name"
 DELIMITER = "delimiter"
 
-NODE1 = "n1"
-NODE2 = "n2"
+NTYPE1 = "n1"
+NTYPE2 = "n2"
 NODE3 = "n3"
 
-EDGE1 = f"{NODE1}:e1:{NODE2}"
-EDGE2 = f"{NODE2}:e2:{NODE1}"
+ETYPE1 = f"{NTYPE1}:e1:{NTYPE2}"
+ETYPE2 = f"{NTYPE2}:e2:{NTYPE1}"
 
 NFEAT1 = "nfeat1"
 EFEAT1 = "efeat1"
@@ -63,8 +63,8 @@ NUM_NODES2 = 10
 NUM_EDGES1 = 10
 NUM_EDGES2 = 10
 
-ntypes = [NODE1, NODE2]
-etypes = [EDGE1, EDGE2]
+graph_ntypes = [NTYPE1, NTYPE2]
+graph_etypes = [ETYPE1, ETYPE2]
 
 ############## Set of utility functions to help execute unit tests ############
 
@@ -191,26 +191,39 @@ def process_files(file_name, file_format, file_metadata, file_count):
     is_absolute = file_metadata.is_absolute
     file_prefix = file_metadata.file_prefix
 
-    names = []
+    meta_filenames = []
+    ret_names = []
+    ret_dirs = []
     for i in range(file_count):
         extension = file_format[NAME]
-        filename = os.path.join(
+        filename = f"{file_prefix}_{file_name}_{i}.{extension}"
+        rel_filename = os.path.join(
             prefix_dir, f"{file_prefix}_{file_name}_{i}.{extension}"
         )
         if is_absolute:
-            filename = os.path.join(root_dir, filename)
-        names.append(filename)
+            if root_dir is None or root_dir == "":
+                filename = os.path.join(os.getcwd(), rel_filename)
+            else:
+                filename = os.path.join(root_dir, rel_filename)
+        meta_filenames.append(rel_filename)
         if create_files:
-            local_dir = os.path.join(root_dir, prefix_dir)
-            if not os.path.isdir(local_dir):
-                os.makedirs(local_dir, exist_ok=True)
+            local_dir = root_dir
+            if root_dir is None or root_dir == "":
+                local_dir = os.getcwd()
+
+            if len(prefix_dir) > 0:
+                local_dir = os.path.join(local_dir, prefix_dir)
+
+            if not os.path.exists(local_dir):
+                os.makedirs(local_dir)
+                ret_dirs.append(local_dir)
 
             data = get_data(file_prefix, i)
-            filename = os.path.join(root_dir, filename)
             array_readwriter.get_array_parser(**file_format).write(
-                filename, data
+                os.path.join(local_dir, filename), data
             )
-    return names
+            ret_names.append(os.path.join(local_dir, filename))
+    return meta_filenames, ret_names, ret_dirs
 
 
 def add_edges_files(schema, val, edge_file_count, edge_format, file_metadata):
@@ -243,6 +256,8 @@ def add_edges_files(schema, val, edge_file_count, edge_format, file_metadata):
     file_prefix = file_metadata.file_prefix
 
     edge_data = {}
+    ret_dirs = []
+    ret_names = []
     for idx, etype in enumerate(etypes):
         edge_data[etype] = {}
         edge_format_fix = {}
@@ -252,11 +267,15 @@ def add_edges_files(schema, val, edge_file_count, edge_format, file_metadata):
                 edge_format[DELIMITER] if DELIMITER in edge_format else ":"
             )
         edge_data[etype][FORMAT] = edge_format
-        edge_data[etype][DATA] = process_files(
+        filenames, td_files, td_dirs = process_files(
             etype, edge_format_fix, file_metadata, edge_file_count[etype]
         )
+        edge_data[etype][DATA] = filenames
+        ret_dirs.extend(td_dirs)
+        ret_names.extend(td_files)
 
     schema[EDGES] = edge_data
+    return ret_dirs, ret_names
 
 
 def add_node_features(
@@ -287,6 +306,8 @@ def add_node_features(
     """
     add_nodes(schema, val)
 
+    dir_names = []
+    file_names = []
     node_feature_data = {}
     for ntype, features in node_features.items():
         node_feature_data[ntype] = {}
@@ -296,25 +317,32 @@ def add_node_features(
                 ntype + "/" + feature
             ]
             if file_fmt[ntype + "/" + feature][NAME] == "csv":
-                node_feature_data[ntype][feature][DATA] = process_files(
+                filenames, td_files, td_dirs = process_files(
                     ntype,
                     file_fmt[ntype + "/" + feature],
                     file_metadata,
                     node_file_count[ntype],
                 )
+                node_feature_data[ntype][feature][DATA] = filenames
+                dir_names.extend(td_dirs)
+                file_names.extend(td_files)
             else:
                 non_csv_file_format = {}
                 non_csv_file_format[NAME] = file_fmt[ntype + "/" + feature][
                     NAME
                 ]
-                node_feature_data[ntype][feature][DATA] = process_files(
+                filenames, td_files, td_dirs = process_files(
                     ntype,
                     non_csv_file_format,
                     file_metadata,
                     node_file_count[ntype],
                 )
+                node_feature_data[ntype][feature][DATA] = filenames
+                dir_names.extend(td_dirs)
+                file_names.extend(td_files)
 
     schema[NODE_DATA] = node_feature_data
+    return dir_names, file_names
 
 
 def add_edge_features(
@@ -345,6 +373,8 @@ def add_edge_features(
     """
     add_edges(schema, val)
 
+    dir_names = []
+    file_names = []
     edge_feature_data = {}
     for etype, features in edge_features.items():
         edge_feature_data[etype] = {}
@@ -354,17 +384,56 @@ def add_edge_features(
                 etype + "/" + feature
             ]
             if file_fmt[etype + "/" + feature][NAME] == "csv":
-                edge_feature_data[etype][feature][DATA] = process_files(
+                filenames, td_files, td_dirs = process_files(
                     etype,
                     file_fmt[etype + "/" + feature],
                     file_metadata,
                     edge_file_count[etype],
                 )
+                edge_feature_data[etype][feature][DATA] = filenames
+                dir_names.extend(td_dirs)
+                file_names.extend(td_files)
             else:
                 no_csv_fmt = {}
                 no_csv_fmt[NAME] = file_fmt[etype + "/" + feature][NAME]
-                edge_feature_data[etype][feature][DATA] = process_files(
+                filenames, td_files, td_dirs = process_files(
                     etype, no_csv_fmt, file_metadata, edge_file_count[etype]
                 )
+                edge_feature_data[etype][feature][DATA] = filenames
+                dir_names.extend(td_dirs)
+                file_names.extend(td_files)
 
     schema[EDGE_DATA] = edge_feature_data
+    return dir_names, file_names
+
+
+def create_graph_without_features(root_dir):
+    file_metadata = namedtuple("file_metadata", "")
+    file_metadata.root_dir = root_dir
+    file_metadata.prefix_dir = ""
+    file_metadata.create_files = True
+    file_metadata.is_absolute = True
+    file_metadata.file_prefix = "edges_"
+
+    # Create bare minimum graph so that metadata can be created.
+    input_dict = {}
+    add_graph_name(input_dict)
+    add_nodes(input_dict, {NTYPE1: NUM_NODES1, NTYPE2: NUM_NODES2})
+    edge_dirs, edge_files = add_edges_files(
+        input_dict,
+        {ETYPE1: NUM_EDGES1, ETYPE2: NUM_EDGES2},  # edge count dict.
+        {ETYPE1: 1, ETYPE2: 1},  # file count dict.
+        {NAME: "csv", DELIMITER: " "},  # file format dict.
+        file_metadata,
+    )
+
+    file_name = METADATA_NAME
+    metadata_prefix = None
+    if root_dir is None or root_dir == "":
+        metadata_prefix = os.getcwd()
+    else:
+        metadata_prefix = root_dir
+    file_name = os.path.join(metadata_prefix, METADATA_NAME)
+    with open(file_name, "w") as handle:
+        json.dump(input_dict, handle, indent=4)
+    return file_name, input_dict, edge_dirs, edge_files

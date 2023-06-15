@@ -140,9 +140,18 @@ class MetadataSchema:
     node types present in the input graph, whose return value is a list of
     strings. The above code snippet assumes that the input graph has two
     node types namely ``ntype1`` and ``ntype2``.
+
+    Inbuilt initialization function for the MetadataSchema module.
+
+    Arugment
+    --------
+    file_name: str
+        Name of the file to be read and initialize this instance.
+    base_dir: str
+        directory in which ``file_name`` can be located.
     """
 
-    def __init__(self, file_name, base_dir, init_maps=True):
+    def __init__(self, file_name, base_dir):
         self._basedir = None
         self._metadata_path = None
         self._data = None
@@ -150,9 +159,7 @@ class MetadataSchema:
         self._global_eid_offsets = None
         self._ntypes = None
         self._ntype_id_map = None
-        self._id_ntype_map = None
         self._etype_id_map = None
-        self._id_etype_map = None
         self._etypes = None
         self._ntype_features = None
         self._etype_features = None
@@ -160,46 +167,44 @@ class MetadataSchema:
         self._etype_feature_files = None
         self._etype_files = None
 
-        self.__load_json(file_name, base_dir)
-        if init_maps:
-            self.__init_maps()
-            self.__validate_metadata()
+        data_dict = self._load_json(file_name, base_dir)
+        self._init_maps(data_dict)
+        self._validate_metadata(data_dict)
+        self._data = data_dict
 
-    ############################## Private Methods #############################
-
-    def __check_ifexists(self, data_files, file_type):
+    def _check_ifexists(self, data_files, file_type):
         """Helper function to verify the presence of a set of filenames.
 
         Argument
         --------
         data_files: list of str
             A set of file names, either in absolute or in relative formats.
-        src_type: str
-            Either node type or edge type from the input graph.
+        file_type: str
+            A string to indicate files present in the ``data_files`` parameter.
+            This serves as additional debugging information.
         """
-        for file_name in data_files:
-            file_path = file_name
+        for file_path in data_files:
             if not os.path.isabs(file_path):
                 file_path = os.path.join(self._basedir, file_path)
             assert os.path.isfile(
                 file_path
             ), f"File: {file_path} does not exist for {file_type}."
 
-    def __init_maps(self):
+    def _init_maps(self, data_dict):
         """Initialization function to build all the necessary data structures
         used during typical processing of the pipeline.
         """
-        self._init_global_nid_offsets()
-        self._init_global_eid_offsets()
-        self._init_ntype_maps()
-        self._init_etype_maps()
-        self._init_ntype_features()
-        self._init_etype_features()
-        self._init_etype_files()
-        self._init_ntype_feature_files()
-        self._init_etype_feature_files()
+        self._global_nid_offsets = self._init_global_nid_offsets(data_dict)
+        self._global_eid_offsets = self._init_global_eid_offsets(data_dict)
+        self._ntypes, self._ntype_id_map = self._init_ntype_maps(data_dict)
+        self._etypes, self._etype_id_map = self._init_etype_maps(data_dict)
+        self._ntype_features = self._init_ntype_features(data_dict)
+        self._etype_features = self._init_etype_features(data_dict)
+        self._etype_files = self._init_etype_files(data_dict)
+        self._ntype_feature_files = self._init_ntype_feature_files(data_dict)
+        self._etype_feature_files = self._init_etype_feature_files(data_dict)
 
-    def __load_json(self, file_name, base_dir):
+    def _load_json(self, file_name, base_dir):
         """Helper function to read the metadata schema file of the input
         graph dataset. ``file_name`` input argument can be either in absolute
         or relative path formats. ``base_dir`` is used as the root directory
@@ -225,10 +230,13 @@ class MetadataSchema:
         self._metadata_path = os.path.join(
             os.path.join(self._basedir, file_name)
         )
+        data_dict = None
         with open(self._metadata_path, "r", encoding="utf-8") as handle:
-            self._data = json.load(handle)
+            data_dict = json.load(handle)
 
-    def __validate_metadata(self):
+        return data_dict
+
+    def _validate_metadata(self, data_dict):
         """Helper function to validate the input metadata schema contents.
         Following set of rules are encoforced to ensure the correctness of
         the input metadata schema file.
@@ -248,45 +256,45 @@ class MetadataSchema:
            * Edge type with edge features should be a valie edge type,
                 valid edge types are in the ``edge_type`` list
         """
-        assert isinstance(self._data[STR_GRAPH_NAME], str), "Invalid graph name"
-        assert len(self._data[STR_GRAPH_NAME]) > 0, "Invalid graph name"
+        assert isinstance(data_dict[STR_GRAPH_NAME], str), "Invalid graph name"
+        assert len(data_dict[STR_GRAPH_NAME]) > 0, "Invalid graph name"
 
         assert (
-            len(self._data[STR_NUM_NODES_PER_TYPE]) > 0
+            len(data_dict[STR_NUM_NODES_PER_TYPE]) > 0
         ), "Invalid number of nodes"
         assert (
-            len(self._data[STR_NUM_EDGES_PER_TYPE]) > 0
+            len(data_dict[STR_NUM_EDGES_PER_TYPE]) > 0
         ), "Invalid number of edges"
 
         assert (
-            len(self._data[STR_NUM_NODES_PER_TYPE]) > 0
+            len(data_dict[STR_NUM_NODES_PER_TYPE]) > 0
         ), "Invalid number of nodes"
         assert (
-            len(self._data[STR_NUM_EDGES_PER_TYPE]) > 0
+            len(data_dict[STR_NUM_EDGES_PER_TYPE]) > 0
         ), "Invalid number of edges"
 
-        for idx, num_nodes in enumerate(self._data[STR_NUM_NODES_PER_TYPE]):
+        for idx, num_nodes in enumerate(data_dict[STR_NUM_NODES_PER_TYPE]):
             assert (
                 num_nodes > 0
             ), f"No. of nodes at index: {idx} is not a valid value."
 
-        for idx, num_edges in enumerate(self._data[STR_NUM_EDGES_PER_TYPE]):
+        for idx, num_edges in enumerate(data_dict[STR_NUM_EDGES_PER_TYPE]):
             assert (
                 num_edges > 0
             ), f"No. of edges at index: {idx} is not a valie value."
 
-        assert len(self._data[STR_NODE_TYPE]) == len(
-            self._data[STR_NUM_NODES_PER_TYPE]
+        assert len(data_dict[STR_NODE_TYPE]) == len(
+            data_dict[STR_NUM_NODES_PER_TYPE]
         ), "No. of node types does not match with No. of nodes per node type."
-        assert len(self._data[STR_EDGE_TYPE]) == len(
-            self._data[STR_NUM_EDGES_PER_TYPE]
+        assert len(data_dict[STR_EDGE_TYPE]) == len(
+            data_dict[STR_NUM_EDGES_PER_TYPE]
         ), "No. of edge types does not match with No. of edges per edge type."
 
         assert len(self._ntype_features) <= len(
-            self._data[STR_NUM_NODES_PER_TYPE]
+            data_dict[STR_NUM_NODES_PER_TYPE]
         ), "Node types with features does not match node type counts."
         assert len(self._etype_features) <= len(
-            self._data[STR_NUM_EDGES_PER_TYPE]
+            data_dict[STR_NUM_EDGES_PER_TYPE]
         ), "Edge types with features does not match edge type counts."
 
         # Check for each existing node feature, corresponding node type is valid
@@ -303,9 +311,7 @@ class MetadataSchema:
                 etype in self.etypes
             ), f"Edge Type: {etype} is not present in the list of edge types"
 
-    ########################## Prrotected Methods ##############################
-
-    def _init_global_eid_offsets(self):
+    def _init_global_eid_offsets(self, data_dict):
         """Function to initialize the global_edge_id offsets for all the
         edge types present in the input graph.
 
@@ -322,21 +328,20 @@ class MetadataSchema:
             and [a, b) is the range of global_edge_ids for the edge type
             `etype1`.
         """
-        etypes = self._data[STR_EDGE_TYPE]
-        etype_counts = self._data[STR_NUM_EDGES_PER_TYPE]
+        etypes = data_dict[STR_EDGE_TYPE]
+        etype_counts = data_dict[STR_NUM_EDGES_PER_TYPE]
         for count in etype_counts:
             assert (
                 isinstance(count, int) and count > 0
-            ), "Invalid value for No. of nodes per type"
+            ), "Invalid value for No. of edges per type"
 
         prefix_sum = np.cumsum([0] + etype_counts)
         starts = prefix_sum[:-1]
         ends = prefix_sum[1:]
         ranges = zip(starts, ends)
+        return dict(zip(etypes, ranges))
 
-        self._global_eid_offsets = dict(zip(etypes, ranges))
-
-    def _init_global_nid_offsets(self):
+    def _init_global_nid_offsets(self, data_dict):
         """Function to initialize the global_node_id offsets for all the
         node types present in the input graph.
 
@@ -353,8 +358,8 @@ class MetadataSchema:
             and [a, b) is the range of global_node_ids for the node type
             `ntype1`.
         """
-        ntypes = self._data[STR_NODE_TYPE]
-        ntype_counts = self._data[STR_NUM_NODES_PER_TYPE]
+        ntypes = data_dict[STR_NODE_TYPE]
+        ntype_counts = data_dict[STR_NUM_NODES_PER_TYPE]
         for count in ntype_counts:
             assert (
                 isinstance(count, int) and count > 0
@@ -364,20 +369,20 @@ class MetadataSchema:
         starts = prefix_sum[:-1]
         ends = prefix_sum[1:]
         ranges = zip(starts, ends)
-        self._global_nid_offsets = dict(zip(ntypes, ranges))
+        return dict(zip(ntypes, ranges))
 
-    def _init_etype_maps(self):
+    def _init_etype_maps(self, data_dict):
         """Initialization function to build unique id maps for edge types of
         the input graph. This function creates a list of edge types present in
         the graph, and unique-id <-> edge type and reverse maps.
         """
-        self._etypes = self._data[STR_EDGE_TYPE]
-        self._etype_id_map = {
-            etype_name: idx for idx, etype_name in enumerate(self._etypes)
+        etypes = data_dict[STR_EDGE_TYPE]
+        etype_id_map = {
+            etype_name: idx for idx, etype_name in enumerate(etypes)
         }
-        self._id_etype_map = dict(enumerate(self._etypes))
+        return etypes, etype_id_map
 
-    def _init_etype_features(self):
+    def _init_etype_features(self, data_dict):
         """Initialization function to build a map in which key are edge types
         in the graph and values are a list of features for the corresponding
         edge type, if present. For instance,
@@ -386,16 +391,14 @@ class MetadataSchema:
             [feature1, feature2, ...] is a list of features associated with
             the etype1 edge type.
         """
-        self._etype_features = {}
-        edge_data = self._data.get(STR_EDGE_DATA, {})
-        for etype in self._data[STR_EDGE_TYPE]:
-            features = edge_data.get(etype, {})
-            if len(features) > 0:
-                self._etype_features[etype] = list(features.keys())
+        etype_features = {}
+        if STR_EDGE_DATA in data_dict:
+            for etype, features_info in data_dict[STR_EDGE_DATA].items():
+                if len(features_info) > 0:
+                    etype_features[etype] = list(features_info.keys())
+        return etype_features
 
-    def _init_etype_feature_files(
-        self,
-    ):
+    def _init_etype_feature_files(self, data_dict):
         """Initialization function to build a map to capture the files names
         and their format. For instance,
             (etype, feature_name): (file_type, delimiter, [file1, file2, ...]
@@ -409,29 +412,30 @@ class MetadataSchema:
                   ``[file1, file2, ...]`` is a list of files in which features
                   are stored for this edge type.
         """
-        self._etype_feature_files = {}
-        edge_data = self._data.get(STR_EDGE_DATA, {})
-        for etype, etype_info in edge_data.items():
-            for feature_name, feature_info in etype_info.items():
-                data_files = feature_info.get(STR_DATA, [])
-                file_type = None
-                delimiter = None
-                if len(data_files) > 0:
-                    file_type = feature_info[STR_FORMAT][STR_NAME]
-                    delimiter = feature_info[STR_FORMAT].get(
-                        STR_FORMAT_DELIMITER, ","
-                    )
+        etype_feature_files = {}
+        if STR_EDGE_DATA in data_dict:
+            for etype, etype_info in data_dict[STR_EDGE_DATA].items():
+                for feature_name, feature_info in etype_info.items():
+                    if STR_DATA in feature_info:
+                        data_files = feature_info[STR_DATA]
+                        file_type = None
+                        delimiter = None
+                        if len(data_files) > 0:
+                            file_type = feature_info[STR_FORMAT][STR_NAME]
+                            delimiter = feature_info[STR_FORMAT][
+                                STR_FORMAT_DELIMITER
+                            ]
+                        self._check_ifexists(
+                            data_files, f"{etype}/{feature_name}"
+                        )
+                        etype_feature_files[(etype, feature_name)] = (
+                            file_type,
+                            delimiter,
+                            data_files,
+                        )
+        return etype_feature_files
 
-                self.__check_ifexists(data_files, f"{etype}/{feature_name}")
-                self._etype_feature_files[(etype, feature_name)] = (
-                    file_type,
-                    delimiter,
-                    data_files,
-                )
-
-    def _init_etype_files(
-        self,
-    ):
+    def _init_etype_files(self, data_dict):
         """Initialization function to build a map for the edge types and the
         corresponding information about the set of associated files. For
         instance, etype: (file_type, delimiter, [file1, file2, ...])
@@ -442,35 +446,27 @@ class MetadataSchema:
                   ``[file1, file2, ...]`` is a list of files in which the
                   edges are stored for the corresponding edge type.
         """
-        self._etype_files = {}
-        for etype, etype_info in self._data[STR_EDGES].items():
+        etype_files = {}
+        for etype, etype_info in data_dict[STR_EDGES].items():
             file_type = etype_info[STR_FORMAT][STR_NAME]
             delimiter = etype_info[STR_FORMAT][STR_FORMAT_DELIMITER]
             data_files = etype_info[STR_DATA]
+            self._check_ifexists(data_files, etype)
+            etype_files[etype] = (file_type, delimiter, data_files)
+        return etype_files
 
-            self.__check_ifexists(data_files, etype)
-            self._etype_files[etype] = (file_type, delimiter, data_files)
-
-        assert len(self._etype_files) == len(self._etypes), (
-            f"In the metadata file there are some edges"
-            f" for which there are no corresponding edge files."
-            f" etypes = {self._etypes} are all the edge files. "
-            f" etypes, for which edge files are present: "
-            f" {self.etype_files.keys()}"
-        )
-
-    def _init_ntype_maps(self):
+    def _init_ntype_maps(self, data_dict):
         """Initialization function to build unique id maps for node types of
         the input graph. This function creates a list of node types present in
         the graph, and unique-id <-> node type and reverse maps.
         """
-        self._ntypes = self._data[STR_NODE_TYPE]
-        self._ntype_id_map = {
-            ntype_name: idx for idx, ntype_name in enumerate(self._ntypes)
+        ntypes = data_dict[STR_NODE_TYPE]
+        ntype_id_map = {
+            ntype_name: idx for idx, ntype_name in enumerate(ntypes)
         }
-        self._id_ntype_map = dict(enumerate(self._ntypes))
+        return ntypes, ntype_id_map
 
-    def _init_ntype_features(self):
+    def _init_ntype_features(self, data_dict):
         """Initilization function to build a map in which keys are node types
         in the graph and values are a lists of features for the corresponding
         node type, if present. For instance,
@@ -479,14 +475,14 @@ class MetadataSchema:
             [feature1, feature2, ....] is a list of features associated with
             the ntype1 node type.
         """
-        self._ntype_features = {}
-        node_data = self._data.get(STR_NODE_DATA, {})
-        for ntype in self._data[STR_NODE_TYPE]:
-            features = node_data.get(ntype, {})
-            if len(features) > 0:
-                self._ntype_features[ntype] = list(features.keys())
+        ntype_features = {}
+        if STR_NODE_DATA in data_dict:
+            for ntype, features_info in data_dict[STR_NODE_DATA].items():
+                if len(features_info) > 0:
+                    ntype_features[ntype] = list(features_info.keys())
+        return ntype_features
 
-    def _init_ntype_feature_files(self):
+    def _init_ntype_feature_files(self, data_dict):
         """Initialization function to build a map to capture the files names
         and their format. For instance,
             (ntype, feature_name): (file_type, delimiter, [file1, file2, ...]
@@ -500,118 +496,28 @@ class MetadataSchema:
                   ``[file1, file2, ...]`` is a list of files in which features
                   are stored for this node type.
         """
-        self._ntype_feature_files = {}
-        node_data = self._data.get(STR_NODE_DATA, {})
-        for ntype, ntype_info in node_data.items():
-            for feature_name, feature_info in ntype_info.items():
-                data_files = feature_info.get(STR_DATA, [])
-                file_type = None
-                delimiter = None
-                if len(data_files) > 0:
-                    file_type = feature_info[STR_FORMAT][STR_NAME]
-                    delimiter = feature_info[STR_FORMAT].get(
-                        STR_FORMAT_DELIMITER, ","
-                    )
-
-                self.__check_ifexists(data_files, f"{ntype}/{feature_name}")
-                self._ntype_feature_files[(ntype, feature_name)] = (
-                    file_type,
-                    delimiter,
-                    data_files,
-                )
-
-    ############################## Public Methods ##############################
-
-    def get_etype_info(self, etype):
-        """Retrieves files and their format information with a given edge
-        type. (``file_type``, ``delimiter``, ``[file1, file2, ...]``) is
-        returned for the associated edge type. File types (numpy, csv
-        supported formats), delimter used in these files and a list of file
-        names in which edges are stored for the edge type.
-
-        Argument
-        --------
-        etype: str
-            Edge type from the input graph.
-
-        Returns
-        -------
-        tuple: (str, str, list(str))
-            File type (a valid file type which are ``numpy`` or ``csv``),
-            valid delimiter and list of file paths in which edges are
-            stored for the given edge type.
-        """
-        return self._etype_files[etype]
-
-    def get_etype_features(self, etype):
-        """Retrieves a list of edge features associated with ``etype``.
-
-        Argument
-        --------
-        etype: str
-            Edge type from the input graph.
-
-        Returns
-        ------
-        list(str): list of strings
-            List of strings describing the edge features.
-        """
-        return self._etype_features[etype]
-
-    def get_etype_feature_files(self, etype, feature_name):
-        """Retrieves a tuple, with the metadata for edge feature.
-
-        Argument
-        --------
-        etype: str
-            Edge type from the input graph.
-        feature_name: str
-            Edge feature name associated with the ``etype`` edge type.
-
-        Returns
-        -------
-        tuple: (str, str, list(str))
-            File type (valid values are ``numpy``or ``parquet``), delimiter
-            (a valid delimiter) and list of paths for filenames in which
-            edge features are stored.
-        """
-        return self._etype_feature_files[(etype, feature_name)]
-
-    def get_ntype_features(self, ntype):
-        """Retrieves a list of node features associated with ``ntype``.
-
-        Argument
-        --------
-        ntype: str
-            Node type from the input graph.
-
-        Returns
-        ------
-        list(str): list of strings
-            List of strings describing the node features.
-        """
-        return self._ntype_features[ntype]
-
-    def get_ntype_feature_files(self, ntype, feature_name):
-        """Retrieves a tuple, with the metadata for node feature.
-
-        Argument
-        --------
-        ntype: str
-            Node type from the input graph.
-        feature_name: str
-            Node feature name associated with the ``ntype`` node type.
-
-        Returns
-        -------
-        tuple: (str, str, list(str))
-            File type (valid values are ``numpy``or ``parquet``), delimiter
-            (a valid delimiter) and list of paths for filenames in which
-            node features are stored.
-        """
-        return self._ntype_feature_files[(ntype, feature_name)]
-
-    ############################## Properties #################################
+        ntype_feature_files = {}
+        if STR_NODE_DATA in data_dict:
+            for ntype, ntype_info in data_dict[STR_NODE_DATA].items():
+                for feature_name, feature_info in ntype_info.items():
+                    if STR_DATA in feature_info:
+                        data_files = feature_info[STR_DATA]
+                        file_type = None
+                        delimiter = None
+                        if len(data_files) > 0:
+                            file_type = feature_info[STR_FORMAT][STR_NAME]
+                            delimiter = feature_info[STR_FORMAT][
+                                STR_FORMAT_DELIMITER
+                            ]
+                        self._check_ifexists(
+                            data_files, f"{ntype}/{feature_name}"
+                        )
+                        ntype_feature_files[(ntype, feature_name)] = (
+                            file_type,
+                            delimiter,
+                            data_files,
+                        )
+        return ntype_feature_files
 
     @property
     def data(self):
@@ -619,18 +525,6 @@ class MetadataSchema:
         file.
         """
         return self._data
-
-    @property
-    def id_etype_map(self):
-        """Property to get the dictionary which stores (edge_id, etype) as
-        the key-value pairs.
-        """
-        return self._id_etype_map
-
-    @property
-    def id_ntype_map(self):
-        """Property to get the node-id <-> node type map."""
-        return self._id_ntype_map
 
     @property
     def etypes(self):
