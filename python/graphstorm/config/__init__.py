@@ -29,3 +29,8 @@ from .config import SUPPORTED_TASKS
 from .config import BUILTIN_LP_DOT_DECODER
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
+
+from .config import (GRAPHSTORM_MODEL_EMBED_LAYER,
+                     GRAPHSTORM_MODEL_GNN_LAYER,
+                     GRAPHSTORM_MODEL_DECODER_LAYER,
+                     GRAPHSTORM_MODEL_ALL_LAYERS)

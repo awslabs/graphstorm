@@ -29,7 +29,6 @@ import dgl
 from ..utils import get_rank
 from ..data.utils import alltoallv_nccl, alltoallv_cpu
 
-
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
 
