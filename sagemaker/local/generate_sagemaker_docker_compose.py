@@ -95,10 +95,9 @@ if __name__ == "__main__":
         entry_point = 'infer_entry.py'
         output_emb_s3 = f'--output-emb-s3 {args.output_emb_s3} ' \
                         if args.output_emb_s3 is not None else ''
-        if args.task_type == "link_prediction":
-            args.output_predict_s3_path = None        # Link Prediction does not save prediction
         output_prediction_s3 = f'--output-prediction-s3 {args.output_prediction_s3} ' \
-                        if args.output_prediction_s3 is not None else ''
+                        if args.output_prediction_s3 is not None and \
+                           args.task_type != "link_prediction" else '' # LP doesn't save prediction
 
         cmd = f'python3  {entry_point} ' \
             f'--task-type {args.task_type} ' \
