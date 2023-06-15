@@ -232,7 +232,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                        'best validation iteration': \
                            self.evaluator.best_iter_num[self.evaluator.metric[0]],
                        'best model path': \
-                           self.get_best_model_path() if save_model_path is not None else "No model is saved, please set save_model_path"}
+                           self.get_best_model_path() if save_model_path is not None else \
+                               "No model is saved, please set save_model_path"}
             self.log_params(output)
 
             if save_perf_results_path is not None:
