@@ -41,11 +41,11 @@ from .utils import (multiprocessing_data_read,
                     partition_graph)
 
 def prepare_node_data(in_file, feat_ops, read_file):
-    """ Parse node data.
+    """ Prepare node data for feature transform
 
-    The function parses a node file that contains node IDs, features and labels
+    The function parses a node file that contains features.
     The node file is parsed according to users' configuration
-    and performs some feature transformation.
+    and performs some feature transformation preparation.
 
     Parameters
     ----------
@@ -98,6 +98,32 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
             feat_data[key] = val
     node_ids = data[node_id_col] if node_id_col in data else None
     return (node_ids, feat_data)
+
+def prepare_edge_data(in_file, feat_ops, read_file):
+    """ Prepare edge data for feature transform
+
+    The function parses a edge file that contains features.
+    The edge file is parsed according to users' configuration
+    and performs some feature transformation preparation.
+
+    Parameters
+    ----------
+    in_file : str
+        The path of the input edge file.
+    feat_ops : dict of FeatTransform
+        The operations run on the edge features of the edge file.
+    read_file : callable
+        The function to read the edge file
+
+    Returns
+    -------
+    dict : A dict of edge feature info.
+    """
+    data = read_file(in_file)
+    assert feat_ops is not None, "feat_ops must exist when prepare_edge_data is called."
+    feat_info = preprocess_features(data, feat_ops)
+
+    return feat_info
 
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                     conf, skip_nonexist_edges):
@@ -380,6 +406,22 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         # are sufficient.
         id_map = {edge_type[0]: node_id_map[edge_type[0]],
                   edge_type[2]: node_id_map[edge_type[2]]}
+        two_phase_feat_ops = []
+        if feat_ops is not None:
+            for op in feat_ops:
+                if isinstance(op, TwoPhaseFeatTransform):
+                    two_phase_feat_ops.append(op)
+        if len(two_phase_feat_ops) > 0:
+            user_pre_parser = partial(prepare_edge_data, feat_ops=two_phase_feat_ops,
+                                      read_file=read_file)
+            pre_parse_start = time.time()
+            phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
+
+            dur = time.time() - pre_parse_start
+            logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
+                        edge_type, dur)
+
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_map=id_map,
