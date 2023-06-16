@@ -19,8 +19,11 @@ from collections.abc import Mapping
 import torch as th
 import numpy as np
 from dgl import backend as F
+from dgl import EID, NID
 from dgl.distributed import node_split
 from dgl.dataloading.negative_sampler import Uniform
+from dgl.dataloading import NeighborSampler
+from dgl.transforms import to_block
 
 class LocalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes
@@ -243,3 +246,83 @@ class JointLocalUniform(JointUniform):
         dst = self._local_neg_nids[vtype][dst]
         dst = np.tile(dst, self.k)
         return th.as_tensor(src), th.as_tensor(dst)
+
+class FastMultiLayerNeighborSampler(NeighborSampler):
+    """ Fast MultiLayerNeighborSampler
+
+        If mask is None, it acts the same as dgl.dataloading.MultiLayerNeighborSampler
+
+    Parameters
+    ----------
+    reverse_edge_types_map: dict
+        A map for reverse edge type
+    """
+    def __init__(
+        self,
+        fanouts,
+        edge_dir="in",
+        prob=None,
+        mask=None,
+        replace=False,
+        prefetch_node_feats=None,
+        prefetch_labels=None,
+        prefetch_edge_feats=None,
+        output_device=None,
+        reverse_edge_types_map=None,
+    ):
+        self.mask = mask
+        self.reverse_edge_types_map = reverse_edge_types_map
+        super().__init__(
+            fanouts=fanouts,
+            edge_dir=edge_dir,
+            prob=prob,
+            mask=None, # Do neighbor sampling with out edge mask
+            replace=replace,
+            prefetch_node_feats=prefetch_node_feats,
+            prefetch_labels=prefetch_labels,
+            prefetch_edge_feats=prefetch_edge_feats,
+            output_device=output_device
+        )
+
+    def sample_blocks(self, g, seed_nodes, exclude_eids=None):
+        output_nodes = seed_nodes
+        blocks = []
+        for fanout in reversed(self.fanouts):
+            frontier = g.sample_neighbors(
+                seed_nodes,
+                fanout,
+                edge_dir=self.edge_dir,
+                prob=self.prob,
+                replace=self.replace,
+                output_device=self.output_device,
+                exclude_edges=exclude_eids,
+            )
+            eid = frontier.edata[EID]
+            new_eid = eid
+            if self.mask is not None:
+                new_edges = {}
+                for etype in frontier.canonical_etypes:
+                    if self.mask in g.edges[etype].data:
+                        mask = g.edges[etype].data[self.mask][eid[etype]]
+                        new_edges[etype] = mask.bool()
+                        new_eid[etype] = eid[etype][mask]
+
+                        # handle reverse edges
+                        if self.reverse_edge_types_map is not None \
+                            and etype in self.reverse_edge_types_map:
+                            rev_etype = self.reverse_edge_types_map[etype]
+                            rev_mask = g.edges[etype].data[self.mask][eid[rev_etype]]
+                            new_edges[rev_etype] = rev_mask.bool()
+                            new_eid[rev_etype] = eid[rev_etype][rev_mask]
+
+                new_frontier = frontier.edge_subgraph(new_edges, relabel_nodes=False)
+            else:
+                new_frontier = frontier
+            block = to_block(new_frontier, seed_nodes)
+            block.edata[EID] = new_eid
+
+            seed_nodes = block.srcdata[NID]
+
+            blocks.insert(0, block)
+
+        return seed_nodes, output_nodes, blocks
