@@ -2,7 +2,6 @@
 
 Environment Setup
 ======================
-
 For a quick and easy setup, GraphStorm can be installed as a pip package. However, configuring a GraphStorm environment in various Operation Systems is non-trivial, therefore, GraphStorm also provides Docker-based running environment for easy deployment.
 
 1. Setup GraphStorm with pip Package
@@ -41,6 +40,23 @@ GraphStorm requires a set of dependencies, which can be installed with the follo
     pip install psutil==5.9.5
     pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
     pip install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
+
+Configure SSH No-password login
+................................
+Use the following commands to configure a local ssh no-password login that GraphStorm relies on.
+
+.. code-block:: bash
+
+    ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ''
+    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+Then use this command to test if the ssh no-password login works.
+
+.. code-block:: bash
+
+    ssh 127.0.0.1
+
+If everything is correct, the above command will enter another Linux shell process.
 
 Clone GraphStorm Tools (Optional)
 ..................................

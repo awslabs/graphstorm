@@ -428,7 +428,7 @@ config.json
 </figure>
 </section>
 <section id="customized-label-split">
-<span id="raw-data-files"></span><h4>Customized label split<a class="headerlink" href="#customized-label-split" title="Permalink to this heading">#</a></h4>
+<h4>Customized label split<a class="headerlink" href="#customized-label-split" title="Permalink to this heading">#</a></h4>
 <p>If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file like the below example.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
@@ -445,7 +445,7 @@ config.json
 <p>These JSON files only need to list the IDs on its own set. For example, in a node classification task, there are 100 nodes and node ID starts from 0, and assume the last 50 nodes (ID from 49 to 99) have labels associated. For some business logic, users want to have the first 10 of the 50 labeled nodes as training set, the last 30 as the test set, and the middle 10 as the validation set. Then the train_idx.json file should cotains the integer from 50 to 59, and one integer per line. The val_idx.json file should cotains the integer from 60 to 69, and one integer per line. The test_idx.json file should cotains the integer from 70 to 99, and one integer per line.</p>
 </section>
 <section id="input-raw-node-edge-data-files">
-<h4>Input raw node/edge data files<a class="headerlink" href="#input-raw-node-edge-data-files" title="Permalink to this heading">#</a></h4>
+<span id="raw-data-files"></span><h4>Input raw node/edge data files<a class="headerlink" href="#input-raw-node-edge-data-files" title="Permalink to this heading">#</a></h4>
 <p>The raw node and edge data files are both in a parquet format, whose contents are demonstrated as the diagram below.</p>
 <figure class="align-center">
 <img alt="../_images/ACM_raw_parquet.png" src="../_images/ACM_raw_parquet.png" />
