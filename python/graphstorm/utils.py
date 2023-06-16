@@ -320,11 +320,10 @@ class MemoryProfiler(RuntimeProfiler):
         It tracks the runtime.
     """
     def __init__(self, profile_path=None):
+        super(MemoryProfiler, self).__init__(profile_path)
         self._checkpoints = {}
-        self._runtime = {}
-        self._profile_path = profile_path
-        self._rank = -1
-        print("init")
+        self._max_userd = 0
+        self._max_shared = 0
 
     def start_record(self):
         """ Start recording.
@@ -334,6 +333,12 @@ class MemoryProfiler(RuntimeProfiler):
 
     def record(self, name, sub_name=""):
         """ Record the memory profile.
+
+            We record the full memory usage history in self._runtime.
+            We do not expect memory profiling happens frequently.
+            We store the memory usage between two consecutive evaluations in
+            self._checkpoints and print the information stored in self._checkpoints
+            every time print_stats() is called.
 
         Parameters
         ----------
@@ -358,17 +363,22 @@ class MemoryProfiler(RuntimeProfiler):
             self._runtime[name] = [mem_info]
         else:
             self._runtime[name].append(mem_info)
+        self._max_shared = max(self._max_shared, mem_info[1])
+        self._max_userd = max(self._max_userd,  mem_info[2])
 
     def print_stats(self):
         """ Print the statistics
 
-            We do not expect memory profiling happens frequently
+            We only print the statistics stored in checkpoints.
+            Every time we print stats, we will reset self._checkpoints.
         """
         if self._rank == 0 and self._profile_path is not None:
             for name, runtimes in self._checkpoints.items():
                 for (sub_name, shared, used, avaliable) in runtimes:
                     print(f"[{name}-{sub_name}]: Shared mem {shared:.3f} GB, "
                           f"Total used {used:.3f} GB, Avaliable {avaliable:.3f} GB")
+        print(f"Max shared memory usage {self._max_shared}")
+        print(f"Max memory usage {self._max_userd}")
         # reset checkpoint
         self._checkpoints = {}
 
