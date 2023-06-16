@@ -367,8 +367,8 @@ class MemoryProfiler(RuntimeProfiler):
         if self._rank == 0 and self._profile_path is not None:
             for name, runtimes in self._checkpoints.items():
                 for (sub_name, shared, used, avaliable) in runtimes:
-                    print(f"[{name}-{sub_name}]: Shared mem {shared}, "
-                          f"Total used {used}, Avaliable {avaliable}")
+                    print(f"[{name}-{sub_name}]: Shared mem {shared:.3f} GB, "
+                          f"Total used {used:.3f} GB, Avaliable {avaliable:.3f} GB")
         # reset checkpoint
         self._checkpoints = {}
 
