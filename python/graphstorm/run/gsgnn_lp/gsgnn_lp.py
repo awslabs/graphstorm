@@ -31,16 +31,25 @@ from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
+from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
+                                    FastGSgnnLPLocalJointNegDataLoader,
+                                    FastGSgnnLPJointNegDataLoader,
+                                    FastGSgnnLPLocalUniformNegDataLoader)
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_LOCALJOINT_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
+from graphstorm.dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler
+from graphstorm.utils import mm_profiler
 
 def main(config_args):
     """ main function
@@ -49,6 +58,7 @@ def main(config_args):
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
+    mm_profiler.init("./memory", rank=gs.get_rank())
     node_feat_field = config.node_feat_name
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
@@ -93,6 +103,14 @@ def main(config_args):
         dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_JOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalUniformNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalJointNegDataLoader
     else:
         raise ValueError('Unknown negative sampler')
     device = 'cuda:%d' % trainer.dev_id
