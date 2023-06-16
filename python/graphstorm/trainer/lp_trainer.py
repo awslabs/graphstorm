@@ -201,7 +201,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
             dur.append(epoch_time)
-            mm_profiler.record("train", f"{epoch}-{i}")
+            mm_profiler.record("train", f"{epoch}-finish")
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
@@ -227,6 +227,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
+        mm_profiler.save_profile()
         print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,
