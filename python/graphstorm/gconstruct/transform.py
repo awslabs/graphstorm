@@ -22,6 +22,8 @@ import os
 import sys
 import numpy as np
 import torch as th
+
+from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
@@ -67,6 +69,25 @@ class FeatTransform:
         """ The feature name.
         """
         return self._feat_name
+
+class GlobalProcessFeatTransform(FeatTransform):
+    """ The base class for transformations taht can only be done using a single process.
+
+        Some transformations need to do complex operations on the entire feature set,
+        such as ranking. GlobalProcessFeatTransform loads features from files first,
+        which can be done with multi-processing, and then do feature transformation
+        after features are merged.
+    """
+
+    def after_merge_transform(self, feats):
+        """ Do feature transformation after features are merged into a single
+            array.
+
+        Parameters
+        ----------
+        feats:
+            feats to be processed
+        """
 
 class TwoPhaseFeatTransform(FeatTransform):
     """ The base class for two phasefeature transformation.
@@ -206,6 +227,53 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats = _feat_astype(feats, self._out_dtype)
 
         return {self.feat_name: feats}
+
+class RankGaussTransform(GlobalProcessFeatTransform):
+    """ Use Gauss rank transformation to transform input data
+
+        The idea is from
+        http://fastml.com/preparing-continuous-features-for-neural-networks-with-rankgauss/
+
+    Parameters
+    ----------
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    epsilon: float
+        Epsilon for normalization.
+    """
+    def __init__(self, col_name, feat_name, out_dtype=None, epsilon=None):
+        self._epsilon = epsilon if epsilon is not None else 1e-6
+        super(RankGaussTransform, self).__init__(col_name, feat_name, out_dtype)
+
+    def __call__(self, feats):
+        # do nothing. Rank Gauss is done after merging all arrays together.
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+                f"The feature {self.feat_name} has to be NumPy array."
+        assert np.issubdtype(feats.dtype, np.integer) \
+                or np.issubdtype(feats.dtype, np.floating), \
+                f"The feature {self.feat_name} has to be integers or floats."
+
+        return {self.feat_name: feats}
+
+    def after_merge_transform(self, feats):
+        # The feats can be a numpy array or a numpy memmaped object
+        # Get ranking information.
+        feats = feats.argsort(axis=0).argsort(axis=0)
+        feat_range = len(feats) - 1
+        # norm to [-1, 1]
+        feats = (feats / feat_range - 0.5) * 2
+        feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
+        feats = erfinv(feats)
+
+        feats = _feat_astype(feats, self._out_dtype)
+        return feats
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
@@ -442,8 +510,13 @@ def parse_feat_ops(confs):
                 transform = NumericalMinMaxTransform(feat['feature_col'],
                                                      feat_name,
                                                      max_bound,
-                                                     min_bound,
-                                                     out_dtype=out_dtype)
+                                                     min_bound)
+            elif conf['name'] == 'rank_gauss':
+                epsilon = conf['epsilon'] if 'epsilon' in conf else None
+                transform = RankGaussTransform(feat['feature_col'],
+                                               feat_name,
+                                               out_dtype=out_dtype,
+                                               epsilon=epsilon)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)

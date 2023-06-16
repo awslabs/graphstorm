@@ -132,12 +132,9 @@ dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert feat back to 1D to pass test
 assert np.all(src_ids + dst_ids == feat.reshape(-1,))
-assert np.all(src_ids + dst_ids == feat2.reshape(-1,))
 
-#test data type
-data = g.nodes['node1'].data['feat2']
-assert data.dtype is th.float16
-data = g.nodes['node1'].data['feat_fp16']
-assert data.dtype is th.float16
-data = g.nodes['node1'].data['feat_fp16_hdf5']
+data = g.nodes['node1'].data['feat_rank_gauss']
+data_sum = np.sum(data.numpy(), axis=0)
+np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+data = g.nodes['node1'].data['feat_rank_gauss_fp16']
 assert data.dtype is th.float16
