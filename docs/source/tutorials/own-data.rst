@@ -242,15 +242,15 @@ If users want to split labels with your own logics, e.g., time sequence, you can
 
 .. code-block:: json
 
-                "labels": [
-                    {
-                        "label_col": "label",
-                        "task_type": "classification",
-                        "custom_split_filenames": {"train": "/tmp/acm_raw/nodes/train_idx.json",
-                                                   "valid": "/tmp/acm_raw/nodes/val_idx.json",
-                                                   "test": "/tmp/acm_raw/nodes/test_idx.json"}
-                    }
-                ]
+    "labels": [
+        {
+            "label_col": "label",
+            "task_type": "classification",
+            "custom_split_filenames": {"train": "/tmp/acm_raw/nodes/train_idx.json",
+                                        "valid": "/tmp/acm_raw/nodes/val_idx.json",
+                                        "test": "/tmp/acm_raw/nodes/test_idx.json"}
+        }
+    ]
 
 Instead of using the ``split_pct``, users can specify the ``custom_split_filenames`` configuration with a value, which is a dictionary. The dictionary's keys could include ``train``, ``valid``, and ``test``, and values of the dictionary are JSON files that contains the node/edge IDs of each set.
 

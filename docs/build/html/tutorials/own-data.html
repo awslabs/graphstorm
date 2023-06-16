@@ -428,15 +428,15 @@ config.json
 </figure>
 </section>
 <section id="customized-label-split">
-<span id="raw-data-files"></span><h4>Customized Label Split<a class="headerlink" href="#customized-label-split" title="Permalink to this heading">#</a></h4>
+<span id="raw-data-files"></span><h4>Customized label split<a class="headerlink" href="#customized-label-split" title="Permalink to this heading">#</a></h4>
 <p>If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file like the below example.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
 <span class="w">        </span><span class="nt">&quot;label_col&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;label&quot;</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">&quot;task_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;classification&quot;</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">&quot;custom_split_filenames&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;train&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/acm_raw/nodes/train_idx.json&quot;</span><span class="p">,</span>
-<span class="w">                                            </span><span class="nt">&quot;valid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/acm_raw/nodes/val_idx.json&quot;</span><span class="p">,</span>
-<span class="w">                                            </span><span class="nt">&quot;test&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/acm_raw/nodes/test_idx.json&quot;</span><span class="p">}</span>
+<span class="w">                                    </span><span class="nt">&quot;valid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/acm_raw/nodes/val_idx.json&quot;</span><span class="p">,</span>
+<span class="w">                                    </span><span class="nt">&quot;test&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/acm_raw/nodes/test_idx.json&quot;</span><span class="p">}</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="p">]</span>
 </pre></div>
@@ -732,7 +732,7 @@ edge_mapping.pt
 <li><a class="reference internal" href="#step-1-prepare-your-own-graph-data">Step 1: Prepare Your Own Graph Data</a><ul>
 <li><a class="reference internal" href="#option-1-required-raw-data-format">Option 1: Required raw data format</a><ul>
 <li><a class="reference internal" href="#the-input-configuration-json">The input configuration JSON</a></li>
-<li><a class="reference internal" href="#customized-label-split">Customized Label Split</a></li>
+<li><a class="reference internal" href="#customized-label-split">Customized label split</a></li>
 <li><a class="reference internal" href="#input-raw-node-edge-data-files">Input raw node/edge data files</a></li>
 <li><a class="reference internal" href="#outputs-of-graph-construction">Outputs of graph construction</a></li>
 </ul>
