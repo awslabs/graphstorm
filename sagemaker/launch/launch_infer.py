@@ -58,11 +58,7 @@ def run_job(input_args, image, unknowargs):
     graph_data_s3 = input_args.graph_data_s3 # S3 location storing partitioned graph data
     infer_yaml_s3 = input_args.yaml_s3 # S3 location storing the yaml file
     output_emb_s3_path = input_args.output_emb_s3 # S3 location to save node embeddings
-    # S3 location to save prediction results
-    if task_type == "link_prediction":
-        output_predict_s3_path = None               # Link Prediction does not save prediction
-    else:
-        output_predict_s3_path = input_args.output_prediction_s3 
+    output_predict_s3_path = input_args.output_prediction_s3 # S3 location to save prediction results
     model_artifact_s3 = input_args.model_artifact_s3 # S3 location of saved model artifacts
 
     boto_session = boto3.session.Session(region_name=region)
@@ -77,13 +73,22 @@ def run_job(input_args, image, unknowargs):
 
     prefix = "script-mode-container"
 
-    params = {"task-type": task_type,
-              "graph-name": graph_name,
-              "graph-data-s3": graph_data_s3,
-              "infer-yaml-s3": infer_yaml_s3,
-              "output-emb-s3": output_emb_s3_path,
-              "output-prediction-s3": output_predict_s3_path,
-              "model-artifact-s3": model_artifact_s3}
+    # In Link Prediction, no prediction outputs
+    if task_type == "link_prediction":
+        params = {"task-type": task_type,
+                  "graph-name": graph_name,
+                  "graph-data-s3": graph_data_s3,
+                  "infer-yaml-s3": infer_yaml_s3,
+                  "output-emb-s3": output_emb_s3_path,
+                  "model-artifact-s3": model_artifact_s3}
+    else:
+        params = {"task-type": task_type,
+                  "graph-name": graph_name,
+                  "graph-data-s3": graph_data_s3,
+                  "infer-yaml-s3": infer_yaml_s3,
+                  "output-emb-s3": output_emb_s3_path,
+                  "output-prediction-s3": output_predict_s3_path,
+                  "model-artifact-s3": model_artifact_s3}
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
