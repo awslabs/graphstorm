@@ -24,6 +24,7 @@ import scipy.io
 import urllib.request
 import os
 import json
+import pickle
 import dgl
 import pandas as pd
 import numpy as np
@@ -35,6 +36,7 @@ from utils import convert_tensor_to_list_arrays
 
 
 def create_acm_raw_data(graph,
+                        text_feat=None,
                         output_path=None):
     """Generate ACM data from DGL graph object created by create_acm_dgl_graph()
 
@@ -79,8 +81,13 @@ def create_acm_raw_data(graph,
                 # convert tensor to list of arrays for saving in parquet format
                 node_dict[feat_name] = convert_tensor_to_list_arrays(val)
 
+        # generate the raw text features column
+        if text_feat is not None:
+            node_dict['text'] = text_feat[ntype]
+
         # generate the pandas DataFrame that combine ids, and, if have, features and labels
         node_df = pd.DataFrame(node_dict)
+        print(f'{ntype} nodes have: {node_df.columns} columns ......')
         # add node type name and node dataframe as a tuple
         node_list.append((ntype, node_df))
 
@@ -158,6 +165,13 @@ def create_acm_raw_data(graph,
                 label_dict['task_type'] = 'classification'
                 label_dict['split_pct'] = [0.8, 0.1, 0.1]
                 labels_list.append(label_dict)
+            elif col == 'text':
+                feat_dict['feature_col'] = col
+                feat_dict['feature_name'] = col
+                feat_dict['transform'] = {"name": "tokenize_hf",
+                                          "bert_model": "bert-base-uncased",
+                                          "max_seq_length": 16}
+                feats_list.append(feat_dict)
             else:
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = col
@@ -261,6 +275,23 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         ('subject', 'has', 'paper') : data['PvsL'].transpose().nonzero(),
     })
 
+    # Extract text features from paper, author, and subject nodes.
+    paper_text = []
+    for paper in data['P']:
+        paper_text.append(paper[0][0])
+    author_text = []
+    for author in data['A']:
+        author_text.append(author[0][0])
+    subject_text = []
+    for subject in data['L']:
+        subject_text.append(subject[0][0])
+
+    text_feat = {
+        'paper': paper_text,
+        'author': author_text,
+        'subject': subject_text
+    }
+
     pvc = data['PvsC'].tocsr()
     p_selected = pvc.tocoo()
     # generate labels
@@ -290,7 +321,7 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         emb = nn.Parameter(th.Tensor(graph_acm.number_of_nodes(n_type), 256), requires_grad = False)
         nn.init.xavier_uniform_(emb)
         graph_acm.nodes[n_type].data['feat'] = emb
-
+    
     print(graph_acm)
     print(f'\n Number of classes: {labels.max() + 1}')
     print(f'\n Paper nodes labels: {labels.shape}')
@@ -302,12 +333,19 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         output_path = '/tmp'
 
     if output_path is not None:
-        output_file_path = os.path.join(output_path, dataset_name + '.dgl')
-        print(f'Saving ACM data to {output_file_path} ......')
-        save_graphs(output_file_path, [graph_acm], None)
-        print(f'{output_file_path} saved.')
+        # Save DGL graph
+        output_graph_file_path = os.path.join(output_path, dataset_name + '.dgl')
+        print(f'Saving ACM data to {output_graph_file_path} ......')
+        save_graphs(output_graph_file_path, [graph_acm], None)
+        print(f'{output_graph_file_path} saved.')
+        # Save raw node text
+        output_text_file_path = os.path.join(output_path, dataset_name + '_text.pkl')
+        print(f'Saving ACM node text to {output_text_file_path} ......')
+        with open(output_text_file_path, 'wb') as tfile:
+            pickle.dump(text_feat, tfile)
+        print(f'{output_text_file_path} saved.')
 
-    return graph_acm
+    return graph_acm, text_feat
 
 
 if __name__ == '__main__':
@@ -317,10 +355,11 @@ if __name__ == '__main__':
                         help="The path of folder to store downloaded ACM raw data")
     parser.add_argument('--dataset-name', type=str, default='acm',
                         help="The given name of the graph. Default: \'acm\'.")
-    parser.add_argument('--output-type', type=str, choices=['dgl', 'raw'], default='raw',
+    parser.add_argument('--output-type', type=str, choices=['dgl', 'raw', 'raw_w_text'], default='raw',
                         help="The output graph data type. It could be in DGL heterogeneous graph \
                               that can be used for partition; Or in a specific raw format that \
-                              could be used for the GraphStorm\'s graph construction script. \
+                              could be used for the GraphStorm\'s graph construction script; Or in \
+                              raw format and also include text contexts on all three node types.\
                               Default is \'raw\'.")
     parser.add_argument('--output-path', type=str, required=True,
                         help="The path of folder to store processed ACM data.")
@@ -335,8 +374,16 @@ if __name__ == '__main__':
                              is_split=True,
                              output_path=args.output_path)
     elif args.output_type == 'raw':
-        g = create_acm_dgl_graph(dowload_path=args.download_path,
-                                 is_split=False,
-                                 dataset_name=args.dataset_name)
+        g, _ = create_acm_dgl_graph(dowload_path=args.download_path,
+                                    is_split=False,
+                                    dataset_name=args.dataset_name)
         create_acm_raw_data(graph=g,
+                            text_feat=None,
+                            output_path=args.output_path)
+    elif args.output_type == 'raw_w_text':
+        g, text_feat = create_acm_dgl_graph(dowload_path=args.download_path,
+                                            is_split=False,
+                                            dataset_name=args.dataset_name)
+        create_acm_raw_data(graph=g,
+                            text_feat=text_feat,
                             output_path=args.output_path)

@@ -171,7 +171,12 @@ def generate_command(
         if known_args.custom_script:
             command_str += f" --custom-script {known_args.custom_script}"
         if known_args.output_prediction_s3:
-            command_str += f" --output-prediction-s3 {known_args.output_prediction_s3}"
+            if task_type != "link_prediction"
+                command_str += f" --output-prediction-s3 {pred_path}"
+            else:
+                # LP can't save preds
+                logging.warning("Cannot save predictions for link prediction task, "
+                                "double-check input arguments.")
         if known_args.output_emb_s3:
             command_str += f" --output-emb-s3 {known_args.output_emb_s3}"
         command_str +=  ' ' + unknown_args

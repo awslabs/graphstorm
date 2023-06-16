@@ -58,7 +58,8 @@ def main(config_args):
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
-        trainer.restore_model(model_path=config.restore_model_path)
+        trainer.restore_model(model_path=config.restore_model_path,
+                              model_layer_to_load=config.restore_model_layers)
     trainer.setup_cuda(dev_id=config.local_rank)
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
