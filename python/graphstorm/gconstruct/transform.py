@@ -510,7 +510,8 @@ def parse_feat_ops(confs):
                 transform = NumericalMinMaxTransform(feat['feature_col'],
                                                      feat_name,
                                                      max_bound,
-                                                     min_bound)
+                                                     min_bound,
+                                                     out_dtype=out_dtype)
             elif conf['name'] == 'rank_gauss':
                 epsilon = conf['epsilon'] if 'epsilon' in conf else None
                 transform = RankGaussTransform(feat['feature_col'],

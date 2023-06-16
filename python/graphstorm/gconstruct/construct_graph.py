@@ -244,11 +244,13 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
 
         two_phase_feat_ops = []
         after_merge_feat_ops = {}
-        for op in feat_ops:
-            if isinstance(op, TwoPhaseFeatTransform):
-                two_phase_feat_ops.append(op)
-            if isinstance(op, GlobalProcessFeatTransform):
-                after_merge_feat_ops[op.feat_name] = op
+        if feat_ops is not None:
+            for op in feat_ops:
+                if isinstance(op, TwoPhaseFeatTransform):
+                    two_phase_feat_ops.append(op)
+                if isinstance(op, GlobalProcessFeatTransform):
+                    after_merge_feat_ops[op.feat_name] = op
+
         if len(two_phase_feat_ops) > 0:
             user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
                                       read_file=read_file)
