@@ -99,6 +99,9 @@ assert data.shape[1] == 5
 for i in range(data.shape[1]):
     assert np.all(data[:,i] == orig_ids)
 
+# id remap for node4 exists
+assert os.path.isfile(os.path.join(out_dir, "node4_id_remap.parquet"))
+
 # Test the edge data of edge type 1
 src_ids, dst_ids = g.edges(etype=('node1', 'relation1', 'node2'))
 assert 'label' in g.edges[('node1', 'relation1', 'node2')].data
@@ -123,6 +126,7 @@ assert th.sum(g.edges[('node1', 'relation2', 'node1')].data['test_mask']) == 0
 # Test the edge data of edge type 3
 src_ids, dst_ids = g.edges(etype=('node2', 'relation3', 'node3'))
 feat = g.edges[('node2', 'relation3', 'node3')].data['feat'].numpy()
+feat2 = g.edges[('node2', 'relation3', 'node3')].data['feat2'].numpy()
 src_ids = src_ids.numpy()
 dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()])
 # After graph construction, any 1D features will be converted to 2D features, so
@@ -133,4 +137,12 @@ data = g.nodes['node1'].data['feat_rank_gauss']
 data_sum = np.sum(data.numpy(), axis=0)
 np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
 data = g.nodes['node1'].data['feat_rank_gauss_fp16']
+assert np.all(src_ids + dst_ids == feat2.reshape(-1,))
+
+#test data type
+data = g.nodes['node1'].data['feat2']
+assert data.dtype is th.float16
+data = g.nodes['node1'].data['feat_fp16']
+assert data.dtype is th.float16
+data = g.nodes['node1'].data['feat_fp16_hdf5']
 assert data.dtype is th.float16

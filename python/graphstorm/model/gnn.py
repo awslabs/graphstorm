@@ -34,6 +34,11 @@ from .gnn_encoder_base import dist_inference
 from ..utils import get_rank
 from ..dataloading.dataset import prepare_batch_input
 
+from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
+                      GRAPHSTORM_MODEL_EMBED_LAYER,
+                      GRAPHSTORM_MODEL_GNN_LAYER,
+                      GRAPHSTORM_MODEL_DECODER_LAYER)
+
 class GSOptimizer():
     """ A combination of optimizers.
 
@@ -134,7 +139,7 @@ class GSgnnModelBase(nn.Module):
     """
 
     @abc.abstractmethod
-    def restore_model(self, restore_model_path):
+    def restore_model(self, restore_model_path, model_layer_to_load):
         """Load saving checkpoints of a GNN model.
 
         A user who implement this method should load the parameters of the GNN model.
@@ -144,6 +149,9 @@ class GSgnnModelBase(nn.Module):
         ----------
         restore_model_path : str
             The path where we can restore the model.
+        model_layer_to_load: list of str
+            list of model layers to load. Supported layers include
+            'gnn', 'embed', 'decoder'
         """
 
     @abc.abstractmethod
@@ -413,20 +421,31 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if self._edge_input_encoder is not None:
             self._edge_input_encoder.unfreeze()
 
-    def restore_model(self, restore_model_path):
+    def restore_model(self, restore_model_path,
+                      model_layer_to_load=None):
         """load saving checkpoints for GNN models.
 
         Parameters
         ----------
         restore_model_path : str
             The path where we can restore the model.
+        model_layer_to_load: list of str
+            list of model layers to load. Supported layers include
+            'gnn', 'embed', 'decoder'
         """
         # Restore the model weights from a checkpoint saved previously.
         if restore_model_path is not None:
             print('load GNN model from ', restore_model_path)
             # TODO(zhengda) we need to load edge_input_encoder.
-            load_gsgnn_model(restore_model_path, self.gnn_encoder,
-                             self.node_input_encoder, self.decoder)
+            model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
+                if model_layer_to_load is None else model_layer_to_load
+            load_gsgnn_model(restore_model_path,
+                self.gnn_encoder \
+                    if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,
+                self.node_input_encoder \
+                    if GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load else None,
+                self.decoder \
+                    if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
             print('Load Sparse embedding from ', restore_model_path)
             load_sparse_embeds(restore_model_path,

@@ -233,14 +233,18 @@ class HDF5Array:
             idx = idx.numpy()
         # If the idx are sorted.
         if np.all(idx[1:] - idx[:-1] > 0):
-            return self._arr[idx]
+            arr = self._arr[idx]
         else:
             # There are two cases here: 1) there are duplicated IDs,
             # 2) the IDs are not sorted. Unique can return unique
             # IDs in the ascending order that meets the requirement of
             # HDF5 indexing.
             uniq_ids, reverse_idx = np.unique(idx, return_inverse=True)
-            return self._arr[uniq_ids][reverse_idx]
+            arr = self._arr[uniq_ids][reverse_idx]
+
+        if self._out_dtype is not None:
+            arr = arr.astype(self._out_dtype)
+        return arr
 
     def to_tensor(self):
         """ Return Pytorch tensor.
@@ -348,8 +352,10 @@ def _parse_file_format(conf, is_node, in_mem):
         keys = [conf["node_id_col"]]
     elif is_node:
         keys = []
-    else:
+    elif "source_id_col" in conf and "dest_id_col" in conf:
         keys = [conf["source_id_col"], conf["dest_id_col"]]
+    else:
+        keys = []
     if "features" in conf:
         for feat_conf in conf["features"]:
             assert "feature_col" in feat_conf, "A feature config needs a feature_col."
