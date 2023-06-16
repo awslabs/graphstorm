@@ -247,8 +247,8 @@ If users want to split labels with your own logics, e.g., time sequence, you can
                         "label_col": "label",
                         "task_type": "classification",
                         "custom_split_filenames": {"train": "/tmp/acm_raw/nodes/train_idx.json",
-                                                            "valid": "/tmp/acm_raw/nodes/val_idx.json",
-                                                            "test": "/tmp/acm_raw/nodes/test_idx.json"}
+                                                   "valid": "/tmp/acm_raw/nodes/val_idx.json",
+                                                   "test": "/tmp/acm_raw/nodes/test_idx.json"}
                     }
                 ]
 
