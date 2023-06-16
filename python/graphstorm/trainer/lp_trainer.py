@@ -26,6 +26,7 @@ from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
 from ..utils import rt_profiler
+from ..utils import mm_profiler
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -122,6 +123,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
             rt_profiler.start_record()
+            mm_profiler.start_record()
             for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(train_loader):
                 rt_profiler.record('train_sample')
                 total_steps += 1
@@ -165,10 +167,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
+                    mm_profiler.record("train", f"{epoch}-{i}")
                     val_score = self.eval(model.module, data,
                                           val_loader, test_loader, total_steps,
                                           edge_mask_for_gnn_embeddings)
-
+                    mm_profiler.print_stats()
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
@@ -198,6 +201,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
             dur.append(epoch_time)
+            mm_profiler.record("train", f"{epoch}-{i}")
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
@@ -213,6 +217,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # depends on the setting of top k. To show this is after epoch save, set the iteration
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
+            rt_profiler.print_stats()
+            mm_profiler.print_stats()
 
             th.distributed.barrier()
 
@@ -262,18 +268,24 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('before prediction')
         model.eval()
+
+        mm_profiler.record("eval", "start")
         emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
+        mm_profiler.record("eval", "after_full_infer")
         sys_tracker.check('compute embeddings')
         device = th.device(f"cuda:{self.dev_id}") \
             if self.dev_id >= 0 else th.device("cpu")
         val_scores = lp_mini_batch_predict(model, emb, val_loader, device) \
             if val_loader is not None else None
+        mm_profiler.record("eval", "after_val_score")
         test_scores = lp_mini_batch_predict(model, emb, test_loader, device)
+        mm_profiler.record("eval", "after_test_score")
         val_score, test_score = self.evaluator.evaluate(
             val_scores, test_scores, total_steps)
         sys_tracker.check('evaluate validation/test')
+        mm_profiler.record("eval", "after_syc_score")
         model.train()
 
         if self.rank == 0:

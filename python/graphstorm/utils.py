@@ -311,5 +311,77 @@ class RuntimeProfiler:
             data_frame.to_csv(profile_path, float_format='%.3f', index=False)
             print(f"save profiling in {profile_path}")
 
+def _mem_byte2gb(num_bytes):
+    return num_bytes / 1024 / 1024 / 1024
+
+class MemoryProfiler(RuntimeProfiler):
+    """ This profiles the memory overhead.
+
+        It tracks the runtime.
+    """
+    def __init__(self, profile_path=None):
+        self._checkpoints = {}
+        self._runtime = {}
+        self._profile_path = profile_path
+        self._rank = -1
+        print("init")
+
+    def start_record(self):
+        """ Start recording.
+
+            Do nothing
+        """
+
+    def record(self, name, sub_name=""):
+        """ Record the memory profile.
+
+        Parameters
+        ----------
+        name : str
+            The name of the record point.
+        sub_name: str
+            The name of the profiling point.
+        """
+        if self._profile_path is None:
+            return
+
+        mem_stat = psutil.virtual_memory()
+        mem_info = (sub_name,
+                    _mem_byte2gb(mem_stat.shared),
+                    _mem_byte2gb(mem_stat.used),
+                    _mem_byte2gb(mem_stat.available))
+        if name not in self._runtime:
+            self._runtime[name] = [mem_info]
+            self._checkpoints[name] = [mem_info]
+        else:
+            self._runtime[name].append(mem_info)
+            self._checkpoints[name].append(mem_info)
+
+    def print_stats(self):
+        """ Print the statistics
+
+            We do not expect memory profiling happens frequently
+        """
+        if self._rank == 0 and self._profile_path is not None:
+            for name, runtimes in self._checkpoints.items():
+                for (sub_name, idx, shared, used, avaliable) in runtimes:
+                    print(f"[{name}-{sub_name}][{idx}]: Shared mem {shared}, "
+                          f"Total used {used}, Avaliable {avaliable}")
+        # reset checkpoint
+        self._checkpoints = {}
+
+    def save_profile(self):
+        """ Save the profiling result to a file.
+        """
+        if self._profile_path is not None:
+            runtime = {}
+            for name in self._runtime:
+                runtime[name] = np.array(self._runtime[name])
+            profile_path = os.path.join(self._profile_path, f"memory_{self._rank}.csv")
+            data_frame = pd.DataFrame(runtime)
+            data_frame.to_csv(profile_path, float_format='%.3f', index=False)
+            print(f"save profiling in {profile_path}")
+
 sys_tracker = SysTracker()
 rt_profiler = RuntimeProfiler()
+mm_profiler = MemoryProfiler()
