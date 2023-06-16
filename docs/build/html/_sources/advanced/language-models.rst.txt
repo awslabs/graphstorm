@@ -70,7 +70,7 @@ The below snippet show the ``author`` node's information. It shows the "**text**
                     }
                 }
             ]
-        },
+        }
 
 Construct Graph
 ------------------
