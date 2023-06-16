@@ -350,12 +350,14 @@ class MemoryProfiler(RuntimeProfiler):
                     _mem_byte2gb(mem_stat.shared),
                     _mem_byte2gb(mem_stat.used),
                     _mem_byte2gb(mem_stat.available))
-        if name not in self._runtime:
-            self._runtime[name] = [mem_info]
+        if name not in self._checkpoints:
             self._checkpoints[name] = [mem_info]
         else:
-            self._runtime[name].append(mem_info)
             self._checkpoints[name].append(mem_info)
+        if name not in self._runtime:
+            self._runtime[name] = [mem_info]
+        else:
+            self._runtime[name].append(mem_info)
 
     def print_stats(self):
         """ Print the statistics
