@@ -175,6 +175,12 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="own-models.html">Use Your Own Models</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Use Text as Node Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#prepare-raw-data">Prepare Raw Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#construct-graph">Construct Graph</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#graphstorm-language-model-configuration">GraphStorm Language Model Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#launch-graphstorm-trainig-without-fine-tuning-bert-models">Launch GraphStorm Trainig without Fine-tuning BERT Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#launch-graphstorm-trainig-for-both-bert-and-gnn-models">Launch GraphStorm Trainig for both BERT and GNN Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#only-use-bert-models">Only Use BERT Models</a></li>
 </ul>
 
 </div>
@@ -211,13 +217,181 @@
         <article role="main">
           <section id="use-text-as-node-features">
 <span id="language-models"></span><h1>Use Text as Node Features<a class="headerlink" href="#use-text-as-node-features" title="Permalink to this heading">#</a></h1>
-<p>Many real world graphs have text contents as nodes’ features, e.g., the title and description of a product, and the questions and comments from users. To leverage these text contents, GraphStorm supports large language models (LLMs), i.e., HuggingFace BERT models, to embed text contents and use these embeddings in Graph models’ training and inference.</p>
-<p>There are two modes of using LLMs in GraphStorm:</p>
+<p>Many real world graphs have text contents as nodes’ features, e.g., the title and description of a product, and the questions and comments from users. To leverage these text contents, GraphStorm supports language models (LMs), i.e., HuggingFace BERT models, to embed text contents and use these embeddings in Graph models’ training and inference.</p>
+<p>There are two modes of using LMs in GraphStorm:</p>
 <ul class="simple">
-<li><p>Embed text contents with pre-trained LLMs, and then use them as the input node features, without fine-tuning the LLMs. Training speed in this mode is fast, and memory consumption will be lower. However, in some cases, pre-trained LLMs may not fit to the graph data well, and fail to improve performance.</p></li>
-<li><p>Co-train both LLMs and GML models in the same training loop. This will fine-tune the LLMs to fit to graph data. This mode in general can improve performance, but co-train the LLMs will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.</p></li>
+<li><p>Embed text contents with pre-trained LMs, and then use them as the input node features, without fine-tuning the LMs. Training speed in this mode is fast, and memory consumption will be lower. However, in some cases, pre-trained LMs may not fit to the graph data well, and fail to improve performance.</p></li>
+<li><p>Co-train both LMs and GML models in the same training loop. This will fine-tune the LMs to fit to graph data. This mode in general can improve performance, but co-train the LMs will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.</p></li>
 </ul>
-<p>This tutorial will use OGB-arXiv data</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The current version of GraphStorm requires <strong>ALL</strong> node types must have text features if users want to co-train LM and GNN models.</p>
+</div>
+<p>To use LMs in GraphStorm, users can follow the same procedure as the <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">Use Your Own Data</span></a> tutorial with some minor changes.</p>
+<ul class="simple">
+<li><p>Step 1. Prepare raw data to include texts as node data;</p></li>
+<li><p>Step 2. Use GraphStorm graph construction tools to tokenize texts and set tokens as node features;</p></li>
+<li><p>Step 3. Configure GraphStorm to use LMs to embed tokenized texts as input node features; and</p></li>
+<li><p>Step 4. If need, configure GraphStorm to co-train LM and GNN models.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>All commands below should be run in a GraphStorm Docker container. Please refer to the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">GraphStorm Docker environment setup</span></a> to prepare your environment.</p>
+</div>
+</section>
+<section id="prepare-raw-data">
+<h1>Prepare Raw Data<a class="headerlink" href="#prepare-raw-data" title="Permalink to this heading">#</a></h1>
+<p>This tutorial will use the same ACM data as the <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">Use Your Own Data</span></a> tutorial to demonstrate how to prepare text as node features.</p>
+<p>First go the <code class="docutils literal notranslate"><span class="pre">/graphstorm/examples/</span></code> folder.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/graphstorm/examples
+</pre></div>
+</div>
+<p>Then run the command to create the ACM data with the required <code class="docutils literal notranslate"><span class="pre">raw_w_text</span></code> format.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>/graphstorm/examples/acm_data.py<span class="w"> </span>--output-path<span class="w"> </span>/tmp/acm_raw<span class="w"> </span>--output-type<span class="w"> </span>raw_w_text
+</pre></div>
+</div>
+<p>Once succeeded, the command will create a set of folders and files under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_raw/</span></code> folder same as the <a class="reference internal" href="../tutorials/own-data.html#acm-raw-data-output"><span class="std std-ref">outputs</span></a> in the <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">Use Your Own Data</span></a> tutorial. But the contents of the <code class="docutils literal notranslate"><span class="pre">config.json</span></code> have a few extra lines that list the text feature columns and how to process them during graph contruction.</p>
+<p>The below snippet show the <code class="docutils literal notranslate"><span class="pre">author</span></code> node’s information. It shows the “<strong>text</strong>” column contains text features, and it require the GraphStorm graph contruction tool to use a HuggingFace BERT model, named <code class="docutils literal notranslate"><span class="pre">bert-base-uncased</span></code>, to tokenize these text features during construction.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;nodes&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;node_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;author&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;format&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;parquet&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="nt">&quot;files&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="s2">&quot;/tmp/acm_raw/nodes/author.parquet&quot;</span>
+<span class="w">        </span><span class="p">],</span>
+<span class="w">        </span><span class="nt">&quot;node_id_col&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;node_id&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;features&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;feature_col&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;feat&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;feature_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;feat&quot;</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;feature_col&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;feature_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;transform&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tokenize_hf&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="nt">&quot;bert_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bert-base-uncased&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="nt">&quot;max_seq_length&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">16</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+</pre></div>
+</div>
+</section>
+<section id="construct-graph">
+<h1>Construct Graph<a class="headerlink" href="#construct-graph" title="Permalink to this heading">#</a></h1>
+<p>Then we use the graph construction tool to process the ACM raw data with the following command for GraphStorm model training.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.gconstruct.construct_graph<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--conf-file<span class="w"> </span>/tmp/acm_raw/config.json<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--output-dir<span class="w"> </span>/tmp/acm_nc<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--num-parts<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--graph-name<span class="w"> </span>acm
+</pre></div>
+</div>
+<p>Outcomes of this command are also same as the <a class="reference internal" href="../tutorials/own-data.html#output-graph-construction"><span class="std std-ref">Outputs of Graph Construction</span></a>. But users may notice that the <code class="docutils literal notranslate"><span class="pre">paper</span></code>, <code class="docutils literal notranslate"><span class="pre">author</span></code>, and <code class="docutils literal notranslate"><span class="pre">subject</span></code> nodes all have three additional features, named <code class="docutils literal notranslate"><span class="pre">input_ids</span></code>,``attention_mask``, and <code class="docutils literal notranslate"><span class="pre">token_type_ids</span></code>, which are generated by the BERT tokenizer.</p>
+</section>
+<section id="graphstorm-language-model-configuration">
+<h1>GraphStorm Language Model Configuration<a class="headerlink" href="#graphstorm-language-model-configuration" title="Permalink to this heading">#</a></h1>
+<p>Users can set up language model in GraphStorm’s configuration YAML file. Below is an example of such configuration for the ACM data. The full configuration YAML file, <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_lm_nc.yaml">acm_lm_nc.yaml</a>, is located under GraphStorm’s <code class="docutils literal notranslate"><span class="pre">examples/use_your_own_data</span></code> folder. .</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">lm_model</span><span class="p">:</span>
+<span class="nt">node_lm_models</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span>
+<span class="w">    </span><span class="nt">lm_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bert</span>
+<span class="w">    </span><span class="nt">model_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;bert-base-uncased&quot;</span>
+<span class="w">    </span><span class="nt">gradient_checkpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">node_types</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">paper</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">author</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">subject</span>
+</pre></div>
+</div>
+<p>The current version of GraphStorm supports pre-trained BERT models from HuggingFace reposity on nodes only. Users can choose any <a class="reference external" href="https://huggingface.co/models">HuggingFace BERT models</a>. But the value of <code class="docutils literal notranslate"><span class="pre">model_name</span></code> <strong>MUST</strong> be the same as the one specified in the raw data JSON file’s <code class="docutils literal notranslate"><span class="pre">bert_model</span></code> field. Here in the example, it is the <code class="docutils literal notranslate"><span class="pre">bert-base-uncased</span></code> model.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">node_type</span></code> field list the types of nodes that have tokenized text features. In this ACM example, all three types of nodes have tokenized text features, which are all list in the configuration YAML file.</p>
+</section>
+<section id="launch-graphstorm-trainig-without-fine-tuning-bert-models">
+<h1>Launch GraphStorm Trainig without Fine-tuning BERT Models<a class="headerlink" href="#launch-graphstorm-trainig-without-fine-tuning-bert-models" title="Permalink to this heading">#</a></h1>
+<p>With the above GraphStorm configuration YAML file, we can launch GraphStorm model training with the same commands as in the <a class="reference internal" href="../tutorials/own-data.html#launch-training-oyog"><span class="std std-ref">Step 3: Launch training script on your own graphs</span></a>.</p>
+<p>First, we create the <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file for the standalone mode.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>touch<span class="w"> </span>/tmp/ip_list.txt
+<span class="nb">echo</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>&gt;<span class="w"> </span>/tmp/ip_list.txt
+</pre></div>
+</div>
+<p>Then, the launch command is almost the same except that the configuration file is the <code class="docutils literal notranslate"><span class="pre">acm_lm_nc.yaml</span></code>, which contains the language model configurations.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--workspace<span class="w"> </span>/tmp<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--part-config<span class="w"> </span>/tmp/acm_nc/acm.json<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ip-config<span class="w"> </span>/tmp/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--cf<span class="w"> </span>/tmp/acm_lm_nc.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--save-model-path<span class="w"> </span>/tmp/acm_nc/models<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span>author:feat<span class="w"> </span>subject:feat
+</pre></div>
+</div>
+<p>In the training process, GraphStorm will first use the specified BERT model to compute the text embeddings in the specified node types. And then the text embeddings and other node features are concatenated together as the input node feature for GNN models training.</p>
+</section>
+<section id="launch-graphstorm-trainig-for-both-bert-and-gnn-models">
+<h1>Launch GraphStorm Trainig for both BERT and GNN Models<a class="headerlink" href="#launch-graphstorm-trainig-for-both-bert-and-gnn-models" title="Permalink to this heading">#</a></h1>
+<p>To co-train BERT and GNN models, we need to add one more argument, the <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code>, in either the launch command or configuration YAML file. Below command sets this argument in the launch command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--workspace<span class="w"> </span>/tmp<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--part-config<span class="w"> </span>/tmp/acm_nc/acm.json<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ip-config<span class="w"> </span>/tmp/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--cf<span class="w"> </span>/tmp/acm_lm_nc.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--save-model-path<span class="w"> </span>/tmp/acm_nc/models<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span>author:feat<span class="w"> </span>subject:feat<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--lm-train-nodes<span class="w"> </span><span class="m">10</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code> argument determines how many nodes will be used to train the BERT models. Because the BERT models are normally large, training of them will consume many memories. If use all nodes to co-train BERT and GNN models, it could cause GPU out of memory (OOM) errors. Use a smaller number for the <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code> could reduce the chances of OOM errors.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It will take longer time to co-train BERT and GNN models compared to not doing co-train.</p>
+</div>
+</section>
+<section id="only-use-bert-models">
+<h1>Only Use BERT Models<a class="headerlink" href="#only-use-bert-models" title="Permalink to this heading">#</a></h1>
+<p>GraphStorm also allows users to only use BERT models to perform graph tasks. We can add another argument, <code class="docutils literal notranslate"><span class="pre">--lm-encoder-only</span></code>, to control whether only use BERT models or not.</p>
+<p>The command below use BERT model only without fine-tuning the model.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--workspace<span class="w"> </span>/tmp<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--part-config<span class="w"> </span>/tmp/acm_nc/acm.json<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ip-config<span class="w"> </span>/tmp/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--cf<span class="w"> </span>/tmp/acm_lm_nc.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--save-model-path<span class="w"> </span>/tmp/acm_nc/models<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span>author:feat<span class="w"> </span>subject:feat<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--lm-encoder-only
+</pre></div>
+</div>
+<p>If users want to fine tune the BERT model only, just add the <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code> argument as the command below:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--workspace<span class="w"> </span>/tmp<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--part-config<span class="w"> </span>/tmp/acm_nc/acm.json<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ip-config<span class="w"> </span>/tmp/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num-samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ssh-port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--cf<span class="w"> </span>/tmp/acm_lm_nc.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--save-model-path<span class="w"> </span>/tmp/acm_nc/models<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--node-feat-name<span class="w"> </span>paper:feat<span class="w"> </span>author:feat<span class="w"> </span>subject:feat<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--lm-encoder-only<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--lm-train-nodes<span class="w"> </span><span class="m">10</span>
+</pre></div>
+</div>
 </section>
 
         </article>

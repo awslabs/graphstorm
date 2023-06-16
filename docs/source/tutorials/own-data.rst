@@ -47,6 +47,8 @@ Then run the command to create the ACM data with the required raw format.
 
 Once succeeded, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder, as shown below:
 
+.. _acm-raw-data-output:
+
 .. code-block:: bash
     
     /tmp/acm_raw
@@ -416,6 +418,8 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         num_classes: 14
 
 You can copy this file to the ``/tmp`` folder within the GraphStorm container for the next step.
+
+.. _launch_training_oyog:
 
 Step 3: Launch training script on your own graphs
 ---------------------------------------------------

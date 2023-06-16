@@ -175,6 +175,12 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../advanced/own-models.html">Use Your Own Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html">Use Text as Node Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#prepare-raw-data">Prepare Raw Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#construct-graph">Construct Graph</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#graphstorm-language-model-configuration">GraphStorm Language Model Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#launch-graphstorm-trainig-without-fine-tuning-bert-models">Launch GraphStorm Trainig without Fine-tuning BERT Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#launch-graphstorm-trainig-for-both-bert-and-gnn-models">Launch GraphStorm Trainig for both BERT and GNN Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#only-use-bert-models">Only Use BERT Models</a></li>
 </ul>
 
 </div>
@@ -247,7 +253,7 @@
 </pre></div>
 </div>
 <p>Once succeeded, the command will create a set of folders and files under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_raw/</span></code> folder, as shown below:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/tmp/acm_raw
+<div class="highlight-bash notranslate" id="acm-raw-data-output"><div class="highlight"><pre><span></span>/tmp/acm_raw
 config.json
 <span class="p">|</span>-<span class="w"> </span>edges
 <span class="w">    </span>author_writing_paper.parquet
@@ -613,7 +619,7 @@ edge_mapping.pt
 </section>
 </section>
 <section id="step-3-launch-training-script-on-your-own-graphs">
-<h2>Step 3: Launch training script on your own graphs<a class="headerlink" href="#step-3-launch-training-script-on-your-own-graphs" title="Permalink to this heading">#</a></h2>
+<span id="launch-training-oyog"></span><h2>Step 3: Launch training script on your own graphs<a class="headerlink" href="#step-3-launch-training-script-on-your-own-graphs" title="Permalink to this heading">#</a></h2>
 <p>With the partitioned data and configuration YAML file available, it is easy to use GraphStorm’s training scripts to launch the training job.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
