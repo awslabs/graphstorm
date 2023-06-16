@@ -302,7 +302,7 @@
 </pre></div>
 </div>
 <p>The current version of GraphStorm supports pre-trained BERT models from HuggingFace reposity on nodes only. Users can choose any <a class="reference external" href="https://huggingface.co/models">HuggingFace BERT models</a>. But the value of <code class="docutils literal notranslate"><span class="pre">model_name</span></code> <strong>MUST</strong> be the same as the one specified in the raw data JSON file’s <code class="docutils literal notranslate"><span class="pre">bert_model</span></code> field. Here in the example, it is the <code class="docutils literal notranslate"><span class="pre">bert-base-uncased</span></code> model.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">node_type</span></code> field list the types of nodes that have tokenized text features. In this ACM example, all three types of nodes have tokenized text features, which are all list in the configuration YAML file.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">node_type</span></code> field lists the types of nodes that have tokenized text features. In this ACM example, all three types of nodes have tokenized text features, which are all list in the configuration YAML file.</p>
 </section>
 <section id="launch-graphstorm-trainig-without-fine-tuning-bert-models">
 <h2>Launch GraphStorm Trainig without Fine-tuning BERT Models<a class="headerlink" href="#launch-graphstorm-trainig-without-fine-tuning-bert-models" title="Permalink to this heading">#</a></h2>
@@ -348,7 +348,7 @@
 <p>The <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code> argument determines how many nodes will be used to train the BERT models. Because the BERT models are normally large, training of them will consume many memories. If use all nodes to co-train BERT and GNN models, it could cause GPU out of memory (OOM) errors. Use a smaller number for the <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code> could reduce the chances of OOM errors.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>It will take longer time to co-train BERT and GNN models compared to not doing co-train.</p>
+<p>It will take longer time to co-train BERT and GNN models compared to no co-train.</p>
 </div>
 </section>
 <section id="only-use-bert-models">

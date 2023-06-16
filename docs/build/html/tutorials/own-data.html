@@ -175,12 +175,6 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../advanced/own-models.html">Use Your Own Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html">Use Text as Node Features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#prepare-raw-data">Prepare Raw Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#construct-graph">Construct Graph</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#graphstorm-language-model-configuration">GraphStorm Language Model Configuration</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#launch-graphstorm-trainig-without-fine-tuning-bert-models">Launch GraphStorm Trainig without Fine-tuning BERT Models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#launch-graphstorm-trainig-for-both-bert-and-gnn-models">Launch GraphStorm Trainig for both BERT and GNN Models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html#only-use-bert-models">Only Use BERT Models</a></li>
 </ul>
 
 </div>
@@ -433,8 +427,25 @@ config.json
 <img alt="../_images/ACM_schema.png" src="../_images/ACM_schema.png" />
 </figure>
 </section>
+<section id="customized-label-split">
+<span id="raw-data-files"></span><h4>Customized Label Split<a class="headerlink" href="#customized-label-split" title="Permalink to this heading">#</a></h4>
+<p>If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file like the below example.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;label_col&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;label&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;task_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;classification&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;custom_split_filenames&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;train&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/acm_raw/nodes/train_idx.json&quot;</span><span class="p">,</span>
+<span class="w">                                            </span><span class="nt">&quot;valid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/acm_raw/nodes/val_idx.json&quot;</span><span class="p">,</span>
+<span class="w">                                            </span><span class="nt">&quot;test&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/acm_raw/nodes/test_idx.json&quot;</span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>Instead of using the <code class="docutils literal notranslate"><span class="pre">split_pct</span></code>, users can specify the <code class="docutils literal notranslate"><span class="pre">custom_split_filenames</span></code> configuration with a value, which is a dictionary. The dictionary’s keys could include <code class="docutils literal notranslate"><span class="pre">train</span></code>, <code class="docutils literal notranslate"><span class="pre">valid</span></code>, and <code class="docutils literal notranslate"><span class="pre">test</span></code>, and values of the dictionary are JSON files that contains the node/edge IDs of each set.</p>
+<p>These JSON files only need to list the IDs on its own set. For example, in a node classification task, there are 100 nodes and node ID starts from 0, and assume the last 50 nodes (ID from 49 to 99) have labels associated. For some business logic, users want to have the first 10 of the 50 labeled nodes as training set, the last 30 as the test set, and the middle 10 as the validation set. Then the train_idx.json file should cotains the integer from 50 to 59, and one integer per line. The val_idx.json file should cotains the integer from 60 to 69, and one integer per line. The test_idx.json file should cotains the integer from 70 to 99, and one integer per line.</p>
+</section>
 <section id="input-raw-node-edge-data-files">
-<span id="raw-data-files"></span><h4>Input raw node/edge data files<a class="headerlink" href="#input-raw-node-edge-data-files" title="Permalink to this heading">#</a></h4>
+<h4>Input raw node/edge data files<a class="headerlink" href="#input-raw-node-edge-data-files" title="Permalink to this heading">#</a></h4>
 <p>The raw node and edge data files are both in a parquet format, whose contents are demonstrated as the diagram below.</p>
 <figure class="align-center">
 <img alt="../_images/ACM_raw_parquet.png" src="../_images/ACM_raw_parquet.png" />
@@ -721,6 +732,7 @@ edge_mapping.pt
 <li><a class="reference internal" href="#step-1-prepare-your-own-graph-data">Step 1: Prepare Your Own Graph Data</a><ul>
 <li><a class="reference internal" href="#option-1-required-raw-data-format">Option 1: Required raw data format</a><ul>
 <li><a class="reference internal" href="#the-input-configuration-json">The input configuration JSON</a></li>
+<li><a class="reference internal" href="#customized-label-split">Customized Label Split</a></li>
 <li><a class="reference internal" href="#input-raw-node-edge-data-files">Input raw node/edge data files</a></li>
 <li><a class="reference internal" href="#outputs-of-graph-construction">Outputs of graph construction</a></li>
 </ul>

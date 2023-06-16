@@ -105,7 +105,7 @@ Users can set up language model in GraphStorm's configuration YAML file. Below i
 
 The current version of GraphStorm supports pre-trained BERT models from HuggingFace reposity on nodes only. Users can choose any `HuggingFace BERT models <https://huggingface.co/models>`_. But the value of ``model_name`` **MUST** be the same as the one specified in the raw data JSON file's ``bert_model`` field. Here in the example, it is the ``bert-base-uncased`` model.
 
-The ``node_type`` field list the types of nodes that have tokenized text features. In this ACM example, all three types of nodes have tokenized text features, which are all list in the configuration YAML file.
+The ``node_type`` field lists the types of nodes that have tokenized text features. In this ACM example, all three types of nodes have tokenized text features, which are all list in the configuration YAML file.
 
 Launch GraphStorm Trainig without Fine-tuning BERT Models
 ------------------------------------------------------------
@@ -157,7 +157,7 @@ To co-train BERT and GNN models, we need to add one more argument, the ``--lm-tr
 
 The ``--lm-train-nodes`` argument determines how many nodes will be used to train the BERT models. Because the BERT models are normally large, training of them will consume many memories. If use all nodes to co-train BERT and GNN models, it could cause GPU out of memory (OOM) errors. Use a smaller number for the ``--lm-train-nodes`` could reduce the chances of OOM errors.
 
-.. note:: It will take longer time to co-train BERT and GNN models compared to not doing co-train.
+.. note:: It will take longer time to co-train BERT and GNN models compared to no co-train.
 
 Only Use BERT Models
 ------------------------
