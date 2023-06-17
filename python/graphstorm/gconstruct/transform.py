@@ -120,7 +120,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             self._val_dict = transform_conf['mapping']
             self._conf = transform_conf
         else:
-            conf._conf = transform_conf
+            self._conf = transform_conf
         self._separator = separator
         super(CategoricalTransform, self).__init__(col_name, feat_name)
 
