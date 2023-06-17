@@ -523,7 +523,7 @@ def process_graph(args):
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.output_conf_file is not None:
         # Save the new config file.
-        with open(args.output_conf_file, "w") as outfile:
+        with open(args.output_conf_file, "w", encoding="utf8") as outfile:
             json.dump(process_confs, outfile)
     sys_tracker.check('Process input data')
 
