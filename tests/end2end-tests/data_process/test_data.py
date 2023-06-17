@@ -133,11 +133,13 @@ assert th.sum(g.edges[('node1', 'relation2', 'node1')].data['test_mask']) == 0
 # Test the edge data of edge type 3
 src_ids, dst_ids = g.edges(etype=('node2', 'relation3', 'node3'))
 feat = g.edges[('node2', 'relation3', 'node3')].data['feat'].numpy()
+feat2 = g.edges[('node2', 'relation3', 'node3')].data['feat2'].numpy()
 src_ids = src_ids.numpy()
 dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()])
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert feat back to 1D to pass test
 assert np.all(src_ids + dst_ids == feat.reshape(-1,))
+assert np.all(src_ids + dst_ids == feat2.reshape(-1,))
 
 #test data type
 data = g.nodes['node1'].data['feat2']

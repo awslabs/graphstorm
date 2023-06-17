@@ -30,6 +30,10 @@ from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
 from graphstorm.config import BUILTIN_LP_DISTMULT_DECODER
+from graphstorm.config import (GRAPHSTORM_MODEL_EMBED_LAYER,
+                               GRAPHSTORM_MODEL_GNN_LAYER,
+                               GRAPHSTORM_MODEL_DECODER_LAYER,
+                               GRAPHSTORM_MODEL_ALL_LAYERS)
 
 def check_failure(config, field):
     has_error = False
@@ -296,6 +300,7 @@ def create_io_config(tmp_path, file_name):
     yaml_object["gsf"]["input"] = {
         "restore_model_path": "./restore",
         "restore_optimizer_path": "./opt_restore",
+        "restore_model_layers": ".".join(GRAPHSTORM_MODEL_ALL_LAYERS)
     }
 
     yaml_object["gsf"]["output"] = {
@@ -305,6 +310,15 @@ def create_io_config(tmp_path, file_name):
     }
 
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["input"] = {
+        "restore_model_path": "./restore",
+        "restore_optimizer_path": "./opt_restore",
+        "restore_model_layers": f"{GRAPHSTORM_MODEL_EMBED_LAYER},error"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 def test_load_io_info():
@@ -319,6 +333,7 @@ def test_load_io_info():
         assert config.save_model_path == None
         assert config.save_model_frequency == -1
         assert config.save_embed_path == None
+        check_failure(config, "restore_model_layers")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
                          local_rank=0)
@@ -328,6 +343,16 @@ def test_load_io_info():
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_frequency == 100
         assert config.save_embed_path == "./save_emb"
+        assert GRAPHSTORM_MODEL_EMBED_LAYER in config.restore_model_layers
+        assert GRAPHSTORM_MODEL_GNN_LAYER in config.restore_model_layers
+        assert GRAPHSTORM_MODEL_DECODER_LAYER in config.restore_model_layers
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname),
+                                                       'io_test_fail.yaml'),
+                                                       local_rank=0)
+        config = GSConfig(args)
+        assert config.restore_model_path == "./restore"
+        check_failure(config, "restore_model_layers")
 
 def create_task_tracker_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()

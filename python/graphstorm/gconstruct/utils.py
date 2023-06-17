@@ -17,8 +17,6 @@
     node regression, edge classification and edge regression.
 """
 import os
-import multiprocessing
-from multiprocessing import Process
 import queue
 import gc
 import logging
@@ -26,6 +24,8 @@ import logging
 import numpy as np
 import dgl
 import torch as th
+from torch import multiprocessing
+from torch.multiprocessing import Process
 
 from ..utils import sys_tracker
 from .file_io import HDF5Array
@@ -167,6 +167,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
         while True:
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
+            logging.debug("%d Processing %s", worker_id, in_file)
             data = user_parser(in_file)
             size = _estimate_sizeof(data)
             # Max pickle obj size is 2 GByte
@@ -233,7 +234,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
-        res_queue = manager.Queue(8)
+        res_queue = manager.Queue(8 if num_processes < 8 else num_processes)
         num_files = len(in_files)
         for i, in_file in enumerate(in_files):
             task_queue.put((i, in_file))
