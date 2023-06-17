@@ -21,9 +21,6 @@ import logging
 import os
 import sys
 
-import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 import numpy as np
 import torch as th
 from transformers import BertTokenizer
