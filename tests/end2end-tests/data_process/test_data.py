@@ -101,9 +101,10 @@ assert np.all(np.sum(data, axis=1) == 1)
 for node_conf in conf["nodes"]:
     if node_conf["node_type"] == "node2":
         assert len(node_conf["features"]) == 1
-        assert node_conf["features"][0]["name"] == "to_categorical"
-        assert "mapping" in node_conf["features"][0]
-        assert len(node_conf["features"][0]["mapping"]) == 10
+        print(node_conf["features"][0]["transform"])
+        assert node_conf["features"][0]["transform"]["name"] == "to_categorical"
+        assert "mapping" in node_conf["features"][0]["transform"]
+        assert len(node_conf["features"][0]["transform"]["mapping"]) == 10
 
 # id remap for node4 exists
 assert os.path.isfile(os.path.join(out_dir, "node4_id_remap.parquet"))

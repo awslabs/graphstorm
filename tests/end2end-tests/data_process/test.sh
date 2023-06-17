@@ -26,6 +26,8 @@ python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/
 
 error_and_exit $?
 
+# Test the generated config.
+echo "********* Test using the generated config *********"
 python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform_new.conf --num-processes 4 --output-dir /tmp/test_out1 --graph-name test --output-format DGL
 
 error_and_exit $?
