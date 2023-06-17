@@ -180,9 +180,30 @@ class SysTracker:
     def __init__(self):
         self._checkpoints = []
         self._rank = -1
+        self._verbose = False
 
     # This is to create only one instance.
     _instance = None
+
+    def init(self, verbose=False, rank=None):
+        """ Initialize the profiler.
+
+            Set tracking level.
+            TODO: Only have verbose=True or False.
+            Need to support different logging level later.
+
+        Parameter
+        ---------
+        verbose: bool
+            Verbose for print out more info
+        rank: int
+            Current trainer rank
+        """
+        self._verbose = verbose
+        if rank is None:
+            self._rank = get_rank()
+        else:
+            self._rank = rank
 
     def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
         """ Only create one instance.
@@ -202,6 +223,9 @@ class SysTracker:
     def check(self, name):
         """ Check the system metrics.
         """
+        if self._verbose is False:
+            return
+
         mem_info = psutil.Process(os.getpid()).memory_info()
         gmem_info = psutil.virtual_memory()
         self._checkpoints.append((name, time.time(), mem_info.rss, mem_info.shared,
