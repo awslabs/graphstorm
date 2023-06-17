@@ -129,7 +129,7 @@ def test_hdf5():
 
     os.remove(tmpfile)
 
-def test_feat_ops():
+def check_feat_ops_noop():
     # Just get the features without transformation.
     feat_op1 = [{
         "feature_col": "test1",
@@ -151,7 +151,7 @@ def test_feat_ops():
     assert res1[0].feat_name == feat_op1[0]["feature_col"]
     assert isinstance(res1[0], Noop)
 
-    # Test more complex cases.
+def check_feat_ops_tokenize():
     feat_op2 = [
         {
             "feature_col": "test1",
@@ -193,7 +193,7 @@ def test_feat_ops():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
-    # Compute BERT embeddings.
+def check_feat_ops_bert():
     feat_op3 = [
         {
             "feature_col": "test3",
@@ -235,7 +235,7 @@ def test_feat_ops():
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
 
-    # Test max-min normalization.
+def check_feat_ops_maxmin():
     data0 = {
         "test1": np.random.rand(4, 2),
     }
@@ -328,7 +328,7 @@ def test_feat_ops():
     assert_almost_equal(proc_res6[:,0], data_col0)
     assert_almost_equal(proc_res6[:,1], data_col1)
 
-    # Test to_categorical conversion.
+def check_feat_ops_categorical():
     feat_op7 = [
         {
             "feature_col": "test1",
@@ -389,6 +389,13 @@ def test_feat_ops():
         assert multi_hot[int(str_i1)] == 1
         assert multi_hot[int(str_i2)] == 1
     assert 'mapping' in feat_op8[0]["transform"]
+
+def test_feat_ops():
+    check_feat_ops_noop()
+    check_feat_ops_tokenize()
+    check_feat_ops_bert()
+    check_feat_ops_maxmin()
+    check_feat_ops_categorical()
 
 def test_process_features_fp16():
     # Just get the features without transformation.
