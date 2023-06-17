@@ -338,7 +338,7 @@ def test_feat_ops():
     ]
     res7 = parse_feat_ops(feat_op7)
     data0 = {
-        "test1": [str(i) for i in np.random.randint(0, 10, size=10)],
+        "test1": [str(i) for i in np.random.randint(0, 10, size=10)] + [str(i) for i in range(10)],
     }
     data1 = {
         "test1": [str(i) for i in np.random.randint(0, 10, size=10)],
@@ -354,8 +354,38 @@ def test_feat_ops():
     update_two_phase_feat_ops(return_dict, res7)
     proc_res3 = process_features(data0, res7)
     assert "test7" in proc_res3
-    for i, str_i in zip(proc_res3["test7"], data0["test1"]):
-        assert i == int(str_i)
+    for one_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
+        assert one_hot[int(str_i)] == 1
+
+    feat_op8 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test8",
+            "transform": {"name": 'to_categorial', "separator": ","},
+        },
+    ]
+    res8 = parse_feat_ops(feat_op8)
+    data0 = {
+        "test1": [f"{i},{i+1}" for i in np.random.randint(0, 9, size=10)] + [str(i) for i in range(9)],
+    }
+    data1 = {
+        "test1": [str(i) for i in np.random.randint(0, 10, size=10)],
+    }
+    preproc_res0 = preprocess_features(data0, res8)
+    preproc_res1 = preprocess_features(data1, res8)
+    assert "test8" in preproc_res0
+    assert "test8" in preproc_res1
+    return_dict = {
+        0: preproc_res0,
+        1: preproc_res1
+    }
+    update_two_phase_feat_ops(return_dict, res8)
+    proc_res3 = process_features(data0, res8)
+    assert "test8" in proc_res3
+    for multi_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
+        str_i1, str_i2 = str_i.split(",")
+        assert multi_hot[int(str_i1)] == 1
+        assert multi_hot[int(str_i2)] == 1
 
 def test_process_features_fp16():
     # Just get the features without transformation.
