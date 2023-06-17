@@ -38,7 +38,8 @@ argparser.add_argument("--conf_file", type=str, required=True,
                        help="The configuration file.")
 args = argparser.parse_args()
 out_dir = args.graph_dir
-conf_file = args.conf_file
+with open(args.conf_file, 'r') as f:
+  conf = json.load(f)
 
 if args.graph_format == "DGL":
     g = dgl.load_graphs(os.path.join(out_dir, "test.dgl"))[0][0]
@@ -97,6 +98,12 @@ data = g.nodes['node2'].data['category'].numpy()
 assert data.shape[1] == 10
 assert data.dtype == np.int8
 assert np.all(np.sum(data, axis=1) == 1)
+for node_conf in conf["nodes"]:
+    if node_conf["node_type"] == "node2":
+        assert len(node_conf["features"]) == 1
+        assert node_conf["features"][0]["name"] == "to_categorical"
+        assert "mapping" in node_conf["features"][0]
+        assert len(node_conf["features"][0]["mapping"]) == 10
 
 # id remap for node4 exists
 assert os.path.isfile(os.path.join(out_dir, "node4_id_remap.parquet"))
