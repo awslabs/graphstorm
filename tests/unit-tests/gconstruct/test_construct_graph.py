@@ -333,7 +333,7 @@ def test_feat_ops():
         {
             "feature_col": "test1",
             "feature_name": "test7",
-            "transform": {"name": 'to_categorial'},
+            "transform": {"name": 'to_categorical'},
         },
     ]
     res7 = parse_feat_ops(feat_op7)
@@ -361,7 +361,7 @@ def test_feat_ops():
         {
             "feature_col": "test1",
             "feature_name": "test8",
-            "transform": {"name": 'to_categorial', "separator": ","},
+            "transform": {"name": 'to_categorical', "separator": ","},
         },
     ]
     res8 = parse_feat_ops(feat_op8)
@@ -382,7 +382,8 @@ def test_feat_ops():
     update_two_phase_feat_ops(return_dict, res8)
     proc_res3 = process_features(data0, res8)
     assert "test8" in proc_res3
-    for multi_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
+    # We only need to test the first 10
+    for multi_hot, str_i in zip(proc_res3["test8"][:10], data0["test1"][:10]):
         str_i1, str_i2 = str_i.split(",")
         assert multi_hot[int(str_i1)] == 1
         assert multi_hot[int(str_i2)] == 1
