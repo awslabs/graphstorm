@@ -356,6 +356,7 @@ def test_feat_ops():
     assert "test7" in proc_res3
     for one_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
         assert one_hot[int(str_i)] == 1
+    assert 'mapping' in feat_op7[0]["transform"]
 
     feat_op8 = [
         {
@@ -387,6 +388,7 @@ def test_feat_ops():
         str_i1, str_i2 = str_i.split(",")
         assert multi_hot[int(str_i1)] == 1
         assert multi_hot[int(str_i2)] == 1
+    assert 'mapping' in feat_op8[0]["transform"]
 
 def test_process_features_fp16():
     # Just get the features without transformation.
