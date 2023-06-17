@@ -526,7 +526,7 @@ def process_graph(args):
     if args.output_conf_file is not None:
         # Save the new config file.
         with open(args.output_conf_file, "w", encoding="utf8") as outfile:
-            json.dump(process_confs, outfile)
+            json.dump(process_confs, outfile, indent=4)
     sys_tracker.check('Process input data')
 
     if args.add_reverse_edges:
