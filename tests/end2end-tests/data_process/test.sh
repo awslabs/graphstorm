@@ -26,6 +26,14 @@ python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/
 
 error_and_exit $?
 
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform_new.conf --num-processes 4 --output-dir /tmp/test_out1 --graph-name test --output-format DGL
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/compare_graphs.py --graph-path1 /tmp/test_out/test.dgl --graph-path2 /tmp/test_out1/test.dgl
+
+error_and_exit $?
+
 # Test the DistDGL graph format.
 echo "********* Test the DistDGL graph format ********"
 python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 4 --output-dir /tmp/test_partition2 --graph-name test --output-conf-file /tmp/test_data/test_data_transform_new.conf
