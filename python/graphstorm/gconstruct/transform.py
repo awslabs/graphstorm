@@ -159,7 +159,8 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
         self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
         # We need to save the mapping in the config object.
-        self._conf['mapping'] = self._val_dict
+        if self._conf is not None:
+            self._conf['mapping'] = self._val_dict
 
     def __call__(self, feats):
         """ Assign IDs to categorical values.
