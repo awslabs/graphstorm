@@ -301,7 +301,9 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         assert node_type in node_id_map, \
                 f"The input files do not contain node Ids for node type {node_type}."
         for data in node_data[node_type].values():
-            assert len(data) == len(node_id_map[node_type])
+            assert len(data) == len(node_id_map[node_type]), \
+                    f"Node data and node IDs for node type {node_type} does not match: " + \
+                    f"{len(data)} vs. {len(node_id_map[node_type])}"
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
