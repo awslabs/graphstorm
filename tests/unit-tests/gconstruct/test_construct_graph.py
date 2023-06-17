@@ -234,7 +234,8 @@ def test_feat_ops():
     assert "test4" in proc_res2
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
-     # Compute BERT embeddings with multiple mini-batches.
+
+    # Test max-min normalization.
     data0 = {
         "test1": np.random.rand(4, 2),
     }
@@ -326,6 +327,35 @@ def test_feat_ops():
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
     assert_almost_equal(proc_res6[:,0], data_col0)
     assert_almost_equal(proc_res6[:,1], data_col1)
+
+    # Test to_categorical conversion.
+    feat_op7 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test7",
+            "transform": {"name": 'to_categorial'},
+        },
+    ]
+    res7 = parse_feat_ops(feat_op7)
+    data0 = {
+        "test1": [str(i) for i in np.random.randint(0, 10, size=10)],
+    }
+    data1 = {
+        "test1": [str(i) for i in np.random.randint(0, 10, size=10)],
+    }
+    preproc_res0 = preprocess_features(data0, res7)
+    preproc_res1 = preprocess_features(data1, res7)
+    assert "test7" in preproc_res0
+    assert "test7" in preproc_res1
+    return_dict = {
+        0: preproc_res0,
+        1: preproc_res1
+    }
+    update_two_phase_feat_ops(return_dict, res7)
+    proc_res3 = process_features(data0, res7)
+    assert "test7" in proc_res3
+    for i, str_i in zip(proc_res3["test7"], data0["test1"]):
+        assert i == int(str_i)
 
 def test_process_features_fp16():
     # Just get the features without transformation.
