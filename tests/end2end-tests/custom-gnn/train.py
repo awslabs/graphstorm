@@ -64,7 +64,7 @@ class MyGNNModel(gsmodel.GSgnnNodeModelBase):
         emb = list(embs.values())[0]
         return self._decoder.predict(emb)
 
-    def restore_model(self, restore_model_path):
+    def restore_model(self, restore_model_path, model_layer_to_load):
         pass
 
     def save_model(self, model_path):
