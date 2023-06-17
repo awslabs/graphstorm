@@ -521,7 +521,12 @@ def process_graph(args):
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
+    if args.output_conf_file is not None:
+        # Save the new config file.
+        with open(args.output_conf_file, "w") as outfile:
+            json.dump(process_confs, outfile)
     sys_tracker.check('Process input data')
+
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
@@ -584,6 +589,8 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
     argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
+    argparser.add_argument("--output-conf-file", type=str,
+                           help="The output file with the updated configurations.")
     argparser.add_argument("--num-processes", type=int, default=1,
                            help="The number of processes to process the data simulteneously.")
     argparser.add_argument("--num-processes-for-nodes", type=int,

@@ -114,9 +114,16 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         The name of the feature.
     separator : str
         The separator to split data into multiple categorical values.
+    transform_conf : dict
+        The configuration for the feature transformation.
     """
-    def __init__(self, col_name, feat_name, separator=None):
+    def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
         self._val_dict = {}
+        if transform_conf is not None and 'mapping' in transform_conf:
+            self._val_dict = transform_conf['mapping']
+            self._conf = transform_conf
+        else:
+            conf._conf = transform_conf
         self._separator = separator
         super(CategoricalTransform, self).__init__(col_name, feat_name)
 
@@ -125,9 +132,13 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
         Parameters
         ----------
-        feats: np.array
+        feats: dict of np.array
             Data to be processed
         """
+        # If the mapping already exists, we don't need to do anything.
+        if len(self._val_dict) > 0:
+            return {}
+
         if self._separator is None:
             return {self.feat_name: np.unique(feats)}
         else:
@@ -144,7 +155,14 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         info: list
             Information to be collected
         """
+        # We already have the mapping.
+        if len(self._val_dict) > 0:
+            assert len(info) == 0
+            return
+
         self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        # We need to save the mapping in the config object.
+        self._conf['mapping'] = self._val_dict
 
     def __call__(self, feats):
         """ Assign IDs to categorical values.
@@ -167,24 +185,6 @@ class CategoricalTransform(TwoPhaseFeatTransform):
                 idx = [self._val_dict[val] for val in feat.split(self._separator)]
                 encoding[i, idx] = 1
         return {self.feat_name: encoding}
-
-    def save(self, file_path):
-        """ Save the ID map to a parquet file.
-
-        Parameters
-        ----------
-        file_path : str
-            The file where the ID map will be saved to.
-
-        Returns
-        -------
-        bool : whether the ID map is saved to a file.
-        """
-        keys = list(self._val_dict.keys())
-        vals = list(self._val_dict.values())
-        table = pa.Table.from_pandas(pd.DataFrame({'orig': keys, 'new': vals}))
-        pq.write_table(table, file_path)
-        return True
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     """ Numerical value with Min-Max normalization.
@@ -534,9 +534,9 @@ def parse_feat_ops(confs):
                                                      min_bound,
                                                      out_dtype=out_dtype)
             elif conf['name'] == 'to_categorical':
-                separator = feat['separator'] if 'separator' in feat else None
+                separator = conf['separator'] if 'separator' in conf else None
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
-                                                 separator=separator)
+                                                 separator=separator, transform_conf=conf)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
