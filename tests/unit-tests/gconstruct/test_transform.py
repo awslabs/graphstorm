@@ -183,7 +183,10 @@ def test_fp_min_max_transform(out_dtype):
 
 def test_categorize_transform():
     # Test a single categorical value.
-    transform = CategoricalTransform("test1", "test")
+    transform_conf = {
+        "name": "to_categorical"
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
     str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
     str_ids = str_ids + [str(i) for i in range(10)]
     res = transform.pre_process(str_ids)
@@ -204,6 +207,8 @@ def test_categorize_transform():
         # after we set the value to 0, the entire vector has 0 values.
         feat[int(str_i)] = 0
         assert np.all(feat == 0)
+    assert "mapping" in transform_conf
+    assert len(transform_conf["mapping"]) == 10
 
     # Test multiple categorical values.
     transform = CategoricalTransform("test1", "test", separator=',')
@@ -229,6 +234,25 @@ def test_categorize_transform():
         # after removing the elements, the vector has only 0 values.
         feat[int(i[0])] = 0
         feat[int(i[1])] = 0
+        assert np.all(feat == 0)
+
+    # Test transformation with existing mapping.
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
+    str_ids = str_ids + [str(i) for i in range(10)]
+    res = transform.pre_process(str_ids)
+    assert len(res) == 0
+
+    transform.update_info([])
+    feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        idx = transform_conf["mapping"][str_i]
+        assert feat[idx] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[idx] = 0
         assert np.all(feat == 0)
 
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
