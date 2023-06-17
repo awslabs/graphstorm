@@ -17,11 +17,12 @@
 import argparse
 
 import dgl
+import numpy as np
 
 argparser = argparse.ArgumentParser("Compare graphs")
-argparser.add_argument("--graph_path1", type=str, required=True,
+argparser.add_argument("--graph-path1", type=str, required=True,
                        help="The path of the constructed graph.")
-argparser.add_argument("--graph_path2", type=str, required=True,
+argparser.add_argument("--graph-path2", type=str, required=True,
                        help="The path of the constructed graph.")
 args = argparser.parse_args()
 
@@ -32,9 +33,13 @@ assert g1.etypes == g2.etypes
 for ntype in g1.ntypes:
     assert g1.number_of_nodes(ntype) == g2.number_of_nodes(ntype)
     for name in g1.nodes[ntype].data:
-        assert np.all(g1.nodes[ntype].data[name].numpy() == g2.nodes[ntype].data[name].numpy())
+        # We should skip '*_mask' because data split is split randomly.
+        if 'mask' not in name:
+            assert np.all(g1.nodes[ntype].data[name].numpy() == g2.nodes[ntype].data[name].numpy())
 
 for etype in g1.canonical_etypes:
     assert g1.number_of_edges(etype) == g2.number_of_edges(etype)
     for name in g1.edges[etype].data:
-        assert np.all(g1.edges[etype].data[name].numpy() == g2.edges[etype].data[name].numpy())
+        # We should skip '*_mask' because data split is split randomly.
+        if 'mask' not in name:
+            assert np.all(g1.edges[etype].data[name].numpy() == g2.edges[etype].data[name].numpy())
