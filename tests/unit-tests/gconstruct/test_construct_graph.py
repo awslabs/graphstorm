@@ -342,10 +342,11 @@ def check_feat_ops_categorical():
     ]
     res7 = parse_feat_ops(feat_op7)
     data0 = {
-        "test1": [str(i) for i in np.random.randint(0, 10, size=10)] + [str(i) for i in range(10)],
+        "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]
+            + [str(i) for i in range(10)]),
     }
     data1 = {
-        "test1": [str(i) for i in np.random.randint(0, 10, size=10)],
+        "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]),
     }
     preproc_res0 = preprocess_features(data0, res7)
     preproc_res1 = preprocess_features(data1, res7)
@@ -372,10 +373,11 @@ def check_feat_ops_categorical():
     ]
     res8 = parse_feat_ops(feat_op8)
     data0 = {
-        "test1": [f"{i},{i+1}" for i in np.random.randint(0, 9, size=10)] + [str(i) for i in range(9)],
+        "test1": np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, size=10)]
+            + [str(i) for i in range(9)]),
     }
     data1 = {
-        "test1": [str(i) for i in np.random.randint(0, 10, size=10)],
+        "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]),
     }
     preproc_res0 = preprocess_features(data0, res8)
     preproc_res1 = preprocess_features(data1, res8)

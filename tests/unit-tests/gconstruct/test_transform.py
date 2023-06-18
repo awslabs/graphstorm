@@ -189,7 +189,7 @@ def test_categorize_transform():
     transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
     str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
     str_ids = str_ids + [str(i) for i in range(10)]
-    res = transform.pre_process(str_ids)
+    res = transform.pre_process(np.array(str_ids))
     assert "test" in res
     assert len(res["test"]) == 10
     for i in range(10):
@@ -214,7 +214,7 @@ def test_categorize_transform():
     transform = CategoricalTransform("test1", "test", separator=',')
     str_ids = [f"{i},{i+1}" for i in np.random.randint(0, 9, 1000)] + [",0"]
     str_ids = str_ids + [str(i) for i in range(9)]
-    res = transform.pre_process(str_ids)
+    res = transform.pre_process(np.array(str_ids))
     assert "test" in res
     assert len(res["test"]) == 11
 
@@ -222,7 +222,7 @@ def test_categorize_transform():
     transform = CategoricalTransform("test1", "test", separator=',')
     str_ids = [f"{i},{i+1}" for i in np.random.randint(0, 9, 1000)]
     str_ids = str_ids + [str(i) for i in range(9)]
-    res = transform.pre_process(str_ids)
+    res = transform.pre_process(np.array(str_ids))
     assert "test" in res
     assert len(res["test"]) == 10
     for i in range(10):
@@ -248,7 +248,7 @@ def test_categorize_transform():
     transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
     str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
     str_ids = str_ids + [str(i) for i in range(10)]
-    res = transform.pre_process(str_ids)
+    res = transform.pre_process(np.array(str_ids))
     assert len(res) == 0
 
     transform.update_info([])
