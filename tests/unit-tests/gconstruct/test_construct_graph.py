@@ -129,7 +129,7 @@ def test_hdf5():
 
     os.remove(tmpfile)
 
-def test_feat_ops():
+def check_feat_ops_noop():
     # Just get the features without transformation.
     feat_op1 = [{
         "feature_col": "test1",
@@ -151,7 +151,7 @@ def test_feat_ops():
     assert res1[0].feat_name == feat_op1[0]["feature_col"]
     assert isinstance(res1[0], Noop)
 
-    # Test more complex cases.
+def check_feat_ops_tokenize():
     feat_op2 = [
         {
             "feature_col": "test1",
@@ -193,7 +193,7 @@ def test_feat_ops():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
-    # Compute BERT embeddings.
+def check_feat_ops_bert():
     feat_op3 = [
         {
             "feature_col": "test3",
@@ -208,6 +208,10 @@ def test_feat_ops():
     assert len(res3) == 1
     assert res3[0].col_name == feat_op3[0]["feature_col"]
     assert res3[0].feat_name == feat_op3[0]["feature_name"]
+    data = {
+        "test1": np.random.rand(2, 4).astype(np.float32),
+        "test3": ["hello world", "hello world"],
+    }
     proc_res = process_features(data, res3)
     assert "test4" in proc_res
     assert len(proc_res['test4']) == 2
@@ -234,7 +238,8 @@ def test_feat_ops():
     assert "test4" in proc_res2
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
-     # Compute BERT embeddings with multiple mini-batches.
+
+def check_feat_ops_maxmin():
     data0 = {
         "test1": np.random.rand(4, 2),
     }
@@ -326,6 +331,78 @@ def test_feat_ops():
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
     assert_almost_equal(proc_res6[:,0], data_col0)
     assert_almost_equal(proc_res6[:,1], data_col1)
+
+def check_feat_ops_categorical():
+    feat_op7 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test7",
+            "transform": {"name": 'to_categorical'},
+        },
+    ]
+    res7 = parse_feat_ops(feat_op7)
+    data0 = {
+        "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]
+            + [str(i) for i in range(10)]),
+    }
+    data1 = {
+        "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]),
+    }
+    preproc_res0 = preprocess_features(data0, res7)
+    preproc_res1 = preprocess_features(data1, res7)
+    assert "test7" in preproc_res0
+    assert "test7" in preproc_res1
+    return_dict = {
+        0: preproc_res0,
+        1: preproc_res1
+    }
+    update_two_phase_feat_ops(return_dict, res7)
+    proc_res3 = process_features(data0, res7)
+    assert "test7" in proc_res3
+    assert 'mapping' in feat_op7[0]["transform"]
+    for one_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
+        idx = feat_op7[0]["transform"]['mapping'][str_i]
+        assert one_hot[idx] == 1
+
+    feat_op8 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test8",
+            "transform": {"name": 'to_categorical', "separator": ","},
+        },
+    ]
+    res8 = parse_feat_ops(feat_op8)
+    data0 = {
+        "test1": np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, size=10)]
+            + [str(i) for i in range(9)]),
+    }
+    data1 = {
+        "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]),
+    }
+    preproc_res0 = preprocess_features(data0, res8)
+    preproc_res1 = preprocess_features(data1, res8)
+    assert "test8" in preproc_res0
+    assert "test8" in preproc_res1
+    return_dict = {
+        0: preproc_res0,
+        1: preproc_res1
+    }
+    update_two_phase_feat_ops(return_dict, res8)
+    proc_res3 = process_features(data0, res8)
+    assert "test8" in proc_res3
+    # We only need to test the first 10
+    for multi_hot, str_i in zip(proc_res3["test8"][:10], data0["test1"][:10]):
+        str_i1, str_i2 = str_i.split(",")
+        assert multi_hot[int(str_i1)] == 1
+        assert multi_hot[int(str_i2)] == 1
+    assert 'mapping' in feat_op8[0]["transform"]
+
+def test_feat_ops():
+    check_feat_ops_noop()
+    check_feat_ops_tokenize()
+    check_feat_ops_bert()
+    check_feat_ops_maxmin()
+    check_feat_ops_categorical()
 
 def test_process_features_fp16():
     # Just get the features without transformation.

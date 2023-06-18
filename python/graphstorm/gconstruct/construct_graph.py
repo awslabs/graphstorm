@@ -305,7 +305,9 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         assert node_type in node_id_map, \
                 f"The input files do not contain node Ids for node type {node_type}."
         for data in node_data[node_type].values():
-            assert len(data) == len(node_id_map[node_type])
+            assert len(data) == len(node_id_map[node_type]), \
+                    f"Node data and node IDs for node type {node_type} does not match: " + \
+                    f"{len(data)} vs. {len(node_id_map[node_type])}"
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
@@ -542,7 +544,12 @@ def process_graph(args):
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
+    if args.output_conf_file is not None:
+        # Save the new config file.
+        with open(args.output_conf_file, "w", encoding="utf8") as outfile:
+            json.dump(process_confs, outfile, indent=4)
     sys_tracker.check('Process input data')
+
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
@@ -605,6 +612,8 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
     argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
+    argparser.add_argument("--output-conf-file", type=str,
+                           help="The output file with the updated configurations.")
     argparser.add_argument("--num-processes", type=int, default=1,
                            help="The number of processes to process the data simulteneously.")
     argparser.add_argument("--num-processes-for-nodes", type=int,
