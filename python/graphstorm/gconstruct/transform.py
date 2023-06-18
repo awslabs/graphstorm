@@ -71,7 +71,7 @@ class FeatTransform:
         return self._feat_name
 
 class GlobalProcessFeatTransform(FeatTransform):
-    """ The base class for transformations taht can only be done using a single process.
+    """ The base class for transformations that can only be done using a single process.
 
         Some transformations need to do complex operations on the entire feature set,
         such as ranking. GlobalProcessFeatTransform loads features from files first,
@@ -234,8 +234,6 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         The idea is from
         http://fastml.com/preparing-continuous-features-for-neural-networks-with-rankgauss/
 
-    Parameters
-    ----------
     Parameters
     ----------
     col_name : str
