@@ -208,6 +208,10 @@ def check_feat_ops_bert():
     assert len(res3) == 1
     assert res3[0].col_name == feat_op3[0]["feature_col"]
     assert res3[0].feat_name == feat_op3[0]["feature_name"]
+    data = {
+        "test1": np.random.rand(2, 4).astype(np.float32),
+        "test3": ["hello world", "hello world"],
+    }
     proc_res = process_features(data, res3)
     assert "test4" in proc_res
     assert len(proc_res['test4']) == 2
