@@ -129,16 +129,25 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
         Parameters
         ----------
-        feats: dict of np.array
+        feats: np.array
             Data to be processed
         """
         # If the mapping already exists, we don't need to do anything.
         if len(self._val_dict) > 0:
             return {}
 
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of CategoricalTransform must be numpy array or HDF5Array"
+        if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
         if self._separator is None:
             return {self.feat_name: np.unique(feats)}
         else:
+            assert feats.dtype.type is np.str_, \
+                    "We can only convert strings to multiple categorical values with separaters."
             vals = []
             for feat in feats:
                 vals.extend(feat.split(self._separator))
