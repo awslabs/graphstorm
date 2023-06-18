@@ -354,9 +354,10 @@ def check_feat_ops_categorical():
     update_two_phase_feat_ops(return_dict, res7)
     proc_res3 = process_features(data0, res7)
     assert "test7" in proc_res3
-    for one_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
-        assert one_hot[int(str_i)] == 1
     assert 'mapping' in feat_op7[0]["transform"]
+    for one_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
+        idx = feat_op7[0]["transform"]['mapping'][str_i]
+        assert one_hot[idx] == 1
 
     feat_op8 = [
         {

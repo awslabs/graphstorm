@@ -210,6 +210,14 @@ def test_categorize_transform():
     assert "mapping" in transform_conf
     assert len(transform_conf["mapping"]) == 10
 
+    # Test categorical values with empty strings.
+    transform = CategoricalTransform("test1", "test", separator=',')
+    str_ids = [f"{i},{i+1}" for i in np.random.randint(0, 9, 1000)] + [",0"]
+    str_ids = str_ids + [str(i) for i in range(9)]
+    res = transform.pre_process(str_ids)
+    assert "test" in res
+    assert len(res["test"]) == 11
+
     # Test multiple categorical values.
     transform = CategoricalTransform("test1", "test", separator=',')
     str_ids = [f"{i},{i+1}" for i in np.random.randint(0, 9, 1000)]
