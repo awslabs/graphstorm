@@ -38,7 +38,8 @@ argparser.add_argument("--conf_file", type=str, required=True,
                        help="The configuration file.")
 args = argparser.parse_args()
 out_dir = args.graph_dir
-conf_file = args.conf_file
+with open(args.conf_file, 'r') as f:
+  conf = json.load(f)
 
 if args.graph_format == "DGL":
     g = dgl.load_graphs(os.path.join(out_dir, "test.dgl"))[0][0]
@@ -93,11 +94,17 @@ assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1
 assert th.sum(g.nodes['node1'].data['test_mask']) == 0
 
 # Test the second node data
-data = g.nodes['node2'].data['feat'].numpy()
-orig_ids = np.arange(g.number_of_nodes('node2'))
-assert data.shape[1] == 5
-for i in range(data.shape[1]):
-    assert np.all(data[:,i] == orig_ids)
+data = g.nodes['node2'].data['category'].numpy()
+assert data.shape[1] == 10
+assert data.dtype == np.int8
+assert np.all(np.sum(data, axis=1) == 1)
+for node_conf in conf["nodes"]:
+    if node_conf["node_type"] == "node2":
+        assert len(node_conf["features"]) == 1
+        print(node_conf["features"][0]["transform"])
+        assert node_conf["features"][0]["transform"]["name"] == "to_categorical"
+        assert "mapping" in node_conf["features"][0]["transform"]
+        assert len(node_conf["features"][0]["transform"]["mapping"]) == 10
 
 # id remap for node4 exists
 assert os.path.isfile(os.path.join(out_dir, "node4_id_remap.parquet"))
