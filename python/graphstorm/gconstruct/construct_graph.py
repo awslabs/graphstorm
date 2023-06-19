@@ -254,7 +254,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         in_files = get_in_files(process_conf['files'])
         feat_ops, two_phase_feat_ops, after_merge_feat_ops = \
             parse_feat_ops(process_conf['features']) \
-                if 'features' in process_conf else None
+                if 'features' in process_conf else None, [], {}
         label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
                 if 'labels' in process_conf else None
         assert 'format' in process_conf, \
