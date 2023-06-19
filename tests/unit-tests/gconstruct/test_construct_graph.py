@@ -332,6 +332,35 @@ def check_feat_ops_maxmin():
     assert_almost_equal(proc_res6[:,0], data_col0)
     assert_almost_equal(proc_res6[:,1], data_col1)
 
+def check_feat_ops_rank_gauss():
+    data7_0 = {
+        "test1": np.random.randn(100,2).astype(np.float32)
+    }
+    data7_1 = {
+        "test1": np.random.randn(100,2).astype(np.float32)
+    }
+
+    feat_op7 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test7",
+            "transform": {
+                "name": 'rank_gauss'
+            },
+        },
+    ]
+    res7 = parse_feat_ops(feat_op7)
+    assert len(res7) == 1
+    assert res7[0].col_name == feat_op7[0]["feature_col"]
+    assert res7[0].feat_name == feat_op7[0]["feature_name"]
+    proc_res7_0 = process_features(data7_0, res7)
+    proc_res7_1 = process_features(data7_1, res7)
+    new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
+    trans_feat = res7[0].after_merge_transform(new_feat)
+    # sum of gauss rank should be zero
+    data_sum = np.sum(trans_feat, axis=0)
+    np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+
 def check_feat_ops_categorical():
     feat_op7 = [
         {
@@ -403,6 +432,7 @@ def test_feat_ops():
     check_feat_ops_bert()
     check_feat_ops_maxmin()
     check_feat_ops_categorical()
+    check_feat_ops_rank_gauss()
 
 def test_process_features_fp16():
     # Just get the features without transformation.
