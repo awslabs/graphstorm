@@ -99,26 +99,27 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
 
         sys_tracker.check('start training')
         g = data.g # dgl.DistGraph
-        # (TODO) Pre-train LM and infer labels 
-        # model._pre_train_lm()
-        # (TODO) Train GNN and infer labels
-        # model._pre_train_gnn()
+        # (TODO) Pre-train LM and infer labels
+        # (TODO) Pre-train GNN and infer labels
         for epoch in range(num_epochs):
             t0 = time.time()
             rt_profiler.start_record()
 
             # 1st round: train LM, fix gnn
             use_gnn = False
-            self._model.unfreeze_params('lm')
-            self._model.freeze_params('gnn')
-
-            self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader, device, rt_profiler, epoch, total_steps, use_mini_batch_infer, save_model_path, save_model_frequency)
+            self._model.train('lm')
+            self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
+                                device, rt_profiler,
+                                epoch, total_steps, use_mini_batch_infer,
+                                save_model_path, save_model_frequency)
 
             # 2nd round: train GNN, fix LM
             use_gnn = True
-            self._model.unfreeze_params('gnn')
-            self._model.freeze_params('lm')
-            self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader, device, rt_profiler, epoch, total_steps, use_mini_batch_infer, save_model_path, save_model_frequency)
+            self._model.train('gnn')
+            self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
+                                device, rt_profiler,
+                                epoch, total_steps, use_mini_batch_infer,
+                                save_model_path, save_model_frequency)
 
             # early_stop, exit training
             if self.early_stop is True:
@@ -141,12 +142,17 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def _fit_one_epoch(self, use_gnn, model, g, data, train_loader, val_loader, test_loader, device, rt_profiler, epoch, total_steps, use_mini_batch_infer=True, save_model_path=None, save_model_frequency=-1):
+    def _fit_one_epoch(self, use_gnn, model, g, data, train_loader,
+                       val_loader, test_loader, device, profiler,
+                       epoch, total_steps,
+                       use_mini_batch_infer=True,
+                       save_model_path=None,
+                       save_model_frequency=-1):
         """Fit model for one epoch
         """
-        rt_profiler.start_record()
+        profiler.start_record()
         for i, (input_nodes, seeds, blocks) in enumerate(train_loader):
-            rt_profiler.record('train_sample')
+            profiler.record('train_sample')
             total_steps += 1
             batch_tic = time.time()
 
@@ -155,25 +161,20 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             lbl = data.get_labels(seeds, device)
-            rt_profiler.record('train_node_feats')
+            profiler.record('train_node_feats')
 
             blocks = [block.to(device) for block in blocks]
             for _, feats in input_feats.items():
                 num_input_nodes += feats.shape[0]
-            rt_profiler.record('train_graph2GPU')
-            
-            # t2 = time.time()
+            profiler.record('train_graph2GPU')
             # Run forward function to compute loss:
             loss = model.module(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn)
-            rt_profiler.record('train_forward')
-            
-            # t3 = time.time()
+            profiler.record('train_forward')
+
             loss.backward()
-            rt_profiler.record('train_backward')
+            profiler.record('train_backward')
             self.optimizer.step()
-            rt_profiler.record('train_step')
-            # forward_time += (t3 - t2)
-            # back_time += (time.time() - t3)
+            profiler.record('train_step')
 
             self.log_metric("Train loss", loss.item(), total_steps)
 
@@ -181,7 +182,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 rt_profiler.print_stats()
                 print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
                         format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
-                # num_input_nodes = forward_time = back_time = 0
 
             val_score = None
             if self.evaluator is not None and \
@@ -191,7 +191,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                                         use_mini_batch_infer, total_steps, return_proba=False)
 
                 if self.evaluator.do_early_stop(val_score):
-                    self.early_stop = True                
+                    self.early_stop = True
 
             if save_model_frequency > 0 and \
                 total_steps % save_model_frequency == 0 and \
