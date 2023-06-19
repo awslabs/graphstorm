@@ -20,8 +20,11 @@
 import logging
 import os
 import sys
+
 import numpy as np
 import torch as th
+
+from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
@@ -68,6 +71,25 @@ class FeatTransform:
         """
         return self._feat_name
 
+class GlobalProcessFeatTransform(FeatTransform):
+    """ The base class for transformations that can only be done using a single process.
+
+        Some transformations need to do complex operations on the entire feature set,
+        such as ranking. GlobalProcessFeatTransform loads features from files first,
+        which can be done with multi-processing, and then do feature transformation
+        after features are merged.
+    """
+
+    def after_merge_transform(self, feats):
+        """ Do feature transformation after features are merged into a single
+            array.
+
+        Parameters
+        ----------
+        feats:
+            feats to be processed
+        """
+
 class TwoPhaseFeatTransform(FeatTransform):
     """ The base class for two phasefeature transformation.
 
@@ -96,6 +118,101 @@ class TwoPhaseFeatTransform(FeatTransform):
         info:
             Information to be collected
         """
+
+class CategoricalTransform(TwoPhaseFeatTransform):
+    """ Convert the data into categorical values.
+
+    The categorical values are stored as integers.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column.
+    feat_name : str
+        The name of the feature.
+    separator : str
+        The separator to split data into multiple categorical values.
+    transform_conf : dict
+        The configuration for the feature transformation.
+    """
+    def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
+        self._val_dict = {}
+        if transform_conf is not None and 'mapping' in transform_conf:
+            self._val_dict = transform_conf['mapping']
+            self._conf = transform_conf
+        else:
+            self._conf = transform_conf
+        self._separator = separator
+        super(CategoricalTransform, self).__init__(col_name, feat_name)
+
+    def pre_process(self, feats):
+        """ Pre-process data
+
+        Parameters
+        ----------
+        feats: np.array
+            Data to be processed
+        """
+        # If the mapping already exists, we don't need to do anything.
+        if len(self._val_dict) > 0:
+            return {}
+
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of CategoricalTransform must be numpy array or HDF5Array"
+        if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        if self._separator is None:
+            return {self.feat_name: np.unique(feats)}
+        else:
+            assert feats.dtype.type is np.str_, \
+                    "We can only convert strings to multiple categorical values with separaters."
+            vals = []
+            for feat in feats:
+                vals.extend(feat.split(self._separator))
+            return {self.feat_name: np.unique(vals)}
+
+    def update_info(self, info):
+        """ Store global information for the second phase data processing
+
+        Parameters
+        ----------
+        info: list
+            Information to be collected
+        """
+        # We already have the mapping.
+        if len(self._val_dict) > 0:
+            assert len(info) == 0
+            return
+
+        self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        # We need to save the mapping in the config object.
+        if self._conf is not None:
+            self._conf['mapping'] = self._val_dict
+
+    def __call__(self, feats):
+        """ Assign IDs to categorical values.
+
+        Parameters
+        ----------
+        feats : np array
+            Data with categorical values.
+
+        Returns
+        -------
+        np.array
+        """
+        encoding = np.zeros((len(feats), len(self._val_dict)), dtype=np.int8)
+        if self._separator is None:
+            for i, feat in enumerate(feats):
+                encoding[i, self._val_dict[feat]] = 1
+        else:
+            for i, feat in enumerate(feats):
+                idx = [self._val_dict[val] for val in feat.split(self._separator)]
+                encoding[i, idx] = 1
+        return {self.feat_name: encoding}
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     """ Numerical value with Min-Max normalization.
@@ -206,6 +323,51 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats = _feat_astype(feats, self._out_dtype)
 
         return {self.feat_name: feats}
+
+class RankGaussTransform(GlobalProcessFeatTransform):
+    """ Use Gauss rank transformation to transform input data
+
+        The idea is from
+        http://fastml.com/preparing-continuous-features-for-neural-networks-with-rankgauss/
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    epsilon: float
+        Epsilon for normalization.
+    """
+    def __init__(self, col_name, feat_name, out_dtype=None, epsilon=None):
+        self._epsilon = epsilon if epsilon is not None else 1e-6
+        super(RankGaussTransform, self).__init__(col_name, feat_name, out_dtype)
+
+    def __call__(self, feats):
+        # do nothing. Rank Gauss is done after merging all arrays together.
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+                f"The feature {self.feat_name} has to be NumPy array."
+        assert np.issubdtype(feats.dtype, np.integer) \
+                or np.issubdtype(feats.dtype, np.floating), \
+                f"The feature {self.feat_name} has to be integers or floats."
+
+        return {self.feat_name: feats}
+
+    def after_merge_transform(self, feats):
+        # The feats can be a numpy array or a numpy memmaped object
+        # Get ranking information.
+        feats = feats.argsort(axis=0).argsort(axis=0)
+        feat_range = len(feats) - 1
+        # norm to [-1, 1]
+        feats = (feats / feat_range - 0.5) * 2
+        feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
+        feats = erfinv(feats)
+
+        feats = _feat_astype(feats, self._out_dtype)
+        return feats
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
@@ -444,6 +606,16 @@ def parse_feat_ops(confs):
                                                      max_bound,
                                                      min_bound,
                                                      out_dtype=out_dtype)
+            elif conf['name'] == 'rank_gauss':
+                epsilon = conf['epsilon'] if 'epsilon' in conf else None
+                transform = RankGaussTransform(feat['feature_col'],
+                                               feat_name,
+                                               out_dtype=out_dtype,
+                                               epsilon=epsilon)
+            elif conf['name'] == 'to_categorical':
+                separator = conf['separator'] if 'separator' in conf else None
+                transform = CategoricalTransform(feat['feature_col'], feat_name,
+                                                 separator=separator, transform_conf=conf)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
