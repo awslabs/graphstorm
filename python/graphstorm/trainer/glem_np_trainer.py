@@ -107,7 +107,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
 
             # 1st round: train LM, fix gnn
             use_gnn = False
-            self._model.train('lm')
+            self._model.toggle('lm')
             self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                 device, rt_profiler,
                                 epoch, total_steps, use_mini_batch_infer,
@@ -115,7 +115,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
 
             # 2nd round: train GNN, fix LM
             use_gnn = True
-            self._model.train('gnn')
+            self._model.toggle('gnn')
             self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                 device, rt_profiler,
                                 epoch, total_steps, use_mini_batch_infer,

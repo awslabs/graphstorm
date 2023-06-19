@@ -136,8 +136,8 @@ class GLEM(GSgnnNodeModelBase):
         for param in params:
             param.requires_grad = True
 
-    def train(self, part='lm'):
-        """The funtion to toggle training between lm and gnn."""
+    def toggle(self, part='lm'):
+        """The method toggles training between lm and gnn."""
         if part == 'lm':
             self.training_lm = True
             self.freeze_params('gnn')
