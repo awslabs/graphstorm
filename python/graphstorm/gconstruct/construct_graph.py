@@ -622,6 +622,8 @@ if __name__ == '__main__':
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
+    argparser.add_argument("--to-undirected", action='store_true',
+                           help="Change directed graph to undirected. However, if add-reverse-edges is true, then it is only applied to edges with same src and dst node type.")
     argparser.add_argument("--output-format", type=str, default="DistDGL",
                            help="The output format of the constructed graph.")
     argparser.add_argument("--num-parts", type=int, default=1,
