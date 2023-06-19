@@ -179,7 +179,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["test_feat"],
-        "fanout": "n1|a|n2:10@n1|b|n2:10,n1|a|n2:10@n1|b|n2:10@n1|c|n2:20",
+        "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
         "eval_fanout": "10,10",
         "num_layers": 2,
         "hidden_size": 128,
@@ -1290,7 +1290,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name"],
-        "fanout": "n1|a|n2:10@n1|b|n2:10,n1|a|n2:10@n1|b|n2:10@n1|c|n2:20",
+        "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
         "eval_fanout": "10,10",
         "num_layers": 2,
         "hidden_size": 128,
