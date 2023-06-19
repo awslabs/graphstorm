@@ -92,6 +92,25 @@ assert th.sum(g.nodes['node1'].data['train_mask']) == int(g.number_of_nodes('nod
 assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1') * 0.2)
 assert th.sum(g.nodes['node1'].data['test_mask']) == 0
 
+# test extra node1 feats
+data = g.nodes['node1'].data['feat_rank_gauss']
+assert data.dtype is th.float32
+data_sum = np.sum(data.numpy(), axis=0)
+np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+data = g.nodes['node1'].data['feat_rank_gauss_fp16']
+assert data.dtype is th.float16
+data_sum = np.sum(data.numpy(), axis=0)
+np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+
+
+#test data type
+data = g.nodes['node1'].data['feat2']
+assert data.dtype is th.float16
+data = g.nodes['node1'].data['feat_fp16']
+assert data.dtype is th.float16
+data = g.nodes['node1'].data['feat_fp16_hdf5']
+assert data.dtype is th.float16
+
 # Test the second node data
 data = g.nodes['node2'].data['feat'].numpy()
 orig_ids = np.arange(g.number_of_nodes('node2'))
@@ -116,6 +135,26 @@ assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['val_mask']) \
         == int(g.number_of_edges(('node1', 'relation1', 'node2')) * 0.2)
 assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['test_mask']) == 0
 
+# Test ('node1', 'relation1', 'node2') edge feat
+data = g.edges[('node1', 'relation1', 'node2')].data['feat_rank_gauss']
+assert data.dtype is th.float32
+data_sum = np.sum(data.numpy(), axis=0)
+np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+data = g.edges[('node1', 'relation1', 'node2')].data['feat_rank_gauss_fp16']
+assert data.dtype is th.float16
+data_sum = np.sum(data.numpy(), axis=0)
+np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+
+#test data type
+data = g.edges[('node1', 'relation1', 'node2')].data['float1']
+assert data.dtype is th.float32
+data = g.edges[('node1', 'relation1', 'node2')].data['max_min_norm']
+assert data.dtype is th.float32
+assert th.max(data) <= 1.0
+assert th.min(data) >= 0
+data = g.edges[('node1', 'relation1', 'node2')].data['feat_fp16_hdf5']
+assert data.dtype is th.float16
+
 # Test the edge data of edge type 2
 assert th.sum(g.edges[('node1', 'relation2', 'node1')].data['train_mask']) \
         == int(g.number_of_edges(('node1', 'relation2', 'node1')) * 0.8)
@@ -132,17 +171,3 @@ dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert feat back to 1D to pass test
 assert np.all(src_ids + dst_ids == feat.reshape(-1,))
-
-data = g.nodes['node1'].data['feat_rank_gauss']
-data_sum = np.sum(data.numpy(), axis=0)
-np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
-data = g.nodes['node1'].data['feat_rank_gauss_fp16']
-assert np.all(src_ids + dst_ids == feat2.reshape(-1,))
-
-#test data type
-data = g.nodes['node1'].data['feat2']
-assert data.dtype is th.float16
-data = g.nodes['node1'].data['feat_fp16']
-assert data.dtype is th.float16
-data = g.nodes['node1'].data['feat_fp16_hdf5']
-assert data.dtype is th.float16

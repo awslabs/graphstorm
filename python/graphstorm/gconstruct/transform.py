@@ -468,7 +468,13 @@ def parse_feat_ops(confs):
 
     Returns
     -------
-    list of FeatTransform : The operations that transform features.
+    Tuple of three lists:
+        list of FeatTransform : The operations that transform features.
+        list of TwoPhaseFeatTransform : The operations that transform
+        features with two phases.
+        list of GlobalProcessFeatTransform: The operations that transform
+        features can only be done using a single process.
+
     """
     ops = []
     assert isinstance(confs, list), \
@@ -521,7 +527,15 @@ def parse_feat_ops(confs):
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
-    return ops
+
+        two_phase_feat_ops = []
+        after_merge_feat_ops = {}
+        for op in ops:
+            if isinstance(op, TwoPhaseFeatTransform):
+                two_phase_feat_ops.append(op)
+            if isinstance(op, GlobalProcessFeatTransform):
+                after_merge_feat_ops[op.feat_name] = op
+    return ops, two_phase_feat_ops, after_merge_feat_ops
 
 def preprocess_features(data, ops):
     """ Pre-process the data with the specified operations.

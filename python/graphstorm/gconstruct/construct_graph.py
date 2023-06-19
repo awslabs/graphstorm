@@ -176,9 +176,29 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                                         skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
 
-def process_data():
+def _process_data(user_pre_parser, user_parser,
+                  two_phase_feat_ops,
+                  in_files, num_proc, task_info):
+    """ Process node and edge data.
+
+    Parameter
     """
-    """
+    if len(two_phase_feat_ops) > 0:
+        pre_parse_start = time.time()
+        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+        update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
+
+        dur = time.time() - pre_parse_start
+        logging.debug("Preprocessing data files for %s takes %.3f seconds.",
+                      task_info, dur)
+
+    start = time.time()
+    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
+    dur = time.time() - start
+    logging.debug("Processing data files for %s takes %.3f seconds.",
+                    task_info, dur)
+    return return_dict
+
 
 def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
     """ Process node data
@@ -234,49 +254,35 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
-        feat_ops = parse_feat_ops(process_conf['features']) \
+        feat_ops, two_phase_feat_ops, after_merge_feat_ops = \
+            parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
                 if 'labels' in process_conf else None
         assert 'format' in process_conf, \
                 "'format' must be defined for a node type"
+
         # If it requires multiprocessing, we need to read data to memory.
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
+        multiprocessing = do_multiprocess_transform(process_conf,
+                                                    feat_ops,
+                                                    label_ops,
+                                                    in_files)
+        read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
+        num_proc = num_processes if multiprocessing else 0
+        user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
+                                  read_file=read_file)
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_col=node_id_col,
                               read_file=read_file)
 
-        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
-        read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
-        num_proc = num_processes if multiprocessing else 0
-
-        two_phase_feat_ops = []
-        after_merge_feat_ops = {}
-        if feat_ops is not None:
-            for op in feat_ops:
-                if isinstance(op, TwoPhaseFeatTransform):
-                    two_phase_feat_ops.append(op)
-                if isinstance(op, GlobalProcessFeatTransform):
-                    after_merge_feat_ops[op.feat_name] = op
-
-        if len(two_phase_feat_ops) > 0:
-            user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
-                                      read_file=read_file)
-            pre_parse_start = time.time()
-            phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
-            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
-
-            dur = time.time() - pre_parse_start
-            logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
-                        node_type, dur)
-
-        start = time.time()
-        return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
-        dur = time.time() - start
-        logging.debug("Processing data files for node %s takes %.3f seconds.",
-                      node_type, dur)
-
+        return_dict = _process_data(user_pre_parser,
+                                    user_parser,
+                                    two_phase_feat_ops,
+                                    in_files,
+                                    num_proc,
+                                    f"node {node_type}")
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data) in return_dict.items():
@@ -408,13 +414,24 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         in_files = get_in_files(process_conf['files'])
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
-        feat_ops = parse_feat_ops(process_conf['features']) \
+        feat_ops, two_phase_feat_ops, after_merge_feat_ops = \
+            parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else None
         label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
                 if 'labels' in process_conf else None
 
+        # We don't need to copy all node ID maps to the worker processes.
+        # Only the node ID maps of the source node type and destination node type
+        # are sufficient.
+        id_map = {edge_type[0]: node_id_map[edge_type[0]],
+                  edge_type[2]: node_id_map[edge_type[2]]}
+
+        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
         # If it requires multiprocessing, we need to read data to memory.
         read_file = parse_edge_file_format(process_conf, in_mem=multiprocessing)
+        num_proc = num_processes if multiprocessing else 0
+        user_pre_parser = partial(prepare_edge_data, feat_ops=two_phase_feat_ops,
+                                  read_file=read_file)
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_map=id_map,
@@ -422,40 +439,12 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                               conf=process_conf,
                               skip_nonexist_edges=skip_nonexist_edges)
 
-        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
-        num_proc = num_processes if multiprocessing else 0
-
-        # We don't need to copy all node ID maps to the worker processes.
-        # Only the node ID maps of the source node type and destination node type
-        # are sufficient.
-        id_map = {edge_type[0]: node_id_map[edge_type[0]],
-                  edge_type[2]: node_id_map[edge_type[2]]}
-        two_phase_feat_ops = []
-        after_merge_feat_ops = {}
-        if feat_ops is not None:
-            for op in feat_ops:
-                if isinstance(op, TwoPhaseFeatTransform):
-                    two_phase_feat_ops.append(op)
-                if isinstance(op, GlobalProcessFeatTransform):
-                    after_merge_feat_ops[op.feat_name] = op
-        if len(two_phase_feat_ops) > 0:
-            user_pre_parser = partial(prepare_edge_data, feat_ops=two_phase_feat_ops,
-                                      read_file=read_file)
-            pre_parse_start = time.time()
-            phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
-            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
-
-            dur = time.time() - pre_parse_start
-            logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
-                        edge_type, dur)
-
-        start = time.time()
-        num_proc = num_processes if multiprocessing else 0
-        return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
-        dur = time.time() - start
-        logging.debug("Processing data files for edges of %s takes %.3f seconds",
-                      str(edge_type), dur)
-
+        return_dict = _process_data(user_pre_parser,
+                                    user_parser,
+                                    two_phase_feat_ops,
+                                    in_files,
+                                    num_proc,
+                                    f"edge {edge_type}")
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
         type_edge_data = {}
@@ -471,8 +460,12 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         # handle edge type
         for feat_name in type_edge_data:
             etype_str = "-".join(edge_type)
-            type_edge_data[feat_name] = arr_merger(type_edge_data[feat_name],
+            merged_feat = arr_merger(type_edge_data[feat_name],
                                                    etype_str + "_" + feat_name)
+            if feat_name in after_merge_feat_ops:
+                # do data transformation with the entire feat array.
+                merged_feat = after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+            type_edge_data[feat_name] = merged_feat
             gc.collect()
             sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
 
