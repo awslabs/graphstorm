@@ -90,11 +90,11 @@ def modify_fanout_for_target_etype(g, fanout, target_etypes):
     # The user can decide to not use the target etype for message passing.
     for fan in fanout:
         edge_fanout_dic = {}
-        for etype in g.etypes:
-            if g.to_canonical_etype(etype) not in target_etypes:
+        for etype in g.canonical_etypes:
+            if etype not in target_etypes:
                 edge_fanout_dic[etype] = fan if not isinstance(fan, dict) else fan[etype]
             else:
-                print(f"Ignoring edges for {etype} etype")
+                print(f"Ignoring edges for etype {etype}")
                 edge_fanout_dic[etype] = 0
         edge_fanout_lis.append(edge_fanout_dic)
     return edge_fanout_lis

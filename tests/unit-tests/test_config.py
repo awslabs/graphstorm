@@ -179,7 +179,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["test_feat"],
-        "fanout": "a:10@b:10,a:10@b:10@c:20",
+        "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
         "eval_fanout": "10,10",
         "num_layers": 2,
         "hidden_size": 128,
@@ -246,11 +246,11 @@ def test_gnn_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.node_feat_name == "test_feat"
-        assert config.fanout[0]["a"] == 10
-        assert config.fanout[0]["b"] == 10
-        assert config.fanout[1]["a"] == 10
-        assert config.fanout[1]["b"] == 10
-        assert config.fanout[1]["c"] == 20
+        assert config.fanout[0][("n1","a","n2")] == 10
+        assert config.fanout[0][("n1","b","n2")] == 10
+        assert config.fanout[1][("n1","a","n2")] == 10
+        assert config.fanout[1][("n1","b","n2")] == 10
+        assert config.fanout[1][("n1","c","n2")] == 20
         assert config.eval_fanout == [10,10]
         assert config.num_layers == 2
         assert config.hidden_size == 128
@@ -1290,7 +1290,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name"],
-        "fanout": "a:10@b:10,a:10@b:10@c:20",
+        "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
         "eval_fanout": "10,10",
         "num_layers": 2,
         "hidden_size": 128,
@@ -1373,11 +1373,11 @@ def test_gnn_info():
         assert len(config.node_feat_name) == 1
         assert 'ntype0' in config.node_feat_name
         assert config.node_feat_name['ntype0'] == ["feat_name"]
-        assert config.fanout[0]["a"] == 10
-        assert config.fanout[0]["b"] == 10
-        assert config.fanout[1]["a"] == 10
-        assert config.fanout[1]["b"] == 10
-        assert config.fanout[1]["c"] == 20
+        assert config.fanout[0][("n1","a","n2")] == 10
+        assert config.fanout[0][("n1","b","n2")] == 10
+        assert config.fanout[1][("n1","a","n2")] == 10
+        assert config.fanout[1][("n1","b","n2")] == 10
+        assert config.fanout[1][("n1","c","n2")] == 20
         assert config.eval_fanout == [10,10]
         assert config.num_layers == 2
         assert config.hidden_size == 128
