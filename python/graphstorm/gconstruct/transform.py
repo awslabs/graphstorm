@@ -20,6 +20,7 @@
 import logging
 import os
 import sys
+
 import numpy as np
 import torch as th
 
@@ -71,7 +72,7 @@ class FeatTransform:
         return self._feat_name
 
 class GlobalProcessFeatTransform(FeatTransform):
-    """ The base class for transformations taht can only be done using a single process.
+    """ The base class for transformations that can only be done using a single process.
 
         Some transformations need to do complex operations on the entire feature set,
         such as ranking. GlobalProcessFeatTransform loads features from files first,
@@ -117,6 +118,101 @@ class TwoPhaseFeatTransform(FeatTransform):
         info:
             Information to be collected
         """
+
+class CategoricalTransform(TwoPhaseFeatTransform):
+    """ Convert the data into categorical values.
+
+    The categorical values are stored as integers.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column.
+    feat_name : str
+        The name of the feature.
+    separator : str
+        The separator to split data into multiple categorical values.
+    transform_conf : dict
+        The configuration for the feature transformation.
+    """
+    def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
+        self._val_dict = {}
+        if transform_conf is not None and 'mapping' in transform_conf:
+            self._val_dict = transform_conf['mapping']
+            self._conf = transform_conf
+        else:
+            self._conf = transform_conf
+        self._separator = separator
+        super(CategoricalTransform, self).__init__(col_name, feat_name)
+
+    def pre_process(self, feats):
+        """ Pre-process data
+
+        Parameters
+        ----------
+        feats: np.array
+            Data to be processed
+        """
+        # If the mapping already exists, we don't need to do anything.
+        if len(self._val_dict) > 0:
+            return {}
+
+        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+            "Feature of CategoricalTransform must be numpy array or HDF5Array"
+        if isinstance(feats, HDF5Array):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        if self._separator is None:
+            return {self.feat_name: np.unique(feats)}
+        else:
+            assert feats.dtype.type is np.str_, \
+                    "We can only convert strings to multiple categorical values with separaters."
+            vals = []
+            for feat in feats:
+                vals.extend(feat.split(self._separator))
+            return {self.feat_name: np.unique(vals)}
+
+    def update_info(self, info):
+        """ Store global information for the second phase data processing
+
+        Parameters
+        ----------
+        info: list
+            Information to be collected
+        """
+        # We already have the mapping.
+        if len(self._val_dict) > 0:
+            assert len(info) == 0
+            return
+
+        self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        # We need to save the mapping in the config object.
+        if self._conf is not None:
+            self._conf['mapping'] = self._val_dict
+
+    def __call__(self, feats):
+        """ Assign IDs to categorical values.
+
+        Parameters
+        ----------
+        feats : np array
+            Data with categorical values.
+
+        Returns
+        -------
+        np.array
+        """
+        encoding = np.zeros((len(feats), len(self._val_dict)), dtype=np.int8)
+        if self._separator is None:
+            for i, feat in enumerate(feats):
+                encoding[i, self._val_dict[feat]] = 1
+        else:
+            for i, feat in enumerate(feats):
+                idx = [self._val_dict[val] for val in feat.split(self._separator)]
+                encoding[i, idx] = 1
+        return {self.feat_name: encoding}
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     """ Numerical value with Min-Max normalization.
@@ -234,8 +330,6 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         The idea is from
         http://fastml.com/preparing-continuous-features-for-neural-networks-with-rankgauss/
 
-    Parameters
-    ----------
     Parameters
     ----------
     col_name : str
@@ -524,6 +618,10 @@ def parse_feat_ops(confs):
                                                feat_name,
                                                out_dtype=out_dtype,
                                                epsilon=epsilon)
+            elif conf['name'] == 'to_categorical':
+                separator = conf['separator'] if 'separator' in conf else None
+                transform = CategoricalTransform(feat['feature_col'], feat_name,
+                                                 separator=separator, transform_conf=conf)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)

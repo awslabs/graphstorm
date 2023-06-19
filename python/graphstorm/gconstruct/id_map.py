@@ -132,8 +132,6 @@ class IdMap:
         ----------
         file_path : str
             The file where the ID map will be saved to.
-        file_format : str
-            The file format that the ID map will be saved with.
 
         Returns
         -------
