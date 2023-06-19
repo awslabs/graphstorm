@@ -107,7 +107,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         # training loop
         dur = []
-        best_epoch = 0
         num_input_nodes = 0
         total_steps = 0
         early_stop = False # used when early stop is True
@@ -169,7 +168,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     val_score = self.eval(model.module, data,
                                           val_loader, test_loader, total_steps,
                                           edge_mask_for_gnn_embeddings)
-
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
@@ -227,7 +225,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             output = {'best_test_mrr': self.evaluator.best_test_score,
                        'best_val_mrr':self.evaluator.best_val_score,
                        'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
-                       'best_epoch': best_epoch}
+                       'best validation iteration': \
+                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                       'best model path': \
+                           self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
 
             if save_perf_results_path is not None:
@@ -268,7 +269,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if self.dev_id >= 0 else th.device("cpu")
         val_scores = lp_mini_batch_predict(model, emb, val_loader, device) \
             if val_loader is not None else None
+        sys_tracker.check('after_val_score')
         test_scores = lp_mini_batch_predict(model, emb, test_loader, device)
+        sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
             val_scores, test_scores, total_steps)
         sys_tracker.check('evaluate validation/test')

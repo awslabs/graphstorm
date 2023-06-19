@@ -106,7 +106,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         # training loop
         dur = []
-        best_epoch = 0
         num_input_nodes = 0
         forward_time = 0
         back_time = 0
@@ -230,7 +229,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
                        'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
-                       'best_epoch': best_epoch}
+                       'best validation iteration': \
+                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                       'best model path': \
+                           self.get_best_model_path() if save_model_path is not None else \
+                               "No model is saved, please set save_model_path"}
             self.log_params(output)
 
             if save_perf_results_path is not None:
@@ -266,16 +269,21 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         if use_mini_batch_infer:
             val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                               return_label=True)
+            sys_tracker.check("after_val_score")
             test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader, return_proba,
                                                                 return_label=True)
+            sys_tracker.check("after_test_score")
         else:
             emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
                                           task_tracker=self.task_tracker)
+
             val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader, return_proba,
                                                           return_label=True)
-
+            sys_tracker.check("after_val_score")
             test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader, return_proba,
                                                             return_label=True)
+            sys_tracker.check("after_test_score")
+
         model.train()
         sys_tracker.check('predict')
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
