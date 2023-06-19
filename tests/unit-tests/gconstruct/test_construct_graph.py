@@ -135,21 +135,21 @@ def check_feat_ops_noop():
         "feature_col": "test1",
         "feature_name": "test2",
     }]
-    res1 = parse_feat_ops(feat_op1)
-    assert len(res1) == 1
-    assert res1[0].col_name == feat_op1[0]["feature_col"]
-    assert res1[0].feat_name == feat_op1[0]["feature_name"]
-    assert isinstance(res1[0], Noop)
+    res, _, _ = parse_feat_ops(feat_op1)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op1[0]["feature_col"]
+    assert res[0].feat_name == feat_op1[0]["feature_name"]
+    assert isinstance(res[0], Noop)
 
     # When the feature name is not specified.
     feat_op1 = [{
         "feature_col": "test1",
     }]
-    res1 = parse_feat_ops(feat_op1)
-    assert len(res1) == 1
-    assert res1[0].col_name == feat_op1[0]["feature_col"]
-    assert res1[0].feat_name == feat_op1[0]["feature_col"]
-    assert isinstance(res1[0], Noop)
+    res, _, _ = parse_feat_ops(feat_op1)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op1[0]["feature_col"]
+    assert res[0].feat_name == feat_op1[0]["feature_col"]
+    assert isinstance(res[0], Noop)
 
 def check_feat_ops_tokenize():
     feat_op2 = [
@@ -166,11 +166,11 @@ def check_feat_ops_tokenize():
             },
         },
     ]
-    res2 = parse_feat_ops(feat_op2)
-    assert len(res2) == 2
-    assert res2[1].col_name == feat_op2[1]["feature_col"]
-    assert res2[1].feat_name == feat_op2[1]["feature_name"]
-    op = res2[1]
+    res, _, _  = parse_feat_ops(feat_op2)
+    assert len(res) == 2
+    assert res[1].col_name == feat_op2[1]["feature_col"]
+    assert res[1].feat_name == feat_op2[1]["feature_name"]
+    op = res[1]
     tokens = op(["hello world", "hello world"])
     assert len(tokens) == 3
     assert tokens['input_ids'].shape == (2, 16)
@@ -187,7 +187,7 @@ def check_feat_ops_tokenize():
         "test1": np.random.rand(2, 4).astype(np.float32),
         "test3": ["hello world", "hello world"],
     }
-    proc_res = process_features(data, res2)
+    proc_res = process_features(data, res)
     np.testing.assert_array_equal(data['test1'], proc_res['test2'])
     assert "input_ids" in proc_res
     assert "attention_mask" in proc_res
@@ -204,15 +204,15 @@ def check_feat_ops_bert():
             },
         },
     ]
-    res3 = parse_feat_ops(feat_op3)
-    assert len(res3) == 1
-    assert res3[0].col_name == feat_op3[0]["feature_col"]
-    assert res3[0].feat_name == feat_op3[0]["feature_name"]
+    res, _, _  = parse_feat_ops(feat_op3)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op3[0]["feature_col"]
+    assert res[0].feat_name == feat_op3[0]["feature_name"]
     data = {
         "test1": np.random.rand(2, 4).astype(np.float32),
         "test3": ["hello world", "hello world"],
     }
-    proc_res = process_features(data, res3)
+    proc_res = process_features(data, res)
     assert "test4" in proc_res
     assert len(proc_res['test4']) == 2
     # There are two text strings and both of them are "hello world".
@@ -230,11 +230,11 @@ def check_feat_ops_bert():
             },
         },
     ]
-    res4 = parse_feat_ops(feat_op4)
-    assert len(res4) == 1
-    assert res4[0].col_name == feat_op4[0]["feature_col"]
-    assert res4[0].feat_name == feat_op4[0]["feature_name"]
-    proc_res2 = process_features(data, res4)
+    res2, _, _  = parse_feat_ops(feat_op4)
+    assert len(res2) == 1
+    assert res2[0].col_name == feat_op4[0]["feature_col"]
+    assert res2[0].feat_name == feat_op4[0]["feature_name"]
+    proc_res2 = process_features(data, res2)
     assert "test4" in proc_res2
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
@@ -254,12 +254,12 @@ def check_feat_ops_maxmin():
             },
         },
     ]
-    res5 = parse_feat_ops(feat_op5)
-    assert len(res5) == 1
-    assert res5[0].col_name == feat_op5[0]["feature_col"]
-    assert res5[0].feat_name == feat_op5[0]["feature_name"]
-    preproc_res0 = preprocess_features(data0, res5)
-    preproc_res1 = preprocess_features(data1, res5)
+    res, _, _  = parse_feat_ops(feat_op5)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op5[0]["feature_col"]
+    assert res[0].feat_name == feat_op5[0]["feature_name"]
+    preproc_res0 = preprocess_features(data0, res)
+    preproc_res1 = preprocess_features(data1, res)
     assert "test5" in preproc_res0
     assert isinstance(preproc_res0["test5"], tuple)
     assert "test5" in preproc_res1
@@ -268,7 +268,7 @@ def check_feat_ops_maxmin():
         0: preproc_res0,
         1: preproc_res1
     }
-    update_two_phase_feat_ops(return_dict, res5)
+    update_two_phase_feat_ops(return_dict, res)
     data_col0 = data0["test1"][:,0].tolist() + data1["test1"][:,0].tolist()
     data_col1 = data0["test1"][:,1].tolist() + data1["test1"][:,1].tolist()
     max0 = max(data_col0)
@@ -276,9 +276,9 @@ def check_feat_ops_maxmin():
     max1 = max(data_col1)
     min1 = min(data_col1)
 
-    proc_res3 = process_features(data0, res5)
+    proc_res3 = process_features(data0, res)
     assert "test5" in proc_res3
-    proc_res4 = process_features(data1, res5)
+    proc_res4 = process_features(data1, res)
     assert "test5" in proc_res4
     proc_res5 = np.concatenate([proc_res3["test5"], proc_res4["test5"]], axis=0)
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
@@ -296,12 +296,12 @@ def check_feat_ops_maxmin():
             },
         },
     ]
-    res6 = parse_feat_ops(feat_op6)
-    assert len(res6) == 1
-    assert res6[0].col_name == feat_op6[0]["feature_col"]
-    assert res6[0].feat_name == feat_op6[0]["feature_name"]
-    preproc_res0 = preprocess_features(data0, res6)
-    preproc_res1 = preprocess_features(data1, res6)
+    res2, _, _  = parse_feat_ops(feat_op6)
+    assert len(res2) == 1
+    assert res2[0].col_name == feat_op6[0]["feature_col"]
+    assert res2[0].feat_name == feat_op6[0]["feature_name"]
+    preproc_res0 = preprocess_features(data0, res2)
+    preproc_res1 = preprocess_features(data1, res2)
     assert "test6" in preproc_res0
     assert isinstance(preproc_res0["test6"], tuple)
     assert "test6" in preproc_res1
@@ -310,7 +310,7 @@ def check_feat_ops_maxmin():
         0: preproc_res0,
         1: preproc_res1
     }
-    update_two_phase_feat_ops(return_dict, res6)
+    update_two_phase_feat_ops(return_dict, res2)
     data_col0 = data0["test1"][:,0].tolist() + data1["test1"][:,0].tolist()
     data_col1 = data0["test1"][:,1].tolist() + data1["test1"][:,1].tolist()
     max0 = max(data_col0)
@@ -322,9 +322,9 @@ def check_feat_ops_maxmin():
     data_col1 = [val if val < max1 else max1 for val in data_col1]
     data_col1 = [val if val > min1 else min1 for val in data_col1]
 
-    proc_res3 = process_features(data0, res6)
+    proc_res3 = process_features(data0, res2)
     assert "test6" in proc_res3
-    proc_res4 = process_features(data1, res6)
+    proc_res4 = process_features(data1, res2)
     assert "test6" in proc_res4
     proc_res6 = np.concatenate([proc_res3["test6"], proc_res4["test6"]], axis=0)
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
@@ -349,14 +349,14 @@ def check_feat_ops_rank_gauss():
             },
         },
     ]
-    res7 = parse_feat_ops(feat_op7)
-    assert len(res7) == 1
-    assert res7[0].col_name == feat_op7[0]["feature_col"]
-    assert res7[0].feat_name == feat_op7[0]["feature_name"]
-    proc_res7_0 = process_features(data7_0, res7)
-    proc_res7_1 = process_features(data7_1, res7)
+    res, _, _  = parse_feat_ops(feat_op7)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op7[0]["feature_col"]
+    assert res[0].feat_name == feat_op7[0]["feature_name"]
+    proc_res7_0 = process_features(data7_0, res)
+    proc_res7_1 = process_features(data7_1, res)
     new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
-    trans_feat = res7[0].after_merge_transform(new_feat)
+    trans_feat = res[0].after_merge_transform(new_feat)
     # sum of gauss rank should be zero
     data_sum = np.sum(trans_feat, axis=0)
     np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
@@ -369,7 +369,7 @@ def check_feat_ops_categorical():
             "transform": {"name": 'to_categorical'},
         },
     ]
-    res7 = parse_feat_ops(feat_op7)
+    res, _, _  = parse_feat_ops(feat_op7)
     data0 = {
         "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]
             + [str(i) for i in range(10)]),
@@ -377,16 +377,16 @@ def check_feat_ops_categorical():
     data1 = {
         "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]),
     }
-    preproc_res0 = preprocess_features(data0, res7)
-    preproc_res1 = preprocess_features(data1, res7)
+    preproc_res0 = preprocess_features(data0, res)
+    preproc_res1 = preprocess_features(data1, res)
     assert "test7" in preproc_res0
     assert "test7" in preproc_res1
     return_dict = {
         0: preproc_res0,
         1: preproc_res1
     }
-    update_two_phase_feat_ops(return_dict, res7)
-    proc_res3 = process_features(data0, res7)
+    update_two_phase_feat_ops(return_dict, res)
+    proc_res3 = process_features(data0, res)
     assert "test7" in proc_res3
     assert 'mapping' in feat_op7[0]["transform"]
     for one_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
@@ -400,7 +400,7 @@ def check_feat_ops_categorical():
             "transform": {"name": 'to_categorical', "separator": ","},
         },
     ]
-    res8 = parse_feat_ops(feat_op8)
+    res2, _, _  = parse_feat_ops(feat_op8)
     data0 = {
         "test1": np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, size=10)]
             + [str(i) for i in range(9)]),
@@ -408,16 +408,16 @@ def check_feat_ops_categorical():
     data1 = {
         "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]),
     }
-    preproc_res0 = preprocess_features(data0, res8)
-    preproc_res1 = preprocess_features(data1, res8)
+    preproc_res0 = preprocess_features(data0, res2)
+    preproc_res1 = preprocess_features(data1, res2)
     assert "test8" in preproc_res0
     assert "test8" in preproc_res1
     return_dict = {
         0: preproc_res0,
         1: preproc_res1
     }
-    update_two_phase_feat_ops(return_dict, res8)
-    proc_res3 = process_features(data0, res8)
+    update_two_phase_feat_ops(return_dict, res2)
+    proc_res3 = process_features(data0, res2)
     assert "test8" in proc_res3
     # We only need to test the first 10
     for multi_hot, str_i in zip(proc_res3["test8"][:10], data0["test1"][:10]):
@@ -452,7 +452,7 @@ def test_process_features_fp16():
         "feature_name": "test2",
         "out_dtype": "float16",
     }]
-    ops_rst = parse_feat_ops(feat_op1)
+    ops_rst, _, _ = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
@@ -493,7 +493,7 @@ def test_process_features():
         "feature_col": "test2",
         "feature_name": "test2",
     }]
-    ops_rst = parse_feat_ops(feat_op1)
+    ops_rst, _, _ = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
@@ -958,7 +958,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    feat_ops = parse_feat_ops(conf['features'])
+    feat_ops, _, _ = parse_feat_ops(conf['features'])
     label_ops = parse_label_ops(conf['labels'], is_node=True)
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -995,7 +995,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    feat_ops = parse_feat_ops(conf['features'])
+    feat_ops, _, _ = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -1003,7 +1003,7 @@ def test_multiprocessing_checks():
     # If the data are stored in a single HDF5 file and there are
     # features for processing.
     in_files = ["/tmp/test1"]
-    feat_ops = parse_feat_ops(conf['features'])
+    feat_ops, _, _ = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
@@ -1019,7 +1019,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    feat_ops = parse_feat_ops(conf['features'])
+    feat_ops, _, _ = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
@@ -1035,7 +1035,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    feat_ops = parse_feat_ops(conf['features'])
+    feat_ops, _, _ = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -1043,7 +1043,7 @@ def test_multiprocessing_checks():
     # If the data are stored in a single parquet file and there are
     # features that don't require processing.
     in_files = ["/tmp/test1"]
-    feat_ops = parse_feat_ops(conf['features'])
+    feat_ops, _, _ = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
