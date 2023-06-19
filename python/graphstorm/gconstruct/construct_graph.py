@@ -550,12 +550,22 @@ def process_graph(args):
             assert isinstance(e, tuple) and len(e) == 2
             assert isinstance(etype, tuple) and len(etype) == 3
             edges1[etype] = e
-            if etype[0] == etype[2]:
+            if etype[0] == etype[2] and args.to_undirected:
                 edges1[etype[2], etype[1], etype[0]] = (e[1], e[0])
             else:
                 edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
         sys_tracker.check('Add reverse edges')
+    elif args.to_undirected:
+        edges1 = {}
+        for etype in edges:
+            e = edges[etype]
+            assert isinstance(e, tuple) and len(e) == 2
+            assert isinstance(etype, tuple) and len(etype) == 3
+            edges1[etype] = e
+            edges1[etype[2], etype[1], etype[0]] = (e[1], e[0])
+        edges = edges1
+        sys_tracker.check('To undirected')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data)
     sys_tracker.check('Construct DGL graph')
