@@ -303,16 +303,16 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
                 new_edges = {}
                 for etype in frontier.canonical_etypes:
                     if self.mask in g.edges[etype].data:
-                        mask = g.edges[etype].data[self.mask][eid[etype]]
-                        new_edges[etype] = mask.bool()
+                        mask = g.edges[etype].data[self.mask][eid[etype]].bool()
+                        new_edges[etype] = mask
                         new_eid[etype] = eid[etype][mask]
 
                         # handle reverse edges
                         if self.reverse_edge_types_map is not None \
                             and etype in self.reverse_edge_types_map:
                             rev_etype = self.reverse_edge_types_map[etype]
-                            rev_mask = g.edges[etype].data[self.mask][eid[rev_etype]]
-                            new_edges[rev_etype] = rev_mask.bool()
+                            rev_mask = g.edges[etype].data[self.mask][eid[rev_etype]].bool()
+                            new_edges[rev_etype] = rev_mask
                             new_eid[rev_etype] = eid[rev_etype][rev_mask]
 
                 new_frontier = frontier.edge_subgraph(new_edges, relabel_nodes=False)
