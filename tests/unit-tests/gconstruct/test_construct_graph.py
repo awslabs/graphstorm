@@ -135,7 +135,7 @@ def check_feat_ops_noop():
         "feature_col": "test1",
         "feature_name": "test2",
     }]
-    res, _, _ = parse_feat_ops(feat_op1)
+    (res, _, _) = parse_feat_ops(feat_op1)
     assert len(res) == 1
     assert res[0].col_name == feat_op1[0]["feature_col"]
     assert res[0].feat_name == feat_op1[0]["feature_name"]
@@ -145,7 +145,7 @@ def check_feat_ops_noop():
     feat_op1 = [{
         "feature_col": "test1",
     }]
-    res, _, _ = parse_feat_ops(feat_op1)
+    (res, _, _) = parse_feat_ops(feat_op1)
     assert len(res) == 1
     assert res[0].col_name == feat_op1[0]["feature_col"]
     assert res[0].feat_name == feat_op1[0]["feature_col"]
@@ -166,7 +166,7 @@ def check_feat_ops_tokenize():
             },
         },
     ]
-    res, _, _  = parse_feat_ops(feat_op2)
+    (res, _, _)  = parse_feat_ops(feat_op2)
     assert len(res) == 2
     assert res[1].col_name == feat_op2[1]["feature_col"]
     assert res[1].feat_name == feat_op2[1]["feature_name"]
@@ -204,7 +204,7 @@ def check_feat_ops_bert():
             },
         },
     ]
-    res, _, _  = parse_feat_ops(feat_op3)
+    (res, _, _)  = parse_feat_ops(feat_op3)
     assert len(res) == 1
     assert res[0].col_name == feat_op3[0]["feature_col"]
     assert res[0].feat_name == feat_op3[0]["feature_name"]
@@ -230,7 +230,7 @@ def check_feat_ops_bert():
             },
         },
     ]
-    res2, _, _  = parse_feat_ops(feat_op4)
+    (res2, _, _)  = parse_feat_ops(feat_op4)
     assert len(res2) == 1
     assert res2[0].col_name == feat_op4[0]["feature_col"]
     assert res2[0].feat_name == feat_op4[0]["feature_name"]
@@ -254,7 +254,7 @@ def check_feat_ops_maxmin():
             },
         },
     ]
-    res, _, _  = parse_feat_ops(feat_op5)
+    (res, _, _)  = parse_feat_ops(feat_op5)
     assert len(res) == 1
     assert res[0].col_name == feat_op5[0]["feature_col"]
     assert res[0].feat_name == feat_op5[0]["feature_name"]
@@ -296,7 +296,7 @@ def check_feat_ops_maxmin():
             },
         },
     ]
-    res2, _, _  = parse_feat_ops(feat_op6)
+    (res2, _, _)  = parse_feat_ops(feat_op6)
     assert len(res2) == 1
     assert res2[0].col_name == feat_op6[0]["feature_col"]
     assert res2[0].feat_name == feat_op6[0]["feature_name"]
@@ -349,7 +349,7 @@ def check_feat_ops_rank_gauss():
             },
         },
     ]
-    res, _, _  = parse_feat_ops(feat_op7)
+    (res, _, _)  = parse_feat_ops(feat_op7)
     assert len(res) == 1
     assert res[0].col_name == feat_op7[0]["feature_col"]
     assert res[0].feat_name == feat_op7[0]["feature_name"]
@@ -369,7 +369,7 @@ def check_feat_ops_categorical():
             "transform": {"name": 'to_categorical'},
         },
     ]
-    res, _, _  = parse_feat_ops(feat_op7)
+    (res, _, _)  = parse_feat_ops(feat_op7)
     data0 = {
         "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]
             + [str(i) for i in range(10)]),
@@ -400,7 +400,7 @@ def check_feat_ops_categorical():
             "transform": {"name": 'to_categorical', "separator": ","},
         },
     ]
-    res2, _, _  = parse_feat_ops(feat_op8)
+    (res2, _, _)  = parse_feat_ops(feat_op8)
     data0 = {
         "test1": np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, size=10)]
             + [str(i) for i in range(9)]),
@@ -452,7 +452,7 @@ def test_process_features_fp16():
         "feature_name": "test2",
         "out_dtype": "float16",
     }]
-    ops_rst, _, _ = parse_feat_ops(feat_op1)
+    (pos_rst, _, _) = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
@@ -493,7 +493,7 @@ def test_process_features():
         "feature_col": "test2",
         "feature_name": "test2",
     }]
-    ops_rst, _, _ = parse_feat_ops(feat_op1)
+    (pos_rst, _, _) = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
@@ -958,7 +958,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    feat_ops, _, _ = parse_feat_ops(conf['features'])
+    (feat_ops, _, _) = parse_feat_ops(conf['features'])
     label_ops = parse_label_ops(conf['labels'], is_node=True)
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -995,7 +995,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    feat_ops, _, _ = parse_feat_ops(conf['features'])
+    (feat_ops, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -1003,7 +1003,7 @@ def test_multiprocessing_checks():
     # If the data are stored in a single HDF5 file and there are
     # features for processing.
     in_files = ["/tmp/test1"]
-    feat_ops, _, _ = parse_feat_ops(conf['features'])
+    (feat_ops, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
@@ -1019,7 +1019,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    feat_ops, _, _ = parse_feat_ops(conf['features'])
+    (feat_ops, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
@@ -1035,7 +1035,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    feat_ops, _, _ = parse_feat_ops(conf['features'])
+    (feat_ops, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -1043,7 +1043,7 @@ def test_multiprocessing_checks():
     # If the data are stored in a single parquet file and there are
     # features that don't require processing.
     in_files = ["/tmp/test1"]
-    feat_ops, _, _ = parse_feat_ops(conf['features'])
+    (feat_ops, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False

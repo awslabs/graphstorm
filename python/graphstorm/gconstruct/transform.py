@@ -626,13 +626,14 @@ def parse_feat_ops(confs):
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
 
-        two_phase_feat_ops = []
-        after_merge_feat_ops = {}
-        for op in ops:
-            if isinstance(op, TwoPhaseFeatTransform):
-                two_phase_feat_ops.append(op)
-            if isinstance(op, GlobalProcessFeatTransform):
-                after_merge_feat_ops[op.feat_name] = op
+    two_phase_feat_ops = []
+    after_merge_feat_ops = {}
+    for op in ops:
+        if isinstance(op, TwoPhaseFeatTransform):
+            two_phase_feat_ops.append(op)
+        if isinstance(op, GlobalProcessFeatTransform):
+            after_merge_feat_ops[op.feat_name] = op
+
     return ops, two_phase_feat_ops, after_merge_feat_ops
 
 def preprocess_features(data, ops):
