@@ -34,9 +34,7 @@ from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files, HDF5Array
 from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
-from .transform import (do_multiprocess_transform,
-                        TwoPhaseFeatTransform,
-                        GlobalProcessFeatTransform)
+from .transform import do_multiprocess_transform
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
