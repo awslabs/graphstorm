@@ -164,7 +164,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        feats = feats[feats is None]
+        feats = feats[feats is not None]
         if self._separator is None:
             return {self.feat_name: np.unique(feats)}
         else:
