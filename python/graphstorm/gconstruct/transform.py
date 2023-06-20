@@ -164,6 +164,8 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
+        # cast everything to string
+        feats = feats.astype(str)
         feats[feats == None] = "MAGIC_NONE"
         if self._separator is None:
             category_keys = np.unique(feats)
@@ -360,9 +362,16 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         # do nothing. Rank Gauss is done after merging all arrays together.
         assert isinstance(feats, (np.ndarray, HDF5Array)), \
                 f"The feature {self.feat_name} has to be NumPy array."
-        assert np.issubdtype(feats.dtype, np.integer) \
-                or np.issubdtype(feats.dtype, np.floating), \
-                f"The feature {self.feat_name} has to be integers or floats."
+        if np.issubdtype(feats.dtype, np.integer) \
+            or np.issubdtype(feats.dtype, np.floating): \
+            return {self.feat_name: feats}
+        else:
+            logging.warning(f"The feature {self.feat_name} has to be integers or floats."
+                            f"But get {feats.dtype}. Try to cast it into float32.")
+            try:
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
 
         return {self.feat_name: feats}
 
