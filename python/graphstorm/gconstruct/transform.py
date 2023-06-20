@@ -164,15 +164,23 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
+        # cast everything to string
+        feats = feats.astype(str)
+        feats[feats == None] = "MAGIC_NONE"
         if self._separator is None:
-            return {self.feat_name: np.unique(feats)}
+            category_keys = np.unique(feats)
         else:
             assert feats.dtype.type is np.str_, \
                     "We can only convert strings to multiple categorical values with separaters."
             vals = []
             for feat in feats:
                 vals.extend(feat.split(self._separator))
-            return {self.feat_name: np.unique(vals)}
+            category_keys = np.unique(vals)
+
+        category_keys = set(category_keys.flatten())
+        if "MAGIC_NONE" in category_keys:
+            category_keys.remove("MAGIC_NONE")
+        return {self.feat_name: np.array(list(category_keys))}
 
     def update_info(self, info):
         """ Store global information for the second phase data processing
@@ -207,9 +215,13 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         encoding = np.zeros((len(feats), len(self._val_dict)), dtype=np.int8)
         if self._separator is None:
             for i, feat in enumerate(feats):
+                if feat is None:
+                    continue
                 encoding[i, self._val_dict[feat]] = 1
         else:
             for i, feat in enumerate(feats):
+                if feat is None:
+                    continue
                 idx = [self._val_dict[val] for val in feat.split(self._separator)]
                 encoding[i, idx] = 1
         return {self.feat_name: encoding}
@@ -255,10 +267,15 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
-                              np.int32, np.int16, np.int8], \
-            "Feature of NumericalMinMaxTransform must be floating points" \
-            "or integers"
+        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
+                           np.int32, np.int16, np.int8]:
+            logging.warning("The feature {self.feat_name} has to be "
+                            f"floating points or integers, but get {feats.dtype}"
+                            "Try to cast it into float32")
+            try:
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
         max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
             else np.array([np.amax(feats, axis=0)])
@@ -317,6 +334,10 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
+        try:
+            feats = feats.astype(np.float32) # convert data into float32
+        except: # pylint: disable=bare-except
+            raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
         feats = (feats - self._min_val) / (self._max_val - self._min_val)
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
@@ -350,9 +371,16 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         # do nothing. Rank Gauss is done after merging all arrays together.
         assert isinstance(feats, (np.ndarray, HDF5Array)), \
                 f"The feature {self.feat_name} has to be NumPy array."
-        assert np.issubdtype(feats.dtype, np.integer) \
-                or np.issubdtype(feats.dtype, np.floating), \
-                f"The feature {self.feat_name} has to be integers or floats."
+        if np.issubdtype(feats.dtype, np.integer) \
+            or np.issubdtype(feats.dtype, np.floating): \
+            return {self.feat_name: feats}
+        else:
+            logging.warning(f"The feature {self.feat_name} has to be integers or floats."
+                            f"But get {feats.dtype}. Try to cast it into float32.")
+            try:
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
 
         return {self.feat_name: feats}
 
@@ -562,7 +590,13 @@ def parse_feat_ops(confs):
 
     Returns
     -------
-    list of FeatTransform : The operations that transform features.
+    Tuple of three lists:
+        list of FeatTransform : The operations that transform features.
+        list of TwoPhaseFeatTransform : The operations that transform
+        features with two phases.
+        list of GlobalProcessFeatTransform: The operations that transform
+        features can only be done using a single process.
+
     """
     ops = []
     assert isinstance(confs, list), \
@@ -619,7 +653,16 @@ def parse_feat_ops(confs):
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
-    return ops
+
+    two_phase_feat_ops = []
+    after_merge_feat_ops = {}
+    for op in ops:
+        if isinstance(op, TwoPhaseFeatTransform):
+            two_phase_feat_ops.append(op)
+        if isinstance(op, GlobalProcessFeatTransform):
+            after_merge_feat_ops[op.feat_name] = op
+
+    return ops, two_phase_feat_ops, after_merge_feat_ops
 
 def preprocess_features(data, ops):
     """ Pre-process the data with the specified operations.
