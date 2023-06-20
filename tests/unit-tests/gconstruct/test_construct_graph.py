@@ -452,7 +452,7 @@ def test_process_features_fp16():
         "feature_name": "test2",
         "out_dtype": "float16",
     }]
-    (pos_rst, _, _) = parse_feat_ops(feat_op1)
+    (ops_rst, _, _) = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
@@ -493,7 +493,7 @@ def test_process_features():
         "feature_col": "test2",
         "feature_name": "test2",
     }]
-    (pos_rst, _, _) = parse_feat_ops(feat_op1)
+    (ops_rst, _, _) = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
