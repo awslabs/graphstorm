@@ -318,13 +318,19 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
                 new_frontier = frontier.edge_subgraph(new_edges, relabel_nodes=False)
             else:
                 new_frontier = frontier
-            block = to_block(new_frontier, seed_nodes)
-            print(new_eid)
-            print(block.num_edges())
-            block.edata[EID] = new_eid
+            block = to_block(frontier, seed_nodes)
+            new_block = to_block(new_frontier, seed_nodes)
+            for etype in block.canonical_etypes:
+                new_block.edges[etype].data[EID] = new_eid[etype]
 
-            seed_nodes = block.srcdata[NID]
+            for etype in frontier.canonical_etypes:
+                if etype in eid:
+                    print(f"{len(eid[etype])} vs {block.num_edges(etype)}")
+                    print(f"{len(new_eid[etype])} vs {new_block.num_edges(etype)}")
+                else:
+                    print(f"No eid etype {etype}")
 
-            blocks.insert(0, block)
+            seed_nodes = new_block.srcdata[NID]
+            blocks.insert(0, new_block)
 
         return seed_nodes, output_nodes, blocks
