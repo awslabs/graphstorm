@@ -262,9 +262,9 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
         if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
                            np.int32, np.int16, np.int8]:
-            logging.warning("The feature {self.feat_name} has to be "
-                            f"floating points or integers, but get {feats.dtype}"
-                            "Try to cast it into float32")
+            logging.warning("The feature %s has to be floating points or integers,"
+                            "but get %s. Try to cast it into float32",
+                            self.feat_name, feats.dtype)
             try:
                 feats = feats.astype(np.float32)
             except: # pylint: disable=bare-except
@@ -368,8 +368,9 @@ class RankGaussTransform(GlobalProcessFeatTransform):
             or np.issubdtype(feats.dtype, np.floating): \
             return {self.feat_name: feats}
         else:
-            logging.warning(f"The feature {self.feat_name} has to be integers or floats."
-                            f"But get {feats.dtype}. Try to cast it into float32.")
+            logging.warning("The feature %s has to be floating points or integers,"
+                            "but get %s. Try to cast it into float32",
+                            self.feat_name, feats.dtype)
             try:
                 feats = feats.astype(np.float32)
             except: # pylint: disable=bare-except
