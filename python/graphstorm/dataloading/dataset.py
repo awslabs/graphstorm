@@ -433,6 +433,7 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         """
         pb = g.get_partition_book()
         test_idxs = {}
+        infer_idxs = {}
         # If eval_etypes is None, we use all edge types.
         if self.eval_etypes is None:
             self._eval_etypes = g.canonical_etypes
@@ -446,14 +447,27 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
                 if dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
             else:
-                print(f"WARNING: {canonical_etype} does not contains " \
-                      "test_mask, skip testing {canonical_etype}")
+                print(f"NOTE: {canonical_etype} does not contains " \
+                      "test_mask, skip testing {canonical_etype}. \n" \
+                      "We will do inference on the whole edge list.")
+                infer_idx = dgl.distributed.edge_split(
+                    th.full((g.num_edges(canonical_etype),), True, dtype=th.bool),
+                    pb, etype=canonical_etype, force_even=True)
+                infer_idxs[canonical_etype] = infer_idx
+
         self._test_idxs = test_idxs
+        self._infer_idxs = infer_idxs
 
     @property
     def eval_etypes(self):
         """edge type for evaluation"""
         return self._eval_etypes
+
+    @property
+    def infer_idxs(self):
+        """ Set of edges to do inference.
+        """
+        return self._infer_idxs
 
 #### Node classification/regression Task Data ####
 class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
