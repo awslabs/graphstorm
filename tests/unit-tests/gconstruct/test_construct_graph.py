@@ -16,6 +16,7 @@
 import random
 import os
 import tempfile
+import decimal
 import pyarrow.parquet as pq
 import numpy as np
 import dgl
@@ -685,7 +686,7 @@ def test_label():
 
 def check_id_map_exist(id_map, str_ids):
     # Test the case that all Ids exist in the map.
-    rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
+    rand_ids = np.array([str_ids[random.randint(0, len(str_ids)) % len(str_ids)] for _ in range(5)])
     remap_ids, idx = id_map.map_id(rand_ids)
     assert len(idx) == len(rand_ids)
     assert np.issubdtype(remap_ids.dtype, np.integer)
@@ -693,10 +694,10 @@ def check_id_map_exist(id_map, str_ids):
     for id1, id2 in zip(remap_ids, rand_ids):
         assert id1 == int(id2)
 
-def check_id_map_not_exist(id_map, str_ids):
+def check_id_map_not_exist(id_map, str_ids, out_range_ids):
     # Test the case that some of the Ids don't exist.
     rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
-    rand_ids1 = np.concatenate([rand_ids, np.array(["11", "15", "20"])])
+    rand_ids1 = np.concatenate([rand_ids, out_range_ids])
     remap_ids, idx = id_map.map_id(rand_ids1)
     assert len(remap_ids) == len(rand_ids)
     assert len(remap_ids) == len(idx)
@@ -729,7 +730,7 @@ def test_id_map():
     id_map = IdMap(str_ids)
 
     check_id_map_exist(id_map, str_ids)
-    check_id_map_not_exist(id_map, str_ids)
+    check_id_map_not_exist(id_map, str_ids, np.array(["11", "15", "20"]))
     check_id_map_dtype_not_match(id_map, str_ids)
 
     # Test saving ID map with random IDs.
@@ -749,6 +750,15 @@ def test_id_map():
     new_ids1, _ = id_map.map_id(str_ids)
     new_ids2 = np.array([new_id_map[i] for i in str_ids])
     assert np.all(new_ids1 == new_ids2)
+
+    # Test id map as other types such as decimal.Decimal (e.g., UUID)
+    decial_ids = np.array([decimal.Decimal(i) for i in range(10)])
+    id_map = IdMap(decial_ids)
+    check_id_map_exist(id_map, decial_ids)
+    check_id_map_not_exist(id_map, str_ids, np.array([decimal.Decimal(11),
+                                                      decimal.Decimal(15),
+                                                      decimal.Decimal(20)]))
+
 
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
