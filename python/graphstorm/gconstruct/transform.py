@@ -164,23 +164,16 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        # cast everything to string
-        feats = feats.astype(str)
-        feats[feats == None] = "MAGIC_NONE"
+        feats = feats[feats is None]
         if self._separator is None:
-            category_keys = np.unique(feats)
+            return {self.feat_name: np.unique(feats)}
         else:
             assert feats.dtype.type is np.str_, \
                     "We can only convert strings to multiple categorical values with separaters."
             vals = []
             for feat in feats:
                 vals.extend(feat.split(self._separator))
-            category_keys = np.unique(vals)
-
-        category_keys = set(category_keys.flatten())
-        if "MAGIC_NONE" in category_keys:
-            category_keys.remove("MAGIC_NONE")
-        return {self.feat_name: np.array(list(category_keys))}
+            return {self.feat_name: np.unique(vals)}
 
     def update_info(self, info):
         """ Store global information for the second phase data processing
