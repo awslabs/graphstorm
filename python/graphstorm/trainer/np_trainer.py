@@ -217,7 +217,11 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
-                       'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024}
+                       'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'best validation iteration': \
+                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                       'best model path': \
+                           self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
 
             if save_perf_results_path is not None:
