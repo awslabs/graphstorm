@@ -190,6 +190,8 @@ def test_categorize_transform():
     }
     transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
     str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
+    str_ids[0] = None
+    str_ids[-1] = None # allow None data
     str_ids = str_ids + [str(i) for i in range(10)]
     res = transform.pre_process(np.array(str_ids))
     assert "test" in res
@@ -211,6 +213,11 @@ def test_categorize_transform():
         assert np.all(feat == 0)
     assert "mapping" in transform_conf
     assert len(transform_conf["mapping"]) == 10
+    feat = np.array([None, None]) # transform numpy array with None value.
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    assert np.all(cat_feat["test"][0] == 0)
+    assert np.all(cat_feat["test"][1] == 0)
 
     # Test categorical values with empty strings.
     transform = CategoricalTransform("test1", "test", separator=',')
