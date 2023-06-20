@@ -261,10 +261,15 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
-                              np.int32, np.int16, np.int8], \
-            "Feature of NumericalMinMaxTransform must be floating points" \
-            "or integers"
+        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
+                           np.int32, np.int16, np.int8]:
+            logging.warning("The feature {self.feat_name} has to be "
+                            f"floating points or integers, but get {feats.dtype}"
+                            "Try to cast it into float32")
+            try:
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
         max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
             else np.array([np.amax(feats, axis=0)])
@@ -323,6 +328,10 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
+        try:
+            feats = feats.astype(np.float32) # convert data into float32
+        except: # pylint: disable=bare-except
+            raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
         feats = (feats - self._min_val) / (self._max_val - self._min_val)
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
