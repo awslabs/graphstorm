@@ -184,6 +184,13 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 
 error_and_exit ${PIPESTATUS[0]}
 
+cnt=$(ls -l /data/gsgnn_nc_ml_text/ | grep epoch | wc -l)
+if test $cnt != 1
+then
+    echo "The number of save models $cnt is not equal to the specified topk 1"
+    exit -1
+fi
+
 best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
 echo "The best model is saved in epoch $best_epoch"
 
