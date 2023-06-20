@@ -118,6 +118,11 @@ GraphStorm provides a set of parameters to control how and where to save and res
     - Yaml: ``restore_model_path: /model/checkpoint/``
     - Argument: ``--restore-model-path /model/checkpoint/``
     - Default value: This parameter must be provided if users want to restore a saved model.
+- **restore_model_layers**: Specify which GraphStorm neural network layers to load. This argument is useful when a user wants to pre-train a GraphStorm model using link prediction and fine-tune the same model on a node or edge classification/regression task.
+Currently, three neural network layers are supported, i.e., ``embed`` (input layer), ``gnn`` and ``decoder``. A user can select one or more layers to load.
+    - Yaml: ``restore_model_path: embed``
+    - Argument: ``--restore-model-layers embed,gnn``
+    - Default value: Load all neural network layers
 - **restore_optimizer_path**: A path storing optimizer status corresponding to GraphML model parameters. This is used when a user wants to fine-tune a model from a pre-trained one.
     - Yaml: ``restore_optimizer_path: /model/checkpoint/optimizer``
     - Argument: ``--restore-optimizer-path /model/checkpoint/optimizer``
@@ -127,7 +132,7 @@ Model Training Hyper-parameters Configurations
 ----------------------------------------------------------
 GraphStorm provides a set of parameters to control training hyper-parameters.
 
-- **fanout**: The fanout of each GNN layers. The fanouts must be integers larger than 0. The number of fanouts must equal to num_layers. It accepts two formats: a) `"20,10"`, it defines number of neighbors to sample per edge type for each GNN layer with the ith element being the fanout for the ith GNN layer. In the example, the fanout of the 0th GNN layer is 20 and the fanout of the 1st GNN layer is 10. b) `\"etype2:20\@etype3:20\@etype1:10,etype2:10\@etype3:4\@etype1:2\"`. It defines the numbers of neighbors to sample for different edge types for each GNN layers with the i-th element being the fanout for the i-th GNN layer. In the example, the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 20, 20 and 10 respectively and the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 10, 4 and 2 respectively.
+- **fanout**: The fanout of each GNN layers. The fanouts must be integers larger than 0. The number of fanouts must equal to num_layers. It accepts two formats: a) `"20,10"`, it defines number of neighbors to sample per edge type for each GNN layer with the ith element being the fanout for the ith GNN layer. In the example, the fanout of the 0th GNN layer is 20 and the fanout of the 1st GNN layer is 10. b) `\"etype2:20\@etype3:20\@etype1:10,etype2:10\@etype3:4\@etype1:2\"`. It defines the numbers of neighbors to sample for different edge types for each GNN layers with the i-th element being the fanout for the i-th GNN layer. In the example, the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 20, 20 and 10 respectively and the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 10, 4 and 2 respectively. Each etype (e.g., etype2) should be a canonical etype in format of `\"srcntype/relation/dstntype\"`
     - Yaml: ``fanout: 10,10``
     - Argument: ``--fanout 10,10``
     - Default value: This parameter must be provided by user. But if set the ``--num_layers`` to be 0, which means there is no GNN layer, no need to specify this configuration.
