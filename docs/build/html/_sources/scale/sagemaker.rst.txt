@@ -8,7 +8,7 @@ Prerequisites
 -----------------
 In order to use GraphStorm on Amazon SageMaker, users need to have AWS access to the following AWS services.
 
-- **SageMaker service**. Please refer to `Anmazon SageMaker service <https://aws.amazon.com/pm/sagemaker/>`_ for how to get access to Amazon SageMaker.
+- **SageMaker service**. Please refer to `Amazon SageMaker service <https://aws.amazon.com/pm/sagemaker/>`_ for how to get access to Amazon SageMaker.
 - **Amazon ECR**. Please refer to `Amazon Elastic Container Registry service <https://aws.amazon.com/ecr/>`_ for how to get access to Amazon ECR.
 - **S3 service**. Please refer to `Amazon S3 service <https://aws.amazon.com/s3/>`_ for how to get access to Amazon S3.
 - **SageMaker Framework Containers**. Please follow `AWS Deep Learning Containers guideline <https://github.com/aws/deep-learning-containers>`_ to get access to the image.
@@ -16,18 +16,18 @@ In order to use GraphStorm on Amazon SageMaker, users need to have AWS access to
 
 Setup GraphStorm SageMaker Docker Image
 ----------------------------------------------
-GraphStorm uses SageMaker's **BYOC** (Bring Your Own Container) mode. Therefore, before launch GraphStorm on SageMaker, there are two steps required to setup a GraphStorm SageMaker Docker image.
+GraphStorm uses SageMaker's **BYOC** (Bring Your Own Container) mode. Therefore, before launching GraphStorm on SageMaker, there are two steps required to setup a GraphStorm SageMaker Docker image.
 
 .. _build_sagemaker_docker:
 
-Step 1: Build a SageMaker compatible Docker image
+Step 1: Build a SageMaker-compatible Docker image
 ...................................................
 
 .. note::
     * Please make sure your account has access key (AK) and security access key (SK) configured to authenticate accesses to AWS services.
     * For more details of Amazon ECR operation via CLI, users can refer to the `Using Amazon ECR with the AWS CLI document <https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html>`_.
 
-First, in either a Linux EC2 instance or a SageMaker Notebook Linux instance, configure a Docker environment by following the `Docker documentent <https://docs.docker.com/get-docker/>`_ suggestions.
+First, in a Linux machine, configure a Docker environment by following the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggestions.
 
 In order to use the SageMaker base Docker image, users need to use the following command to authenticate to pull SageMaker images.
 
@@ -47,15 +47,15 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 
 The ``build_docker_sagemaker.sh`` script takes three arguments:
 
-1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you clone and download the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
+1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
 2. **DOCKER_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
 
 .. warning::
-    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <DOCKER_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com**, e.g., ``911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
+    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <DOCKER_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
 
 3. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built docker image. Default is ``sm``.
 
-Once the ``build_docker_sagemaker.sh`` command completes successfully. There will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, in the local repository, which could be listed by running:
+Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, in the local repository, which could be listed by running:
 
 .. code-block:: bash
 
@@ -77,19 +77,19 @@ Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account infor
 
 In addition, users need to create an ECR repository at the specified `<REGION>` with the name as `<DOCKER_NAME>` **WITHOUT** the ECR URI string, e.g., ``graphstorm``.
 
-And then use th below command to push the built GraphStorm Docker image to users' own ECR repository.
+And then use the below command to push the built GraphStorm Docker image to users' own ECR repository.
 
 .. code-block:: bash
 
     docker push <DOCKER_NAME>:<DOCKER_TAG>
 
-Please replace the `<DOCKER_NAME>` and `<DOCKER_TAG>` with the actual Docker image name and tag, e.g., ``911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``.
+Please replace the `<DOCKER_NAME>` and `<DOCKER_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``.
 
 Run GraphStorm on SageMaker
 ----------------------------
 There are two ways to run GraphStorm on SageMaker.
 
-* **Run with Amazon SageMaker service**. In this way, users will use GraphStorm's tools to submit SageMaker API calls, which request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls in a cheap EC2 instance or a SageMaker Notebook instance without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production environment.
+* **Run with Amazon SageMaker service**. In this way, users will use GraphStorm's tools to submit SageMaker API calls, which request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls in a properly configured machine without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production environment.
 * **Run with Docker Compose in local environment**. In this way, users do not call the SageMaker service, but use Docker Compose to run SageMaker locally in an EC2 instance or a SageMaker Notebook instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.
 
 Run GraphStorm with Amazon SageMaker service
@@ -110,9 +110,9 @@ To call Amazon SageMaker service, users should set up an instance with SageMaker
 
 Prepare graph data
 `````````````````````
-Unlike GraphStorm's :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>` that rely on local disk or shared file system to store the partitioned graph, SageMaker uses Amaonz S3 as the shared data storage to distribute partitioned graphs and the configuration YAML file.
+Unlike GraphStorm's :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>` that rely on local disk or shared file system to store the partitioned graph, SageMaker uses Amazon S3 as the shared data storage to distribute partitioned graphs and the configuration YAML file.
 
-This tutorial uses the same three-partition OGB-MAG graph and the Link Prediction task as those introduced in the :ref:`Partition a Graph<partition-a-graph>` section of the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial. After generate the partitioned OGB-MAG graphs, use the following commands to upload them and the configuration YAML file to an S3 bucket.
+This tutorial uses the same three-partition OGB-MAG graph and the Link Prediction task as those introduced in the :ref:`Partition a Graph<partition-a-graph>` section of the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial. After generating the partitioned OGB-MAG graphs, use the following commands to upload them and the configuration YAML file to an S3 bucket.
 
 .. code-block:: bash
 
@@ -123,20 +123,11 @@ Please replace the `<PATH_TO_DATA>` and `<PATH_TO_TRAINING_CONFIG>` with your ow
 
 Launch training 
 ```````````````````
-Launch GraphStorm training on SageMaker is similar as launch in the :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>`, except for three diffences:
+Launching GraphStorm training on SageMaker is similar as launching in the :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>`, except for three diffences:
 
 * The launch commands are under the ``graphstorm/sagemaker`` folder, and
 * Users need to provide AWS service-related information in the command.
-* All paths for saving models, embeddings, and predict results should be an S3 location specified through the ``--model-artifact-s3`` argument.
-
-.. note::
-    Before running SageMaker tasks, users need to login to the ECR where the image is present.
-    
-    .. code-block:: bash
-
-        aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
-
-    Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account information and be consistent with the values used in the **Step 1**.
+* All paths for saving models, embeddings, and prediction results should be an S3 location specified through the ``--model-artifact-s3`` argument.
 
 Users can use the following commands to launch a GraphStorm Link Prediction training job with the OGB-MAG graph.
 
@@ -162,7 +153,7 @@ Users can use the following commands to launch a GraphStorm Link Prediction trai
             --backend gloo \
             --batch-size 128
 
-Please replace the `<AMAZON_ECR_IMAGE_URI>` with the `<DOCKER_NAME>:<DOCKER_TAG>` that are uploaded in the Step 2, e.g., ``911734752298.dkr.ecr.us-east-1.amazonaws.com/graphstorm-sagemaker-oss:v0.1``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
+Please replace the `<AMAZON_ECR_IMAGE_URI>` with the `<DOCKER_NAME>:<DOCKER_TAG>` that are uploaded in the Step 2, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
 
 Because we use three-partition OGB-MAG graph, we need to set the ``--instance-count`` to 3 in this command.
 
@@ -171,8 +162,6 @@ The trained model artifact will be stored in the S3 location provided through ``
 .. code-block:: bash
 
     aws s3 ls s3://<PATH_TO_SAVE_TRAINED_MODEL>/
-
-.. warning:: the ``save_embed_path`` and ``save_prediction_path`` **MUST** be disabled, i.e., set to 'None' when using SageMaker. They only work with local disk (in the Standalone mode) or shared file system (in the Distributed mode).
 
 Launch inference
 `````````````````````
@@ -262,7 +251,7 @@ To run GraphStorm SageMaker with Docker Compose, we need to set up a local Linux
 
 4. Build a SageMaker compatible Docker image following the :ref:`Step 1 <build_sagemaker_docker>`.
 
-5. Follow the `Docker Compose <https://docs.docker.com/compose/install/linux/>`_ document to install Docker Compose.
+5. Follow the `Docker Compose <https://docs.docker.com/compose/install/linux/>`_ documentation to install Docker Compose.
 
 Generate a Docker Compose file
 `````````````````````````````````
@@ -329,7 +318,7 @@ The rest of the arguments are passed on to ``sagemaker_train.py`` or ``sagemaker
 * **--output-emb-s3**: S3 location to store GraphStorm generated node embeddings. This is an inference only argument.
 * **--output-prediction-s3**: S3 location to store prediction results. This is an inference only argument.
 
-Run GraphStorm on Docek Compose for Training
+Run GraphStorm on Docker Compose for Training
 ```````````````````````````````````````````````
 First, use the following command to generate a Compose YAML file for the Link Prediction training on OGB-MAG graph.
 
@@ -370,9 +359,9 @@ Running the above command will launch 3 instances of the image, configured with 
 
 .. Note:: The containers actually interact with S3, so the provided AWS assess key, security access key, and session token should be valid for access S3 bucket.
 
-Run GraphStorm on Docek Compose for Inference
+Run GraphStorm on Docker Compose for Inference
 ```````````````````````````````````````````````
-Similar to training, the ``generate_sagemaker_docker_compose.py`` can build Compose file for infernece task with the same arguments as for training, and in addition, add a new argument, ``--inference``. The below command create the Compose file for the Linke Prediction inference on OGB-MAG graph.
+The ``generate_sagemaker_docker_compose.py`` can build Compose file for the inference task with the same arguments as for training, and in addition, but add a new argument, ``--inference``. The below command create the Compose file for the Link Prediction inference on OGB-MAG graph.
 
 .. code-block:: bash
 
@@ -399,3 +388,11 @@ The command will create a Docker compose file named ``docker-compose-<task-type>
 .. code-block:: bash
 
     docker compose -f docker-compose-link_prediction-3-infer.yaml up
+
+Clean Up
+``````````````````
+To save computing resources, users can run the below command to clean up Docker Compose environment.
+
+.. code-block:: bash
+
+    docker compose -f docker-compose-file down
