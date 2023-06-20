@@ -175,6 +175,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
                 vals.extend(feat.split(self._separator))
             return {self.feat_name: np.unique(vals)}
 
+
     def update_info(self, info):
         """ Store global information for the second phase data processing
 
