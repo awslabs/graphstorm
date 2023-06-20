@@ -38,7 +38,8 @@ argparser.add_argument("--conf_file", type=str, required=True,
                        help="The configuration file.")
 args = argparser.parse_args()
 out_dir = args.graph_dir
-conf_file = args.conf_file
+with open(args.conf_file, 'r') as f:
+  conf = json.load(f)
 
 if args.graph_format == "DGL":
     g = dgl.load_graphs(os.path.join(out_dir, "test.dgl"))[0][0]
@@ -93,11 +94,17 @@ assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1
 assert th.sum(g.nodes['node1'].data['test_mask']) == 0
 
 # Test the second node data
-data = g.nodes['node2'].data['feat'].numpy()
-orig_ids = np.arange(g.number_of_nodes('node2'))
-assert data.shape[1] == 5
-for i in range(data.shape[1]):
-    assert np.all(data[:,i] == orig_ids)
+data = g.nodes['node2'].data['category'].numpy()
+assert data.shape[1] == 10
+assert data.dtype == np.int8
+assert np.all(np.sum(data, axis=1) == 1)
+for node_conf in conf["nodes"]:
+    if node_conf["node_type"] == "node2":
+        assert len(node_conf["features"]) == 1
+        print(node_conf["features"][0]["transform"])
+        assert node_conf["features"][0]["transform"]["name"] == "to_categorical"
+        assert "mapping" in node_conf["features"][0]["transform"]
+        assert len(node_conf["features"][0]["transform"]["mapping"]) == 10
 
 # id remap for node4 exists
 assert os.path.isfile(os.path.join(out_dir, "node4_id_remap.parquet"))
@@ -132,6 +139,11 @@ dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert feat back to 1D to pass test
 assert np.all(src_ids + dst_ids == feat.reshape(-1,))
+
+data = g.nodes['node1'].data['feat_rank_gauss']
+data_sum = np.sum(data.numpy(), axis=0)
+np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+data = g.nodes['node1'].data['feat_rank_gauss_fp16']
 assert np.all(src_ids + dst_ids == feat2.reshape(-1,))
 
 #test data type

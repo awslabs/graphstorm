@@ -35,6 +35,8 @@ from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
 from graphstorm.dataloading.dataset import (prepare_batch_input,
                                             prepare_batch_edge_input)
+from graphstorm.dataloading.utils import modify_fanout_for_target_etype
+from graphstorm.config.argument import GSConfig
 
 from numpy.testing import assert_equal
 
@@ -621,6 +623,39 @@ def test_prepare_input():
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
+def test_modify_fanout_for_target_etype():
+    data_dict = {
+        ('user', 'follows', 'user'): (th.tensor([0, 1]), th.tensor([1, 2])),
+        ('user', 'follows', 'topic'): (th.tensor([1, 1]), th.tensor([1, 2])),
+        ('user', 'plays', 'game'): (th.tensor([0, 3]), th.tensor([3, 4]))
+    }
+    g = dgl.heterograph(data_dict)
+    fanout = [10,5]
+    target_etypes = [('user', 'follows', 'user')]
+    new_fanout = modify_fanout_for_target_etype(g, fanout, target_etypes)
+    assert len(new_fanout) == 2
+    assert new_fanout[0][('user', 'follows', 'user')] == 0
+    assert new_fanout[0][('user', 'follows', 'topic')] == 10
+    assert new_fanout[0][('user', 'plays', 'game')] == 10
+    assert new_fanout[1][('user', 'follows', 'user')] == 0
+    assert new_fanout[1][('user', 'follows', 'topic')] == 5
+    assert new_fanout[1][('user', 'plays', 'game')] == 5
+
+    fanout = [{("user","follows","user"):20,
+               ("user","follows","topic"):10,
+               ("user","plays","game"):5},
+              {("user","follows","user"):3,
+               ("user","follows","topic"):2,
+               ("user","plays","game"):1}]
+    new_fanout = modify_fanout_for_target_etype(g, fanout, target_etypes)
+    assert len(new_fanout) == 2
+    assert new_fanout[0][('user', 'follows', 'user')] == 0
+    assert new_fanout[0][('user', 'follows', 'topic')] == 10
+    assert new_fanout[0][('user', 'plays', 'game')] == 5
+    assert new_fanout[1][('user', 'follows', 'user')] == 0
+    assert new_fanout[1][('user', 'follows', 'topic')] == 2
+    assert new_fanout[1][('user', 'plays', 'game')] == 1
+
 if __name__ == '__main__':
     test_GSgnnNodeData()
     test_GSgnnEdgeData()
@@ -635,3 +670,4 @@ if __name__ == '__main__':
     test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
     test_prepare_input()
+    test_modify_fanout_for_target_etype()
