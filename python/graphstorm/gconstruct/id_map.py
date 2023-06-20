@@ -106,7 +106,11 @@ class IdMap:
         tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
         """
         for id_ in self._ids:
-            if isinstance(id_, int) or np.issubdtype(id_.dtype, np.integer):
+            if isinstance(id_, str):
+                assert (not isinstance(ids[0], int)) and \
+                       (not np.issubdtype(ids.dtype, np.integer)), \
+                    "The key of ID map is string, input IDs are integers."
+            elif isinstance(id_, int) or np.issubdtype(id_.dtype, np.integer):
                 # If the data type of the key is integer, the input Ids should
                 # also be integers.
                 assert np.issubdtype(ids.dtype, np.integer), \
