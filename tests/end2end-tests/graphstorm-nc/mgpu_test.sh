@@ -256,9 +256,9 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit ${PIPESTATUS[0]}
 
 cnt=$(ls -l /data/gsgnn_nc_ml_text/ | grep epoch | wc -l)
-if test $cnt != 2 # expect to save 2 * k models for GLEM
+if test $cnt != 1
 then
-    echo "The number of save models $cnt is not equal to the specified topk 1 * 2"
+    echo "The number of save models $cnt is not equal to the specified topk 1"
     exit -1
 fi
 
