@@ -48,8 +48,7 @@ from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler
-from graphstorm.utils import mm_profiler
+from graphstorm.utils import rt_profiler, sys_tracker
 
 def main(config_args):
     """ main function
@@ -58,7 +57,7 @@ def main(config_args):
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
-    mm_profiler.init(config.profile_path, rank=gs.get_rank())
+    sys_tracker.init(config.verbose, rank=gs.get_rank())
     node_feat_field = config.node_feat_name
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,

@@ -276,20 +276,20 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         if use_mini_batch_infer:
             val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                               return_label=True)
-            mm_profiler.record("eval", "after_val_score")
+            sys_tracker.check("after_val_score")
             test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader, return_proba,
                                                                 return_label=True)
-            mm_profiler.record("eval", "after_test_score")
+            sys_tracker.check("after_test_score")
         else:
             emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
                                           task_tracker=self.task_tracker)
 
             val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader, return_proba,
                                                           return_label=True)
-            mm_profiler.record("eval", "after_val_score")
+            sys_tracker.check("after_val_score")
             test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader, return_proba,
                                                             return_label=True)
-            mm_profiler.record("eval", "after_test_score")
+            sys_tracker.check("after_test_score")
 
         model.train()
         sys_tracker.check('predict')

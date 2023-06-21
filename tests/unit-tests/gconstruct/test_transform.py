@@ -18,11 +18,14 @@ import inspect
 
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_raises
+from scipy.special import erfinv
 
 from graphstorm.gconstruct.transform import (_feat_astype,
                                              _get_output_dtype,
                                              NumericalMinMaxTransform,
-                                             Noop)
+                                             Noop,
+                                             RankGaussTransform,
+                                             CategoricalTransform)
 
 def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
@@ -180,6 +183,95 @@ def test_fp_min_max_transform(out_dtype):
         new_feats = new_feats if out_dtype is None else new_feats.astype(out_dtype)
         assert_almost_equal(norm_feats[:,i], new_feats, decimal=6)
 
+def test_categorize_transform():
+    # Test a single categorical value.
+    transform_conf = {
+        "name": "to_categorical"
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
+    str_ids[0] = None
+    str_ids[-1] = None # allow None data
+    str_ids = str_ids + [str(i) for i in range(10)]
+    res = transform.pre_process(np.array(str_ids))
+    assert "test" in res
+    assert len(res["test"]) == 10
+    for i in range(10):
+        assert str(i) in res["test"]
+
+    info = [ np.array([str(i) for i in range(6)]),
+            np.array([str(i) for i in range(4, 10)]) ]
+    transform.update_info(info)
+    feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
+    assert "mapping" in transform_conf
+    assert len(transform_conf["mapping"]) == 10
+    feat = np.array([None, None]) # transform numpy array with None value.
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    assert np.all(cat_feat["test"][0] == 0)
+    assert np.all(cat_feat["test"][1] == 0)
+
+    # Test categorical values with empty strings.
+    transform = CategoricalTransform("test1", "test", separator=',')
+    str_ids = [f"{i},{i+1}" for i in np.random.randint(0, 9, 1000)] + [",0"]
+    str_ids = str_ids + [str(i) for i in range(9)]
+    res = transform.pre_process(np.array(str_ids))
+    assert "test" in res
+    assert len(res["test"]) == 11
+
+    # Test multiple categorical values.
+    transform = CategoricalTransform("test1", "test", separator=',')
+    str_ids = [f"{i},{i+1}" for i in np.random.randint(0, 9, 1000)]
+    str_ids = str_ids + [str(i) for i in range(9)]
+    res = transform.pre_process(np.array(str_ids))
+    assert "test" in res
+    assert len(res["test"]) == 10
+    for i in range(10):
+        assert str(i) in res["test"]
+
+    info = [ np.array([str(i) for i in range(6)]),
+            np.array([str(i) for i in range(4, 10)]) ]
+    transform.update_info(info)
+    feat = np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, 100)])
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_feat in zip(cat_feat["test"], feat):
+        # make sure two elements are 1
+        i = str_feat.split(",")
+        assert feat[int(i[0])] == 1
+        assert feat[int(i[1])] == 1
+        # after removing the elements, the vector has only 0 values.
+        feat[int(i[0])] = 0
+        feat[int(i[1])] = 0
+        assert np.all(feat == 0)
+
+    # Test transformation with existing mapping.
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
+    str_ids = str_ids + [str(i) for i in range(10)]
+    res = transform.pre_process(np.array(str_ids))
+    assert len(res) == 0
+
+    transform.update_info([])
+    feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        idx = transform_conf["mapping"][str_i]
+        assert feat[idx] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[idx] = 0
+        assert np.all(feat == 0)
+
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_noop_transform(out_dtype):
     transform = Noop("test", "test", out_dtype=out_dtype)
@@ -190,7 +282,40 @@ def test_noop_transform(out_dtype):
     else:
         assert norm_feats["test"].dtype == np.float32
 
+@pytest.mark.parametrize("out_dtype", [None, np.float16])
+def test_rank_gauss_transform(out_dtype):
+    eps = 1e-6
+    transform = RankGaussTransform("test", "test", out_dtype=out_dtype, epsilon=eps)
+    feat_0 = np.random.randn(100,2).astype(np.float32)
+    feat_trans_0 = transform(feat_0)['test']
+    feat_1 = np.random.randn(100,2).astype(np.float32)
+    feat_trans_1 = transform(feat_1)['test']
+    def rank_gauss(feat):
+        lower = -1 + eps
+        upper = 1 - eps
+        range = upper - lower
+        i = np.argsort(feat, axis=0)
+        j = np.argsort(i, axis=0)
+        j_range = len(j) - 1
+        divider = j_range / range
+        feat = j / divider
+        feat = feat - upper
+        return erfinv(feat)
+
+    feat = np.concatenate([feat_0, feat_1])
+    feat = rank_gauss(feat)
+    new_feat = np.concatenate([feat_trans_0, feat_trans_1])
+    trans_feat = transform.after_merge_transform(new_feat)
+
+    if out_dtype is not None:
+        assert trans_feat.dtype == np.float16
+        assert_almost_equal(feat.astype(np.float16), trans_feat, decimal=3)
+    else:
+        assert trans_feat.dtype != np.float16
+        assert_almost_equal(feat, trans_feat, decimal=4)
+
 if __name__ == '__main__':
+    test_categorize_transform()
     test_feat_astype()
     test_get_output_dtype()
     test_fp_transform()
@@ -198,3 +323,6 @@ if __name__ == '__main__':
     test_fp_min_max_transform(np.float16)
     test_noop_transform(None)
     test_noop_transform(np.float16)
+
+    test_rank_gauss_transform(None)
+    test_rank_gauss_transform(np.float16)

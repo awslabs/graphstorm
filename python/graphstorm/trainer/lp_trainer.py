@@ -171,7 +171,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     val_score = self.eval(model.module, data,
                                           val_loader, test_loader, total_steps,
                                           edge_mask_for_gnn_embeddings)
-                    mm_profiler.print_stats()
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
@@ -280,9 +279,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if self.dev_id >= 0 else th.device("cpu")
         val_scores = lp_mini_batch_predict(model, emb, val_loader, device) \
             if val_loader is not None else None
-        mm_profiler.record("eval", "after_val_score")
+        sys_tracker.check('after_val_score')
         test_scores = lp_mini_batch_predict(model, emb, test_loader, device)
-        mm_profiler.record("eval", "after_test_score")
+        sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
             val_scores, test_scores, total_steps)
         sys_tracker.check('evaluate validation/test')
