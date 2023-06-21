@@ -272,6 +272,12 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
     ):
         self.mask = mask
         self.reverse_edge_types_map = reverse_edge_types_map
+        self.original_edge_types_map = {
+            val: key for key, val in reverse_edge_types_map.items()
+        } if reverse_edge_types_map is not None else None
+
+        print(self.reverse_edge_types_map)
+        print(self.original_edge_types_map)
         super().__init__(
             fanouts=fanouts,
             edge_dir=edge_dir,
@@ -303,23 +309,31 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
                 new_edges = {}
                 for etype in frontier.canonical_etypes:
                     if self.mask in g.edges[etype].data:
-                        mask = g.edges[etype].data[self.mask][eid[etype]].bool()
-                        new_edges[etype] = mask
-                        new_eid[etype] = eid[etype][mask]
+                        # train mask in data
+                        if etype in eid:
+                            mask = g.edges[etype].data[self.mask][eid[etype]].bool()
+                            new_edges[etype] = mask
+                            new_eid[etype] = eid[etype][mask]
 
+                    elif self.original_edge_types_map is not None and \
+                        self.mask in g.edges[self.original_edge_types_map[etype]].data:
                         # handle reverse edges
-                        if self.reverse_edge_types_map is not None \
-                            and etype in self.reverse_edge_types_map:
-                            rev_etype = self.reverse_edge_types_map[etype]
-                            rev_mask = g.edges[etype].data[self.mask][eid[rev_etype]].bool()
-                            new_edges[rev_etype] = rev_mask
-                            new_eid[rev_etype] = eid[rev_etype][rev_mask]
-
+                        original_etype = self.original_edge_types_map[etype]
+                        rev_mask = g.edges[original_etype].data[self.mask][eid[etype]].bool()
+                        new_edges[etype] = rev_mask
+                        new_eid[etype] = eid[etype][rev_mask]
+                    else:
+                        # There is no train mask here
+                        new_edges[etype] = th.full(eid[etype].shape, True, dtype=th.bool)
                 new_frontier = frontier.edge_subgraph(new_edges, relabel_nodes=False)
             else:
                 new_frontier = frontier
-            #block = to_block(frontier, seed_nodes)
-            new_block = to_block(new_frontier, seed_nodes)
+            block = to_block(new_frontier, seed_nodes)
+            block.edata[EID] = new_eid
+            seed_nodes = block.srcdata[NID]
+            blocks.insert(0, block)
+
+            #new_block = to_block(new_frontier, seed_nodes)
 
             #for etype in frontier.canonical_etypes:
             #    if etype in eid:
@@ -328,11 +342,11 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
             #    else:
             #        print(f"No eid etype {etype}")
 
-            for etype in new_block.canonical_etypes:
-                if new_block.num_edges(etype) > 0:
-                    new_block.edges[etype].data[EID] = new_eid[etype]
+            #for etype in new_block.canonical_etypes:
+            #    if new_block.num_edges(etype) > 0:
+            #        new_block.edges[etype].data[EID] = new_eid[etype]
 
-            seed_nodes = new_block.srcdata[NID]
-            blocks.insert(0, new_block)
+            #seed_nodes = new_block.srcdata[NID]
+            #blocks.insert(0, new_block)
 
         return seed_nodes, output_nodes, blocks
