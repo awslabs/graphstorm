@@ -87,7 +87,7 @@ edge_data2 = {
     'dst': node_data1['id'][np.random.randint(0, 9999, 50000)],
 }
 
-edge_data1_2_float = np.random.rand(src1.shape[0], 10) * 2,
+edge_data1_2_float = np.random.rand(src1.shape[0], 10) * 2
 edge_data1_2 = {
     'float1': edge_data1_2_float,
     'float1_fp16': edge_data1_2_float,
