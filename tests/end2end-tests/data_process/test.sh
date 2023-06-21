@@ -18,7 +18,7 @@ python3 $GS_HOME/tests/end2end-tests/data_process/data_gen.py
 
 # Test the DGLGraph format.
 echo "********* Test the DGLGraph format *********"
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 4 --output-dir /tmp/test_out --graph-name test --output-format DGL --output-conf-file /tmp/test_data/test_data_transform_new.conf
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 1 --output-dir /tmp/test_out --graph-name test --output-format DGL --output-conf-file /tmp/test_data/test_data_transform_new.conf
 
 error_and_exit $?
 
