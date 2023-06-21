@@ -48,8 +48,8 @@ node_data1 = {
 node_data1_2 = {
     'data': node_id1,
     'float_2': np.random.rand(node_id1.shape[0], 2),
-    'float_feat_rank_gauss': np.random.rand(node_id1.shape[0], 2).astype(np.float32),
-    'float_feat_rank_gauss_fp16': np.random.rand(node_id1.shape[0], 2).astype(np.float32),
+    'float_feat_rank_gauss': np.random.rand(node_id1.shape[0], 2),
+    'float_feat_rank_gauss_fp16': np.random.rand(node_id1.shape[0], 2),
     'float_max_min_2': np.random.rand(node_id1.shape[0], 2),
     'float3': node_id1,
 }
@@ -91,8 +91,8 @@ edge_data1_2_float = np.random.rand(src1.shape[0], 10) * 2
 edge_data1_2 = {
     'float1': edge_data1_2_float,
     'float1_fp16': edge_data1_2_float,
-    'float_feat_rank_gauss': np.random.rand(src1.shape[0], 2).astype(np.float32),
-    'float_feat_rank_gauss_fp16': np.random.rand(src1.shape[0], 2).astype(np.float32),
+    'float_feat_rank_gauss': np.random.rand(src1.shape[0], 2),
+    'float_feat_rank_gauss_fp16': np.random.rand(src1.shape[0], 2),
     'float1_max_min': edge_data1_2_float,
 }
 

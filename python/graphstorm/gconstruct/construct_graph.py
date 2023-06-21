@@ -41,7 +41,7 @@ from .utils import (multiprocessing_data_read,
                     partition_graph)
 
 def prepare_node_data(in_file, feat_ops, read_file):
-    """ Prepare node data for feature transform
+    """ Prepare node data for feature transformation
 
     The function parses a node file that contains features.
     The node file is parsed according to users' configuration
@@ -100,7 +100,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     return (node_ids, feat_data)
 
 def prepare_edge_data(in_file, feat_ops, read_file):
-    """ Prepare edge data for feature transform
+    """ Prepare edge data for feature transformation
 
     The function parses a edge file that contains features.
     The edge file is parsed according to users' configuration
