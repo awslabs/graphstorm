@@ -359,7 +359,7 @@ def check_feat_ops_rank_gauss():
     new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
     trans_feat = res[0].after_merge_transform(new_feat)
     # sum of gauss rank should be zero
-    trans_feat = np.sort(trans_feat.numpy(), axis=0)
+    trans_feat = np.sort(trans_feat, axis=0)
     rev_trans_feat = np.flip(trans_feat, axis=0)
     assert np.all(trans_feat + rev_trans_feat == 0)
 
