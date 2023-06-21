@@ -57,6 +57,8 @@ class FeatTransform:
     def __init__(self, col_name, feat_name, out_dtype=None):
         self._col_name = col_name
         self._feat_name = feat_name
+        # by defualt, output float32
+        out_dtype = np.float32 if out_dtype is None else out_dtype
         self._out_dtype = out_dtype
 
     @property
@@ -244,8 +246,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                  out_dtype=None):
         self._max_bound = max_bound
         self._min_bound = min_bound
-        # by defualt, output float32
-        out_dtype = np.float32 if out_dtype is None else out_dtype
         super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def pre_process(self, feats):
@@ -361,8 +361,6 @@ class RankGaussTransform(GlobalProcessFeatTransform):
     """
     def __init__(self, col_name, feat_name, out_dtype=None, epsilon=None):
         self._epsilon = epsilon if epsilon is not None else 1e-6
-        # by defualt, output float32
-        out_dtype = np.float32 if out_dtype is None else out_dtype
         super(RankGaussTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def __call__(self, feats):
@@ -551,10 +549,6 @@ class Text2BERT(FeatTransform):
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
     """
-    def __init__(self, col_name, feat_name, out_dtype=None):
-        # by defualt, output float32
-        out_dtype = np.float32 if out_dtype is None else out_dtype
-        super(Noop, self).__init__(col_name, feat_name, out_dtype)
 
     def __call__(self, feats):
         """ This transforms the features.
