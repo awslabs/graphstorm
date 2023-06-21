@@ -249,7 +249,8 @@ class GSgnnLinkPredictionDataLoader():
         return loader
 
     def __iter__(self):
-        return self.dataloader.__iter__()
+        self.dataloader.__iter__()
+        return self
 
     def __next__(self):
         input_nodes, pos_graph, neg_graph, blocks = self.dataloader.__next__()
