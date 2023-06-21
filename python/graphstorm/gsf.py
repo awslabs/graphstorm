@@ -151,8 +151,8 @@ def create_builtin_node_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    if hasattr(config, "_glem"):
-        model = GLEM(config.alpha_l2norm, **config._glem)
+    if config.glem:
+        model = GLEM(config.alpha_l2norm, **config.glem)
     else:
         model = GSgnnNodeModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)

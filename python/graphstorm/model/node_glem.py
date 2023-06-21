@@ -25,6 +25,16 @@ from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
 class GLEM(GSgnnNodeModelBase):
     """
     GLEM model (https://arxiv.org/abs/2210.14709) for node-level tasks.
+    Parameters
+    ----------
+    alpha_l2norm: float
+        Coef for l2 norm of unused weights
+    em_order_gnn_first: bool
+        In the EM training, set true to train GNN first, train LM first otherwise
+    inference_using_gnn: bool
+        Set true to use GNN in inference time, otherwise inference with LM
+    pl_weight: float
+        Weight for the pseudo-likelihood loss in GLEM's loss function.
     """
     def __init__(self,
                  alpha_l2norm,
@@ -40,9 +50,6 @@ class GLEM(GSgnnNodeModelBase):
         self.lm = GSgnnNodeModel(alpha_l2norm)
         self.gnn = GSgnnNodeModel(alpha_l2norm)
         self.training_lm = not em_order_gnn_first
-        # self.lm.node_input_encoder: graphstorm.model.lm_embed.GSLMNodeEncoderInputLayer
-        # self.lm.gnn_encoder: None
-        # self.lm.decoder: EntityClassifier
 
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """Initialize optimzer, which will be stored in self.lm._optimizer, self.gnn._optimizer
@@ -146,6 +153,8 @@ class GLEM(GSgnnNodeModelBase):
             self.training_lm = False
             self.freeze_params('lm')
             self.unfreeze_params('gnn')
+        else:
+            raise ValueError(f"Unknown model part: {part}")
 
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes, use_gnn=True):
         """ Forward pass for GLEM model.
@@ -168,14 +177,14 @@ class GLEM(GSgnnNodeModelBase):
     def forward_gnn(self, blocks, node_feats, _, labels, input_nodes):
         """Forward pass for node prediction using GNN
         """
-        emb = self._embed_nodes(blocks, node_feats, _, input_nodes)
+        emb_lm, emb_gnn = self._embed_nodes(blocks, node_feats, _, input_nodes, do_gnn_encode=True)
         labels = self._process_labels(labels)
-        logits = self.gnn.decoder(emb)
+        logits = self.gnn.decoder(emb_gnn)
 
         batch_size = labels.size(0)
         n_gold_nodes = batch_size // 2
         # compute pseudo labels from LM
-        logits_lm = self.lm.decoder(emb[n_gold_nodes:])
+        logits_lm = self.lm.decoder(emb_lm[n_gold_nodes:])
         pseudo_labels = logits_lm.argmax(-1)
 
         # GLEM loss
@@ -193,13 +202,13 @@ class GLEM(GSgnnNodeModelBase):
 
     def forward_lm(self, blocks, node_feats, _, labels, input_nodes):
         """Forward pass for node prediction using LM"""
-        emb = self._embed_nodes(blocks, node_feats, _, input_nodes)
+        emb_lm, emb_gnn = self._embed_nodes(blocks, node_feats, _, input_nodes, do_gnn_encode=True)
         labels = self._process_labels(labels)
-        logits = self.lm.decoder(emb)
+        logits = self.lm.decoder(emb_lm)
         batch_size = labels.size(0)
         n_gold_nodes = batch_size // 2
         # compute pseudo labels from GNN
-        logits_gnn = self.gnn.decoder(emb[n_gold_nodes:])
+        logits_gnn = self.gnn.decoder(emb_gnn[n_gold_nodes:])
         pseudo_labels = logits_gnn.argmax(-1)
 
         # GLEM loss
@@ -216,27 +225,32 @@ class GLEM(GSgnnNodeModelBase):
 
 
     def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
-        emb = self._embed_nodes(blocks, node_feats, edge_feats, input_nodes)
+        emb_lm, emb_gnn = self._embed_nodes(blocks, node_feats, edge_feats, input_nodes,
+                                do_gnn_encode=self.inference_using_gnn)
         if self.inference_using_gnn:
             decoder = self.gnn.decoder
+            emb = emb_gnn
         else:
             decoder = self.lm.decoder
+            emb = emb_lm
         if return_proba:
             preds = decoder.predict_proba(emb)
         else:
             preds = decoder.predict(emb)
         return preds, emb
 
-    def _embed_nodes(self, blocks, node_feats, _, input_nodes=None):
-        """ Embed and encode nodes with LM, followed by GNN encoder for GLEM model
+    def _embed_nodes(self, blocks, node_feats, _, input_nodes=None, do_gnn_encode=True):
+        """ Embed and encode nodes with LM, optionally followed by GNN encoder for GLEM model
         """
         # Get the projected LM embeddings without GNN message passing
         encode_embs = self.lm.comput_input_embed(input_nodes, node_feats)
-        # GNN message passing:
-        encode_embs = self.gnn.gnn_encoder.forward(blocks, encode_embs)
         target_ntype = list(encode_embs.keys())[0]
-        emb = encode_embs[target_ntype]
-        return emb
+        if do_gnn_encode:
+            # GNN message passing
+            encode_embs_gnn = self.gnn.gnn_encoder.forward(blocks, encode_embs)
+            return encode_embs[target_ntype], encode_embs_gnn[target_ntype]
+        else:
+            return encode_embs[target_ntype], None
 
     def _process_labels(self, labels):
         # TODO(zhengda) we only support node prediction on one node type now

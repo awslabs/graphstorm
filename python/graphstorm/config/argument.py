@@ -384,6 +384,21 @@ class GSConfig:
 
         return 0
 
+    @property
+    def glem(self):
+        """ Setting up (default) GLEM configs 
+        """
+        if hasattr(self, "_glem"):
+            defaults = {
+                "em_order_gnn_first": True,
+                "inference_using_gnn": True,
+                "pl_weight": 0.5
+            }
+            for key, val in defaults.items():
+                self._glem.setdefault(key, val)
+            return self._glem
+        return None
+
     def _check_lm_config(self, lm_config):
         assert "lm_type" in lm_config, "lm_type (type of language model," \
             "e.g., bert) must be provided for node_lm_models."

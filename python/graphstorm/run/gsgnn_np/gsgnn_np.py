@@ -60,12 +60,12 @@ def main(args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
-    if hasattr(config, "_glem"):
-        trainer = GLEMNodePredictionTrainer(model, gs.get_rank(),
-                                            topk_model_to_save=config.topk_model_to_save)
+    if config.glem:
+        trainer_class = GLEMNodePredictionTrainer
     else:
-        trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(),
-                                            topk_model_to_save=config.topk_model_to_save)
+        trainer_class = GSgnnNodePredictionTrainer
+    trainer = trainer_class(model, gs.get_rank(),
+                                        topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path)
     trainer.setup_cuda(dev_id=config.local_rank)
