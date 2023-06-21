@@ -64,6 +64,8 @@ node3_map = read_data_parquet(os.path.join(out_dir, "node3_id_remap.parquet"))
 reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['new'])}
 
 # Test the first node data
+assert g.nodes['node1'].data['feat'].dtype is th.float32
+assert g.nodes['node1'].data['feat1'].dtype is th.float32
 data = g.nodes['node1'].data['feat'].numpy()
 data1 = g.nodes['node1'].data['feat1'].numpy()
 assert 'input_ids' in g.nodes['node1'].data
