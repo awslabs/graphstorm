@@ -457,7 +457,7 @@ Below is a launch script example that trains a GraphStorm built-in RGCN model on
             --workspace /tmp \
             --part-config /tmp/acm_nc/acm.json \
             --ip-config /tmp/ip_list.txt \
-            --num-trainers 4 \
+            --num-trainers 1 \
             --num-servers 1 \
             --num-samplers 0 \
             --ssh-port 2222 \
