@@ -428,10 +428,6 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         sparse_optimizer_lr: 1e-2
         use_node_embeddings: false
     node_classification:
-        node_feat_name:
-          - "paper:feat"
-          - "author:feat"
-          - "subject:feat"
         target_ntype: "paper"
         label_field: "label"
         multilabel: false
