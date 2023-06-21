@@ -187,7 +187,7 @@ node_conf = [
                 # tokenize_hf generates multiple features.
                 # It defines feature names itself.
                 "transform": {"name": "tokenize_hf",
-                              "bert_model": "bert-base-uncased",
+                              "bert_model": " ~/.cache/huggingface/hub/models--bert-base-uncased",
                               "max_seq_length": 16},
             },
             {
@@ -195,7 +195,7 @@ node_conf = [
                 "feature_name": "bert",
                 "out_dtype": 'float32',
                 "transform": {"name": "bert_hf",
-                              "bert_model": "bert-base-uncased",
+                              "bert_model": " ~/.cache/huggingface/hub/models--bert-base-uncased",
                               "max_seq_length": 16},
             },
             {
