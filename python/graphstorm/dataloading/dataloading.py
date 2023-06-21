@@ -108,7 +108,8 @@ class GSgnnEdgeDataLoader():
         return loader
 
     def __iter__(self):
-        return self.dataloader.__iter__()
+        self.dataloader.__iter__()
+        return self
 
     def __next__(self):
         input_nodes, batch_graph, blocks = self.dataloader.__next__()
@@ -117,10 +118,10 @@ class GSgnnEdgeDataLoader():
                            for etype in batch_graph.canonical_etypes}
             edge_feats = self._data.get_edge_feats(input_edges,
                                                    self._decoder_edge_feat,
-                                                   self._device)
+                                                   batch_graph.device)
             # store edge feature into graph
             for etype, feat in edge_feats.items():
-                batch_graph.edges[etype].data[EP_DECODER_EDGE_FEAT] = feat
+                batch_graph.edges[etype].data[EP_DECODER_EDGE_FEAT] = feat.to(th.float32)
         return (input_nodes, batch_graph, blocks)
 
     @property
