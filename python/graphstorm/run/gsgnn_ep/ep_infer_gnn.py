@@ -52,14 +52,17 @@ def main(config_args):
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnEdgePredictionInfer(model, gs.get_rank())
-    infer.setup_cuda(dev_id=config.local_rank)
+    infer.setup_device(dev_id=config.local_rank)
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
         assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
-    device = 'cuda:%d' % infer.dev_id
+    if th.cuda.is_available(): # if self.dev_id >= 0
+        device = 'cuda:%d' % infer.dev_id
+    else:
+        device = 'cpu'
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,

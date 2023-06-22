@@ -251,6 +251,7 @@ class GSConfig:
         if hasattr(self, "_backend"):
             assert self._backend in SUPPORTED_BACKEND, \
                 f"backend must be in {SUPPORTED_BACKEND}"
+            # check if we have GPU for nccl?
             return self._backend
 
         return "gloo"

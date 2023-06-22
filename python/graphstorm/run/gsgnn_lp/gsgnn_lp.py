@@ -62,7 +62,7 @@ def main(config_args):
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_cuda(dev_id=config.local_rank)
+    trainer.setup_device(dev_id=config.local_rank)
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         trainer.setup_evaluator(
@@ -96,7 +96,10 @@ def main(config_args):
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
     else:
         raise ValueError('Unknown negative sampler')
-    device = 'cuda:%d' % trainer.dev_id
+    if th.cuda.is_available(): # if self.dev_id >= 0
+        device = 'cuda:%d' % trainer.dev_id
+    else:
+        device = 'cpu'
     dataloader = dataloader_cls(train_data, train_data.train_idxs, config.fanout,
                                 config.batch_size, config.num_negative_edges, device,
                                 train_task=True,

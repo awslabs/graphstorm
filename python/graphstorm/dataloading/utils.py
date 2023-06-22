@@ -39,7 +39,7 @@ def trim_data(nids, device):
     """
     # NCCL backend only supports GPU tensors, thus here we need to allocate it to gpu
     num_nodes = th.tensor(nids.numel()).to(device)
-    assert num_nodes.is_cuda, "NCCL does not support CPU all_reduce"
+    #assert num_nodes.is_cuda, "NCCL does not support CPU all_reduce"
     dist.all_reduce(num_nodes, dist.ReduceOp.MIN)
     min_num_nodes = int(num_nodes)
     nids_length = nids.shape[0]
@@ -63,8 +63,12 @@ def dist_sum(size):
     -------
     int : the global size.
     """
-    dev_id = th.cuda.current_device()
-    size = th.tensor([size], device=th.device(dev_id))
+    
+    if th.cuda.is_available(): # if self.dev_id >= 0
+        dev_id = th.cuda.current_device()
+        size = th.tensor([size], device=th.device(dev_id))
+    else:
+        size = th.tensor([size], device=th.device("cpu"))
     dist.all_reduce(size, dist.ReduceOp.SUM)
     return int(size.cpu())
 

@@ -69,7 +69,7 @@ def main(config_args):
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_cuda(dev_id=config.local_rank)
+    trainer.setup_device(dev_id=config.local_rank)
     if not config.no_validation:
         evaluator = get_evaluator(config)
         trainer.setup_evaluator(evaluator)
@@ -80,7 +80,10 @@ def main(config_args):
     if trainer.rank == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-    device = 'cuda:%d' % trainer.dev_id
+    if th.cuda.is_available(): # if self.dev_id >= 0
+        device = 'cuda:%d' % trainer.dev_id
+    else:
+        device = 'cpu'
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                      batch_size=config.batch_size, device=device, train_task=True)
     val_dataloader = None

@@ -35,7 +35,8 @@ class GSInfer():
         self._evaluator = None
         self._task_tracker = None
 
-    def setup_cuda(self, dev_id):
+    # change the description
+    def setup_device(self, dev_id):
         """ Set up the CUDA device of this trainer.
 
         The CUDA device is set up based on the local rank.
@@ -45,13 +46,16 @@ class GSInfer():
         dev_id : int
             The device ID for model training.
         """
-        # setup cuda env
-        use_cuda = th.cuda.is_available()
-        assert use_cuda, "Only support GPU training"
-        th.cuda.set_device(dev_id)
-        self._dev_id = dev_id
-        self._model = self._model.to(self.dev_id)
-
+        #assert use_cuda, "Only support GPU training"
+        if th.cuda.is_available():
+            th.cuda.device(dev_id)
+            self._model = self._model.to(self.dev_id)
+            self._dev_id = dev_id
+        else:
+            th.cuda.device("cpu")
+            self._model = self._model.to("cpu")
+            self._dev_id = None
+        
     def setup_task_tracker(self, task_tracker):
         """ Set the task tracker.
 

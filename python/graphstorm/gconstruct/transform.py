@@ -569,7 +569,7 @@ class Text2BERT(FeatTransform):
                     if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
             self.device = f"cuda:{gpu}"
         else:
-            self.device = None
+            self.device = "cpu"
 
         if self.lm_model is None:
             config = BertConfig.from_pretrained(self.model_name)

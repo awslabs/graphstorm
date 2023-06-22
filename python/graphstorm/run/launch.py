@@ -419,6 +419,8 @@ def construct_dgl_server_env_vars(
 
     """
     server_env_vars_template = (
+        "NVIDIA_VISIBLE_DEVICES={NVIDIA_VISIBLE_DEVICES} "
+        "CUDA_VISIBLE_DEVICES={NVIDIA_VISIBLE_DEVICES} "
         "DGL_ROLE={DGL_ROLE} "
         "DGL_NUM_SAMPLER={DGL_NUM_SAMPLER} "
         "OMP_NUM_THREADS={OMP_NUM_THREADS} "
@@ -433,6 +435,8 @@ def construct_dgl_server_env_vars(
     if pythonpath:
         suffix_optional_envvars += f"PYTHONPATH={pythonpath} "
     return server_env_vars_template.format(
+        NVIDIA_VISIBLE_DEVICES="",
+        CUDA_VISIBLE_DEVICES="",
         DGL_ROLE="server",
         DGL_NUM_SAMPLER=num_samplers,
         OMP_NUM_THREADS=num_server_threads,
@@ -486,6 +490,8 @@ def construct_dgl_client_env_vars(
         friendly for CLI execution.
     """
     client_env_vars_template = (
+        "NVIDIA_VISIBLE_DEVICES={NVIDIA_VISIBLE_DEVICES} "
+        "CUDA_VISIBLE_DEVICES={NVIDIA_VISIBLE_DEVICES} "
         "DGL_DIST_MODE={DGL_DIST_MODE} "
         "DGL_ROLE={DGL_ROLE} "
         "DGL_NUM_SAMPLER={DGL_NUM_SAMPLER} "
@@ -503,6 +509,8 @@ def construct_dgl_client_env_vars(
     if pythonpath:
         suffix_optional_envvars += f"PYTHONPATH={pythonpath} "
     return client_env_vars_template.format(
+        NVIDIA_VISIBLE_DEVICES="",
+        CUDA_VISIBLE_DEVICES="",
         DGL_DIST_MODE="distributed",
         DGL_ROLE="client",
         DGL_NUM_SAMPLER=num_samplers,
