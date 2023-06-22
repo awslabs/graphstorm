@@ -184,3 +184,4 @@ dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert feat back to 1D to pass test
 np.testing.assert_allclose(src_ids + dst_ids, feat.reshape(-1,))
+np.testing.assert_allclose(src_ids + dst_ids, feat2.reshape(-1,))
