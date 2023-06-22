@@ -359,8 +359,9 @@ def check_feat_ops_rank_gauss():
     new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
     trans_feat = res7[0].after_merge_transform(new_feat)
     # sum of gauss rank should be zero
-    data_sum = np.sum(trans_feat, axis=0)
-    np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+    trans_feat = np.sort(trans_feat, axis=0)
+    rev_trans_feat = np.flip(trans_feat, axis=0)
+    assert np.all(trans_feat + rev_trans_feat == 0)
 
 def check_feat_ops_categorical():
     feat_op7 = [
