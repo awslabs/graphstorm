@@ -88,8 +88,8 @@ assert label.dtype == np.int32
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert orig_ids to 2D to pass test
-assert np.all(data == orig_ids.reshape(-1, 1))
-assert np.all(data1 == orig_ids.reshape(-1, 1))
+np.testing.assert_allclose(data, orig_ids.reshape(-1, 1))
+np.testing.assert_allclose(data1, orig_ids.reshape(-1, 1))
 assert np.all(label == orig_ids % 100)
 assert th.sum(g.nodes['node1'].data['train_mask']) == int(g.number_of_nodes('node1') * 0.8)
 assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1') * 0.2)
@@ -140,13 +140,13 @@ src_ids = src_ids.numpy()
 dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()])
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert feat back to 1D to pass test
-assert np.all(src_ids + dst_ids == feat.reshape(-1,))
-
+np.testing.assert_allclose(src_ids + dst_ids, feat.reshape(-1,))
 data = g.nodes['node1'].data['feat_rank_gauss']
-data_sum = np.sum(data.numpy(), axis=0)
-np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+data = np.sort(data.numpy(), axis=0)
+rev_data = np.flip(data, axis=0)
+assert np.all(data + rev_data == 0)
 data = g.nodes['node1'].data['feat_rank_gauss_fp16']
-assert np.all(src_ids + dst_ids == feat2.reshape(-1,))
+np.testing.assert_allclose(src_ids + dst_ids, feat2.reshape(-1,))
 
 #test data type
 data = g.nodes['node1'].data['feat2']

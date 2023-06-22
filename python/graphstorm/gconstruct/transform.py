@@ -594,7 +594,7 @@ def parse_feat_ops(confs):
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
-        out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
+        out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else np.float32
         if 'transform' not in feat:
             transform = Noop(feat['feature_col'], feat_name, out_dtype=out_dtype)
         else:
