@@ -28,7 +28,6 @@ from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
 from ..utils import rt_profiler
-from ..utils import mm_profiler
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
@@ -120,7 +119,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
             rt_profiler.start_record()
-            mm_profiler.start_record()
             for i, (input_nodes, batch_graph, blocks) in enumerate(train_loader):
                 rt_profiler.record('train_sample')
                 total_steps += 1
@@ -172,10 +170,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    mm_profiler.record("train", f"{epoch}-{i}")
                     val_score = self.eval(model.module, val_loader, test_loader,
                                           use_mini_batch_infer, total_steps, return_proba=False)
-                    mm_profiler.print_stats()
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -206,7 +202,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
             dur.append(epoch_time)
-            mm_profiler.record("train", f"{epoch}-finish")
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
@@ -229,7 +224,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        mm_profiler.save_profile()
         print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
@@ -271,7 +265,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         """
         test_start = time.time()
         sys_tracker.check('start prediction')
-        mm_profiler.record("eval", "start")
         model.eval()
         if use_mini_batch_infer:
             val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader, return_proba,
@@ -295,7 +288,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         sys_tracker.check('predict')
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
                                                         val_label, test_label, total_steps)
-        mm_profiler.record("eval", "after_syc_score")
         sys_tracker.check('evaluate')
 
         if self.rank == 0:
