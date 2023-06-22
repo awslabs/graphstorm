@@ -127,7 +127,7 @@ Launching GraphStorm training on SageMaker is similar as launching in the :ref:`
 
 * The launch commands are under the ``graphstorm/sagemaker`` folder, and
 * Users need to provide AWS service-related information in the command.
-* All paths for saving models, embeddings, and prediction results should be an S3 location specified through the ``--model-artifact-s3`` argument.
+* All paths for saving models, embeddings, and prediction results should be an S3 locations specified through the ``--model-artifact-s3`` argument.
 
 Users can use the following commands to launch a GraphStorm Link Prediction training job with the OGB-MAG graph.
 
@@ -190,7 +190,7 @@ Users can use the following command to launch a GraphStorm Link Prediction infer
 
 .. note:: 
 
-    Diffferent from the training command's argument, in the inference command, the value of argument ``--model-artifact-s3`` needs to be a specific training epoch or epoch plus iterations, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
+    Diffferent from the training command's argument, in the inference command, the value of argument ``--model-artifact-s3`` needs to be path to a saved model. By default, it is stored under an S3 path with specific training epoch or epoch plus iteration number, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
 
 As the outcomes of the inference command, generated node embeddings will be uploaded into ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3`` to specify saving locations of prediction results. 
 

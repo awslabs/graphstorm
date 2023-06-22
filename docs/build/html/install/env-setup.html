@@ -276,7 +276,8 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_oss4local.sh
 <h3>Prerequisites<a class="headerlink" href="#id1" title="Permalink to this heading">#</a></h3>
 <ol class="arabic simple">
 <li><p><strong>Linux OS</strong>: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.</p></li>
-<li><p><strong>GPU</strong>: The current version of GraphStorm requires <strong>at least one GPU</strong> installed in the instance.</p></li>
+<li><p><strong>GPU</strong>: The current version of GraphStorm requires <strong>at least one NVidia GPU</strong> installed in the instance.</p></li>
+<li><p><strong>Python3</strong>: The current version of GraphStorm requires Python installed with version later than <strong>3.7</strong>.</p></li>
 </ol>
 </section>
 <section id="install-graphstorm">
@@ -301,7 +302,7 @@ pip<span class="w"> </span>install<span class="w"> </span>scikit-learn
 pip<span class="w"> </span>install<span class="w"> </span><span class="nv">ogb</span><span class="o">==</span><span class="m">1</span>.3.6
 pip<span class="w"> </span>install<span class="w"> </span><span class="nv">psutil</span><span class="o">==</span><span class="m">5</span>.9.5
 pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">1</span>.13.1+cu116<span class="w"> </span>--extra-index-url<span class="w"> </span>https://download.pytorch.org/whl/cu116
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.0<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels/cu116/repo.html
+pip<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.3<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels/cu116/repo.html
 </pre></div>
 </div>
 </section>

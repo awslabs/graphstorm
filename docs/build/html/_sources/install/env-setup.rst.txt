@@ -84,7 +84,9 @@ Prerequisites
 
 1. **Linux OS**: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.
 
-2. **GPU**: The current version of GraphStorm requires **at least one GPU** installed in the instance.
+2. **GPU**: The current version of GraphStorm requires **at least one NVidia GPU** installed in the instance.
+
+3. **Python3**: The current version of GraphStorm requires Python installed with version later than **3.7**.
 
 Install GraphStorm
 ...................
@@ -112,7 +114,7 @@ GraphStorm requires a set of dependencies, which can be installed with the follo
     pip install ogb==1.3.6
     pip install psutil==5.9.5
     pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
-    pip install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
+    pip install dgl==1.0.3 -f https://data.dgl.ai/wheels/cu116/repo.html
 
 Configure SSH No-password login
 ................................
