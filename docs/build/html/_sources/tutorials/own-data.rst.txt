@@ -245,14 +245,14 @@ If users want to split labels with your own logics, e.g., time sequence, you can
             "label_col": "label",
             "task_type": "classification",
             "custom_split_filenames": {"train": "/tmp/acm_raw/nodes/train_idx.json",
-                                        "valid": "/tmp/acm_raw/nodes/val_idx.json",
-                                        "test": "/tmp/acm_raw/nodes/test_idx.json"}
+                                       "valid": "/tmp/acm_raw/nodes/val_idx.json",
+                                       "test": "/tmp/acm_raw/nodes/test_idx.json"}
         }
     ]
 
 Instead of using the ``split_pct``, users can specify the ``custom_split_filenames`` configuration with a value, which is a dictionary. The dictionary's keys could include ``train``, ``valid``, and ``test``, and values of the dictionary are JSON files that contains the node/edge IDs of each set.
 
-These JSON files only need to list the IDs on its own set. For example, in a node classification task, there are 100 nodes and node ID starts from 0, and assume the last 50 nodes (ID from 49 to 99) have labels associated. For some business logic, users want to have the first 10 of the 50 labeled nodes as training set, the last 30 as the test set, and the middle 10 as the validation set. Then the train_idx.json file should cotains the integer from 50 to 59, and one integer per line. The val_idx.json file should cotains the integer from 60 to 69, and one integer per line. The test_idx.json file should cotains the integer from 70 to 99, and one integer per line.
+These JSON files only need to list the IDs on its own set. For example, in a node classification task, there are 100 nodes and node ID starts from 0, and assume the last 50 nodes (ID from 49 to 99) have labels associated. For some business logic, users want to have the first 10 of the 50 labeled nodes as training set, the last 30 as the test set, and the middle 10 as the validation set. Then the `train_idx`.json file should cotains the integer from 50 to 59, and one integer per line. The `val_idx.json` file should cotains the integer from 60 to 69, and one integer per line. The `test_idx.json` file should cotains the integer from 70 to 99, and one integer per line.
 
 .. _raw-data-files:
 
