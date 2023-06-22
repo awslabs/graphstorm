@@ -2,80 +2,10 @@
 
 Environment Setup
 ======================
-For a quick and easy setup, GraphStorm can be installed as a pip package. However, configuring a GraphStorm environment in various Operation Systems is non-trivial, therefore, GraphStorm also provides Docker-based running environment for easy deployment.
+GraphStorm can be installed as a pip package. However, configuring a GraphStorm environment in various Operation Systems is non-trivial, therefore, GraphStorm provides Docker-based running environment for easy deployment.
 
-1. Setup GraphStorm with pip Package
--------------------------------------
-Prerequisites
-...............
-
-1. **Linux OS**: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.
-
-2. **GPU**: The current version of GraphStorm requires **at least one GPU** installed in the instance.
-
-Install GraphStorm
-...................
-Users can use ``pip`` or ``pip3`` to install GraphStorm.
-
-.. code-block:: bash
-
-    pip install graphstorm
-
-Install Dependencies
-.....................
-GraphStorm requires a set of dependencies, which can be installed with the following ``pip`` or ``pip3`` commands.
-
-.. code-block:: bash
-
-    pip install boto3==1.26.126
-    pip install botocore==1.29.126
-    pip install h5py==3.8.0
-    pip install scipy
-    pip install tqdm==4.65.0
-    pip install pyarrow==12.0.0
-    pip install transformers==4.28.1
-    pip install pandas
-    pip install scikit-learn
-    pip install ogb==1.3.6
-    pip install psutil==5.9.5
-    pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
-    pip install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
-
-Configure SSH No-password login
-................................
-Use the following commands to configure a local ssh no-password login that GraphStorm relies on.
-
-.. code-block:: bash
-
-    ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ''
-    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-
-Then use this command to test if the ssh no-password login works.
-
-.. code-block:: bash
-
-    ssh 127.0.0.1
-
-If everything is correct, the above command will enter another Linux shell process.
-
-Clone GraphStorm Tools (Optional)
-..................................
-GraphStorm provides a set of scripts, tools, and examples, which can facilitate the use of GraphStrom.
-
-* **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include examplar configuration yaml files that used in GraphStorm documents and tutorials.
-* **graphstorm/examples** includes Python codes for customized models and customized data preparation.
-* **graphstorm/tools** includes graph data partition and related Python codes.
-* **graphstorm/sagemaker** include commands and codes to run GraphStorm on Amazon SageMaker.
-
-Users can clone GraphStorm source code to obtain them.
-
-.. code-block:: bash
-
-    git clone https://github.com/awslabs/graphstorm.git
-
-2. Setup GraphStorm Docker Environment
+1. Setup GraphStorm Docker Environment
 ---------------------------------------
-
 Prerequisites
 ...............
 
@@ -146,3 +76,74 @@ If succeeds, the command prompt will change to the container's, like
 .. code-block:: console
 
     root@ip-address:/#
+
+2. Setup GraphStorm with pip Package
+-------------------------------------
+Prerequisites
+...............
+
+1. **Linux OS**: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.
+
+2. **GPU**: The current version of GraphStorm requires **at least one GPU** installed in the instance.
+
+Install GraphStorm
+...................
+Users can use ``pip`` or ``pip3`` to install GraphStorm.
+
+.. code-block:: bash
+
+    pip install graphstorm
+
+Install Dependencies
+.....................
+GraphStorm requires a set of dependencies, which can be installed with the following ``pip`` or ``pip3`` commands.
+
+.. code-block:: bash
+
+    pip install boto3==1.26.126
+    pip install botocore==1.29.126
+    pip install h5py==3.8.0
+    pip install scipy
+    pip install tqdm==4.65.0
+    pip install pyarrow==12.0.0
+    pip install transformers==4.28.1
+    pip install pandas
+    pip install scikit-learn
+    pip install ogb==1.3.6
+    pip install psutil==5.9.5
+    pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+    pip install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
+
+Configure SSH No-password login
+................................
+Use the following commands to configure a local ssh no-password login that GraphStorm relies on.
+
+.. code-block:: bash
+
+    ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ''
+    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+Then use this command to test if the ssh no-password login works.
+
+.. code-block:: bash
+
+    ssh 127.0.0.1
+
+If everything is correct, the above command will enter another Linux shell process.
+
+Clone GraphStorm Tools (Optional)
+..................................
+GraphStorm provides a set of scripts, tools, and examples, which can facilitate the use of GraphStrom.
+
+* **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include examplar configuration yaml files that used in GraphStorm documents and tutorials.
+* **graphstorm/examples** includes Python codes for customized models and customized data preparation.
+* **graphstorm/tools** includes graph data partition and related Python codes.
+* **graphstorm/sagemaker** include commands and codes to run GraphStorm on Amazon SageMaker.
+
+Users can clone GraphStorm source code to obtain them.
+
+.. code-block:: bash
+
+    git clone https://github.com/awslabs/graphstorm.git
+
+.. warning:: If use this method to setup GraphStorm environment, please replace launch the argument ``--ssh-port`` of commands in GraphStorm's tutorials to be **22**, not 2222.
