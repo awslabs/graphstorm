@@ -8,9 +8,7 @@ There are two modes of using LMs in GraphStorm:
 
 * Embed text contents with pre-trained LMs, and then use them as the input node features, without fine-tuning the LMs. Training speed in this mode is fast, and memory consumption will be lower. However, in some cases, pre-trained LMs may not fit to the graph data well, and fail to improve performance.
 
-* Co-train both LMs and GML models in the same training loop. This will fine-tune the LMs to fit to graph data. This mode in general can improve performance, but co-train the LMs will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.
-
-.. warning:: The current version of GraphStorm requires **ALL** node types must have text features if users want to co-train LM and GNN models.
+* Co-train both LMs and GML models in the same training loop. This will fine-tune the LMs to fit to graph data. In many cases this mode can improve performance, but co-train the LMs will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.
 
 To use LMs in GraphStorm, users can follow the same procedure as the :ref:`Use Your Own Data<use-own-data>` tutorial with some minor changes.
 
@@ -155,30 +153,13 @@ To co-train BERT and GNN models, we need to add one more argument, the ``--lm-tr
             --node-feat-name paper:feat author:feat subject:feat \
             --lm-train-nodes 10
 
-The ``--lm-train-nodes`` argument determines how many nodes will be used to train the BERT models. Because the BERT models are normally large, training of them will consume many memories. If use all nodes to co-train BERT and GNN models, it could cause GPU out of memory (OOM) errors. Use a smaller number for the ``--lm-train-nodes`` could reduce the chances of OOM errors.
+The ``--lm-train-nodes`` argument determines how many nodes will be used to tune the BERT models. Because the BERT models are normally large, training of them will consume many memories. If use all nodes to co-train BERT and GNN models, it could cause GPU out of memory (OOM) errors. Use a smaller number for the ``--lm-train-nodes`` could reduce the overall GPU memory consumption.
 
 .. note:: It will take longer time to co-train BERT and GNN models compared to no co-train.
 
 Only Use BERT Models
 ------------------------
 GraphStorm also allows users to only use BERT models to perform graph tasks. We can add another argument, ``--lm-encoder-only``, to control whether only use BERT models or not.
-
-The command below use BERT model only without fine-tuning the model.
-
-.. code-block:: bash
-
-    python3 -m graphstorm.run.gs_node_classification \
-            --workspace /tmp \
-            --part-config /tmp/acm_nc/acm.json \
-            --ip-config /tmp/ip_list.txt \
-            --num-trainers 4 \
-            --num-servers 1 \
-            --num-samplers 0 \
-            --ssh-port 2222 \
-            --cf /tmp/acm_lm_nc.yaml \
-            --save-model-path /tmp/acm_nc/models \
-            --node-feat-name paper:feat author:feat subject:feat \
-            --lm-encoder-only
 
 If users want to fine tune the BERT model only, just add the ``--lm-train-nodes`` argument as the command below:
 
@@ -197,3 +178,5 @@ If users want to fine tune the BERT model only, just add the ``--lm-train-nodes`
             --node-feat-name paper:feat author:feat subject:feat \
             --lm-encoder-only \
             --lm-train-nodes 10
+
+.. note:: The current version of GraphStorm requires **ALL** node types must have text features when users want to do the above graph-aware LM fine-tuning only.
