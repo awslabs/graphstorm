@@ -24,7 +24,10 @@ from dgl.dataloading import DistDataLoader
 from dgl.dataloading import EdgeCollator
 from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 
-from .sampler import LocalUniform, JointUniform, GlobalUniform, JointLocalUniform, FastMultiLayerNeighborSampler
+from .sampler import (LocalUniform,
+                      JointUniform,
+                      GlobalUniform,
+                      JointLocalUniform, FastMultiLayerNeighborSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
@@ -312,8 +315,10 @@ class GSgnnLPLocalJointNegDataLoader(GSgnnLinkPredictionDataLoader):
         return negative_sampler
 
 class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader that does not send train_mask to
+        DGL sampler but use the train_mask to trim the sampled graph.
     """
-    """
+
     def _prepare_dataloader(self, g, target_idxs, fanout,
                             num_negative_edges, batch_size, device, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,

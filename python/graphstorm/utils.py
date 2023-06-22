@@ -335,8 +335,5 @@ class RuntimeProfiler:
             data_frame.to_csv(profile_path, float_format='%.3f', index=False)
             print(f"save profiling in {profile_path}")
 
-def _mem_byte2gb(num_bytes):
-    return num_bytes / 1024 / 1024 / 1024
-
 sys_tracker = SysTracker()
 rt_profiler = RuntimeProfiler()
