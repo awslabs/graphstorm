@@ -20,6 +20,7 @@
 import logging
 import os
 import sys
+import abc
 
 import numpy as np
 import torch as th
@@ -37,9 +38,6 @@ def _get_output_dtype(dtype_str):
         return np.float32
     else:
         assert False, f"Unknown dtype {dtype_str}, only support float16 and float32"
-
-def _feat_astype(feats, dtype):
-    return feats.astype(dtype) if dtype is not None else feats
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -71,6 +69,62 @@ class FeatTransform:
         """
         return self._feat_name
 
+    @property
+    def out_dtype(self):
+        """ Output feature dtype
+        """
+        return self._out_dtype
+
+    def __call__(self, feats):
+        """ This transforms the features.
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+        feats = self.call(feats)
+        return self.as_out_dtype(feats)
+
+    @abc.abstractmethod
+    def call(self, feats):
+        """ This function implements the feature transformation logic
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+
+    def as_out_dtype(self, feats):
+        """ Convert feats into out_dtype
+
+        Parameters
+        ----------
+        feats: Numpy array or dict of Numpy array
+            The feature data
+
+        Returns
+        -------
+        Numpy array or dict: the output feature with dtype of out_dtype
+        """
+        if self.out_dtype is None:
+            return feats
+
+        if isinstance(feats, dict):
+            return {key: feat.astype(self.out_dtype) \
+                        for key, feat in feats.items()}
+        else:
+            return feats.astype(self.out_dtype)
+
 class GlobalProcessFeatTransform(FeatTransform):
     """ The base class for transformations that can only be done using a single process.
 
@@ -88,6 +142,9 @@ class GlobalProcessFeatTransform(FeatTransform):
         ----------
         feats:
             feats to be processed
+
+        Return:
+            np.array: processed feat
         """
 
 class TwoPhaseFeatTransform(FeatTransform):
@@ -194,7 +251,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         if self._conf is not None:
             self._conf['mapping'] = self._val_dict
 
-    def __call__(self, feats):
+    def call(self, feats):
         """ Assign IDs to categorical values.
 
         Parameters
@@ -244,6 +301,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                  out_dtype=None):
         self._max_bound = max_bound
         self._min_bound = min_bound
+        out_dtype = np.float32 if out_dtype is None else out_dtype
         super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def pre_process(self, feats):
@@ -299,7 +357,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         self._max_val = max_val
         self._min_val = min_val
 
-    def __call__(self, feats):
+    def call(self, feats):
         """ Do normalization for feats
 
         Parameters
@@ -326,7 +384,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats = (feats - self._min_val) / (self._max_val - self._min_val)
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
-        feats = _feat_astype(feats, self._out_dtype)
 
         return {self.feat_name: feats}
 
@@ -350,6 +407,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
     """
     def __init__(self, col_name, feat_name, out_dtype=None, epsilon=None):
         self._epsilon = epsilon if epsilon is not None else 1e-6
+        out_dtype = np.float32 if out_dtype is None else out_dtype
         super(RankGaussTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def __call__(self, feats):
@@ -360,6 +418,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
 
+        # This is not final output, we do not cast feats into out_dtype
         return {self.feat_name: feats}
 
     def after_merge_transform(self, feats):
@@ -372,7 +431,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
         feats = erfinv(feats)
 
-        feats = _feat_astype(feats, self._out_dtype)
+        self.as_out_dtype(feats)
         return feats
 
 class Tokenizer(FeatTransform):
@@ -450,6 +509,7 @@ class Text2BERT(FeatTransform):
     """
     def __init__(self, col_name, feat_name, tokenizer, model_name,
                  infer_batch_size=None, out_dtype=None):
+        out_dtype = np.float32 if out_dtype is None else out_dtype
         super(Text2BERT, self).__init__(col_name, feat_name, out_dtype)
         self.model_name = model_name
         self.lm_model = None
@@ -482,7 +542,7 @@ class Text2BERT(FeatTransform):
                 lm_model = lm_model.to(self.device)
             self.lm_model = lm_model
 
-    def __call__(self, strs):
+    def call(self, strs):
         """ Compute BERT embeddings of the strings..
 
         Parameters
@@ -524,14 +584,26 @@ class Text2BERT(FeatTransform):
         else:
             feats = out_embs[0]
 
-        feats = _feat_astype(feats, self._out_dtype)
         return {self.feat_name: feats}
 
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
-    """
 
-    def __call__(self, feats):
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    """
+    def __init__(self, col_name, feat_name, out_dtype=None):
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(Noop, self).__init__(col_name, feat_name, out_dtype)
+
+    def call(self, feats):
         """ This transforms the features.
 
         Parameters
@@ -548,7 +620,6 @@ class Noop(FeatTransform):
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
-        feats = _feat_astype(feats, self._out_dtype)
         return {self.feat_name: feats}
 
 def parse_feat_ops(confs):
@@ -581,7 +652,7 @@ def parse_feat_ops(confs):
         # By default the out_dtype is set to float32
         # FeatTransform sub-classes can ignore out_dtype
         # or redefine it in its init function.
-        out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else np.float32
+        out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
         if 'transform' not in feat:
             transform = Noop(feat['feature_col'], feat_name, out_dtype=out_dtype)
         else:
