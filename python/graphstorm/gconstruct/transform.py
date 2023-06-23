@@ -443,8 +443,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
         feats = erfinv(feats)
 
-        self.as_out_dtype(feats)
-        return feats
+        return self.as_out_dtype(feats)
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
