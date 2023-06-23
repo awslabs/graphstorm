@@ -39,7 +39,7 @@ Then run the command to create the ACM data with the required ``raw_w_text`` for
 
 Once succeeded, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder same as the :ref:`outputs<acm-raw-data-output>` in the :ref:`Use Your Own Data<use-own-data>` tutorial. But the contents of the ``config.json`` have a few extra lines that list the text feature columns and how to process them during graph contruction. 
 
-The below snippet show the ``author`` node's information. It shows the "**text**" column contains text features, and it require the GraphStorm graph contruction tool to use a HuggingFace BERT model, named ``bert-base-uncased``, to tokenize these text features during construction.
+The below snippet show the ``author`` node's information. It shows the "**text**" column contains text features, and it require the GraphStorm graph contruction tool to use a `HuggingFace BERT model <https://huggingface.co/models>`_, named ``bert-base-uncased``, to tokenize these text features during construction.
 
 .. code-block:: json
 
