@@ -255,10 +255,10 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 </ol>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the &lt;DOCKER_NAME&gt; to include the ECR URI string, <strong>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com</strong>, e.g., <code class="docutils literal notranslate"><span class="pre">888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm</span></code>.</p>
+<p>In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the &lt;DOCKER_NAME&gt; to include the ECR URI string, <strong>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com/</strong>, e.g., <code class="docutils literal notranslate"><span class="pre">888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm</span></code>.</p>
 </div>
 <ol class="arabic simple" start="3">
-<li><p><strong>DOCKER_TAG</strong> (optional), is the assigned tag name of the to-be built docker image. Default is <code class="docutils literal notranslate"><span class="pre">sm</span></code>.</p></li>
+<li><p><strong>DOCKER_TAG</strong> (optional), is the assigned tag name of the to-be built Docker image. Default is <code class="docutils literal notranslate"><span class="pre">sm</span></code>.</p></li>
 </ol>
 <p>Once the <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> command completes successfully, there will be a Docker image, named <code class="docutils literal notranslate"><span class="pre">&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;</span></code>, such as <code class="docutils literal notranslate"><span class="pre">888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm</span></code>, in the local repository, which could be listed by running:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>image<span class="w"> </span>ls

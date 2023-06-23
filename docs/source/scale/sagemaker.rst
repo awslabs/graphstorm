@@ -51,9 +51,9 @@ The ``build_docker_sagemaker.sh`` script takes three arguments:
 2. **DOCKER_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
 
 .. warning::
-    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <DOCKER_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
+    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <DOCKER_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
 
-3. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built docker image. Default is ``sm``.
+3. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm``.
 
 Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, in the local repository, which could be listed by running:
 
