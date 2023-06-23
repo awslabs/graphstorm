@@ -214,19 +214,19 @@
 <section id="construct-graph-py-arguments">
 <h2><a class="reference external" href="https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py">construct_graph.py</a> arguments<a class="headerlink" href="#construct-graph-py-arguments" title="Permalink to this heading">#</a></h2>
 <ul class="simple">
-<li><p><strong>–conf-file</strong>: (<strong>Required</strong>) the path of the configuration JSON file.</p></li>
-<li><p><strong>–num-processes</strong>: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.</p></li>
-<li><p><strong>–num-processes-for-nodes</strong>: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.</p></li>
-<li><p><strong>–num-processes-for-edges</strong>: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.</p></li>
-<li><p><strong>–output-dir</strong>: (<strong>Required</strong>) the path of the output data files.</p></li>
-<li><p><strong>–graph-name</strong>: (<strong>Required</strong>) the name assigned for the graph.</p></li>
-<li><p><strong>–remap-node_id</strong>: boolean value to decide whether to rename node IDs or not. Default is true.</p></li>
-<li><p><strong>–add-reverse-edges</strong>: boolean value to decide whether to add reverse edges for the given graph. Default is true.</p></li>
-<li><p><strong>–output-format</strong>: the format of constructed graph, options are <code class="docutils literal notranslate"><span class="pre">DGL</span></code> and <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>. Default is <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>. The output format is explained in the <a class="reference internal" href="#output-format"><span class="std std-ref">Output</span></a> section below.</p></li>
-<li><p><strong>–num-parts</strong>: the number of partitions of the constructed graph. This is only valid if the output format is <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>.</p></li>
-<li><p><strong>–skip-nonexist-edges</strong>: boolean value to decide whether skip edges whose endpoint nodes don’t exist. Default is true.</p></li>
-<li><p><strong>–ext-mem-workspace</strong>: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.</p></li>
-<li><p><strong>–ext-mem-feat-size</strong>: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.</p></li>
+<li><p><strong>--conf-file</strong>: (<strong>Required</strong>) the path of the configuration JSON file.</p></li>
+<li><p><strong>--num-processes</strong>: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.</p></li>
+<li><p><strong>--num-processes-for-nodes</strong>: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.</p></li>
+<li><p><strong>--num-processes-for-edges</strong>: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.</p></li>
+<li><p><strong>--output-dir</strong>: (<strong>Required</strong>) the path of the output data files.</p></li>
+<li><p><strong>--graph-name</strong>: (<strong>Required</strong>) the name assigned for the graph.</p></li>
+<li><p><strong>--remap-node_id</strong>: boolean value to decide whether to rename node IDs or not. Default is true.</p></li>
+<li><p><strong>--add-reverse-edges</strong>: boolean value to decide whether to add reverse edges for the given graph. Default is true.</p></li>
+<li><p><strong>--output-format</strong>: the format of constructed graph, options are <code class="docutils literal notranslate"><span class="pre">DGL</span></code> and <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>. Default is <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>. The output format is explained in the <a class="reference internal" href="#output-format"><span class="std std-ref">Output</span></a> section below.</p></li>
+<li><p><strong>--num-parts</strong>: the number of partitions of the constructed graph. This is only valid if the output format is <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>.</p></li>
+<li><p><strong>--skip-nonexist-edges</strong>: boolean value to decide whether skip edges whose endpoint nodes don’t exist. Default is true.</p></li>
+<li><p><strong>--ext-mem-workspace</strong>: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.</p></li>
+<li><p><strong>--ext-mem-feat-size</strong>: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.</p></li>
 </ul>
 </section>
 <section id="configuration-json-explanations">
@@ -274,7 +274,7 @@
 </section>
 <section id="feature-transformation">
 <span id="feat-transform"></span><h3>Feature transformation<a class="headerlink" href="#feature-transformation" title="Permalink to this heading">#</a></h3>
-<p>Currently, the graph construction pipeline only supports three feature transformation:</p>
+<p>Currently, the graph construction pipeline supports the following feature transformation:</p>
 <ul class="simple">
 <li><p><strong>HuggingFace tokenizer transformation</strong> tokenizes text strings with a HuggingFace tokenizer. The <code class="docutils literal notranslate"><span class="pre">name</span></code> field in the feature transformation dictionary is <code class="docutils literal notranslate"><span class="pre">tokenize_hf</span></code>. The dict should contain two additional fields. <code class="docutils literal notranslate"><span class="pre">bert_model</span></code> specifies the BERT model used for tokenization. <code class="docutils literal notranslate"><span class="pre">max_seq_length</span></code> specifies the maximal sequence length.</p></li>
 <li><p><strong>HuggingFace BERT transformation</strong> encodes text strings with a HuggingFace BERT model.  The <code class="docutils literal notranslate"><span class="pre">name</span></code> field in the feature transformation dictionary is <code class="docutils literal notranslate"><span class="pre">bert_hf</span></code>. The dict should contain two additional fields. <code class="docutils literal notranslate"><span class="pre">bert_model</span></code> specifies the BERT model used for tokenization. <code class="docutils literal notranslate"><span class="pre">max_seq_length</span></code> specifies the maximal sequence length.</p></li>
@@ -285,7 +285,7 @@
 </section>
 <section id="output">
 <span id="output-format"></span><h3>Output<a class="headerlink" href="#output" title="Permalink to this heading">#</a></h3>
-<p>Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL. If select <code class="docutils literal notranslate"><span class="pre">DGL</span></code>, the output is a file, named <cite>&lt;graph_name&gt;.dgl</cite> under the folder specified by the <strong>–output-dir</strong> argument, where <cite>&lt;graph_name&gt;</cite> is the value of argument <strong>–graph-name</strong>. If select <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>, the output is a JSON file, named <cite>&lt;graph_name&gt;.json</cite>, and a set of <cite>part*</cite> folders under the folder specified by the <strong>–output-dir</strong> argument, where the <cite>*</cite> is the number specified by the <strong>–num-parts</strong> argument.
+<p>Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL. If select <code class="docutils literal notranslate"><span class="pre">DGL</span></code>, the output is a file, named <cite>&lt;graph_name&gt;.dgl</cite> under the folder specified by the <strong>--output-dir</strong> argument, where <cite>&lt;graph_name&gt;</cite> is the value of argument <strong>--graph-name</strong>. If select <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>, the output is a JSON file, named <cite>&lt;graph_name&gt;.json</cite>, and a set of <cite>part*</cite> folders under the folder specified by the <strong>--output-dir</strong> argument, where the <cite>*</cite> is the number specified by the <strong>--num-parts</strong> argument.
 By Specifying the output_format as <code class="docutils literal notranslate"><span class="pre">DGL</span></code>, the output will be an <a class="reference external" href="https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html">DGLGraph</a>. By Specifying the output_format as <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>, the output will be a partitioned graph named <a class="reference external" href="https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api">DistDGL graph</a>. It contains the partitioned graph, a JSON config describing the meta-information of the partitioned graph, and the mappings for the edges and nodes after partition, <code class="docutils literal notranslate"><span class="pre">node_mapping.pt</span></code> and <code class="docutils literal notranslate"><span class="pre">edge_mapping.pt</span></code>, which maps each node and edge in the partitoined graph into the original node and edge id space. The node ID mapping is stored as a dictionary of 1D tensors whose key is the node type and value is a 1D tensor mapping between shuffled node IDs and the original node IDs. The edge ID mapping is stored as a dictionary of 1D tensors whose key is the edge type and value is a 1D tensor mapping between shuffled edge IDs and the original edge IDs.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>

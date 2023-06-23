@@ -56,7 +56,7 @@ Scale to Giant Graphs
 For experienced users who wish to train and run infernece on very large graphs,
 
 - follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the Distributed mode.
-- follow the :ref:`Use GraphStorm in SageMaker<distributed-sagemaker>` tutorial to use GraphStorm in the Distribute mode based on Amazon SageMaker platform.
+- follow the :ref:`Use GraphStorm on SageMaker<distributed-sagemaker>` tutorial to use GraphStorm in the Distribute mode based on Amazon SageMaker platform.
 
 Avanced Topics
 --------------------
