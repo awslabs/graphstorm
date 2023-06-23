@@ -106,6 +106,7 @@ class FeatTransform:
 
     def as_out_dtype(self, feats):
         """ Convert feats into out_dtype
+            By default (out_dtype is None), it does nothing.
 
         Parameters
         ----------
