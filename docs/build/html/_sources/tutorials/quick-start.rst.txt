@@ -46,7 +46,7 @@ The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL 
 
 Launch Training
 -----------------
-GraphStorm currently relies on **ssh** to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in the Standalone mode, which run only in a **signle machine**, as this tutorial does, users only need to run the following command to create an ``ip_list.txt`` file that has one row '**127.0.0.1**' as its content.
+GraphStorm currently relies on **ssh** to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in the Standalone mode, which run only in a **single machine**, as this tutorial does, users only need to run the following command to create an ``ip_list.txt`` file that has one row '**127.0.0.1**' as its content.
 
 .. code-block:: bash
 
@@ -112,7 +112,7 @@ Next users can check the :ref:`Use Your Own Graph Data<use-own-data>` tutorial t
 
 Clean Up
 ----------
-Once finish GML tasks, users can exit the GraphStorm Docker container with command ``exit`` and then stop the container to restore computation resources.
+Once finished with GML tasks, users can exit the GraphStorm Docker container with command ``exit`` and then stop the container to restore computation resources.
 
 Run this command in the **container running environment** to leave the GraphStorm container.
 
