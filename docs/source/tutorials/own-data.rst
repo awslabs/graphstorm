@@ -12,6 +12,8 @@ It is easy for users to prepare their own graph data and leverage GraphStorm's b
 
     All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare your environment.
 
+    If you :ref:`set up the GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
+
 Step 1: Prepare Your Own Graph Data
 -------------------------------------
 There are two options to prepare your own graph data for using GraphStorm:
