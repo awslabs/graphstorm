@@ -20,8 +20,6 @@ GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.13+, DGL 1.0 and 
 
 To install GraphStorm in your environment, you can clone the repository and run `python3 setup.py install` to install it. However, running GraphStorm in a distributed environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we highly recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to run GraphStorm. A guideline to build GraphStorm docker image and run it on Amazon EC2 can be found at [here](https://github.com/awslabs/graphstorm/tree/main/docker).
 
-Note: GraphStorm does not work with PyTorch 2.0+.
-
 ### Run GraphStorm with OGB datasets
 
 **Note**: we assume users have setup their Docker container following the [Build a Docker image from source](https://github.com/awslabs/graphstorm/tree/main/docker#build-a-docker-image-from-source) instructions. All following commands run within a Docker container.
