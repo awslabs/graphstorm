@@ -56,15 +56,13 @@ Scale to Giant Graphs
 For experienced users who wish to train and run infernece on very large graphs,
 
 - follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the Distributed mode.
-- follow the :ref:`Use GraphStorm on SageMaker<distributed-sagemaker>` tutorial to use GraphStorm in the Distribute mode based on Amazon SageMaker platform.
+- follow the :ref:`Use GraphStorm on SageMaker<distributed-sagemaker>` tutorial to use GraphStorm in the Distribute mode based on Amazon SageMaker.
 
-Avanced Topics
+Advanced Topics
 --------------------
 
-For users who want to use their own GML models in GraphStorm, 
-
-- follow the :ref:`Use Your Own GNN Models<use-own-models>` tutorial to learn the programming interfaces and the steps of how to modify users' own models.
-- follow the :ref:`Use Text as Node Features<language_models>` tutorial to learn how to leverage BERT models to use text as node features.
+- For users who want to use their own GML models in GraphStorm, follow the :ref:`Use Your Own GNN Models<use-own-models>` tutorial to learn the programming interfaces and the steps of how to modify users' own models.
+- For users who want to use text as node features, follow the :ref:`Use Text as Node Features<language_models>` tutorial to learn how to leverage BERT models to use text as node features.
 
 Contribution
 -------------
