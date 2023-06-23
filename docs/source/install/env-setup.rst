@@ -135,16 +135,16 @@ Then use this command to test if the SSH no-password login works.
 
 If everything is right, the above command will enter another Linux shell process. Then exit this new shell with the command ``exit``.
 
-Clone GraphStorm (Optional)
-..................................
-GraphStorm provides a set of scripts, tools, and examples, which can facilitate the use of GraphStrom.
+Clone GraphStorm Toolkits (Optional)
+..........................................
+GraphStorm provides a set of toolkits, including scripts, tools, and examples, which can facilitate the use of GraphStrom.
 
 * **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include examplar configuration yaml files that used in GraphStorm documentations and tutorials.
 * **graphstorm/examples** includes Python code for customized models and customized data preparation.
 * **graphstorm/tools** includes graph partition and related Python code.
 * **graphstorm/sagemaker** include commands and code to run GraphStorm on Amazon SageMaker.
 
-Users can clone GraphStorm source code to obtain these files.
+Users can clone GraphStorm source code to obtain these toolkits.
 
 .. code-block:: bash
 
