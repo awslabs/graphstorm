@@ -12,6 +12,8 @@ It is easy for users to prepare their own graph data and leverage GraphStorm's b
 
     All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare your environment.
 
+    If you :ref:`set up the GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
+
 Step 1: Prepare Your Own Graph Data
 -------------------------------------
 There are two options to prepare your own graph data for using GraphStorm:
@@ -46,6 +48,8 @@ Then run the command to create the ACM data with the required raw format.
     python3 -m /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw 
 
 Once succeeded, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder, as shown below:
+
+.. _acm-raw-data-output:
 
 .. code-block:: bash
     
@@ -232,6 +236,34 @@ Based on the original ACM dataset, this example builds a simple heterogenous gra
 .. figure:: ../../../tutorial/ACM_schema.png
     :align: center
 
+Customized label split
+`````````````````````````
+If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file like the below example.
+
+.. code-block:: json
+
+    "labels": [
+        {
+            "label_col": "label",
+            "task_type": "classification",
+            "custom_split_filenames": {"train": "/tmp/acm_raw/nodes/train_idx.json",
+                                       "valid": "/tmp/acm_raw/nodes/val_idx.json",
+                                       "test": "/tmp/acm_raw/nodes/test_idx.json"}
+        }
+    ]
+
+Instead of using the ``split_pct``, users can specify the ``custom_split_filenames`` configuration with a value, which is a dictionary. The dictionary's keys could include ``train``, ``valid``, and ``test``, and values of the dictionary are JSON files that contains the node/edge IDs of each set.
+
+These JSON files only need to list the IDs on its own set. For example, in a node classification task, there are 100 nodes and node ID starts from 0, and assume the last 50 nodes (ID from 49 to 99) have labels associated. For some business logic, users want to have the first 10 of the 50 labeled nodes as training set, the last 30 as the test set, and the middle 10 as the validation set. Then the `train_idx.json` file should contain the integer from 50 to 59, and one integer per line. Similarly, the `val_idx.json` file should contain the integer from 60 to 69, and the `test_idx.json` file should contain the integer from 70 to 99. Contents of the `train_idx.json` file are like the followings.
+
+.. code-block:: json
+
+    50
+    51
+    52
+    ...
+    59
+
 .. _raw-data-files:
 
 Input raw node/edge data files
@@ -406,16 +438,14 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         sparse_optimizer_lr: 1e-2
         use_node_embeddings: false
     node_classification:
-        node_feat_name:
-          - "paper:feat"
-          - "author:feat"
-          - "subject:feat"
         target_ntype: "paper"
         label_field: "label"
         multilabel: false
         num_classes: 14
 
 You can copy this file to the ``/tmp`` folder within the GraphStorm container for the next step.
+
+.. _launch_training_oyog:
 
 Step 3: Launch training script on your own graphs
 ---------------------------------------------------
@@ -437,7 +467,7 @@ Below is a launch script example that trains a GraphStorm built-in RGCN model on
             --workspace /tmp \
             --part-config /tmp/acm_nc/acm.json \
             --ip-config /tmp/ip_list.txt \
-            --num-trainers 4 \
+            --num-trainers 1 \
             --num-servers 1 \
             --num-samplers 0 \
             --ssh-port 2222 \
