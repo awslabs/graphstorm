@@ -40,65 +40,66 @@ def test_feat_astype():
     feats = _feat_astype(feats, np.float16)
     assert feats.dtype == np.float16
 
-def test_fp_transform():
+@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
+def test_fp_transform(input_dtype):
     # test NumericalMinMaxTransform pre-process
     transform = NumericalMinMaxTransform("test", "test")
-    feats = np.random.randn(100)
+    feats = np.random.randn(100).astype(input_dtype)
 
     max_val, min_val = transform.pre_process(feats)["test"]
-    max_v = np.amax(feats)
-    min_v = np.amin(feats)
+    max_v = np.amax(feats).astype(np.float32)
+    min_v = np.amin(feats).astype(np.float32)
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
     assert_equal(max_val[0], max_v)
     assert_equal(min_val[0], min_v)
 
-    feats = np.random.randn(100, 1)
+    feats = np.random.randn(100, 1).astype(input_dtype)
     max_val, min_val = transform.pre_process(feats)["test"]
-    max_v = np.amax(feats)
-    min_v = np.amin(feats)
+    max_v = np.amax(feats).astype(np.float32)
+    min_v = np.amin(feats).astype(np.float32)
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
     assert_equal(max_val[0], max_v)
     assert_equal(min_val[0], min_v)
 
-    feats = np.random.randn(100, 10)
+    feats = np.random.randn(100, 10).astype(input_dtype)
     max_val, min_val = transform.pre_process(feats)["test"]
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
     assert len(max_val) == 10
     assert len(min_val) == 10
     for i in range(10):
-        max_v = np.amax(feats[:,i])
-        min_v = np.amin(feats[:,i])
+        max_v = np.amax(feats[:,i]).astype(np.float32)
+        min_v = np.amin(feats[:,i]).astype(np.float32)
         assert_equal(max_val[i], max_v)
         assert_equal(min_val[i], min_v)
 
-    feats = np.random.randn(100)
+    feats = np.random.randn(100).astype(input_dtype)
     feats[0] = 10.
     feats[1] = -10.
     transform = NumericalMinMaxTransform("test", "test", max_bound=5., min_bound=-5.)
     max_val, min_val = transform.pre_process(feats)["test"]
-    max_v = np.amax(feats)
-    min_v = np.amin(feats)
+    max_v = np.amax(feats).astype(np.float32)
+    min_v = np.amin(feats).astype(np.float32)
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
     assert_equal(max_val[0], 5.)
     assert_equal(min_val[0], -5.)
 
-    feats = np.random.randn(100, 1)
+    feats = np.random.randn(100, 1).astype(input_dtype)
     feats[0][0] = 10.
     feats[1][0] = -10.
     transform = NumericalMinMaxTransform("test", "test", max_bound=5., min_bound=-5.)
     max_val, min_val = transform.pre_process(feats)["test"]
-    max_v = np.amax(feats)
-    min_v = np.amin(feats)
+    max_v = np.amax(feats).astype(np.float32)
+    min_v = np.amin(feats).astype(np.float32)
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
     assert_equal(max_val[0], 5.)
     assert_equal(min_val[0], -5.)
 
-    feats = np.random.randn(100, 10)
+    feats = np.random.randn(100, 10).astype(input_dtype)
     feats[0] = 10.
     feats[1] = -10.
     transform = NumericalMinMaxTransform("test", "test", max_bound=5., min_bound=-5.)
@@ -133,14 +134,15 @@ def test_fp_transform():
     assert_equal(transform._max_val[0], 2.)
     assert_equal(transform._min_val[0], -1.)
 
+@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
-def test_fp_min_max_transform(out_dtype):
+def test_fp_min_max_transform(input_dtype, out_dtype):
     transform = NumericalMinMaxTransform("test", "test", out_dtype=out_dtype)
     max_val = np.array([2.])
     min_val = np.array([-1.])
     transform._max_val = max_val
     transform._min_val = min_val
-    feats = np.random.randn(100)
+    feats = np.random.randn(100).astype(input_dtype)
     norm_feats = transform(feats)["test"]
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
@@ -152,7 +154,7 @@ def test_fp_min_max_transform(out_dtype):
     feats = feats if out_dtype is None else feats.astype(out_dtype)
     assert_almost_equal(norm_feats, feats, decimal=6)
 
-    feats = np.random.randn(100, 1)
+    feats = np.random.randn(100, 1).astype(input_dtype)
     norm_feats = transform(feats)["test"]
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
@@ -169,7 +171,7 @@ def test_fp_min_max_transform(out_dtype):
     min_val = np.array([-1., 1., -0.5])
     transform._max_val = max_val
     transform._min_val = min_val
-    feats = np.random.randn(10, 3)
+    feats = np.random.randn(10, 3).astype(input_dtype)
     norm_feats = transform(feats)["test"]
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
@@ -182,6 +184,7 @@ def test_fp_min_max_transform(out_dtype):
         new_feats = (new_feats-min_val[i])/(max_val[i]-min_val[i])
         new_feats = new_feats if out_dtype is None else new_feats.astype(out_dtype)
         assert_almost_equal(norm_feats[:,i], new_feats, decimal=6)
+
 
 def test_categorize_transform():
     # Test a single categorical value.
@@ -282,14 +285,17 @@ def test_noop_transform(out_dtype):
     else:
         assert norm_feats["test"].dtype == np.float32
 
+@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
-def test_rank_gauss_transform(out_dtype):
+def test_rank_gauss_transform(input_dtype, out_dtype):
     eps = 1e-6
     transform = RankGaussTransform("test", "test", out_dtype=out_dtype, epsilon=eps)
-    feat_0 = np.random.randn(100,2).astype(np.float32)
+    feat_0 = np.random.randn(100,2).astype(input_dtype)
     feat_trans_0 = transform(feat_0)['test']
-    feat_1 = np.random.randn(100,2).astype(np.float32)
+    feat_1 = np.random.randn(100,2).astype(input_dtype)
     feat_trans_1 = transform(feat_1)['test']
+    assert feat_trans_0.dtype == np.float32
+    assert feat_trans_1.dtype == np.float32
     def rank_gauss(feat):
         lower = -1 + eps
         upper = 1 - eps
@@ -318,11 +324,17 @@ if __name__ == '__main__':
     test_categorize_transform()
     test_feat_astype()
     test_get_output_dtype()
-    test_fp_transform()
-    test_fp_min_max_transform(None)
-    test_fp_min_max_transform(np.float16)
+    test_fp_transform(np.cfloat)
+    test_fp_transform(np.float32)
+    test_fp_min_max_transform(np.cfloat, None)
+    test_fp_min_max_transform(np.cfloat, np.float16)
+    test_fp_min_max_transform(np.float32, None)
+    test_fp_min_max_transform(np.float32, np.float16)
     test_noop_transform(None)
     test_noop_transform(np.float16)
 
-    test_rank_gauss_transform(None)
-    test_rank_gauss_transform(np.float16)
+    test_rank_gauss_transform(np.cfloat, None)
+    test_rank_gauss_transform(np.cfloat, np.float16)
+    test_rank_gauss_transform(np.float32, None)
+    test_rank_gauss_transform(np.float32, np.float16)
+

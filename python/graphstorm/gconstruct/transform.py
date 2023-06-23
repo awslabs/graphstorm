@@ -261,10 +261,18 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
-                              np.int32, np.int16, np.int8], \
-            "Feature of NumericalMinMaxTransform must be floating points" \
-            "or integers"
+        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8]:
+            logging.warning("The feature %s has to be floating points or integers,"
+                            "but get %s. Try to cast it into float32",
+                            self.feat_name, feats.dtype)
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
         max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
             else np.array([np.amax(feats, axis=0)])
@@ -323,6 +331,15 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
+        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8]:
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+
         feats = (feats - self._min_val) / (self._max_val - self._min_val)
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
@@ -356,11 +373,22 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         # do nothing. Rank Gauss is done after merging all arrays together.
         assert isinstance(feats, (np.ndarray, HDF5Array)), \
                 f"The feature {self.feat_name} has to be NumPy array."
-        assert np.issubdtype(feats.dtype, np.integer) \
-                or np.issubdtype(feats.dtype, np.floating), \
-                f"The feature {self.feat_name} has to be integers or floats."
 
-        return {self.feat_name: feats}
+        if np.issubdtype(feats.dtype, np.integer) \
+            or np.issubdtype(feats.dtype, np.floating): \
+            return {self.feat_name: feats}
+        else:
+            logging.warning("The feature %s has to be floating points or integers,"
+                            "but get %s. Try to cast it into float32",
+                            self.feat_name, feats.dtype)
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+
+            return {self.feat_name: feats}
 
     def after_merge_transform(self, feats):
         # The feats can be a numpy array or a numpy memmaped object
