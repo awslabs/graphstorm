@@ -147,6 +147,9 @@ class GlobalProcessFeatTransform(FeatTransform):
             np.array: processed feature
         """
 
+    def call(self, feats):
+        raise NotImplementedError
+
 class TwoPhaseFeatTransform(FeatTransform):
     """ The base class for two phasefeature transformation.
 
@@ -175,6 +178,9 @@ class TwoPhaseFeatTransform(FeatTransform):
         info:
             Information to be collected
         """
+
+    def call(self, feats):
+        raise NotImplementedError
 
 class CategoricalTransform(TwoPhaseFeatTransform):
     """ Convert the data into categorical values.
@@ -460,7 +466,7 @@ class Tokenizer(FeatTransform):
         self.tokenizer = BertTokenizer.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
-    def __call__(self, strs):
+    def call(self, strs):
         """ Tokenization function.
 
         Parameters
@@ -547,7 +553,7 @@ class Text2BERT(FeatTransform):
                 lm_model = lm_model.to(self.device)
             self.lm_model = lm_model
 
-    def call(self, strs):
+    def call(self, feats):
         """ Compute BERT embeddings of the strings..
 
         Parameters
@@ -560,6 +566,7 @@ class Text2BERT(FeatTransform):
         dict: BERT embeddings.
         """
         self._init()
+        strs = feats
         outputs = self.tokenizer(strs)
         if self.infer_batch_size is not None:
             tokens_list = th.split(th.tensor(outputs['input_ids']), self.infer_batch_size)
