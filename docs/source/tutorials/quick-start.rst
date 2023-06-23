@@ -14,7 +14,9 @@ This tutorial will use GraphStorm's built-in OGB-arxiv dataset for a node classi
 
 .. note::
 
-    All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare your environment.
+    All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment. 
+
+    If you :ref:`set up GraphStorm environment with pip Package<setup_pip>`, please replace all 2222 in the argument ``--ssh-port`` with **22**.
 
 Download  and Partition OGB-arxiv Data
 --------------------------------------

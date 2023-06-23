@@ -77,6 +77,8 @@ If succeeds, the command prompt will change to the container's, like
 
     root@ip-address:/#
 
+.. _setup_pip:
+
 2. Setup GraphStorm with pip Package
 -------------------------------------
 Prerequisites
@@ -131,9 +133,9 @@ Then use this command to test if the SSH no-password login works.
 
     ssh 127.0.0.1
 
-If everything is right, the above command will enter another Linux shell process, which can be exit with command ``exit``.
+If everything is right, the above command will enter another Linux shell process. Then exit this new shell with the command ``exit``.
 
-Clone GraphStorm Tools (Optional)
+Clone GraphStorm (Optional)
 ..................................
 GraphStorm provides a set of scripts, tools, and examples, which can facilitate the use of GraphStrom.
 
@@ -142,7 +144,7 @@ GraphStorm provides a set of scripts, tools, and examples, which can facilitate 
 * **graphstorm/tools** includes graph partition and related Python code.
 * **graphstorm/sagemaker** include commands and code to run GraphStorm on Amazon SageMaker.
 
-Users can clone GraphStorm source code to obtain them.
+Users can clone GraphStorm source code to obtain these files.
 
 .. code-block:: bash
 
