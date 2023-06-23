@@ -155,7 +155,7 @@ To co-train BERT and GNN models, we need to add one more argument, ``--lm-train-
             --node-feat-name paper:feat author:feat subject:feat \
             --lm-train-nodes 10
 
-The ``--lm-train-nodes`` argument determines how many nodes will be used to tune the BERT models. Because the BERT models are normally large, training of them will consume many memories. If use all nodes to co-train BERT and GNN models, it could cause GPU out of memory (OOM) errors. Use a smaller number for the ``--lm-train-nodes`` could reduce the overall GPU memory consumption.
+The ``--lm-train-nodes`` argument determines how many nodes will be used in each mini-batch per GPU to tune the BERT models. Because the BERT models are normally large, training of them will consume many memories. If use all nodes to co-train BERT and GNN models, it could cause GPU out of memory (OOM) errors. Use a smaller number for the ``--lm-train-nodes`` could reduce the overall GPU memory consumption.
 
 .. note:: It will take longer time to co-train BERT and GNN models compared to no co-train.
 
