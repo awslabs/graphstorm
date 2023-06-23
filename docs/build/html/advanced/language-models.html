@@ -227,6 +227,7 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>All commands below should be run in a GraphStorm Docker container. Please refer to the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">GraphStorm Docker environment setup</span></a> to prepare your environment.</p>
+<p>If you <a class="reference internal" href="../install/env-setup.html#setup-pip"><span class="std std-ref">set up the GraphStorm environment with pip Packages</span></a>, please replace all occurrences of “2222” in the argument <code class="docutils literal notranslate"><span class="pre">--ssh-port</span></code> with <strong>22</strong>, and clone GraphStorm toolkits.</p>
 </div>
 <section id="prepare-raw-data">
 <h2>Prepare Raw Data<a class="headerlink" href="#prepare-raw-data" title="Permalink to this heading">#</a></h2>
@@ -239,8 +240,8 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>/graphstorm/examples/acm_data.py<span class="w"> </span>--output-path<span class="w"> </span>/tmp/acm_raw<span class="w"> </span>--output-type<span class="w"> </span>raw_w_text
 </pre></div>
 </div>
-<p>Once succeeded, the command will create a set of folders and files under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_raw/</span></code> folder same as the <a class="reference internal" href="../tutorials/own-data.html#acm-raw-data-output"><span class="std std-ref">outputs</span></a> in the <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">Use Your Own Data</span></a> tutorial. But the contents of the <code class="docutils literal notranslate"><span class="pre">config.json</span></code> have a few extra lines that list the text feature columns and how to process them during graph contruction.</p>
-<p>The below snippet show the <code class="docutils literal notranslate"><span class="pre">author</span></code> node’s information. It shows the “<strong>text</strong>” column contains text features, and it require the GraphStorm graph contruction tool to use a <a class="reference external" href="https://huggingface.co/models">HuggingFace BERT model</a>, named <code class="docutils literal notranslate"><span class="pre">bert-base-uncased</span></code>, to tokenize these text features during construction.</p>
+<p>Once successful, the command will create a set of folders and files under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_raw/</span></code> folder ,similar to the <a class="reference internal" href="../tutorials/own-data.html#acm-raw-data-output"><span class="std std-ref">outputs</span></a> in the <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">Use Your Own Data</span></a> tutorial. But the contents of the <code class="docutils literal notranslate"><span class="pre">config.json</span></code> file have a few extra lines that list the text feature columns and specify how they should be processed during graph contruction.</p>
+<p>The following snippet shows the information of <code class="docutils literal notranslate"><span class="pre">author</span></code> nodes. It indicates that the “<strong>text</strong>” column contains text features, and it require the GraphStorm’s graph contruction tool to use a <a class="reference external" href="https://huggingface.co/models">HuggingFace BERT model</a> named <code class="docutils literal notranslate"><span class="pre">bert-base-uncased</span></code> to tokenize these text features during construction.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;nodes&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
 <span class="w">        </span><span class="nt">&quot;node_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;author&quot;</span><span class="p">,</span>
@@ -284,7 +285,7 @@
 </section>
 <section id="graphstorm-language-model-configuration">
 <h2>GraphStorm Language Model Configuration<a class="headerlink" href="#graphstorm-language-model-configuration" title="Permalink to this heading">#</a></h2>
-<p>Users can set up language model in GraphStorm’s configuration YAML file. Below is an example of such configuration for the ACM data. The full configuration YAML file, <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_lm_nc.yaml">acm_lm_nc.yaml</a>, is located under GraphStorm’s <code class="docutils literal notranslate"><span class="pre">examples/use_your_own_data</span></code> folder. .</p>
+<p>Users can set up language model in GraphStorm’s configuration YAML file. Below is an example of such configuration for the ACM data. The full configuration YAML file, <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_lm_nc.yaml">acm_lm_nc.yaml</a>, is located under GraphStorm’s <code class="docutils literal notranslate"><span class="pre">examples/use_your_own_data</span></code> folder.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">lm_model</span><span class="p">:</span>
 <span class="nt">node_lm_models</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span>
@@ -308,7 +309,7 @@
 <span class="nb">echo</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>&gt;<span class="w"> </span>/tmp/ip_list.txt
 </pre></div>
 </div>
-<p>Then, the launch command is almost the same except that the configuration file is the <code class="docutils literal notranslate"><span class="pre">acm_lm_nc.yaml</span></code>, which contains the language model configurations.</p>
+<p>Then, the launch command is almost the same except that in this case the configuration file is <code class="docutils literal notranslate"><span class="pre">acm_lm_nc.yaml</span></code>, which contains the language model configurations.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--workspace<span class="w"> </span>/tmp<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--part-config<span class="w"> </span>/tmp/acm_nc/acm.json<span class="w"> </span><span class="se">\</span>
@@ -326,7 +327,7 @@
 </section>
 <section id="launch-graphstorm-trainig-for-both-bert-and-gnn-models">
 <h2>Launch GraphStorm Trainig for both BERT and GNN Models<a class="headerlink" href="#launch-graphstorm-trainig-for-both-bert-and-gnn-models" title="Permalink to this heading">#</a></h2>
-<p>To co-train BERT and GNN models, we need to add one more argument, the <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code>, in either the launch command or configuration YAML file. Below command sets this argument in the launch command.</p>
+<p>To co-train BERT and GNN models, we need to add one more argument, <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code>, to either the launch command or the configuration YAML file. Below command sets this argument to the launch command.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--workspace<span class="w"> </span>/tmp<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--part-config<span class="w"> </span>/tmp/acm_nc/acm.json<span class="w"> </span><span class="se">\</span>

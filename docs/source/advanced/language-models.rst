@@ -21,6 +21,8 @@ To use LMs in GraphStorm, users can follow the same procedure as the :ref:`Use Y
 
     All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare your environment.
 
+    If you :ref:`set up the GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
+
 Prepare Raw Data
 ------------------
 This tutorial will use the same ACM data as the :ref:`Use Your Own Data<use-own-data>` tutorial to demonstrate how to prepare text as node features.
@@ -37,9 +39,9 @@ Then run the command to create the ACM data with the required ``raw_w_text`` for
     
     python3 -m /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw --output-type raw_w_text
 
-Once succeeded, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder same as the :ref:`outputs<acm-raw-data-output>` in the :ref:`Use Your Own Data<use-own-data>` tutorial. But the contents of the ``config.json`` have a few extra lines that list the text feature columns and how to process them during graph contruction. 
+Once successful, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder ,similar to the :ref:`outputs<acm-raw-data-output>` in the :ref:`Use Your Own Data<use-own-data>` tutorial. But the contents of the ``config.json`` file have a few extra lines that list the text feature columns and specify how they should be processed during graph contruction. 
 
-The below snippet show the ``author`` node's information. It shows the "**text**" column contains text features, and it require the GraphStorm graph contruction tool to use a `HuggingFace BERT model <https://huggingface.co/models>`_, named ``bert-base-uncased``, to tokenize these text features during construction.
+The following snippet shows the information of ``author`` nodes. It indicates that the "**text**" column contains text features, and it require the GraphStorm's graph contruction tool to use a `HuggingFace BERT model <https://huggingface.co/models>`_ named ``bert-base-uncased`` to tokenize these text features during construction.
 
 .. code-block:: json
 
@@ -86,7 +88,7 @@ Outcomes of this command are also same as the :ref:`Outputs of Graph Constructio
 
 GraphStorm Language Model Configuration
 -----------------------------------------
-Users can set up language model in GraphStorm's configuration YAML file. Below is an example of such configuration for the ACM data. The full configuration YAML file, `acm_lm_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_lm_nc.yaml>`_, is located under GraphStorm's ``examples/use_your_own_data`` folder. .
+Users can set up language model in GraphStorm's configuration YAML file. Below is an example of such configuration for the ACM data. The full configuration YAML file, `acm_lm_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_lm_nc.yaml>`_, is located under GraphStorm's ``examples/use_your_own_data`` folder.
 
 .. code-block:: yaml
 
@@ -116,7 +118,7 @@ First, we create the ``ip_list.txt`` file for the standalone mode.
     touch /tmp/ip_list.txt
     echo 127.0.0.1 > /tmp/ip_list.txt
 
-Then, the launch command is almost the same except that the configuration file is the ``acm_lm_nc.yaml``, which contains the language model configurations.
+Then, the launch command is almost the same except that in this case the configuration file is ``acm_lm_nc.yaml``, which contains the language model configurations.
 
 .. code-block:: bash
 
@@ -136,7 +138,7 @@ In the training process, GraphStorm will first use the specified BERT model to c
 
 Launch GraphStorm Trainig for both BERT and GNN Models
 ---------------------------------------------------------
-To co-train BERT and GNN models, we need to add one more argument, the ``--lm-train-nodes``, in either the launch command or configuration YAML file. Below command sets this argument in the launch command.
+To co-train BERT and GNN models, we need to add one more argument, ``--lm-train-nodes``, to either the launch command or the configuration YAML file. Below command sets this argument to the launch command.
 
 .. code-block:: bash
 

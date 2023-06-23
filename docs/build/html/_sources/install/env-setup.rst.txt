@@ -79,8 +79,8 @@ If succeeds, the command prompt will change to the container's, like
 
 .. _setup_pip:
 
-2. Setup GraphStorm with pip Package
--------------------------------------
+2. Setup GraphStorm with pip Packages
+--------------------------------------
 Prerequisites
 ...............
 
@@ -116,7 +116,7 @@ GraphStorm requires a set of dependencies, which can be installed with the follo
     pip install ogb==1.3.6
     pip install psutil==5.9.5
     pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
-    pip install dgl==1.0.3 -f https://data.dgl.ai/wheels/cu116/repo.html
+    pip install dgl==1.0.3+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 Configure SSH No-password login
 ................................

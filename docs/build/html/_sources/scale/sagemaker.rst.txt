@@ -89,12 +89,12 @@ Run GraphStorm on SageMaker
 ----------------------------
 There are two ways to run GraphStorm on SageMaker.
 
-* **Run with Amazon SageMaker service**. In this way, users will use GraphStorm's tools to submit SageMaker API calls, which request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls in a properly configured machine without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production environment.
-* **Run with Docker Compose in local environment**. In this way, users do not call the SageMaker service, but use Docker Compose to run SageMaker locally in an EC2 instance or a SageMaker Notebook instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.
+* **Run with Amazon SageMaker service**. In this way, users will use GraphStorm's tools to submit SageMaker API calls, which request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls on a properly configured machine without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production environment.
+* **Run with Docker Compose in a local environment**. In this way, users do not call the SageMaker service, but use Docker Compose to run SageMaker locally in a Linux instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.
 
 Run GraphStorm with Amazon SageMaker service
 ..............................................
-To call Amazon SageMaker service, users should set up an instance with SageMaker library installed and GraphStorm's SageMaker tools copied.
+To run GraphStorm with the Amazon SageMaker service, users should set up an instance with the SageMaker library installed and GraphStorm's SageMaker tools copied.
 
 1. Use the below command to install SageMaker.
 
@@ -102,7 +102,7 @@ To call Amazon SageMaker service, users should set up an instance with SageMaker
 
     pip install sagemaker
 
-2. Copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository with the following command, or copy the `sagemaker folder <https://github.com/awslabs/graphstorm/tree/main/sagemaker>`_ to the instance.
+2. Copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository using the following command or copy the `sagemaker folder <https://github.com/awslabs/graphstorm/tree/main/sagemaker>`_ to the instance.
 
 .. code-block:: bash
 
@@ -110,7 +110,7 @@ To call Amazon SageMaker service, users should set up an instance with SageMaker
 
 Prepare graph data
 `````````````````````
-Unlike GraphStorm's :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>` that rely on local disk or shared file system to store the partitioned graph, SageMaker uses Amazon S3 as the shared data storage to distribute partitioned graphs and the configuration YAML file.
+Unlike GraphStorm's :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>`, which rely on local disk or shared file system to store the partitioned graph, SageMaker utilizes Amazon S3 as the shared data storage for distributing partitioned graphs and the configuration YAML file.
 
 This tutorial uses the same three-partition OGB-MAG graph and the Link Prediction task as those introduced in the :ref:`Partition a Graph<partition-a-graph>` section of the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial. After generating the partitioned OGB-MAG graphs, use the following commands to upload them and the configuration YAML file to an S3 bucket.
 
@@ -119,15 +119,15 @@ This tutorial uses the same three-partition OGB-MAG graph and the Link Predictio
     aws s3 cp --recursive /data/ogbn_mag_lp_3p s3://<PATH_TO_DATA>/ogbn_mag_lp_3p
     aws s3 cp /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml s3://<PATH_TO_TRAINING_CONFIG>/mag_lp.yaml
 
-Please replace the `<PATH_TO_DATA>` and `<PATH_TO_TRAINING_CONFIG>` with your own S3 bucket URI.
+Please replace `<PATH_TO_DATA>` and `<PATH_TO_TRAINING_CONFIG>` with your own S3 bucket URI.
 
 Launch training 
 ```````````````````
 Launching GraphStorm training on SageMaker is similar as launching in the :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>`, except for three diffences:
 
-* The launch commands are under the ``graphstorm/sagemaker`` folder, and
+* The launch commands are located in the ``graphstorm/sagemaker`` folder, and
 * Users need to provide AWS service-related information in the command.
-* All paths for saving models, embeddings, and prediction results should be an S3 locations specified through the ``--model-artifact-s3`` argument.
+* All paths for saving models, embeddings, and prediction results should be specified as S3 locations using the S3 related arguments.
 
 Users can use the following commands to launch a GraphStorm Link Prediction training job with the OGB-MAG graph.
 
@@ -153,11 +153,11 @@ Users can use the following commands to launch a GraphStorm Link Prediction trai
             --backend gloo \
             --batch-size 128
 
-Please replace the `<AMAZON_ECR_IMAGE_URI>` with the `<DOCKER_NAME>:<DOCKER_TAG>` that are uploaded in the Step 2, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
+Please replace `<AMAZON_ECR_IMAGE_URI>` with the `<DOCKER_NAME>:<DOCKER_TAG>` that are uploaded in the Step 2, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
 
-Because we use three-partition OGB-MAG graph, we need to set the ``--instance-count`` to 3 in this command.
+Because we are using a three-partition OGB-MAG graph, we need to set the ``--instance-count`` to 3 in this command.
 
-The trained model artifact will be stored in the S3 location provided through ``--model-artifact-s3``. You can use following command to check the model artifacts after the training completes.
+The trained model artifact will be stored in the S3 location provided through the ``--model-artifact-s3`` argument. You can use the following command to check the model artifacts after the training completes.
 
 .. code-block:: bash
 
@@ -190,11 +190,11 @@ Users can use the following command to launch a GraphStorm Link Prediction infer
 
 .. note:: 
 
-    Diffferent from the training command's argument, in the inference command, the value of argument ``--model-artifact-s3`` needs to be path to a saved model. By default, it is stored under an S3 path with specific training epoch or epoch plus iteration number, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
+    Diffferent from the training command's argument, in the inference command, the value of the ``--model-artifact-s3`` argument needs to be path to a saved model. By default, it is stored under an S3 path with specific training epoch or epoch plus iteration number, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
 
-As the outcomes of the inference command, generated node embeddings will be uploaded into ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3`` to specify saving locations of prediction results. 
+As the outcomes of the inference command, the generated node embeddings will be uploaded to ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3`` to specify the saving locations of prediction results. 
 
-Users can use following command to check the corresponding outputs:
+Users can use the following commands to check the corresponding outputs:
 
 .. code-block:: bash
 
@@ -241,7 +241,7 @@ To run GraphStorm SageMaker with Docker Compose, we need to set up a local Linux
     pip install ogb==1.3.6
     pip install psutil==5.9.5
     pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
-    pip install dgl==1.0.0 -f https://data.dgl.ai/wheels/cu116/repo.html
+    pip install dgl==1.0.3+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 3. Setup GraphStorm in the PYTHONPATH variable.
 
@@ -257,7 +257,7 @@ Generate a Docker Compose file
 `````````````````````````````````
 A Docker Compose file is a YAML file that tells Docker which containers to spin up and how to configure them. To launch the services with a Docker Compose file, we can use ``docker compose -f docker-compose.yaml up``. This will launch the container and execute its entry point.
 
-To emulate a SageMaker distributed execution environment based on the image (suppose the docker image is named ``graphstorm:sm``) built previously, you would need a Docker Compose file that looks like this:
+To emulate a SageMaker distributed execution environment based on the previously built Docker image (suppose the docker image is named ``graphstorm:sm``), you would need a Docker Compose file that resembles the following:
 
 .. code-block:: yaml
 
@@ -289,9 +289,9 @@ To emulate a SageMaker distributed execution environment based on the image (sup
 
 Some explanation on the above elements (see the `official docs <https://docs.docker.com/compose/compose-file/>`_ for more details):
 
-* **image**: Determines which image you will use for the container launched.
-* **environment**: Determines the environment variables that will be set for the container once it launches.
-* **command**: Determines the entrypoint, i.e. the command that will be executed once the container launches.
+* **image**: Specifies the Docker image that will be used for launching the container. In this case, the image is ``graphstorm:sm``, which should correspond to the previously built Docker image.
+* **environment**: Sets the environment variables for the container.
+* **command**: Specifies the entry point, i.e., the command that will be executed when the container launches. In this case, /path/to/entrypoint.sh is the command that will be executed.
 
 To help users generate yaml file automatically, GraphStorm provides a Python script, ``generate_sagemaker_docker_compose.py``, that builds the docker compose file for users. 
 
@@ -391,7 +391,7 @@ The command will create a Docker compose file named ``docker-compose-<task-type>
 
 Clean Up
 ``````````````````
-To save computing resources, users can run the below command to clean up Docker Compose environment.
+To save computing resources, users can run the below command to clean up the Docker Compose environment.
 
 .. code-block:: bash
 
