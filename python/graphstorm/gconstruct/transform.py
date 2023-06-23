@@ -144,7 +144,7 @@ class GlobalProcessFeatTransform(FeatTransform):
             feats to be processed
 
         Return:
-            np.array: processed feat
+            np.array: processed feature
         """
 
 class TwoPhaseFeatTransform(FeatTransform):
@@ -411,6 +411,12 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         super(RankGaussTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def __call__(self, feats):
+        # Overwrite __call__ to avoid cast the feature into out_dtype.
+        # This is not the final output, we should not cast the feature into out_dtype
+        # will cast the feature in after_merge_transform
+        return self.call(feats)
+
+    def call(self, feats):
         # do nothing. Rank Gauss is done after merging all arrays together.
         assert isinstance(feats, (np.ndarray, HDF5Array)), \
                 f"The feature {self.feat_name} has to be NumPy array."
@@ -418,7 +424,6 @@ class RankGaussTransform(GlobalProcessFeatTransform):
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
 
-        # This is not final output, we do not cast feats into out_dtype
         return {self.feat_name: feats}
 
     def after_merge_transform(self, feats):
@@ -649,9 +654,6 @@ def parse_feat_ops(confs):
                 "'feature_col' must be defined in a feature field."
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
 
-        # By default the out_dtype is set to float32
-        # FeatTransform sub-classes can ignore out_dtype
-        # or redefine it in its init function.
         out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
         if 'transform' not in feat:
             transform = Noop(feat['feature_col'], feat_name, out_dtype=out_dtype)
