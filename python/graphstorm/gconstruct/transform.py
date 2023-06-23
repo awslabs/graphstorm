@@ -467,7 +467,7 @@ class Tokenizer(FeatTransform):
         self.tokenizer = BertTokenizer.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
-    def call(self, strs):
+    def call(self, feats):
         """ Tokenization function.
 
         Parameters
@@ -479,6 +479,7 @@ class Tokenizer(FeatTransform):
         -------
         a dict of tokenization results.
         """
+        strs = feats
         tokens = []
         att_masks = []
         type_ids = []
