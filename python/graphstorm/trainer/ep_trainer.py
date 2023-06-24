@@ -105,10 +105,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         # TODO(xiangsx) Support freezing gnn encoder and decoder
 
         # training loop
-        dur = []
-        num_input_nodes = 0
-        forward_time = 0
-        back_time = 0
         total_steps = 0
         early_stop = False # used when early stop is True
         sys_tracker.check('start training')
@@ -139,8 +135,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 lbl = data.get_labels({target_etype: seeds}, device)
                 blocks = [block.to(device) for block in blocks]
                 batch_graph = batch_graph.to(device)
-                for _, nodes in input_nodes.items():
-                    num_input_nodes += nodes.shape[0]
                 rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
@@ -154,8 +148,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_backward')
                 self.optimizer.step()
                 rt_profiler.record('train_step')
-                forward_time += (t3 - t2)
-                back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
 
@@ -165,7 +157,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     print(
                         "Part {} | Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
                         format(self.rank, epoch, i, loss.item(), time.time() - batch_tic))
-                    num_input_nodes = forward_time = back_time = 0
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -201,7 +192,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             epoch_time = time.time() - t0
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
-            dur.append(epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):

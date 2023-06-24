@@ -106,12 +106,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         # TODO(xiangsx) Support freezing gnn encoder and decoder
 
         # training loop
-        dur = []
-        num_input_nodes = 0
         total_steps = 0
         early_stop = False # used when early stop is True
-        forward_time = 0
-        back_time = 0
         sys_tracker.check('start training')
         for epoch in range(num_epochs):
             model.train()
@@ -136,8 +132,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
-                for _, nodes in input_nodes.items():
-                    num_input_nodes += nodes.shape[0]
                 rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
@@ -152,15 +146,12 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_backward')
                 self.optimizer.step()
                 rt_profiler.record('train_step')
-                forward_time += (t3 - t2)
-                back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
                 if i % 20 == 0 and self.rank == 0:
                     rt_profiler.print_stats()
                     print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
                             format(epoch, i, loss.item(), time.time() - batch_tic))
-                    num_input_nodes = forward_time = back_time = 0
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -196,7 +187,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             epoch_time = time.time() - t0
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
-            dur.append(epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):

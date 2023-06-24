@@ -103,11 +103,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         # TODO(xiangsx) Support freezing gnn encoder and decoder
 
         # training loop
-        dur = []
         total_steps = 0
-        num_input_nodes = 0
-        forward_time = 0
-        back_time = 0
         early_stop = False # used when early stop is True
         sys_tracker.check('start training')
         g = data.g
@@ -133,8 +129,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_node_feats')
 
                 blocks = [block.to(device) for block in blocks]
-                for _, feats in input_feats.items():
-                    num_input_nodes += feats.shape[0]
                 rt_profiler.record('train_graph2GPU')
 
                 t2 = time.time()
@@ -148,8 +142,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_backward')
                 self.optimizer.step()
                 rt_profiler.record('train_step')
-                forward_time += (t3 - t2)
-                back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
 
@@ -157,7 +149,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     rt_profiler.print_stats()
                     print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
                             format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
-                    num_input_nodes = forward_time = back_time = 0
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -193,7 +184,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             epoch_time = time.time() - t0
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
-            dur.append(epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
