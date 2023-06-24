@@ -20,8 +20,7 @@ import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 from scipy.special import erfinv
 
-from graphstorm.gconstruct.transform import (_feat_astype,
-                                             _get_output_dtype,
+from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              NumericalMinMaxTransform,
                                              Noop,
                                              RankGaussTransform,
@@ -31,14 +30,6 @@ def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
     assert _get_output_dtype("float32") == np.float32
     assert_raises(Exception, _get_output_dtype, "int32")
-
-def test_feat_astype():
-    feats = np.random.randn(10)
-    feats = _feat_astype(feats, np.float32)
-    assert feats.dtype == np.float32
-
-    feats = _feat_astype(feats, np.float16)
-    assert feats.dtype == np.float16
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 def test_fp_transform(input_dtype):
@@ -322,7 +313,6 @@ def test_rank_gauss_transform(input_dtype, out_dtype):
 
 if __name__ == '__main__':
     test_categorize_transform()
-    test_feat_astype()
     test_get_output_dtype()
     test_fp_transform(np.cfloat)
     test_fp_transform(np.float32)
