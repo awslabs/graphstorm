@@ -116,10 +116,10 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
             # TODO(zhengda) the dataloader should return node features and labels directly.
             rt_profiler.start_record()
+            batch_tic = time.time()
             for i, (input_nodes, seeds, blocks) in enumerate(train_loader):
                 rt_profiler.record('train_sample')
                 total_steps += 1
-                batch_tic = time.time()
 
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
@@ -175,6 +175,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
                 rt_profiler.record('train_eval')
+                batch_tic = time.time()
                 # early_stop, exit current interation.
                 if early_stop is True:
                     break
