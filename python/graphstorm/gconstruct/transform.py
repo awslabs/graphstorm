@@ -55,8 +55,6 @@ class FeatTransform:
     def __init__(self, col_name, feat_name, out_dtype=None):
         self._col_name = col_name
         self._feat_name = feat_name
-        # by defualt, output float32
-        out_dtype = np.float32 if out_dtype is None else out_dtype
         self._out_dtype = out_dtype
 
     @property

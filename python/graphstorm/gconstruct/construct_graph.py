@@ -41,11 +41,11 @@ from .utils import (multiprocessing_data_read,
                     partition_graph)
 
 def prepare_node_data(in_file, feat_ops, read_file):
-    """ Prepare node data for feature transformation
+    """ Parse node data.
 
-    The function parses a node file that contains features.
+    The function parses a node file that contains node IDs, features and labels
     The node file is parsed according to users' configuration
-    and performs some feature transformation preparation.
+    and performs some feature transformation.
 
     Parameters
     ----------
@@ -100,11 +100,11 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     return (node_ids, feat_data)
 
 def prepare_edge_data(in_file, feat_ops, read_file):
-    """ Prepare edge data for feature transformation
+    """ Parse node data.
 
-    The function parses a edge file that contains features.
+    The function parses a edge file that contains edge features and labels
     The edge file is parsed according to users' configuration
-    and performs some feature transformation preparation.
+    and performs some feature transformation.
 
     Parameters
     ----------
@@ -180,6 +180,19 @@ def _process_data(user_pre_parser, user_parser,
     """ Process node and edge data.
 
     Parameter
+    ---------
+    user_pre_parser: func
+        A function that prepares data for processing.
+    user_parser: func
+        A function that processes node data or edge data.
+    two_phase_feat_ops: list of TwoPhaseFeatTransform
+        List of TwoPhaseFeatTransform transformation ops.
+    in_files: list of strings
+        The input files.
+    num_proc: int
+        Number of processes to do processing.
+    task_info: str
+        Task meta info for debugging.
     """
     if len(two_phase_feat_ops) > 0:
         pre_parse_start = time.time()
@@ -426,7 +439,10 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         id_map = {edge_type[0]: node_id_map[edge_type[0]],
                   edge_type[2]: node_id_map[edge_type[2]]}
 
-        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
+        multiprocessing = do_multiprocess_transform(process_conf,
+                                                    feat_ops,
+                                                    label_ops,
+                                                    in_files)
         # If it requires multiprocessing, we need to read data to memory.
         read_file = parse_edge_file_format(process_conf, in_mem=multiprocessing)
         num_proc = num_processes if multiprocessing else 0

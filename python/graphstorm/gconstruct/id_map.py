@@ -129,7 +129,6 @@ class IdMap:
         # Otherwise, skip the ID.
         new_ids = []
         idx = []
-
         for i, id_ in enumerate(ids):
             id_ = id_ if np.issubdtype(ids.dtype, np.integer) else str(id_)
             if id_ in self._ids:
