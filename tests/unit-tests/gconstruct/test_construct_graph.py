@@ -367,12 +367,8 @@ def check_feat_ops_rank_gauss():
     proc_res7_0 = process_features(data7_0, res)
     proc_res7_1 = process_features(data7_1, res)
     new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
-<<<<<<< HEAD
     trans_feat = res[0].after_merge_transform(new_feat)
-=======
-    trans_feat = res7[0].after_merge_transform(new_feat)
     assert trans_feat.dtype == np.float32
->>>>>>> master
     # sum of gauss rank should be zero
     trans_feat = np.sort(trans_feat, axis=0)
     rev_trans_feat = np.flip(trans_feat, axis=0)
@@ -775,10 +771,6 @@ def test_id_map():
                                                          decimal.Decimal(15),
                                                          decimal.Decimal(20)]))
 
-<<<<<<< HEAD
-
-=======
->>>>>>> master
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
