@@ -83,6 +83,8 @@ class IdMap:
         if isinstance(ids, HDF5Array):
             ids = ids.to_numpy()
 
+        # We can not expect the dtype of ids is always integer or string
+        # it can be any type. So we will cast ids into string if it is not integer.
         if isinstance(ids[0], int) or np.issubdtype(ids.dtype, np.integer):
             # node_ids are integer ids
             self._ids = {id1: i for i, id1 in enumerate(ids)}
@@ -106,6 +108,7 @@ class IdMap:
         tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
         """
         for id_ in self._ids:
+            # If the data type of the key is string, the input Ids should not be integer.
             if isinstance(id_, str):
                 assert (not isinstance(ids[0], int)) and \
                        (not np.issubdtype(ids.dtype, np.integer)), \

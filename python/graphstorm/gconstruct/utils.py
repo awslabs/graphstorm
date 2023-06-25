@@ -306,6 +306,10 @@ def _merge_arrs(arrs, tensor_path):
     shape = _get_tot_shape(arrs)
     # To get the output dtype by accessing the
     # first element of the arrays (numpy array or HDFArray)
+    # Note: We use arrs[0][0] instead of arrs[0] because
+    #       arrs[0][0] is a transformed data with out_dtype
+    #       while arrs[0] can be a HDFArray and has not
+    #       been cast to out_dtype.
     dtype = arrs[0][0].dtype
     if tensor_path is not None:
         out_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)

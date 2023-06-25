@@ -142,6 +142,14 @@ def check_feat_ops_noop():
     assert res[0].feat_name == feat_op1[0]["feature_name"]
     assert isinstance(res[0], Noop)
 
+    data = {
+        "test1": np.random.rand(4, 2),
+    }
+    proc_res = process_features(data, res1)
+    assert "test2" in proc_res
+    assert proc_res["test2"].dtype == np.float32
+    np.testing.assert_allclose(proc_res["test2"], data["test1"])
+
     # When the feature name is not specified.
     feat_op1 = [{
         "feature_col": "test1",
@@ -282,6 +290,7 @@ def check_feat_ops_maxmin():
     proc_res4 = process_features(data1, res)
     assert "test5" in proc_res4
     proc_res5 = np.concatenate([proc_res3["test5"], proc_res4["test5"]], axis=0)
+    assert proc_res5.dtype == np.float32
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
     assert_almost_equal(proc_res5[:,0], data_col0)
@@ -328,6 +337,7 @@ def check_feat_ops_maxmin():
     proc_res4 = process_features(data1, res2)
     assert "test6" in proc_res4
     proc_res6 = np.concatenate([proc_res3["test6"], proc_res4["test6"]], axis=0)
+    assert proc_res6.dtype == np.float32
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
     assert_almost_equal(proc_res6[:,0], data_col0)
@@ -357,7 +367,12 @@ def check_feat_ops_rank_gauss():
     proc_res7_0 = process_features(data7_0, res)
     proc_res7_1 = process_features(data7_1, res)
     new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
+<<<<<<< HEAD
     trans_feat = res[0].after_merge_transform(new_feat)
+=======
+    trans_feat = res7[0].after_merge_transform(new_feat)
+    assert trans_feat.dtype == np.float32
+>>>>>>> master
     # sum of gauss rank should be zero
     trans_feat = np.sort(trans_feat, axis=0)
     rev_trans_feat = np.flip(trans_feat, axis=0)
@@ -760,7 +775,10 @@ def test_id_map():
                                                          decimal.Decimal(15),
                                                          decimal.Decimal(20)]))
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
