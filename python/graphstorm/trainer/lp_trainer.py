@@ -111,7 +111,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         sys_tracker.check('start training')
         for epoch in range(num_epochs):
             model.train()
-            t0 = time.time()
+            epoch_start = time.time()
 
             if freeze_input_layer_epochs <= epoch:
                 self._model.unfreeze_input_encoder()
@@ -134,13 +134,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 blocks = [blk.to(device) for blk in blocks]
                 rt_profiler.record('train_graph2GPU')
 
-                t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
                              input_feats, None, input_nodes)
                 rt_profiler.record('train_forward')
 
-                t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
                 rt_profiler.record('train_backward')
@@ -185,7 +183,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # ------- end of an epoch -------
 
             th.distributed.barrier()
-            epoch_time = time.time() - t0
+            epoch_time = time.time() - epoch_start
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
 
