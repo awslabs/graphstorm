@@ -378,8 +378,15 @@ class ExtMemArrayMerger:
         if len(arrs) > 1:
             return _merge_arrs(arrs, tensor_path)
         else:
+            # To get the output dtype by accessing the
+            # first element of the arrays (numpy array or HDFArray)
+            # Note: We use arrs[0][0] instead of arrs[0] because
+            #       arrs[0][0] is a transformed data with out_dtype
+            #       while arrs[0] can be a HDFArray and has not
+            #       been cast to out_dtype.
+            dtype = arrs[0][0].dtype
             arr = arrs[0]
-            em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=shape)
+            em_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
             em_arr[:] = arr[:]
             return em_arr
 
