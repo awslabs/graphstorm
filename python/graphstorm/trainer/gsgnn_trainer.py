@@ -61,7 +61,7 @@ class GSgnnTrainer():
                                                         # saving/removing models.
 
     def setup_device(self, dev_id):
-        """ Set up the CUDA device of this trainer.
+        """ Set up the CPU or CUDA device of this trainer.
 
         The CUDA device is set up based on the local rank.
 
@@ -75,9 +75,7 @@ class GSgnnTrainer():
             self._model = self._model.to(self.dev_id) 
             self._dev_id = dev_id
         else:
-            th.cuda.device("cpu")
             self._model = self._model.to("cpu")
-            self._dev_id = None 
         self._optimizer.move_to_device(self._model.device)
 
     def setup_task_tracker(self, task_tracker):

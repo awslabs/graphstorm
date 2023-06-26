@@ -62,7 +62,7 @@ def initialize(ip_config, backend):
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
     dgl.distributed.initialize(ip_config, net_type='socket')
-    # check if GPU present for nccl before init?
+    assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
     th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
 
