@@ -145,7 +145,7 @@ def check_feat_ops_noop():
     data = {
         "test1": np.random.rand(4, 2),
     }
-    proc_res = process_features(data, res1)
+    proc_res = process_features(data, res)
     assert "test2" in proc_res
     assert proc_res["test2"].dtype == np.float32
     np.testing.assert_allclose(proc_res["test2"], data["test1"])
