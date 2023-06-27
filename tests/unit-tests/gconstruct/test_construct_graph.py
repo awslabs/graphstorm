@@ -16,6 +16,7 @@
 import random
 import os
 import tempfile
+import decimal
 import pyarrow.parquet as pq
 import numpy as np
 import dgl
@@ -140,6 +141,14 @@ def check_feat_ops_noop():
     assert res1[0].col_name == feat_op1[0]["feature_col"]
     assert res1[0].feat_name == feat_op1[0]["feature_name"]
     assert isinstance(res1[0], Noop)
+
+    data = {
+        "test1": np.random.rand(4, 2),
+    }
+    proc_res = process_features(data, res1)
+    assert "test2" in proc_res
+    assert proc_res["test2"].dtype == np.float32
+    np.testing.assert_allclose(proc_res["test2"], data["test1"])
 
     # When the feature name is not specified.
     feat_op1 = [{
@@ -281,6 +290,7 @@ def check_feat_ops_maxmin():
     proc_res4 = process_features(data1, res5)
     assert "test5" in proc_res4
     proc_res5 = np.concatenate([proc_res3["test5"], proc_res4["test5"]], axis=0)
+    assert proc_res5.dtype == np.float32
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
     assert_almost_equal(proc_res5[:,0], data_col0)
@@ -327,6 +337,7 @@ def check_feat_ops_maxmin():
     proc_res4 = process_features(data1, res6)
     assert "test6" in proc_res4
     proc_res6 = np.concatenate([proc_res3["test6"], proc_res4["test6"]], axis=0)
+    assert proc_res6.dtype == np.float32
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
     assert_almost_equal(proc_res6[:,0], data_col0)
@@ -357,9 +368,11 @@ def check_feat_ops_rank_gauss():
     proc_res7_1 = process_features(data7_1, res7)
     new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
     trans_feat = res7[0].after_merge_transform(new_feat)
+    assert trans_feat.dtype == np.float32
     # sum of gauss rank should be zero
-    data_sum = np.sum(trans_feat, axis=0)
-    np.testing.assert_almost_equal(data_sum, np.zeros(len(data_sum)))
+    trans_feat = np.sort(trans_feat, axis=0)
+    rev_trans_feat = np.flip(trans_feat, axis=0)
+    assert np.all(trans_feat + rev_trans_feat == 0)
 
 def check_feat_ops_categorical():
     feat_op7 = [
@@ -683,9 +696,9 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
-def check_id_map_exist(id_map, str_ids):
+def check_id_map_exist(id_map, input_ids):
     # Test the case that all Ids exist in the map.
-    rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
+    rand_ids = np.array([input_ids[random.randint(0, len(input_ids)) % len(input_ids)] for _ in range(5)])
     remap_ids, idx = id_map.map_id(rand_ids)
     assert len(idx) == len(rand_ids)
     assert np.issubdtype(remap_ids.dtype, np.integer)
@@ -693,10 +706,10 @@ def check_id_map_exist(id_map, str_ids):
     for id1, id2 in zip(remap_ids, rand_ids):
         assert id1 == int(id2)
 
-def check_id_map_not_exist(id_map, str_ids):
+def check_id_map_not_exist(id_map, input_ids, out_range_ids):
     # Test the case that some of the Ids don't exist.
-    rand_ids = np.array([str(random.randint(0, len(str_ids)) % len(str_ids)) for _ in range(5)])
-    rand_ids1 = np.concatenate([rand_ids, np.array(["11", "15", "20"])])
+    rand_ids = np.array([input_ids[random.randint(0, len(input_ids)) % len(input_ids)] for _ in range(5)])
+    rand_ids1 = np.concatenate([rand_ids, out_range_ids])
     remap_ids, idx = id_map.map_id(rand_ids1)
     assert len(remap_ids) == len(rand_ids)
     assert len(remap_ids) == len(idx)
@@ -729,7 +742,7 @@ def test_id_map():
     id_map = IdMap(str_ids)
 
     check_id_map_exist(id_map, str_ids)
-    check_id_map_not_exist(id_map, str_ids)
+    check_id_map_not_exist(id_map, str_ids, np.array(["11", "15", "20"]))
     check_id_map_dtype_not_match(id_map, str_ids)
 
     # Test saving ID map with random IDs.
@@ -749,6 +762,14 @@ def test_id_map():
     new_ids1, _ = id_map.map_id(str_ids)
     new_ids2 = np.array([new_id_map[i] for i in str_ids])
     assert np.all(new_ids1 == new_ids2)
+
+    # Test id map as other types such as decimal.Decimal (e.g., UUID)
+    decial_ids = np.array([decimal.Decimal(i) for i in range(10)])
+    id_map = IdMap(decial_ids)
+    check_id_map_exist(id_map, decial_ids)
+    check_id_map_not_exist(id_map, decial_ids, np.array([decimal.Decimal(11),
+                                                         decimal.Decimal(15),
+                                                         decimal.Decimal(20)]))
 
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
