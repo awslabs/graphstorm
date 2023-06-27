@@ -237,8 +237,7 @@ class SysTracker:
         if len(self._checkpoints) >= 2 and self._rank == 0:
             checkpoint1 = self._checkpoints[-2]
             checkpoint2 = self._checkpoints[-1]
-            # TODO: change to use logging to avoid printing too many info
-            print("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, \
+            logging.debug("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, \
                     shared: {:.3f}, global curr: {:.3f}, global shared: {:.3f}) GB".format(
                 name, checkpoint2[1] - checkpoint1[1],
                 checkpoint2[2]/1024/1024/1024, checkpoint2[4]/1024/1024,
