@@ -21,6 +21,8 @@ from torch import nn
 from dgl.distributed import DistTensor, node_split
 from .gs_layer import GSLayer
 
+from ..utils import get_rank
+
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
 
@@ -148,6 +150,9 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                     # that have empty tensors
                     if k in output_nodes:
                         y[k][output_nodes[k]] = h[k].cpu()
+
+                if iter_l % 1000 == 0:
+                    print(f"{get_rank()} {iter_l}")
 
             x = y
             th.distributed.barrier()
