@@ -175,6 +175,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
+            batch_graph = batch_graph.to(device)
             pred = model.predict(blocks, batch_graph, input_feats, None, input_nodes,
                                  return_proba)
             preds.append(pred.cpu())

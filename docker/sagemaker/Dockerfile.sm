@@ -8,7 +8,7 @@ FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-gpu-py
 LABEL maintainer="Amazon AI Graph ML team"
 
 # Install DGL
-RUN pip3 install dgl==1.0.2 -f https://data.dgl.ai/wheels/cu117/repo.html
+RUN pip3 install dgl==1.0.3+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 # Install related Python packages
 RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers

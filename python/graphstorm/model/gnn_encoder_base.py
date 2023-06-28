@@ -15,8 +15,6 @@
 
     Relational GNN
 """
-import tqdm
-
 import dgl
 import torch as th
 from torch import nn
@@ -125,7 +123,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                             shuffle=False,
                                                             drop_last=False)
 
-            for iter_l, (input_nodes, output_nodes, blocks) in enumerate(tqdm.tqdm(dataloader)):
+            for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
                 block = blocks[0].to(device)
