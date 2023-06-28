@@ -276,8 +276,6 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
             val: key for key, val in reverse_edge_types_map.items()
         } if reverse_edge_types_map is not None else None
 
-        print(self.reverse_edge_types_map)
-        print(self.original_edge_types_map)
         super().__init__(
             fanouts=fanouts,
             edge_dir=edge_dir,
