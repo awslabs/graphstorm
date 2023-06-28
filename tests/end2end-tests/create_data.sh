@@ -111,6 +111,18 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--val-pct 0.1 \
 	--num-parts 1
 
+export PYTHONPATH=$GS_HOME/python/
+python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
+	--filepath /data \
+    --elabel-field "user,rating,movie:rate" \
+    --target-etype "user,rating,movie" \
+    --etask-type "classification" \
+	--num-trainers-per-machine 4 \
+	--output movielen_100k_multi_label_ec_infer \
+	--balance-edges \
+	--no-split true \
+	--num-parts 1
+
 # Create data for edge classification with text features
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
