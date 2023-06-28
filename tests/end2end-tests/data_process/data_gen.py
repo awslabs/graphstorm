@@ -87,6 +87,15 @@ edge_data2 = {
     'dst': node_data1['id'][np.random.randint(0, 9999, 50000)],
 }
 
+edge_data1_2_float = np.random.rand(src1.shape[0], 10) * 2
+edge_data1_2 = {
+    'float1': edge_data1_2_float,
+    'float1_fp16': edge_data1_2_float,
+    'float_feat_rank_gauss': np.random.rand(src1.shape[0], 2),
+    'float_feat_rank_gauss_fp16': np.random.rand(src1.shape[0], 2),
+    'float1_max_min': edge_data1_2_float,
+}
+
 src3 = node_data2['id'][np.random.randint(0, 20000, 100000)]
 dst_idx = np.random.randint(0, 5000, 100000)
 edge_data3 = {
@@ -125,6 +134,7 @@ for i, edge_data in enumerate(split_data(edge_data1, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data1_{i}.parquet'))
 for i, edge_data in enumerate(split_data(edge_data2, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data2_{i}.parquet'))
+write_data_hdf5(edge_data1_2, os.path.join(in_dir, f'edge_data1_2.hdf5'))
 for i, edge_data in enumerate(split_data(edge_data3, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{i}.parquet'))
 write_data_hdf5(edge_data3_2, os.path.join(in_dir, f'edge_data3_2.hdf5'))
@@ -255,6 +265,38 @@ edge_conf = [
                 "label_col":    "label",
                 "task_type":    "classification",
                 "split_pct":   [0.8, 0.2, 0.0],
+            },
+        ],
+    },
+    {
+        "relation": ("node1", "relation1", "node2"),
+        "format": {"name": "hdf5"},
+        "files": os.path.join(in_dir, "edge_data1_2.hdf5"),
+        "features": [
+            {
+                "feature_col": "float1",
+                "feature_name": "feat1",
+            },
+            {
+                "feature_col": "float1_max_min",
+                "feature_name": "max_min_norm",
+                "transform": {"name": 'max_min_norm'}
+            },
+            {
+                "feature_col": "float_feat_rank_gauss",
+                "feature_name": "feat_rank_gauss",
+                "transform": {"name": 'rank_gauss'}
+            },
+            {
+                "feature_col": "float_feat_rank_gauss_fp16",
+                "feature_name": "feat_rank_gauss_fp16",
+                "out_dtype": 'float16',
+                "transform": {"name": 'rank_gauss'}
+            },
+            {
+                "feature_col": "float1_fp16",
+                "feature_name": "feat_fp16_hdf5",
+                "out_dtype": 'float16',
             },
         ],
     },

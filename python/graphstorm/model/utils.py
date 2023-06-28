@@ -605,7 +605,7 @@ def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     # Load language models.
     if "lm" in checkpoint:
         assert len(lm_opts) == 1, "Language model parameters must exists in the model"
-        dense_opts[0].load_state_dict(checkpoint["lm"])
+        lm_opts[0].load_state_dict(checkpoint["lm"])
 
     # TODO(zhengda) we need to change DGL to make it work.
     if 'sparse' in checkpoint and len(sparse_opts) > 0:

@@ -52,6 +52,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 
 * ``feature_col``: (**Required**) specifies the column name in the input file that contains the feature.
 * ``feature_name``: specifies the prefix of the column features name. This is optional. If feature_name is not provided, ``feature_col`` is used as the feature name. If the feature transformation generates multiple tensors, ``feature_name`` becomes the prefix of the names of the generated tensors.
+* ``out_dtype`` specifies the data type of the transformed feature. ``out_dtype`` is optional. If it is not set, no data type casting is applied to the transformed feature. If it is set, the output feature will be cast into the corresponding data type. Now only flaot16 and float32 are supported.
 * ``transform``: specifies the actual feature transformation. This is a dictionary and its name field indicates the feature transformation. Each transformation has its own argument. The list of feature transformations supported by the pipeline are listed in the section of :ref:`Feature Transformation <feat-transform>` below.
 
 .. _label-format:
@@ -108,7 +109,7 @@ Below shows an example that contains one node type and an edge type. For a real 
                 "node_id_col":  "paper_id",
                 "node_type":    "paper",
                 "format":       {"name": "parquet"},
-                "files":        ["/tmp/dummy/paper_nodes*.parquet"],
+                "files":        "/tmp/dummy/paper_nodes*.parquet",
                 "features":     [
                     {
                         "feature_col":  ["paper_title"],
