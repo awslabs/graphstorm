@@ -257,4 +257,4 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     if return_label:
         return preds, th.cat(labels_list)
     else:
-        return preds
+        return preds, None

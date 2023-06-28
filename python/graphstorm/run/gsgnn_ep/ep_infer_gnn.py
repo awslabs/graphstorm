@@ -56,7 +56,9 @@ def main(config_args):
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
+        assert len(infer_data.test_idxs) > 0, \
+            "There is not test data for evaluation. " \
+            "You can use --no-validation true to avoid do testing"
         target_idxs = infer_data.test_idxs
     else:
         target_idxs = infer_data.infer_idxs
