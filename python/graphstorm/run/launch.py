@@ -933,7 +933,7 @@ def check_input_arguments(args):
         # The total number of CPU cores consumed
         # by trainers will be half of total cpu cores
         cpu_cores_per_trainer = total_cpu_cores // \
-            (2 * args.num_trainer * args.num_samplers if args.num_samplers > 1 else 1)
+            (2 * args.num_trainers * (args.num_samplers if args.num_samplers > 1 else 1))
         args.num_omp_threads = max(
             cpu_cores_per_trainer, 1
         )
@@ -952,7 +952,7 @@ def check_input_arguments(args):
             cpu_cores_per_server, 1
         )
         if args.verbose:
-            print(f"The number of OMP threads per trainer is set to {args.num_server_threads}")
+            print(f"The number of OMP threads per server is set to {args.num_server_threads}")
     else:
         assert args.num_server_threads > 0, \
             "The number of OMP threads per server should be larger than 1"

@@ -103,7 +103,6 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
             # get the fanout for this layer
             y = {}
             for k in g.ntypes:
-                print(k)
                 h_dim = gnn_encoder.h_dims \
                         if i < len(gnn_encoder.layers) - 1 else gnn_encoder.out_dims
                 y[k] = DistTensor((g.number_of_nodes(k), h_dim),
@@ -124,13 +123,12 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
             dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
                                                             batch_size=batch_size,
                                                             shuffle=False,
-                                                            drop_last=False,
-                                                            num_worker=0)
-            print(fanout_i)
+                                                            drop_last=False)
 
             for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
-                if iter_l % 10 == 0:
-                    print(f"{get_rank()} {iter_l}")
+                if iter_l % 100000 == 0 and get_rank() == 0:
+                    print(f"[Rank 0] dist_inference: Layer [{i}], Ntype [{k}]" \
+                          "finishes [{iter_l}] iterations.")
 
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
