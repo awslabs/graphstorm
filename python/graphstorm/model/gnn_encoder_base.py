@@ -151,7 +151,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                     if k in output_nodes:
                         y[k][output_nodes[k]] = h[k].cpu()
 
-                if iter_l % 1000 == 0:
+                if iter_l % 10 == 0:
                     print(f"{get_rank()} {iter_l}")
 
             x = y
