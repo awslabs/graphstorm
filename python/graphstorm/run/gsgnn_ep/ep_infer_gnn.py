@@ -16,7 +16,6 @@
     Inference script for edge classification/regression tasks with GNN
 """
 
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -37,8 +36,11 @@ def get_evaluator(config): # pylint: disable=unused-argument
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
-def main(args):
-    config = GSConfig(args)
+def main(config_args):
+    """ main function
+    """
+    config = GSConfig(config_args)
+
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
@@ -63,7 +65,8 @@ def main(args):
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
-                                     remove_target_edge_type=config.remove_target_edge_type)
+                                     remove_target_edge_type=config.remove_target_edge_type,
+                                     decoder_edge_feat=config.decoder_edge_feat)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
@@ -72,15 +75,18 @@ def main(args):
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
-                edge_id_mapping_file=config.edge_id_mapping_file)
+                edge_id_mapping_file=config.edge_id_mapping_file,
+                return_proba=config.return_proba)
 
 def generate_parser():
+    """ Generate an argument parser
+    """
     parser = get_argument_parser()
     return parser
 
 if __name__ == '__main__':
-    parser=generate_parser()
+    arg_parser=generate_parser()
 
-    args = parser.parse_args()
+    args = arg_parser.parse_args()
     print(args)
     main(args)

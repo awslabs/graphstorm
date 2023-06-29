@@ -17,8 +17,6 @@
     node regression, edge classification and edge regression.
 """
 import os
-import multiprocessing
-from multiprocessing import Process
 import queue
 import gc
 import logging
@@ -26,9 +24,121 @@ import logging
 import numpy as np
 import dgl
 import torch as th
+from torch import multiprocessing
+from torch.multiprocessing import Process
 
 from ..utils import sys_tracker
 from .file_io import HDF5Array
+
+SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
+SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
+PICKLE_CROSS_PROCESS_STORAGE = "pickle"
+
+def _to_shared_memory(data):
+    """ Move all tensor objects into torch shared memory
+
+    Parameters
+    ----------
+    data: dict/tuple/list of tensors
+        Data returned by user_parser
+    """
+    if th.is_tensor(data):
+        return data.share_memory_()
+    elif isinstance(data, np.ndarray):
+        assert data.dtype is not np.object_, \
+            "Numpy array of python objects can not be handled by graph construction"
+
+        # only handle data that can be converted to torch tensor
+        if data.dtype in [np.float64, np.float32, np.float16,
+                          np.complex64, np.complex128, np.int64,
+                          np.int32, np.int16, np.int8,
+                          np.uint8]:
+            return th.tensor(data).share_memory_()
+        return data
+    elif isinstance(data, dict):
+        new_data = {}
+        for name, val in data.items():
+            new_data[name] = _to_shared_memory(val)
+        return new_data
+    elif isinstance(data, list):
+        new_data = []
+        for val in data:
+            new_data.append(_to_shared_memory(val))
+        return new_data
+    elif isinstance(data, tuple):
+        new_data = []
+        for val in list(data):
+            new_data.append(_to_shared_memory(val))
+        return tuple(new_data)
+
+    # ignore other types
+    return data
+
+def _to_numpy_array(data):
+    """ Move all data objects back to numpy array
+
+    Parameters
+    ----------
+    data: dict/tuple/list of tensors
+        Data returned by user_parser
+    """
+    if th.is_tensor(data):
+        return data.numpy()
+    elif isinstance(data, np.ndarray):
+        return data # do nothing
+    elif isinstance(data, dict):
+        new_data = {}
+        for name, val in data.items():
+            new_data[name] = _to_numpy_array(val)
+        return new_data
+    elif isinstance(data, list):
+        new_data = []
+        for val in data:
+            new_data.append(_to_numpy_array(val))
+        return new_data
+    elif isinstance(data, tuple):
+        new_data = []
+        for val in list(data):
+            new_data.append(_to_numpy_array(val))
+        return tuple(new_data)
+
+    # ignore other types
+    return data
+
+def _estimate_sizeof(data):
+    """ Estimate the size of a data.
+        We assume the most memory consuming objects are tensors.
+
+    Parameters
+    ----------
+    data: dict/tuple/list of tensors
+        Data returned by user_parser
+    """
+    if th.is_tensor(data):
+        data_size = data.element_size() * data.nelement()
+    elif isinstance(data, np.ndarray):
+        assert data.dtype is not np.object_, \
+            "Numpy array of python objects can not be handled by graph construction"
+
+        data_size = data.size * data.itemsize
+    elif isinstance(data, dict):
+        data_size = 0
+        for _, val in data.items():
+            data_size += _estimate_sizeof(val)
+    elif isinstance(data, list):
+        data_size = 0
+        for val in data:
+            data_size += _estimate_sizeof(val)
+    elif isinstance(data, tuple):
+        data_size = 0
+        for val in list(data):
+            data_size += _estimate_sizeof(val)
+    else:
+        # for other types like primitives
+        # ignore their size.
+        data_size = 0
+
+    return data_size
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -57,11 +167,43 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
         while True:
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
+            logging.debug("%d Processing %s", worker_id, in_file)
             data = user_parser(in_file)
+            size = _estimate_sizeof(data)
+            # Max pickle obj size is 2 GByte
+            if size > SHARED_MEM_OBJECT_THRESHOLD:
+                # Use torch shared memory as a workaround
+                # This will consume shared memory and cause an additional
+                # data copy, i.e., general memory to torch shared memory.
+                data = (SHARED_MEMORY_CROSS_PROCESS_STORAGE, _to_shared_memory(data))
+            else:
+                data = (PICKLE_CROSS_PROCESS_STORAGE, data)
             res_queue.put((i, data))
             gc.collect()
     except queue.Empty:
         pass
+
+def update_two_phase_feat_ops(phase_one_info, ops):
+    """ Update the ops for the second phase feat processing
+
+    Parameters
+    ----------
+    phase_one_info: dict
+        A dict mapping file index to node/edge features info corresponding to ops.
+    ops: dict of FeatTransform
+        The operations run on the node/edge features of the node/edge files.
+    """
+    feat_info = {}
+    for _, finfo in phase_one_info.items():
+        for feat_name, info in finfo.items():
+            if feat_name not in feat_info:
+                feat_info[feat_name] = [info]
+            else:
+                feat_info[feat_name].append(info)
+    for op in ops:
+        # It is possible that there is no information from phase one.
+        if op.feat_name in feat_info:
+            op.update_info(feat_info[op.feat_name])
 
 def multiprocessing_data_read(in_files, num_processes, user_parser):
     """ Read data from multiple files with multiprocessing.
@@ -92,7 +234,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
-        res_queue = manager.Queue(8)
+        res_queue = manager.Queue(8 if num_processes < 8 else num_processes)
         num_files = len(in_files)
         for i, in_file in enumerate(in_files):
             task_queue.put((i, in_file))
@@ -104,6 +246,13 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         return_dict = {}
         while len(return_dict) < num_files:
             file_idx, vals= res_queue.get()
+            # If the size of `vals`` is larger than utils.SHARED_MEM_OBJECT_THRESHOLD
+            # we will automatically convert tensors in `vals` into torch tensor
+            # and copy the tensor into shared memory.
+            # This helps avoid the pickle max obj size issue.
+            storage_type, vals = vals
+            if storage_type == SHARED_MEMORY_CROSS_PROCESS_STORAGE:
+                vals = _to_numpy_array(vals)
             return_dict[file_idx] = vals
             sys_tracker.check(f'process data file: {file_idx}')
             gc.collect()
@@ -137,6 +286,22 @@ def _get_tot_shape(arrs):
     shape = [num_rows] + list(shape1)
     return tuple(shape)
 
+def _get_arrs_out_dtype(arrs):
+    """ To get the output dtype by accessing the
+        first element of the arrays (numpy array or HDFArray)
+
+        Note: We use arrs[0][0] instead of arrs[0] because
+            arrs[0][0] is a transformed data with out_dtype
+            while arrs[0] can be a HDFArray and has not
+            been cast to out_dtype.
+
+    Parameters
+    ----------
+    arrs : list of arrays.
+        The input arrays.
+    """
+    return arrs[0][0].dtype
+
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
 
@@ -155,7 +320,9 @@ def _merge_arrs(arrs, tensor_path):
     """
     assert isinstance(arrs, list)
     shape = _get_tot_shape(arrs)
-    dtype = arrs[0].dtype
+
+    # To get the output dtype or arrs
+    dtype = _get_arrs_out_dtype(arrs)
     if tensor_path is not None:
         out_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
         row_idx = 0
@@ -223,8 +390,10 @@ class ExtMemArrayMerger:
         if len(arrs) > 1:
             return _merge_arrs(arrs, tensor_path)
         else:
+            # To get the output dtype or arrs
+            dtype = _get_arrs_out_dtype(arrs)
             arr = arrs[0]
-            em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=shape)
+            em_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
             em_arr[:] = arr[:]
             return em_arr
 

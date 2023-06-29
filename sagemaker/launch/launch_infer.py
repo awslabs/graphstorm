@@ -13,19 +13,23 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Launch SageMaker training task
+    Launch SageMaker inference task
 """
 import os
-import sagemaker
 import argparse
+
 import boto3 # pylint: disable=import-error
-
-from graphstorm.config import SUPPORTED_TASKS
-
-from sagemaker.pytorch.estimator import PyTorch
 import sagemaker
+from sagemaker.pytorch.estimator import PyTorch
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
+SUPPORTED_TASKS = {
+    "node_classification",
+    "node_regression",
+    "edge_classification",
+    "edge_regression",
+    "link_prediction"
+}
 
 def run_job(input_args, image, unknowargs):
     """ Run job using SageMaker estimator.PyTorch
@@ -69,13 +73,22 @@ def run_job(input_args, image, unknowargs):
 
     prefix = "script-mode-container"
 
-    params = {"task-type": task_type,
-              "graph-name": graph_name,
-              "graph-data-s3": graph_data_s3,
-              "infer-yaml-s3": infer_yaml_s3,
-              "output-emb-s3": output_emb_s3_path,
-              "output-prediction-s3": output_predict_s3_path,
-              "model-artifact-s3": model_artifact_s3}
+    # In Link Prediction, no prediction outputs
+    if task_type == "link_prediction":
+        params = {"task-type": task_type,
+                  "graph-name": graph_name,
+                  "graph-data-s3": graph_data_s3,
+                  "infer-yaml-s3": infer_yaml_s3,
+                  "output-emb-s3": output_emb_s3_path,
+                  "model-artifact-s3": model_artifact_s3}
+    else:
+        params = {"task-type": task_type,
+                  "graph-name": graph_name,
+                  "graph-data-s3": graph_data_s3,
+                  "infer-yaml-s3": infer_yaml_s3,
+                  "output-emb-s3": output_emb_s3_path,
+                  "output-prediction-s3": output_predict_s3_path,
+                  "model-artifact-s3": model_artifact_s3}
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
@@ -118,12 +131,12 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--image-url", type=str,
-        help="Training docker image")
+        help="Inference docker image")
     parser.add_argument("--role", type=str,
         help="SageMaker role")
     parser.add_argument("--instance-type", type=str,
         default=INSTANCE_TYPE,
-        help="instance type used to train models")
+        help="instance type used to do inference")
     parser.add_argument("--instance-count", type=int,
         default=2,
         help="number of infernece instances")
@@ -131,8 +144,8 @@ def parse_args():
         default="us-east-1",
         help="Region")
     parser.add_argument("--entry-point", type=str,
-        default="graphstorm/sagemaker/scripts/sagemaker_infer.py",
-        help="PATH-TO graphstorm/sagemaker/scripts/sagemaker_infer.py")
+        default="graphstorm/sagemaker/run/infer_entry.py",
+        help="PATH-TO graphstorm/sagemaker/run/infer_entry.py")
     parser.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
 

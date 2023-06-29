@@ -16,7 +16,7 @@ export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--filepath /data \
 	--target-ntype movie \
-	--undirected \
+	--add-reverse-edges \
 	--num-trainers-per-machine 4 \
 	--output movielen_100k_train_val_1p_4t \
 	--generate-new-node-split true \
@@ -28,7 +28,7 @@ export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 	--filepath /data \
 	--target-ntype movie \
-	--undirected \
+	--add-reverse-edges \
 	--num-trainers-per-machine 4 \
 	--output movielen_100k_text_train_val_1p_4t \
 	--generate-new-node-split true \

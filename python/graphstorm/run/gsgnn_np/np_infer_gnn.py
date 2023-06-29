@@ -16,7 +16,6 @@
     Inference script for node classification/regression tasks with GNN
 """
 
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -37,8 +36,10 @@ def get_evaluator(config): # pylint: disable=unused-argument
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
-def main(args):
-    config = GSConfig(args)
+def main(config_args):
+    """ main function
+    """
+    config = GSConfig(config_args)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
 
     infer_data = GSgnnNodeInferData(config.graph_name,
@@ -69,15 +70,18 @@ def main(args):
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
-                node_id_mapping_file=config.node_id_mapping_file)
+                node_id_mapping_file=config.node_id_mapping_file,
+                return_proba=config.return_proba)
 
 def generate_parser():
+    """ Generate an argument parser
+    """
     parser = get_argument_parser()
     return parser
 
 if __name__ == '__main__':
-    parser=generate_parser()
+    arg_parser=generate_parser()
 
-    args = parser.parse_args()
+    args = arg_parser.parse_args()
     print(args)
     main(args)

@@ -35,7 +35,7 @@ If users set GraphStrom running processes as deamons, you can use the `kill_clea
 Usage examples:
 
 ```bash
-bash ./kill_clearnup_disttrain.sh /tmp/ip_list.txt ogbn-arxiv 2222
+bash ./kill_cleanup_disttrain.sh /tmp/ip_list.txt ogbn-arxiv 2222
 ```
 
 The `kill_cleanup_disttrain.sh` command require three arguments.

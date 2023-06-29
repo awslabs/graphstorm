@@ -31,7 +31,12 @@ from .rgcn_encoder import RelationalGCNEncoder
 from .rgat_encoder import RelationalGATEncoder
 
 from .node_decoder import EntityClassifier, EntityRegression
-from .edge_decoder import DenseBiDecoder, MLPEdgeDecoder
-from .edge_decoder import LinkPredictDotDecoder, LinkPredictDistMultDecoder
+from .edge_decoder import (DenseBiDecoder,
+                           MLPEdgeDecoder,
+                           MLPEFeatEdgeDecoder,
+                           LinkPredictDotDecoder,
+                           LinkPredictDistMultDecoder,
+                           LinkPredictWeightedDotDecoder,
+                           LinkPredictWeightedDistMultDecoder)
 
 from .loss_func import ClassifyLossFunc, RegressionLossFunc, LinkPredictLossFunc

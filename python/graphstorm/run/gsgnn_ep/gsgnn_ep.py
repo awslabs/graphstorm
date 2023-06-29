@@ -27,8 +27,11 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
+from graphstorm.utils import rt_profiler, sys_tracker
 
 def get_evaluator(config):
+    """ Get evaluator class
+    """
     if config.task_type == "edge_classification":
         return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
@@ -47,10 +50,15 @@ def get_evaluator(config):
     else:
         raise ValueError("Unknown task type")
 
-def main(args):
-    config = GSConfig(args)
+def main(config_args):
+    """ main function
+    """
+    config = GSConfig(config_args)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    rt_profiler.init(config.profile_path, rank=gs.get_rank())
+    sys_tracker.init(config.verbose, rank=gs.get_rank())
+    # edge predict only handle edge feature in decoder
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.target_etype,
@@ -60,7 +68,8 @@ def main(args):
     trainer = GSgnnEdgePredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
-        trainer.restore_model(model_path=config.restore_model_path)
+        trainer.restore_model(model_path=config.restore_model_path,
+                              model_layer_to_load=config.restore_model_layers)
     trainer.setup_cuda(dev_id=config.local_rank)
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
@@ -79,7 +88,8 @@ def main(args):
                                      batch_size=config.batch_size, device=device, train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
-                                     exclude_training_targets=config.exclude_training_targets)
+                                     exclude_training_targets=config.exclude_training_targets,
+                                     decoder_edge_feat=config.decoder_edge_feat)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
@@ -89,13 +99,15 @@ def main(args):
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
-            remove_target_edge_type=config.remove_target_edge_type)
+            remove_target_edge_type=config.remove_target_edge_type,
+            decoder_edge_feat=config.decoder_edge_feat)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
-            remove_target_edge_type=config.remove_target_edge_type)
+            remove_target_edge_type=config.remove_target_edge_type,
+            decoder_edge_feat=config.decoder_edge_feat)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -141,12 +153,14 @@ def main(args):
                         node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
+    """ Generate an argument parser
+    """
     parser = get_argument_parser()
     return parser
 
 if __name__ == '__main__':
-    parser=generate_parser()
+    arg_parser=generate_parser()
 
-    args = parser.parse_args()
+    args = arg_parser.parse_args()
     print(args)
     main(args)

@@ -35,11 +35,18 @@ from .model.rgat_encoder import RelationalGATEncoder
 from .model.node_gnn import GSgnnNodeModel
 from .model.edge_gnn import GSgnnEdgeModel
 from .model.lp_gnn import GSgnnLinkPredictionModel
-from .model.loss_func import ClassifyLossFunc, RegressionLossFunc
-from .model.loss_func import LinkPredictLossFunc
+from .model.loss_func import (ClassifyLossFunc,
+                              RegressionLossFunc,
+                              LinkPredictLossFunc,
+                              WeightedLinkPredictLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
-from .model.edge_decoder import DenseBiDecoder, MLPEdgeDecoder
-from .model.edge_decoder import LinkPredictDotDecoder, LinkPredictDistMultDecoder
+from .model.edge_decoder import (DenseBiDecoder,
+                                 MLPEdgeDecoder,
+                                 MLPEFeatEdgeDecoder)
+from .model.edge_decoder import (LinkPredictDotDecoder,
+                                 LinkPredictDistMultDecoder,
+                                 LinkPredictWeightedDotDecoder,
+                                 LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config, backend):
@@ -228,6 +235,28 @@ def create_builtin_edge_model(g, config, train_task):
                                      num_classes,
                                      multilabel=config.multilabel,
                                      target_etype=target_etype)
+        elif decoder_type == "MLPEFeatEdgeDecoder":
+            decoder_edge_feat = config.decoder_edge_feat
+            assert decoder_edge_feat is not None, \
+                "decoder-edge-feat must be provided when " \
+                "decoder_type == MLPEFeatEdgeDecoder"
+            # We need to get the edge_feat input dim.
+            if isinstance(decoder_edge_feat, str):
+                assert decoder_edge_feat in g.edges[target_etype].data
+                feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
+            else:
+                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]])
+
+            decoder = MLPEFeatEdgeDecoder(
+                h_dim=model.gnn_encoder.out_dims \
+                    if model.gnn_encoder is not None \
+                    else model.node_input_encoder.out_dims,
+                feat_dim=feat_dim,
+                out_dim=num_classes,
+                multilabel=config.multilabel,
+                target_etype=target_etype,
+                dropout=config.dropout)
         else:
             assert False, f"decoder {decoder_type} is not supported."
         model.set_decoder(decoder)
@@ -258,6 +287,29 @@ def create_builtin_edge_model(g, config, train_task):
                                      multilabel=False,
                                      target_etype=target_etype,
                                      regression=True)
+        elif decoder_type == "MLPEFeatEdgeDecoder":
+            decoder_edge_feat = config.decoder_edge_feat
+            assert decoder_edge_feat is not None, \
+                "decoder-edge-feat must be provided when " \
+                "decoder_type == MLPEFeatEdgeDecoder"
+            # We need to get the edge_feat input dim.
+            if isinstance(decoder_edge_feat, str):
+                assert decoder_edge_feat in g.edges[target_etype].data
+                feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
+            else:
+                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]])
+
+            decoder = MLPEFeatEdgeDecoder(
+                h_dim=model.gnn_encoder.out_dims \
+                    if model.gnn_encoder is not None \
+                    else model.node_input_encoder.out_dims,
+                feat_dim=feat_dim,
+                out_dim=1,
+                multilabel=False,
+                target_etype=target_etype,
+                dropout=config.dropout,
+                regression=True)
         else:
             assert False, "decoder not supported"
         model.set_decoder(decoder)
@@ -319,21 +371,38 @@ def create_builtin_lp_model(g, config, train_task):
         if get_rank() == 0:
             print('use dot product for single-etype task.')
             print("Using inner product objective for supervision")
-        decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
-                                            if model.gnn_encoder is not None \
-                                            else model.node_input_encoder.out_dims)
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims)
+        else:
+            decoder = LinkPredictWeightedDotDecoder(model.gnn_encoder.out_dims \
+                                                    if model.gnn_encoder is not None \
+                                                    else model.node_input_encoder.out_dims,
+                                                    config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
             print("Using distmult objective for supervision")
-        decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
-                                             model.gnn_encoder.out_dims \
-                                                if model.gnn_encoder is not None \
-                                                else model.node_input_encoder.out_dims,
-                                             config.gamma)
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
+                                                model.gnn_encoder.out_dims \
+                                                    if model.gnn_encoder is not None \
+                                                    else model.node_input_encoder.out_dims,
+                                                config.gamma)
+        else:
+            decoder = LinkPredictWeightedDistMultDecoder(g.canonical_etypes,
+                                                model.gnn_encoder.out_dims \
+                                                    if model.gnn_encoder is not None \
+                                                    else model.node_input_encoder.out_dims,
+                                                config.gamma,
+                                                config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)
-    model.set_loss_func(LinkPredictLossFunc())
+    if config.lp_edge_weight_for_loss is None:
+        model.set_loss_func(LinkPredictLossFunc())
+    else:
+        model.set_loss_func(WeightedLinkPredictLossFunc())
     if train_task:
         model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
