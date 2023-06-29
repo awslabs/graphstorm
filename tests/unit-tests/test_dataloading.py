@@ -60,9 +60,6 @@ def test_GSgnnEdgeData():
         # get the test dummy distributed graph
         dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
                                                             dirname=os.path.join(tmpdirname, 'dummy'))
-        dist_graph2, part_config2 = generate_dummy_dist_graph(graph_name='dummy2',
-                                                            dirname=os.path.join(tmpdirname, 'dummy2'),
-                                                            gen_mask=False)
         tr_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
                                      train_etypes=tr_etypes, eval_etypes=va_etypes,
                                      label_field='label')
@@ -82,11 +79,6 @@ def test_GSgnnEdgeData():
         ev_data2 = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
                                       eval_etypes=None)
 
-        ev_data_nomask = GSgnnEdgeInferData(graph_name='dummy2', part_config=part_config2,
-                                            eval_etypes=va_etypes)
-        ev_data_nomask2 = GSgnnEdgeInferData(graph_name='dummy2', part_config=part_config2,
-                                             eval_etypes=None)
-
     # successful initialization with default setting
     assert tr_data.train_etypes == tr_etypes
     assert tr_data.eval_etypes == va_etypes
@@ -98,8 +90,6 @@ def test_GSgnnEdgeData():
     assert tr_data3.train_etypes == tr_single_etype
     assert tr_data3.eval_etypes == tr_single_etype
     assert ev_data2.eval_etypes == dist_graph.canonical_etypes
-    assert ev_data_nomask.eval_etypes == va_etypes
-    assert ev_data_nomask2.eval_etypes == dist_graph.canonical_etypes
 
     # sucessfully split train/val/test idxs
     assert len(tr_data.train_idxs) == len(tr_etypes)
@@ -148,16 +138,6 @@ def test_GSgnnEdgeData():
     for etype in dist_graph.canonical_etypes:
         assert th.all(ev_data2.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
-    # eval graph without test mask
-    # all edges in the eval etype are treated as target edges
-    assert ev_data_nomask.infer_idxs == len(va_etypes)
-    for etype in va_etypes:
-        assert th.all(ev_data_nomask.infer_idxs[etype] == th.ones((dist_graph2.num_edges(etype),)))
-
-    assert ev_data_nomask2.infer_idxs == len(dist_graph2.canonical_etypes)
-    for etype in dist_graph2.canonical_etypes:
-        assert th.all(ev_data_nomask2.infer_idxs[etype] == th.ones((dist_graph2.num_edges(etype),)))
-
     labels = tr_data.get_labels({('n0', 'r1', 'n1'): [0, 1]})
     assert len(labels.keys()) == 1
     assert ('n0', 'r1', 'n1') in labels
@@ -173,6 +153,40 @@ def test_GSgnnEdgeData():
     except:
         no_label = True
     assert no_label
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+@pytest.mark.first
+def test_GSgnnEdgeData_nomask():
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    va_etypes = [("n0", "r1", "n1")]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy2',
+                                                            dirname=os.path.join(tmpdirname, 'dummy2'),
+                                                            gen_mask=False)
+
+        ev_data_nomask = GSgnnEdgeInferData(graph_name='dummy2', part_config=part_config,
+                                            eval_etypes=va_etypes)
+        ev_data_nomask2 = GSgnnEdgeInferData(graph_name='dummy2', part_config=part_config,
+                                             eval_etypes=None)
+
+    assert ev_data_nomask.eval_etypes == va_etypes
+    assert ev_data_nomask2.eval_etypes == dist_graph.canonical_etypes
+
+    # eval graph without test mask
+    # all edges in the eval etype are treated as target edges
+    assert len(ev_data_nomask.infer_idxs) == len(va_etypes)
+    for etype in va_etypes:
+        assert th.all(ev_data_nomask.infer_idxs[etype] == th.arange(dist_graph.num_edges(etype)))
+
+    assert len(ev_data_nomask2.infer_idxs) == len(dist_graph.canonical_etypes)
+    for etype in dist_graph.canonical_etypes:
+        assert th.all(ev_data_nomask2.infer_idxs[etype] == th.arange(dist_graph.num_edges(etype)))
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
@@ -678,6 +692,7 @@ def test_modify_fanout_for_target_etype():
     assert new_fanout[1][('user', 'plays', 'game')] == 1
 
 if __name__ == '__main__':
+    test_GSgnnEdgeData_nomask()
     test_GSgnnNodeData()
     test_GSgnnEdgeData()
     test_lp_dataloader()

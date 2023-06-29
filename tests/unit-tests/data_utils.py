@@ -141,7 +141,6 @@ def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'
     dist.initialize('')
     part_config = os.path.join(dirname, graph_name+'.json')
     dist_graph = dist.DistGraph(graph_name=graph_name, part_config=part_config)
-
     return dist_graph, part_config
 
 
