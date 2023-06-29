@@ -922,15 +922,7 @@ class CustomLabelProcessor:
         -------
         dict of Tensors : it contains the labels as well as training/val/test splits.
         """
-        if self.col_name in data:
-            label = data[self.col_name]
-            num_samples = len(label)
-        else:
-            assert len(data) > 0, "The edge data is empty."
-            label = None
-            for val in data.values():
-                num_samples = len(val)
-                break
+        label = data[self.col_name] if self.col_name in data else None
         assert self._id_col in data, \
                 f"The input data does not have ID column {self._id_col}."
         res = self.data_split(data[self._id_col])
