@@ -121,8 +121,8 @@ def split_data(data, num):
             new_data_list[i][key] = val
     return new_data_list
 
-write_index_json(np.arange(100), os.path.join(in_dir, 'node1_train.json'))
-write_index_json(np.arange(100, 200), os.path.join(in_dir, 'node1_valid.json'))
+write_index_json(node_data1['id'][:100], os.path.join(in_dir, 'node1_train.json'))
+write_index_json(node_data1['id'][100:200], os.path.join(in_dir, 'node1_valid.json'))
 for i, node_data in enumerate(split_data(node_data1, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
 write_data_hdf5(node_data1_2, os.path.join(in_dir, f'node_data1_2.hdf5'))
