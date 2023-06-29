@@ -47,7 +47,8 @@ def get_nonzero(mask):
     return th.nonzero(mask, as_tuple=True)[0]
 
 def test_GSgnnEdgeData():
-    shutil.rmtree("/dev/shm/*")
+    for file in os.listdir("/dev/shm/"):
+        shutil.rmtree(file, ignore_errors=True)
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
