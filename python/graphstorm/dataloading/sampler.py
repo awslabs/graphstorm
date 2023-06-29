@@ -331,20 +331,4 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
             seed_nodes = block.srcdata[NID]
             blocks.insert(0, block)
 
-            #new_block = to_block(new_frontier, seed_nodes)
-
-            #for etype in frontier.canonical_etypes:
-            #    if etype in eid:
-            #        print(f"{len(eid[etype])} vs {block.num_edges(etype)}")
-            #        print(f"{len(new_eid[etype])} vs {new_block.num_edges(etype)}")
-            #    else:
-            #        print(f"No eid etype {etype}")
-
-            #for etype in new_block.canonical_etypes:
-            #    if new_block.num_edges(etype) > 0:
-            #        new_block.edges[etype].data[EID] = new_eid[etype]
-
-            #seed_nodes = new_block.srcdata[NID]
-            #blocks.insert(0, new_block)
-
         return seed_nodes, output_nodes, blocks
