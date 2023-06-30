@@ -932,8 +932,8 @@ def check_input_arguments(args):
         # where the launch script runs.
         # The total number of CPU cores consumed
         # by trainers will be half of total cpu cores
-        cpu_cores_per_trainer = total_cpu_cores // \
-            (2 * args.num_trainers * (args.num_samplers if args.num_samplers > 1 else 1))
+        cpu_cores_per_trainer = total_cpu_cores // 2 // args.num_trainers // \
+            (args.num_samplers if args.num_samplers > 1 else 1)
         args.num_omp_threads = max(
             cpu_cores_per_trainer, 1
         )
@@ -946,8 +946,7 @@ def check_input_arguments(args):
     if args.num_server_threads is None:
         # The total number of CPU cores consumed
         # by servers will be 1/4 of total cpu cores
-        cpu_cores_per_server = total_cpu_cores // \
-            (4 * args.num_servers)
+        cpu_cores_per_server = total_cpu_cores // 4 // args.num_servers
         args.num_server_threads = max(
             cpu_cores_per_server, 1
         )
