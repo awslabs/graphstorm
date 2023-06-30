@@ -544,9 +544,13 @@ def test_label():
         check_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
         check_integer(res['label'], res)
-    conf = {'task_type': 'classification',
-            'label_col': 'label',
-            'split_pct': [0.8, 0.1, 0.1]}
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'split_pct': [0.8, 0.1, 0.1]}
+            ]
+    }
     ops = parse_label_ops([conf], True)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
