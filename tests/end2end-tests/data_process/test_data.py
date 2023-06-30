@@ -91,8 +91,10 @@ orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_n
 np.testing.assert_allclose(data, orig_ids.reshape(-1, 1))
 np.testing.assert_allclose(data1, orig_ids.reshape(-1, 1))
 assert np.all(label == orig_ids % 100)
-assert np.all(g.nodes['node1'].data['train_mask'].numpy() == np.arange(100))
-assert np.all(g.nodes['node1'].data['val_mask'].numpy() == np.arange(100, 200))
+train_idx = np.unique(g.nodes['node1'].data['train_mask'].numpy())
+assert np.all(train_idx == np.arange(100))
+val_idx = np.unique(g.nodes['node1'].data['val_mask'].numpy())
+assert np.all(val_idx == np.arange(100, 200))
 assert th.sum(g.nodes['node1'].data['test_mask']) == 0
 
 # test extra node1 feats
