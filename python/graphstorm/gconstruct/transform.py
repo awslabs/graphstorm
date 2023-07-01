@@ -31,6 +31,96 @@ from transformers import BertModel, BertConfig
 
 from .file_io import HDF5Array, read_index_json
 
+LABEL_STATS_FIELD = "training_label_stats"
+LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
+
+CLASSIFICATION_LABEL_STATS_TYPES = [LABEL_STATS_FREQUENCY_COUNT]
+
+def _check_label_stats_type(task_type, label_stats_type):
+    if task_type == "classification":
+        if label_stats_type is not None:
+            assert label_stats_type in CLASSIFICATION_LABEL_STATS_TYPES, \
+                "GraphStorm only support collecting training label statistics in " \
+                f"following format {CLASSIFICATION_LABEL_STATS_TYPES} for classification tasks."
+        return label_stats_type
+
+    return None
+
+def collect_label_stats(feat_name, label_stats):
+    """ Collect label stats according to different stats_type
+
+    Parameters
+    ----------
+    feat_name: str
+        Feature name that stores label stats. It composes of two parts:
+        LABEL_STATS_FIELD+<label feature name>
+    label_stats: list
+        A list of stats created by differet works.
+
+    Return:
+    tuple: A tuple of
+        1. Name of the corresponding label
+        2. label stats type (Used for printing statistics)
+        3. label stats
+    """
+    label_feat_name = feat_name[len(LABEL_STATS_FIELD):]
+    stats_type = label_stats[0][0]
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        label_frequency = {}
+        for _, vals, counts in label_stats:
+            for val, cnt in zip(vals, counts):
+                if val not in label_frequency:
+                    label_frequency[val] = cnt
+                else:
+                    label_frequency[val] += cnt
+        return (label_feat_name, LABEL_STATS_FREQUENCY_COUNT, label_frequency)
+
+    raise RuntimeError(f"Unknown label stats type {stats_type}")
+
+def print_label_stats(stats):
+    """ Print label stats
+
+    Parameters
+    ----------
+    stats: tuple
+        stats_type, stats
+    """
+    stats_type, stats = stats
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        logging.info("Counts of each label:")
+        for i, label_name in enumerate(stats):
+            logging.info("[%d]%s: %d", i, label_name, stats[label_name])
+
+def print_node_label_stats(ntype, label_name, stats):
+    """ Print label stats of nodes
+
+    Parameters
+    ----------
+    ntype: str
+        Node type
+    label_name: str
+        Label name
+    stats: tuple
+        stats_type, stats
+    """
+    logging.info("Label statistics of %s nodes with label name %s", ntype, label_name)
+    print_label_stats(stats)
+
+def print_edge_label_stats(etype, label_name, stats):
+    """ Print label stats of nodes
+
+    Parameters
+    ----------
+    etype: tuple
+        Edge type
+    label_name: str
+        Label name
+    stats: tuple
+        stats_type, stats
+    """
+    logging.info("Label statistics of %s edges with label name %s", etype, label_name)
+    print_label_stats(stats)
+
 def _get_output_dtype(dtype_str):
     if dtype_str == 'float16':
         return np.float16
@@ -852,15 +942,19 @@ class CustomLabelProcessor:
         The array that contains the index of validation data points.
     test_idx : Numpy array
         The array that contains the index of test data points.
+    stats_type: str
+        Speicfy how to summarize label statistics
     """
     def __init__(self, col_name, label_name, task_type,
-                 train_idx=None, val_idx=None, test_idx=None):
+                 train_idx=None, val_idx=None, test_idx=None,
+                 stats_type=None):
         self._col_name = col_name
         self._label_name = label_name
         self._train_idx = train_idx
         self._val_idx = val_idx
         self._test_idx = test_idx
         self._task_type = task_type
+        self._stats_type = stats_type
 
     @property
     def col_name(self):
@@ -929,6 +1023,13 @@ class CustomLabelProcessor:
         res = self.data_split(num_samples)
         if label is not None and self._task_type == "classification":
             res[self.label_name] = np.int32(label)
+            if self._stats_type is not None:
+                if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
+                    # get train labels
+                    train_labels = res[self.label_name][res['train_mask']]
+                    vals, counts = np.unique(train_labels, return_counts=True)
+                    res[LABEL_STATS_FIELD+self.label_name] = \
+                        (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
         elif label is not None:
             res[self.label_name] = label
         return res
@@ -944,11 +1045,14 @@ class LabelProcessor:
         The label name.
     split_pct : list of int
         The percentage of training, validation and test.
+    stats_type: str
+        Speicfy how to summarize label statistics
     """
-    def __init__(self, col_name, label_name, split_pct):
+    def __init__(self, col_name, label_name, split_pct, stats_type=None):
         self._col_name = col_name
         self._label_name = label_name
         self._split_pct = split_pct
+        self._stats_type = stats_type
 
     @property
     def col_name(self):
@@ -1031,6 +1135,14 @@ class ClassificationProcessor(LabelProcessor):
             return np.random.permutation(valid_label_idx)
         res = self.data_split(permute_idx, len(label))
         res[self.label_name] = np.int32(label)
+
+        if self._stats_type is not None:
+            if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
+                # get train labels
+                train_labels = res[self.label_name][res['train_mask']]
+                vals, counts = np.unique(train_labels, return_counts=True)
+                res[LABEL_STATS_FIELD+self.label_name] = \
+                    (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
         return res
 
 class RegressionProcessor(LabelProcessor):
@@ -1105,6 +1217,9 @@ def parse_label_ops(confs, is_node):
     label_conf = confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
+    label_stats_type = label_conf['label_stats_type'] \
+        if 'label_stats_type' in label_conf else None
+    label_stats_type = _check_label_stats_type(task_type, label_stats_type)
     if 'custom_split_filenames' in label_conf:
         custom_split = label_conf['custom_split_filenames']
         assert isinstance(custom_split, dict), \
@@ -1114,7 +1229,8 @@ def parse_label_ops(confs, is_node):
         test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         return [CustomLabelProcessor(label_col, label_col, task_type,
-                                     train_idx, val_idx, test_idx)]
+                                     train_idx, val_idx, test_idx,
+                                     label_stats_type)]
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
@@ -1127,17 +1243,17 @@ def parse_label_ops(confs, is_node):
         assert 'label_col' in label_conf, \
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
-        return [ClassificationProcessor(label_col, label_col, split_pct)]
+        return [ClassificationProcessor(label_col, label_col, split_pct, label_stats_type)]
     elif task_type == 'regression':
         assert 'label_col' in label_conf, \
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
-        return [RegressionProcessor(label_col, label_col, split_pct)]
+        return [RegressionProcessor(label_col, label_col, split_pct, label_stats_type)]
     else:
         assert task_type == 'link_prediction', \
                 "The task type must be classification, regression or link_prediction."
         assert not is_node, "link_prediction task must be defined on edges."
-        return [LinkPredictionProcessor(None, None, split_pct)]
+        return [LinkPredictionProcessor(None, None, split_pct, label_stats_type)]
 
 def process_labels(data, label_processors):
     """ Process labels
