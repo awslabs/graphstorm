@@ -70,10 +70,11 @@ the training/validation/test masks. For classification and regression tasks,
 the names of the mask tensors are "train_mask", "val_mask"
 and "test_mask".
 * `custom_split_filenames` customizes the data split and specifies individual
-nodes/edges are used in training/validation/test sets. It specifies a dict with
-file names that contains training/validation/test node IDs or edge IDs. The keys
-of the dict are "train", "valid" and "test". A node ID or edge ID in the files
-is stored as a JSON object.
+nodes are used in training/validation/test sets. It specifies a dict with
+file names that contains training/validation/test node IDs. The keys
+of the dict are "train", "valid" and "test". A node ID in the files
+is stored as a JSON object. Custom data split currently only works for
+nodes.
 
 Below shows an example that contains one node type and an edge type.
 ```
