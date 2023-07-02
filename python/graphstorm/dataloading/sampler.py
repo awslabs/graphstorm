@@ -256,6 +256,45 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
     ----------
     reverse_edge_types_map: dict
         A map for reverse edge type
+    fanouts : list[int] or list[dict[etype, int]]
+        List of neighbors to sample per edge type for each GNN layer, with the i-th
+        element being the fanout for the i-th GNN layer.
+
+        If only a single integer is provided, DGL assumes that every edge type
+        will have the same fanout.
+
+        If -1 is provided for one edge type on one layer, then all inbound edges
+        of that edge type will be included.
+    edge_dir : str, default ``'in'``
+        Can be either ``'in' `` where the neighbors will be sampled according to
+        incoming edges, or ``'out'`` otherwise, same as :func:`dgl.sampling.sample_neighbors`.
+    prob : str, optional
+        If given, the probability of each neighbor being sampled is proportional
+        to the edge feature value with the given name in ``g.edata``.  The feature must be
+        a scalar on each edge.
+    mask : str, optional
+        If given, a neighbor could be picked only if the edge mask with the given
+        name in ``g.edata`` is True.  The data must be boolean on each edge.
+
+        This argument is mutually exclusive with :attr:`prob`.  If you want to
+        specify both a mask and a probability, consider multiplying the probability
+        with the mask instead.
+    replace : bool, default False
+        Whether to sample with replacement
+    prefetch_node_feats : list[str] or dict[ntype, list[str]], optional
+        The source node data to prefetch for the first MFG, corresponding to the
+        input node features necessary for the first GNN layer.
+    prefetch_labels : list[str] or dict[ntype, list[str]], optional
+        The destination node data to prefetch for the last MFG, corresponding to
+        the node labels of the minibatch.
+    prefetch_edge_feats : list[str] or dict[etype, list[str]], optional
+        The edge data names to prefetch for all the MFGs, corresponding to the
+        edge features necessary for all GNN layers.
+    output_device : device, optional
+        The device of the output subgraphs or MFGs.  Default is the same as the
+        minibatch of seed nodes.
+    reverse_edge_types_map: dict
+        A dict of reverse edge type info.
     """
     def __init__(
         self,
@@ -289,6 +328,22 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
         )
 
     def sample_blocks(self, g, seed_nodes, exclude_eids=None):
+        """Generates a list of blocks from the given seed nodes.
+
+        This function must return a triplet where the first element is the input node IDs
+        for the first GNN layer (a tensor or a dict of tensors for heterogeneous graphs),
+        the second element is the output node IDs for the last GNN layer, and the third
+        element is the said list of blocks.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            Graph to sample blocks.
+        seed_nodes: dict of tensors
+            Seed nodes.
+        exclude_eids: func
+            Operations to exlude eids.
+        """
         output_nodes = seed_nodes
         blocks = []
         for fanout in reversed(self.fanouts):
