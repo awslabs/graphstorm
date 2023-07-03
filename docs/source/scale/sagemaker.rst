@@ -40,7 +40,7 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 .. code-block:: bash
 
     git clone https://github.com/awslabs/graphstorm.git
-    
+
     cd /path-to-graphstorm/docker/
 
     bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DOCKER_NAME> <DOCKER_TAG>
@@ -121,7 +121,7 @@ This tutorial uses the same three-partition OGB-MAG graph and the Link Predictio
 
 Please replace `<PATH_TO_DATA>` and `<PATH_TO_TRAINING_CONFIG>` with your own S3 bucket URI.
 
-Launch training 
+Launch training
 ```````````````````
 Launching GraphStorm training on SageMaker is similar as launching in the :ref:`Standalone mode<quick-start-standalone>` and :ref:`the Distributed mode<distributed-cluster>`, except for three diffences:
 
@@ -134,7 +134,7 @@ Users can use the following commands to launch a GraphStorm Link Prediction trai
 .. code-block:: bash
 
     cd /path-to-graphstorm/sagemaker/
-    
+
     python3 launch/launch_train.py \
             --image-url <AMAZON_ECR_IMAGE_URI> \
             --region <REGION> \
@@ -188,11 +188,11 @@ Users can use the following command to launch a GraphStorm Link Prediction infer
             --backend gloo \
             --batch-size 128
 
-.. note:: 
+.. note::
 
     Diffferent from the training command's argument, in the inference command, the value of the ``--model-artifact-s3`` argument needs to be path to a saved model. By default, it is stored under an S3 path with specific training epoch or epoch plus iteration number, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
 
-As the outcomes of the inference command, the generated node embeddings will be uploaded to ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3`` to specify the saving locations of prediction results. 
+As the outcomes of the inference command, the generated node embeddings will be uploaded to ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3`` to specify the saving locations of prediction results.
 
 Users can use the following commands to check the corresponding outputs:
 
@@ -208,7 +208,7 @@ This section describes how to launch Docker compose jobs that emulate a SageMake
 If users have never worked with Docker compose before the official description provides a great intro:
 
 .. hint::
-    
+
     Compose is a tool for defining and running multi-container Docker applications. With Compose, you use a YAML file to configure your application's services. Then, with a single command, you create and start all the services from your configuration.
 
 We will use this capability to launch multiple worker instances locally, that will be configured to “look like” a SageMaker training instance and communicate over a virtual network created by Docker Compose. This way our test environment will be as close to a real SageMaker distributed job as we can get, without needing to launch SageMaker jobs, or launch and configure multiple EC2 instances when developing features.
@@ -241,7 +241,7 @@ To run GraphStorm SageMaker with Docker Compose, we need to set up a local Linux
     pip install ogb==1.3.6
     pip install psutil==5.9.5
     pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
-    pip install dgl==1.0.3+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
+    pip install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 3. Setup GraphStorm in the PYTHONPATH variable.
 
@@ -293,7 +293,7 @@ Some explanation on the above elements (see the `official docs <https://docs.doc
 * **environment**: Sets the environment variables for the container.
 * **command**: Specifies the entry point, i.e., the command that will be executed when the container launches. In this case, /path/to/entrypoint.sh is the command that will be executed.
 
-To help users generate yaml file automatically, GraphStorm provides a Python script, ``generate_sagemaker_docker_compose.py``, that builds the docker compose file for users. 
+To help users generate yaml file automatically, GraphStorm provides a Python script, ``generate_sagemaker_docker_compose.py``, that builds the docker compose file for users.
 
 .. Note:: The script uses the `PyYAML <https://pypi.org/project/PyYAML/>`_ library. Please use the below commnd to install it.
 
@@ -341,7 +341,7 @@ First, use the following command to generate a Compose YAML file for the Link Pr
             --backend gloo \
             --batch-size 128
 
-The above command will create a Docker Compose file named ``docker-compose-<task-type>-<num-instances>-train.yaml``, which we can then use to launch the job. 
+The above command will create a Docker Compose file named ``docker-compose-<task-type>-<num-instances>-train.yaml``, which we can then use to launch the job.
 
 As our Docker Compose will use a Docker network, named ``gsf-network``, for inter-container communications, users need to run the following command to create the network before luanch Docker Compose.
 
@@ -355,7 +355,7 @@ Then, use the following command to run the Link Prediction training on OGB-MAG g
 
     docker compose -f docker-compose-link_prediction-3-train.yaml up
 
-Running the above command will launch 3 instances of the image, configured with the command and env vars that emulate a SageMaker execution environment and run the ``sagemaker_train.py`` script. 
+Running the above command will launch 3 instances of the image, configured with the command and env vars that emulate a SageMaker execution environment and run the ``sagemaker_train.py`` script.
 
 .. Note:: The containers actually interact with S3, so the provided AWS assess key, security access key, and session token should be valid for access S3 bucket.
 
