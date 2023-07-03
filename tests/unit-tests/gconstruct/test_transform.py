@@ -27,7 +27,8 @@ from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              CategoricalTransform)
 from graphstorm.gconstruct.transform import (_check_label_stats_type,
                                              collect_label_stats,
-                                             CustomLabelProcessor)
+                                             CustomLabelProcessor,
+                                             ClassificationProcessor)
 from graphstorm.gconstruct.transform import (LABEL_STATS_FIELD,
                                              LABEL_STATS_FREQUENCY_COUNT)
 
@@ -334,17 +335,17 @@ def test_custom_label_processor():
     assert "train_mask" in split
     assert "val_mask" in split
     assert "test_mask" in split
-    assert_equal(np.nonzero(split["train_mask"]), train_idx)
-    assert_equal(np.nonzero(split["val_mask"]), val_idx)
-    assert_equal(np.nonzero(split["test_mask"]), test_idx)
+    assert_equal(np.squeeze(np.nonzero(split["train_mask"])), train_idx)
+    assert_equal(np.squeeze(np.nonzero(split["val_mask"])), val_idx)
+    assert_equal(np.squeeze(np.nonzero(split["test_mask"])), test_idx)
 
     split = clp.data_split(24)
     assert "train_mask" in split
     assert "val_mask" in split
     assert "test_mask" in split
-    assert_equal(np.nonzero(split["train_mask"]), train_idx)
-    assert_equal(np.nonzero(split["val_mask"]), val_idx)
-    assert_equal(np.nonzero(split["test_mask"]), test_idx)
+    assert_equal(np.squeeze(np.nonzero(split["train_mask"])), train_idx)
+    assert_equal(np.squeeze(np.nonzero(split["val_mask"])), val_idx)
+    assert_equal(np.squeeze(np.nonzero(split["test_mask"])), test_idx)
     assert len(split["train_mask"]) == 24
     assert len(split["val_mask"]) == 24
     assert len(split["test_mask"]) == 24
@@ -357,9 +358,9 @@ def test_custom_label_processor():
     assert "train_mask" in ret
     assert "val_mask" in ret
     assert "test_mask" in ret
-    assert_equal(np.nonzero(ret["train_mask"]), train_idx)
-    assert_equal(np.nonzero(ret["val_mask"]), val_idx)
-    assert_equal(np.nonzero(ret["test_mask"]), test_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["train_mask"])), train_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["val_mask"])), val_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["test_mask"])), test_idx)
 
     # there are labels, but not classification
     input_data = {
@@ -369,9 +370,9 @@ def test_custom_label_processor():
     assert "train_mask" in ret
     assert "val_mask" in ret
     assert "test_mask" in ret
-    assert_equal(np.nonzero(ret["train_mask"]), train_idx)
-    assert_equal(np.nonzero(ret["val_mask"]), val_idx)
-    assert_equal(np.nonzero(ret["test_mask"]), test_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["train_mask"])), train_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["val_mask"])), val_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["test_mask"])), test_idx)
     assert_equal(ret["test"], input_data["test_label"])
 
     # there labels and _stats_type is frequency count
@@ -384,9 +385,9 @@ def test_custom_label_processor():
     assert "train_mask" in ret
     assert "val_mask" in ret
     assert "test_mask" in ret
-    assert_equal(np.nonzero(ret["train_mask"]), train_idx)
-    assert_equal(np.nonzero(ret["val_mask"]), val_idx)
-    assert_equal(np.nonzero(ret["test_mask"]), test_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["train_mask"])), train_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["val_mask"])), val_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["test_mask"])), test_idx)
     assert_equal(ret["test"], input_data["test_label"])
     stats_info_key = LABEL_STATS_FIELD+"test"
     assert LABEL_STATS_FIELD+"test" in ret
@@ -430,7 +431,27 @@ def test_collect_label_stats():
         label_stats = [("unknown", np.array[0,1,2,3], np.array[1,3,5,7])]
         label_name, stats_type, info = collect_label_stats(feat_name, label_stats)
 
+def test_classification_processor():
+    clp = ClassificationProcessor("test_label", "test", [0.8,0.1,0.1], LABEL_STATS_FREQUENCY_COUNT)
+
+    # there is no label
+    input_data = {
+        "test_label": np.random.randint(0, 5, (24,))
+    }
+    ret = clp(input_data)
+    stats_info_key = LABEL_STATS_FIELD+"test"
+    assert "test" in ret
+    assert "train_mask" in ret
+    assert "val_mask" in ret
+    assert "test_mask" in ret
+    assert stats_info_key in ret
+    vals, counts = np.unique(input_data["test_label"][ret["train_mask"]], return_counts=True)
+    assert ret[stats_info_key][0] == LABEL_STATS_FREQUENCY_COUNT
+    assert_equal(ret[stats_info_key][1], vals)
+    assert_equal(ret[stats_info_key][2], counts)
+
 if __name__ == '__main__':
+    '''
     test_categorize_transform()
     test_get_output_dtype()
     test_fp_transform(np.cfloat)
@@ -449,5 +470,7 @@ if __name__ == '__main__':
 
     test_check_label_stats_type()
     test_collect_label_stats()
-
+    '''
     test_custom_label_processor()
+    test_classification_processor()
+    test_classification_processor()

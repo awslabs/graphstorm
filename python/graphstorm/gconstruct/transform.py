@@ -1032,7 +1032,8 @@ class CustomLabelProcessor:
             if self._stats_type is not None:
                 if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
                     # get train labels
-                    train_labels = res[self.label_name][res['train_mask']]
+                    train_labels = res[self.label_name][ \
+                        np.squeeze(np.nonzero(res['train_mask']))]
                     vals, counts = np.unique(train_labels, return_counts=True)
                     res[LABEL_STATS_FIELD+self.label_name] = \
                         (LABEL_STATS_FREQUENCY_COUNT, vals, counts)

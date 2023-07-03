@@ -265,6 +265,7 @@ edge_conf = [
                 "label_col":    "label",
                 "task_type":    "classification",
                 "split_pct":   [0.8, 0.2, 0.0],
+                "label_stats_type": "frequency_cnt",
             },
         ],
     },

@@ -338,7 +338,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         label_stats[node_type] = {}
         for feat_name in list(type_node_data):
             # features start with LABEL_STATS_FIELD store label statistics
-            if feat_name.startwith(LABEL_STATS_FIELD):
+            if feat_name.startswith(LABEL_STATS_FIELD):
                 label_name, stats_type, stats = \
                     collect_label_stats(feat_name, type_node_data[feat_name])
                 label_stats[node_type][label_name] = (stats_type, stats)
