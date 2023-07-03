@@ -25,6 +25,11 @@ from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              Noop,
                                              RankGaussTransform,
                                              CategoricalTransform)
+from graphstorm.gconstruct.transform import (_check_label_stats_type,
+                                             collect_label_stats,
+                                             CustomLabelProcessor)
+from graphstorm.gconstruct.transform import (LABEL_STATS_FIELD,
+                                             LABEL_STATS_FREQUENCY_COUNT)
 
 def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
@@ -311,6 +316,120 @@ def test_rank_gauss_transform(input_dtype, out_dtype):
         assert trans_feat.dtype != np.float16
         assert_almost_equal(feat, trans_feat, decimal=4)
 
+def test_custom_label_processor():
+    train_idx = np.arange(0, 10)
+    val_idx = np.arange(10, 15)
+    test_idx = np.arange(15, 20)
+    clp = CustomLabelProcessor("test_label", "test", "classification",
+                         train_idx, val_idx, test_idx, None)
+
+    with pytest.raises(Exception):
+        clp.data_split(9) # num_samples < largest train_idx
+    with pytest.raises(Exception):
+        clp.data_split(14) # num_samples < largest val_idx
+    with pytest.raises(Exception):
+        clp.data_split(19) # num_samples < largest test_idx
+
+    split = clp.data_split(20)
+    assert "train_mask" in split
+    assert "val_mask" in split
+    assert "test_mask" in split
+    assert_equal(np.nonzero(split["train_mask"]), train_idx)
+    assert_equal(np.nonzero(split["val_mask"]), val_idx)
+    assert_equal(np.nonzero(split["test_mask"]), test_idx)
+
+    split = clp.data_split(24)
+    assert "train_mask" in split
+    assert "val_mask" in split
+    assert "test_mask" in split
+    assert_equal(np.nonzero(split["train_mask"]), train_idx)
+    assert_equal(np.nonzero(split["val_mask"]), val_idx)
+    assert_equal(np.nonzero(split["test_mask"]), test_idx)
+    assert len(split["train_mask"]) == 24
+    assert len(split["val_mask"]) == 24
+    assert len(split["test_mask"]) == 24
+
+    # there is no label
+    input_data = {
+        "feat": np.random.rand(24),
+    }
+    ret = clp(input_data)
+    assert "train_mask" in ret
+    assert "val_mask" in ret
+    assert "test_mask" in ret
+    assert_equal(np.nonzero(ret["train_mask"]), train_idx)
+    assert_equal(np.nonzero(ret["val_mask"]), val_idx)
+    assert_equal(np.nonzero(ret["test_mask"]), test_idx)
+
+    # there are labels, but not classification
+    input_data = {
+        "test_label": np.random.randint(0, 5, (24,))
+    }
+    ret = clp(input_data)
+    assert "train_mask" in ret
+    assert "val_mask" in ret
+    assert "test_mask" in ret
+    assert_equal(np.nonzero(ret["train_mask"]), train_idx)
+    assert_equal(np.nonzero(ret["val_mask"]), val_idx)
+    assert_equal(np.nonzero(ret["test_mask"]), test_idx)
+    assert_equal(ret["test"], input_data["test_label"])
+
+    # there labels and _stats_type is frequency count
+    input_data = {
+        "test_label": np.random.randint(0, 5, (24,))
+    }
+    clp = CustomLabelProcessor("test_label", "test", "classification",
+                         train_idx, val_idx, test_idx, LABEL_STATS_FREQUENCY_COUNT)
+    ret = clp(input_data)
+    assert "train_mask" in ret
+    assert "val_mask" in ret
+    assert "test_mask" in ret
+    assert_equal(np.nonzero(ret["train_mask"]), train_idx)
+    assert_equal(np.nonzero(ret["val_mask"]), val_idx)
+    assert_equal(np.nonzero(ret["test_mask"]), test_idx)
+    assert_equal(ret["test"], input_data["test_label"])
+    stats_info_key = LABEL_STATS_FIELD+"test"
+    assert LABEL_STATS_FIELD+"test" in ret
+    vals, counts = np.unique(input_data["test_label"][train_idx], return_counts=True)
+    assert ret[stats_info_key][0] == LABEL_STATS_FREQUENCY_COUNT
+    assert_equal(ret[stats_info_key][1], vals)
+    assert_equal(ret[stats_info_key][2], counts)
+
+def test_check_label_stats_type():
+    stats_type = _check_label_stats_type("regression", LABEL_STATS_FREQUENCY_COUNT)
+    assert stats_type is None
+
+    stats_type = _check_label_stats_type("classification", LABEL_STATS_FREQUENCY_COUNT)
+    assert stats_type == LABEL_STATS_FREQUENCY_COUNT
+
+    with pytest.raises(Exception):
+        stats_type = _check_label_stats_type("classification", "unknown")
+
+def test_collect_label_stats():
+    feat_name = LABEL_STATS_FIELD+"test"
+    label_stats = [(LABEL_STATS_FREQUENCY_COUNT, np.array[0,1,2,3], np.array[1,3,5,7])]
+    label_name, stats_type, info = collect_label_stats(feat_name, label_stats)
+    assert label_name == "test"
+    assert stats_type == LABEL_STATS_FREQUENCY_COUNT
+    assert info[0] == 1
+    assert info[1] == 3
+    assert info[2] == 5
+    assert info[3] == 7
+
+    label_stats = [(LABEL_STATS_FREQUENCY_COUNT, np.array[0,2], np.array[3,4]),
+                   (LABEL_STATS_FREQUENCY_COUNT, np.array[0,1,2,3], np.array[1,3,5,7])]
+    label_name, stats_type, info = collect_label_stats(feat_name, label_stats)
+    assert label_name == "test"
+    assert stats_type == LABEL_STATS_FREQUENCY_COUNT
+    assert info[0] == 4
+    assert info[1] == 3
+    assert info[2] == 9
+    assert info[3] == 7
+
+    with pytest.raises(Exception):
+        label_stats = [("unknown", np.array[0,1,2,3], np.array[1,3,5,7])]
+        label_name, stats_type, info = collect_label_stats(feat_name, label_stats)
+
 if __name__ == '__main__':
     test_categorize_transform()
     test_get_output_dtype()
@@ -328,3 +447,7 @@ if __name__ == '__main__':
     test_rank_gauss_transform(np.float32, None)
     test_rank_gauss_transform(np.float32, np.float16)
 
+    test_check_label_stats_type()
+    test_collect_label_stats()
+
+    test_custom_label_processor()

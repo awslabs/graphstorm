@@ -36,7 +36,6 @@ from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.dataloading.dataset import (prepare_batch_input,
                                             prepare_batch_edge_input)
 from graphstorm.dataloading.utils import modify_fanout_for_target_etype
-from graphstorm.config.argument import GSConfig
 
 from numpy.testing import assert_equal
 

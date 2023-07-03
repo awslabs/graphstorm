@@ -70,9 +70,9 @@ def collect_label_stats(feat_name, label_stats):
         for _, vals, counts in label_stats:
             for val, cnt in zip(vals, counts):
                 if val not in label_frequency:
-                    label_frequency[val] = cnt
+                    label_frequency[int(val)] = int(cnt)
                 else:
-                    label_frequency[val] += cnt
+                    label_frequency[int(val)] += int(cnt)
         return (label_feat_name, LABEL_STATS_FREQUENCY_COUNT, label_frequency)
 
     raise RuntimeError(f"Unknown label stats type {stats_type}")
@@ -981,6 +981,12 @@ class CustomLabelProcessor:
         dict of Numpy array
             The arrays for training/validation/test masks.
         """
+        assert np.amax(self._train_idx) < num_samples, \
+            f"train_idx {np.amax(self._train_idx)} larger than num_samples {num_samples}"
+        assert np.amax(self._val_idx) < num_samples, \
+            f"val_idx {np.amax(self._val_idx)} larger than num_samples {num_samples}"
+        assert np.amax(self._test_idx) < num_samples, \
+            f"test_idx {np.amax(self._test_idx)} larger than num_samples {num_samples}"
         train_mask = np.zeros((num_samples,), dtype=np.int8)
         val_mask = np.zeros((num_samples,), dtype=np.int8)
         test_mask = np.zeros((num_samples,), dtype=np.int8)
