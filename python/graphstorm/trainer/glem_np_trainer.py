@@ -76,6 +76,10 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             The number of iteration to train the model before saving the model.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
+        freeze_input_layer_epochs: int
+            Freeze the input layer for N epochs. This is commonly used when
+            the input layer contains language models.
+            Default: 0, no freeze.
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -93,25 +97,34 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         device = model.device
         data = train_loader.data
 
+        # turn off pl loss in the epochs when LM is frozen
+        no_pl = freeze_input_layer_epochs > 0
+        if freeze_input_layer_epochs > 0:
+            self._model.lm.freeze_input_encoder(data)
+
         # training loop
         dur = []
         total_steps = 0
 
         sys_tracker.check('start training')
         g = data.g # dgl.DistGraph
-        # (TODO) Pre-train LM and infer labels
-        # (TODO) Pre-train GNN and infer labels
         for epoch in range(num_epochs):
             t0 = time.time()
             rt_profiler.start_record()
 
+            if freeze_input_layer_epochs <= epoch:
+                self._model.lm.unfreeze_input_encoder()
+                no_pl = False
             # 1st round: train LM, fix gnn
             use_gnn = False
             self._model.toggle('lm')
             self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                 device, rt_profiler,
                                 epoch, total_steps, use_mini_batch_infer,
-                                save_model_path, save_model_frequency)
+                                save_model_path, save_model_frequency, no_pl)
+            lm_finish_time = time.time()
+            if self.rank == 0:
+                print("Epoch {}, lm takes {:.2f} seconds".format(epoch, lm_finish_time-t0))
 
             # 2nd round: train GNN, fix LM
             use_gnn = True
@@ -119,7 +132,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                 device, rt_profiler,
                                 epoch, total_steps, use_mini_batch_infer,
-                                save_model_path, save_model_frequency)
+                                save_model_path, save_model_frequency, no_pl)
 
             # early_stop, exit training
             if self.early_stop is True:
@@ -127,7 +140,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
 
             epoch_time = time.time() - t0
             if self.rank == 0:
-                print("Epoch {} take {}".format(epoch, epoch_time))
+                print("Epoch {}, gnn takes {:.2f} seconds".format(epoch,
+                                                                  time.time() - lm_finish_time))
             dur.append(epoch_time)
 
         rt_profiler.save_profile()
@@ -147,7 +161,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                        epoch, total_steps,
                        use_mini_batch_infer=True,
                        save_model_path=None,
-                       save_model_frequency=-1):
+                       save_model_frequency=-1, no_pl=False):
         """Fit model for one epoch
         """
         profiler.start_record()
@@ -168,9 +182,10 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 num_input_nodes += feats.shape[0]
             profiler.record('train_graph2GPU')
             # Run forward function to compute loss:
-            loss = model.module(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn)
+            loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn, no_pl=no_pl)
             profiler.record('train_forward')
 
+            self.optimizer.zero_grad()
             loss.backward()
             profiler.record('train_backward')
             self.optimizer.step()
