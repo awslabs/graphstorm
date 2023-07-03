@@ -493,7 +493,6 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         for feat_name in list(type_edge_data):
             # features start with LABEL_STATS_FIELD store label statistics
             if feat_name.startswith(LABEL_STATS_FIELD):
-                print(f"{feat_name} has labelstats")
                 label_name, stats_type, stats = \
                     collect_label_stats(feat_name, type_edge_data[feat_name])
                 label_stats[edge_type][label_name] = (stats_type, stats)
@@ -509,7 +508,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 type_edge_data[feat_name] = merged_feat
                 gc.collect()
                 sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
-        print(label_stats)
+
         if type_src_ids[0] is not None: # handle src_ids and dst_ids
             assert all(src_ids is not None for src_ids in type_src_ids)
             assert all(dst_ids is not None for dst_ids in type_dst_ids)
@@ -619,12 +618,10 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
             logging.info("Train/val/test on %s: %d, %d, %d",
                          str(etype), num_train, num_val, num_test)
 
-    print(node_label_stats)
     for ntype in node_label_stats:
         for label_name, stats in node_label_stats[ntype].items():
             print_node_label_stats(ntype, label_name, stats)
 
-    print(edge_label_stats)
     for etype in edge_label_stats:
         for label_name, stats in edge_label_stats[etype].items():
             print_edge_label_stats(etype, label_name, stats)

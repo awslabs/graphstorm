@@ -445,13 +445,12 @@ def test_classification_processor():
     assert "val_mask" in ret
     assert "test_mask" in ret
     assert stats_info_key in ret
-    vals, counts = np.unique(input_data["test_label"][ret["train_mask"]], return_counts=True)
+    vals, counts = np.unique(input_data["test_label"][ret["train_mask"].astype(np.bool)], return_counts=True)
     assert ret[stats_info_key][0] == LABEL_STATS_FREQUENCY_COUNT
     assert_equal(ret[stats_info_key][1], vals)
     assert_equal(ret[stats_info_key][2], counts)
 
 if __name__ == '__main__':
-    '''
     test_categorize_transform()
     test_get_output_dtype()
     test_fp_transform(np.cfloat)
@@ -470,7 +469,5 @@ if __name__ == '__main__':
 
     test_check_label_stats_type()
     test_collect_label_stats()
-    '''
     test_custom_label_processor()
-    test_classification_processor()
     test_classification_processor()

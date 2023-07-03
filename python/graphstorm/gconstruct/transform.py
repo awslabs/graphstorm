@@ -88,8 +88,9 @@ def print_label_stats(stats):
     stats_type, stats = stats
     if stats_type == LABEL_STATS_FREQUENCY_COUNT:
         logging.info("Counts of each label:")
+        logging.info("[Label Index] Label Name: Counts")
         for i, label_name in enumerate(stats):
-            logging.info("[%d]%s: %d", i, label_name, stats[label_name])
+            logging.info("[%d]\t%s: \t%d", i, label_name, stats[label_name])
 
 def print_node_label_stats(ntype, label_name, stats):
     """ Print label stats of nodes
@@ -1033,7 +1034,7 @@ class CustomLabelProcessor:
                 if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
                     # get train labels
                     train_labels = res[self.label_name][ \
-                        np.squeeze(np.nonzero(res['train_mask']))]
+                        res['train_mask'].astype(np.bool)]
                     vals, counts = np.unique(train_labels, return_counts=True)
                     res[LABEL_STATS_FIELD+self.label_name] = \
                         (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
@@ -1146,7 +1147,8 @@ class ClassificationProcessor(LabelProcessor):
         if self._stats_type is not None:
             if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
                 # get train labels
-                train_labels = res[self.label_name][res['train_mask']]
+                train_labels = res[self.label_name][ \
+                    res['train_mask'].astype(np.bool)]
                 vals, counts = np.unique(train_labels, return_counts=True)
                 res[LABEL_STATS_FIELD+self.label_name] = \
                     (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
