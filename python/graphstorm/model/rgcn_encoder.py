@@ -47,6 +47,8 @@ class RelGraphConvLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
+    batch_norm: bool, optional 
+        True to add batch normalization layer for 1D prior to activation function 
     """
     def __init__(self,
                  in_feat,
@@ -58,7 +60,8 @@ class RelGraphConvLayer(nn.Module):
                  bias=True,
                  activation=None,
                  self_loop=False,
-                 dropout=0.0):
+                 dropout=0.0,
+                 batch_norm=False):
         super(RelGraphConvLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -95,6 +98,10 @@ class RelGraphConvLayer(nn.Module):
                                     gain=nn.init.calculate_gain('relu'))
 
         self.dropout = nn.Dropout(dropout)
+        
+        self.batch_norm = None 
+        if batch_norm is True:
+            self.batch_norm = nn.BatchNorm1d(out_feat)
 
     # pylint: disable=invalid-name
     def forward(self, g, inputs):
@@ -132,6 +139,8 @@ class RelGraphConvLayer(nn.Module):
                 h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
                 h = h + self.h_bias
+            if self.batch_norm is not None:
+                h = self.batch_norm(h)
             if self.activation:
                 h = self.activation(h)
             return self.dropout(h)
