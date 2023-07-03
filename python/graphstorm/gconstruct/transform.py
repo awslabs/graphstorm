@@ -981,20 +981,20 @@ class CustomLabelProcessor:
         dict of Numpy array
             The arrays for training/validation/test masks.
         """
-        assert np.amax(self._train_idx) < num_samples, \
-            f"train_idx {np.amax(self._train_idx)} larger than num_samples {num_samples}"
-        assert np.amax(self._val_idx) < num_samples, \
-            f"val_idx {np.amax(self._val_idx)} larger than num_samples {num_samples}"
-        assert np.amax(self._test_idx) < num_samples, \
-            f"test_idx {np.amax(self._test_idx)} larger than num_samples {num_samples}"
         train_mask = np.zeros((num_samples,), dtype=np.int8)
         val_mask = np.zeros((num_samples,), dtype=np.int8)
         test_mask = np.zeros((num_samples,), dtype=np.int8)
         if self._train_idx is not None:
+            assert np.amax(self._train_idx) < num_samples, \
+                f"train_idx {np.amax(self._train_idx)} larger than num_samples {num_samples}"
             train_mask[self._train_idx] = 1
         if self._val_idx is not None:
+            assert np.amax(self._val_idx) < num_samples, \
+                f"val_idx {np.amax(self._val_idx)} larger than num_samples {num_samples}"
             val_mask[self._val_idx] = 1
         if self._test_idx is not None:
+            assert np.amax(self._test_idx) < num_samples, \
+                f"test_idx {np.amax(self._test_idx)} larger than num_samples {num_samples}"
             test_mask[self._test_idx] = 1
         train_mask_name = 'train_mask'
         val_mask_name = 'val_mask'

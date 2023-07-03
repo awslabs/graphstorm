@@ -321,7 +321,7 @@ def test_custom_label_processor():
     val_idx = np.arange(10, 15)
     test_idx = np.arange(15, 20)
     clp = CustomLabelProcessor("test_label", "test", "classification",
-                         train_idx, val_idx, test_idx, None)
+                               train_idx, val_idx, test_idx, None)
 
     with pytest.raises(Exception):
         clp.data_split(9) # num_samples < largest train_idx
