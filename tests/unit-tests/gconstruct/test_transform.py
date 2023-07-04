@@ -321,17 +321,10 @@ def test_custom_label_processor():
     train_idx = np.arange(0, 10)
     val_idx = np.arange(10, 15)
     test_idx = np.arange(15, 20)
-    clp = CustomLabelProcessor("test_label", "test", "classification",
+    clp = CustomLabelProcessor("test_label", "test", "id", "classification",
                                train_idx, val_idx, test_idx, None)
 
-    with pytest.raises(Exception):
-        clp.data_split(9) # num_samples < largest train_idx
-    with pytest.raises(Exception):
-        clp.data_split(14) # num_samples < largest val_idx
-    with pytest.raises(Exception):
-        clp.data_split(19) # num_samples < largest test_idx
-
-    split = clp.data_split(20)
+    split = clp.data_split(np.arange(20))
     assert "train_mask" in split
     assert "val_mask" in split
     assert "test_mask" in split
@@ -339,7 +332,7 @@ def test_custom_label_processor():
     assert_equal(np.squeeze(np.nonzero(split["val_mask"])), val_idx)
     assert_equal(np.squeeze(np.nonzero(split["test_mask"])), test_idx)
 
-    split = clp.data_split(24)
+    split = clp.data_split(np.arange(24))
     assert "train_mask" in split
     assert "val_mask" in split
     assert "test_mask" in split
@@ -353,6 +346,7 @@ def test_custom_label_processor():
     # there is no label
     input_data = {
         "feat": np.random.rand(24),
+        "id": np.arange(24),
     }
     ret = clp(input_data)
     assert "train_mask" in ret
@@ -364,7 +358,8 @@ def test_custom_label_processor():
 
     # there are labels, but not classification
     input_data = {
-        "test_label": np.random.randint(0, 5, (24,))
+        "test_label": np.random.randint(0, 5, (24,)),
+        "id": np.arange(24),
     }
     ret = clp(input_data)
     assert "train_mask" in ret
@@ -377,9 +372,10 @@ def test_custom_label_processor():
 
     # there labels and _stats_type is frequency count
     input_data = {
-        "test_label": np.random.randint(0, 5, (24,))
+        "test_label": np.random.randint(0, 5, (24,)),
+        "id": np.arange(24),
     }
-    clp = CustomLabelProcessor("test_label", "test", "classification",
+    clp = CustomLabelProcessor("test_label", "test", "id", "classification",
                          train_idx, val_idx, test_idx, LABEL_STATS_FREQUENCY_COUNT)
     ret = clp(input_data)
     assert "train_mask" in ret
@@ -408,7 +404,7 @@ def test_check_label_stats_type():
 
 def test_collect_label_stats():
     feat_name = LABEL_STATS_FIELD+"test"
-    label_stats = [(LABEL_STATS_FREQUENCY_COUNT, np.array[0,1,2,3], np.array[1,3,5,7])]
+    label_stats = [(LABEL_STATS_FREQUENCY_COUNT, np.array([0,1,2,3]), np.array([1,3,5,7]))]
     label_name, stats_type, info = collect_label_stats(feat_name, label_stats)
     assert label_name == "test"
     assert stats_type == LABEL_STATS_FREQUENCY_COUNT
@@ -417,8 +413,8 @@ def test_collect_label_stats():
     assert info[2] == 5
     assert info[3] == 7
 
-    label_stats = [(LABEL_STATS_FREQUENCY_COUNT, np.array[0,2], np.array[3,4]),
-                   (LABEL_STATS_FREQUENCY_COUNT, np.array[0,1,2,3], np.array[1,3,5,7])]
+    label_stats = [(LABEL_STATS_FREQUENCY_COUNT, np.array([0,2]), np.array([3,4])),
+                   (LABEL_STATS_FREQUENCY_COUNT, np.array([0,1,2,3]), np.array([1,3,5,7]))]
     label_name, stats_type, info = collect_label_stats(feat_name, label_stats)
     assert label_name == "test"
     assert stats_type == LABEL_STATS_FREQUENCY_COUNT

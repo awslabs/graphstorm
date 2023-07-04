@@ -274,7 +274,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops) = \
             parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else (None, [], {})
-        label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
+        label_ops = parse_label_ops(process_conf, is_node=True) \
                 if 'labels' in process_conf else None
         assert 'format' in process_conf, \
                 "'format' must be defined for a node type"
@@ -446,7 +446,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops) = \
             parse_feat_ops(process_conf['features']) \
                 if 'features' in process_conf else (None, [], {})
-        label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
+        label_ops = parse_label_ops(process_conf, is_node=False) \
                 if 'labels' in process_conf else None
 
         # We don't need to copy all node ID maps to the worker processes.
