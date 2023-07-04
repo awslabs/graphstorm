@@ -673,6 +673,7 @@ def process_graph(args):
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats)
+    os.makedirs(args.output_dir, exist_ok=True)
     if len(node_label_stats) > 0:
         save_node_label_stats(args.output_dir, node_label_stats)
     if len(edge_label_stats) > 0:

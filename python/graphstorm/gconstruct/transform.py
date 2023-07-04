@@ -89,7 +89,7 @@ def print_label_stats(stats):
     stats_type, stats = stats
     if stats_type == LABEL_STATS_FREQUENCY_COUNT:
         logging.debug("Counts of each label:")
-        logging.debug("[Label Index] Label Name: Counts")
+        logging.debug("[Label Index] | Label Name | Counts")
         for i, label_name in enumerate(stats):
             logging.debug("[%d]\t%s: \t%d", i, label_name, stats[label_name])
 
