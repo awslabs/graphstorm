@@ -134,7 +134,7 @@ def compress_label_stats(stats):
     stats_type, stats = stats
     if stats_type == LABEL_STATS_FREQUENCY_COUNT:
         info = {"stats_type": LABEL_STATS_FREQUENCY_COUNT,
-                "info": {label_name: cnts for label_name, cnts in stats.itmes()}}
+                "info": stats}
         return info
     else:
         raise RuntimeError(f"Unknown label stats type {stats_type}")
@@ -155,7 +155,7 @@ def save_node_label_stats(output_dir, node_label_stats):
         for label_name, stats in node_label_stats[ntype].items():
             stats_summary[label_name] = compress_label_stats(stats)
         info[ntype] = stats_summary
-    with open(os.path.join(output_dir, 'node_label_stats.json'), 'w') as f:
+    with open(os.path.join(output_dir, 'node_label_stats.json'), 'w', encoding="utf8") as f:
         json.dump(info, f, indent=4)
 
 def save_edge_label_stats(output_dir, edge_label_stats):
@@ -174,7 +174,7 @@ def save_edge_label_stats(output_dir, edge_label_stats):
         for label_name, stats in edge_label_stats[etype].items():
             stats_summary[label_name] = compress_label_stats(stats)
         info[etype] = stats_summary
-    with open(os.path.join(output_dir, 'edge_label_stats.json'), 'w') as f:
+    with open(os.path.join(output_dir, 'edge_label_stats.json'), 'w', encoding="utf8") as f:
         json.dump(info, f, indent=4)
 
 def _get_output_dtype(dtype_str):
