@@ -173,7 +173,7 @@ def save_edge_label_stats(output_dir, edge_label_stats):
         stats_summary = {}
         for label_name, stats in edge_label_stats[etype].items():
             stats_summary[label_name] = compress_label_stats(stats)
-        info[",".joint(etype)] = stats_summary
+        info[",".join(etype)] = stats_summary
     with open(os.path.join(output_dir, 'edge_label_stats.json'), 'w', encoding="utf8") as f:
         json.dump(info, f, indent=4)
 
