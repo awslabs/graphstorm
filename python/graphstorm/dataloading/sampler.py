@@ -311,6 +311,7 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
     ):
         self.mask = mask
         self.reverse_edge_types_map = reverse_edge_types_map
+        # original_edge_types_map is the reverse map of reverse_edge_types_map
         self.original_edge_types_map = {
             val: key for key, val in reverse_edge_types_map.items()
         } if reverse_edge_types_map is not None else None
@@ -370,7 +371,8 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
 
                     elif self.original_edge_types_map is not None and \
                         self.mask in g.edges[self.original_edge_types_map[etype]].data:
-                        # handle reverse edges
+                        # handle rev-etype edges
+                        # get etype from rev-etype.
                         original_etype = self.original_edge_types_map[etype]
                         rev_mask = g.edges[original_etype].data[self.mask][eid[etype]].bool()
                         new_edges[etype] = rev_mask
