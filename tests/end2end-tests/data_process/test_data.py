@@ -196,5 +196,5 @@ with open(os.path.join(out_dir, "node_label_stats.json"), 'r') as f:
 
 with open(os.path.join(out_dir, "edge_label_stats.json"), 'r') as f:
   edge_label_stats = json.load(f)
-  assert ("node1", "relation1", "node2") in edge_label_stats
-  assert "label" in edge_label_stats[("node1", "relation1", "node2")]
+  assert ("node1,relation1,node2") in edge_label_stats
+  assert "label" in edge_label_stats[("node1,relation1,node2")]
