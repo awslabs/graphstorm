@@ -36,7 +36,10 @@ from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
 from .transform import do_multiprocess_transform
 from .transform import LABEL_STATS_FIELD, collect_label_stats
-from .transform import print_node_label_stats, print_edge_label_stats
+from .transform import (print_node_label_stats,
+                        print_edge_label_stats,
+                        save_node_label_stats,
+                        save_edge_label_stats)
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
@@ -670,6 +673,10 @@ def process_graph(args):
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats)
+    if len(node_label_stats > 0):
+        save_node_label_stats(args.output_dir, node_label_stats)
+    if len(edge_label_stats > 0):
+        save_edge_label_stats(args.output_dir, edge_label_stats)
     sys_tracker.check('Construct DGL graph')
 
     # reshape customized mask

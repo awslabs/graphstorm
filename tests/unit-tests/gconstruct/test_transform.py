@@ -445,7 +445,8 @@ def test_classification_processor():
     assert "val_mask" in ret
     assert "test_mask" in ret
     assert stats_info_key in ret
-    vals, counts = np.unique(input_data["test_label"][ret["train_mask"].astype(np.bool)], return_counts=True)
+    vals, counts = np.unique(input_data["test_label"][ret["train_mask"].astype(np.bool_)],
+                             return_counts=True)
     assert ret[stats_info_key][0] == LABEL_STATS_FREQUENCY_COUNT
     assert_equal(ret[stats_info_key][1], vals)
     assert_equal(ret[stats_info_key][2], counts)

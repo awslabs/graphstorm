@@ -21,6 +21,7 @@ import logging
 import os
 import sys
 import abc
+import json
 
 import numpy as np
 import torch as th
@@ -87,10 +88,10 @@ def print_label_stats(stats):
     """
     stats_type, stats = stats
     if stats_type == LABEL_STATS_FREQUENCY_COUNT:
-        logging.info("Counts of each label:")
-        logging.info("[Label Index] Label Name: Counts")
+        logging.debug("Counts of each label:")
+        logging.debug("[Label Index] Label Name: Counts")
         for i, label_name in enumerate(stats):
-            logging.info("[%d]\t%s: \t%d", i, label_name, stats[label_name])
+            logging.debug("[%d]\t%s: \t%d", i, label_name, stats[label_name])
 
 def print_node_label_stats(ntype, label_name, stats):
     """ Print label stats of nodes
@@ -104,7 +105,7 @@ def print_node_label_stats(ntype, label_name, stats):
     stats: tuple
         stats_type, stats
     """
-    logging.info("Label statistics of %s nodes with label name %s", ntype, label_name)
+    logging.debug("Label statistics of %s nodes with label name %s", ntype, label_name)
     print_label_stats(stats)
 
 def print_edge_label_stats(etype, label_name, stats):
@@ -119,8 +120,62 @@ def print_edge_label_stats(etype, label_name, stats):
     stats: tuple
         stats_type, stats
     """
-    logging.info("Label statistics of %s edges with label name %s", etype, label_name)
+    logging.debug("Label statistics of %s edges with label name %s", etype, label_name)
     print_label_stats(stats)
+
+def compress_label_stats(stats):
+    """ Compress stats into a json object
+
+    Parameters
+    ----------
+    stats: tuple
+        stats_type, stats
+    """
+    stats_type, stats = stats
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        info = {"stats_type": LABEL_STATS_FREQUENCY_COUNT,
+                "info": {label_name: cnts for label_name, cnts in stats.itmes()}}
+        return info
+    else:
+        raise RuntimeError(f"Unknown label stats type {stats_type}")
+
+def save_node_label_stats(output_dir, node_label_stats):
+    """ Save node label stats into disk
+
+    Parameters
+    ----------
+    output_dir: str
+        Path to store node label stats
+    node_label_stats: dict
+        Node label stats to save
+    """
+    info = {}
+    for ntype in node_label_stats:
+        stats_summary = {}
+        for label_name, stats in node_label_stats[ntype].items():
+            stats_summary[label_name] = compress_label_stats(stats)
+        info[ntype] = stats_summary
+    with open(os.path.join(output_dir, 'node_label_stats.json'), 'w') as f:
+        json.dump(info, f, indent=4)
+
+def save_edge_label_stats(output_dir, edge_label_stats):
+    """ Save edge label stats into disk
+
+    Parameters
+    ----------
+    output_dir: str
+        Path to store edge label stats
+    edge_label_stats: dict
+        Edge label stats to save
+    """
+    info = {}
+    for etype in edge_label_stats:
+        stats_summary = {}
+        for label_name, stats in edge_label_stats[etype].items():
+            stats_summary[label_name] = compress_label_stats(stats)
+        info[etype] = stats_summary
+    with open(os.path.join(output_dir, 'edge_label_stats.json'), 'w') as f:
+        json.dump(info, f, indent=4)
 
 def _get_output_dtype(dtype_str):
     if dtype_str == 'float16':
@@ -1034,7 +1089,7 @@ class CustomLabelProcessor:
                 if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
                     # get train labels
                     train_labels = res[self.label_name][ \
-                        res['train_mask'].astype(np.bool)]
+                        res['train_mask'].astype(np.bool_)]
                     vals, counts = np.unique(train_labels, return_counts=True)
                     res[LABEL_STATS_FIELD+self.label_name] = \
                         (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
@@ -1148,7 +1203,7 @@ class ClassificationProcessor(LabelProcessor):
             if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
                 # get train labels
                 train_labels = res[self.label_name][ \
-                    res['train_mask'].astype(np.bool)]
+                    res['train_mask'].astype(np.bool_)]
                 vals, counts = np.unique(train_labels, return_counts=True)
                 res[LABEL_STATS_FIELD+self.label_name] = \
                     (LABEL_STATS_FREQUENCY_COUNT, vals, counts)

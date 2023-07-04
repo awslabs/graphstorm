@@ -74,6 +74,13 @@ nodes/edges are used in training/validation/test sets. It specifies a dict with
 file names that contains training/validation/test node IDs or edge IDs. The keys
 of the dict are "train", "valid" and "test". A node ID or edge ID in the files
 is stored as a JSON object.
+* `label_stats_type` specifies how to collect label statistics of the training set.
+This is optional. If it's not specified, no label statistics are collected.
+If specified, the label statistics will be saved as `node_label_stats.json` or
+`edge_label_stats.json` under the output directory for node tasks or edge tasks,
+respectively. Currently it supports following values: a) `frequency_cnt`, with which
+the graph construction process will count the number of appearance of each label
+value for classification tasks in the training set.
 
 Below shows an example that contains one node type and an edge type.
 ```
