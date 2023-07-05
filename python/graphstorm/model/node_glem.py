@@ -131,8 +131,6 @@ class GLEM(GSgnnNodeModelBase):
             params = self.lm.parameters()
         elif part == 'gnn':
             params = self.gnn.parameters()
-        elif part == 'lm-input-proj':
-            params = self.lm.node_input_encoder.input_projs.parameters()
         for param in params:
             param.requires_grad = False
 
@@ -140,6 +138,8 @@ class GLEM(GSgnnNodeModelBase):
         """Unfreeze parameters in lm or gnn"""
         if part == 'lm':
             params = self.lm.parameters()
+        elif part == 'lm-input-proj':
+            params = self.lm.node_input_encoder.input_projs.parameters()
         elif part == 'gnn':
             params = self.gnn.parameters()
         for param in params:
@@ -151,11 +151,11 @@ class GLEM(GSgnnNodeModelBase):
             self.training_lm = True
             self.freeze_params('gnn')
             self.unfreeze_params('lm')
-            self.unfreeze_params('lm-input-proj')
         elif part == 'gnn':
             self.training_lm = False
             self.freeze_params('lm')
             self.unfreeze_params('gnn')
+            self.unfreeze_params('lm-input-proj')
         else:
             raise ValueError(f"Unknown model part: {part}")
 

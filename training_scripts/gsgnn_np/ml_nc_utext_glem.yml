@@ -5,7 +5,7 @@ lm_model:
     -
       lm_type: bert
       model_name: "bert-base-uncased"
-      gradient_checkpoint: true
+      gradient_checkpoint: false
       node_types:
         - movie
         - user
