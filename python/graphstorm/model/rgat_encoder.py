@@ -132,7 +132,7 @@ class RelationalAttLayer(nn.Module):
                 h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
                 h = h + self.h_bias
-            if self.bias:
+            if self.norm:
                 h = self.norm[ntype](h)
             if self.activation:
                 h = self.activation(h)
