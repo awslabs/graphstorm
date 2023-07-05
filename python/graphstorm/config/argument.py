@@ -537,6 +537,17 @@ class GSConfig:
         return self._hidden_size
 
     @property
+    def norm(self):
+        """ Normalization (Batch or Layer)
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_norm"):
+            return None
+        assert isinstance(self._norm, str), \
+            "Normalization type must be a string"
+        return self._norm
+
+    @property
     def num_layers(self):
         """ Number of GNN layers
         """

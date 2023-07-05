@@ -48,7 +48,7 @@ class RelGraphConvLayer(nn.Module):
     dropout : float, optional
         Dropout rate. Default: 0.0
     norm : str, optional 
-        Normalization Method. Default: "batch" for batch normalization 
+        Normalization Method. Default: "batch" for batch normalization. 
     """
     def __init__(self,
                  in_feat,
@@ -61,7 +61,7 @@ class RelGraphConvLayer(nn.Module):
                  activation=None,
                  self_loop=False,
                  dropout=0.0,
-                 norm="batch"):
+                 norm="none"):
         super(RelGraphConvLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -102,15 +102,18 @@ class RelGraphConvLayer(nn.Module):
         for rel in rel_names:
             ntypes.add(rel[0])
             ntypes.add(rel[2])
-        
-        # normalization 
-        self.norm = None 
+
+        # normalization
+        self.norm = None
         if norm == "batch":
             self.norm = nn.ParameterDict({ntype:nn.BatchNorm1d(out_feat) for ntype in ntypes})
         elif norm == "layer":
             self.norm = nn.ParameterDict({ntype:nn.LayerNorm(out_feat) for ntype in ntypes})
+        else:
+            # by default we don't apply any normalization
+            self.norm = None
 
-        # dropout 
+        # dropout
         self.dropout = nn.Dropout(dropout)
 
     # pylint: disable=invalid-name
@@ -209,12 +212,11 @@ class RelationalGCNEncoder(GraphConvEncoder):
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_bases, activation=F.relu, self_loop=use_self_loop,
                 norm = norm, dropout=dropout))
-        # h2o
+        # h2o, last layer's normalization is decided by last_layer_act
         self.layers.append(RelGraphConvLayer(
             h_dim, out_dim, g.canonical_etypes,
             self.num_bases, activation=F.relu if last_layer_act else None,
-            norm = None, self_loop=use_self_loop))
-        # no normalization for the last layer 
+            norm = norm if last_layer_act else None, self_loop=use_self_loop))
 
     # TODO(zhengda) refactor this to support edge features.
     def forward(self, blocks, h):
