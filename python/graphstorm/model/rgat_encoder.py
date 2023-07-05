@@ -48,6 +48,8 @@ class RelationalAttLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
+    norm : str, optional 
+        Normalization Method. Default: "batch" for batch normalization 
     """
     def __init__(self,
                  in_feat,
@@ -58,7 +60,8 @@ class RelationalAttLayer(nn.Module):
                  bias=True,
                  activation=None,
                  self_loop=False,
-                 dropout=0.0):
+                 dropout=0.0,
+                 norm="batch"):
         super(RelationalAttLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -82,6 +85,19 @@ class RelationalAttLayer(nn.Module):
             self.loop_weight = nn.Parameter(th.Tensor(in_feat, out_feat))
             nn.init.xavier_uniform_(self.loop_weight,
                                     gain=nn.init.calculate_gain('relu'))
+
+        # get the node types 
+        ntypes = set()
+        for rel in rel_names:
+            ntypes.add(rel[0])
+            ntypes.add(rel[2])
+        
+        # normalization
+        self.norm = None
+        if norm == "batch":
+            self.norm = nn.ParameterDict({ntype:nn.BatchNorm1d(out_feat) for ntype in ntypes})
+        elif norm == "layer":
+            self.norm = nn.ParameterDict({ntype:nn.LayerNorm(out_feat) for ntype in ntypes})
 
         self.dropout = nn.Dropout(dropout)
 
@@ -116,6 +132,8 @@ class RelationalAttLayer(nn.Module):
                 h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
                 h = h + self.h_bias
+            if self.bias:
+                h = self.norm[ntype](h)
             if self.activation:
                 h = self.activation(h)
             return self.dropout(h)
