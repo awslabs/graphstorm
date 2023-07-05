@@ -185,6 +185,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
         Whether to add selfloop. Default True
     last_layer_act : torch.function
         Activation for the last layer. Default None
+    norm : str or None
+        Normalization. Default None. 
     """
     def __init__(self,
                  g,

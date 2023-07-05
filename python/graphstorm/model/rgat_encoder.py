@@ -172,6 +172,8 @@ class RelationalGATEncoder(GraphConvEncoder):
         Self loop
     last_layer_act: bool
         Whether add activation at the last layer
+    norm: str or None 
+        Normalization. Default None. 
     """
     def __init__(self,
                  g,
@@ -179,7 +181,8 @@ class RelationalGATEncoder(GraphConvEncoder):
                  num_hidden_layers=1,
                  dropout=0,
                  use_self_loop=True,
-                 last_layer_act=False):
+                 last_layer_act=False,
+                 norm=None):
         super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         self.num_heads = num_heads
         # h2h
@@ -187,12 +190,12 @@ class RelationalGATEncoder(GraphConvEncoder):
             self.layers.append(RelationalAttLayer(
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_heads, activation=F.relu, self_loop=use_self_loop,
-                dropout=dropout))
+                norm = norm, dropout=dropout))
         # h2o
         self.layers.append(RelationalAttLayer(
             h_dim, out_dim, g.canonical_etypes,
             self.num_heads, activation=F.relu if last_layer_act else None,
-            self_loop=use_self_loop))
+            norm=None, self_loop=use_self_loop))
 
     def forward(self, blocks, h):
         """Forward computation
