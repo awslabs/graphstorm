@@ -120,7 +120,9 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
 
         if self.ngnn_gnn_layer > 0:
             for _ in range(0, self.ngnn_gnn_layer):
-                self.ngnn_gnn_mlp.append(th.nn.Linear(self.decoder.in_dims, self.decoder.in_dims).to('cuda'))
+                layer = th.nn.Linear(self.decoder.in_dims, self.decoder.in_dims)
+                layer = layer.to('cuda')
+                self.ngnn_gnn_mlp.append(layer)
             for ngnn_layer in self.ngnn_gnn_mlp:
                 emb = ngnn_layer(emb)
             activation = th.nn.ReLU()
