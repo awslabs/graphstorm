@@ -119,7 +119,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         emb = encode_embs[target_ntype]
 
         if self.ngnn_gnn_layer > 0:
-            for i in range(0, self.ngnn_gnn_layer):
+            for _ in range(0, self.ngnn_gnn_layer):
                 self.ngnn_gnn_mlp.append(th.nn.Linear(self.decoder.in_dims, self.decoder.in_dims).to('cuda'))
             for ngnn_layer in self.ngnn_gnn_mlp:
                 emb = ngnn_layer(emb)
