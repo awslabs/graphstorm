@@ -1492,6 +1492,18 @@ class GSConfig:
 
         return eval_metric
 
+    @property
+    def ngnn_gnn_layer(self):
+        """ Number of edges consider for the negative batch of edges
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_ngnn_gnn_layer"):
+            assert self._ngnn_gnn_layer >= 0, \
+                "Number of negative edges must larger or equal than 0"
+            return self._ngnn_gnn_layer
+        # Set default ngnn layer number to 0
+        return 0
+
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")
     group.add_argument(
