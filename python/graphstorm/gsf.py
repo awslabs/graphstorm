@@ -150,7 +150,7 @@ def create_builtin_node_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    model = GSgnnNodeModel(config.alpha_l2norm)
+    model = GSgnnNodeModel(config.alpha_l2norm, config.ngnn_gnn_layer)
     set_encoder(model, g, config, train_task)
 
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:

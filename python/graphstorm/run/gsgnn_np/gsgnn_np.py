@@ -54,8 +54,6 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-    print(config)
-    print("ngnn layer for GNN is", config.ngnn_gnn_layer)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
