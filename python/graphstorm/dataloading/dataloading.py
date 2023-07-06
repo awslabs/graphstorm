@@ -335,7 +335,7 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
             sampler = FastMultiLayerNeighborSampler(fanout,
                                                     mask=edge_mask_for_gnn_embeddings)
         else:
-            sampler = dgl.dataloading.FastMultiLayerNeighborSampler(fanout)
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
