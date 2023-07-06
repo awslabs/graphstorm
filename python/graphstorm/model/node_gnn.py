@@ -95,7 +95,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
     alpha_l2norm : float
         The alpha for L2 normalization.
     """
-    def __init__(self, alpha_l2norm, ngnn_gnn_layer):
+    def __init__(self, alpha_l2norm, ngnn_gnn_layer=0):
         super(GSgnnNodeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
         self.ngnn_gnn_layer = ngnn_gnn_layer
