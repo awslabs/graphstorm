@@ -201,19 +201,27 @@ class GSConfig:
                 setattr(self, f"_{arg_key}", arg_val)
                 print(f"Overriding Argument: {arg_key}")
 
+    def _turn_off_gradient_checkpoint(self, reason):
+        """Turn off `gradient_checkpoint` flags in `node_lm_configs`
+        """
+        if self.node_lm_configs is not None:
+            for i, _ in enumerate(self.node_lm_configs):
+                if self.node_lm_configs[i]["gradient_checkpoint"]:
+                    print(f"WARNING: {reason} can not work with " \
+                            "gradient checkpoint. Turn gradient checkpoint to False")
+                    self.node_lm_configs[i]["gradient_checkpoint"] = False
+
     def handle_argument_conflicts(self):
         """Check and resolve argument conflicts
         """
         # 1. language model conflicts
-        if self.node_lm_configs is not None:
+        if self.freeze_lm_encoder_epochs > 0:
             # gradient checkpoint does not work with freeze_lm_encoder_epochs
             # When freeze_lm_encoder_epochs is set, turn off gradient checkpoint
-            if self.freeze_lm_encoder_epochs > 0:
-                for i, _ in enumerate(self.node_lm_configs):
-                    if self.node_lm_configs[i]["gradient_checkpoint"]:
-                        print("WARNING: freeze_lm_encoder_epochs can not work with " \
-                              "gradient checkpoint. Turn gradient checkpoint to False")
-                        self.node_lm_configs[i]["gradient_checkpoint"] = False
+            self._turn_off_gradient_checkpoint("freeze_lm_encoder_epochs")
+        if self.glem is not None:
+            # GLEM fine-tuning of LM conflicts with gradient checkpoint
+            self._turn_off_gradient_checkpoint("GLEM model")
 
         # TODO(xiangsx): Add more check
 
