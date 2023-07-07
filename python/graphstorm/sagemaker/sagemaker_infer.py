@@ -45,7 +45,8 @@ from .utils import (download_yaml_config,
                     update_gs_params,
                     download_model,
                     upload_embs,
-                    remove_embs)
+                    remove_embs,
+                    remove_data)
 
 def launch_infer_task(task_type, num_gpus, graph_config,
     load_model_path, save_emb_path, ip_list,
@@ -292,3 +293,5 @@ def run_infer(args, unknownargs):
         upload_data_to_s3(output_prediction_s3,
                           os.path.join(output_path, "predict"),
                           sagemaker_session)
+    remove_data(output_path)
+    remove_data(model_path)
