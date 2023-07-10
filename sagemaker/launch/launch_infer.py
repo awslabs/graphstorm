@@ -73,13 +73,22 @@ def run_job(input_args, image, unknowargs):
 
     prefix = "script-mode-container"
 
-    params = {"task-type": task_type,
-              "graph-name": graph_name,
-              "graph-data-s3": graph_data_s3,
-              "infer-yaml-s3": infer_yaml_s3,
-              "output-emb-s3": output_emb_s3_path,
-              "output-prediction-s3": output_predict_s3_path,
-              "model-artifact-s3": model_artifact_s3}
+    # In Link Prediction, no prediction outputs
+    if task_type == "link_prediction":
+        params = {"task-type": task_type,
+                  "graph-name": graph_name,
+                  "graph-data-s3": graph_data_s3,
+                  "infer-yaml-s3": infer_yaml_s3,
+                  "output-emb-s3": output_emb_s3_path,
+                  "model-artifact-s3": model_artifact_s3}
+    else:
+        params = {"task-type": task_type,
+                  "graph-name": graph_name,
+                  "graph-data-s3": graph_data_s3,
+                  "infer-yaml-s3": infer_yaml_s3,
+                  "output-emb-s3": output_emb_s3_path,
+                  "output-prediction-s3": output_predict_s3_path,
+                  "model-artifact-s3": model_artifact_s3}
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1

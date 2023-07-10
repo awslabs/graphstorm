@@ -6,19 +6,19 @@ Graph Construction
 `construct_graph.py <https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py>`_ arguments
 --------------------------------------------------------------------------------------------------------------------------------------
 
-* **--conf-file**: (**Required**) the path of the configuration JSON file.
-* **--num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
-* **--num-processes-for-nodes**: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.
-* **--num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
-* **--output-dir**: (**Required**) the path of the output data files.
-* **--graph-name**: (**Required**) the name assigned for the graph.
-* **--remap-node_id**: boolean value to decide whether to rename node IDs or not. Default is true.
-* **--add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
-* **--output-format**: the format of constructed graph, options are ``DGL`` and ``DistDGL``. Default is ``DistDGL``. The output format is explained in the :ref:`Output <output-format>` section below.
-* **--num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
-* **--skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
-* **--ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
-* **--ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
+* **-\-conf-file**: (**Required**) the path of the configuration JSON file.
+* **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
+* **-\-num-processes-for-nodes**: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.
+* **-\-num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
+* **-\-output-dir**: (**Required**) the path of the output data files.
+* **-\-graph-name**: (**Required**) the name assigned for the graph.
+* **-\-remap-node_id**: boolean value to decide whether to rename node IDs or not. Default is true.
+* **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
+* **-\-output-format**: the format of constructed graph, options are ``DGL`` and ``DistDGL``. Default is ``DistDGL``. The output format is explained in the :ref:`Output <output-format>` section below.
+* **-\-num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
+* **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
+* **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
+* **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
 
 .. _gconstruction-json:
 
@@ -27,7 +27,7 @@ Configuration JSON Explanations
 
 The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: ``nodes`` and ``edges``.
 
-``nodes`` 
+``nodes``
 ...........
 ``nodes`` contains a list of node types and the information of a node type is stored in a dictionary. A node dictionary contains multiple fields and most fields are optional.
 
@@ -52,6 +52,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 
 * ``feature_col``: (**Required**) specifies the column name in the input file that contains the feature.
 * ``feature_name``: specifies the prefix of the column features name. This is optional. If feature_name is not provided, ``feature_col`` is used as the feature name. If the feature transformation generates multiple tensors, ``feature_name`` becomes the prefix of the names of the generated tensors.
+* ``out_dtype`` specifies the data type of the transformed feature. ``out_dtype`` is optional. If it is not set, no data type casting is applied to the transformed feature. If it is set, the output feature will be cast into the corresponding data type. Now only flaot16 and float32 are supported.
 * ``transform``: specifies the actual feature transformation. This is a dictionary and its name field indicates the feature transformation. Each transformation has its own argument. The list of feature transformations supported by the pipeline are listed in the section of :ref:`Feature Transformation <feat-transform>` below.
 
 .. _label-format:
@@ -70,7 +71,7 @@ Currently, the graph construction pipeline supports three input formats: ``Parqu
 
 For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.
 
-The HDF5 format is similar as the parquet format, but have larger capacity. Therefore suggest to use HDF5 format if users' data is large. 
+The HDF5 format is similar as the parquet format, but have larger capacity. Therefore suggest to use HDF5 format if users' data is large.
 
 For JSON format, each line of the JSON file is a JSON object. The JSON object can only have one level. The value of each field can only be primitive values, such as integers, strings and floating points, or a list of integers or floating points.
 
@@ -78,15 +79,20 @@ For JSON format, each line of the JSON file is a JSON object. The JSON object ca
 
 Feature transformation
 .........................
-Currently, the graph construction pipeline only supports one feature transformation: tokenize the text string with a HuggingFace tokenizer.
+Currently, the graph construction pipeline supports the following feature transformation:
 
-For HuggingFace tokenizer, the ``name`` field in the feature transformation dictionary is ``tokenize_hf``. The dict should contain two additional fields. ``bert_model`` specifies the BERT model used for tokenization. ``max_seq_length`` specifies the maximal sequence length.
+* **HuggingFace tokenizer transformation** tokenizes text strings with a HuggingFace tokenizer. The ``name`` field in the feature transformation dictionary is ``tokenize_hf``. The dict should contain two additional fields. ``bert_model`` specifies the BERT model used for tokenization. Users can choose any `HuggingFace BERT models <https://huggingface.co/models>`_. ``max_seq_length`` specifies the maximal sequence length.
+* **HuggingFace BERT transformation** encodes text strings with a HuggingFace BERT model.  The ``name`` field in the feature transformation dictionary is ``bert_hf``. The dict should contain two additional fields. ``bert_model`` specifies the BERT model used for embedding text. Users can choose any `HuggingFace BERT models <https://huggingface.co/models>`_. ``max_seq_length`` specifies the maximal sequence length.
+* **Numerical MAX_MIN transformation** normalizes numerical input features with `val = (val-min)/(max-min)`, where `val` is the feature value, `max` is the maximum number in the feature and `min` is the minimum number in the feature. The ``name`` field in the feature transformation dictionary is ``max_min_norm``. The dict can contains two optional fields. ``max_bound`` specifies the maximum value allowed in the feature. Any number larger than ``max_bound`` will be set to ``max_bound``. ``min_bound`` specifies the minimum value allowed in the feature. Any number smaller than ``min_bound`` will be set to ``min_bound``.
+* **Numerical Rank Gauss transformation** normalizes numerical input features with rank gauss normalization. It maps the numeric feature values to gaussian distribution based on ranking. The method follows https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/discussion/44629#250927. The ``name`` field in the feature transformation dictionary is ``rank_gauss``. The dict can contains one optional field, i.e., ``epsilon`` which is used to avoid INF float during computation.
+* **Convert to categorical values** converts text data to categorial values. The `name` field is `to_categorical`. `separator` specifies how to split the string into multiple categorical values (this is only used to define multiple categorical values). If `separator` is not specified, the entire string is a categorical value. `mapping` is a dict that specifies how to map a string to an integer value that defines a categorical value.
 
 .. _output-format:
 
 Output
 ..........
-Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL. If select ``DGL``, the output is a file, named `<graph_name>.dgl` under the folder specified by the **--output-dir** argument, where `<graph_name>` is the value of argument **--graph-name**. If select ``DistDGL``, the output is a JSON file, named `<graph_name>.json`, and a set of `part*` folders under the folder specified by the **--output-dir** argument, where the `*` is the number specified by the **--num-parts** argument.
+Currently, the graph construction pipeline outputs two output formats: ``DistDGL`` and ``DGL``. If select ``DGL``, the output is a file, named `<graph_name>.dgl` under the folder specified by the **-\-output-dir** argument, where `<graph_name>` is the value of argument **-\-graph-name**. If select ``DistDGL``, the output is a JSON file, named `<graph_name>.json`, and a set of `part*` folders under the folder specified by the **-\-output-dir** argument, where the `*` is the number specified by the **-\-num-parts** argument.
+
 By Specifying the output_format as ``DGL``, the output will be an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_. By Specifying the output_format as ``DistDGL``, the output will be a partitioned graph named `DistDGL graph <https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api>`_. It contains the partitioned graph, a JSON config describing the meta-information of the partitioned graph, and the mappings for the edges and nodes after partition, ``node_mapping.pt`` and ``edge_mapping.pt``, which maps each node and edge in the partitoined graph into the original node and edge id space. The node ID mapping is stored as a dictionary of 1D tensors whose key is the node type and value is a 1D tensor mapping between shuffled node IDs and the original node IDs. The edge ID mapping is stored as a dictionary of 1D tensors whose key is the edge type and value is a 1D tensor mapping between shuffled edge IDs and the original edge IDs.
 
 .. note:: The two mapping files are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the constructed graph. They are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
@@ -103,7 +109,7 @@ Below shows an example that contains one node type and an edge type. For a real 
                 "node_id_col":  "paper_id",
                 "node_type":    "paper",
                 "format":       {"name": "parquet"},
-                "files":        ["/tmp/dummy/paper_nodes*.parquet"],
+                "files":        "/tmp/dummy/paper_nodes*.parquet",
                 "features":     [
                     {
                         "feature_col":  ["paper_title"],
