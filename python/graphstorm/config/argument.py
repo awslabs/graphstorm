@@ -203,20 +203,9 @@ class GSConfig:
                 setattr(self, f"_{arg_key}", arg_val)
                 print(f"Overriding Argument: {arg_key}")
 
-    def handle_argument_conflicts(self):
-        """Check and resolve argument conflicts
+    def verify_arguments(self):
+        """ Verify the correctness of arguments.
         """
-        # 1. language model conflicts
-        if self.node_lm_configs is not None:
-            # gradient checkpoint does not work with freeze_lm_encoder_epochs
-            # When freeze_lm_encoder_epochs is set, turn off gradient checkpoint
-            if self.freeze_lm_encoder_epochs > 0:
-                for i, _ in enumerate(self.node_lm_configs):
-                    if self.node_lm_configs[i]["gradient_checkpoint"]:
-                        print("WARNING: freeze_lm_encoder_epochs can not work with " \
-                              "gradient checkpoint. Turn gradient checkpoint to False")
-                        self.node_lm_configs[i]["gradient_checkpoint"] = False
-
         # Trigger the checks in the arguments.
         _ = self.save_perf_results_path
         _ = self.profile_path
@@ -266,16 +255,23 @@ class GSConfig:
         _ = self.use_early_stop
         _ = self.num_bases
         _ = self.num_heads
-        _ = self.label_field
-        _ = self.num_classes
-        _ = self.multilabel
-        _ = self.multilabel_weights
+        _ = self.task_type
         _ = self.return_proba
         _ = self.imbalance_class_weights
         _ = self.save_prediction_path
-        _ = self.target_ntype
-        _ = self.reverse_edge_types_map
-        _ = self.target_etype
+        if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_EDGE_CLASSIFICATION]:
+            _ = self.label_field
+            _ = self.num_classes
+            _ = self.multilabel
+            _ = self.multilabel_weights
+        if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+            _ = self.target_ntype
+        if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+            _ = self.target_etype
+        if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
+                              BUILTIN_TASK_LINK_PREDICTION]:
+            _ = self.exclude_training_targets
+            _ = self.reverse_edge_types_map
         _ = self.remove_target_edge_type
         _ = self.decoder_type
         _ = self.num_decoder_basis
@@ -288,11 +284,23 @@ class GSConfig:
         _ = self.lp_edge_weight_for_loss
         _ = self.train_etype
         _ = self.eval_etype
-        _ = self.exclude_training_targets
         _ = self.gamma
         _ = self.lp_loss_func
-        _ = self.task_type
         _ = self.eval_metric
+
+    def handle_argument_conflicts(self):
+        """Check and resolve argument conflicts
+        """
+        # 1. language model conflicts
+        if self.node_lm_configs is not None:
+            # gradient checkpoint does not work with freeze_lm_encoder_epochs
+            # When freeze_lm_encoder_epochs is set, turn off gradient checkpoint
+            if self.freeze_lm_encoder_epochs > 0:
+                for i, _ in enumerate(self.node_lm_configs):
+                    if self.node_lm_configs[i]["gradient_checkpoint"]:
+                        print("WARNING: freeze_lm_encoder_epochs can not work with " \
+                              "gradient checkpoint. Turn gradient checkpoint to False")
+                        self.node_lm_configs[i]["gradient_checkpoint"] = False
 
     ###################### Environment Info ######################
     @property
@@ -534,9 +542,8 @@ class GSConfig:
                         f"Unknown format of the feature name: {feat_name}, " + \
                         "must be NODE_TYPE:FEAT_NAME"
                 ntype = feat_info[0]
-                if ntype in fname_dict:
-                    assert False, \
-                        f"You already specify the feature names of {ntype}" \
+                assert ntype not in fname_dict, \
+                        f"You already specify the feature names of {ntype} " \
                         f"as {fname_dict[ntype]}"
                 assert isinstance(feat_info[1], str), \
                     f"Feature name of {ntype} should be a string not {feat_info[1]}"
@@ -579,11 +586,13 @@ class GSConfig:
         """ training fanout
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_fanout"), \
-            "Training fanout must be provided"
+        if self.model_encoder_type in BUILTIN_GNN_ENCODER:
+            assert hasattr(self, "_fanout"), \
+                    "Training fanout must be provided"
 
-        fanout = self._fanout.split(",")
-        return self._check_fanout(fanout, "Train")
+            fanout = self._fanout.split(",")
+            return self._check_fanout(fanout, "Train")
+        return 0
 
     @property
     def eval_fanout(self):

@@ -40,6 +40,7 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
+    config.verify_arguments()
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
 
