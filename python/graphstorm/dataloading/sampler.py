@@ -19,8 +19,11 @@ from collections.abc import Mapping
 import torch as th
 import numpy as np
 from dgl import backend as F
+from dgl import EID, NID
 from dgl.distributed import node_split
 from dgl.dataloading.negative_sampler import Uniform
+from dgl.dataloading import NeighborSampler
+from dgl.transforms import to_block
 
 class LocalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes
@@ -243,3 +246,146 @@ class JointLocalUniform(JointUniform):
         dst = self._local_neg_nids[vtype][dst]
         dst = np.tile(dst, self.k)
         return th.as_tensor(src), th.as_tensor(dst)
+
+class FastMultiLayerNeighborSampler(NeighborSampler):
+    """ Fast MultiLayerNeighborSampler
+
+        If mask is None, it acts the same as dgl.dataloading.MultiLayerNeighborSampler
+
+    Parameters
+    ----------
+    reverse_edge_types_map: dict
+        A map for reverse edge type
+    fanouts : list[int] or list[dict[etype, int]]
+        List of neighbors to sample per edge type for each GNN layer, with the i-th
+        element being the fanout for the i-th GNN layer.
+
+        If only a single integer is provided, DGL assumes that every edge type
+        will have the same fanout.
+
+        If -1 is provided for one edge type on one layer, then all inbound edges
+        of that edge type will be included.
+    edge_dir : str, default ``'in'``
+        Can be either ``'in' `` where the neighbors will be sampled according to
+        incoming edges, or ``'out'`` otherwise, same as :func:`dgl.sampling.sample_neighbors`.
+    prob : str, optional
+        If given, the probability of each neighbor being sampled is proportional
+        to the edge feature value with the given name in ``g.edata``.  The feature must be
+        a scalar on each edge.
+    mask : str, optional
+        If given, a neighbor could be picked only if the edge mask with the given
+        name in ``g.edata`` is True.  The data must be boolean on each edge.
+
+        This argument is mutually exclusive with :attr:`prob`.  If you want to
+        specify both a mask and a probability, consider multiplying the probability
+        with the mask instead.
+    replace : bool, default False
+        Whether to sample with replacement
+    prefetch_node_feats : list[str] or dict[ntype, list[str]], optional
+        The source node data to prefetch for the first MFG, corresponding to the
+        input node features necessary for the first GNN layer.
+    prefetch_labels : list[str] or dict[ntype, list[str]], optional
+        The destination node data to prefetch for the last MFG, corresponding to
+        the node labels of the minibatch.
+    prefetch_edge_feats : list[str] or dict[etype, list[str]], optional
+        The edge data names to prefetch for all the MFGs, corresponding to the
+        edge features necessary for all GNN layers.
+    output_device : device, optional
+        The device of the output subgraphs or MFGs.  Default is the same as the
+        minibatch of seed nodes.
+    reverse_edge_types_map: dict
+        A dict of reverse edge type info.
+    """
+    def __init__(
+        self,
+        fanouts,
+        edge_dir="in",
+        prob=None,
+        mask=None,
+        replace=False,
+        prefetch_node_feats=None,
+        prefetch_labels=None,
+        prefetch_edge_feats=None,
+        output_device=None,
+        reverse_edge_types_map=None,
+    ):
+        self.mask = mask
+        self.reverse_edge_types_map = reverse_edge_types_map
+        # original_edge_types_map is the reverse map of reverse_edge_types_map
+        self.original_edge_types_map = {
+            val: key for key, val in reverse_edge_types_map.items()
+        } if reverse_edge_types_map is not None else None
+
+        super().__init__(
+            fanouts=fanouts,
+            edge_dir=edge_dir,
+            prob=prob,
+            mask=None, # Do neighbor sampling with out edge mask
+            replace=replace,
+            prefetch_node_feats=prefetch_node_feats,
+            prefetch_labels=prefetch_labels,
+            prefetch_edge_feats=prefetch_edge_feats,
+            output_device=output_device
+        )
+
+    def sample_blocks(self, g, seed_nodes, exclude_eids=None):
+        """Generates a list of blocks from the given seed nodes.
+
+        This function must return a triplet where the first element is the input node IDs
+        for the first GNN layer (a tensor or a dict of tensors for heterogeneous graphs),
+        the second element is the output node IDs for the last GNN layer, and the third
+        element is the said list of blocks.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            Graph to sample blocks.
+        seed_nodes: dict of tensors
+            Seed nodes.
+        exclude_eids: func
+            Operations to exlude eids.
+        """
+        output_nodes = seed_nodes
+        blocks = []
+        for fanout in reversed(self.fanouts):
+            frontier = g.sample_neighbors(
+                seed_nodes,
+                fanout,
+                edge_dir=self.edge_dir,
+                prob=self.prob,
+                replace=self.replace,
+                output_device=self.output_device,
+                exclude_edges=exclude_eids,
+            )
+            eid = frontier.edata[EID]
+            new_eid = dict(eid)
+            if self.mask is not None:
+                new_edges = {}
+                for etype in frontier.canonical_etypes:
+                    if self.mask in g.edges[etype].data:
+                        # train mask in data
+                        if etype in eid:
+                            mask = g.edges[etype].data[self.mask][eid[etype]].bool()
+                            new_edges[etype] = mask
+                            new_eid[etype] = eid[etype][mask]
+
+                    elif self.original_edge_types_map is not None and \
+                        self.mask in g.edges[self.original_edge_types_map[etype]].data:
+                        # handle rev-etype edges
+                        # get etype from rev-etype.
+                        original_etype = self.original_edge_types_map[etype]
+                        rev_mask = g.edges[original_etype].data[self.mask][eid[etype]].bool()
+                        new_edges[etype] = rev_mask
+                        new_eid[etype] = eid[etype][rev_mask]
+                    else:
+                        # There is no train mask here
+                        new_edges[etype] = th.full(eid[etype].shape, True, dtype=th.bool)
+                new_frontier = frontier.edge_subgraph(new_edges, relabel_nodes=False)
+            else:
+                new_frontier = frontier
+            block = to_block(new_frontier, seed_nodes)
+            block.edata[EID] = new_eid
+            seed_nodes = block.srcdata[NID]
+            blocks.insert(0, block)
+
+        return seed_nodes, output_nodes, blocks
