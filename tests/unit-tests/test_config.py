@@ -159,75 +159,6 @@ def test_load_basic_info():
         check_failure(config, "ip_config")
         check_failure(config, "part_config")
 
-def create_gnn_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["basic"] = {
-        "model_encoder_type": "rgat"
-    }
-    yaml_object["gsf"]["gnn"] = {
-        "node_feat_name": ["test_feat"],
-        "fanout": "10,20,30",
-        "num_layers": 3,
-        "hidden_size": 128,
-        "use_mini_batch_infer": False
-    }
-    with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["basic"] = {
-        "model_encoder_type": "rgcn"
-    }
-    yaml_object["gsf"]["gnn"] = {
-        "node_feat_name": ["test_feat"],
-        "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
-        "eval_fanout": "10,10",
-        "num_layers": 2,
-        "hidden_size": 128,
-        "use_mini_batch_infer": True
-    }
-    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["basic"] = {
-        "model_encoder_type": "lm"
-    }
-    yaml_object["gsf"]["gnn"] = {
-        "num_layers": 2, # for encoder of lm, num_layers will always be 0
-        "hidden_size": 128,
-    }
-    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for check default value
-    yaml_object["gsf"]["gnn"] = {
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["basic"] = {
-        "model_encoder_type": "rgcn"
-    }
-    yaml_object["gsf"]["gnn"] = {
-        "fanout": "error", # error fanout
-        "eval_fanout": "error",
-        "hidden_size": 0,
-        "num_layers": 0,
-        "use_mini_batch_infer": "error"
-    }
-    with open(os.path.join(tmp_path, file_name+"_error1.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["gnn"] = {
-        "fanout": "10,10", # error fanout
-        "eval_fanout": "10,10",
-        "hidden_size": 32,
-        "num_layers": 1,
-    }
-    with open(os.path.join(tmp_path, file_name+"_error2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-
 def test_gnn_info():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -285,41 +216,6 @@ def test_gnn_info():
         config = GSConfig(args)
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
-
-def create_io_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["input"] = {
-    }
-    yaml_object["gsf"]["output"] = {
-    }
-
-    # config for check default value
-    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["input"] = {
-        "restore_model_path": "./restore",
-        "restore_optimizer_path": "./opt_restore",
-        "restore_model_layers": ".".join(GRAPHSTORM_MODEL_ALL_LAYERS)
-    }
-
-    yaml_object["gsf"]["output"] = {
-        "save_model_path": os.path.join(tmp_path, "save"),
-        "save_model_frequency": 100,
-        "save_embed_path": "./save_emb",
-    }
-
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    yaml_object["gsf"]["input"] = {
-        "restore_model_path": "./restore",
-        "restore_optimizer_path": "./opt_restore",
-        "restore_model_layers": f"{GRAPHSTORM_MODEL_EMBED_LAYER},error"
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
 
 def test_load_io_info():
     import tempfile
