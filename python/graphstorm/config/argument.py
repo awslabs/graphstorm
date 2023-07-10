@@ -217,7 +217,82 @@ class GSConfig:
                               "gradient checkpoint. Turn gradient checkpoint to False")
                         self.node_lm_configs[i]["gradient_checkpoint"] = False
 
-        # TODO(xiangsx): Add more check
+        # Trigger the checks in the arguments.
+        _ = self.save_perf_results_path
+        _ = self.profile_path
+        _ = self.graph_name
+        _ = self.backend
+        _ = self.ip_config
+        _ = self.part_config
+        _ = self.node_id_mapping_file
+        _ = self.edge_id_mapping_file
+        _ = self.verbose
+        _ = self.lm_tune_lr
+        _ = self.lm_train_nodes
+        _ = self.lm_infer_batch_size
+        _ = self.freeze_lm_encoder_epochs
+        _ = self.node_lm_configs
+        _ = self.model_encoder_type
+        _ = self.node_feat_name
+        _ = self.fanout
+        _ = self.eval_fanout
+        _ = self.hidden_size
+        _ = self.num_layers
+        _ = self.use_mini_batch_infer
+        _ = self.restore_model_layers
+        _ = self.restore_model_path
+        _ = self.restore_optimizer_path
+        _ = self.save_embed_path
+        _ = self.save_model_path
+        _ = self.save_model_frequency
+        _ = self.topk_model_to_save
+        _ = self.task_tracker
+        _ = self.log_report_frequency
+        _ = self.dropout
+        _ = self.lr
+        _ = self.num_epochs
+        _ = self.batch_size
+        _ = self.sparse_optimizer_lr
+        _ = self.use_node_embeddings
+        _ = self.wd_l2norm
+        _ = self.alpha_l2norm
+        _ = self.use_self_loop
+        _ = self.eval_batch_size
+        _ = self.eval_frequency
+        _ = self.no_validation
+        _ = self.early_stop_burnin_rounds
+        _ = self.early_stop_rounds
+        _ = self.early_stop_strategy
+        _ = self.use_early_stop
+        _ = self.num_bases
+        _ = self.num_heads
+        _ = self.label_field
+        _ = self.num_classes
+        _ = self.multilabel
+        _ = self.multilabel_weights
+        _ = self.return_proba
+        _ = self.imbalance_class_weights
+        _ = self.save_prediction_path
+        _ = self.target_ntype
+        _ = self.reverse_edge_types_map
+        _ = self.target_etype
+        _ = self.remove_target_edge_type
+        _ = self.decoder_type
+        _ = self.num_decoder_basis
+        _ = self.decoder_edge_feat
+        _ = self.train_negative_sampler
+        _ = self.eval_negative_sampler
+        _ = self.num_negative_edges
+        _ = self.num_negative_edges_eval
+        _ = self.lp_decoder_type
+        _ = self.lp_edge_weight_for_loss
+        _ = self.train_etype
+        _ = self.eval_etype
+        _ = self.exclude_training_targets
+        _ = self.gamma
+        _ = self.lp_loss_func
+        _ = self.task_type
+        _ = self.eval_metric
 
     ###################### Environment Info ######################
     @property
