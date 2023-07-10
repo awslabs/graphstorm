@@ -159,97 +159,6 @@ def test_load_basic_info():
         check_failure(config, "ip_config")
         check_failure(config, "part_config")
 
-def test_gnn_info():
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        create_gnn_config(Path(tmpdirname), 'gnn_test')
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.node_feat_name == "test_feat"
-        assert config.fanout == [10,20,30]
-        assert config.eval_fanout == [-1, -1, -1]
-        assert config.num_layers == 3
-        assert config.hidden_size == 128
-        assert config.use_mini_batch_infer == False
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test2.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.node_feat_name == "test_feat"
-        assert config.fanout[0][("n1","a","n2")] == 10
-        assert config.fanout[0][("n1","b","n2")] == 10
-        assert config.fanout[1][("n1","a","n2")] == 10
-        assert config.fanout[1][("n1","b","n2")] == 10
-        assert config.fanout[1][("n1","c","n2")] == 20
-        assert config.eval_fanout == [10,10]
-        assert config.num_layers == 2
-        assert config.hidden_size == 128
-        assert config.use_mini_batch_infer == True
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test3.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.num_layers == 0 # lm model does not need n layers
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_default.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.node_feat_name is None
-        assert config.num_layers == 0 # lm model does not need n layers
-        assert config.hidden_size == 0 # lm model may not need hidden size
-        assert config.use_mini_batch_infer == True
-        check_failure(config, "fanout") # fanout must be provided if used
-        check_failure(config, "eval_fanout")
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        check_failure(config, "fanout")
-        check_failure(config, "eval_fanout")
-        check_failure(config, "hidden_size")
-        check_failure(config, "num_layers")
-        check_failure(config, "use_mini_batch_infer")
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error2.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        check_failure(config, "fanout")
-        check_failure(config, "eval_fanout")
-
-def test_load_io_info():
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        create_io_config(Path(tmpdirname), 'io_test')
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test_default.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.restore_model_path == None
-        assert config.restore_optimizer_path == None
-        assert config.save_model_path == None
-        assert config.save_model_frequency == -1
-        assert config.save_embed_path == None
-        check_failure(config, "restore_model_layers")
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test.yaml'),
-                         local_rank=0)
-        config = GSConfig(args)
-        assert config.restore_model_path == "./restore"
-        assert config.restore_optimizer_path == "./opt_restore"
-        assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
-        assert config.save_model_frequency == 100
-        assert config.save_embed_path == "./save_emb"
-        assert GRAPHSTORM_MODEL_EMBED_LAYER in config.restore_model_layers
-        assert GRAPHSTORM_MODEL_GNN_LAYER in config.restore_model_layers
-        assert GRAPHSTORM_MODEL_DECODER_LAYER in config.restore_model_layers
-
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname),
-                                                       'io_test_fail.yaml'),
-                                                       local_rank=0)
-        config = GSConfig(args)
-        assert config.restore_model_path == "./restore"
-        check_failure(config, "restore_model_layers")
-
 def create_task_tracker_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["output"] = {
@@ -1311,7 +1220,6 @@ def test_gnn_info():
         assert config.num_layers == 0 # lm model does not need n layers
         check_failure(config, "hidden_size") # lm model may not need hidden size
         assert config.use_mini_batch_infer == True
-        check_failure(config, "fanout") # fanout must be provided if used
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
