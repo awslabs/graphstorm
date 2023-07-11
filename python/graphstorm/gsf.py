@@ -209,7 +209,7 @@ def create_builtin_edge_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    model = GSgnnEdgeModel(config.alpha_l2norm)
+    model = GSgnnEdgeModel(config.alpha_l2norm, config.ngnn_gnn_layer)
     set_encoder(model, g, config, train_task)
     if config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
         num_classes = config.num_classes
