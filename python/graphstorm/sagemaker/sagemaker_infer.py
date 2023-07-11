@@ -154,7 +154,9 @@ def run_infer(args, unknownargs):
     num_gpus = args.num_gpus
     data_path = args.data_path
     model_path = '/opt/ml/gsgnn_model'
-    output_path = '/opt/ml/checkpoints'
+    output_path = '/opt/ml/infer_output'
+    os.makedirs(model_path, exist_ok=True)
+    os.makedirs(output_path, exist_ok=True)
 
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
