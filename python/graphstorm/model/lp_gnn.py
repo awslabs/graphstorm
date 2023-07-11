@@ -91,7 +91,6 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             # GNN message passing
             encode_embs = self.compute_embed_step(blocks, node_feats)
 
-
         # TODO add w_relation in calculating the score. The current is only valid for
         # homogenous graph.
         pos_score = self.decoder(pos_graph, encode_embs)

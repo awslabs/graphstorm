@@ -115,7 +115,6 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         target_ntype = list(labels.keys())[0]
         assert target_ntype in encode_embs
         emb = encode_embs[target_ntype]
-
         labels = labels[target_ntype]
         logits = self.decoder(emb)
         pred_loss = self.loss_func(logits, labels)

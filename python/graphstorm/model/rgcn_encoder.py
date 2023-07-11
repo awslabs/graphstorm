@@ -24,6 +24,73 @@ import dgl.nn as dglnn
 
 from .gnn_encoder_base import GraphConvEncoder
 
+
+class NGNNConvLayer(nn.Module):
+    r"""NGNN Layer for the RGCN Model
+
+    Parameters
+    ----------
+    in_feat : int
+        Input feature size.
+    out_feat : int
+        Output feature size.
+    layer_number: int
+        Number of NGNN layers
+    activation: torch.nn.functional
+        Type of NGNN activation layer
+    dropout : float, optional
+        Dropout rate. Default: 0.0
+    """
+    def __init__(self,
+                 in_feat,
+                 out_feat,
+                 layer_number=0,
+                 activation=F.relu,
+                 dropout=0.0):
+        super(NGNNConvLayer, self).__init__()
+        self.in_feat = in_feat
+        self.out_feat = out_feat
+        self.activation = activation
+        self.layer_number = 0
+        self.dropout = nn.Dropout(dropout)
+        self.weight = nn.ParameterList()
+        for _ in range(0, layer_number):
+            tmp_layer = nn.Parameter(th.Tensor(in_feat, out_feat))
+            nn.init.xavier_uniform_(tmp_layer, gain=nn.init.calculate_gain('relu'))
+            self.weight.append(tmp_layer)
+
+    # pylint: disable=invalid-name
+    def forward(self, g, inputs):
+        """Forward computation
+
+        Parameters
+        ----------
+        g : DGLHeteroGraph
+            Input graph.
+        inputs : dict[str, torch.Tensor]
+            Node feature for each node type.
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            New node features for each node type.
+        """
+        g = g.local_var()
+        if g.is_block:
+            inputs_src = inputs
+            inputs_dst = {k: v[:g.number_of_dst_nodes(k)] for k, v in inputs.items()}
+        else:
+            inputs_src = inputs_dst = inputs
+
+        def _apply(ntype):
+            h = inputs_dst[ntype]
+            for layer in self.weight:
+                h = th.matmul(h, layer)
+            h = self.activation(h)
+            return self.dropout(h)
+
+        return {ntype: _apply(ntype) for ntype, _ in inputs_src.items()}
+
+
 class RelGraphConvLayer(nn.Module):
     r"""Relational graph convolution layer.
 
@@ -166,6 +233,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
         Whether to add selfloop. Default True
     last_layer_act : torch.function
         Activation for the last layer. Default None
+    ngnn_gnn_layer: int
+        Number of ngnn gnn layers
     """
     def __init__(self,
                  g,
@@ -174,7 +243,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
                  num_hidden_layers=1,
                  dropout=0,
                  use_self_loop=True,
-                 last_layer_act=False):
+                 last_layer_act=False,
+                 ngnn_gnn_layer=0):
         super(RelationalGCNEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         if num_bases < 0 or num_bases > len(g.canonical_etypes):
             self.num_bases = len(g.canonical_etypes)
@@ -187,6 +257,12 @@ class RelationalGCNEncoder(GraphConvEncoder):
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_bases, activation=F.relu, self_loop=use_self_loop,
                 dropout=dropout))
+
+        # ngnn
+        self.ngnn_gnn_layer = ngnn_gnn_layer
+        if self.ngnn_gnn_layer:
+            self.layers.append(NGNNConvLayer(h_dim, h_dim, layer_number=self.ngnn_gnn_layer, activation=F.relu, dropout=dropout))
+
         # h2o
         self.layers.append(RelGraphConvLayer(
             h_dim, out_dim, g.canonical_etypes,

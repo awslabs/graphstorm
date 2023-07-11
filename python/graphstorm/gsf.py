@@ -458,7 +458,8 @@ def set_encoder(model, g, config, train_task):
                                            num_bases=num_bases,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
-                                           use_self_loop=config.use_self_loop)
+                                           use_self_loop=config.use_self_loop,
+                                           ngnn_gnn_layer=config.ngnn_gnn_layer)
     elif model_encoder_type == "rgat":
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
@@ -467,7 +468,8 @@ def set_encoder(model, g, config, train_task):
                                            config.num_heads,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
-                                           use_self_loop=config.use_self_loop)
+                                           use_self_loop=config.use_self_loop,
+                                           ngnn_gnn_layer=config.ngnn_gnn_layer)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)
