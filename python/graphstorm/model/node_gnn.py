@@ -95,11 +95,9 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
     alpha_l2norm : float
         The alpha for L2 normalization.
     """
-    def __init__(self, alpha_l2norm, ngnn_gnn_layer=0):
+    def __init__(self, alpha_l2norm):
         super(GSgnnNodeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
-        self.ngnn_gnn_layer = ngnn_gnn_layer
-        self.ngnn_gnn_mlp = th.nn.ModuleList()
 
     def forward(self, blocks, node_feats, _, labels, input_nodes=None):
         """ The forward function for node prediction.
@@ -117,16 +115,6 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         target_ntype = list(labels.keys())[0]
         assert target_ntype in encode_embs
         emb = encode_embs[target_ntype]
-
-        if self.ngnn_gnn_layer > 0:
-            for _ in range(0, self.ngnn_gnn_layer):
-                layer = th.nn.Linear(self.decoder.in_dims, self.decoder.in_dims)
-                layer = layer.to('cuda')
-                self.ngnn_gnn_mlp.append(layer)
-            for ngnn_layer in self.ngnn_gnn_mlp:
-                emb = ngnn_layer(emb)
-            activation = th.nn.ReLU()
-            emb = activation(emb)
 
         labels = labels[target_ntype]
         logits = self.decoder(emb)

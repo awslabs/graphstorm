@@ -150,7 +150,7 @@ def create_builtin_node_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    model = GSgnnNodeModel(config.alpha_l2norm, config.ngnn_gnn_layer)
+    model = GSgnnNodeModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)
 
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
@@ -209,7 +209,7 @@ def create_builtin_edge_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    model = GSgnnEdgeModel(config.alpha_l2norm, config.ngnn_gnn_layer)
+    model = GSgnnEdgeModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)
     if config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
         num_classes = config.num_classes
@@ -356,7 +356,7 @@ def create_builtin_lp_model(g, config, train_task):
     -------
     GSgnnModel : The model.
     """
-    model = GSgnnLinkPredictionModel(config.alpha_l2norm, config.ngnn_gnn_layer)
+    model = GSgnnLinkPredictionModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)
     num_train_etype = len(config.train_etype) \
         if config.train_etype is not None \

@@ -98,11 +98,9 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
     alpha_l2norm : float
         The alpha for L2 normalization.
     """
-    def __init__(self, alpha_l2norm, ngnn_gnn_layer=0):
+    def __init__(self, alpha_l2norm):
         super(GSgnnEdgeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
-        self.ngnn_gnn_layer = ngnn_gnn_layer
-        self.ngnn_gnn_mlp = th.nn.ModuleList()
 
     def forward(self, blocks, batch_graph, node_feats, _,
         labels, input_nodes=None):
@@ -119,19 +117,6 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         # TODO(zhengda) we only support prediction on one edge type now
         assert len(labels) == 1, "We only support prediction on one edge type for now."
         target_etype = list(labels.keys())[0]
-
-        # ngnn layer
-        for k, embs in encode_embs.items():
-            if self.ngnn_gnn_layer > 0:
-                for _ in range(0, self.ngnn_gnn_layer):
-                    layer = th.nn.Linear(self.decoder.in_dims, self.decoder.in_dims)
-                    layer = layer.to('cuda')
-                    self.ngnn_gnn_mlp.append(layer)
-                for ngnn_layer in self.ngnn_gnn_mlp:
-                    embs = ngnn_layer(embs)
-                activation = th.nn.ReLU()
-                embs = activation(embs)
-            encode_embs[k] = embs
 
         logits = self.decoder(batch_graph, encode_embs)
         pred_loss = self.loss_func(logits, labels[target_etype])

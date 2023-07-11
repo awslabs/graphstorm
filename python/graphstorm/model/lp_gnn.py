@@ -73,11 +73,9 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
     alpha_l2norm : float
         The alpha for L2 normalization.
     """
-    def __init__(self, alpha_l2norm, ngnn_gnn_layer=0):
+    def __init__(self, alpha_l2norm):
         super(GSgnnLinkPredictionModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
-        self.ngnn_gnn_layer = ngnn_gnn_layer
-        self.ngnn_gnn_mlp = th.nn.ModuleList()
 
     def forward(self, blocks, pos_graph,
         neg_graph, node_feats, _, input_nodes=None):
@@ -92,19 +90,6 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         else:
             # GNN message passing
             encode_embs = self.compute_embed_step(blocks, node_feats)
-
-        # ngnn layer
-        for k, embs in encode_embs.items():
-            if self.ngnn_gnn_layer > 0:
-                for _ in range(0, self.ngnn_gnn_layer):
-                    layer = th.nn.Linear(self.decoder.in_dims, self.decoder.in_dims)
-                    layer = layer.to('cuda')
-                    self.ngnn_gnn_mlp.append(layer)
-                for ngnn_layer in self.ngnn_gnn_mlp:
-                    embs = ngnn_layer(embs)
-                activation = th.nn.ReLU()
-                embs = activation(embs)
-            encode_embs[k] = embs
 
 
         # TODO add w_relation in calculating the score. The current is only valid for
