@@ -302,6 +302,29 @@ def _get_arrs_out_dtype(arrs):
     """
     return arrs[0][0].dtype
 
+class ExtNumpyWrapper:
+    def __init__(self, arr_path, shape, dtype):
+        self._arr_path = arr_path
+        self._shape = shape
+        self._dtype = dtype
+        self._arr = None
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    @property
+    def shape(self):
+        return self._shape
+
+    def __getitem__(self, idx):
+        if self._arr is None:
+            self._arr = np.memmap(self._arr_path, self._dtype, mode="r", shape=self._shape)
+        return self._arr[idx]
+
+    def cleanup(self):
+        self._arr = None
+
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
 
@@ -329,7 +352,7 @@ def _merge_arrs(arrs, tensor_path):
         for arr in arrs:
             out_arr[row_idx:(row_idx + arr.shape[0])] = arr[:]
             row_idx += arr.shape[0]
-        return out_arr
+        return ExtNumpyWrapper(tensor_path, out_arr.shape, out_arr.dtype)
     elif isinstance(arrs[0], HDF5Array):
         arrs = [arr.to_numpy() for arr in arrs]
         return np.concatenate(arrs)
@@ -395,7 +418,7 @@ class ExtMemArrayMerger:
             arr = arrs[0]
             em_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
             em_arr[:] = arr[:]
-            return em_arr
+            return ExtNumpyWrapper(tensor_path, em_arr.shape, em_arr.dtype)
 
 def save_maps(output_dir, fname, map_data):
     """ Save node id mapping or edge id mapping
