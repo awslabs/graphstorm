@@ -609,16 +609,17 @@ def process_graph(args):
     node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
                                                args.remap_node_id,
                                                num_processes=num_processes_for_nodes)
+    sys_tracker.check('Process the node data')
     edges, edge_data = process_edge_data(process_confs['edges'], node_id_map,
                                          convert2ext_mem,
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
+    sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.output_conf_file is not None:
         # Save the new config file.
         with open(args.output_conf_file, "w", encoding="utf8") as outfile:
             json.dump(process_confs, outfile, indent=4)
-    sys_tracker.check('Process input data')
 
     if args.add_reverse_edges:
         edges1 = {}

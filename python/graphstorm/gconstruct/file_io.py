@@ -24,7 +24,6 @@ import os
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
-import torch as th
 import h5py
 
 from .utils import HDF5Handle, HDF5Array
