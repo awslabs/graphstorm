@@ -132,7 +132,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
                 activation = th.nn.ReLU()
                 embs = activation(embs)
             encode_embs[k] = embs
-            
+
         logits = self.decoder(batch_graph, encode_embs)
         pred_loss = self.loss_func(logits, labels[target_etype])
 
