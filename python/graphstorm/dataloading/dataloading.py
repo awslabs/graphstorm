@@ -24,7 +24,10 @@ from dgl.dataloading import DistDataLoader
 from dgl.dataloading import EdgeCollator
 from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 
-from .sampler import LocalUniform, JointUniform, GlobalUniform, JointLocalUniform
+from .sampler import (LocalUniform,
+                      JointUniform,
+                      GlobalUniform,
+                      JointLocalUniform, FastMultiLayerNeighborSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
@@ -150,6 +153,10 @@ BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER = 'localuniform'
 BUILTIN_LP_LOCALJOINT_NEG_SAMPLER = 'localjoint'
 BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER = 'all_etype_uniform'
 BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER = 'all_etype_joint'
+BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER = 'fast_uniform'
+BUILTIN_FAST_LP_JOINT_NEG_SAMPLER = 'fast_joint'
+BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER = 'fast_localuniform'
+BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 
 LP_DECODER_EDGE_WEIGHT = "lp_edge_weight"
 
@@ -298,6 +305,80 @@ class GSgnnLPLocalUniformNegDataLoader(GSgnnLinkPredictionDataLoader):
         return negative_sampler
 
 class GSgnnLPLocalJointNegDataLoader(GSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with local joint negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # the default negative sampler is uniform sampler
+        negative_sampler = JointLocalUniform(num_negative_edges)
+        return negative_sampler
+
+class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader that does not send train_mask to
+        DGL sampler but use the train_mask to trim the sampled graph.
+    """
+
+    def _prepare_dataloader(self, g, target_idxs, fanout,
+                            num_negative_edges, batch_size, device, train_task=True,
+                            exclude_training_targets=False, reverse_edge_types_map=None,
+                            edge_mask_for_gnn_embeddings=None):
+        # The dataloader can only sample neighbors from the training graph.
+        # This can avoid information leak during the link prediction training.
+        # This avoids two types of information leak: it avoids sampling neighbors
+        # from the test graph during the training; it also avoid sampling neighbors
+        # from the test graph to generate embeddings for evaluating the model performance
+        # on the test set.
+        if edge_mask_for_gnn_embeddings is not None and \
+                any(edge_mask_for_gnn_embeddings in g.edges[etype].data
+                    for etype in g.canonical_etypes):
+            sampler = FastMultiLayerNeighborSampler(fanout,
+                                                    mask=edge_mask_for_gnn_embeddings)
+        else:
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
+        negative_sampler = self._prepare_negative_sampler(num_negative_edges)
+
+        # edge loader
+        if isinstance(target_idxs, dict):
+            for etype in target_idxs:
+                target_idxs[etype] = trim_data(target_idxs[etype], device)
+        else:
+            target_idxs = trim_data(target_idxs, device)
+        exclude = 'reverse_types' if exclude_training_targets else None
+        reverse_etypes = reverse_edge_types_map if exclude_training_targets else None
+        loader = dgl.dataloading.DistEdgeDataLoader(g,
+                                                    target_idxs,
+                                                    sampler,
+                                                    batch_size=batch_size,
+                                                    negative_sampler=negative_sampler,
+                                                    shuffle=train_task,
+                                                    drop_last=False,
+                                                    num_workers=0,
+                                                    exclude=exclude,
+                                                    reverse_etypes=reverse_etypes)
+        return loader
+
+class FastGSgnnLPJointNegDataLoader(FastGSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with joint negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # the default negative sampler is uniform sampler
+        negative_sampler = JointUniform(num_negative_edges)
+        return negative_sampler
+
+class FastGSgnnLPLocalUniformNegDataLoader(FastGSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with local uniform negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # the default negative sampler is uniform sampler
+        negative_sampler = LocalUniform(num_negative_edges)
+        return negative_sampler
+
+class FastGSgnnLPLocalJointNegDataLoader(FastGSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with local joint negative sampler
 
     """

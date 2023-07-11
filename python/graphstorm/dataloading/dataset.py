@@ -346,6 +346,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
                 # Therefore, we use a more memory efficient way to split the edge list.
                 # TODO(zhengda) we need to split the edges properly to increase the data locality.
                 train_idx = split_full_edge_list(g, canonical_etype, get_rank())
+            assert train_idx is not None, "There is no training data."
             num_train += len(train_idx)
             train_idxs[canonical_etype] = train_idx
 
@@ -358,6 +359,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
                 val_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['val_mask'],
                     pb, etype=canonical_etype, force_even=True)
+                val_idx = [] if val_idx is None else val_idx
                 num_val += len(val_idx)
                 # If there are validation data globally, we should add them to the dict.
                 if dist_sum(len(val_idx)) > 0:
@@ -366,6 +368,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
                 test_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['test_mask'],
                     pb, etype=canonical_etype, force_even=True)
+                test_idx = [] if test_idx is None else test_idx
                 num_test += len(test_idx)
                 # If there are test data globally, we should add them to the dict.
                 if dist_sum(len(test_idx)) > 0:
@@ -444,8 +447,11 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
                     g.edges[canonical_etype].data['test_mask'],
                     pb, etype=canonical_etype, force_even=True)
                 # If there are test data globally, we should add them to the dict.
-                if dist_sum(len(test_idx)) > 0:
+                if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
+                elif test_idx is None:
+                    print(f"WARNING: {canonical_etype} does not contains " \
+                            "test data, skip testing {canonical_etype}")
             else:
                 print(f"NOTE: {canonical_etype} does not contains " \
                       "test_mask, skip testing {canonical_etype}. \n" \
@@ -600,6 +606,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
             else:
                 train_idx = dgl.distributed.node_split(g.nodes[ntype].data['train_mask'],
                                                        pb, ntype=ntype, force_even=True)
+            assert train_idx is not None, "There is no training data."
             num_train += len(train_idx)
             train_idxs[ntype] = train_idx
 
@@ -607,6 +614,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
             if 'val_mask' in g.nodes[ntype].data:
                 val_idx = dgl.distributed.node_split(g.nodes[ntype].data['val_mask'],
                                                      pb, ntype=ntype, force_even=True)
+                # If there is no validation data, val_idx is None.
+                val_idx = [] if val_idx is None else val_idx
                 num_val += len(val_idx)
                 # If there are validation data globally, we should add them to the dict.
                 if dist_sum(len(val_idx)) > 0:
@@ -614,6 +623,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
             if 'test_mask' in g.nodes[ntype].data:
                 test_idx = dgl.distributed.node_split(g.nodes[ntype].data['test_mask'],
                                                       pb, ntype=ntype, force_even=True)
+                # If there is no test data, test_idx is None.
+                test_idx = [] if test_idx is None else test_idx
                 num_test += len(test_idx)
                 # If there are test data globally, we should add them to the dict.
                 if dist_sum(len(test_idx)) > 0:
@@ -691,8 +702,12 @@ class GSgnnNodeInferData(GSgnnNodeData):
                                                       pb, ntype=ntype, force_even=True,
                                                       node_trainer_ids=node_trainer_ids)
                 # If there are test data globally, we should add them to the dict.
-                if dist_sum(len(test_idx)) > 0:
+                if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[ntype] = test_idx
+                elif test_idx is None:
+                    print(f"WARNING: {ntype} does not contains test data, skip testing {ntype}")
+            else:
+                print(f"WARNING: {ntype} does not contains test_mask, skip testing {ntype}")
         self._test_idxs = test_idxs
 
     @property
