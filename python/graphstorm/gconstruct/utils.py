@@ -501,6 +501,7 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
     def cleanup(self):
         """ Clean up the array.
         """
+        self._arr.flush()
         self._arr = None
 
     def to_numpy(self):
