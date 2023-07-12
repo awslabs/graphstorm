@@ -389,5 +389,5 @@ def compute_mae(pred, labels):
         warnings.warn("casting pred to the same dtype as labels")
         pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
 
-    diff = abs(pred.cpu() - labels.cpu())
+    diff = th.abs(pred.cpu() - labels.cpu())
     return th.mean(diff).cpu().item()
