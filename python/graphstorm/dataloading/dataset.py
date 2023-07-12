@@ -257,6 +257,11 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         return labels
 
     @property
+    def labels(self):
+        """Labels"""
+        return self._labels
+
+    @property
     def train_idxs(self):
         """train set's indexes"""
         return self._train_idxs
@@ -437,19 +442,29 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         # If eval_etypes is None, we use all edge types.
         if self.eval_etypes is None:
             self._eval_etypes = g.canonical_etypes
-        # test_mask exists
         for canonical_etype in self.eval_etypes:
             if 'test_mask' in g.edges[canonical_etype].data:
+                # test_mask exists
+                # we will do evaluation.
                 test_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['test_mask'],
                     pb, etype=canonical_etype, force_even=True)
                 # If there are test data globally, we should add them to the dict.
                 if dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
+            elif 'infer_mask' in g.edges[canonical_etype].data:
+                # Only do inference for edges with infer_mask set to 1
+                # In this case, we allow users to specify inference targets.
+                infer_idx = dgl.distributed.edge_split(
+                    g.edges[canonical_etype].data['infer_mask'],
+                    pb, etype=canonical_etype, force_even=True)
+                infer_idxs[canonical_etype] = infer_idx
             else:
+                # Inference only
+                # we will do inference on the entire edge set
                 print(f"NOTE: {canonical_etype} does not contains " \
                       "test_mask, skip testing {canonical_etype}. \n" \
-                      "We will do inference on the whole edge list.")
+                      "We will do inference on the entire edge set.")
                 infer_idx = dgl.distributed.edge_split(
                     th.full((g.num_edges(canonical_etype),), True, dtype=th.bool),
                     pb, etype=canonical_etype, force_even=True)
