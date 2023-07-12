@@ -780,6 +780,8 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         The GraphStorm dataset
     target_idx : dict of Tensors
         The target nodes for prediction
+    unlabeled_idx : dict of Tensors
+        The unlabeled nodes for semi-supervised training
     fanout: list of int or dict of list
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
