@@ -48,6 +48,10 @@ class RelGraphConvLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
+    ngnn_gnn_layer: int, optional
+        Number of layers of ngnn
+    ngnn_actication: torch.nn.functional
+        Activation Method for ngnn
     """
     def __init__(self,
                  in_feat,
@@ -147,9 +151,9 @@ class RelGraphConvLayer(nn.Module):
             if self.activation:
                 h = self.activation(h)
             if self.ngnn_gnn_layer != 0:
-                for layer in self.weight:
+                for layer in self.ngnn:
                     h = th.matmul(h, layer)
-                h = self.activation(h)
+                h = self.ngnn_activation(h)
             return self.dropout(h)
 
         for k, _ in inputs.items():

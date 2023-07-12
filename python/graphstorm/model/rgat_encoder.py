@@ -48,6 +48,10 @@ class RelationalAttLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
+    ngnn_gnn_layer: int, optional
+        Number of layers of ngnn
+    ngnn_actication: torch.nn.functional
+        Activation Method for ngnn
     """
     def __init__(self,
                  in_feat,
@@ -58,7 +62,9 @@ class RelationalAttLayer(nn.Module):
                  bias=True,
                  activation=None,
                  self_loop=False,
-                 dropout=0.0):
+                 dropout=0.0,
+                 ngnn_gnn_layer=0,
+                 ngnn_activation=F.relu):
         super(RelationalAttLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -82,6 +88,15 @@ class RelationalAttLayer(nn.Module):
             self.loop_weight = nn.Parameter(th.Tensor(in_feat, out_feat))
             nn.init.xavier_uniform_(self.loop_weight,
                                     gain=nn.init.calculate_gain('relu'))
+
+        # ngnn
+        self.ngnn_gnn_layer = ngnn_gnn_layer
+        self.ngnn_activation = ngnn_activation
+        self.ngnn = nn.ParameterList()
+        for _ in range(0, self.ngnn_gnn_layer):
+            tmp_layer = nn.Parameter(th.Tensor(in_feat, out_feat))
+            nn.init.xavier_uniform_(tmp_layer, gain=nn.init.calculate_gain('relu'))
+            self.ngnn.append(tmp_layer)
 
         self.dropout = nn.Dropout(dropout)
 
@@ -118,6 +133,10 @@ class RelationalAttLayer(nn.Module):
                 h = h + self.h_bias
             if self.activation:
                 h = self.activation(h)
+            if self.ngnn_gnn_layer != 0:
+                for layer in self.ngnn:
+                    h = th.matmul(h, layer)
+                h = self.ngnn_activation(h)
             return self.dropout(h)
 
         for k, _ in inputs.items():
@@ -161,7 +180,8 @@ class RelationalGATEncoder(GraphConvEncoder):
                  num_hidden_layers=1,
                  dropout=0,
                  use_self_loop=True,
-                 last_layer_act=False):
+                 last_layer_act=False,
+                 ngnn_gnn_layer=0):
         super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         self.num_heads = num_heads
         # h2h
@@ -169,7 +189,7 @@ class RelationalGATEncoder(GraphConvEncoder):
             self.layers.append(RelationalAttLayer(
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_heads, activation=F.relu, self_loop=use_self_loop,
-                dropout=dropout))
+                dropout=dropout, ngnn_gnn_layer=ngnn_gnn_layer, ))
         # h2o
         self.layers.append(RelationalAttLayer(
             h_dim, out_dim, g.canonical_etypes,
