@@ -227,6 +227,12 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     model.eval()
     decoder = model.decoder
     data = loader.data
+
+    if return_label:
+        assert data.labels is not None, \
+            "Return label is required, but the label field is not provided whem" \
+            "initlaizing the inference dataset."
+
     with th.no_grad():
         # save preds and labels together in order not to shuffle
         # the order when gather tensors from other trainers
