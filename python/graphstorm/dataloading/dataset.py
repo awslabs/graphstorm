@@ -455,13 +455,6 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
-            elif 'infer_mask' in g.edges[canonical_etype].data:
-                # Only do inference for edges with infer_mask set to 1
-                # In this case, we allow users to specify inference targets.
-                infer_idx = dgl.distributed.edge_split(
-                    g.edges[canonical_etype].data['infer_mask'],
-                    pb, etype=canonical_etype, force_even=True)
-                infer_idxs[canonical_etype] = infer_idx
             else:
                 # Inference only
                 # we will do inference on the entire edge set
