@@ -94,7 +94,7 @@ class RelationalAttLayer(nn.Module):
         self.ngnn_activation = ngnn_activation
         self.ngnn = nn.ParameterList()
         for _ in range(0, self.ngnn_gnn_layer):
-            tmp_layer = nn.Parameter(th.Tensor(in_feat, out_feat))
+            mlp_layer = nn.Parameter(th.Tensor(in_feat, out_feat))
             nn.init.xavier_uniform_(tmp_layer, gain=nn.init.calculate_gain('relu'))
             self.ngnn.append(tmp_layer)
 
