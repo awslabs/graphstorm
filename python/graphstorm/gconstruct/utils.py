@@ -547,6 +547,7 @@ def _merge_arrs(arrs, tensor_path):
         for arr in arrs:
             out_arr[row_idx:(row_idx + arr.shape[0])] = arr[:]
             row_idx += arr.shape[0]
+        out_arr.flush()
         return ExtNumpyWrapper(tensor_path, out_arr.shape, out_arr.dtype)
     elif isinstance(arrs[0], ExtMemArrayWrapper):
         arrs = [arr.to_numpy() for arr in arrs]
@@ -613,6 +614,7 @@ class ExtMemArrayMerger:
             arr = arrs[0]
             em_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
             em_arr[:] = arr[:]
+            em_arr.flush()
             return ExtNumpyWrapper(tensor_path, em_arr.shape, em_arr.dtype)
 
 def save_maps(output_dir, fname, map_data):
