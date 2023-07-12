@@ -48,7 +48,7 @@ class RelationalAttLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
-    ngnn_gnn_layer: int, optional
+    num_ngnn_layers: int, optional
         Number of layers of ngnn
     ngnn_actication: torch.nn.functional
         Activation Method for ngnn
