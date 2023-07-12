@@ -25,72 +25,6 @@ import dgl.nn as dglnn
 from .gnn_encoder_base import GraphConvEncoder
 
 
-class NGNNConvLayer(nn.Module):
-    r"""NGNN Layer for the RGCN Model
-
-    Parameters
-    ----------
-    in_feat : int
-        Input feature size.
-    out_feat : int
-        Output feature size.
-    layer_number: int
-        Number of NGNN layers
-    activation: torch.nn.functional
-        Type of NGNN activation layer
-    dropout : float, optional
-        Dropout rate. Default: 0.0
-    """
-    def __init__(self,
-                 in_feat,
-                 out_feat,
-                 layer_number=0,
-                 activation=F.relu,
-                 dropout=0.0):
-        super(NGNNConvLayer, self).__init__()
-        self.in_feat = in_feat
-        self.out_feat = out_feat
-        self.activation = activation
-        self.layer_number = 0
-        self.dropout = nn.Dropout(dropout)
-        self.weight = nn.ParameterList()
-        for _ in range(0, layer_number):
-            tmp_layer = nn.Parameter(th.Tensor(in_feat, out_feat))
-            nn.init.xavier_uniform_(tmp_layer, gain=nn.init.calculate_gain('relu'))
-            self.weight.append(tmp_layer)
-
-    # pylint: disable=invalid-name
-    def forward(self, g, inputs):
-        """Forward computation
-
-        Parameters
-        ----------
-        g : DGLHeteroGraph
-            Input graph.
-        inputs : dict[str, torch.Tensor]
-            Node feature for each node type.
-        Returns
-        -------
-        dict[str, torch.Tensor]
-            New node features for each node type.
-        """
-        g = g.local_var()
-        if g.is_block:
-            inputs_src = inputs
-            inputs_dst = {k: v[:g.number_of_dst_nodes(k)] for k, v in inputs.items()}
-        else:
-            inputs_src = inputs_dst = inputs
-
-        def _apply(ntype):
-            h = inputs_dst[ntype]
-            for layer in self.weight:
-                h = th.matmul(h, layer)
-            h = self.activation(h)
-            return self.dropout(h)
-
-        return {ntype: _apply(ntype) for ntype, _ in inputs_src.items()}
-
-
 class RelGraphConvLayer(nn.Module):
     r"""Relational graph convolution layer.
 
@@ -125,7 +59,9 @@ class RelGraphConvLayer(nn.Module):
                  bias=True,
                  activation=None,
                  self_loop=False,
-                 dropout=0.0):
+                 dropout=0.0,
+                 ngnn_gnn_layer=0,
+                 ngnn_activation=F.relu):
         super(RelGraphConvLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -160,6 +96,15 @@ class RelGraphConvLayer(nn.Module):
             self.loop_weight = nn.Parameter(th.Tensor(in_feat, out_feat))
             nn.init.xavier_uniform_(self.loop_weight,
                                     gain=nn.init.calculate_gain('relu'))
+
+        # ngnn
+        self.ngnn_gnn_layer = ngnn_gnn_layer
+        self.ngnn_activation = ngnn_activation
+        self.ngnn = nn.ParameterList()
+        for _ in range(0, self.ngnn_gnn_layer):
+            tmp_layer = nn.Parameter(th.Tensor(in_feat, out_feat))
+            nn.init.xavier_uniform_(tmp_layer, gain=nn.init.calculate_gain('relu'))
+            self.ngnn.append(tmp_layer)
 
         self.dropout = nn.Dropout(dropout)
 
@@ -201,6 +146,10 @@ class RelGraphConvLayer(nn.Module):
                 h = h + self.h_bias
             if self.activation:
                 h = self.activation(h)
+            if self.ngnn_gnn_layer != 0:
+                for layer in self.weight:
+                    h = th.matmul(h, layer)
+                h = self.activation(h)
             return self.dropout(h)
 
         for k, _ in inputs.items():
@@ -213,6 +162,7 @@ class RelGraphConvLayer(nn.Module):
                     hs[k] = th.zeros((g.number_of_dst_nodes(k), self.out_feat), device=device)
                     # TODO the above might fail if the device is a different GPU
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
+
 
 class RelationalGCNEncoder(GraphConvEncoder):
     r""" Relational graph conv encoder.
@@ -256,13 +206,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
             self.layers.append(RelGraphConvLayer(
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_bases, activation=F.relu, self_loop=use_self_loop,
-                dropout=dropout))
-
-        # ngnn
-        self.ngnn_gnn_layer = ngnn_gnn_layer
-        if self.ngnn_gnn_layer:
-            self.layers.append(NGNNConvLayer(h_dim, h_dim, layer_number=self.ngnn_gnn_layer, activation=F.relu, dropout=dropout))
-
+                dropout=dropout, ngnn_gnn_layer=ngnn_gnn_layer, ngnn_activation=F.relu))
         # h2o
         self.layers.append(RelGraphConvLayer(
             h_dim, out_dim, g.canonical_etypes,
