@@ -783,7 +783,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     fanout: list of int or dict of list
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
-        Batch size
+        Batch size, the sum of labeled and unlabeled nodes
     device: torch.device
         the device trainer is running on.
     train_task : bool
@@ -791,12 +791,13 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     """
     def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size, device,
                  train_task=True):
-        super().__init__(dataset, target_idx, fanout, batch_size, device, train_task=train_task)        
+        super().__init__(dataset, target_idx, fanout, batch_size // 2, device,
+                         train_task=train_task)
         # loader for unlabeled nodes:
         self.unlabeled_dataloader = self._prepare_dataloader(dataset.g,
                                                    unlabeled_idx,
                                                    fanout,
-                                                   batch_size,
+                                                   batch_size // 2,
                                                    train_task,
                                                    device)
 
