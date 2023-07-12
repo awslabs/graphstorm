@@ -1493,14 +1493,14 @@ class GSConfig:
         return eval_metric
 
     @property
-    def ngnn_gnn_layer(self):
-        """ Number of edges consider for the negative batch of edges
+    def num_ngnn_layers(self):
+        """ Number of extra MLP layers between GNN layers
         """
         # pylint: disable=no-member
-        if hasattr(self, "_ngnn_gnn_layer"):
-            assert self._ngnn_gnn_layer >= 0, \
-                "Number of negative edges must larger or equal than 0"
-            return self._ngnn_gnn_layer
+        if hasattr(self, "_num_ngnn_layers"):
+            assert self._num_ngnn_layers >= 0, \
+                "Number of extra MLP layers between GNN layers must larger or equal than 0"
+            return self._num_ngnn_layers
         # Set default ngnn layer number to 0
         return 0
 
@@ -1563,7 +1563,7 @@ def _add_gnn_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS
     )
-    parser.add_argument("--ngnn-gnn-layer", type=int, default=0,
+    parser.add_argument("--num_ngnn_layers", type=int, default=0,
             help="number of extra MLP layers between GNN layers.")
 
     return parser
