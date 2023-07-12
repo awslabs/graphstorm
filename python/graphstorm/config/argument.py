@@ -1564,7 +1564,7 @@ def _add_gnn_args(parser):
             default=argparse.SUPPRESS
     )
     parser.add_argument("--ngnn-gnn-layer", type=int, default=0,
-            help="number of layers in the GNN")
+            help="number of extra MLP layers between GNN layers.")
 
     return parser
 
