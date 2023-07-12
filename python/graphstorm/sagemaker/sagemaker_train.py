@@ -39,7 +39,8 @@ from .utils import (download_yaml_config,
                     barrier,
                     terminate_workers,
                     wait_for_exit,
-                    upload_model_artifacts)
+                    upload_model_artifacts,
+                    remove_data)
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,
@@ -259,3 +260,5 @@ def run_train(args, unknownargs):
     # If there are saved models
     if os.path.exists(save_model_path):
         upload_model_artifacts(model_artifact_s3, save_model_path, sagemaker_session)
+
+        remove_data(save_model_path)

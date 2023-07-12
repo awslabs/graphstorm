@@ -33,7 +33,7 @@ Please use the following command to build a Docker image from source:
 .. code-block:: bash
 
     git clone https://github.com/awslabs/graphstorm.git
-    
+
     cd /path-to-graphstorm/docker/
 
     bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ docker-name docker-tag
@@ -55,7 +55,7 @@ If the build succeeds, there should be a new Docker image, named *<docker-name>:
 Create a GraphStorm Container
 ..............................
 
-First, you need to create a GraphStorm container based on the Docker image built in the previous step. 
+First, you need to create a GraphStorm container based on the Docker image built in the previous step.
 
 Run the following command:
 
@@ -63,7 +63,7 @@ Run the following command:
 
     nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local
 
-This command will create a GraphStorm container, named ``test`` and run the container as a daemon. 
+This command will create a GraphStorm container, named ``test`` and run the container as a daemon.
 
 Then connect to the container by running the following command:
 
@@ -116,7 +116,7 @@ GraphStorm requires a set of dependencies, which can be installed with the follo
     pip install ogb==1.3.6
     pip install psutil==5.9.5
     pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
-    pip install dgl==1.0.3+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
+    pip install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 Configure SSH No-password login
 ................................

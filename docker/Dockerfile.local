@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.3.0-devel-ubuntu20.04
+FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/root
 
@@ -12,7 +12,7 @@ RUN apt-get install -y cmake
 RUN pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
 
 # Install DGL
-RUN pip3 install dgl==1.0.3+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
+RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 # Install related Python packages
 RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers
