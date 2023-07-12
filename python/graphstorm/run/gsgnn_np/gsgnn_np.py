@@ -51,7 +51,6 @@ def get_evaluator(config):
 
 def main(args):
     config = GSConfig(args)
-
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     train_data = GSgnnNodeTrainData(config.graph_name,
@@ -80,8 +79,12 @@ def main(args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     device = 'cuda:%d' % trainer.dev_id
+    # need to modify `train_data.*_idxs`
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                      batch_size=config.batch_size, device=device, train_task=True)
+    # semi-supervised loader
+    # dataloader_ss = GSgnnNodeSemiSupDataLoader(train_data, fanout=config.fanout,
+    #                                 batch_size=config.batch_size, device=device, train_task=True)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference

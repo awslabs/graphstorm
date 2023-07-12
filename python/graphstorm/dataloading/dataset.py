@@ -607,6 +607,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
 
         print('part {}, train: {}, val: {}, test: {}'.format(get_rank(), num_train,
                                                              num_val, num_test))
+        print('total nodes: {}\nsum of train/val/test: {}'.format(g.num_nodes(ntype), num_train+num_val+num_test))
 
         self._train_idxs = train_idxs
         self._val_idxs = val_idxs
