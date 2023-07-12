@@ -39,8 +39,7 @@ from .utils import (download_yaml_config,
                     barrier,
                     terminate_workers,
                     wait_for_exit,
-                    upload_model_artifacts,
-                    remove_data)
+                    upload_model_artifacts)
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,
@@ -146,7 +145,8 @@ def run_train(args, unknownargs):
     """
     num_gpus = args.num_gpus
     data_path = args.data_path
-    output_path = "/opt/ml/model/"
+    output_path = "/opt/ml/gsgnn_model/"
+    os.makedirs(output_path, exist_ok=True)
 
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
@@ -260,5 +260,3 @@ def run_train(args, unknownargs):
     # If there are saved models
     if os.path.exists(save_model_path):
         upload_model_artifacts(model_artifact_s3, save_model_path, sagemaker_session)
-
-        remove_data(save_model_path)
