@@ -23,7 +23,9 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.trainer import GLEMNodePredictionTrainer
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
+from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader,\
+    GSgnnNodeSemiSupDataLoader
+from graphstorm.dataloading.utils import combine_idxs
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
@@ -86,14 +88,17 @@ def main(config_args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     device = 'cuda:%d' % trainer.dev_id
-    # need to modify `train_data.*_idxs`
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True)
-    # semi-supervised loader
-    # dataloader_ss = GSgnnNodeSemiSupDataLoader(train_data, fanout=config.fanout,
-    #                                 batch_size=config.batch_size, device=device, train_task=True)
-    val_dataloader = None
-    test_dataloader = None
+    if config.semi_supervised:
+        # treat val and test sets as unlabeled node sets
+        unlabeled_idxs = combine_idxs(train_data.val_idxs, train_data.test_idxs)
+        # semi-supervised loader
+        dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
+                                                fanout=config.fanout, batch_size=config.batch_size,
+                                                device=device, train_task=True)
+    else:
+        dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
+                                         batch_size=config.batch_size, device=device,
+                                         train_task=True)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     if len(train_data.val_idxs) > 0:

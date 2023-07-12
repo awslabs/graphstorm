@@ -771,7 +771,7 @@ class GSgnnNodeDataLoader():
         """
         return self._fanout
 
-class GSgnnNodeSemiSupDataLoader():
+class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     """ Semisupervised Minibatch dataloader for node tasks
 
     Parameters
@@ -789,22 +789,10 @@ class GSgnnNodeSemiSupDataLoader():
     train_task : bool
         Whether or not for training.
     """
-    def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size, device, train_task=True):
-        self._data = dataset
-        self._fanout = fanout
-        self._target_nidx  = target_idx
-        assert isinstance(target_idx, dict)
-        for ntype in target_idx:
-            assert ntype in dataset.g.ntypes, \
-                    "node type {} does not exist in the graph".format(ntype)
-        self.dataloader = self._prepare_dataloader(dataset.g,
-                                                   target_idx,
-                                                   fanout,
-                                                   batch_size,
-                                                   train_task,
-                                                   device)
-
-        # mask labels
+    def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size, device,
+                 train_task=True):
+        super().__init__(dataset, target_idx, fanout, batch_size, device, train_task=train_task)        
+        # loader for unlabeled nodes:
         self.unlabeled_dataloader = self._prepare_dataloader(dataset.g,
                                                    unlabeled_idx,
                                                    fanout,
@@ -812,35 +800,8 @@ class GSgnnNodeSemiSupDataLoader():
                                                    train_task,
                                                    device)
 
-    def _prepare_dataloader(self, g, target_idx, fanout, batch_size, train_task, device):
-        for ntype in target_idx:
-            target_idx[ntype] = trim_data(target_idx[ntype], device)
-        sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
-        loader = dgl.dataloading.DistNodeDataLoader(g, target_idx, sampler,
-            batch_size=batch_size, shuffle=train_task, num_workers=0)
-        return loader
-    
-
     def __iter__(self):
-        return self.dataloader.__iter__() + self.unlabeled_dataloader.__iter__()
+        return zip(self.dataloader.__iter__(), self.unlabeled_dataloader.__iter__())
 
     def __next__(self):
-        return self.dataloader.__next__() + self.unlabeled_dataloader.__next__()
-
-    @property
-    def data(self):
-        """ The dataset of this dataloader.
-        """
-        return self._data
-
-    @property
-    def target_nidx(self):
-        """ The target node ids for prediction.
-        """
-        return self._target_nidx
-
-    @property
-    def fanout(self):
-        """ The fan out of each GNN layers
-        """
-        return self._fanout
+        return self.dataloader.__next__(), self.unlabeled_dataloader.__next__()

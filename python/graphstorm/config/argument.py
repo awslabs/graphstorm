@@ -967,6 +967,17 @@ class GSConfig:
         return self._label_field
 
     @property
+    def semi_supervised(self):
+        """ Whether use unlabeled nodes for semi-supervised training
+
+            It only works with node-level tasks.
+        """
+        if hasattr(self, "_semi_supervised"):
+            assert self._semi_supervised in (True, False)
+            return self._semi_supervised
+        return False
+
+    @property
     def num_classes(self):
         """ The cardinality of labels in a classification task
 
@@ -1730,6 +1741,11 @@ def _add_node_classification_args(parser):
                        help="Whether to return the probabilities of all the predicted \
                        results or only the maximum one. Set True to return the \
                        probabilities. Set False to return the maximum one.")
+    group.add_argument(
+        "--semi-supervised",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help="Whether to use unlabeled nodes for semi-supervised training")
     return parser
 
 def _add_edge_classification_args(parser):

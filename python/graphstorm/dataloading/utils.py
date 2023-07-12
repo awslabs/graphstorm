@@ -15,6 +15,7 @@
 
     Utils for data loading.
 """
+from collections import defaultdict
 import torch as th
 import torch.distributed as dist
 
@@ -98,3 +99,23 @@ def modify_fanout_for_target_etype(g, fanout, target_etypes):
                 edge_fanout_dic[etype] = 0
         edge_fanout_lis.append(edge_fanout_dic)
     return edge_fanout_lis
+
+def combine_idxs(*idxs):
+    """ Combine multiple node indices from across splits.
+
+    Parameters
+    ----------
+    idxs : dict
+        Key-ed by node type, values are tensors of node indices
+
+    Returns
+    -------
+    dict : the combined idx dict
+    """
+    combined = defaultdict(list)
+    for idx in idxs:
+        for key, tensor in idx.items():
+            combined[key].append(tensor)
+    for key in combined:
+        combined[key] = th.cat(combined[key])
+    return combined
