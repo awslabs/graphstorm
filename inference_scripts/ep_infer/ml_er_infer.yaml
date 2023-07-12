@@ -1,11 +1,5 @@
 ---
 version: 1.0
-lm_model:
-  bert_models: # bert model(s) definition, one bert model for each node type having text data
-    -
-      node_type: movie
-      model_name: "bert-base-uncased"
-      gradient_checkpoint: true
 gsf:
   basic:
     backend: gloo
