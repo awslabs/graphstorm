@@ -189,7 +189,7 @@ class RelationalGATEncoder(GraphConvEncoder):
             self.layers.append(RelationalAttLayer(
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_heads, activation=F.relu, self_loop=use_self_loop,
-                dropout=dropout, ngnn_gnn_layer=ngnn_gnn_layer, ))
+                dropout=dropout, ngnn_gnn_layer=ngnn_gnn_layer))
         # h2o
         self.layers.append(RelationalAttLayer(
             h_dim, out_dim, g.canonical_etypes,
