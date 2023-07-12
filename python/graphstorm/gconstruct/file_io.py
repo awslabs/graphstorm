@@ -166,6 +166,8 @@ def write_data_parquet(data, data_file):
     arr_dict = {}
     for key in data:
         arr = data[key]
+        assert np.prod(arr.shape) < 2 * 1024 * 1024 * 1024, \
+                "Some PyArrow versions do not support a column with over 2 billion elements."
         assert len(arr.shape) == 1 or len(arr.shape) == 2, \
                 "We can only write a vector or a matrix to a parquet file."
         if len(arr.shape) == 1:
@@ -209,6 +211,7 @@ class HDF5Array:
     def __init__(self, arr, handle):
         self._arr = arr
         self._handle = handle
+        self._out_dtype = None # Use the dtype of self._arr
 
     def __len__(self):
         return self._arr.shape[0]
@@ -218,39 +221,62 @@ class HDF5Array:
 
         Parameters
         ----------
-        idx : Numpy array or Pytorch tensor or slice.
+        idx : Numpy array or Pytorch tensor or slice or int.
             The index.
 
         Returns
         -------
         Numpy array : the data from the HDF5 array indexed by `idx`.
         """
-        if isinstance(idx, slice):
-            return self._arr[idx]
+        if isinstance(idx, (slice, int)):
+            return self._arr[idx].astype(self._out_dtype)
 
         if isinstance(idx, th.Tensor):
             idx = idx.numpy()
         # If the idx are sorted.
         if np.all(idx[1:] - idx[:-1] > 0):
-            return self._arr[idx]
+            arr = self._arr[idx]
         else:
             # There are two cases here: 1) there are duplicated IDs,
             # 2) the IDs are not sorted. Unique can return unique
             # IDs in the ascending order that meets the requirement of
             # HDF5 indexing.
             uniq_ids, reverse_idx = np.unique(idx, return_inverse=True)
-            return self._arr[uniq_ids][reverse_idx]
+            arr = self._arr[uniq_ids][reverse_idx]
+
+        if self._out_dtype is not None:
+            arr = arr.astype(self._out_dtype)
+        return arr
 
     def to_tensor(self):
         """ Return Pytorch tensor.
         """
-        arr = self._arr[:]
-        return th.tensor(arr)
+        arr = th.tensor(self._arr)
+        if self._out_dtype is not None:
+            if self._out_dtype is np.float32:
+                arr = arr.to(th.float32)
+            elif self._out_dtype is np.float16:
+                arr = arr.to(th.float16)
+        return arr
 
     def to_numpy(self):
         """ Return Numpy array.
         """
-        return self._arr[:]
+        res = self._arr[:]
+        if self._out_dtype is not None:
+            res = res.astype(self._out_dtype)
+        return res
+
+    def astype(self, dtype):
+        """ Set the output dtype.
+
+        Parameters
+        ----------
+        dtype: numpy.dtype
+            Output dtype
+        """
+        self._out_dtype = dtype
+        return self
 
     @property
     def shape(self):
@@ -328,8 +354,10 @@ def _parse_file_format(conf, is_node, in_mem):
         keys = [conf["node_id_col"]]
     elif is_node:
         keys = []
-    else:
+    elif "source_id_col" in conf and "dest_id_col" in conf:
         keys = [conf["source_id_col"], conf["dest_id_col"]]
+    else:
+        keys = []
     if "features" in conf:
         for feat_conf in conf["features"]:
             assert "feature_col" in feat_conf, "A feature config needs a feature_col."
