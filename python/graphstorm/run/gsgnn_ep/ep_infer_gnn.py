@@ -64,7 +64,7 @@ def main(config_args):
         assert len(infer_data.infer_idxs) > 0, \
             f"To do inference on {config.target_etype} without doing evaluation, " \
             "you should not define test_mask as its edge feature. " \
-            "GraphStorm will do inference on the how edge set. "
+            "GraphStorm will do inference on the whole edge set. "
         target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
