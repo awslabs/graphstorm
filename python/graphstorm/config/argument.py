@@ -1563,7 +1563,7 @@ def _add_gnn_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS
     )
-    parser.add_argument("--ngnn-gnn-layers", type=int, default=0,
+    parser.add_argument("--ngnn-gnn-layer", type=int, default=0,
             help="number of layers in the GNN")
 
     return parser
