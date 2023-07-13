@@ -72,7 +72,7 @@ class GSgnnTrainer():
         """
         if th.cuda.is_available():
             th.cuda.device(dev_id)
-            self._model = self._model.to(self.dev_id) 
+            self._model = self._model.to(self.dev_id)
             self._dev_id = dev_id
         else:
             self._model = self._model.to("cpu")
@@ -313,10 +313,10 @@ class GSgnnTrainer():
         else:
             device = 'cpu'
 
-        print("Epoch {:05d} | Batch {:03d} | Mem reserved: {:.4f} MB | Peak Mem: {:.4f} MB".  # add info which memory?
+        print("Epoch {:05d} | Batch {:03d} | Mem reserved: {:.4f} MB | Peak Mem: {:.4f} MB".
                 format(epoch, i,
                     th.cuda.memory_reserved(device) / 1024 / 1024,
-                    th.cuda.max_memory_allocated(device) / 1024 /1024))
+                    th.cuda.max_memory_allocated(device) / 1024 /1024))  # add info which memory?
         print('Epoch {:05d} | Batch {:03d} | RAM memory {} used | Avg input nodes per iter {}'.
                 format(epoch, i, psutil.virtual_memory(), num_input_nodes))
         print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(
