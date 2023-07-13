@@ -48,8 +48,8 @@ class RelGraphConvLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
-    num_ngnn_layers: int, optional
-        Number of layers of ngnn
+    num_gnn_ngnn_layers: int, optional
+        Number of layers of ngnn between gnn layers
     ngnn_actication: torch.nn.functional
         Activation Method for ngnn
     """
@@ -64,7 +64,7 @@ class RelGraphConvLayer(nn.Module):
                  activation=None,
                  self_loop=False,
                  dropout=0.0,
-                 num_ngnn_layers=0,
+                 num_gnn_ngnn_layers=0,
                  ngnn_activation=F.relu):
         super(RelGraphConvLayer, self).__init__()
         self.in_feat = in_feat
@@ -102,13 +102,13 @@ class RelGraphConvLayer(nn.Module):
                                     gain=nn.init.calculate_gain('relu'))
 
         # ngnn
-        self.num_ngnn_layers = num_ngnn_layers
+        self.num_gnn_ngnn_layers = num_gnn_ngnn_layers
         self.ngnn_activation = ngnn_activation
-        self.ngnn = nn.ParameterList()
-        for _ in range(0, self.num_ngnn_layers):
+        self.ngnn_gnn = nn.ParameterList()
+        for _ in range(0, self.num_gnn_ngnn_layers):
             mlp_layer = nn.Parameter(th.Tensor(out_feat, out_feat))
             nn.init.xavier_uniform_(mlp_layer, gain=nn.init.calculate_gain('relu'))
-            self.ngnn.append(mlp_layer)
+            self.ngnn_gnn.append(mlp_layer)
 
         self.dropout = nn.Dropout(dropout)
 
@@ -150,8 +150,8 @@ class RelGraphConvLayer(nn.Module):
                 h = h + self.h_bias
             if self.activation:
                 h = self.activation(h)
-            if self.num_ngnn_layers != 0:
-                for layer in self.ngnn:
+            if self.num_gnn_ngnn_layers != 0:
+                for layer in self.ngnn_gnn:
                     h = th.matmul(h, layer)
                 h = self.ngnn_activation(h)
             return self.dropout(h)
@@ -187,8 +187,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
         Whether to add selfloop. Default True
     last_layer_act : torch.function
         Activation for the last layer. Default None
-    num_ngnn_layers: int
-        Number of ngnn gnn layers
+    num_gnn_ngnn_layers: int
+        Number of ngnn gnn layers between GNN layers
     """
     def __init__(self,
                  g,
@@ -198,7 +198,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
                  dropout=0,
                  use_self_loop=True,
                  last_layer_act=False,
-                 num_ngnn_layers=0):
+                 num_gnn_ngnn_layers=0):
         super(RelationalGCNEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         if num_bases < 0 or num_bases > len(g.canonical_etypes):
             self.num_bases = len(g.canonical_etypes)
@@ -210,7 +210,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
             self.layers.append(RelGraphConvLayer(
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_bases, activation=F.relu, self_loop=use_self_loop,
-                dropout=dropout, num_ngnn_layers=num_ngnn_layers, ngnn_activation=F.relu))
+                dropout=dropout, num_gnn_ngnn_layers=num_gnn_ngnn_layers, ngnn_activation=F.relu))
         # h2o
         self.layers.append(RelGraphConvLayer(
             h_dim, out_dim, g.canonical_etypes,

@@ -1493,14 +1493,14 @@ class GSConfig:
         return eval_metric
 
     @property
-    def num_ngnn_layers(self):
+    def num_gnn_ngnn_layers(self):
         """ Number of extra MLP layers between GNN layers
         """
         # pylint: disable=no-member
-        if hasattr(self, "_num_ngnn_layers"):
-            assert self._num_ngnn_layers >= 0, \
+        if hasattr(self, "_num_gnn_ngnn_layers"):
+            assert self._num_gnn_ngnn_layers >= 0, \
                 "Number of extra MLP layers between GNN layers must be larger or equal than 0"
-            return self._num_ngnn_layers
+            return self._num_gnn_ngnn_layers
         # Set default ngnn layer number to 0
         return 0
 
@@ -1557,7 +1557,7 @@ def _add_gnn_args(parser):
             help="The number of features in the hidden state")
     group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
             help="number of layers in the GNN")
-    group.add_argument("--num-ngnn-layers", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-gnn-ngnn-layers", type=int, default=argparse.SUPPRESS,
                        help="number of extra MLP layers between GNN layers.")
     parser.add_argument(
             "--use-mini-batch-infer",
