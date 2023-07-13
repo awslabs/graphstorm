@@ -1557,14 +1557,14 @@ def _add_gnn_args(parser):
             help="The number of features in the hidden state")
     group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
             help="number of layers in the GNN")
+    group.add_argument("--num-ngnn-layers", type=int, default=argparse.SUPPRESS,
+                       help="number of extra MLP layers between GNN layers.")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS
     )
-    parser.add_argument("--num-ngnn-layers", type=int, default=0,
-            help="number of extra MLP layers between GNN layers.")
 
     return parser
 
