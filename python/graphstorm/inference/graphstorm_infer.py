@@ -53,7 +53,7 @@ class GSInfer():
             self._dev_id = dev_id
         else:
             self._model = self._model.to("cpu")
-        
+
     def setup_task_tracker(self, task_tracker):
         """ Set the task tracker.
 
