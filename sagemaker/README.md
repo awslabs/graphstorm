@@ -36,7 +36,7 @@ Then, you can use the following command to launch a SageMaker graph construction
 python3 launch/launch_gconstruct.py \
         --image-url <AMAZON_ECR_IMAGE_URI> \
         --region us-east-1 \
-        --entry-point run/train_entry.py \
+        --entry-point run/gconstruct_entry.py \
         --role <ROLE_ARN> \
         --input-graph-s3 s3://PATH_TO/acm/ \
         --output-graph-s3 s3://PATH_TO/acm_output/ \

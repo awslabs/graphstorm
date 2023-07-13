@@ -480,15 +480,19 @@ class GSConfig:
             else:
                 # Fanout in format of
                 # etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2
+                # Each etype should be a canonical etype in format of
+                # srcntype/relation/dstntype
 
-                fanout = [{k.split(":")[0]: int(k.split(":")[1]) \
+                fanout = [{tuple(k.split(":")[0].split('/')): int(k.split(":")[1]) \
                     for k in val.split("@")} for val in fanout]
         except Exception: # pylint: disable=broad-except
             assert False, f"{fot_name} Fanout should either in format 20,10 " \
                 "when all edge type have the same fanout or " \
                 "etype2:20@etype3:20@etype1:20," \
                 "etype2:10@etype3:4@etype1:2 when you want to " \
-                "specify a different fanout for different edge types"
+                "specify a different fanout for different edge types" \
+                "Each etype (e.g., etype2) should be a canonical etype in format of" \
+                "srcntype/relation/dstntype"
 
         assert len(fanout) == self.num_layers, \
             f"You have a {self.num_layers} layer GNN, " \
@@ -1528,11 +1532,15 @@ def _add_gnn_args(parser):
             "different node types have different node features.")
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
-                 "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
+                 "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2"
+                 "Each etype (e.g., etype2) should be a canonical etype in format of"
+                 "srcntype/relation/dstntype")
     group.add_argument("--eval-fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling during minibatch evaluation. "
                  "This argument can either be --eval-fanout 20,10 or "
-                 "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2")
+                 "--eval-fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2"
+                 "Each etype (e.g., etype2) should be a canonical etype in format of"
+                 "srcntype/relation/dstntype")
     group.add_argument("--hidden-size", type=int, default=argparse.SUPPRESS,
             help="The number of features in the hidden state")
     group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,

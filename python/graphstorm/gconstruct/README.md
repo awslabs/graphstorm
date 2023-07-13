@@ -70,10 +70,11 @@ the training/validation/test masks. For classification and regression tasks,
 the names of the mask tensors are "train_mask", "val_mask"
 and "test_mask".
 * `custom_split_filenames` customizes the data split and specifies individual
-nodes/edges are used in training/validation/test sets. It specifies a dict with
-file names that contains training/validation/test node IDs or edge IDs. The keys
-of the dict are "train", "valid" and "test". A node ID or edge ID in the files
-is stored as a JSON object.
+nodes are used in training/validation/test sets. It specifies a dict with
+file names that contains training/validation/test node IDs. The keys
+of the dict are "train", "valid" and "test". A node ID in the files
+is stored as a JSON object. Custom data split currently only works for
+nodes.
 
 Below shows an example that contains one node type and an edge type.
 ```
@@ -157,17 +158,38 @@ have one level. The value of each field can only be primitive values, such as in
 strings and floating points, or a list of integers or floating points.
 
 ## Feature transformation
-Currently, the graph construction pipeline only supports one feature transformation:
-tokenize the text string with a HuggingFace tokenizer.
+Currently, the graph construction pipeline only supports the following feature transformation:
+* tokenize the text string with a HuggingFace tokenizer.
+* compute the BERT embeddings with HuggingFace.
+* compute the min-max normalization.
+* convert the data into categorial values.
 
-For HuggingFace tokenizer, the `name` field in the feature transformation dictionary
+To tokenize text data, the `name` field in the feature transformation dictionary
 is `tokenize_hf`. The dict should contain two additional fields. `bert_model`
 specifies the BERT model used for tokenization. `max_seq_length` specifies
 the maximal sequence length.
 
+To compute BERT embeddings, the `name` field is `bert_hf`. The dict should
+contain the following fields: `bert_model` specifies the BERT model;
+`max_seq_length` specifies the maximal sequence length; `infer_batch_size`
+specifies the batch size for inference.
+
+To compute min-max normalization, the `name` field is `max_min_norm`.
+The dict should contain the following fields: `max_bound` and `min_bound`
+defines the upper bound and lower bound.
+
+To convert the data to categorial values, the `name` field is `to_categorical`.
+This assumes that the input data are strings.
+The dict should contain the following fields: `separator` specifies how to
+split the string into multiple categorical values (this is only used to define
+multiple categorical values). If `separator` is not specified, the entire
+string is a categorical value. `mapping` specifies how to map a string to
+an integer value that defines a categorical value.
+
 ## Output
 Currently, the graph construction pipeline outputs two output formats: DistDGL and DGL.
-By Specifying the `output_format` as "DGL", the output will be an [DGLGraph] (https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html).
+By Specifying the `output_format` as "DGL", the output will be
+an [DGLGraph] (https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html).
 By Specifying the `output_format` as "DistDGL", the output will be a partitioned
 graph named DistDGL graph. (See https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api for more details.)
 It contains the partitioned graph, a JSON config

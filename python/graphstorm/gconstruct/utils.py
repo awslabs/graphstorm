@@ -201,7 +201,9 @@ def update_two_phase_feat_ops(phase_one_info, ops):
             else:
                 feat_info[feat_name].append(info)
     for op in ops:
-        op.update_info(feat_info[op.feat_name])
+        # It is possible that there is no information from phase one.
+        if op.feat_name in feat_info:
+            op.update_info(feat_info[op.feat_name])
 
 def multiprocessing_data_read(in_files, num_processes, user_parser):
     """ Read data from multiple files with multiprocessing.
@@ -284,6 +286,22 @@ def _get_tot_shape(arrs):
     shape = [num_rows] + list(shape1)
     return tuple(shape)
 
+def _get_arrs_out_dtype(arrs):
+    """ To get the output dtype by accessing the
+        first element of the arrays (numpy array or HDFArray)
+
+        Note: We use arrs[0][0] instead of arrs[0] because
+            arrs[0][0] is a transformed data with out_dtype
+            while arrs[0] can be a HDFArray and has not
+            been cast to out_dtype.
+
+    Parameters
+    ----------
+    arrs : list of arrays.
+        The input arrays.
+    """
+    return arrs[0][0].dtype
+
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
 
@@ -302,7 +320,9 @@ def _merge_arrs(arrs, tensor_path):
     """
     assert isinstance(arrs, list)
     shape = _get_tot_shape(arrs)
-    dtype = arrs[0].dtype
+
+    # To get the output dtype or arrs
+    dtype = _get_arrs_out_dtype(arrs)
     if tensor_path is not None:
         out_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
         row_idx = 0
@@ -370,8 +390,10 @@ class ExtMemArrayMerger:
         if len(arrs) > 1:
             return _merge_arrs(arrs, tensor_path)
         else:
+            # To get the output dtype or arrs
+            dtype = _get_arrs_out_dtype(arrs)
             arr = arrs[0]
-            em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=shape)
+            em_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
             em_arr[:] = arr[:]
             return em_arr
 

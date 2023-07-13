@@ -82,7 +82,15 @@ class IdMap:
         # the following operations.
         if isinstance(ids, HDF5Array):
             ids = ids.to_numpy()
-        self._ids = {id1: i for i, id1 in enumerate(ids)}
+
+        # We can not expect the dtype of ids is always integer or string
+        # it can be any type. So we will cast ids into string if it is not integer.
+        if isinstance(ids[0], int) or np.issubdtype(ids.dtype, np.integer):
+            # node_ids are integer ids
+            self._ids = {id1: i for i, id1 in enumerate(ids)}
+        else:
+            # cast everything else into string
+            self._ids = {str(id1): i for i, id1 in enumerate(ids)}
 
     def __len__(self):
         return len(self._ids)
@@ -100,10 +108,11 @@ class IdMap:
         tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
         """
         for id_ in self._ids:
-            # If the data type of the key is string, the input Ids should also be strings.
+            # If the data type of the key is string, the input Ids should not be integer.
             if isinstance(id_, str):
-                assert isinstance(ids[0], str), \
-                        "The key of ID map is string, input IDs should also be strings."
+                assert (not isinstance(ids[0], int)) and \
+                       (not np.issubdtype(ids.dtype, np.integer)), \
+                    "The key of ID map is string, input IDs are integers."
             elif isinstance(id_, int) or np.issubdtype(id_.dtype, np.integer):
                 # If the data type of the key is integer, the input Ids should
                 # also be integers.
@@ -111,7 +120,8 @@ class IdMap:
                         "The key of ID map is integer, input IDs should also be integers. " \
                         + f"But get {type(ids[0])}."
             else:
-                raise ValueError(f"Unsupported key data type: {type(id_)}")
+                logging.warning("The input data type is %s. Will treat IDs as string.",
+                                type(id_))
             break
 
         # If the input ID exists in the ID map, map it to a new ID
@@ -120,6 +130,7 @@ class IdMap:
         new_ids = []
         idx = []
         for i, id_ in enumerate(ids):
+            id_ = id_ if np.issubdtype(ids.dtype, np.integer) else str(id_)
             if id_ in self._ids:
                 new_ids.append(self._ids[id_])
                 idx.append(i)
@@ -132,8 +143,6 @@ class IdMap:
         ----------
         file_path : str
             The file where the ID map will be saved to.
-        file_format : str
-            The file format that the ID map will be saved with.
 
         Returns
         -------

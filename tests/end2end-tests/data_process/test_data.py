@@ -38,7 +38,8 @@ argparser.add_argument("--conf_file", type=str, required=True,
                        help="The configuration file.")
 args = argparser.parse_args()
 out_dir = args.graph_dir
-conf_file = args.conf_file
+with open(args.conf_file, 'r') as f:
+  conf = json.load(f)
 
 if args.graph_format == "DGL":
     g = dgl.load_graphs(os.path.join(out_dir, "test.dgl"))[0][0]
@@ -63,6 +64,8 @@ node3_map = read_data_parquet(os.path.join(out_dir, "node3_id_remap.parquet"))
 reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['new'])}
 
 # Test the first node data
+assert g.nodes['node1'].data['feat'].dtype is th.float32
+assert g.nodes['node1'].data['feat1'].dtype is th.float32
 data = g.nodes['node1'].data['feat'].numpy()
 data1 = g.nodes['node1'].data['feat1'].numpy()
 assert 'input_ids' in g.nodes['node1'].data
@@ -85,19 +88,46 @@ assert label.dtype == np.int32
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert orig_ids to 2D to pass test
-assert np.all(data == orig_ids.reshape(-1, 1))
-assert np.all(data1 == orig_ids.reshape(-1, 1))
+np.testing.assert_allclose(data, orig_ids.reshape(-1, 1))
+np.testing.assert_allclose(data1, orig_ids.reshape(-1, 1))
 assert np.all(label == orig_ids % 100)
-assert th.sum(g.nodes['node1'].data['train_mask']) == int(g.number_of_nodes('node1') * 0.8)
-assert th.sum(g.nodes['node1'].data['val_mask']) == int(g.number_of_nodes('node1') * 0.2)
+assert np.all(np.nonzero(g.nodes['node1'].data['train_mask'].numpy()) == np.arange(100))
+assert np.all(np.nonzero(g.nodes['node1'].data['val_mask'].numpy()) == np.arange(100, 200))
 assert th.sum(g.nodes['node1'].data['test_mask']) == 0
 
+# test extra node1 feats
+data = g.nodes['node1'].data['feat_rank_gauss']
+assert data.dtype is th.float32
+data = np.sort(data.numpy(), axis=0)
+rev_data = np.flip(data, axis=0)
+assert np.all(data + rev_data == 0)
+data = g.nodes['node1'].data['feat_rank_gauss_fp16']
+assert data.dtype is th.float16
+data = np.sort(data.numpy(), axis=0)
+rev_data = np.flip(data, axis=0)
+assert np.all(data + rev_data == 0)
+
+
+#test data type
+data = g.nodes['node1'].data['feat2']
+assert data.dtype is th.float16
+data = g.nodes['node1'].data['feat_fp16']
+assert data.dtype is th.float16
+data = g.nodes['node1'].data['feat_fp16_hdf5']
+assert data.dtype is th.float16
+
 # Test the second node data
-data = g.nodes['node2'].data['feat'].numpy()
-orig_ids = np.arange(g.number_of_nodes('node2'))
-assert data.shape[1] == 5
-for i in range(data.shape[1]):
-    assert np.all(data[:,i] == orig_ids)
+data = g.nodes['node2'].data['category'].numpy()
+assert data.shape[1] == 10
+assert data.dtype == np.int8
+assert np.all(np.sum(data, axis=1) == 1)
+for node_conf in conf["nodes"]:
+    if node_conf["node_type"] == "node2":
+        assert len(node_conf["features"]) == 1
+        print(node_conf["features"][0]["transform"])
+        assert node_conf["features"][0]["transform"]["name"] == "to_categorical"
+        assert "mapping" in node_conf["features"][0]["transform"]
+        assert len(node_conf["features"][0]["transform"]["mapping"]) == 10
 
 # id remap for node4 exists
 assert os.path.isfile(os.path.join(out_dir, "node4_id_remap.parquet"))
@@ -116,6 +146,28 @@ assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['val_mask']) \
         == int(g.number_of_edges(('node1', 'relation1', 'node2')) * 0.2)
 assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['test_mask']) == 0
 
+# Test ('node1', 'relation1', 'node2') edge feat
+data = g.edges[('node1', 'relation1', 'node2')].data['feat_rank_gauss']
+assert data.dtype is th.float32
+data = np.sort(data.numpy(), axis=0)
+rev_data = np.flip(data, axis=0)
+assert np.all(data + rev_data == 0)
+data = g.edges[('node1', 'relation1', 'node2')].data['feat_rank_gauss_fp16']
+assert data.dtype is th.float16
+data = np.sort(data.numpy(), axis=0)
+rev_data = np.flip(data, axis=0)
+assert np.all(data + rev_data == 0)
+
+#test data type
+data = g.edges[('node1', 'relation1', 'node2')].data['feat1']
+assert data.dtype is th.float32
+data = g.edges[('node1', 'relation1', 'node2')].data['max_min_norm']
+assert data.dtype is th.float32
+assert th.max(data) <= 1.0
+assert th.min(data) >= 0
+data = g.edges[('node1', 'relation1', 'node2')].data['feat_fp16_hdf5']
+assert data.dtype is th.float16
+
 # Test the edge data of edge type 2
 assert th.sum(g.edges[('node1', 'relation2', 'node1')].data['train_mask']) \
         == int(g.number_of_edges(('node1', 'relation2', 'node1')) * 0.8)
@@ -131,13 +183,5 @@ src_ids = src_ids.numpy()
 dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()])
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert feat back to 1D to pass test
-assert np.all(src_ids + dst_ids == feat.reshape(-1,))
-assert np.all(src_ids + dst_ids == feat2.reshape(-1,))
-
-#test data type
-data = g.nodes['node1'].data['feat2']
-assert data.dtype is th.float16
-data = g.nodes['node1'].data['feat_fp16']
-assert data.dtype is th.float16
-data = g.nodes['node1'].data['feat_fp16_hdf5']
-assert data.dtype is th.float16
+np.testing.assert_allclose(src_ids + dst_ids, feat.reshape(-1,))
+np.testing.assert_allclose(src_ids + dst_ids, feat2.reshape(-1,))
