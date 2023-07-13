@@ -1499,7 +1499,7 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_num_ngnn_layers"):
             assert self._num_ngnn_layers >= 0, \
-                "Number of extra MLP layers between GNN layers must larger or equal than 0"
+                "Number of extra MLP layers between GNN layers must be larger or equal than 0"
             return self._num_ngnn_layers
         # Set default ngnn layer number to 0
         return 0
