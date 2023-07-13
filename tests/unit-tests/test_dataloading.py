@@ -184,6 +184,8 @@ def test_GSgnnEdgeData():
     th.distributed.destroy_process_group()
 
 def test_GSgnnNodeData():
+    for file in os.listdir("/dev/shm/"):
+        shutil.rmtree(file, ignore_errors=True)
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -192,6 +194,19 @@ def test_GSgnnNodeData():
     tr_ntypes = ["n1"]
     va_ntypes = ["n1"]
     ts_ntypes = ["n1"]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy2',
+                                                            dirname=os.path.join(tmpdirname, 'dummy2'),
+                                                            gen_mask=False)
+        infer_data_nomask = GSgnnNodeInferData(graph_name='dummy2', part_config=part_config,
+                                            eval_ntypes=va_ntypes)
+    assert infer_data_nomask.eval_ntypes == va_ntypes
+    # eval graph without test mask
+    # all nodes in the eval ntype are treated as target nodes
+    assert len(infer_data_nomask.infer_idxs) == len(va_ntypes)
+    for ntype in va_ntypes:
+        assert th.all(infer_data_nomask.infer_idxs[ntype] == th.arange(dist_graph.num_nodes(ntype)))
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
