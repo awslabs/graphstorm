@@ -106,7 +106,7 @@ class RelGraphConvLayer(nn.Module):
         self.ngnn_activation = ngnn_activation
         self.ngnn = nn.ParameterList()
         for _ in range(0, self.num_ngnn_layers):
-            mlp_layer = nn.Parameter(th.Tensor(in_feat, out_feat))
+            mlp_layer = nn.Parameter(th.Tensor(out_feat, out_feat))
             nn.init.xavier_uniform_(mlp_layer, gain=nn.init.calculate_gain('relu'))
             self.ngnn.append(mlp_layer)
 
