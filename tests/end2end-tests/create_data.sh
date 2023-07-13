@@ -31,7 +31,6 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--num-trainers-per-machine 4 \
 	--output movielen_100k_infer_val_1p_4t \
 	--no-split true \
-	--balance-train \
 	--balance-edges \
 	--num-parts 1
 
