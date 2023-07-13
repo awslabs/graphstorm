@@ -97,7 +97,7 @@ class RelGraphConvLayer(nn.Module):
 
         # weight for self loop
         if self.self_loop:
-            self.loop_weight = nn.Parameter(th.Tensor(in_feat, out_feat))
+            self.loop_weight = nn.Parameter(th.Tensor(out_feat, out_feat))
             nn.init.xavier_uniform_(self.loop_weight,
                                     gain=nn.init.calculate_gain('relu'))
 
