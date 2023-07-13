@@ -535,6 +535,11 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         return labels
 
     @property
+    def labels(self):
+        """Labels"""
+        return self._labels
+
+    @property
     def train_idxs(self):
         """train set's indexes"""
         return self._train_idxs
