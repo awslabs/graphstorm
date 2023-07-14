@@ -22,7 +22,9 @@ from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 
+from .ngnn_mlp import NGNNMLPLayer
 from .gnn_encoder_base import GraphConvEncoder
+
 
 class RelationalAttLayer(nn.Module):
     r"""Relational graph attention layer.
@@ -90,14 +92,9 @@ class RelationalAttLayer(nn.Module):
                                     gain=nn.init.calculate_gain('relu'))
 
         # ngnn
-        self.num_gnn_ngnn_layers = num_gnn_ngnn_layers
-        self.ngnn_activation = ngnn_activation
-        self.ngnn_gnn = nn.ParameterList()
-        for _ in range(0, self.num_gnn_ngnn_layers):
-            mlp_layer = nn.Parameter(th.Tensor(out_feat, out_feat))
-            nn.init.xavier_uniform_(mlp_layer, gain=nn.init.calculate_gain('relu'))
-            self.ngnn_gnn.append(mlp_layer)
+        self.ngnn_mlp = NGNNMLPLayer(out_feat, out_feat, num_gnn_ngnn_layers, ngnn_activation, dropout)
 
+        # dropout
         self.dropout = nn.Dropout(dropout)
 
     # pylint: disable=invalid-name
