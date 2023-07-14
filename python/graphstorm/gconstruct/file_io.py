@@ -76,8 +76,8 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
 def write_data_csv(data, data_file, delimiter=','):
     """ Write data to a CSV file.
     """
-    df = pd.DataFrame(data)
-    df.to_csv(data_file, index=True, sep=delimiter)
+    data_frame = pd.DataFrame(data)
+    data_frame.to_csv(data_file, index=True, sep=delimiter)
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
