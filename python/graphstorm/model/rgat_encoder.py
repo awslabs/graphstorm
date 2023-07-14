@@ -92,6 +92,7 @@ class RelationalAttLayer(nn.Module):
                                     gain=nn.init.calculate_gain('relu'))
 
         # ngnn
+        self.num_gnn_ngnn_layers = num_gnn_ngnn_layers
         self.ngnn_mlp = NGNNMLPLayer(out_feat, out_feat, num_gnn_ngnn_layers, ngnn_activation, dropout)
 
         # dropout
@@ -130,10 +131,8 @@ class RelationalAttLayer(nn.Module):
                 h = h + self.h_bias
             if self.activation:
                 h = self.activation(h)
-            if self.num_gnn_ngnn_layers != 0:
-                for layer in self.ngnn_gnn:
-                    h = th.matmul(h, layer)
-                h = self.ngnn_activation(h)
+            if self.num_gnn_ngnn_layers > 0:
+                h = self.num_gnn_ngnn_layers(h)
             return self.dropout(h)
 
         for k, _ in inputs.items():
