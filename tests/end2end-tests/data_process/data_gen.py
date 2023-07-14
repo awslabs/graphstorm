@@ -23,7 +23,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
 
-from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json
+from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json, write_data_csv
 from graphstorm.gconstruct.file_io import write_data_hdf5, write_index_json
 
 # Here we construct a graph with multiple node types and edge types
@@ -261,7 +261,7 @@ edge_conf = [
         "source_id_col":    "src",
         "dest_id_col":      "dst",
         "relation":         ("node1", "relation1", "node2"),
-        "format":           {"name": "parquet"},
+        "format":           {"name": "csv"},
         "files":            os.path.join(in_dir, "edge_data1_*.csv"),
         "labels":       [
             {
