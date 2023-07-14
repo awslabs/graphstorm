@@ -34,8 +34,10 @@ from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
+                                         ExtMemArrayWrapper,
                                          partition_graph,
-                                         update_two_phase_feat_ops)
+                                         update_two_phase_feat_ops,
+                                         HDF5Array)
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -882,13 +884,13 @@ def test_merge_arrays():
         data1 = read_data_hdf5(tmpfile, in_mem=False)
         arrs = [data1['data1'], data1['data2']]
         res = converter(arrs, "test1")
-        assert isinstance(res, np.ndarray)
+        assert isinstance(res, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(res, np.concatenate([data["data1"],
                                                            data["data2"]]))
 
         # One HDF5 array
         res = converter([data1['data1']], "test1.5")
-        assert isinstance(res, np.ndarray)
+        assert isinstance(res, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(res, data['data1'])
 
         os.remove(tmpfile)
@@ -897,26 +899,26 @@ def test_merge_arrays():
         data1 = np.random.uniform(size=(1000, 10))
         data2 = np.random.uniform(size=(900, 10))
         em_arr = converter([data1, data2], "test2")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
 
         # Merge two arrays whose feature dimension is smaller than 2.
         data1 = np.random.uniform(size=(1000,))
         data2 = np.random.uniform(size=(900,))
         em_arr = converter([data1, data2], "test3")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
 
         # Input is an array whose feature dimension is larger than 2.
         data1 = np.random.uniform(size=(1000, 10))
         em_arr = converter([data1], "test4")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
 
         # Input is an array whose feature dimension is smaller than 2.
         data1 = np.random.uniform(size=(1000,))
         em_arr = converter([data1], "test5")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
 
 def test_partition_graph():
