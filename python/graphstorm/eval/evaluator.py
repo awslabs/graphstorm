@@ -389,8 +389,10 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
         world_size = th.distributed.get_world_size()
         val_pred = broadcast_data(local_rank, world_size, val_pred)
         val_labels = broadcast_data(local_rank, world_size, val_labels)
-        test_pred = broadcast_data(local_rank, world_size, test_pred)
-        test_labels = broadcast_data(local_rank, world_size, test_labels)
+        test_pred = broadcast_data(local_rank, world_size, test_pred) \
+            if test_pred is not None else None
+        test_labels = broadcast_data(local_rank, world_size, test_labels) \
+            if test_labels is not None else None
 
         with th.no_grad():
             val_score = self.compute_score(val_pred, val_labels)
@@ -422,11 +424,14 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
             Evaluation metric values: dict
         """
         scores = {}
-        pred = th.squeeze(pred)
-        labels = th.squeeze(labels)
-        for metric in self.metric:
-            scores[metric] = self.metrics_obj.metric_function[metric](pred, labels) \
-                    if pred is not None and labels is not None else -1
+        if pred is None or labels is None:
+            for metric in self.metric:
+                scores[metric] = -1
+        else: # pred is not None and labels is not None
+            pred = th.squeeze(pred)
+            labels = th.squeeze(labels)
+            for metric in self.metric:
+                scores[metric] = self.metrics_obj.metric_function[metric](pred, labels)
         return scores
 
 class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
@@ -498,8 +503,10 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
         world_size = th.distributed.get_world_size()
         val_pred = broadcast_data(local_rank, world_size, val_pred)
         val_labels = broadcast_data(local_rank, world_size, val_labels)
-        test_pred = broadcast_data(local_rank, world_size, test_pred)
-        test_labels = broadcast_data(local_rank, world_size, test_labels)
+        test_pred = broadcast_data(local_rank, world_size, test_pred) \
+            if test_pred is not None else None
+        test_labels = broadcast_data(local_rank, world_size, test_labels) \
+            if test_labels is not None else None
 
         with th.no_grad():
             val_score = self.compute_score(val_pred, val_labels, train=False)
@@ -862,7 +869,10 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             Test mrr
         """
         with th.no_grad():
-            test_score = self.compute_score(test_scores)
+            if test_score is not None:
+                test_score = self.compute_score(test_scores)
+            else:
+                test_score = {"mrr": -1} # Dummy
 
             if val_scores is not None:
                 val_score = self.compute_score(val_scores)
