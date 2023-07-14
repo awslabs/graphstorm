@@ -131,9 +131,13 @@ def read_data_json(data_file, data_fields):
         for key in data_fields:
             assert key in record, \
                     f"The data field {key} does not exist in the record {record} of {data_file}."
-            data[key].append(record[key])
+            record1 = np.array(record[key]) if isinstance(record[key], list) else record[key]
+            data[key].append(record1)
     for key in data:
-        data[key] = np.array(data[key])
+        if isinstance(data[key][0], np.ndarray):
+            data[key] = np.stack(data[key])
+        else:
+            data[key] = np.array(data[key])
     return data
 
 def write_data_json(data, data_file):
