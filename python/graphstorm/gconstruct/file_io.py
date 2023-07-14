@@ -26,6 +26,7 @@ import pyarrow as pa
 import numpy as np
 import torch as th
 import h5py
+import pandas as pd
 
 def read_index_json(data_file):
     """ Read the index from a JSON file.
@@ -60,6 +61,23 @@ def write_index_json(data, data_file):
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
             json_file.write(json.dumps(int(index)) + "\n")
+
+def read_data_csv(data_file, data_fields=None, delimiter=','):
+    """ Reada ta from a CSV file.
+    """
+    data = pd.read_csv(data_file, delimiter=delimiter)
+    if data_fields is not None:
+        for field in data_fields:
+            assert field in data, f"The data filed {field} does not exist in the data file."
+        return {field: data[field] for field in data_fields}
+    else:
+        return data
+
+def write_data_csv(data, data_file, delimiter=','):
+    """ Write data to a CSV file.
+    """
+    df = pd.DataFrame(data)
+    df.to_csv(data_file, index=True, sep=delimiter)
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
