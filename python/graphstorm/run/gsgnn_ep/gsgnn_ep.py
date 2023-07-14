@@ -85,7 +85,7 @@ def main(config_args):
     if th.cuda.is_available(): # if self.dev_id >= 0
         device = 'cuda:%d' % trainer.dev_id
     else:
-        device = 'cpu'    
+        device = 'cpu'
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                      batch_size=config.batch_size, device=device, train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
