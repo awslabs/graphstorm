@@ -20,7 +20,7 @@ import dgl
 import os
 import argparse
 
-from .remove_mask import print_feat_names
+from remove_mask import print_feat_names
 
 def remove_mask(data):
     new_data = {}
