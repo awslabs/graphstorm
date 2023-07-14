@@ -65,6 +65,19 @@ def write_index_json(data, data_file):
 
 def read_data_csv(data_file, data_fields=None, delimiter=','):
     """ Reada ta from a CSV file.
+
+    Parameters
+    ----------
+    data_file : str
+        The file that contains the data.
+    data_fields : list of str
+        The name of the data fields.
+    delimiter : str
+        The delimiter to separate the fields.
+
+    Returns
+    -------
+    dict of Numpy arrays.
     """
     data = pd.read_csv(data_file, delimiter=delimiter)
     if data_fields is not None:
@@ -76,6 +89,15 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
 
 def write_data_csv(data, data_file, delimiter=','):
     """ Write data to a CSV file.
+
+    Parameters
+    ----------
+    data : dict of Numpy arrays
+        The data arrays that need to be written to the CSV file.
+    data_file : str
+        The path of the data file.
+    delimiter : str
+        The delimiter that separates the fields.
     """
     data_frame = pd.DataFrame(data)
     data_frame.to_csv(data_file, index=True, sep=delimiter)
