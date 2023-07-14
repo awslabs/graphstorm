@@ -64,7 +64,7 @@ def write_index_json(data, data_file):
             json_file.write(json.dumps(int(index)) + "\n")
 
 def read_data_csv(data_file, data_fields=None, delimiter=','):
-    """ Reada ta from a CSV file.
+    """ Read data from a CSV file.
 
     Parameters
     ----------
