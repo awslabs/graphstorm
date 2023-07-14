@@ -222,7 +222,7 @@ class GSConfig:
             if self.freeze_lm_encoder_epochs > 0:
                 self._turn_off_gradient_checkpoint("freeze_lm_encoder_epochs")
             # GLEM fine-tuning of LM conflicts with gradient checkpoint
-            if self.glem is not None:
+            if self.training_method["name"] == "glem":
                 self._turn_off_gradient_checkpoint("GLEM model")
         # TODO(xiangsx): Add more check
 
@@ -394,19 +394,23 @@ class GSConfig:
         return 0
 
     @property
-    def glem(self):
-        """ Setting up (default) GLEM configs 
+    def training_method(self):
+        """ Setting up the LM/GNN co-training method
         """
-        if hasattr(self, "_glem"):
-            defaults = {
-                "em_order_gnn_first": True,
-                "inference_using_gnn": True,
-                "pl_weight": 0.5
-            }
-            for key, val in defaults.items():
-                self._glem.setdefault(key, val)
-            return self._glem
-        return None
+        if hasattr(self, "_training_method"):
+            training_method_name = self._training_method["name"]
+            assert training_method_name in ("default", "glem"),\
+                f"Training method {training_method_name} is unavailable"
+            if training_method_name == "glem":
+                glem_defaults = {
+                    "em_order_gnn_first": False,
+                    "inference_using_gnn": True,
+                    "pl_weight": 0.5
+                }
+                for key, val in glem_defaults.items():
+                    self._training_method["kwargs"].setdefault(key, val)
+            return self._training_method
+        return {"name": "default", "kwargs": {}}
 
     def _check_lm_config(self, lm_config):
         assert "lm_type" in lm_config, "lm_type (type of language model," \

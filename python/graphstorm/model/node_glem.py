@@ -39,7 +39,7 @@ class GLEM(GSgnnNodeModelBase):
     """
     def __init__(self,
                  alpha_l2norm,
-                 em_order_gnn_first=True,
+                 em_order_gnn_first=False,
                  inference_using_gnn=True,
                  pl_weight=0.5
                  ):
