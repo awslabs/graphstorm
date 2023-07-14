@@ -170,6 +170,12 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     data = loader.data
     g = data.g
     preds = []
+
+    if return_label:
+        assert data.labels is not None, \
+            "Return label is required, but the label field is not provided whem" \
+            "initlaizing the inference dataset."
+
     embs = []
     labels = []
     model.eval()
@@ -195,7 +201,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         labels = th.cat(labels)
         return preds, embs, labels
     else:
-        return preds, embs
+        return preds, embs, None
 
 def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction.
@@ -220,6 +226,12 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     """
     device = model.device
     data = loader.data
+
+    if return_label:
+        assert data.labels is not None, \
+            "Return label is required, but the label field is not provided whem" \
+            "initlaizing the inference dataset."
+
     preds = []
     labels = []
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
@@ -244,4 +256,4 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
         labels = th.cat(labels)
         return preds, labels
     else:
-        return preds
+        return preds, None
