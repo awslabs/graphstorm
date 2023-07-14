@@ -133,6 +133,16 @@ def test_mrr_lp_evaluator():
     assert_equal(val_s['mrr'], val_sc['mrr'])
     assert_equal(test_s['mrr'], test_sc['mrr'])
 
+    # val_ranks is None
+    val_sc, test_sc = lp.evaluate(None, test_ranks, 0)
+    assert_equal(val_sc['mrr'], -1)
+    assert_equal(test_s['mrr'], test_sc['mrr'])
+
+    # test_ranks is None
+    val_sc, test_sc = lp.evaluate(val_ranks, None, 0)
+    assert_equal(val_s['mrr'], val_sc['mrr'])
+    assert_equal(test_sc['mrr'], -1)
+
     # test evaluate
     @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
@@ -192,10 +202,10 @@ def test_mrr_lp_evaluator():
             {"mrr": 0.7},
         ]
 
-        val_score, test_score = lp.evaluate(None, None, 100)
+        val_score, test_score = lp.evaluate(None, [], 100)
         assert val_score["mrr"] == -1
         assert test_score["mrr"] == 0.6
-        val_score, test_score = lp.evaluate(None, None, 200)
+        val_score, test_score = lp.evaluate(None, [], 200)
         assert val_score["mrr"] == -1
         assert test_score["mrr"] == 0.7
 
@@ -255,6 +265,20 @@ def test_acc_evaluator():
             "use_early_stop": False,
         })
 
+    # Test compute_score
+    nc = GSgnnAccEvaluator(config.eval_frequency,
+                           config.eval_metric,
+                           config.multilabel,
+                           config.use_early_stop)
+    pred = th.randint(10, (100,))
+    labels = th.randint(10, (100,))
+    result = nc.compute_score(pred, labels, True)
+    assert_equal(result["accuracy"],
+                 th.sum(pred == labels).item() / len(labels))
+
+    result = nc.compute_score(None, None, True)
+    assert result["accuracy"] == -1
+
     # Test evaluate
     @patch.object(GSgnnAccEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
@@ -290,6 +314,42 @@ def test_acc_evaluator():
         assert nc.best_iter_num["accuracy"] == 200
 
     check_evaluate()
+
+    # Test evaluate with out test score
+    @patch.object(GSgnnAccEvaluator, 'compute_score')
+    def check_evaluate_no_test(mock_compute_score):
+        nc = GSgnnAccEvaluator(config.eval_frequency,
+                               config.eval_metric,
+                               config.multilabel,
+                               config.use_early_stop)
+        mock_compute_score.side_effect = [
+            {"accuracy": 0.7},
+            {"accuracy": -1},
+            {"accuracy": 0.8},
+            {"accuracy": -1},
+            {"accuracy": 0.76},
+            {"accuracy": -1},
+        ]
+        val_score, test_score = nc.evaluate(th.rand((10,)), None, th.rand((10,)), None, 100)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.7
+        assert test_score["accuracy"] == -1
+
+        val_score, test_score = nc.evaluate(th.rand((10,)), None, th.rand((10,)), None, 200)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.8
+        assert test_score["accuracy"] == -1
+
+        val_score, test_score = nc.evaluate(th.rand((10,)), None, th.rand((10,)), None, 300)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.76
+        assert test_score["accuracy"] == -1
+
+        assert nc.best_val_score["accuracy"] == 0.8
+        assert nc.best_test_score["accuracy"] == -1
+        assert nc.best_iter_num["accuracy"] == 200
+
+    check_evaluate_no_test()
 
     # check GSgnnAccEvaluator.do_eval()
     # train_data.do_validation True
@@ -336,6 +396,20 @@ def test_regression_evaluator():
             "use_early_stop": False,
         })
 
+    # Test compute_score
+    nr = GSgnnRegressionEvaluator(config.eval_frequency,
+                                  config.eval_metric,
+                                  config.use_early_stop)
+    pred = th.rand(100)
+    labels = th.rand(100)
+    result = nr.compute_score(pred, labels)
+    diff = pred - labels
+    assert_equal(result["rmse"],
+                 th.sqrt(th.mean(diff * diff)).cpu().item())
+
+    result = nr.compute_score(None, None)
+    assert result["rmse"] == -1
+
     # Test evaluate
     @patch.object(GSgnnRegressionEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
@@ -371,6 +445,42 @@ def test_regression_evaluator():
         assert nr.best_iter_num["rmse"] == 300
 
     check_evaluate()
+
+    # Test evaluate without test set
+    @patch.object(GSgnnRegressionEvaluator, 'compute_score')
+    def check_evaluate_no_test(mock_compute_score):
+        nr = GSgnnRegressionEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.use_early_stop)
+        mock_compute_score.side_effect = [
+            {"rmse": 0.7},
+            {"rmse": -1},
+            {"rmse": 0.2},
+            {"rmse": -1},
+            {"rmse": 0.3},
+            {"rmse": -1},
+        ]
+
+        val_score, test_score = nr.evaluate(th.rand((10,)), None, th.rand((10,)), None, 100)
+        mock_compute_score.assert_called()
+        assert val_score["rmse"] == 0.7
+        assert test_score["rmse"] == -1
+
+        val_score, test_score = nr.evaluate(th.rand((10,)), None, th.rand((10,)), None, 300)
+        mock_compute_score.assert_called()
+        assert val_score["rmse"] == 0.2
+        assert test_score["rmse"] == -1
+
+        val_score, test_score = nr.evaluate(th.rand((10,)), None, th.rand((10,)), None, 500)
+        mock_compute_score.assert_called()
+        assert val_score["rmse"] == 0.3
+        assert test_score["rmse"] == -1
+
+        assert nr.best_val_score["rmse"] == 0.2
+        assert nr.best_test_score["rmse"] == -1
+        assert nr.best_iter_num["rmse"] == 300
+
+    check_evaluate_no_test()
 
     # check GSgnnRegressionEvaluator.do_eval()
     # train_data.do_validation True

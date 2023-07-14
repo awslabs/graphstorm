@@ -869,7 +869,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             Test mrr
         """
         with th.no_grad():
-            if test_score is not None:
+            if test_scores is not None:
                 test_score = self.compute_score(test_scores)
             else:
                 test_score = {"mrr": -1} # Dummy
