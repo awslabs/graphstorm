@@ -82,7 +82,7 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
     data = pd.read_csv(data_file, delimiter=delimiter)
     if data_fields is not None:
         for field in data_fields:
-            assert field in data, f"The data filed {field} does not exist in the data file."
+            assert field in data, f"The data field {field} does not exist in the data file."
         return {field: data[field] for field in data_fields}
     else:
         return data
