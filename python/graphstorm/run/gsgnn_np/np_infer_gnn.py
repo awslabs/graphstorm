@@ -55,12 +55,21 @@ def main(config_args):
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
+        assert len(infer_data.test_idxs) > 0, \
+            "There is not test data for evaluation. " \
+            "You can use --no-validation true to avoid do testing"
+        target_idxs = infer_data.test_idxs
+    else:
+        assert len(infer_data.infer_idxs) > 0, \
+            f"To do inference on {config.target_ntype} without doing evaluation, " \
+            "you should not define test_mask as its node feature. " \
+            "GraphStorm will do inference on the whole node set. "
+        target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
     device = 'cuda:%d' % infer.dev_id
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
-    dataloader = GSgnnNodeDataLoader(infer_data, infer_data.test_idxs, fanout=fanout,
+    dataloader = GSgnnNodeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size, device=device,
                                      train_task=False)
     # Preparing input layer for training or inference.

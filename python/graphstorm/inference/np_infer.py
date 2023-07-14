@@ -71,6 +71,11 @@ class GSgnnNodePredictionInfer(GSInfer):
             Whether to return all the predictions or the maximum prediction.
         """
         do_eval = self.evaluator is not None
+        if do_eval:
+            assert loader.data.labels is not None, \
+                "A label field must be provided for node classification " \
+                "or regression inference when evaluation is required."
+
         sys_tracker.check('start inferencing')
         self._model.eval()
         # TODO support multiple ntypes
