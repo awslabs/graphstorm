@@ -97,6 +97,7 @@ def test_json():
     assert len(data1) == 2
     assert "data1" in data1
     assert "data2" in data1
+    assert data['data2'].dtype == np.float64
     assert np.all(data1['data1'] == data['data1'])
     assert np.all(data1['data2'] == data['data2'])
 
