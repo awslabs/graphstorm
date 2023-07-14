@@ -435,8 +435,9 @@ class HDF5Array(ExtMemArrayWrapper):
         dtype: numpy.dtype
             Output dtype
         """
-        self._out_dtype = dtype
-        return self
+        arr = copy.copy(self)
+        arr._out_dtype = dtype
+        return arr
 
     @property
     def shape(self):
