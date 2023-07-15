@@ -19,7 +19,7 @@ import torch as th
 from torch import nn
 import torch.nn.functional as F
 
-class NGNNMLPLayer(nn.Module):
+class NGNNMLP(nn.Module):
     r"""NGNN Layer Implementation
 
     NGNN Layer is consisted of combination of MLP Layer, activation layer and dropout
@@ -43,7 +43,7 @@ class NGNNMLPLayer(nn.Module):
                  layer_number=0,
                  activation=F.relu,
                  dropout=0.0):
-        super(NGNNMLPLayer, self).__init__()
+        super(NGNNMLP, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
         self.activation = activation

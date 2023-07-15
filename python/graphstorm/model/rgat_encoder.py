@@ -22,7 +22,7 @@ from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 
-from .ngnn_mlp import NGNNMLPLayer
+from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
 
 
@@ -93,7 +93,8 @@ class RelationalAttLayer(nn.Module):
 
         # ngnn
         self.num_gnn_ngnn_layers = num_gnn_ngnn_layers
-        self.ngnn_mlp = NGNNMLPLayer(out_feat, out_feat, num_gnn_ngnn_layers, ngnn_activation, dropout)
+        self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
+                                     num_gnn_ngnn_layers, ngnn_activation, dropout)
 
         # dropout
         self.dropout = nn.Dropout(dropout)
@@ -132,7 +133,7 @@ class RelationalAttLayer(nn.Module):
             if self.activation:
                 h = self.activation(h)
             if self.num_gnn_ngnn_layers > 0:
-                h = self.num_gnn_ngnn_layers(h)
+                h = self.ngnn_mlp(h)
             return self.dropout(h)
 
         for k, _ in inputs.items():

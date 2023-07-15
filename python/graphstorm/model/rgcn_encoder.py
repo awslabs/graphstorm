@@ -22,7 +22,7 @@ from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 
-from .ngnn_mlp import NGNNMLPLayer
+from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
 
 
@@ -98,13 +98,14 @@ class RelGraphConvLayer(nn.Module):
 
         # weight for self loop
         if self.self_loop:
-            self.loop_weight = nn.Parameter(th.Tensor(out_feat, out_feat))
+            self.loop_weight = nn.Parameter(th.Tensor(in_feat, out_feat))
             nn.init.xavier_uniform_(self.loop_weight,
                                     gain=nn.init.calculate_gain('relu'))
 
         # ngnn
         self.num_gnn_ngnn_layers = num_gnn_ngnn_layers
-        self.ngnn_mlp = NGNNMLPLayer(out_feat, out_feat, num_gnn_ngnn_layers, ngnn_activation, dropout)
+        self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
+                                     num_gnn_ngnn_layers, ngnn_activation, dropout)
 
         self.dropout = nn.Dropout(dropout)
 
@@ -147,8 +148,7 @@ class RelGraphConvLayer(nn.Module):
             if self.activation:
                 h = self.activation(h)
             if self.num_gnn_ngnn_layers > 0:
-                if self.num_gnn_ngnn_layers > 0:
-                    h = self.num_gnn_ngnn_layers(h)
+                h = self.ngnn_mlp(h)
             return self.dropout(h)
 
         for k, _ in inputs.items():
