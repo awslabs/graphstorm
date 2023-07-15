@@ -25,7 +25,7 @@ from remove_mask import print_feat_names
 def remove_mask(data):
     new_data = {}
     for name in data:
-        if name != 'test_mask':
+        if 'test_mask' not in name:
             new_data[name] = data[name]
     return new_data
 
