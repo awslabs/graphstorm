@@ -102,6 +102,16 @@ def write_data_csv(data, data_file, delimiter=','):
     data_frame = pd.DataFrame(data)
     data_frame.to_csv(data_file, index=True, sep=delimiter)
 
+def _pad_stack(arrs):
+    max_len = max([len(arr) for arr in arrs])
+    dtype = arrs[0].dtype
+    for i, arr in enumerate(arrs):
+        if len(arr) != max_len:
+            tmp = np.zeros((max_len,), dtype=dtype)
+            tmp[:len(arr)] = arr
+            arrs[i] = tmp
+    return np.stack(arrs)
+
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
 
@@ -135,7 +145,7 @@ def read_data_json(data_file, data_fields):
             data[key].append(record1)
     for key in data:
         if isinstance(data[key][0], np.ndarray):
-            data[key] = np.stack(data[key])
+            data[key] = _pad_stack(data[key])
         else:
             data[key] = np.array(data[key])
     return data
