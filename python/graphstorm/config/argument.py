@@ -272,6 +272,11 @@ class GSConfig:
                               BUILTIN_TASK_LINK_PREDICTION]:
             _ = self.exclude_training_targets
             _ = self.reverse_edge_types_map
+        if self.task_type == BUILTIN_TASK_LINK_PREDICTION:
+            _ = self.gamma
+            _ = self.lp_decoder_type
+            _ = self.lp_edge_weight_for_loss
+            _ = self.lp_loss_func
         _ = self.remove_target_edge_type
         _ = self.decoder_type
         _ = self.num_decoder_basis
@@ -280,12 +285,8 @@ class GSConfig:
         _ = self.eval_negative_sampler
         _ = self.num_negative_edges
         _ = self.num_negative_edges_eval
-        _ = self.lp_decoder_type
-        _ = self.lp_edge_weight_for_loss
         _ = self.train_etype
         _ = self.eval_etype
-        _ = self.gamma
-        _ = self.lp_loss_func
         _ = self.eval_metric
 
     def handle_argument_conflicts(self):
@@ -1451,8 +1452,6 @@ class GSConfig:
     def gamma(self):
         """ Gamma for DistMult
         """
-        assert self.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER, \
-            "Only used with DistMult"
         if hasattr(self, "_gamma"):
             return float(self._gamma)
 
