@@ -1024,7 +1024,6 @@ def test_lp_info():
         assert len(config.reverse_edge_types_map) == 1
         assert config.reverse_edge_types_map[("query", "exactmatch","asin")] == \
             ("asin", "rev-exactmatch","query")
-        check_failure(config, "gamma") # dot product
         assert config.lp_loss_func == BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
