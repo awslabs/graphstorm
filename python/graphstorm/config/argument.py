@@ -203,8 +203,13 @@ class GSConfig:
                 setattr(self, f"_{arg_key}", arg_val)
                 print(f"Overriding Argument: {arg_key}")
 
-    def verify_arguments(self):
+    def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.
+
+        Parameters
+        ----------
+        is_train : bool
+            Whether this is for training.
         """
         # Trigger the checks in the arguments.
         _ = self.save_perf_results_path
@@ -216,8 +221,6 @@ class GSConfig:
         _ = self.node_id_mapping_file
         _ = self.edge_id_mapping_file
         _ = self.verbose
-        _ = self.lm_tune_lr
-        _ = self.lm_train_nodes
         _ = self.lm_infer_batch_size
         _ = self.freeze_lm_encoder_epochs
         _ = self.node_lm_configs
@@ -238,10 +241,7 @@ class GSConfig:
         _ = self.task_tracker
         _ = self.log_report_frequency
         _ = self.dropout
-        _ = self.lr
-        _ = self.num_epochs
         _ = self.batch_size
-        _ = self.sparse_optimizer_lr
         _ = self.use_node_embeddings
         _ = self.wd_l2norm
         _ = self.alpha_l2norm
@@ -259,6 +259,12 @@ class GSConfig:
         _ = self.return_proba
         _ = self.imbalance_class_weights
         _ = self.save_prediction_path
+        if is_train:
+            _ = self.lm_train_nodes
+            _ = self.lm_tune_lr
+            _ = self.lr
+            _ = self.sparse_optimizer_lr
+            _ = self.num_epochs
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_EDGE_CLASSIFICATION]:
             _ = self.label_field
             _ = self.num_classes
