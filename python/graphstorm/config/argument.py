@@ -300,7 +300,7 @@ class GSConfig:
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
             _ = self.target_etype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
-                              BUILTIN_TASK_LINK_PREDICTION]:
+                              BUILTIN_TASK_LINK_PREDICTION] and is_train:
             _ = self.exclude_training_targets
             _ = self.reverse_edge_types_map
         if self.task_type == BUILTIN_TASK_LINK_PREDICTION:
