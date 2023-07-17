@@ -23,7 +23,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
 
-from .file_io import HDF5Array
+from .utils import ExtMemArrayWrapper
 
 class NoopMap:
     """ It doesn't map IDs.
@@ -77,10 +77,10 @@ class IdMap:
         The input IDs
     """
     def __init__(self, ids):
-        # If the IDs are stored in HDF5Array, we should convert it to Numpy array.
-        # HDF5Array stores data on disks. Loading all IDs to memory can accelerate
+        # If the IDs are stored in ExtMemArray, we should convert it to Numpy array.
+        # ExtMemArray stores data on disks. Loading all IDs to memory can accelerate
         # the following operations.
-        if isinstance(ids, HDF5Array):
+        if isinstance(ids, ExtMemArrayWrapper):
             ids = ids.to_numpy()
 
         # We can not expect the dtype of ids is always integer or string
