@@ -319,10 +319,9 @@ You can use `generate_sagemaker_docker_compose.py` to generate compose file to r
 ```bash
 NUM_INSTANCES=4
 NUM_PARTITIONS=4
-python local/generate_sagemaker_docker_compose.py --image graphstorm:sm \
+python local/generate_sagemaker_docker_compose.py partitioning --image graphstorm:sm \
     --graph-name ${GRAPH_NAME} --num-instances ${NUM_INSTANCES} \
     --graph-data-s3 ${DATASET_S3_PATH} --region ${REGION} \
-    partitioning \
     --num-parts ${NUM_PARTITIONS} --metadata-filename ${METADATA_FILE} --partition-algorithm ${ALGORITHM} \
     --output-data-s3 ${OUTPUT_S3_PATH}
 ```
@@ -352,10 +351,9 @@ Docker compose to test distributed training locally:
 
 ```bash
 GSF_ARGS="--num-layers 1 --hidden-size 128 --backend gloo --batch-size 128"
-python local/generate_sagemaker_docker_compose.py --image graphstorm:sm  \
+python local/generate_sagemaker_docker_compose.py training --image graphstorm:sm  \
     --graph-name ${GRAPH_NAME} --num-instances ${NUM_INSTANCES} \
     --graph-data-s3 ${DATASET_S3_PATH} --region ${REGION} \
-    training \
     --task-type ${TASK_TYPE} --train-yaml-s3 ${TRAIN_YAML_S3} \
     --model-artifact-s3 ${OUTPUT_S3_PATH} $GSF_ARGS
 ```
@@ -390,10 +388,9 @@ To generate a compose YAML for inference you'd use:
 
 ```bash
 GSF_ARGS="--num-layers 1 --hidden-size 128 --backend gloo --batch-size 128"
-python local/generate_sagemaker_docker_compose.py --image graphstorm:sm \
+python local/generate_sagemaker_docker_compose.py inference --image graphstorm:sm \
     --graph-name ${GRAPH_NAME} --num-instances ${NUM_INSTANCES} \
     --graph-data-s3 ${DATASET_S3_PATH} --region ${REGION} \
-    inference \
     --task-type ${TASK_TYPE} \
     --model-artifact-s3 ${MODEL_ARTIFACT_S3} --infer-yaml-s3 ${INFER_YAML_S3} \
     --output-emb-s3 ${OUTPUT_S3_PATH}/embeddings --output-prediction-s3 ${OUTPUT_S3_PATH}/predictions \

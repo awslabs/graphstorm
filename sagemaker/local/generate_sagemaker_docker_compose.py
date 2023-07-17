@@ -16,6 +16,7 @@
     A script that can be used to generate Docker compose files
     that can emulate running SageMaker training jobs locally.
 """
+import logging
 from typing import Dict
 import argparse
 import yaml
@@ -29,12 +30,15 @@ SUPPORTED_TASKS = {
 }
 
 def get_parser():
+    parent_parser = argparse.ArgumentParser(
+        prog="DockerComposeGenerator",
+        add_help=False)
     parser = argparse.ArgumentParser(
         prog="DockerComposeGenerator",
         allow_abbrev=False)
 
     # Common required arguments
-    common_req_args = parser.add_argument_group('Common required arguments')
+    common_req_args = parent_parser.add_argument_group('Common required arguments')
 
     common_req_args.add_argument("--graph-name", required=True,
         type=str, help="Graph name")
@@ -46,32 +50,40 @@ def get_parser():
         required=True,
         help="Region of the S3 data.")
     # Common optional arguments
-    common_opt_args = parser.add_argument_group('Common optional arguments')
+    common_opt_args = parent_parser.add_argument_group('Common optional arguments')
     common_opt_args.add_argument("--image", required=False, type=str,
         default='graphstorm:sm',
         help="GraphStorm SageMaker image name.")
     common_opt_args.add_argument("--log-level", required=False, default='INFO',
         choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL', 'FATAL'])
     common_opt_args.add_argument("--aws-access-key-id", type=str,
-        help="AWS access key. Also need to provide --aws-secret-access-key and --aws-session-token")
+        help="AWS access key. Also need to provide --aws-secret-access-key and --aws-session-token",
+        required=False)
     common_opt_args.add_argument("--aws-secret-access-key", type=str,
-        help="AWS secret access key. Also need to provide --aws-access-key-id and --aws-session-token")
+        help="AWS secret access key. Also need to provide --aws-access-key-id and --aws-session-token",
+        required=False)
     common_opt_args.add_argument("--aws-session-token", type=str,
-        help="AWS session token. Also need to provide --aws-access-key-id and --aws-secret-access-key")
+        help="AWS session token. Also need to provide --aws-access-key-id and --aws-secret-access-key",
+        required=False)
 
     # Subparsers for each action
     subparsers = parser.add_subparsers(dest='action',
         help="Action to perform. Choose between 'partitioning', 'training', and 'inference', "
-        "and then follow up with the action-specific arguments.")
+        "and then follow up with the action-specific arguments.",
+        required=True)
     partition_parser = subparsers.add_parser('partitioning',
         help="Generate compose configuration for partitioning. "
-        "For available args run: `python generate_sagemaker_docker_compose.py partitioning --help`")
+        "For available args run: `python generate_sagemaker_docker_compose.py partitioning --help`",
+        parents=[parent_parser])
     train_parser = subparsers.add_parser('training',
         help="Generate compose configuration for training "
-        "For available args run: `python generate_sagemaker_docker_compose.py training --help`")
+        "For available args run: `python generate_sagemaker_docker_compose.py training --help`",
+        parents=[parent_parser])
     inference_parser = subparsers.add_parser('inference',
         help="Generate compose configuration for inference "
-        "For available args run: `python generate_sagemaker_docker_compose.py inference--help`")
+        "For available args run: `python generate_sagemaker_docker_compose.py inference--help`",
+        parents=[parent_parser])
+
 
     # Partition arguments
     partition_parser.add_argument("--num-parts", required=True,
@@ -171,8 +183,8 @@ def generate_command(
         if known_args.custom_script:
             command_str += f" --custom-script {known_args.custom_script}"
         if known_args.output_prediction_s3:
-            if task_type != "link_prediction"
-                command_str += f" --output-prediction-s3 {pred_path}"
+            if known_args.task_type != "link_prediction":
+                command_str += f" --output-prediction-s3 {known_args.output_prediction_s3}"
             else:
                 # LP can't save preds
                 logging.warning("Cannot save predictions for link prediction task, "
