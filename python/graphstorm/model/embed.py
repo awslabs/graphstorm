@@ -17,8 +17,8 @@
 """
 import torch as th
 from torch import nn
-from dgl.distributed import DistEmbedding, DistTensor, node_split
 import torch.nn.functional as F
+from dgl.distributed import DistEmbedding, DistTensor, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
