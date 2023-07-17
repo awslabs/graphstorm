@@ -189,7 +189,10 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
                                       rank=worker_rank)
 
     th.cuda.set_device(worker_rank)
-    device = 'cuda:%d' % worker_rank
+    if th.cuda.is_available():
+        device = 'cuda:%d' % worker_rank
+    else:
+        device = 'cpu'
     config, train_data = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:

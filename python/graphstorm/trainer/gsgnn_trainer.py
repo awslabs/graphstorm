@@ -71,7 +71,7 @@ class GSgnnTrainer():
             The device ID for model training.
         """
         if th.cuda.is_available():
-            th.cuda.set_device(dev_id)
+            th.cuda.device(dev_id)
             self._dev_id = dev_id
             self._model = self._model.to(self.dev_id)
         else:

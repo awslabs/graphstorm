@@ -49,8 +49,8 @@ class GSInfer():
         #assert use_cuda, "Only support GPU training"
         if th.cuda.is_available():
             th.cuda.device(dev_id)
-            self._model = self._model.to(self.dev_id)
             self._dev_id = dev_id
+            self._model = self._model.to(self.dev_id)
         else:
             self._model = self._model.to("cpu")
 

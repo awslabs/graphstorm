@@ -113,7 +113,10 @@ def run_dist_exchange_node_id_mapping(worker_rank, world_size, backend,
                                       world_size=world_size,
                                       rank=worker_rank)
     th.cuda.set_device(worker_rank)
-    device = 'cuda:%d' % worker_rank
+    if th.cuda.is_available():
+        device = 'cuda:%d' % worker_rank
+    else:
+        device = 'cpu'
 
     nid_mapping = _exchange_node_id_mapping(worker_rank, world_size, device, node_id_mapping, num_embs)
 
@@ -163,7 +166,10 @@ def run_dist_save_embeddings(model_path, emb, worker_rank,
                                       world_size=world_size,
                                       rank=worker_rank)
     th.cuda.set_device(worker_rank)
-    device = 'cuda:%d' % worker_rank
+    if th.cuda.is_available():
+        device = 'cuda:%d' % worker_rank
+    else:
+        device = 'cpu'
 
     save_embeddings(model_path, emb, worker_rank, world_size, device, node_id_mapping_file)
 
@@ -179,7 +185,10 @@ def run_dist_shuffle_predict(pred, worker_rank,
                                       world_size=world_size,
                                       rank=worker_rank)
     th.cuda.set_device(worker_rank)
-    device = 'cuda:%d' % worker_rank
+    if th.cuda.is_available():
+        device = 'cuda:%d' % worker_rank
+    else:
+        device = 'cpu'
 
     pred = shuffle_predict(pred, node_id_mapping_file, type, worker_rank, world_size, device)
     conn.send(pred.detach().cpu().numpy())
