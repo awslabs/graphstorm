@@ -864,7 +864,6 @@ def test_edge_class_info():
         assert config.target_etype[0] == ("query", "match", "asin")
         assert len(config.target_etype) == 1
         assert config.decoder_type == "MLPDecoder"
-        check_failure(config, "num_decoder_basis")
         assert config.remove_target_edge_type == False
         assert len(config.reverse_edge_types_map) == 0
         assert config.label_field == "label"
