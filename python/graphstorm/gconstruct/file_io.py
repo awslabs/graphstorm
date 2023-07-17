@@ -25,6 +25,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
 import h5py
+import pandas as pd
 
 from .utils import HDF5Handle, HDF5Array
 
@@ -61,6 +62,45 @@ def write_index_json(data, data_file):
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
             json_file.write(json.dumps(int(index)) + "\n")
+
+def read_data_csv(data_file, data_fields=None, delimiter=','):
+    """ Read data from a CSV file.
+
+    Parameters
+    ----------
+    data_file : str
+        The file that contains the data.
+    data_fields : list of str
+        The name of the data fields.
+    delimiter : str
+        The delimiter to separate the fields.
+
+    Returns
+    -------
+    dict of Numpy arrays.
+    """
+    data = pd.read_csv(data_file, delimiter=delimiter)
+    if data_fields is not None:
+        for field in data_fields:
+            assert field in data, f"The data field {field} does not exist in the data file."
+        return {field: data[field] for field in data_fields}
+    else:
+        return data
+
+def write_data_csv(data, data_file, delimiter=','):
+    """ Write data to a CSV file.
+
+    Parameters
+    ----------
+    data : dict of Numpy arrays
+        The data arrays that need to be written to the CSV file.
+    data_file : str
+        The path of the data file.
+    delimiter : str
+        The delimiter that separates the fields.
+    """
+    data_frame = pd.DataFrame(data)
+    data_frame.to_csv(data_file, index=True, sep=delimiter)
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
@@ -260,6 +300,9 @@ def _parse_file_format(conf, is_node, in_mem):
         return partial(read_data_json, data_fields=keys)
     elif fmt["name"] == "hdf5":
         return partial(read_data_hdf5, data_fields=keys, in_mem=in_mem)
+    elif fmt["name"] == "csv":
+        delimiter = fmt["delimiter"] if "delimiter" in fmt else ","
+        return partial(read_data_csv, data_fields=keys, delimiter=delimiter)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
 

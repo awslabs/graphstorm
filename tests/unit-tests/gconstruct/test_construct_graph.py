@@ -26,7 +26,8 @@ from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
-from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
+from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
+from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
 from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
@@ -67,6 +68,22 @@ def test_parquet():
         pass
 
     os.remove(tmpfile)
+
+def test_csv():
+    data = {
+            "t1": np.random.uniform(size=(10,)),
+            "t2": np.random.uniform(size=(10,)),
+    }
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        write_data_csv(data, os.path.join(tmpdirname, 'test.csv'))
+        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'))
+        for key, val in data.items():
+            assert key in data1
+            np.testing.assert_almost_equal(data1[key], data[key])
+
+        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), data_fields=['t1'])
+        assert 't1' in data1
+        np.testing.assert_almost_equal(data1['t1'], data['t1'])
 
 def test_json():
     handle, tmpfile = tempfile.mkstemp()
@@ -1095,6 +1112,7 @@ def test_multiprocessing_checks():
 
 if __name__ == '__main__':
     test_multiprocessing_checks()
+    test_csv()
     test_hdf5()
     test_json()
     test_partition_graph()
