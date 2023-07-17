@@ -39,7 +39,7 @@ class GLEM(GSgnnNodeModelBase):
     """
     def __init__(self,
                  alpha_l2norm,
-                 em_order_gnn_first=True,
+                 em_order_gnn_first=False,
                  inference_using_gnn=True,
                  pl_weight=0.5
                  ):
@@ -83,6 +83,7 @@ class GLEM(GSgnnNodeModelBase):
                                       sparse_opts=sparse_opts)
 
     def create_optimizer(self):
+        """Create the optimizer that optimizes the model."""
         return self._optimizer
 
     def save_model(self, model_path):
@@ -299,6 +300,30 @@ class GLEM(GSgnnNodeModelBase):
         return loss + self.alpha_l2norm * reg_loss
 
     def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
+        """Make prediction on the nodes with the LM or GNN. 
+        The model's `inference_using_gnn` flag determines how inference is performed.
+        If inference_using_gnn is True, message-passing GNN is used on the LM features,
+        Otherwise, LM's decoder is used for inference, no message-passing involved.
+
+        Parameters
+        ----------
+        blocks : list of DGLBlock
+            The message passing graph for computing GNN embeddings.
+        node_feats : dict of Tensors
+            The node features of the message passing graphs.
+        edge_feats : dict of Tensors
+            The edge features of the message passing graphs.
+        input_nodes: dict of Tensors
+            The input nodes of a mini-batch.
+        return_proba : bool
+            Whether or not to return all the predicted results or only the maximum one
+
+        Returns
+        -------
+        Tensor : GNN prediction results. Return all the results when return_proba is true
+            otherwise return the maximum result.
+        Tensor : the GNN embeddings.
+        """
         emb_lm, emb_gnn = self._embed_nodes(blocks, node_feats, edge_feats, input_nodes,
                                 do_gnn_encode=self.inference_using_gnn)
         if self.inference_using_gnn:

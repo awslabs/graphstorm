@@ -67,9 +67,9 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
-    if config.glem:
+    if config.training_method["name"] == "glem":
         trainer_class = GLEMNodePredictionTrainer
-    else:
+    elif config.training_method["name"] == "default":
         trainer_class = GSgnnNodePredictionTrainer
     trainer = trainer_class(model, gs.get_rank(),
                                         topk_model_to_save=config.topk_model_to_save)

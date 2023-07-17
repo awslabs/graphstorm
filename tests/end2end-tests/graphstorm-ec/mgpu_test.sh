@@ -131,6 +131,11 @@ python3 check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/g
 
 error_and_exit $?
 
+echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model without test_mask"
+python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec_infer/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ --no-validation true
+
+error_and_exit $?
+
 rm -fr /data/gsgnn_ec/*
 
 echo "**************dataset: Generated MovieLens EC, RGCN layer: 1, node feat: generated feature and text feature, inference: full graph, exclude-training-targets: True, train_nodes 10"

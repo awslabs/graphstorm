@@ -116,33 +116,29 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             if freeze_input_layer_epochs <= epoch:
                 self._model.lm.unfreeze_input_encoder()
                 no_pl = False
-            # 1st round: train LM, fix gnn
-            use_gnn = False
-            self._model.toggle('lm')
-            self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
-                                device, rt_profiler,
-                                epoch, total_steps, use_mini_batch_infer,
-                                save_model_path, save_model_frequency, no_pl)
-            lm_finish_time = time.time()
-            if self.rank == 0:
-                print("Epoch {}, lm takes {:.2f} seconds".format(epoch, lm_finish_time-t0))
 
-            # 2nd round: train GNN, fix LM
-            use_gnn = True
-            self._model.toggle('gnn')
-            self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
-                                device, rt_profiler,
-                                epoch, total_steps, use_mini_batch_infer,
-                                save_model_path, save_model_frequency, no_pl)
+            use_gnn = not self._model.em_order_gnn_first
+            # `use_gnn`` determines which part to train, if `em_order_gnn_first`
+            # 1st round: train GNN, fix LM; 2nd round: train LM fix gnn
+            for _ in range(2):
+                stage_start_time = time.time()
+                part_to_train = 'gnn' if use_gnn else 'lm'
+                self._model.toggle(part_to_train)
+                self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
+                                    device, rt_profiler,
+                                    epoch, total_steps, use_mini_batch_infer,
+                                    save_model_path, save_model_frequency, no_pl)
+                stage_finish_time = time.time()
+                if self.rank == 0:
+                    print("Epoch {}, {} takes {:.2f} seconds".format(
+                        epoch, part_to_train, stage_finish_time-stage_start_time))
+                use_gnn = not use_gnn
 
             # early_stop, exit training
             if self.early_stop is True:
                 break
 
             epoch_time = time.time() - t0
-            if self.rank == 0:
-                print("Epoch {}, gnn takes {:.2f} seconds".format(epoch,
-                                                                  time.time() - lm_finish_time))
             dur.append(epoch_time)
 
         rt_profiler.save_profile()
