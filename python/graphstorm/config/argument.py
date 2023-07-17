@@ -234,9 +234,10 @@ class GSConfig:
         _ = self.no_validation
         _ = self.save_prediction_path
         _ = self.eval_negative_sampler
-        _ = self.eval_etype
-        _ = self.eval_metric
         _ = self.num_negative_edges_eval
+        _ = self.eval_etype
+        if self.task_type is not None:
+            _ = self.eval_metric
 
         # Model training.
         if is_train:
@@ -1295,8 +1296,6 @@ class GSConfig:
         if hasattr(self, "_num_decoder_basis"):
             assert self._num_decoder_basis > 1, \
                 "Decoder basis must be larger than 1"
-            assert self.decoder_type == "DenseBiDecoder", \
-                "num-decoder-basis only works with DenseBiDecoder"
             return self._num_decoder_basis
 
         # By default, return 2
@@ -1524,13 +1523,13 @@ class GSConfig:
         """ Task type
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_task_type"), \
-            "Task type must be specified"
-        assert self._task_type in SUPPORTED_TASKS, \
-            f"Supported task types include {SUPPORTED_TASKS}, " \
-            f"but got {self._task_type}"
-
-        return self._task_type
+        if hasattr(self, "_task_type"):
+            assert self._task_type in SUPPORTED_TASKS, \
+                    f"Supported task types include {SUPPORTED_TASKS}, " \
+                    f"but got {self._task_type}"
+            return self._task_type
+        else:
+            return None
 
     @property
     def eval_metric(self):
