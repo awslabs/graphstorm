@@ -1498,7 +1498,7 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_input_ngnn_layers"):
-            assert self._num_decoder_ngnn_layers >= 0, \
+            assert self._num_input_ngnn_layers >= 0, \
                 "Number of extra MLP layers in input layer must be larger or equal than 0"
             return self._num_input_ngnn_layers
         # Set default ngnn layer number to 0

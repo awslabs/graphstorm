@@ -18,10 +18,12 @@
 import torch as th
 from torch import nn
 from dgl.distributed import DistEmbedding, DistTensor, node_split
+import torch.nn.functional as F
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
 from ..utils import get_rank
+from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
     """Create a tensor with the given shape and date type.
@@ -159,6 +161,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     use_node_embeddings : bool
         Whether we will use the node embeddings for individual nodes even when node features are
         available.
+    num_input_ngnn_layers: int, optional
+        Number of layers of ngnn in the input layers
     """
     def __init__(self,
                  g,
@@ -166,7 +170,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  embed_size,
                  activation=None,
                  dropout=0.0,
-                 use_node_embeddings=False):
+                 use_node_embeddings=False,
+                 num_input_ngnn_layers=0,
+                 ngnn_activation=F.relu):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.activation = activation
@@ -213,6 +219,10 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                                 embed_name + '_' + ntype,
                                 init_emb,
                                 part_policy=part_policy)
+        # ngnn
+        self.num_input_ngnn_layers = num_input_ngnn_layers
+        self.ngnn_mlp = NGNNMLP(embed_size, embed_size,
+                                num_input_ngnn_layers, ngnn_activation, dropout)
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
@@ -259,6 +269,12 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             emb = self.dropout(emb)
             embs[ntype] = emb
 
+        def _apply(h):
+            if self.num_input_ngnn_layers > 0:
+                h = self.ngnn_mlp(h)
+            return h
+
+        embs = {ntype: _apply(h) for ntype, h in embs.items()}
         return embs
 
     def get_sparse_params(self):

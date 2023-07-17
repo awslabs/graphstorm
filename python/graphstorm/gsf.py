@@ -440,7 +440,8 @@ def set_encoder(model, g, config, train_task):
     else:
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
-                                          use_node_embeddings=config.use_node_embeddings)
+                                          use_node_embeddings=config.use_node_embeddings,
+                                          num_input_ngnn_layers=config.num_input_ngnn_layers)
     model.set_node_input_encoder(encoder)
 
     # Set GNN encoders
