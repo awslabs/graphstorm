@@ -222,7 +222,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         # ngnn
         self.num_input_ngnn_layers = num_input_ngnn_layers
         self.ngnn_mlp = NGNNMLP(embed_size, embed_size,
-                                num_input_ngnn_layers, ngnn_activation, dropout)
+                            num_input_ngnn_layers, ngnn_activation, dropout)
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
