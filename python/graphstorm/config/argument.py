@@ -259,9 +259,9 @@ class GSConfig:
             _ = self.remove_target_edge_type
 
         # LM module
-        _ = self.lm_infer_batch_size
-        _ = self.freeze_lm_encoder_epochs
-        _ = self.node_lm_configs
+        if self.node_lm_configs:
+            _ = self.lm_infer_batch_size
+            _ = self.freeze_lm_encoder_epochs
 
         # Model architecture
         _ = self.model_encoder_type
