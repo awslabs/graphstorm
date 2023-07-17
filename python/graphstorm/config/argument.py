@@ -233,8 +233,6 @@ class GSConfig:
         _ = self.eval_frequency
         _ = self.no_validation
         _ = self.save_prediction_path
-        _ = self.eval_negative_sampler
-        _ = self.num_negative_edges_eval
         _ = self.eval_etype
         if self.task_type is not None:
             _ = self.eval_metric
@@ -310,6 +308,8 @@ class GSConfig:
             _ = self.lp_edge_weight_for_loss
             _ = self.lp_loss_func
             _ = self.num_negative_edges
+            _ = self.eval_negative_sampler
+            _ = self.num_negative_edges_eval
 
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
