@@ -195,10 +195,11 @@ class RelationalGATEncoder(GraphConvEncoder):
                 self.num_heads, activation=F.relu, self_loop=use_self_loop,
                 norm = norm, dropout=dropout))
         # h2o, last layer's normalization is decided by last_layer_act
-        self.layers.append(RelGraphConvLayer(
+        self.layers.append(RelationalAttLayer(
             h_dim, out_dim, g.canonical_etypes,
-            self.num_bases, activation=F.relu if last_layer_act else None,
+            self.num_heads, activation=F.relu if last_layer_act else None,
             norm = norm if last_layer_act else None, self_loop=use_self_loop))
+
 
     def forward(self, blocks, h):
         """Forward computation
