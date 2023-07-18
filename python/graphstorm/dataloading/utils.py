@@ -61,7 +61,6 @@ def dist_sum(size):
     -------
     int : the global size.
     """
-
     if th.cuda.is_available(): # if self.dev_id >= 0
         dev_id = th.cuda.current_device()
         size = th.tensor([size], device=th.device(dev_id))

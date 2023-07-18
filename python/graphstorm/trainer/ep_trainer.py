@@ -90,7 +90,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
-        device_ids = [self.dev_id] if self.dev_id != -1 else None # check if brackets needed
+        device_ids = [self.dev_id] if self.dev_id != -1 else None
         model = DistributedDataParallel(self._model, device_ids=device_ids,
                                         output_device=self.dev_id if self.dev_id != -1 else None,
                                         find_unused_parameters=True,
@@ -214,11 +214,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
-                       'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
                        'best validation iteration': \
                            self.evaluator.best_iter_num[self.evaluator.metric[0]],
                        'best model path': \

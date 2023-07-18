@@ -308,7 +308,7 @@ class GSgnnTrainer():
             A tuple of (forward time and backward time)
         '''
         gnn_forward_time, back_time = compute_time
-        if th.cuda.is_available(): # if self.dev_id >= 0
+        if th.cuda.is_available():
             device = 'cuda:%d' % self.dev_id
         else:
             device = 'cpu'

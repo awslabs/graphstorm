@@ -95,7 +95,7 @@ def main(config_args):
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
     else:
         raise ValueError('Unknown negative sampler')
-    if th.cuda.is_available(): # if self.dev_id >= 0
+    if th.cuda.is_available():
         device = 'cuda:%d' % trainer.dev_id
     else:
         device = 'cpu'

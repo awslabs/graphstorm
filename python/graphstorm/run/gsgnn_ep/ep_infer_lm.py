@@ -17,6 +17,7 @@
     model as encoder only.
 """
 
+import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -60,7 +61,7 @@ def main(config_args):
         assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
-    if th.cuda.is_available(): # if self.dev_id >= 0
+    if th.cuda.is_available():
         device = 'cuda:%d' % infer.dev_id
     else:
         device = 'cpu'
