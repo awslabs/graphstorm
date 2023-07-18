@@ -1516,18 +1516,6 @@ class GSConfig:
         # Set default ngnn layer number to 0
         return 0
 
-    @property
-    def num_decoder_ngnn_layers(self):
-        """ Number of extra MLP layers in the decoder
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_num_decoder_ngnn_layers"):
-            assert self._num_decoder_ngnn_layers >= 0, \
-                "Number of extra MLP layers in decoder must be larger or equal than 0"
-            return self._num_decoder_ngnn_layers
-        # Set default ngnn layer number to 0
-        return 0
-
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")
     group.add_argument(
@@ -1585,8 +1573,6 @@ def _add_gnn_args(parser):
                        help="number of extra MLP layers in input layer.")
     group.add_argument("--num-gnn-ngnn-layers", type=int, default=argparse.SUPPRESS,
                        help="number of extra MLP layers between GNN layers.")
-    group.add_argument("--num-decoder-ngnn-layers", type=int, default=argparse.SUPPRESS,
-                       help="number of extra MLP layers in the decoder.")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
