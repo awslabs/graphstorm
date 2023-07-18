@@ -222,11 +222,10 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
         # ngnn
         self.num_input_ngnn_layers = num_input_ngnn_layers
-        self.ngnn_mlp = {}
+        self.ngnn_mlp = nn.ModuleDict({})
         for ntype in g.ntypes:
-            self.ffn_layer = NGNNMLP(embed_size, embed_size,
+            self.ngnn_mlp[ntype] = NGNNMLP(embed_size, embed_size,
                             num_input_ngnn_layers, ngnn_activation, dropout)
-            self.ngnn_mlp[ntype] = self.ffn_layer
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
