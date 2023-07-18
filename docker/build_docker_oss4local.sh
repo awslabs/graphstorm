@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# process argument 1: graphstorm home folder 
+# process argument 1: graphstorm home folder
 if [ -z "$1" ]; then
     echo "Please provide the graphstorm home folder that the graphstorm codes are cloned to."
     echo "For example, ./build_docker_oss4local.sh /graph-storm/"
@@ -23,7 +23,7 @@ else
     TAG="$3"
 fi
 
-# Copy scripts and tools codes to the docker folder 
+# Copy scripts and tools codes to the docker folder
 mkdir -p $GSF_HOME"/docker/code"
 cp -r $GSF_HOME"/python" $GSF_HOME"/docker/code/python"
 cp -r $GSF_HOME"/examples" $GSF_HOME"/docker/code/examples"
