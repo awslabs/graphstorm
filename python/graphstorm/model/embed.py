@@ -182,6 +182,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
+        self.num_input_ngnn_layers = num_input_ngnn_layers
+        self.ngnn_mlp = {}
         embed_name = 'embed'
         for ntype in g.ntypes:
             feat_dim = 0
@@ -219,13 +221,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                                 embed_name + '_' + ntype,
                                 init_emb,
                                 part_policy=part_policy)
-        # ngnn
-        self.num_input_ngnn_layers = num_input_ngnn_layers
-        self.ngnn_mlp = {}
-        for type in g.ntypes:
-            self.ffn_layer = NGNNMLP(embed_size, embed_size,
-                            num_input_ngnn_layers, ngnn_activation, dropout)
-            self.ngnn_mlp[type] = self.ffn_layer
+            for type in g.ntypes:
+                self.ffn_layer = NGNNMLP(embed_size, embed_size,
+                                         num_input_ngnn_layers, ngnn_activation, dropout)
+                self.ngnn_mlp[type] = self.ffn_layer
+
     def forward(self, input_feats, input_nodes):
         """Forward computation
 
