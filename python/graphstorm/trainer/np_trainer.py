@@ -203,7 +203,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
+                                                     1024 / 1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,

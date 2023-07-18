@@ -80,7 +80,7 @@ def main(config_args):
     if trainer.rank == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-    if th.cuda.is_available(): # if self.dev_id >= 0
+    if th.cuda.is_available():
         device = 'cuda:%d' % trainer.dev_id
     else:
         device = 'cpu'

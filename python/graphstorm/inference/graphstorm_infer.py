@@ -35,7 +35,6 @@ class GSInfer():
         self._evaluator = None
         self._task_tracker = None
 
-    # change the description
     def setup_device(self, dev_id):
         """ Set up the CPU or CUDA device of this trainer.
 
