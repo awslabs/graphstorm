@@ -71,5 +71,5 @@ class NGNNMLP(nn.Module):
         h = emb
         for layer in self.ngnn_gnn:
             h = th.matmul(h, layer)
-        h = self.activation(h)
+            h = self.activation(h)
         return self.dropout(h)

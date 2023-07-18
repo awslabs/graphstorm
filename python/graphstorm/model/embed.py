@@ -221,9 +221,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                                 part_policy=part_policy)
         # ngnn
         self.num_input_ngnn_layers = num_input_ngnn_layers
-        self.ngnn_mlp = NGNNMLP(embed_size, embed_size,
+        self.ngnn_mlp = {}
+        for type in g.ntypes:
+            self.ffn_layer = NGNNMLP(embed_size, embed_size,
                             num_input_ngnn_layers, ngnn_activation, dropout)
-
+            self.ngnn_mlp[type] = self.ffn_layer
     def forward(self, input_feats, input_nodes):
         """Forward computation
 
@@ -269,12 +271,12 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             emb = self.dropout(emb)
             embs[ntype] = emb
 
-        def _apply(h):
+        def _apply(t, h):
             if self.num_input_ngnn_layers > 0:
-                h = self.ngnn_mlp(h)
+                h = self.ngnn_mlp[t](h)
             return h
 
-        embs = {ntype: _apply(h) for ntype, h in embs.items()}
+        embs = {ntype: _apply(ntype, h) for ntype, h in embs.items()}
         return embs
 
     def get_sparse_params(self):
