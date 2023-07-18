@@ -161,7 +161,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     use_node_embeddings : bool
         Whether we will use the node embeddings for individual nodes even when node features are
         available.
-    num_input_ngnn_layers: int, optional
+    num_ffn_layers_in_input: int, optional
         Number of layers of ngnn in the input layers
     """
     def __init__(self,
@@ -171,8 +171,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
-                 num_input_ngnn_layers=0,
-                 ngnn_activation=F.relu):
+                 num_ffn_layers_in_input=0,
+                 ffn_activation=F.relu):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.activation = activation
@@ -221,11 +221,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                                 part_policy=part_policy)
 
         # ngnn
-        self.num_input_ngnn_layers = num_input_ngnn_layers
+        self.num_ffn_layers_in_input = num_ffn_layers_in_input
         self.ngnn_mlp = nn.ModuleDict({})
         for ntype in g.ntypes:
             self.ngnn_mlp[ntype] = NGNNMLP(embed_size, embed_size,
-                            num_input_ngnn_layers, ngnn_activation, dropout)
+                            num_ffn_layers_in_input, ffn_activation, dropout)
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
@@ -273,7 +273,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             embs[ntype] = emb
 
         def _apply(t, h):
-            if self.num_input_ngnn_layers > 0:
+            if self.num_ffn_layers_in_input > 0:
                 h = self.ngnn_mlp[t](h)
             return h
 

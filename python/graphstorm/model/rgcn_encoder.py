@@ -49,9 +49,9 @@ class RelGraphConvLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
-    num_gnn_ngnn_layers: int, optional
+    num_ffn_layers_in_gnn: int, optional
         Number of layers of ngnn between gnn layers
-    ngnn_actication: torch.nn.functional
+    ffn_actication: torch.nn.functional
         Activation Method for ngnn
     """
     def __init__(self,
@@ -65,8 +65,8 @@ class RelGraphConvLayer(nn.Module):
                  activation=None,
                  self_loop=False,
                  dropout=0.0,
-                 num_gnn_ngnn_layers=0,
-                 ngnn_activation=F.relu):
+                 num_ffn_layers_in_gnn=0,
+                 ffn_activation=F.relu):
         super(RelGraphConvLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -103,9 +103,9 @@ class RelGraphConvLayer(nn.Module):
                                     gain=nn.init.calculate_gain('relu'))
 
         # ngnn
-        self.num_gnn_ngnn_layers = num_gnn_ngnn_layers
+        self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
         self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
-                                     num_gnn_ngnn_layers, ngnn_activation, dropout)
+                                     num_ffn_layers_in_gnn, ffn_activation, dropout)
 
         self.dropout = nn.Dropout(dropout)
 
@@ -147,7 +147,7 @@ class RelGraphConvLayer(nn.Module):
                 h = h + self.h_bias
             if self.activation:
                 h = self.activation(h)
-            if self.num_gnn_ngnn_layers > 0:
+            if self.num_ffn_layers_in_gnn > 0:
                 h = self.ngnn_mlp(h)
             return self.dropout(h)
 
@@ -182,7 +182,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
         Whether to add selfloop. Default True
     last_layer_act : torch.function
         Activation for the last layer. Default None
-    num_gnn_ngnn_layers: int
+    num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
     """
     def __init__(self,
@@ -193,7 +193,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
                  dropout=0,
                  use_self_loop=True,
                  last_layer_act=False,
-                 num_gnn_ngnn_layers=0):
+                 num_ffn_layers_in_gnn=0):
         super(RelationalGCNEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         if num_bases < 0 or num_bases > len(g.canonical_etypes):
             self.num_bases = len(g.canonical_etypes)
@@ -205,7 +205,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
             self.layers.append(RelGraphConvLayer(
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_bases, activation=F.relu, self_loop=use_self_loop,
-                dropout=dropout, num_gnn_ngnn_layers=num_gnn_ngnn_layers, ngnn_activation=F.relu))
+                dropout=dropout, num_ffn_layers_in_gnn=num_ffn_layers_in_gnn, ffn_activation=F.relu))
         # h2o
         self.layers.append(RelGraphConvLayer(
             h_dim, out_dim, g.canonical_etypes,

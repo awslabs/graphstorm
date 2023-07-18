@@ -1493,27 +1493,27 @@ class GSConfig:
         return eval_metric
 
     @property
-    def num_input_ngnn_layers(self):
+    def num_ffn_layers_in_input(self):
         """ Number of extra MLP layers in the input layer
         """
         # pylint: disable=no-member
-        if hasattr(self, "_num_input_ngnn_layers"):
-            assert self._num_input_ngnn_layers >= 0, \
+        if hasattr(self, "_num_ffn_layers_in_input"):
+            assert self._num_ffn_layers_in_input >= 0, \
                 "Number of extra MLP layers in input layer must be larger or equal than 0"
-            return self._num_input_ngnn_layers
-        # Set default ngnn layer number to 0
+            return self._num_ffn_layers_in_input
+        # Set default mlp layer number in the input layer to 0
         return 0
 
     @property
-    def num_gnn_ngnn_layers(self):
+    def num_ffn_layers_in_gnn(self):
         """ Number of extra MLP layers between GNN layers
         """
         # pylint: disable=no-member
-        if hasattr(self, "_num_gnn_ngnn_layers"):
-            assert self._num_gnn_ngnn_layers >= 0, \
+        if hasattr(self, "_num_ffn_layers_in_gnn"):
+            assert self._num_ffn_layers_in_gnn >= 0, \
                 "Number of extra MLP layers between GNN layers must be larger or equal than 0"
-            return self._num_gnn_ngnn_layers
-        # Set default ngnn layer number to 0
+            return self._num_ffn_layers_in_gnn
+        # Set default mlp layer number between gnn layer to 0
         return 0
 
 def _add_initialization_args(parser):
@@ -1569,9 +1569,9 @@ def _add_gnn_args(parser):
             help="The number of features in the hidden state")
     group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
             help="number of layers in the GNN")
-    group.add_argument("--num-input-ngnn-layers", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-ffn-layers-in-input", type=int, default=argparse.SUPPRESS,
                        help="number of extra MLP layers in input layer.")
-    group.add_argument("--num-gnn-ngnn-layers", type=int, default=argparse.SUPPRESS,
+    group.add_argument("--num-ffn-layers-in-gnn", type=int, default=argparse.SUPPRESS,
                        help="number of extra MLP layers between GNN layers.")
     parser.add_argument(
             "--use-mini-batch-infer",
