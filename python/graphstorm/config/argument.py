@@ -1570,7 +1570,7 @@ def _add_gnn_args(parser):
     group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
             help="number of layers in the GNN")
     group.add_argument("--num-ffn-layers-in-input", type=int, default=argparse.SUPPRESS,
-                       help="number of extra MLP layers in input layer.")
+                       help="number of extra feedforward neural network layers in input layer.")
     group.add_argument("--num-ffn-layers-in-gnn", type=int, default=argparse.SUPPRESS,
                        help="number of extra MLP layers between GNN layers.")
     parser.add_argument(
