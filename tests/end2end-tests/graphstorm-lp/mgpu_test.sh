@@ -462,7 +462,7 @@ python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp 
 
 error_and_exit ${PIPESTATUS[0]}
 
-cnt=$(ls -l /data/gsgnn_lp_ml_lmmlp_dot_all_etype/ | grep epoch | wc -l)
+cnt=$(ls -l /data/movielen_100k_lp_user_learn_emb_movie_token_1p/ | grep epoch | wc -l)
 if test $cnt != 1
 then
     echo "The number of save models $cnt is not equal to the specified topk 1"
