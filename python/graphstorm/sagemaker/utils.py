@@ -256,13 +256,11 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
         if err.response['ResponseMetadata']['HTTPStatusCode'] == 404:
             # The key does not exist.
             raise Exception(f"Metadata key {s3_input_key}/{graph_config} does not exist")
-        elif err.response['Error']['Code'] == 403:
+        if err.response['Error']['Code'] == 403:
             # Unauthorized, including invalid bucket
             raise Exception("Authorization error, check the path and auth again:" \
                             f"{s3_input_key}/{graph_config}")
-        else:
-            # Something else went wrong.
-            raise err
+        raise err
 
     S3Downloader.download(os.path.join(graph_data_s3, graph_config),
             graph_path, sagemaker_session=sagemaker_session)
