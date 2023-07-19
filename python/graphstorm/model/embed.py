@@ -162,7 +162,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         Whether we will use the node embeddings for individual nodes even when node features are
         available.
     num_ffn_layers_in_input: int, optional
-        Number of layers of ngnn in the input layers
+        Number of layers of feedforward neural network for each node type in the input layers
     """
     def __init__(self,
                  g,
