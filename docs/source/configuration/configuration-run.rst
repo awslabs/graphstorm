@@ -172,7 +172,7 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``num_ffn_layers_in_input: 1``
     - Argument: ``--num-ffn-layers-in-input 1``
     - Default value: ``0``
-- **num-ffn-layers-in-gnn**: Graphstorm provides this argument as an option to increase the size of the parameters between the gnn layer. This argument will add MLP layers in the hidden layer before doing the feature aggregation. Generally, h = MLP(h) between the hidden layer in the GNN. If the input here is n, it could add n MLP layer here. ffn stands for freeforward network.
+- **num_ffn_layers_in_gnn**: Graphstorm provides this argument as an option to increase the size of the parameters between gnn layers. This argument will add an MLP layer at the end of each GNN layer. Generally, h = MLP(h) between GNN layers in a GNN model. If the input here is n, it could add n feedforward neural network layers here.
     - Yaml: ``num-ffn-layers-in-gnn: 1``
     - Argument: ``--num-ffn-layers-in-gnn 1``
     - Default value: ``0.0``
