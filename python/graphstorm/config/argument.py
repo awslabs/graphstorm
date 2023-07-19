@@ -1572,7 +1572,7 @@ def _add_gnn_args(parser):
     group.add_argument("--num-ffn-layers-in-input", type=int, default=argparse.SUPPRESS,
                        help="number of extra feedforward neural network layers in input layer.")
     group.add_argument("--num-ffn-layers-in-gnn", type=int, default=argparse.SUPPRESS,
-                       help="number of extra MLP layers between GNN layers.")
+                       help="number of extra feedforward neural network layers between GNN layers.")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
