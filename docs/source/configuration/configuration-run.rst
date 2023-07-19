@@ -168,7 +168,7 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``alpha_l2norm: 0.00001``
     - Argument: ``--alpha-l2norm 0.00001``
     - Default value: ``0.0``
-- **num-ffn-layers-in-input**: Graphstorm provides this argument as an option to increase the size of the parameters in the input layer. This argument will add MLP layers after the computing the embeddings. It accepts the integers greater than zero. Generally, embeds = MLP(embeds) in the input layer in the GNN. If the input here is n, it could add n MLP layer here. ffn stands for freeforward network.
+- **num_ffn_layers_in_input**: Graphstorm provides this argument as an option to increase the size of the parameters in the input layer. This argument will add an MLP layer after computing the input embeddings for each node type. It accepts an integer greater than zero. Generally, embeds = MLP(embeds) for each node type in the input layer. If the input is *n*, it could add *n* Feedforward neural network layers in the MLP.
     - Yaml: ``num_ffn_layers_in_input: 1``
     - Argument: ``--num-ffn-layers-in-input 1``
     - Default value: ``0``
