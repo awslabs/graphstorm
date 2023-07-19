@@ -1506,7 +1506,7 @@ class GSConfig:
 
     @property
     def num_ffn_layers_in_gnn(self):
-        """ Number of extra MLP layers between GNN layers
+        """ Number of extra feedforward neural network layers between GNN layers
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_ffn_layers_in_gnn"):
