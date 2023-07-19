@@ -33,6 +33,7 @@ from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder
 from .model.rgat_encoder import RelationalGATEncoder
 from .model.node_gnn import GSgnnNodeModel
+from .model.node_glem import GLEM
 from .model.edge_gnn import GSgnnEdgeModel
 from .model.lp_gnn import GSgnnLinkPredictionModel
 from .model.loss_func import (ClassifyLossFunc,
@@ -150,7 +151,10 @@ def create_builtin_node_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    model = GSgnnNodeModel(config.alpha_l2norm)
+    if config.training_method["name"] == "glem":
+        model = GLEM(config.alpha_l2norm, **config.training_method["kwargs"])
+    elif config.training_method["name"] == "default":
+        model = GSgnnNodeModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)
 
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:

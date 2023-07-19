@@ -22,6 +22,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnNodePredictionTrainer
+from graphstorm.trainer import GLEMNodePredictionTrainer
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
@@ -54,6 +55,7 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
+    config.verify_arguments(True)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
@@ -64,8 +66,12 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
-    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+    if config.training_method["name"] == "glem":
+        trainer_class = GLEMNodePredictionTrainer
+    elif config.training_method["name"] == "default":
+        trainer_class = GSgnnNodePredictionTrainer
+    trainer = trainer_class(model, gs.get_rank(),
+                                        topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)

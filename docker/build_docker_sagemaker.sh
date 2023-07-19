@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eo pipefail
 
 # process argument 1: graphstorm home folder
 if [ -z "$1" ]; then

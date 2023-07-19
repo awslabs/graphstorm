@@ -3,8 +3,6 @@ version: 1.0
 gsf:
   basic:
     backend: gloo
-    ip_config: ip_list.txt
-    part_config: mag_bert_constructed2/mag.json
     verbose: false
     save_perf_results_path: null
   gnn:
@@ -26,7 +24,7 @@ gsf:
     batch_size: 10240
     eval_fanout: "20"
     eval_batch_size: 1024
-    bert_infer_bs: 10240
+    bert_infer_bs: 128
     wd_l2norm: 0
     no_validation: false
     eval_frequency: 500
