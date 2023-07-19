@@ -456,3 +456,27 @@ echo "**************dataset: Movielens, two training edges but only one with edg
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true  --eval-batch-size 1024 --save-model-path /data/gsgnn_lp_ml_distmult/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_distmult/emb/ --lp-decoder-type distmult --train-etype user,rating,movie movie,rating-rev,user --lp-edge-weight-for-loss user,rating,movie:rate
 
 error_and_exit $?
+
+echo "**************dataset: Movielens, input encoder with Bert on movie and trainable embedding on user, inference: full-graph, negative_sampler: joint, decoder: Dot, save model"
+python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_user_feat_movie_token_1p/ml.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lm_lp.py --cf ml_lm_input_lp.yaml  --save-model-path /data/movielen_100k_lp_user_learn_emb_movie_token_1p/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/movielen_100k_lp_user_learn_emb_movie_token_1p/emb/ --lp-decoder-type dot_product --model-encoder-type mlp | tee train_log.txt
+
+error_and_exit ${PIPESTATUS[0]}
+
+cnt=$(ls -l /data/gsgnn_lp_ml_lmmlp_dot_all_etype/ | grep epoch | wc -l)
+if test $cnt != 1
+then
+    echo "The number of save models $cnt is not equal to the specified topk 1"
+    exit -1
+fi
+
+best_epoch_dot=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch_dot"
+
+echo "**************dataset: Movielens, input encoder with Bert on movie and trainable embedding on user, do inference on saved model, decoder: Dot, eval_etype: None"
+python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_user_feat_movie_token_1p/ml.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_lm.py --cf ml_lm_input_lp_infer.yaml --save-embed-path /data/movielen_100k_lp_user_learn_emb_movie_token_1p/infer-emb/ --restore-model-path /data/movielen_100k_lp_user_learn_emb_movie_token_1p/epoch-$best_epoch_dot/ --lp-decoder-type dot_product --no-validation True --model-encoder-type mlp
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/movielen_100k_lp_user_learn_emb_movie_token_1p/emb/ --infer_embout /data/movielen_100k_lp_user_learn_emb_movie_token_1p/infer-emb/ --link_prediction
+
+error_and_exit $?
