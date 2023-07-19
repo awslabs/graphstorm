@@ -7,8 +7,8 @@ gsf:
     part_config: movielen_100k_train_val_1p_4t/movie-lens-100k.json
     verbose: false
     save_perf_results_path: null
-  gnn:
     model_encoder_type: rgcn
+  gnn:
     fanout: "4"
     num_layers: 1
     hidden_size: 128
