@@ -23,7 +23,7 @@ from .eval_func import ClassificationMetrics, RegressionMetrics, LinkPredictionM
 from .utils import broadcast_data
 from ..config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from ..config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
-from ..utils import get_rank
+from ..utils import get_rank, get_world_size
 from .utils import calc_ranking, gen_mrr_score
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
@@ -494,8 +494,8 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
                 Test Score
         """
         # exchange preds and labels between runners
-        local_rank = th.distributed.get_rank()
-        world_size = th.distributed.get_world_size()
+        local_rank = get_rank()
+        world_size = get_world_size()
         val_pred = broadcast_data(local_rank, world_size, val_pred)
         val_labels = broadcast_data(local_rank, world_size, val_labels)
         test_pred = broadcast_data(local_rank, world_size, test_pred)

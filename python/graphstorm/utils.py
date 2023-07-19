@@ -24,10 +24,26 @@ import psutil
 import dgl
 import torch as th
 
+def is_distributed():
+    return dgl.distributed.dist_context.is_initialized()
+
 def get_rank():
     """ Get rank of a process
     """
-    return th.distributed.get_rank()
+    if is_distributed():
+        return th.distributed.get_rank()
+    else:
+        return 0
+
+def get_world_size():
+    if is_distributed():
+        return th.distributed.get_world_size()
+    else:
+        return 1
+
+def barrier():
+    if is_distributed():
+        th.distributed.barrier()
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.

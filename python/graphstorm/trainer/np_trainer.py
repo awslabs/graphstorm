@@ -24,7 +24,7 @@ from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
+from ..utils import sys_tracker, is_distributed, barrier
 
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ A trainer for node prediction
@@ -85,9 +85,12 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
 
-        model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
-                                        output_device=self.dev_id,
-                                        static_graph=True)
+        if is_distributed():
+            model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
+                                            output_device=self.dev_id,
+                                            static_graph=True)
+        else:
+            model = self._model
         device = model.device
         data = train_loader.data
 
@@ -150,7 +153,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False) and \
                     val_loader is not None:
-                    val_score = self.eval(model.module, val_loader, test_loader,
+                    val_score = self.eval(model.module if is_distributed() else model,
+                                          val_loader, test_loader,
                                           mini_batch_infer, total_steps)
 
                     if self.evaluator.do_early_stop(val_score):
@@ -175,7 +179,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     break
 
             # end of an epoch
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - t0
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
@@ -183,7 +187,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, val_loader, test_loader,
+                val_score = self.eval(model.module if is_distributed() else model,
+                                      val_loader, test_loader,
                                       mini_batch_infer, total_steps)
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True

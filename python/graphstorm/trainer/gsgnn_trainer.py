@@ -24,6 +24,8 @@ from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
 
+from ..utils import barrier
+
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
 
@@ -185,14 +187,14 @@ class GSgnnTrainer():
     def save_model(self, model, epoch, i, save_model_path):
         '''Save the model for a certain iteration in an epoch.
         '''
-        th.distributed.barrier()
+        barrier()
         if save_model_path is not None and self.rank == 0:
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
             model.module.save_model(save_model_path)
             self.optimizer.save_opt_state(save_model_path)
 
         # wait for rank0 to save the model and/or embeddings
-        th.distributed.barrier()
+        barrier()
 
     def remove_saved_model(self, epoch, i, save_model_path):
         """ remove previously saved model, which may not be the best K performed or other reasons.

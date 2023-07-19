@@ -53,7 +53,8 @@ def initialize(ip_config, backend):
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
     dgl.distributed.initialize(ip_config, net_type='socket')
-    th.distributed.init_process_group(backend=backend)
+    if ip_config is not None:
+        th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
 
 def get_feat_size(g, feat_names):

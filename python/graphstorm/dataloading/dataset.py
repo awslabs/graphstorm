@@ -21,6 +21,7 @@ import dgl
 
 from ..utils import get_rank
 from ..utils import sys_tracker
+from ..utils import is_distributed
 from .utils import dist_sum
 
 def split_full_edge_list(g, etype, rank):
