@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
+    Ref Paper: https://arxiv.org/abs/2111.11638
     NGNN MLP Layer.
 """
 import torch as th
