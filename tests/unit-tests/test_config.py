@@ -258,7 +258,7 @@ def test_gnn_info():
         assert config.hidden_size == 128
         assert config.use_mini_batch_infer == True
         assert config.num_ffn_layers_in_input == 1
-        assert config.numnum_ffn_layers_in_gnn == 1
+        assert config.num_ffn_layers_in_gnn == 1
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test3.yaml'),
                          local_rank=0)
@@ -273,7 +273,7 @@ def test_gnn_info():
         assert config.hidden_size == 0 # lm model may not need hidden size
         assert config.use_mini_batch_infer == True
         assert config.num_ffn_layers_in_input == 0
-        assert config.numnum_ffn_layers_in_gnn == 0
+        assert config.num_ffn_layers_in_gnn == 0
         check_failure(config, "fanout") # fanout must be provided if used
         check_failure(config, "eval_fanout")
 
