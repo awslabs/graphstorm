@@ -22,7 +22,7 @@ import torch.nn.functional as F
 class NGNNMLP(nn.Module):
     r"""NGNN MLP Implementation
 
-    NGNN Layer is consisted of combination of MLP Layer, activation layer and dropout
+    NGNN Layer is consisted of combination of a MLP Layer, an activation layer and dropout
 
     Parameters
     ----------
