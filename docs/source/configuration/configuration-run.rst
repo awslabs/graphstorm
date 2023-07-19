@@ -43,7 +43,7 @@ Model Configurations
 --------------------------------
 GraphStorm provides a set of parameters to config the GNN model structure (input layer, gnn layer, decoder layer, etc)
 
-- **model_encoder_type**: (**Required**) Graph encoder model used to encode graph data. It can be rgat or rgcn.
+- **model_encoder_type**: (**Required**) The Encoder model used to encode graph data. It can be a GNN encoder or a non-GNN encoder. A GNN encoder is composed of an input layer, which encodes input node features, and a GNN layer. A non-GNN encoder only contains an input layer. GraphStorm supports two GNN encoders: `rgcn` which uses relational graph convolutional network as its GNN model and `rgat` which uses relational graph attention network as its GNN model. GraphStorm supports two non-GNN encoder: `lm` which requires each node type has and only has text features and uses language model, e.g., Bert, to encode these features and `mlp` which accepts various types of input node features (text feature, floating points and learnable embeddings) and finally uses an MLP to project these features into same dimension.
     - Yaml: ``model_encoder_type: rgcn``
     - Argument: ``--model-encoder-type rgcn``
     - Default value: This parameter must be provided by user.
