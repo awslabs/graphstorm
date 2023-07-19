@@ -103,7 +103,7 @@ def write_data_csv(data, data_file, delimiter=','):
     data_frame.to_csv(data_file, index=True, sep=delimiter)
 
 def _pad_stack(arrs):
-    max_len = max([len(arr) for arr in arrs])
+    max_len = max(len(arr) for arr in arrs)
     dtype = arrs[0].dtype
     for i, arr in enumerate(arrs):
         if len(arr) != max_len:
