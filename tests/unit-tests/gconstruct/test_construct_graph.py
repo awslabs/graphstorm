@@ -26,6 +26,7 @@ from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
+from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
 from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
@@ -33,8 +34,10 @@ from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
+                                         ExtMemArrayWrapper,
                                          partition_graph,
-                                         update_two_phase_feat_ops)
+                                         update_two_phase_feat_ops,
+                                         HDF5Array)
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -65,6 +68,22 @@ def test_parquet():
         pass
 
     os.remove(tmpfile)
+
+def test_csv():
+    data = {
+            "t1": np.random.uniform(size=(10,)),
+            "t2": np.random.uniform(size=(10,)),
+    }
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        write_data_csv(data, os.path.join(tmpdirname, 'test.csv'))
+        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'))
+        for key, val in data.items():
+            assert key in data1
+            np.testing.assert_almost_equal(data1[key], data[key])
+
+        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), data_fields=['t1'])
+        assert 't1' in data1
+        np.testing.assert_almost_equal(data1['t1'], data['t1'])
 
 def test_json():
     handle, tmpfile = tempfile.mkstemp()
@@ -544,21 +563,25 @@ def test_label():
         check_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
         check_integer(res['label'], res)
-    conf = {'task_type': 'classification',
-            'label_col': 'label',
-            'split_pct': [0.8, 0.1, 0.1]}
-    ops = parse_label_ops([conf], True)
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'split_pct': [0.8, 0.1, 0.1]}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     check_classification(res)
-    ops = parse_label_ops([conf], True)
+    ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
-    ops = parse_label_ops([conf], True)
+    ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
@@ -566,30 +589,38 @@ def test_label():
     data = {'label' : np.random.randint(2, size=(15,5)).astype(np.float32)}
     data['label'][[0,3,4]] = np.NAN
     data['label'][[1,2], [3,4]] = np.NAN
-    ops = parse_label_ops([conf], True)
+    ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with integer labels.
     data = {'label' : np.random.randint(10, size=10)}
-    ops = parse_label_ops([conf], True)
+    ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with integer labels.
     # Data split doesn't use all labeled samples.
-    conf = {'task_type': 'classification',
-            'label_col': 'label',
-            'split_pct': [0.4, 0.05, 0.05]}
-    ops = parse_label_ops([conf], True)
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'split_pct': [0.4, 0.05, 0.05]}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
     data = {'label' : np.random.randint(3, size=20)}
     res = process_labels(data, ops)
     check_classification(res)
 
     # split_pct is not specified.
-    conf = {'task_type': 'classification',
-            'label_col': 'label'}
-    ops = parse_label_ops([conf], True)
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label'}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
     data = {'label' : np.random.randint(3, size=10)}
     res = process_labels(data, ops)
     assert np.sum(res['train_mask']) == 8
@@ -597,28 +628,42 @@ def test_label():
     assert np.sum(res['test_mask']) == 1
 
     # Check custom data split for classification.
-    data = {'label' : np.random.randint(3, size=10)}
+    data = {
+            "id": np.arange(10),
+            'label' : np.random.randint(3, size=10)
+    }
     write_index_json(np.arange(8), "/tmp/train_idx.json")
     write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
     write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
-    conf = {'task_type': 'classification',
-            'label_col': 'label',
-            'custom_split_filenames': {"train": "/tmp/train_idx.json",
-                                       "valid": "/tmp/val_idx.json",
-                                       "test": "/tmp/test_idx.json"}
-            }
-    ops = parse_label_ops([conf], True)
+    conf = {
+            "node_id_col": "id",
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"}}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
     # Check custom data split with only training set.
-    data = {'label' : np.random.randint(3, size=10)}
+    data = {
+            "id": np.arange(10),
+            'label' : np.random.randint(3, size=10)
+    }
     write_index_json(np.arange(8), "/tmp/train_idx.json")
-    conf = {'task_type': 'classification',
-            'label_col': 'label',
-            'custom_split_filenames': {"train": "/tmp/train_idx.json"}
-            }
-    ops = parse_label_ops([conf], True)
+    conf = {
+            "node_id_col": "id",
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json"} }
+            ]
+    }
+    ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     assert "train_mask" in res
     assert np.sum(res["train_mask"]) == 8
@@ -628,64 +673,60 @@ def test_label():
     assert np.sum(res["test_mask"]) == 0
 
     # Check regression
-    conf = {'task_type': 'regression',
-            'label_col': 'label',
-            'split_pct': [0.8, 0.1, 0.1]}
-    ops = parse_label_ops([conf], True)
+    conf = {
+            "labels": [
+                {'task_type': 'regression',
+                 'label_col': 'label',
+                 'split_pct': [0.8, 0.1, 0.1]}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     def check_regression(res):
         check_split(res)
     check_regression(res)
-    ops = parse_label_ops([conf], False)
+    ops = parse_label_ops(conf, False)
     res = process_labels(data, ops)
     check_regression(res)
 
     # Check regression with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
-    ops = parse_label_ops([conf], True)
+    ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_regression(res)
 
     # Check custom data split for regression.
-    data = {'label' : np.random.uniform(size=10) * 10}
+    data = {
+            "id": np.arange(10),
+            'label' : np.random.uniform(size=10) * 10
+    }
     write_index_json(np.arange(8), "/tmp/train_idx.json")
     write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
     write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
-    conf = {'task_type': 'regression',
-            'label_col': 'label',
-            'custom_split_filenames': {"train": "/tmp/train_idx.json",
-                                       "valid": "/tmp/val_idx.json",
-                                       "test": "/tmp/test_idx.json"}
-            }
-    ops = parse_label_ops([conf], True)
+    conf = {
+            "node_id_col": "id",
+            "labels": [
+                {'task_type': 'regression',
+                 'label_col': 'label',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"} }
+            ]
+    }
+    ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_regression(res)
 
     # Check link prediction
-    conf = {'task_type': 'link_prediction',
-            'split_pct': [0.8, 0.1, 0.1]}
-    ops = parse_label_ops([conf], False)
-    data = {'label' : np.random.uniform(size=10) * 10}
-    res = process_labels(data, ops)
-    assert len(res) == 3
-    assert 'train_mask' in res
-    assert 'val_mask' in res
-    assert 'test_mask' in res
-    assert np.sum(res['train_mask']) == 8
-    assert np.sum(res['val_mask']) == 1
-    assert np.sum(res['test_mask']) == 1
-
-    # Check custom data split for link prediction.
-    np.save("/tmp/train_idx.npy", np.arange(8))
-    np.save("/tmp/val_idx.npy", np.arange(8, 9))
-    np.save("/tmp/test_idx.npy", np.arange(9, 10))
-    conf = {'task_type': 'link_prediction',
-            'custom_split': ["/tmp/train_idx.npy",
-                             "/tmp/val_idx.npy",
-                             "/tmp/test_idx.npy"]}
-    ops = parse_label_ops([conf], False)
+    conf = {
+            "labels": [
+                {'task_type': 'link_prediction',
+                 'split_pct': [0.8, 0.1, 0.1]}
+            ]
+    }
+    ops = parse_label_ops(conf, False)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     assert len(res) == 3
@@ -843,13 +884,13 @@ def test_merge_arrays():
         data1 = read_data_hdf5(tmpfile, in_mem=False)
         arrs = [data1['data1'], data1['data2']]
         res = converter(arrs, "test1")
-        assert isinstance(res, np.ndarray)
+        assert isinstance(res, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(res, np.concatenate([data["data1"],
                                                            data["data2"]]))
 
         # One HDF5 array
         res = converter([data1['data1']], "test1.5")
-        assert isinstance(res, np.ndarray)
+        assert isinstance(res, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(res, data['data1'])
 
         os.remove(tmpfile)
@@ -858,26 +899,26 @@ def test_merge_arrays():
         data1 = np.random.uniform(size=(1000, 10))
         data2 = np.random.uniform(size=(900, 10))
         em_arr = converter([data1, data2], "test2")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
 
         # Merge two arrays whose feature dimension is smaller than 2.
         data1 = np.random.uniform(size=(1000,))
         data2 = np.random.uniform(size=(900,))
         em_arr = converter([data1, data2], "test3")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
 
         # Input is an array whose feature dimension is larger than 2.
         data1 = np.random.uniform(size=(1000, 10))
         em_arr = converter([data1], "test4")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
 
         # Input is an array whose feature dimension is smaller than 2.
         data1 = np.random.uniform(size=(1000,))
         em_arr = converter([data1], "test5")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
 
 def test_partition_graph():
@@ -980,7 +1021,7 @@ def test_multiprocessing_checks():
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
     (feat_ops, _, _) = parse_feat_ops(conf['features'])
-    label_ops = parse_label_ops(conf['labels'], is_node=True)
+    label_ops = parse_label_ops(conf, is_node=True)
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
@@ -997,7 +1038,7 @@ def test_multiprocessing_checks():
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
     feat_ops = None
-    label_ops = parse_label_ops(conf['labels'], is_node=True)
+    label_ops = parse_label_ops(conf, is_node=True)
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
@@ -1071,6 +1112,7 @@ def test_multiprocessing_checks():
 
 if __name__ == '__main__':
     test_multiprocessing_checks()
+    test_csv()
     test_hdf5()
     test_json()
     test_partition_graph()

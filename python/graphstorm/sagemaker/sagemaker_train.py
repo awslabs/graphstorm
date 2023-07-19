@@ -87,7 +87,7 @@ def launch_train_task(task_type, num_gpus, graph_config,
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
-    launch_cmd = ["python3", "-m", cmd,
+    launch_cmd = ["python3", "-u", "-m", cmd,
         "--num-trainers", f"{num_gpus}",
         "--num-servers", "1",
         "--num-samplers", "0",
@@ -145,7 +145,8 @@ def run_train(args, unknownargs):
     """
     num_gpus = args.num_gpus
     data_path = args.data_path
-    output_path = "/opt/ml/model/"
+    output_path = "/opt/ml/gsgnn_model/"
+    os.makedirs(output_path, exist_ok=True)
 
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)

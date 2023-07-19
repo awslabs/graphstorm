@@ -24,6 +24,16 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--balance-edges \
 	--num-parts 1
 
+python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
+	--filepath /data \
+	--target-ntype movie \
+	--add-reverse-edges \
+	--num-trainers-per-machine 4 \
+	--output movielen_100k_infer_val_1p_4t \
+	--no-split true \
+	--balance-edges \
+	--num-parts 1
+
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 	--filepath /data \
@@ -84,6 +94,17 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--val-pct 0.1 \
 	--num-parts 1
 
+python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
+	--filepath /data \
+    --elabel-field "user,rating,movie:rate" \
+    --target-etype "user,rating,movie" \
+    --etask-type "regression" \
+	--num-trainers-per-machine 4 \
+	--output movielen_100k_er_infer_1p_4t \
+	--balance-edges \
+	--no-split true \
+	--num-parts 1
+
 # dummy data Edge Classification
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
@@ -98,6 +119,18 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--generate-new-edge-split true \
 	--train-pct 0.1 \
 	--val-pct 0.1 \
+	--num-parts 1
+
+export PYTHONPATH=$GS_HOME/python/
+python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
+	--filepath /data \
+    --elabel-field "user,rating,movie:rate" \
+    --target-etype "user,rating,movie" \
+    --etask-type "classification" \
+	--num-trainers-per-machine 4 \
+	--output movielen_100k_multi_label_ec_infer \
+	--balance-edges \
+	--no-split true \
 	--num-parts 1
 
 # Create data for edge classification with text features

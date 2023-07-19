@@ -41,6 +41,7 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
+    config.verify_arguments(False)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
 
@@ -57,7 +58,16 @@ def main(config_args):
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
+        assert len(infer_data.test_idxs) > 0, \
+            "There is not test data for evaluation. " \
+            "You can use --no-validation true to avoid do testing"
+        target_idxs = infer_data.test_idxs
+    else:
+        assert len(infer_data.infer_idxs) > 0, \
+            f"To do inference on {config.target_etype} without doing evaluation, " \
+            "you should not define test_mask as its edge feature. " \
+            "GraphStorm will do inference on the whole edge set. "
+        target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
     if th.cuda.is_available():
@@ -65,7 +75,7 @@ def main(config_args):
     else:
         device = 'cpu'
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
-    dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=fanout,
+    dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,

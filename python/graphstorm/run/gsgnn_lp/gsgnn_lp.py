@@ -37,6 +37,14 @@ from graphstorm.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_LOCALJOINT_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
+from graphstorm.dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
+from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
+                                    FastGSgnnLPJointNegDataLoader,
+                                    FastGSgnnLPLocalUniformNegDataLoader,
+                                    FastGSgnnLPLocalJointNegDataLoader)
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
@@ -46,6 +54,7 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
+    config.verify_arguments(True)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
@@ -94,6 +103,14 @@ def main(config_args):
         dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_JOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalUniformNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalJointNegDataLoader
     else:
         raise ValueError('Unknown negative sampler')
     if th.cuda.is_available():

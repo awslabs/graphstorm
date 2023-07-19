@@ -29,7 +29,8 @@ from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
-from .file_io import HDF5Array, read_index_json
+from .file_io import read_index_json
+from .utils import ExtMemArrayWrapper
 
 def _get_output_dtype(dtype_str):
     if dtype_str == 'float16':
@@ -221,9 +222,9 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         if len(self._val_dict) > 0:
             return {}
 
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of CategoricalTransform must be numpy array or HDF5Array"
-        if isinstance(feats, HDF5Array):
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of CategoricalTransform must be numpy array or ExtMemArray"
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -319,9 +320,9 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats: np.array
             Data to be processed
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
-        if isinstance(feats, HDF5Array):
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -384,14 +385,14 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         -------
         np.array
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
 
         assert not np.any(self._max_val == self._min_val), \
             f"At least one element of Max Val {self._max_val} " \
             f"and Min Val {self._min_val} is equal. This will cause divide by zero error"
 
-        if isinstance(feats, HDF5Array):
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -442,7 +443,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
 
     def call(self, feats):
         # do nothing. Rank Gauss is done after merging all arrays together.
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
 
         if np.issubdtype(feats.dtype, np.integer) \
@@ -464,6 +465,8 @@ class RankGaussTransform(GlobalProcessFeatTransform):
     def after_merge_transform(self, feats):
         # The feats can be a numpy array or a numpy memmaped object
         # Get ranking information.
+        if isinstance(feats, ExtMemArrayWrapper):
+            feats = feats.to_numpy()
         feats = feats.argsort(axis=0).argsort(axis=0)
         feat_range = len(feats) - 1
         # norm to [-1, 1]
@@ -656,7 +659,7 @@ class Noop(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
@@ -800,7 +803,7 @@ def process_features(data, ops):
         for key, val in res.items():
             # Check if has 1D features. If yes, convert to 2D features
             if len(val.shape) == 1:
-                if isinstance(val, HDF5Array):
+                if isinstance(val, ExtMemArrayWrapper):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
@@ -844,6 +847,8 @@ class CustomLabelProcessor:
         The column name for labels.
     label_name : str
         The label name.
+    id_col : str
+        The name of the ID column.
     task_type : str
         The task type.
     train_idx : Numpy array
@@ -853,13 +858,14 @@ class CustomLabelProcessor:
     test_idx : Numpy array
         The array that contains the index of test data points.
     """
-    def __init__(self, col_name, label_name, task_type,
+    def __init__(self, col_name, label_name, id_col, task_type,
                  train_idx=None, val_idx=None, test_idx=None):
+        self._id_col = id_col
         self._col_name = col_name
         self._label_name = label_name
-        self._train_idx = train_idx
-        self._val_idx = val_idx
-        self._test_idx = test_idx
+        self._train_idx = set(train_idx.tolist()) if train_idx is not None else None
+        self._val_idx = set(val_idx.tolist()) if val_idx is not None else None
+        self._test_idx = set(test_idx.tolist()) if test_idx is not None else None
         self._task_type = task_type
 
     @property
@@ -874,28 +880,30 @@ class CustomLabelProcessor:
         """
         return self._label_name
 
-    def data_split(self, num_samples):
+    def data_split(self, ids):
         """ Split the data for training/validation/test.
 
         Parameters
         ----------
-        num_samples : int
-            The total number of data points.
+        ids : numpy array
+            The array of IDs.
 
         Returns
         -------
         dict of Numpy array
             The arrays for training/validation/test masks.
         """
+        num_samples = len(ids)
         train_mask = np.zeros((num_samples,), dtype=np.int8)
         val_mask = np.zeros((num_samples,), dtype=np.int8)
         test_mask = np.zeros((num_samples,), dtype=np.int8)
-        if self._train_idx is not None:
-            train_mask[self._train_idx] = 1
-        if self._val_idx is not None:
-            val_mask[self._val_idx] = 1
-        if self._test_idx is not None:
-            test_mask[self._test_idx] = 1
+        for i, idx in enumerate(ids):
+            if self._train_idx is not None and idx in self._train_idx:
+                train_mask[i] = 1
+            elif self._val_idx is not None and idx in self._val_idx:
+                val_mask[i] = 1
+            elif self._test_idx is not None and idx in self._test_idx:
+                test_mask[i] = 1
         train_mask_name = 'train_mask'
         val_mask_name = 'val_mask'
         test_mask_name = 'test_mask'
@@ -917,16 +925,10 @@ class CustomLabelProcessor:
         -------
         dict of Tensors : it contains the labels as well as training/val/test splits.
         """
-        if self.col_name in data:
-            label = data[self.col_name]
-            num_samples = len(label)
-        else:
-            assert len(data) > 0, "The edge data is empty."
-            label = None
-            for val in data.values():
-                num_samples = len(val)
-                break
-        res = self.data_split(num_samples)
+        label = data[self.col_name] if self.col_name in data else None
+        assert self._id_col in data, \
+                f"The input data does not have ID column {self._id_col}."
+        res = self.data_split(data[self._id_col])
         if label is not None and self._task_type == "classification":
             res[self.label_name] = np.int32(label)
         elif label is not None:
@@ -1101,8 +1103,9 @@ def parse_label_ops(confs, is_node):
     -------
     list of LabelProcessor : the label processors generated from the configurations.
     """
-    assert len(confs) == 1, "We only support one label per node/edge type."
-    label_conf = confs[0]
+    label_confs = confs['labels']
+    assert len(label_confs) == 1, "We only support one label per node/edge type."
+    label_conf = label_confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
     if 'custom_split_filenames' in label_conf:
@@ -1113,8 +1116,9 @@ def parse_label_ops(confs, is_node):
         val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
         test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
-        return [CustomLabelProcessor(label_col, label_col, task_type,
-                                     train_idx, val_idx, test_idx)]
+        assert "node_id_col" in confs, "Custom data split only works for nodes."
+        return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
+                                     task_type, train_idx, val_idx, test_idx)]
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']

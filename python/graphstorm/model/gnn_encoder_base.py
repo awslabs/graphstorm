@@ -21,6 +21,8 @@ from torch import nn
 from dgl.distributed import DistTensor, node_split
 from .gs_layer import GSLayer
 
+from ..utils import get_rank
+
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
 
@@ -124,6 +126,10 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                             drop_last=False)
 
             for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
+                if iter_l % 100000 == 0 and get_rank() == 0:
+                    print(f"[Rank 0] dist_inference: Layer [{i}]" \
+                          "finishes [{iter_l}] iterations.")
+
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
                 block = blocks[0].to(device)
