@@ -24,8 +24,10 @@ import os
 import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
-import torch as th
 import h5py
+import pandas as pd
+
+from .utils import HDF5Handle, HDF5Array
 
 def read_index_json(data_file):
     """ Read the index from a JSON file.
@@ -60,6 +62,45 @@ def write_index_json(data, data_file):
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
             json_file.write(json.dumps(int(index)) + "\n")
+
+def read_data_csv(data_file, data_fields=None, delimiter=','):
+    """ Read data from a CSV file.
+
+    Parameters
+    ----------
+    data_file : str
+        The file that contains the data.
+    data_fields : list of str
+        The name of the data fields.
+    delimiter : str
+        The delimiter to separate the fields.
+
+    Returns
+    -------
+    dict of Numpy arrays.
+    """
+    data = pd.read_csv(data_file, delimiter=delimiter)
+    if data_fields is not None:
+        for field in data_fields:
+            assert field in data, f"The data field {field} does not exist in the data file."
+        return {field: data[field] for field in data_fields}
+    else:
+        return data
+
+def write_data_csv(data, data_file, delimiter=','):
+    """ Write data to a CSV file.
+
+    Parameters
+    ----------
+    data : dict of Numpy arrays
+        The data arrays that need to be written to the CSV file.
+    data_file : str
+        The path of the data file.
+    delimiter : str
+        The delimiter that separates the fields.
+    """
+    data_frame = pd.DataFrame(data)
+    data_frame.to_csv(data_file, index=True, sep=delimiter)
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
@@ -166,6 +207,8 @@ def write_data_parquet(data, data_file):
     arr_dict = {}
     for key in data:
         arr = data[key]
+        assert np.prod(arr.shape) < 2 * 1024 * 1024 * 1024, \
+                "Some PyArrow versions do not support a column with over 2 billion elements."
         assert len(arr.shape) == 1 or len(arr.shape) == 2, \
                 "We can only write a vector or a matrix to a parquet file."
         if len(arr.shape) == 1:
@@ -174,95 +217,6 @@ def write_data_parquet(data, data_file):
             arr_dict[key] = [arr[i] for i in range(len(arr))]
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
-
-class HDF5Handle:
-    """ HDF5 file handle
-
-    This is to reference the HDF5 handle and close it when no one
-    uses the HDF5 file.
-
-    Parameters
-    ----------
-    f : HDF5 file handle
-        The handle to access the HDF5 file.
-    """
-    def __init__(self, f):
-        self._f = f
-
-    def __del__(self):
-        return self._f.close()
-
-
-class HDF5Array:
-    """ This is an array wrapper class for HDF5 array.
-
-    The main purpose of this class is to make sure that we can close
-    the HDF5 files when the array is destroyed.
-
-    Parameters
-    ----------
-    arr : HDF5 dataset
-        The array-like object for accessing the HDF5 file.
-    handle : HDF5Handle
-        The handle that references to the opened HDF5 file.
-    """
-    def __init__(self, arr, handle):
-        self._arr = arr
-        self._handle = handle
-
-    def __len__(self):
-        return self._arr.shape[0]
-
-    def __getitem__(self, idx):
-        """ Slicing data from the array.
-
-        Parameters
-        ----------
-        idx : Numpy array or Pytorch tensor or slice.
-            The index.
-
-        Returns
-        -------
-        Numpy array : the data from the HDF5 array indexed by `idx`.
-        """
-        if isinstance(idx, slice):
-            return self._arr[idx]
-
-        if isinstance(idx, th.Tensor):
-            idx = idx.numpy()
-        # If the idx are sorted.
-        if np.all(idx[1:] - idx[:-1] > 0):
-            return self._arr[idx]
-        else:
-            # There are two cases here: 1) there are duplicated IDs,
-            # 2) the IDs are not sorted. Unique can return unique
-            # IDs in the ascending order that meets the requirement of
-            # HDF5 indexing.
-            uniq_ids, reverse_idx = np.unique(idx, return_inverse=True)
-            return self._arr[uniq_ids][reverse_idx]
-
-    def to_tensor(self):
-        """ Return Pytorch tensor.
-        """
-        arr = self._arr[:]
-        return th.tensor(arr)
-
-    def to_numpy(self):
-        """ Return Numpy array.
-        """
-        return self._arr[:]
-
-    @property
-    def shape(self):
-        """ The shape of the HDF5 array.
-        """
-        return self._arr.shape
-
-    @property
-    def dtype(self):
-        """ The data type of the HDF5 array.
-        """
-        return self._arr.dtype
 
 def read_data_hdf5(data_file, data_fields=None, in_mem=True):
     """ Read the data from a HDF5 file.
@@ -328,8 +282,10 @@ def _parse_file_format(conf, is_node, in_mem):
         keys = [conf["node_id_col"]]
     elif is_node:
         keys = []
-    else:
+    elif "source_id_col" in conf and "dest_id_col" in conf:
         keys = [conf["source_id_col"], conf["dest_id_col"]]
+    else:
+        keys = []
     if "features" in conf:
         for feat_conf in conf["features"]:
             assert "feature_col" in feat_conf, "A feature config needs a feature_col."
@@ -344,6 +300,9 @@ def _parse_file_format(conf, is_node, in_mem):
         return partial(read_data_json, data_fields=keys)
     elif fmt["name"] == "hdf5":
         return partial(read_data_hdf5, data_fields=keys, in_mem=in_mem)
+    elif fmt["name"] == "csv":
+        delimiter = fmt["delimiter"] if "delimiter" in fmt else ","
+        return partial(read_data_csv, data_fields=keys, delimiter=delimiter)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
 

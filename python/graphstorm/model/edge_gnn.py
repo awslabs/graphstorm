@@ -175,6 +175,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
+            batch_graph = batch_graph.to(device)
             pred = model.predict(blocks, batch_graph, input_feats, None, input_nodes,
                                  return_proba)
             preds.append(pred.cpu())
@@ -226,6 +227,12 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     model.eval()
     decoder = model.decoder
     data = loader.data
+
+    if return_label:
+        assert data.labels is not None, \
+            "Return label is required, but the label field is not provided whem" \
+            "initlaizing the inference dataset."
+
     with th.no_grad():
         # save preds and labels together in order not to shuffle
         # the order when gather tensors from other trainers
@@ -257,4 +264,4 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     if return_label:
         return preds, th.cat(labels_list)
     else:
-        return preds
+        return preds, None

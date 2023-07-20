@@ -31,21 +31,21 @@ import dgl
 
 from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
-from .file_io import get_in_files, HDF5Array
+from .file_io import get_in_files
 from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
-from .transform import do_multiprocess_transform, TwoPhaseFeatTransform
+from .transform import do_multiprocess_transform
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
-                    partition_graph)
+                    partition_graph, ExtMemArrayWrapper)
 
 def prepare_node_data(in_file, feat_ops, read_file):
-    """ Parse node data.
+    """ Prepare node data information for data transformation.
 
-    The function parses a node file that contains node IDs, features and labels
+    The function parses a node file that contains node features
     The node file is parsed according to users' configuration
-    and performs some feature transformation.
+    and transformation related information is extracted.
 
     Parameters
     ----------
@@ -99,6 +99,32 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
     node_ids = data[node_id_col] if node_id_col in data else None
     return (node_ids, feat_data)
 
+def prepare_edge_data(in_file, feat_ops, read_file):
+    """ Prepare edge data information for data transformation.
+
+    The function parses a edge file that contains edge features
+    The edge file is parsed according to users' configuration
+    and transformation related information is extracted.
+
+    Parameters
+    ----------
+    in_file : str
+        The path of the input edge file.
+    feat_ops : dict of FeatTransform
+        The operations run on the edge features of the edge file.
+    read_file : callable
+        The function to read the edge file
+
+    Returns
+    -------
+    dict : A dict of edge feature info.
+    """
+    data = read_file(in_file)
+    assert feat_ops is not None, "feat_ops must exist when prepare_edge_data is called."
+    feat_info = preprocess_features(data, feat_ops)
+
+    return feat_info
+
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                     conf, skip_nonexist_edges):
     """ Parse edge data.
@@ -128,8 +154,11 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     -------
     a tuple : source ID vector, destination ID vector, a dict of edge feature tensors.
     """
-    src_id_col = conf['source_id_col']
-    dst_id_col = conf['dest_id_col']
+    src_id_col = conf['source_id_col'] if 'source_id_col' in conf else None
+    dst_id_col = conf['dest_id_col'] if 'dest_id_col' in conf else None
+    assert not ((src_id_col is None) ^ (dst_id_col is None)), \
+        f"{in_file} should either have both source_id_col and dest_id_col" \
+        "or have none."
     edge_type = conf['relation']
 
     data = read_file(in_file)
@@ -138,11 +167,49 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
             feat_data[key] = val
-    src_ids = data[src_id_col]
-    dst_ids = data[dst_id_col]
-    src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
-                                    skip_nonexist_edges)
+    src_ids = data[src_id_col] if src_id_col is not None else None
+    dst_ids = data[dst_id_col] if dst_id_col is not None else None
+    if src_ids is not None:
+        src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
+                                        skip_nonexist_edges)
     return (src_ids, dst_ids, feat_data)
+
+def _process_data(user_pre_parser, user_parser,
+                  two_phase_feat_ops,
+                  in_files, num_proc, task_info):
+    """ Process node and edge data.
+
+    Parameter
+    ---------
+    user_pre_parser: func
+        A function that prepares data for processing.
+    user_parser: func
+        A function that processes node data or edge data.
+    two_phase_feat_ops: list of TwoPhaseFeatTransform
+        List of TwoPhaseFeatTransform transformation ops.
+    in_files: list of strings
+        The input files.
+    num_proc: int
+        Number of processes to do processing.
+    task_info: str
+        Task meta info for debugging.
+    """
+    if len(two_phase_feat_ops) > 0:
+        pre_parse_start = time.time()
+        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+        update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
+
+        dur = time.time() - pre_parse_start
+        logging.debug("Preprocessing data files for %s takes %.3f seconds.",
+                      task_info, dur)
+
+    start = time.time()
+    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
+    dur = time.time() - start
+    logging.debug("Processing data files for %s takes %.3f seconds.",
+                    task_info, dur)
+    return return_dict
+
 
 def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
     """ Process node data
@@ -198,43 +265,35 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
-        feat_ops = parse_feat_ops(process_conf['features']) \
-                if 'features' in process_conf else None
-        label_ops = parse_label_ops(process_conf['labels'], is_node=True) \
+        (feat_ops, two_phase_feat_ops, after_merge_feat_ops) = \
+            parse_feat_ops(process_conf['features']) \
+                if 'features' in process_conf else (None, [], {})
+        label_ops = parse_label_ops(process_conf, is_node=True) \
                 if 'labels' in process_conf else None
         assert 'format' in process_conf, \
                 "'format' must be defined for a node type"
-        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
+
         # If it requires multiprocessing, we need to read data to memory.
-        read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
+        multiprocessing = do_multiprocess_transform(process_conf,
+                                                    feat_ops,
+                                                    label_ops,
+                                                    in_files)
+        read_file = parse_node_file_format(process_conf, in_mem=multiprocessing)
         num_proc = num_processes if multiprocessing else 0
-
-        two_phase_feat_ops = []
-        for op in feat_ops:
-            if isinstance(op, TwoPhaseFeatTransform):
-                two_phase_feat_ops.append(op)
-        if len(two_phase_feat_ops) > 0:
-            user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
-                                      read_file=read_file)
-            pre_parse_start = time.time()
-            phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
-            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
-
-            dur = time.time() - pre_parse_start
-            logging.debug("Preprocessing data files for node %s takes %.3f seconds.",
-                        node_type, dur)
-
+        user_pre_parser = partial(prepare_node_data, feat_ops=two_phase_feat_ops,
+                                  read_file=read_file)
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_col=node_id_col,
                               read_file=read_file)
-        start = time.time()
-        return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
-        dur = time.time() - start
-        logging.debug("Processing data files for node %s takes %.3f seconds.",
-                      node_type, dur)
 
+        return_dict = _process_data(user_pre_parser,
+                                    user_parser,
+                                    two_phase_feat_ops,
+                                    in_files,
+                                    num_proc,
+                                    f"node {node_type}")
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data) in return_dict.items():
@@ -242,9 +301,9 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 if feat_name not in type_node_data:
                     type_node_data[feat_name] = [None] * len(return_dict)
                 type_node_data[feat_name][i] = data[feat_name]
-            # If it's HDF5Array, it's better to convert it into a Numpy array.
+            # If it's ExtMemArray, it's better to convert it into a Numpy array.
             # This will make the next operations on it more efficiently.
-            if isinstance(node_ids, HDF5Array):
+            if isinstance(node_ids, ExtMemArrayWrapper):
                 type_node_id_map[i] = node_ids.to_numpy()
             else:
                 type_node_id_map[i] = node_ids
@@ -275,8 +334,12 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
             sys_tracker.check(f'Create node ID map of {node_type}')
 
         for feat_name in type_node_data:
-            type_node_data[feat_name] = arr_merger(type_node_data[feat_name],
-                                                   node_type + "_" + feat_name)
+            merged_feat = arr_merger(type_node_data[feat_name],
+                                     node_type + "_" + feat_name)
+            if feat_name in after_merge_feat_ops:
+                # do data transformation with the entire feat array.
+                merged_feat = after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+            type_node_data[feat_name] = merged_feat
             gc.collect()
             sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
@@ -300,7 +363,9 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         assert node_type in node_id_map, \
                 f"The input files do not contain node Ids for node type {node_type}."
         for data in node_data[node_type].values():
-            assert len(data) == len(node_id_map[node_type])
+            assert len(data) == len(node_id_map[node_type]), \
+                    f"Node data and node IDs for node type {node_type} does not match: " + \
+                    f"{len(data)} vs. {len(node_id_map[node_type])}"
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data)
 
@@ -354,10 +419,6 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
 
     for process_conf in process_confs:
         # each iteration is to process an edge type.
-        assert 'source_id_col' in process_conf, \
-                "'source_id_col' is not defined for an edge type."
-        assert 'dest_id_col' in process_conf, \
-                "'dest_id_col' is not defined for an edge type."
         assert 'relation' in process_conf, \
                 "'relation' is not defined for an edge type."
         edge_type = process_conf['relation']
@@ -366,32 +427,40 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         in_files = get_in_files(process_conf['files'])
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
-        feat_ops = parse_feat_ops(process_conf['features']) \
-                if 'features' in process_conf else None
-        label_ops = parse_label_ops(process_conf['labels'], is_node=False) \
+        (feat_ops, two_phase_feat_ops, after_merge_feat_ops) = \
+            parse_feat_ops(process_conf['features']) \
+                if 'features' in process_conf else (None, [], {})
+        label_ops = parse_label_ops(process_conf, is_node=False) \
                 if 'labels' in process_conf else None
-        multiprocessing = do_multiprocess_transform(process_conf, feat_ops, label_ops, in_files)
-        # If it requires multiprocessing, we need to read data to memory.
-        read_file = parse_edge_file_format(process_conf, in_mem=multiprocessing)
 
         # We don't need to copy all node ID maps to the worker processes.
         # Only the node ID maps of the source node type and destination node type
         # are sufficient.
         id_map = {edge_type[0]: node_id_map[edge_type[0]],
                   edge_type[2]: node_id_map[edge_type[2]]}
+
+        multiprocessing = do_multiprocess_transform(process_conf,
+                                                    feat_ops,
+                                                    label_ops,
+                                                    in_files)
+        # If it requires multiprocessing, we need to read data to memory.
+        read_file = parse_edge_file_format(process_conf, in_mem=multiprocessing)
+        num_proc = num_processes if multiprocessing else 0
+        user_pre_parser = partial(prepare_edge_data, feat_ops=two_phase_feat_ops,
+                                  read_file=read_file)
         user_parser = partial(parse_edge_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_map=id_map,
                               read_file=read_file,
                               conf=process_conf,
                               skip_nonexist_edges=skip_nonexist_edges)
-        start = time.time()
-        num_proc = num_processes if multiprocessing else 0
-        return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
-        dur = time.time() - start
-        logging.debug("Processing data files for edges of %s takes %.3f seconds",
-                      str(edge_type), dur)
 
+        return_dict = _process_data(user_pre_parser,
+                                    user_parser,
+                                    two_phase_feat_ops,
+                                    in_files,
+                                    num_proc,
+                                    f"edge {edge_type}")
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
         type_edge_data = {}
@@ -404,25 +473,50 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 type_edge_data[feat_name][i] = part_data[feat_name]
         return_dict = None
 
-        type_src_ids = np.concatenate(type_src_ids)
-        type_dst_ids = np.concatenate(type_dst_ids)
-        assert len(type_src_ids) == len(type_dst_ids)
-        gc.collect()
-        logging.debug("Finish merging edges of %s", str(edge_type))
-
+        # handle edge type
         for feat_name in type_edge_data:
             etype_str = "-".join(edge_type)
-            type_edge_data[feat_name] = arr_merger(type_edge_data[feat_name],
+            merged_feat = arr_merger(type_edge_data[feat_name],
                                                    etype_str + "_" + feat_name)
-            assert len(type_edge_data[feat_name]) == len(type_src_ids)
+            if feat_name in after_merge_feat_ops:
+                # do data transformation with the entire feat array.
+                merged_feat = after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+            type_edge_data[feat_name] = merged_feat
             gc.collect()
             sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
 
         edge_type = tuple(edge_type)
-        edges[edge_type] = (type_src_ids, type_dst_ids)
-        # Some edge types don't have edge data.
-        if len(type_edge_data) > 0:
+        if type_src_ids[0] is not None: # handle src_ids and dst_ids
+            assert all(src_ids is not None for src_ids in type_src_ids)
+            assert all(dst_ids is not None for dst_ids in type_dst_ids)
+            type_src_ids = np.concatenate(type_src_ids)
+            type_dst_ids = np.concatenate(type_dst_ids)
+            assert len(type_src_ids) == len(type_dst_ids)
+
+            edges[edge_type] = (type_src_ids, type_dst_ids)
+        gc.collect()
+        logging.debug("Finish merging edges of %s", str(edge_type))
+
+        # If we didn't see the edge data for this edge type before.
+        if len(type_edge_data) > 0 and edge_type not in edge_data:
             edge_data[edge_type] = type_edge_data
+        # If we have seen the edge data for this edge type before
+        # because there are multiple blocks that contain data for the same edge type.
+        elif len(type_edge_data) > 0:
+            for key, val in type_edge_data.items():
+                # Make sure the edge data has duplicated names.
+                assert key not in edge_data[edge_type], \
+                        f"The edge data {key} has exist in edge type {edge_type}."
+                edge_data[edge_type][key] = val
+
+    for edge_type, edge_feats in edge_data.items():
+        assert edge_type in edges, \
+            f"source_id_col and dest_id_col is not defined for {edge_type}"
+        for feat_name, efeats in edge_feats.items():
+            assert len(efeats) == len(edges[edge_type][0]), \
+                f"The length of edge feature {feat_name} of etype {edge_type} " \
+                f"does not match the number of edges of {edge_type}. " \
+                f"Expecting {len(edges[edge_type][0])}, but get {len(efeats)}"
 
     return edges, edge_data
 
@@ -515,12 +609,18 @@ def process_graph(args):
     node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
                                                args.remap_node_id,
                                                num_processes=num_processes_for_nodes)
+    sys_tracker.check('Process the node data')
     edges, edge_data = process_edge_data(process_confs['edges'], node_id_map,
                                          convert2ext_mem,
                                          num_processes=num_processes_for_edges,
                                          skip_nonexist_edges=args.skip_nonexist_edges)
+    sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
-    sys_tracker.check('Process input data')
+    if args.output_conf_file is not None:
+        # Save the new config file.
+        with open(args.output_conf_file, "w", encoding="utf8") as outfile:
+            json.dump(process_confs, outfile, indent=4)
+
     if args.add_reverse_edges:
         edges1 = {}
         for etype in edges:
@@ -560,13 +660,13 @@ def process_graph(args):
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
-                if isinstance(ndata, HDF5Array):
+                if isinstance(ndata, ExtMemArrayWrapper):
                     g.nodes[ntype].data[name] = ndata.to_tensor()
                 else:
                     g.nodes[ntype].data[name] = th.tensor(ndata)
         for etype in edge_data:
             for name, edata in edge_data[etype].items():
-                if isinstance(edata, HDF5Array):
+                if isinstance(edata, ExtMemArrayWrapper):
                     g.edges[etype].data[name] = edata.to_tensor()
                 else:
                     g.edges[etype].data[name] = th.tensor(edata)
@@ -583,6 +683,8 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
     argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
+    argparser.add_argument("--output-conf-file", type=str,
+                           help="The output file with the updated configurations.")
     argparser.add_argument("--num-processes", type=int, default=1,
                            help="The number of processes to process the data simulteneously.")
     argparser.add_argument("--num-processes-for-nodes", type=int,

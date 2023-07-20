@@ -43,7 +43,7 @@ Model Configurations
 --------------------------------
 GraphStorm provides a set of parameters to config the GNN model structure (input layer, gnn layer, decoder layer, etc)
 
-- **model_encoder_type**: (**Required**) Graph encoder model used to encode graph data. It can be rgat or rgcn.
+- **model_encoder_type**: (**Required**) The Encoder module used to encode graph data. It can be a GNN encoder or a non-GNN encoder. A GNN encoder is composed of an input module, which encodes input node features, and a GNN module. A non-GNN encoder only contains an input module. GraphStorm supports two GNN encoders: `rgcn` which uses relational graph convolutional network as its GNN module and `rgat` which uses relational graph attention network as its GNN module. GraphStorm supports two non-GNN encoder: `lm` which requires each node type has and only has text features and uses language model, e.g., Bert, to encode these features and `mlp` which accepts various types of input node features (text feature, floating points and learnable embeddings) and finally uses an MLP to project these features into same dimension.
     - Yaml: ``model_encoder_type: rgcn``
     - Argument: ``--model-encoder-type rgcn``
     - Default value: This parameter must be provided by user.
@@ -118,6 +118,11 @@ GraphStorm provides a set of parameters to control how and where to save and res
     - Yaml: ``restore_model_path: /model/checkpoint/``
     - Argument: ``--restore-model-path /model/checkpoint/``
     - Default value: This parameter must be provided if users want to restore a saved model.
+- **restore_model_layers**: Specify which GraphStorm neural network layers to load. This argument is useful when a user wants to pre-train a GraphStorm model using link prediction and fine-tune the same model on a node or edge classification/regression task.
+Currently, three neural network layers are supported, i.e., ``embed`` (input layer), ``gnn`` and ``decoder``. A user can select one or more layers to load.
+    - Yaml: ``restore_model_path: embed``
+    - Argument: ``--restore-model-layers embed,gnn``
+    - Default value: Load all neural network layers
 - **restore_optimizer_path**: A path storing optimizer status corresponding to GraphML model parameters. This is used when a user wants to fine-tune a model from a pre-trained one.
     - Yaml: ``restore_optimizer_path: /model/checkpoint/optimizer``
     - Argument: ``--restore-optimizer-path /model/checkpoint/optimizer``
@@ -127,7 +132,7 @@ Model Training Hyper-parameters Configurations
 ----------------------------------------------------------
 GraphStorm provides a set of parameters to control training hyper-parameters.
 
-- **fanout**: The fanout of each GNN layers. The fanouts must be integers larger than 0. The number of fanouts must equal to num_layers. It accepts two formats: a) `"20,10"`, it defines number of neighbors to sample per edge type for each GNN layer with the ith element being the fanout for the ith GNN layer. In the example, the fanout of the 0th GNN layer is 20 and the fanout of the 1st GNN layer is 10. b) `\"etype2:20\@etype3:20\@etype1:10,etype2:10\@etype3:4\@etype1:2\"`. It defines the numbers of neighbors to sample for different edge types for each GNN layers with the i-th element being the fanout for the i-th GNN layer. In the example, the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 20, 20 and 10 respectively and the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 10, 4 and 2 respectively.
+- **fanout**: The fanout of each GNN layers. The fanouts must be integers larger than 0. The number of fanouts must equal to num_layers. It accepts two formats: a) `"20,10"`, it defines number of neighbors to sample per edge type for each GNN layer with the ith element being the fanout for the ith GNN layer. In the example, the fanout of the 0th GNN layer is 20 and the fanout of the 1st GNN layer is 10. b) `\"etype2:20\@etype3:20\@etype1:10,etype2:10\@etype3:4\@etype1:2\"`. It defines the numbers of neighbors to sample for different edge types for each GNN layers with the i-th element being the fanout for the i-th GNN layer. In the example, the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 20, 20 and 10 respectively and the fanouts of etype2, etype3 and etype1 of 0th GNN layer are 10, 4 and 2 respectively. Each etype (e.g., etype2) should be a canonical etype in format of `\"srcntype/relation/dstntype\"`
     - Yaml: ``fanout: 10,10``
     - Argument: ``--fanout 10,10``
     - Default value: This parameter must be provided by user. But if set the ``--num_layers`` to be 0, which means there is no GNN layer, no need to specify this configuration.
@@ -162,6 +167,14 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
 - **alpha_l2norm**: Coefficiency of the l2 norm of dense parameters. GraphStorm adds a regularization loss, i.e., l2 norm of dense parameters, to the final loss. It uses alpha_l2norm to re-scale the regularization loss. Specifically, loss = loss +  alpha_l2norm * regularization_loss.
     - Yaml: ``alpha_l2norm: 0.00001``
     - Argument: ``--alpha-l2norm 0.00001``
+    - Default value: ``0.0``
+- **num_ffn_layers_in_input**: Graphstorm provides this argument as an option to increase the size of the parameters in the input layer. This argument will add an MLP layer after computing the input embeddings for each node type. It accepts an integer greater than zero. Generally, embeds = MLP(embeds) for each node type in the input layer. If the input is n, it could add n Feedforward neural network layers in the MLP.
+    - Yaml: ``num_ffn_layers_in_input: 1``
+    - Argument: ``--num-ffn-layers-in-input 1``
+    - Default value: ``0``
+- **num_ffn_layers_in_gnn**: Graphstorm provides this argument as an option to increase the size of the parameters between gnn layers. This argument will add an MLP layer at the end of each GNN layer. Generally, h = MLP(h) between GNN layers in a GNN model. If the input here is n, it could add n feedforward neural network layers here.
+    - Yaml: ``num_ffn_layers_in_gnn: 1``
+    - Argument: ``--num-ffn-layers-in-gnn 1``
     - Default value: ``0.0``
 
 Early stop configurations
@@ -243,7 +256,7 @@ General Configurations
     - Yaml: ``task_type: node_classification``
     - Argument: ``--task-type node_classification``
     - Default value: This parameter must be provided by user.
-- **eval_metric**: Evaluation metric used during evaluation. The input can be a string specifying the evaluation metric to report or a list of strings specifying a list of evaluation metrics to report. The first evaluation metric is treated as the major metric and is used to choose the best trained model. The supported evaluation metrics of classification tasks include ``accuracy``, ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``. The supported evaluation metrics of regression tasks include ``rmse`` and ``mse``. The supported evaluation metrics of link prediction tasks include ``mrr``.
+- **eval_metric**: Evaluation metric used during evaluation. The input can be a string specifying the evaluation metric to report or a list of strings specifying a list of evaluation metrics to report. The first evaluation metric is treated as the major metric and is used to choose the best trained model. The supported evaluation metrics of classification tasks include ``accuracy``, ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``. The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``. The supported evaluation metrics of link prediction tasks include ``mrr``.
     - Yaml: ``eval_metric:``
         | ``- accuracy``
         | ``- precision_recall``

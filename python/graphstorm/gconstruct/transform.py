@@ -20,12 +20,25 @@
 import logging
 import os
 import sys
+import abc
+
 import numpy as np
 import torch as th
+
+from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
-from .file_io import HDF5Array, read_index_json
+from .file_io import read_index_json
+from .utils import ExtMemArrayWrapper
+
+def _get_output_dtype(dtype_str):
+    if dtype_str == 'float16':
+        return np.float16
+    elif dtype_str == 'float32':
+        return np.float32
+    else:
+        assert False, f"Unknown dtype {dtype_str}, only support float16 and float32"
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -36,10 +49,14 @@ class FeatTransform:
         The name of the column that contains the feature.
     feat_name : str
         The feature name used in the constructed graph.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
     """
-    def __init__(self, col_name, feat_name):
+    def __init__(self, col_name, feat_name, out_dtype=None):
         self._col_name = col_name
         self._feat_name = feat_name
+        self._out_dtype = out_dtype
 
     @property
     def col_name(self):
@@ -53,6 +70,88 @@ class FeatTransform:
         """
         return self._feat_name
 
+    @property
+    def out_dtype(self):
+        """ Output feature dtype
+        """
+        return self._out_dtype
+
+    def __call__(self, feats):
+        """ This transforms the features.
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+        feats = self.call(feats)
+        return self.as_out_dtype(feats)
+
+    @abc.abstractmethod
+    def call(self, feats):
+        """ This function implements the feature transformation logic
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+
+    def as_out_dtype(self, feats):
+        """ Convert feats into out_dtype
+            By default (out_dtype is None), it does nothing.
+
+        Parameters
+        ----------
+        feats: Numpy array or dict of Numpy array
+            The feature data
+
+        Returns
+        -------
+        Numpy array or dict: the output feature with dtype of out_dtype
+        """
+        if self.out_dtype is None:
+            return feats
+
+        if isinstance(feats, dict):
+            return {key: feat.astype(self.out_dtype) \
+                        for key, feat in feats.items()}
+        else:
+            return feats.astype(self.out_dtype)
+
+class GlobalProcessFeatTransform(FeatTransform):
+    """ The base class for transformations that can only be done using a single process.
+
+        Some transformations need to do complex operations on the entire feature set,
+        such as ranking. GlobalProcessFeatTransform loads features from files first,
+        which can be done with multi-processing, and then do feature transformation
+        after features are merged.
+    """
+
+    def after_merge_transform(self, feats):
+        """ Do feature transformation after features are merged into a single
+            array.
+
+        Parameters
+        ----------
+        feats:
+            feats to be processed
+
+        Return:
+            np.array: processed feature
+        """
+
+    def call(self, feats):
+        raise NotImplementedError
+
 class TwoPhaseFeatTransform(FeatTransform):
     """ The base class for two phasefeature transformation.
 
@@ -62,13 +161,6 @@ class TwoPhaseFeatTransform(FeatTransform):
         The second phase is to transform data using
         the global
         information collected in the first phase
-
-    Parameters
-    ----------
-    col_name : str
-        The name of the column that contains the feature.
-    feat_name : str
-        The feature name used in the constructed graph.
     """
 
     def pre_process(self, feats):
@@ -89,6 +181,110 @@ class TwoPhaseFeatTransform(FeatTransform):
             Information to be collected
         """
 
+    def call(self, feats):
+        raise NotImplementedError
+
+class CategoricalTransform(TwoPhaseFeatTransform):
+    """ Convert the data into categorical values.
+
+    The categorical values are stored as integers.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column.
+    feat_name : str
+        The name of the feature.
+    separator : str
+        The separator to split data into multiple categorical values.
+    transform_conf : dict
+        The configuration for the feature transformation.
+    """
+    def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
+        self._val_dict = {}
+        if transform_conf is not None and 'mapping' in transform_conf:
+            self._val_dict = transform_conf['mapping']
+            self._conf = transform_conf
+        else:
+            self._conf = transform_conf
+        self._separator = separator
+        super(CategoricalTransform, self).__init__(col_name, feat_name)
+
+    def pre_process(self, feats):
+        """ Pre-process data
+
+        Parameters
+        ----------
+        feats: np.array
+            Data to be processed
+        """
+        # If the mapping already exists, we don't need to do anything.
+        if len(self._val_dict) > 0:
+            return {}
+
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of CategoricalTransform must be numpy array or ExtMemArray"
+        if isinstance(feats, ExtMemArrayWrapper):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        feats = feats[feats != None] # pylint: disable=singleton-comparison
+        if self._separator is None:
+            return {self.feat_name: np.unique(feats)}
+        else:
+            assert feats.dtype.type is np.str_, \
+                    "We can only convert strings to multiple categorical values with separaters."
+            vals = []
+            for feat in feats:
+                vals.extend(feat.split(self._separator))
+            return {self.feat_name: np.unique(vals)}
+
+
+    def update_info(self, info):
+        """ Store global information for the second phase data processing
+
+        Parameters
+        ----------
+        info: list
+            Information to be collected
+        """
+        # We already have the mapping.
+        if len(self._val_dict) > 0:
+            assert len(info) == 0
+            return
+
+        self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        # We need to save the mapping in the config object.
+        if self._conf is not None:
+            self._conf['mapping'] = self._val_dict
+
+    def call(self, feats):
+        """ Assign IDs to categorical values.
+
+        Parameters
+        ----------
+        feats : np array
+            Data with categorical values.
+
+        Returns
+        -------
+        np.array
+        """
+        encoding = np.zeros((len(feats), len(self._val_dict)), dtype=np.int8)
+        if self._separator is None:
+            for i, feat in enumerate(feats):
+                if feat is None:
+                    continue
+                encoding[i, self._val_dict[feat]] = 1
+        else:
+            for i, feat in enumerate(feats):
+                if feat is None:
+                    continue
+                idx = [self._val_dict[val] for val in feat.split(self._separator)]
+                encoding[i, idx] = 1
+        return {self.feat_name: encoding}
+
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     """ Numerical value with Min-Max normalization.
         $val = (val-min) / (max-min)$
@@ -103,13 +299,18 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         The maximum float value.
     min_bound : float
         The minimum float value
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
     """
     def __init__(self, col_name, feat_name,
                  max_bound=sys.float_info.max,
-                 min_bound=-sys.float_info.max):
+                 min_bound=-sys.float_info.max,
+                 out_dtype=None):
         self._max_bound = max_bound
         self._min_bound = min_bound
-        super(NumericalMinMaxTransform, self).__init__(col_name, feat_name)
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def pre_process(self, feats):
         """ Pre-process data
@@ -119,17 +320,25 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats: np.array
             Data to be processed
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
-        if isinstance(feats, HDF5Array):
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        assert feats.dtype in [np.float64, np.float32, np.float16, np.int64, \
-                              np.int32, np.int16, np.int8], \
-            "Feature of NumericalMinMaxTransform must be floating points" \
-            "or integers"
+        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8]:
+            logging.warning("The feature %s has to be floating points or integers,"
+                            "but get %s. Try to cast it into float32",
+                            self.feat_name, feats.dtype)
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
         max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
             else np.array([np.amax(feats, axis=0)])
@@ -164,7 +373,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         self._max_val = max_val
         self._min_val = min_val
 
-    def __call__(self, feats):
+    def call(self, feats):
         """ Do normalization for feats
 
         Parameters
@@ -176,23 +385,96 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         -------
         np.array
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
 
         assert not np.any(self._max_val == self._min_val), \
             f"At least one element of Max Val {self._max_val} " \
             f"and Min Val {self._min_val} is equal. This will cause divide by zero error"
 
-        if isinstance(feats, HDF5Array):
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
+
+        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8]:
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
 
         feats = (feats - self._min_val) / (self._max_val - self._min_val)
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
 
         return {self.feat_name: feats}
+
+class RankGaussTransform(GlobalProcessFeatTransform):
+    """ Use Gauss rank transformation to transform input data
+
+        The idea is from
+        http://fastml.com/preparing-continuous-features-for-neural-networks-with-rankgauss/
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    epsilon: float
+        Epsilon for normalization.
+    """
+    def __init__(self, col_name, feat_name, out_dtype=None, epsilon=None):
+        self._epsilon = epsilon if epsilon is not None else 1e-6
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(RankGaussTransform, self).__init__(col_name, feat_name, out_dtype)
+
+    def __call__(self, feats):
+        # Overwrite __call__ to avoid cast the feature into out_dtype.
+        # This is not the final output, we should not cast the feature into out_dtype
+        # will cast the feature in after_merge_transform
+        return self.call(feats)
+
+    def call(self, feats):
+        # do nothing. Rank Gauss is done after merging all arrays together.
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+                f"The feature {self.feat_name} has to be NumPy array."
+
+        if np.issubdtype(feats.dtype, np.integer) \
+            or np.issubdtype(feats.dtype, np.floating): \
+            return {self.feat_name: feats}
+        else:
+            logging.warning("The feature %s has to be floating points or integers,"
+                            "but get %s. Try to cast it into float32",
+                            self.feat_name, feats.dtype)
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+
+            return {self.feat_name: feats}
+
+    def after_merge_transform(self, feats):
+        # The feats can be a numpy array or a numpy memmaped object
+        # Get ranking information.
+        if isinstance(feats, ExtMemArrayWrapper):
+            feats = feats.to_numpy()
+        feats = feats.argsort(axis=0).argsort(axis=0)
+        feat_range = len(feats) - 1
+        # norm to [-1, 1]
+        feats = (feats / feat_range - 0.5) * 2
+        feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
+        feats = erfinv(feats)
+
+        return self.as_out_dtype(feats)
 
 class Tokenizer(FeatTransform):
     """ A wrapper to a tokenizer.
@@ -215,7 +497,7 @@ class Tokenizer(FeatTransform):
         self.tokenizer = BertTokenizer.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
-    def __call__(self, strs):
+    def call(self, feats):
         """ Tokenization function.
 
         Parameters
@@ -227,6 +509,7 @@ class Tokenizer(FeatTransform):
         -------
         a dict of tokenization results.
         """
+        strs = feats
         tokens = []
         att_masks = []
         type_ids = []
@@ -263,10 +546,14 @@ class Text2BERT(FeatTransform):
         The BERT model name.
     infer_batch_size : int
         The inference batch size.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
     """
     def __init__(self, col_name, feat_name, tokenizer, model_name,
-                 infer_batch_size=None):
-        super(Text2BERT, self).__init__(col_name, feat_name)
+                 infer_batch_size=None, out_dtype=None):
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(Text2BERT, self).__init__(col_name, feat_name, out_dtype)
         self.model_name = model_name
         self.lm_model = None
         self.tokenizer = tokenizer
@@ -298,7 +585,7 @@ class Text2BERT(FeatTransform):
                 lm_model = lm_model.to(self.device)
             self.lm_model = lm_model
 
-    def __call__(self, strs):
+    def call(self, feats):
         """ Compute BERT embeddings of the strings..
 
         Parameters
@@ -311,6 +598,7 @@ class Text2BERT(FeatTransform):
         dict: BERT embeddings.
         """
         self._init()
+        strs = feats
         outputs = self.tokenizer(strs)
         if self.infer_batch_size is not None:
             tokens_list = th.split(th.tensor(outputs['input_ids']), self.infer_batch_size)
@@ -336,15 +624,30 @@ class Text2BERT(FeatTransform):
                                             token_type_ids=token_types.long())
                 out_embs.append(outputs.pooler_output.cpu().numpy())
         if len(out_embs) > 1:
-            return {self.feat_name: np.concatenate(out_embs)}
+            feats = np.concatenate(out_embs)
         else:
-            return {self.feat_name: out_embs[0]}
+            feats = out_embs[0]
+
+        return {self.feat_name: feats}
 
 class Noop(FeatTransform):
     """ This doesn't transform the feature.
-    """
 
-    def __call__(self, feats):
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    """
+    def __init__(self, col_name, feat_name, out_dtype=None):
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(Noop, self).__init__(col_name, feat_name, out_dtype)
+
+    def call(self, feats):
         """ This transforms the features.
 
         Parameters
@@ -356,7 +659,7 @@ class Noop(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
@@ -389,8 +692,10 @@ def parse_feat_ops(confs):
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
+
+        out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
         if 'transform' not in feat:
-            transform = Noop(feat['feature_col'], feat_name)
+            transform = Noop(feat['feature_col'], feat_name, out_dtype=out_dtype)
         else:
             conf = feat['transform']
             assert 'name' in conf, "'name' must be defined in the transformation field."
@@ -413,18 +718,39 @@ def parse_feat_ops(confs):
                                                 conf['bert_model'],
                                                 int(conf['max_seq_length'])),
                                       conf['bert_model'],
-                                      infer_batch_size=infer_batch_size)
+                                      infer_batch_size=infer_batch_size,
+                                      out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
                 transform = NumericalMinMaxTransform(feat['feature_col'],
                                                      feat_name,
                                                      max_bound,
-                                                     min_bound)
+                                                     min_bound,
+                                                     out_dtype=out_dtype)
+            elif conf['name'] == 'rank_gauss':
+                epsilon = conf['epsilon'] if 'epsilon' in conf else None
+                transform = RankGaussTransform(feat['feature_col'],
+                                               feat_name,
+                                               out_dtype=out_dtype,
+                                               epsilon=epsilon)
+            elif conf['name'] == 'to_categorical':
+                separator = conf['separator'] if 'separator' in conf else None
+                transform = CategoricalTransform(feat['feature_col'], feat_name,
+                                                 separator=separator, transform_conf=conf)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
-    return ops
+
+    two_phase_feat_ops = []
+    after_merge_feat_ops = {}
+    for op in ops:
+        if isinstance(op, TwoPhaseFeatTransform):
+            two_phase_feat_ops.append(op)
+        if isinstance(op, GlobalProcessFeatTransform):
+            after_merge_feat_ops[op.feat_name] = op
+
+    return ops, two_phase_feat_ops, after_merge_feat_ops
 
 def preprocess_features(data, ops):
     """ Pre-process the data with the specified operations.
@@ -477,11 +803,10 @@ def process_features(data, ops):
         for key, val in res.items():
             # Check if has 1D features. If yes, convert to 2D features
             if len(val.shape) == 1:
-                if isinstance(val, HDF5Array):
+                if isinstance(val, ExtMemArrayWrapper):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
-
             new_data[key] = val
     return new_data
 
@@ -522,6 +847,8 @@ class CustomLabelProcessor:
         The column name for labels.
     label_name : str
         The label name.
+    id_col : str
+        The name of the ID column.
     task_type : str
         The task type.
     train_idx : Numpy array
@@ -531,13 +858,14 @@ class CustomLabelProcessor:
     test_idx : Numpy array
         The array that contains the index of test data points.
     """
-    def __init__(self, col_name, label_name, task_type,
+    def __init__(self, col_name, label_name, id_col, task_type,
                  train_idx=None, val_idx=None, test_idx=None):
+        self._id_col = id_col
         self._col_name = col_name
         self._label_name = label_name
-        self._train_idx = train_idx
-        self._val_idx = val_idx
-        self._test_idx = test_idx
+        self._train_idx = set(train_idx.tolist()) if train_idx is not None else None
+        self._val_idx = set(val_idx.tolist()) if val_idx is not None else None
+        self._test_idx = set(test_idx.tolist()) if test_idx is not None else None
         self._task_type = task_type
 
     @property
@@ -552,28 +880,30 @@ class CustomLabelProcessor:
         """
         return self._label_name
 
-    def data_split(self, num_samples):
+    def data_split(self, ids):
         """ Split the data for training/validation/test.
 
         Parameters
         ----------
-        num_samples : int
-            The total number of data points.
+        ids : numpy array
+            The array of IDs.
 
         Returns
         -------
         dict of Numpy array
             The arrays for training/validation/test masks.
         """
+        num_samples = len(ids)
         train_mask = np.zeros((num_samples,), dtype=np.int8)
         val_mask = np.zeros((num_samples,), dtype=np.int8)
         test_mask = np.zeros((num_samples,), dtype=np.int8)
-        if self._train_idx is not None:
-            train_mask[self._train_idx] = 1
-        if self._val_idx is not None:
-            val_mask[self._val_idx] = 1
-        if self._test_idx is not None:
-            test_mask[self._test_idx] = 1
+        for i, idx in enumerate(ids):
+            if self._train_idx is not None and idx in self._train_idx:
+                train_mask[i] = 1
+            elif self._val_idx is not None and idx in self._val_idx:
+                val_mask[i] = 1
+            elif self._test_idx is not None and idx in self._test_idx:
+                test_mask[i] = 1
         train_mask_name = 'train_mask'
         val_mask_name = 'val_mask'
         test_mask_name = 'test_mask'
@@ -595,16 +925,10 @@ class CustomLabelProcessor:
         -------
         dict of Tensors : it contains the labels as well as training/val/test splits.
         """
-        if self.col_name in data:
-            label = data[self.col_name]
-            num_samples = len(label)
-        else:
-            assert len(data) > 0, "The edge data is empty."
-            label = None
-            for val in data.values():
-                num_samples = len(val)
-                break
-        res = self.data_split(num_samples)
+        label = data[self.col_name] if self.col_name in data else None
+        assert self._id_col in data, \
+                f"The input data does not have ID column {self._id_col}."
+        res = self.data_split(data[self._id_col])
         if label is not None and self._task_type == "classification":
             res[self.label_name] = np.int32(label)
         elif label is not None:
@@ -779,8 +1103,9 @@ def parse_label_ops(confs, is_node):
     -------
     list of LabelProcessor : the label processors generated from the configurations.
     """
-    assert len(confs) == 1, "We only support one label per node/edge type."
-    label_conf = confs[0]
+    label_confs = confs['labels']
+    assert len(label_confs) == 1, "We only support one label per node/edge type."
+    label_conf = label_confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
     if 'custom_split_filenames' in label_conf:
@@ -791,8 +1116,9 @@ def parse_label_ops(confs, is_node):
         val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
         test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
-        return [CustomLabelProcessor(label_col, label_col, task_type,
-                                     train_idx, val_idx, test_idx)]
+        assert "node_id_col" in confs, "Custom data split only works for nodes."
+        return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
+                                     task_type, train_idx, val_idx, test_idx)]
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']

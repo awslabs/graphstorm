@@ -22,14 +22,17 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnNodePredictionTrainer
+from graphstorm.trainer import GLEMNodePredictionTrainer
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler
+from graphstorm.utils import rt_profiler, sys_tracker
 
 def get_evaluator(config):
+    """ Get evaluator class
+    """
     if config.task_type == "node_classification":
         return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
@@ -48,21 +51,30 @@ def get_evaluator(config):
     else:
         raise ValueError("Unknown task type")
 
-def main(args):
-    config = GSConfig(args)
+def main(config_args):
+    """ main function
+    """
+    config = GSConfig(config_args)
+    config.verify_arguments(True)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
+    sys_tracker.init(config.verbose, rank=gs.get_rank())
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
-    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+    if config.training_method["name"] == "glem":
+        trainer_class = GLEMNodePredictionTrainer
+    elif config.training_method["name"] == "default":
+        trainer_class = GSgnnNodePredictionTrainer
+    trainer = trainer_class(model, gs.get_rank(),
+                                        topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
-        trainer.restore_model(model_path=config.restore_model_path)
+        trainer.restore_model(model_path=config.restore_model_path,
+                              model_layer_to_load=config.restore_model_layers)
     trainer.setup_cuda(dev_id=config.local_rank)
     if not config.no_validation:
         evaluator = get_evaluator(config)
@@ -127,12 +139,14 @@ def main(args):
                         node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
+    """ Generate an argument parser
+    """
     parser = get_argument_parser()
     return parser
 
 if __name__ == '__main__':
-    parser=generate_parser()
+    arg_parser=generate_parser()
 
-    args = parser.parse_args()
+    args = arg_parser.parse_args()
     print(args)
     main(args)

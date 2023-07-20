@@ -17,11 +17,13 @@
 """
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 from dgl.distributed import DistEmbedding, DistTensor, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
 from ..utils import get_rank
+from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
     """Create a tensor with the given shape and date type.
@@ -172,6 +174,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     use_node_embeddings : bool
         Whether we will use the node embeddings for individual nodes even when node features are
         available.
+    num_ffn_layers_in_input: int, optional
+        Number of layers of feedforward neural network for each node type in the input layers
     """
     def __init__(self,
                  g,
@@ -180,7 +184,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
-                 embed_type="zero"):
+                 embed_type="zero",
+                 num_ffn_layers_in_input=0,
+                 ffn_activation=F.relu):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.activation = activation
@@ -219,6 +225,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 self.proj_matrix[ntype] = proj_matrix
                 self._embed_layers[ntype] = _get_node_embed(g, ntype, self.embed_size,
                                                             embed_type)
+
+        # ngnn
+        self.num_ffn_layers_in_input = num_ffn_layers_in_input
+        self.ngnn_mlp = nn.ModuleDict({})
+        for ntype in g.ntypes:
+            self.ngnn_mlp[ntype] = NGNNMLP(embed_size, embed_size,
+                            num_ffn_layers_in_input, ffn_activation, dropout)
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
@@ -264,6 +277,12 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             emb = self.dropout(emb)
             embs[ntype] = emb
 
+        def _apply(t, h):
+            if self.num_ffn_layers_in_input > 0:
+                h = self.ngnn_mlp[t](h)
+            return h
+
+        embs = {ntype: _apply(ntype, h) for ntype, h in embs.items()}
         return embs
 
     def get_sparse_params(self):

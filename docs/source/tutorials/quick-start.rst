@@ -14,7 +14,9 @@ This tutorial will use GraphStorm's built-in OGB-arxiv dataset for a node classi
 
 .. note::
 
-    All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare your environment.
+    All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment. 
+
+    If you :ref:`set up the GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
 
 Download  and Partition OGB-arxiv Data
 --------------------------------------
@@ -40,13 +42,13 @@ This command will automatically download ogbn-arxiv graph data and split the gra
         graph.dgl
         node_feat.dgl
 
-The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument ``--num_parts 1``, there is one sub-folder, named ``part0``.  Files in the sub-folder includes three types of data, i.e., the graph structure (``graph.dgl``), the node features (``node_feat.dgl``), and edge features (``edge_feat.dgl``). The ``node_mapping.pt`` and ``edge_mapping.pt`` contain the ID mapping between the raw node and edge IDs with the built graph's node and edge IDs.
+The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument ``--num-parts 1``, there is one sub-folder, named ``part0``.  Files in the sub-folder includes three types of data, i.e., the graph structure (``graph.dgl``), the node features (``node_feat.dgl``), and edge features (``edge_feat.dgl``). The ``node_mapping.pt`` and ``edge_mapping.pt`` contain the ID mapping between the raw node and edge IDs with the built graph's node and edge IDs.
 
 .. _launch-training:
 
 Launch Training
 -----------------
-GraphStorm currently relies on **ssh** to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in the Standalone mode, which run only in a **signle machine**, as this tutorial does, users only need to run the following command to create an ``ip_list.txt`` file that has one row '**127.0.0.1**' as its content.
+GraphStorm currently relies on **ssh** to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in the Standalone mode, which run only in a **single machine**, as this tutorial does, users only need to run the following command to create an ``ip_list.txt`` file that has one row '**127.0.0.1**' as its content.
 
 .. code-block:: bash
 
@@ -112,7 +114,7 @@ Next users can check the :ref:`Use Your Own Graph Data<use-own-data>` tutorial t
 
 Clean Up
 ----------
-Once finish GML tasks, users can exit the GraphStorm Docker container with command ``exit`` and then stop the container to restore computation resources.
+Once finished with GML tasks, users can exit the GraphStorm Docker container with command ``exit`` and then stop the container to restore computation resources.
 
 Run this command in the **container running environment** to leave the GraphStorm container.
 
