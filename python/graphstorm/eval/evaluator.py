@@ -426,7 +426,7 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
         scores = {}
         if pred is None or labels is None:
             for metric in self.metric:
-                scores[metric] = -1
+                scores[metric] = "N/A"
         else: # pred is not None and labels is not None
             pred = th.squeeze(pred)
             labels = th.squeeze(labels)
@@ -551,7 +551,7 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
                     results[metric] = self.metrics_obj.metric_eval_function[metric](pred, labels)
             else:
                 # if the pred is None or the labels is None the metric can not me computed
-                results[metric] = -1
+                results[metric] = "N/A"
         return results
 
 class GSgnnLPEvaluator():
@@ -872,7 +872,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
             if test_scores is not None:
                 test_score = self.compute_score(test_scores)
             else:
-                test_score = {"mrr": -1} # Dummy
+                test_score = {"mrr": "N/A"} # Dummy
 
             if val_scores is not None:
                 val_score = self.compute_score(val_scores)
@@ -886,6 +886,6 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
                             self._best_test_score[metric] = test_score[metric]
                             self._best_iter[metric] = total_iters
             else:
-                val_score = {"mrr": -1} # Dummy
+                val_score = {"mrr": "N/A"} # Dummy
 
         return val_score, test_score

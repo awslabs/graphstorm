@@ -22,7 +22,7 @@ import argparse
 
 from remove_mask import print_feat_names
 
-def remove_mask(data):
+def remove_test_mask(data):
     new_data = {}
     for name in data:
         if 'test_mask' not in name:
@@ -46,11 +46,11 @@ if __name__ == '__main__':
         if not os.path.isfile(part_dir):
             if args.remove_node_mask:
                 data = dgl.data.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
-                data = remove_mask(data)
+                data = remove_test_mask(data)
                 dgl.data.save_tensors(os.path.join(part_dir, 'node_feat.dgl'), data)
             else:
                 data = dgl.data.load_tensors(os.path.join(part_dir, 'edge_feat.dgl'))
-                data = remove_mask(data)
+                data = remove_test_mask(data)
                 dgl.data.save_tensors(os.path.join(part_dir, 'edge_feat.dgl'), data)
 
     print('after removing {} test_masks'.format('node' if args.remove_node_mask else 'edge'))
