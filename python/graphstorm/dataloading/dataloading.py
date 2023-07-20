@@ -30,6 +30,28 @@ from .utils import trim_data, modify_fanout_for_target_etype
 ################ Minibatch DataLoader (Edge Prediction) #######################
 EP_DECODER_EDGE_FEAT = "ep_edge_feat"
 
+class _ReconstructedNeighborSampler():
+    def __init__(self, dataset, reconstructed_embed_ntypes, fanout):
+        self._reconstructed_embed_ntypes = set(reconstructed_embed_ntypes)
+        self._g = dataset.g
+        etypes = self._g.canonical_etypes
+        self._fanout = {}
+        for dst_ntype in reconstructed_embed_ntypes:
+            for etype in etypes:
+                if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
+                    self._fanout[etype] = fanout
+
+    def sample(self, block):
+        if len(self._fanout) == 0:
+            return None
+
+        nodes = {}
+        for src_ntype in block.srctypes:
+            if src_ntype in self._reconstructed_embed_ntypes:
+                nodes[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
+        subg = dgl.sampling.sample_neighbors(self._g, nodes, self._fanout)
+        return dgl.to_block(subg)
+
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
 
@@ -639,10 +661,14 @@ class GSgnnNodeDataLoader():
     train_task : bool
         Whether or not for training.
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True):
+    def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
+                 reconstructed_embed_ntype=[]):
         self._data = dataset
         self._fanout = fanout
         self._target_nidx  = target_idx
+        self._reconstructed_embed_sampler = \
+                _ReconstructedNeighborSampler(dataset, reconstructed_embed_ntype, 5) \
+                if len(reconstructed_embed_ntype) > 0 else None
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -667,7 +693,12 @@ class GSgnnNodeDataLoader():
         return self.dataloader.__iter__()
 
     def __next__(self):
-        return self.dataloader.__next__()
+        input_nodes, seeds, blocks = self.dataloader.__next__()
+        if self._reconstructed_embed_sampler is not None:
+            block = self._reconstructed_embed_sampler.sample(blocks[-1])
+            if block is not None:
+                blocks.append(block)
+        return input_nodes, seeds, blocks
 
     @property
     def data(self):

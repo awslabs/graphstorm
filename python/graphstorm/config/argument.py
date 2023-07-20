@@ -754,6 +754,15 @@ class GSConfig:
         return False
 
     @property
+    def reconstructed_embed_ntype(self):
+        """
+        """
+        if hasattr(self, "_reconstructed_embed_ntype"):
+            return self._reconstructed_embed_ntype \
+                    if self._reconstructed_embed_ntype is not None else []
+        return []
+
+    @property
     def wd_l2norm(self):
         """ Weight decay
         """
@@ -1580,6 +1589,8 @@ def _add_hyperparam_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
+    group.add_argument("--reconstructed-embed-ntype", type=str, nargs="+",
+            help="The node types whose input embeddings are reconstructed from neighbors' features.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,

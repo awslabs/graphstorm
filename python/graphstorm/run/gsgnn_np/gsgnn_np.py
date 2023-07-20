@@ -76,7 +76,8 @@ def main(args):
     trainer.setup_task_tracker(tracker)
     device = 'cuda:%d' % trainer.dev_id
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True)
+                                     batch_size=config.batch_size, device=device, train_task=True,
+                                     reconstructed_embed_ntype=config.reconstructed_embed_ntype)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
