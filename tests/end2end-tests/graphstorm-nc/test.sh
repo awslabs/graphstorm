@@ -37,10 +37,10 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 
 error_and_exit ${PIPESTATUS[0]}
 
-bst_cnt=$(grep "Best Test accuracy: -1" train_log.txt | wc -l)
+bst_cnt=$(grep "Best Test accuracy: N/A" train_log.txt | wc -l)
 if test $bst_cnt -lt 1
 then
-    echo "Test set is empty we should have Best Test accuracy: -1"
+    echo "Test set is empty we should have Best Test accuracy: N/A"
     exit -1
 fi
 
