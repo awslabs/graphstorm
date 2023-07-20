@@ -37,10 +37,10 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 
 error_and_exit ${PIPESTATUS[0]}
 
-bst_cnt=$(grep "Best Test mrr: -1" train_log.txt | wc -l)
+bst_cnt=$(grep "Best Test mrr: N/A" train_log.txt | wc -l)
 if test $bst_cnt -lt 1
 then
-    echo "Test set is empty we should have Best Test mrr: -1"
+    echo "Test set is empty we should have Best Test mrr: N/A"
     exit -1
 fi
 
