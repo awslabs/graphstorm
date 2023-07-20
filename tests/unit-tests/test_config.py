@@ -1097,7 +1097,9 @@ def create_gnn_config(tmp_path, file_name):
         "eval_fanout": "10,10",
         "num_layers": 2,
         "hidden_size": 128,
-        "use_mini_batch_infer": True
+        "use_mini_batch_infer": True,
+        "num_ffn_layers_in_gnn": 1,
+        "num_ffn_layers_in_input": 1
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1185,6 +1187,8 @@ def test_gnn_info():
         assert config.num_layers == 2
         assert config.hidden_size == 128
         assert config.use_mini_batch_infer == True
+        assert config.num_ffn_layers_in_input == 1
+        assert config.num_ffn_layers_in_gnn == 1
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test3.yaml'),
                          local_rank=0)
@@ -1218,6 +1222,8 @@ def test_gnn_info():
         assert config.num_layers == 0 # lm model does not need n layers
         check_failure(config, "hidden_size") # lm model may not need hidden size
         assert config.use_mini_batch_infer == True
+        assert config.num_ffn_layers_in_input == 0
+        assert config.num_ffn_layers_in_gnn == 0
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
