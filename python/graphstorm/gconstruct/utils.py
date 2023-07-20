@@ -17,18 +17,18 @@
     node regression, edge classification and edge regression.
 """
 import os
-import multiprocessing
-from multiprocessing import Process
 import queue
 import gc
 import logging
+import copy
 
 import numpy as np
 import dgl
 import torch as th
+from torch import multiprocessing
+from torch.multiprocessing import Process
 
 from ..utils import sys_tracker
-from .file_io import HDF5Array
 
 SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
 SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
@@ -167,6 +167,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
         while True:
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
+            logging.debug("%d Processing %s", worker_id, in_file)
             data = user_parser(in_file)
             size = _estimate_sizeof(data)
             # Max pickle obj size is 2 GByte
@@ -200,7 +201,9 @@ def update_two_phase_feat_ops(phase_one_info, ops):
             else:
                 feat_info[feat_name].append(info)
     for op in ops:
-        op.update_info(feat_info[op.feat_name])
+        # It is possible that there is no information from phase one.
+        if op.feat_name in feat_info:
+            op.update_info(feat_info[op.feat_name])
 
 def multiprocessing_data_read(in_files, num_processes, user_parser):
     """ Read data from multiple files with multiprocessing.
@@ -231,7 +234,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
-        res_queue = manager.Queue(8)
+        res_queue = manager.Queue(8 if num_processes < 8 else num_processes)
         num_files = len(in_files)
         for i, in_file in enumerate(in_files):
             task_queue.put((i, in_file))
@@ -283,6 +286,241 @@ def _get_tot_shape(arrs):
     shape = [num_rows] + list(shape1)
     return tuple(shape)
 
+def _get_arrs_out_dtype(arrs):
+    """ To get the output dtype by accessing the
+        first element of the arrays (numpy array or HDFArray)
+
+        Note: We use arrs[0][0] instead of arrs[0] because
+            arrs[0][0] is a transformed data with out_dtype
+            while arrs[0] can be a HDFArray and has not
+            been cast to out_dtype.
+
+    Parameters
+    ----------
+    arrs : list of arrays.
+        The input arrays.
+    """
+    return arrs[0][0].dtype
+
+class ExtMemArrayWrapper:
+    """ An array wrapper for external-memory array.
+    """
+
+    def to_numpy(self):
+        """ Convert the array to Numpy array.
+        """
+
+    def to_tensor(self):
+        """ Return Pytorch tensor.
+        """
+
+    def astype(self, dtype):
+        """ Set the output dtype.
+
+        Parameters
+        ----------
+        dtype: numpy.dtype
+            Output dtype
+        """
+
+    def cleanup(self):
+        """ Clean up the external-memory array.
+        """
+
+    @property
+    def shape(self):
+        """ The shape of the array.
+        """
+
+    @property
+    def dtype(self):
+        """ The data type of the array.
+        """
+
+class HDF5Handle:
+    """ HDF5 file handle
+
+    This is to reference the HDF5 handle and close it when no one
+    uses the HDF5 file.
+
+    Parameters
+    ----------
+    f : HDF5 file handle
+        The handle to access the HDF5 file.
+    """
+    def __init__(self, f):
+        self._f = f
+
+    def __del__(self):
+        return self._f.close()
+
+
+class HDF5Array(ExtMemArrayWrapper):
+    """ This is an array wrapper class for HDF5 array.
+
+    The main purpose of this class is to make sure that we can close
+    the HDF5 files when the array is destroyed.
+
+    Parameters
+    ----------
+    arr : HDF5 dataset
+        The array-like object for accessing the HDF5 file.
+    handle : HDF5Handle
+        The handle that references to the opened HDF5 file.
+    """
+    def __init__(self, arr, handle):
+        self._arr = arr
+        self._handle = handle
+        self._out_dtype = None # Use the dtype of self._arr
+
+    def __len__(self):
+        return self._arr.shape[0]
+
+    def __getitem__(self, idx):
+        """ Slicing data from the array.
+
+        Parameters
+        ----------
+        idx : Numpy array or Pytorch tensor or slice or int.
+            The index.
+
+        Returns
+        -------
+        Numpy array : the data from the HDF5 array indexed by `idx`.
+        """
+        if isinstance(idx, (slice, int)):
+            return self._arr[idx].astype(self._out_dtype)
+
+        if isinstance(idx, th.Tensor):
+            idx = idx.numpy()
+        # If the idx are sorted.
+        if np.all(idx[1:] - idx[:-1] > 0):
+            arr = self._arr[idx]
+        else:
+            # There are two cases here: 1) there are duplicated IDs,
+            # 2) the IDs are not sorted. Unique can return unique
+            # IDs in the ascending order that meets the requirement of
+            # HDF5 indexing.
+            uniq_ids, reverse_idx = np.unique(idx, return_inverse=True)
+            arr = self._arr[uniq_ids][reverse_idx]
+
+        if self._out_dtype is not None:
+            arr = arr.astype(self._out_dtype)
+        return arr
+
+    def to_tensor(self):
+        """ Return Pytorch tensor.
+        """
+        arr = th.tensor(self._arr)
+        if self._out_dtype is not None:
+            if self._out_dtype is np.float32:
+                arr = arr.to(th.float32)
+            elif self._out_dtype is np.float16:
+                arr = arr.to(th.float16)
+        return arr
+
+    def to_numpy(self):
+        """ Return Numpy array.
+        """
+        res = self._arr[:]
+        if self._out_dtype is not None:
+            res = res.astype(self._out_dtype)
+        return res
+
+    def astype(self, dtype):
+        """ Set the output dtype.
+
+        Parameters
+        ----------
+        dtype: numpy.dtype
+            Output dtype
+        """
+        arr = copy.copy(self)
+        arr._out_dtype = dtype
+        return arr
+
+    @property
+    def shape(self):
+        """ The shape of the HDF5 array.
+        """
+        return self._arr.shape
+
+    @property
+    def dtype(self):
+        """ The data type of the HDF5 array.
+        """
+        if self._out_dtype is not None:
+            return self._out_dtype
+        else:
+            return self._arr.dtype
+
+class ExtNumpyWrapper(ExtMemArrayWrapper):
+    """ The wrapper to memory-mapped Numpy array.
+
+    Parameters
+    ----------
+    arr_path : str
+        The path of memory-mapped numpy file.
+    shape : tuple
+        The shape of the array.
+    dtype : numpy dtype
+        The data type.
+    """
+    def __init__(self, arr_path, shape, dtype):
+        self._arr_path = arr_path
+        self._shape = shape
+        self._orig_dtype = self._dtype = dtype
+        self._arr = None
+
+    @property
+    def dtype(self):
+        """ The data type
+        """
+        return self._dtype
+
+    @property
+    def shape(self):
+        """ The shape of the array.
+        """
+        return self._shape
+
+    def astype(self, dtype):
+        """ Return an array with converted data type.
+        """
+        arr = copy.copy(self)
+        arr._dtype = dtype
+        return arr
+
+    def __len__(self):
+        return self._shape[0]
+
+    def __getitem__(self, idx):
+        if self._arr is None:
+            self._arr = np.memmap(self._arr_path, self._orig_dtype, mode="r", shape=self._shape)
+        return self._arr[idx].astype(self.dtype)
+
+    def cleanup(self):
+        """ Clean up the array.
+        """
+        self._arr.flush()
+        self._arr = None
+
+    def to_numpy(self):
+        """ Convert the data to Numpy array.
+        """
+        if self._arr is None:
+            arr = np.memmap(self._arr_path, self._orig_dtype, mode="r", shape=self._shape)
+            if self._dtype != self._orig_dtype:
+                arr = arr.astype(self._dtype)
+            return arr
+        else:
+            return self._arr.astype(self._dtype)
+
+    def to_tensor(self):
+        """ Return Pytorch tensor.
+        """
+        return th.tensor(self.to_numpy())
+
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
 
@@ -301,15 +539,18 @@ def _merge_arrs(arrs, tensor_path):
     """
     assert isinstance(arrs, list)
     shape = _get_tot_shape(arrs)
-    dtype = arrs[0].dtype
+
+    # To get the output dtype or arrs
+    dtype = _get_arrs_out_dtype(arrs)
     if tensor_path is not None:
         out_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
         row_idx = 0
         for arr in arrs:
             out_arr[row_idx:(row_idx + arr.shape[0])] = arr[:]
             row_idx += arr.shape[0]
-        return out_arr
-    elif isinstance(arrs[0], HDF5Array):
+        out_arr.flush()
+        return ExtNumpyWrapper(tensor_path, out_arr.shape, out_arr.dtype)
+    elif isinstance(arrs[0], ExtMemArrayWrapper):
         arrs = [arr.to_numpy() for arr in arrs]
         return np.concatenate(arrs)
     else:
@@ -355,7 +596,7 @@ class ExtMemArrayMerger:
         # If external memory workspace is not initialized or the feature size is smaller
         # than a threshold, we don't do anything.
         if self._ext_mem_workspace is None or np.prod(shape[1:]) < self._ext_mem_feat_size:
-            if len(arrs) == 1 and isinstance(arrs[0], HDF5Array):
+            if len(arrs) == 1 and isinstance(arrs[0], ExtMemArrayWrapper):
                 return arrs[0].to_numpy()
             elif len(arrs) == 1:
                 return arrs[0]
@@ -369,10 +610,13 @@ class ExtMemArrayMerger:
         if len(arrs) > 1:
             return _merge_arrs(arrs, tensor_path)
         else:
+            # To get the output dtype or arrs
+            dtype = _get_arrs_out_dtype(arrs)
             arr = arrs[0]
-            em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=shape)
+            em_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
             em_arr[:] = arr[:]
-            return em_arr
+            em_arr.flush()
+            return ExtNumpyWrapper(tensor_path, em_arr.shape, em_arr.dtype)
 
 def save_maps(output_dir, fname, map_data):
     """ Save node id mapping or edge id mapping

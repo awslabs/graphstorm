@@ -16,7 +16,6 @@
     Inference script for node classification/regression tasks with GNN
 """
 
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -37,8 +36,11 @@ def get_evaluator(config): # pylint: disable=unused-argument
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
-def main(args):
-    config = GSConfig(args)
+def main(config_args):
+    """ main function
+    """
+    config = GSConfig(config_args)
+    config.verify_arguments(False)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
 
     infer_data = GSgnnNodeInferData(config.graph_name,
@@ -54,12 +56,21 @@ def main(args):
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
+        assert len(infer_data.test_idxs) > 0, \
+            "There is not test data for evaluation. " \
+            "You can use --no-validation true to avoid do testing"
+        target_idxs = infer_data.test_idxs
+    else:
+        assert len(infer_data.infer_idxs) > 0, \
+            f"To do inference on {config.target_ntype} without doing evaluation, " \
+            "you should not define test_mask as its node feature. " \
+            "GraphStorm will do inference on the whole node set. "
+        target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
     device = 'cuda:%d' % infer.dev_id
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
-    dataloader = GSgnnNodeDataLoader(infer_data, infer_data.test_idxs, fanout=fanout,
+    dataloader = GSgnnNodeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size, device=device,
                                      train_task=False)
     # Preparing input layer for training or inference.
@@ -73,12 +84,14 @@ def main(args):
                 return_proba=config.return_proba)
 
 def generate_parser():
+    """ Generate an argument parser
+    """
     parser = get_argument_parser()
     return parser
 
 if __name__ == '__main__':
-    parser=generate_parser()
+    arg_parser=generate_parser()
 
-    args = parser.parse_args()
+    args = arg_parser.parse_args()
     print(args)
     main(args)

@@ -37,16 +37,28 @@ from graphstorm.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_LOCALJOINT_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
+from graphstorm.dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
+                                    BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
+from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
+                                    FastGSgnnLPJointNegDataLoader,
+                                    FastGSgnnLPLocalUniformNegDataLoader,
+                                    FastGSgnnLPLocalJointNegDataLoader)
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler
+from graphstorm.utils import rt_profiler, sys_tracker
 
-def main(args):
-    config = GSConfig(args)
+def main(config_args):
+    """ main function
+    """
+    config = GSConfig(config_args)
+    config.verify_arguments(True)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
+    sys_tracker.init(config.verbose, rank=gs.get_rank())
     node_feat_field = config.node_feat_name
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
@@ -57,7 +69,8 @@ def main(args):
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
-        trainer.restore_model(model_path=config.restore_model_path)
+        trainer.restore_model(model_path=config.restore_model_path,
+                              model_layer_to_load=config.restore_model_layers)
     trainer.setup_cuda(dev_id=config.local_rank)
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
@@ -90,8 +103,16 @@ def main(args):
         dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_JOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalUniformNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalJointNegDataLoader
     else:
-        raise Exception('Unknown negative sampler')
+        raise ValueError('Unknown negative sampler')
     device = 'cuda:%d' % trainer.dev_id
     dataloader = dataloader_cls(train_data, train_data.train_idxs, config.fanout,
                                 config.batch_size, config.num_negative_edges, device,
@@ -106,7 +127,7 @@ def main(args):
     elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
     else:
-        raise Exception('Unknown test negative sampler.'
+        raise ValueError('Unknown test negative sampler.'
             'Supported test negative samplers include '
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
     val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
@@ -151,12 +172,14 @@ def main(args):
                         node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
+    """ Generate an argument parser
+    """
     parser = get_argument_parser()
     return parser
 
 if __name__ == '__main__':
-    parser=generate_parser()
+    arg_parser=generate_parser()
 
-    args = parser.parse_args()
+    args = arg_parser.parse_args()
     print(args)
     main(args)

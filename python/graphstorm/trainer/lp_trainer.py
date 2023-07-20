@@ -106,27 +106,22 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         # TODO(xiangsx) Support freezing gnn encoder and decoder
 
         # training loop
-        dur = []
-        best_epoch = 0
-        num_input_nodes = 0
         total_steps = 0
         early_stop = False # used when early stop is True
-        forward_time = 0
-        back_time = 0
         sys_tracker.check('start training')
         for epoch in range(num_epochs):
             model.train()
-            t0 = time.time()
+            epoch_start = time.time()
 
             if freeze_input_layer_epochs <= epoch:
                 self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
 
             rt_profiler.start_record()
+            batch_tic = time.time()
             for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(train_loader):
                 rt_profiler.record('train_sample')
                 total_steps += 1
-                batch_tic = time.time()
 
                 if not isinstance(input_nodes, dict):
                     assert len(pos_graph.ntypes) == 1
@@ -137,31 +132,24 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 pos_graph = pos_graph.to(device)
                 neg_graph = neg_graph.to(device)
                 blocks = [blk.to(device) for blk in blocks]
-                for _, nodes in input_nodes.items():
-                    num_input_nodes += nodes.shape[0]
                 rt_profiler.record('train_graph2GPU')
 
-                t2 = time.time()
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
                              input_feats, None, input_nodes)
                 rt_profiler.record('train_forward')
 
-                t3 = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
                 rt_profiler.record('train_backward')
                 self.optimizer.step()
                 rt_profiler.record('train_step')
-                forward_time += (t3 - t2)
-                back_time += (time.time() - t3)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
                 if i % 20 == 0 and self.rank == 0:
                     rt_profiler.print_stats()
                     print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
                             format(epoch, i, loss.item(), time.time() - batch_tic))
-                    num_input_nodes = forward_time = back_time = 0
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -169,7 +157,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     val_score = self.eval(model.module, data,
                                           val_loader, test_loader, total_steps,
                                           edge_mask_for_gnn_embeddings)
-
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
@@ -187,6 +174,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                         #    guidance of validation score.
                         self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
+                batch_tic = time.time()
                 rt_profiler.record('train_eval')
                 # early_stop, exit current interation.
                 if early_stop is True:
@@ -195,10 +183,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # ------- end of an epoch -------
 
             th.distributed.barrier()
-            epoch_time = time.time() - t0
+            epoch_time = time.time() - epoch_start
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
-            dur.append(epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
@@ -214,6 +201,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # depends on the setting of top k. To show this is after epoch save, set the iteration
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
+            rt_profiler.print_stats()
 
             th.distributed.barrier()
 
@@ -227,7 +215,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             output = {'best_test_mrr': self.evaluator.best_test_score,
                        'best_val_mrr':self.evaluator.best_val_score,
                        'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
-                       'best_epoch': best_epoch}
+                       'best validation iteration': \
+                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                       'best model path': \
+                           self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
 
             if save_perf_results_path is not None:
@@ -260,6 +251,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('before prediction')
         model.eval()
+
         emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
@@ -268,7 +260,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if self.dev_id >= 0 else th.device("cpu")
         val_scores = lp_mini_batch_predict(model, emb, val_loader, device) \
             if val_loader is not None else None
+        sys_tracker.check('after_val_score')
         test_scores = lp_mini_batch_predict(model, emb, test_loader, device)
+        sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
             val_scores, test_scores, total_steps)
         sys_tracker.check('evaluate validation/test')

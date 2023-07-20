@@ -24,6 +24,16 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--balance-edges \
 	--num-parts 1
 
+python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
+	--filepath /data \
+	--target-ntype movie \
+	--add-reverse-edges \
+	--num-trainers-per-machine 4 \
+	--output movielen_100k_infer_val_1p_4t \
+	--no-split true \
+	--balance-edges \
+	--num-parts 1
+
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 	--filepath /data \
@@ -84,6 +94,17 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--val-pct 0.1 \
 	--num-parts 1
 
+python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
+	--filepath /data \
+    --elabel-field "user,rating,movie:rate" \
+    --target-etype "user,rating,movie" \
+    --etask-type "regression" \
+	--num-trainers-per-machine 4 \
+	--output movielen_100k_er_infer_1p_4t \
+	--balance-edges \
+	--no-split true \
+	--num-parts 1
+
 # dummy data Edge Classification
 export PYTHONPATH=$GS_HOME/python/
 python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
@@ -98,6 +119,18 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
 	--generate-new-edge-split true \
 	--train-pct 0.1 \
 	--val-pct 0.1 \
+	--num-parts 1
+
+export PYTHONPATH=$GS_HOME/python/
+python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
+	--filepath /data \
+    --elabel-field "user,rating,movie:rate" \
+    --target-etype "user,rating,movie" \
+    --etask-type "classification" \
+	--num-trainers-per-machine 4 \
+	--output movielen_100k_multi_label_ec_infer \
+	--balance-edges \
+	--no-split true \
 	--num-parts 1
 
 # Create data for edge classification with text features
@@ -119,5 +152,14 @@ python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
 rm -Rf /data/movielen_100k_multi_label_ec
 cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_multi_label_ec
 python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multilabel.py --path /data/movielen_100k_multi_label_ec --node_class false --field rate
+
+
+# Generate movielens dataset in gconstruct input format
+python3 $GS_HOME/tests/end2end-tests/data_process/process_movielens.py
+
+# Create data for graph-aware fine-tuning BERT model
+python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/test_data_config/movielens_user_feat_movie_token.json --num-processes 1 --output-dir /data/movielen_100k_lp_user_feat_movie_token_1p --graph-name ml --add-reverse-edges --num-parts 1
+
+error_and_exit $?
 
 date

@@ -33,6 +33,7 @@ from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder
 from .model.rgat_encoder import RelationalGATEncoder
 from .model.node_gnn import GSgnnNodeModel
+from .model.node_glem import GLEM
 from .model.edge_gnn import GSgnnEdgeModel
 from .model.lp_gnn import GSgnnLinkPredictionModel
 from .model.loss_func import (ClassifyLossFunc,
@@ -150,7 +151,10 @@ def create_builtin_node_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    model = GSgnnNodeModel(config.alpha_l2norm)
+    if config.training_method["name"] == "glem":
+        model = GLEM(config.alpha_l2norm, **config.training_method["kwargs"])
+    elif config.training_method["name"] == "default":
+        model = GSgnnNodeModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)
 
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
@@ -287,6 +291,29 @@ def create_builtin_edge_model(g, config, train_task):
                                      multilabel=False,
                                      target_etype=target_etype,
                                      regression=True)
+        elif decoder_type == "MLPEFeatEdgeDecoder":
+            decoder_edge_feat = config.decoder_edge_feat
+            assert decoder_edge_feat is not None, \
+                "decoder-edge-feat must be provided when " \
+                "decoder_type == MLPEFeatEdgeDecoder"
+            # We need to get the edge_feat input dim.
+            if isinstance(decoder_edge_feat, str):
+                assert decoder_edge_feat in g.edges[target_etype].data
+                feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
+            else:
+                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]])
+
+            decoder = MLPEFeatEdgeDecoder(
+                h_dim=model.gnn_encoder.out_dims \
+                    if model.gnn_encoder is not None \
+                    else model.node_input_encoder.out_dims,
+                feat_dim=feat_dim,
+                out_dim=1,
+                multilabel=False,
+                target_etype=target_etype,
+                dropout=config.dropout,
+                regression=True)
         else:
             assert False, "decoder not supported"
         model.set_decoder(decoder)
@@ -417,7 +444,8 @@ def set_encoder(model, g, config, train_task):
     else:
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
-                                          use_node_embeddings=config.use_node_embeddings)
+                                          use_node_embeddings=config.use_node_embeddings,
+                                          num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)
 
     # Set GNN encoders
@@ -435,7 +463,8 @@ def set_encoder(model, g, config, train_task):
                                            num_bases=num_bases,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
-                                           use_self_loop=config.use_self_loop)
+                                           use_self_loop=config.use_self_loop,
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "rgat":
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
@@ -444,7 +473,8 @@ def set_encoder(model, g, config, train_task):
                                            config.num_heads,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
-                                           use_self_loop=config.use_self_loop)
+                                           use_self_loop=config.use_self_loop,
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)

@@ -29,7 +29,6 @@ import dgl
 from ..utils import get_rank
 from ..data.utils import alltoallv_nccl, alltoallv_cpu
 
-
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
 
@@ -504,7 +503,7 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     if 'gnn' in checkpoint and gnn_model is not None:
         gnn_model.load_state_dict(checkpoint['gnn'])
     if 'embed' in checkpoint and embed_layer is not None:
-        embed_layer.load_state_dict(checkpoint['embed'])
+        embed_layer.load_state_dict(checkpoint['embed'], strict=False)
     if 'decoder' in checkpoint and decoder is not None:
         decoder.load_state_dict(checkpoint['decoder'])
 
@@ -606,7 +605,7 @@ def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     # Load language models.
     if "lm" in checkpoint:
         assert len(lm_opts) == 1, "Language model parameters must exists in the model"
-        dense_opts[0].load_state_dict(checkpoint["lm"])
+        lm_opts[0].load_state_dict(checkpoint["lm"])
 
     # TODO(zhengda) we need to change DGL to make it work.
     if 'sparse' in checkpoint and len(sparse_opts) > 0:

@@ -78,6 +78,8 @@ If not, please make sure there is no limitation of port 2222.
 
 For distributed training, users also need to make sure ports under 65536 is open for DistDGL to use.
 
+.. _partition-a-graph:
+
 Partition a Graph
 -------------------------------
 
