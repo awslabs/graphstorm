@@ -35,21 +35,20 @@ class _ReconstructedNeighborSampler():
         self._reconstructed_embed_ntypes = set(reconstructed_embed_ntypes)
         self._g = dataset.g
         etypes = self._g.canonical_etypes
-        self._fanout = {}
+        self._fanout = fanout
+        self._subg_etypes = []
         for dst_ntype in reconstructed_embed_ntypes:
             for etype in etypes:
                 if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
-                    self._fanout[etype] = fanout
+                    self._subg_etypes.append(etype)
 
     def sample(self, block):
-        if len(self._fanout) == 0:
-            return None
-
         nodes = {}
         for src_ntype in block.srctypes:
             if src_ntype in self._reconstructed_embed_ntypes:
                 nodes[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
-        subg = dgl.sampling.sample_neighbors(self._g, nodes, self._fanout)
+        subg = dgl.distributed.sample_neighbors(self._g, nodes, self._fanout)
+        subg = subg.edge_type_subgraph(self._subg_etypes)
         return dgl.to_block(subg)
 
 class GSgnnEdgeDataLoader():
@@ -690,7 +689,7 @@ class GSgnnNodeDataLoader():
         return loader
 
     def __iter__(self):
-        return self.dataloader.__iter__()
+        return self
 
     def __next__(self):
         input_nodes, seeds, blocks = self.dataloader.__next__()
