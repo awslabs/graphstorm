@@ -375,7 +375,7 @@ def wrap_udf_in_torch_dist_launcher(
     # to:
     #     python -m torch.distributed.launch [DIST TORCH ARGS] path/to/dist_trainer.py arg0 arg1
     udf_command = " ".join(udf_command)
-    new_udf_command = f"{python_bin} {torch_dist_cmd} {udf_command}"
+    new_udf_command = f"{python_bin} -u {torch_dist_cmd} {udf_command}"
 
     return new_udf_command
 
@@ -677,9 +677,9 @@ def submit_jobs(args, udf_command):
 
     udf_command = update_udf_command(udf_command, args)
     # launch server tasks
-    server_cmd = f"{sys.executable} {' '.join(udf_command)}" \
+    server_cmd = f"{sys.executable} -u {' '.join(udf_command)}" \
         if sys.executable is not None and sys.executable != "" \
-        else f"python3 {' '.join(udf_command)}"
+        else f"python3 -u {' '.join(udf_command)}"
 
     server_env_vars = construct_dgl_server_env_vars(
         num_samplers=args.num_samplers,
