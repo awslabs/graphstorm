@@ -68,8 +68,7 @@ class GSgnnTrainer():
         device :
             The device for model training.
         """
-        # setup cuda env
-        self._device = device
+        self._device = th.device(device)
         self._model = self._model.to(self.device)
         self._optimizer.move_to_device(self._model.device)
 

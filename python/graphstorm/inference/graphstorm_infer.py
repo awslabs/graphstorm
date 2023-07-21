@@ -46,7 +46,7 @@ class GSInfer():
             The device ID for model training.
         """
         # setup cuda env
-        self._device = device
+        self._device = th.device(device)
         self._model = self._model.to(self.device)
 
     def setup_task_tracker(self, task_tracker):

@@ -256,8 +256,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
-        device = th.device(f"cuda:{self.dev_id}") \
-            if self.dev_id >= 0 else th.device("cpu")
+        device = self.device
         val_scores = lp_mini_batch_predict(model, emb, val_loader, device) \
             if val_loader is not None else None
         sys_tracker.check('after_val_score')
