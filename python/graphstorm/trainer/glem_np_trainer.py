@@ -90,8 +90,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                     "Only GSgnnModel supports full-graph inference."
 
         # computation graph will be changed during training.
-        model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
-                                        output_device=self.dev_id,
+        model = DistributedDataParallel(self._model, device_ids=[self.device],
+                                        output_device=self.device,
                                         find_unused_parameters=True,
                                         static_graph=False)
         device = model.device

@@ -26,6 +26,7 @@ from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.utils import setup_device
 
 def main(config_args):
     """ main function
@@ -33,6 +34,7 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(False)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    device = setup_device(config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
@@ -42,7 +44,7 @@ def main(config_args):
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnLinkPredictionInfer(model, gs.get_rank())
-    infer.setup_cuda(dev_id=config.local_rank)
+    infer.setup_device(device=device)
     if not config.no_validation:
         infer.setup_evaluator(
             GSgnnMrrLPEvaluator(config.eval_frequency,

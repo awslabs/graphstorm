@@ -22,6 +22,7 @@ from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInfer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
+from graphstorm.utils import setup_device
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -43,6 +44,7 @@ def main(config_args):
     config.verify_arguments(False)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    device = setup_device(config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
@@ -53,7 +55,7 @@ def main(config_args):
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnEdgePredictionInfer(model, gs.get_rank())
-    infer.setup_cuda(dev_id=config.local_rank)
+    infer.setup_device(device=device)
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
@@ -69,7 +71,6 @@ def main(config_args):
         target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
-    device = 'cuda:%d' % infer.dev_id
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
