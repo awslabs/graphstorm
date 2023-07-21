@@ -263,21 +263,27 @@ class GSConfig:
             _ = self.lm_infer_batch_size
             _ = self.freeze_lm_encoder_epochs
 
-        # Model architecture
-        _ = self.model_encoder_type
-        _ = self.hidden_size
-        _ = self.num_layers
+        # I/O related
         _ = self.restore_model_layers
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
         _ = self.save_embed_path
+
+        # Model architecture
         _ = self.dropout
-        _ = self.use_self_loop
-        _ = self.use_node_embeddings
-        _ = self.num_bases
-        _ = self.num_heads
         _ = self.decoder_type
         _ = self.num_decoder_basis
+        # Encoder related
+        encoder_type = self.model_encoder_type
+        if encoder_type == "lm":
+            assert self.node_lm_configs is not None
+        else:
+            _ = self.hidden_size
+            _ = self.num_layers
+            _ = self.use_self_loop
+            _ = self.use_node_embeddings
+            _ = self.num_bases
+            _ = self.num_heads
 
         _ = self.return_proba
         _ = self.alpha_l2norm
