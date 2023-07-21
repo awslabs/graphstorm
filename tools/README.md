@@ -1,6 +1,6 @@
 # GraphStorm Tools
 
-GraphStorm provides a set of scripts to help users process graph data and run experiments. 
+GraphStorm provides a set of scripts to help users process graph data and run experiments.
 
 **Note**: all scripts should be ran within the GraphStorm Docker container environment.
 
@@ -11,7 +11,7 @@ GraphStorm has a set of built-in datasets that can help users to quickly learn t
 - OGBN papers100M, GraphStorm dataset name: "**ogbn-papers100M**";
 - OGBN mag, GraphStorm dataset name: "**ogbn-mag**".
 
-Users can use the `gen_ogb_dataset.py` and `gen_mag_dataset.py` script to automatically download the four graph datasets from OGBN site and process them into DGL graph format. 
+Users can use the `gen_ogb_dataset.py` and `gen_mag_dataset.py` script to automatically download the four graph datasets from OGBN site and process them into DGL graph format.
 
 Usage examples:
 
@@ -56,6 +56,7 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
                                              --num-parts 2 \
                                              --output /tmp/ogbn_arxiv_nc_2p
+                                             --bert-name "allenai/scibert_scivocab_uncased"
 ```
 
 Below command can download the OGBN mag data, process it into DGL graph, and finally split it into two partition. The partitioned graph is save at the /tmp/ogbn_mag_lp_2p folder.

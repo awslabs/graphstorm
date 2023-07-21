@@ -92,6 +92,9 @@ if __name__ == '__main__':
     # output arguments
     argparser.add_argument('--output', type=str, default='data',
                            help='The output directory to store the partitioned results.')
+    # bert model name if any
+    argparser.add_argument('--bert-name', type=str, default='bert-base-uncased',
+                           help='bert model use to encode text feature if any')
 
     args = argparser.parse_args()
     print(args)
@@ -102,13 +105,16 @@ if __name__ == '__main__':
     # load graph data
     if args.dataset == 'ogbn-arxiv':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
+                                     retain_original_features=args.retain_original_features,
+                                     bert_model_name=args.bert_name)
     elif args.dataset == 'ogbn-products':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
+                                     retain_original_features=args.retain_original_features,
+                                     bert_model_name=args.bert_name)
     elif args.dataset == 'ogbn-papers100m':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
+                                     retain_original_features=args.retain_original_features,
+                                     bert_model_name=args.bert_name)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath)
     elif args.dataset == 'movie-lens-100k-text':

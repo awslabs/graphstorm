@@ -74,6 +74,9 @@ if __name__ == '__main__':
                            help='The output directory to store the partitioned results.')
     argparser.add_argument('--save-mappings', action='store_true',
                            help='Store the mappings for the edges and nodes after partition.')
+    # bert model name if any
+    argparser.add_argument('--bert-name', type=str, default='bert-base-uncased',
+                           help='bert model use to encode text feature if any')
 
     args = argparser.parse_args()
     print(args)
@@ -89,10 +92,12 @@ if __name__ == '__main__':
     # load graph data
     if args.dataset == 'ogbn-arxiv':
         dataset = OGBTextFeatDataset(args.filepath, args.dataset, edge_pct=edge_pct,
-                                     retain_original_features=args.retain_original_features)
+                                     retain_original_features=args.retain_original_features,
+                                     bert_model_name=args.bert_name)
     elif args.dataset == 'ogbn-products':
         dataset = OGBTextFeatDataset(args.filepath, args.dataset, edge_pct=edge_pct,
-                                     retain_original_features=args.retain_original_features)
+                                     retain_original_features=args.retain_original_features,
+                                     bert_model_name=args.bert_name)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath, edge_pct=edge_pct)
     elif args.dataset == 'movie-lens-100k-text':
