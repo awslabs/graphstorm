@@ -840,12 +840,14 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         # When world size == 1, we do not need the barrier
         if th.distributed.get_world_size() > 1:
             th.distributed.barrier()
-        for _, metric_val in metrics.items():
-            th.distributed.all_reduce(metric_val)
+        local_rank = th.distributed.get_rank()
+        world_size = th.distributed.get_world_size()
+
         return_metrics = {}
         for metric, metric_val in metrics.items():
+            metric_val = broadcast_data(local_rank, world_size, metric_val)
             return_metric = \
-                metric_val / th.distributed.get_world_size()
+                th.sum(metric_val) / th.distributed.get_world_size()
             return_metrics[metric] = return_metric.cpu().item()
         return return_metrics
 
