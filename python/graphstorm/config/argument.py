@@ -278,6 +278,8 @@ class GSConfig:
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
         else:
+            assert self.backend == "gloo", \
+                "Only encoder_type == lm allows nccl. Please use gloo"
             _ = self.hidden_size
             _ = self.num_layers
             _ = self.use_self_loop
