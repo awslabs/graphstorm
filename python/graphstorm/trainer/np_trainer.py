@@ -267,8 +267,18 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 # there is no test set
                 test_pred = None
                 test_label = None
-            sys_tracker.check('after_test_score')
+            sys_tracker.check('after_test_score')    
         sys_tracker.check('predict')
+
+        # select node type with largest number of nodes as target evaluation node type
+        # TODO (wlcong) add a config hyper-parameter to set eval node type
+        ntype_cnts = {k: v.size(0) for k, v in val_label.items()}
+        eval_target_ntype = max(ntype_cnts, key=lambda key: ntype_cnts[key])                 
+        val_pred = val_pred[eval_target_ntype]
+        test_pred = test_pred[eval_target_ntype]
+        val_label = val_label[eval_target_ntype]
+        test_label = test_label[eval_target_ntype]
+                 
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
                                                         val_label, test_label, total_steps)
         sys_tracker.check('evaluate')
