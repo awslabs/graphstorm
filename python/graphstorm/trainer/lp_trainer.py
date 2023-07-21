@@ -257,8 +257,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         device = self.device
-        val_scores = lp_mini_batch_predict(model, emb, val_loader, device) \
-            if val_loader is not None else None
+        if val_loader is not None:
+            val_scores = lp_mini_batch_predict(model, emb, val_loader, device)
+        else:
+            val_scores = None
         sys_tracker.check('after_val_score')
         if test_loader is not None:
             test_scores = lp_mini_batch_predict(model, emb, test_loader, device)

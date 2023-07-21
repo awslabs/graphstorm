@@ -846,7 +846,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         for metric, metric_val in metrics.items():
             return_metric = \
                 metric_val / th.distributed.get_world_size()
-            return_metrics[metric] = return_metric.item()
+            return_metrics[metric] = return_metric.cpu().item()
         return return_metrics
 
     def evaluate(self, val_scores, test_scores, total_iters):
