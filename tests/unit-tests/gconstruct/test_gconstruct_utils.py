@@ -178,7 +178,12 @@ def dummy_read(in_file):
     assert False
 
 def test_multiprocessing_read():
-    multiprocessing_data_read([str(i) for i in range(10)], 2, dummy_read)
+    try:
+        multiprocessing_data_read([str(i) for i in range(10)], 2, dummy_read)
+    except RuntimeError as e:
+        print(e)
+        return
+    assert False
 
 if __name__ == '__main__':
     test_multiprocessing_read()
