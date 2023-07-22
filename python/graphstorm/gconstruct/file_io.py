@@ -105,12 +105,10 @@ def write_data_csv(data, data_file, delimiter=','):
 def _pad_stack(arrs):
     max_len = max(len(arr) for arr in arrs)
     dtype = arrs[0].dtype
+    new_arrs = np.zeros((len(arr), max_len), dtype=dtype)
     for i, arr in enumerate(arrs):
-        if len(arr) != max_len:
-            tmp = np.zeros((max_len,), dtype=dtype)
-            tmp[:len(arr)] = arr
-            arrs[i] = tmp
-    return np.stack(arrs)
+        new_arrs[i][:len(arr)] = arr
+    return new_arrs
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
