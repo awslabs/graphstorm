@@ -836,12 +836,20 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
         raise ValueError("fail")
     except:
         pass
+
     # Test the case that source node IDs don't exist and we skip non exist edges.
     new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_src_ids) for id_ in src_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+
+    # Test the case that none of the source node IDs exists and we skip non exist edges.
+    src_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
+    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                            id_map, True)
+    assert len(new_src_ids) == 0
+    assert len(new_dst_ids) == 0
 
 def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that destination node IDs don't exist.
@@ -853,12 +861,20 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
         raise ValueError("fail")
     except:
         pass
+
     # Test the case that destination node IDs don't exist and we skip non exist edges.
     new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_dst_ids) for id_ in dst_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+
+    # Test the case that none of the destination node IDs exists and we skip non exist edges.
+    dst_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
+    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                            id_map, True)
+    assert len(new_src_ids) == 0
+    assert len(new_dst_ids) == 0
 
 def test_map_node_ids():
     # This tests all cases in map_node_ids.
