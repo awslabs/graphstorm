@@ -164,6 +164,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
         if worker_id >= num_gpus:
             logging.warning("There are more than 1 processes are attachd to GPU %d.", gpu)
     try:
+        i = 0
         while True:
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
@@ -182,6 +183,9 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
             gc.collect()
     except queue.Empty:
         pass
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(e, flush=True)
+        res_queue.put((i, None))
 
 def update_two_phase_feat_ops(phase_one_info, ops):
     """ Update the ops for the second phase feat processing
@@ -246,6 +250,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         return_dict = {}
         while len(return_dict) < num_files:
             file_idx, vals= res_queue.get()
+            if vals is None:
+                raise RuntimeError("One of the worker processes fails. Stop data processing.")
             # If the size of `vals`` is larger than utils.SHARED_MEM_OBJECT_THRESHOLD
             # we will automatically convert tensors in `vals` into torch tensor
             # and copy the tensor into shared memory.

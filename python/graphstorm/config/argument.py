@@ -263,21 +263,27 @@ class GSConfig:
             _ = self.lm_infer_batch_size
             _ = self.freeze_lm_encoder_epochs
 
-        # Model architecture
-        _ = self.model_encoder_type
-        _ = self.hidden_size
-        _ = self.num_layers
+        # I/O related
         _ = self.restore_model_layers
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
         _ = self.save_embed_path
+
+        # Model architecture
         _ = self.dropout
-        _ = self.use_self_loop
-        _ = self.use_node_embeddings
-        _ = self.num_bases
-        _ = self.num_heads
         _ = self.decoder_type
         _ = self.num_decoder_basis
+        # Encoder related
+        encoder_type = self.model_encoder_type
+        if encoder_type == "lm":
+            assert self.node_lm_configs is not None
+        else:
+            _ = self.hidden_size
+            _ = self.num_layers
+            _ = self.use_self_loop
+            _ = self.use_node_embeddings
+            _ = self.num_bases
+            _ = self.num_heads
 
         _ = self.return_proba
         _ = self.alpha_l2norm
@@ -1623,6 +1629,30 @@ class GSConfig:
 
         return eval_metric
 
+    @property
+    def num_ffn_layers_in_input(self):
+        """ Number of extra feedforward neural network layers in the input layer
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_ffn_layers_in_input"):
+            assert self._num_ffn_layers_in_input >= 0, \
+                "Number of extra MLP layers in input layer must be larger or equal than 0"
+            return self._num_ffn_layers_in_input
+        # Set default mlp layer number in the input layer to 0
+        return 0
+
+    @property
+    def num_ffn_layers_in_gnn(self):
+        """ Number of extra feedforward neural network layers between GNN layers
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_ffn_layers_in_gnn"):
+            assert self._num_ffn_layers_in_gnn >= 0, \
+                "Number of extra MLP layers between GNN layers must be larger or equal than 0"
+            return self._num_ffn_layers_in_gnn
+        # Set default mlp layer number between gnn layer to 0
+        return 0
+
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")
     group.add_argument(
@@ -1676,6 +1706,10 @@ def _add_gnn_args(parser):
             help="The number of features in the hidden state")
     group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
             help="number of layers in the GNN")
+    group.add_argument("--num-ffn-layers-in-input", type=int, default=argparse.SUPPRESS,
+                       help="number of extra feedforward neural network layers in input layer.")
+    group.add_argument("--num-ffn-layers-in-gnn", type=int, default=argparse.SUPPRESS,
+                       help="number of extra feedforward neural network layers between GNN layers.")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",
