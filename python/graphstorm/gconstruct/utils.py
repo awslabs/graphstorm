@@ -183,7 +183,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
             gc.collect()
     except queue.Empty:
         pass
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(e, flush=True)
         res_queue.put((i, None))
 
