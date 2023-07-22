@@ -233,7 +233,9 @@ def calc_ranking(pos_score, neg_score):
     _, indices = th.sort(scores, dim=1, descending=True)
     indices = th.nonzero(indices == 0)
     rankings = indices[:, 1].view(-1) + 1
-    rankings = rankings.cpu().detach()
+    rankings = rankings.detach()
+    if th.distributed.get_backend() == "gloo":
+        rankings = rankings.cpu() # Save GPU memory
 
     return rankings
 
