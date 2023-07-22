@@ -266,7 +266,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         val_scores = lp_mini_batch_predict(model, emb, val_loader, device) \
             if val_loader is not None else None
         sys_tracker.check('after_val_score')
-        test_scores = lp_mini_batch_predict(model, emb, test_loader, device)
+        if test_loader is not None:
+            test_scores = lp_mini_batch_predict(model, emb, test_loader, device)
+        else:
+            test_scores = None
         sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
             val_scores, test_scores, total_steps)
