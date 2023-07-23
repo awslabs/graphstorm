@@ -83,9 +83,9 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
     if data_fields is not None:
         for field in data_fields:
             assert field in data, f"The data field {field} does not exist in the data file."
-        return {field: data[field] for field in data_fields}
+        return {field: data[field].to_numpy() for field in data_fields}
     else:
-        return data
+        return {field: data[field].to_numpy() for field in data}
 
 def write_data_csv(data, data_file, delimiter=','):
     """ Write data to a CSV file.
