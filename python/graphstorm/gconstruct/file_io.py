@@ -103,14 +103,11 @@ def write_data_csv(data, data_file, delimiter=','):
     data_frame.to_csv(data_file, index=True, sep=delimiter)
 
 def _pad_stack(arrs):
-    max_len = max([len(arr) for arr in arrs])
-    dtype = arrs[0].dtype
+    max_len = max(len(arr) for arr in arrs)
+    new_arrs = np.zeros((len(arrs), max_len), dtype=arrs[0].dtype)
     for i, arr in enumerate(arrs):
-        if len(arr) != max_len:
-            tmp = np.zeros((max_len,), dtype=dtype)
-            tmp[:len(arr)] = arr
-            arrs[i] = tmp
-    return np.stack(arrs)
+        new_arrs[i][:len(arr)] = arr
+    return new_arrs
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
@@ -158,12 +155,22 @@ def write_data_json(data, data_file):
         if len(records) == 0:
             records = [{} for _ in range(len(data[key]))]
         assert len(records) == len(data[key])
-        if data[key].shape == 1:
-            for i, val in enumerate(data[key]):
-                records[i][key] = val
+        if isinstance(data[key], np.ndarray):
+            if data[key].shape == 1:
+                for i, val in enumerate(data[key]):
+                    records[i][key] = val
+            else:
+                for i, val in enumerate(data[key]):
+                    records[i][key] = val.tolist()
+        elif isinstance(data[key], list):
+            if isinstance(data[key][0], np.ndarray):
+                for i, val in enumerate(data[key]):
+                    records[i][key] = val.tolist()
+            else:
+                for i, val in enumerate(data[key]):
+                    records[i][key] = val
         else:
-            for i, val in enumerate(data[key]):
-                records[i][key] = val.tolist()
+            raise ValueError("Invalid data.")
     with open(data_file, 'w', encoding="utf8") as json_file:
         for record in records:
             record = json.dumps(record)

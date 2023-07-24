@@ -85,10 +85,7 @@ def test_csv():
         assert 't1' in data1
         np.testing.assert_almost_equal(data1['t1'], data['t1'])
 
-def test_json():
-    handle, tmpfile = tempfile.mkstemp()
-    os.close(handle)
-
+def check_json_same_len(tmpfile):
     data = {}
     data["data1"] = np.random.rand(10, 3)
     data["data2"] = np.random.rand(10)
@@ -108,7 +105,24 @@ def test_json():
     except:
         pass
 
-    os.remove(tmpfile)
+def check_json_unequal_len(tmpfile):
+    # Here we write arrays of different lengths to a JSON file.
+    data = {
+            "data": [np.random.rand(size) for size in [10, 5, 2, 5]]
+    }
+    write_data_json(data, tmpfile)
+    data1 = read_data_json(tmpfile, ["data"])
+    assert len(data1) == 1
+    assert "data" in data1
+    assert data1['data'].shape == (4, 10)
+    for i, arr in enumerate(data["data"]):
+        assert np.all(data1["data"][i][:len(arr)] == arr)
+        assert np.all(data1["data"][i][len(arr):] == 0)
+
+def test_json():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        check_json_same_len(os.path.join(tmpdirname, "same_len.json"))
+        check_json_unequal_len(os.path.join(tmpdirname, "unequal_len.json"))
 
 def test_hdf5():
     handle, tmpfile = tempfile.mkstemp()
