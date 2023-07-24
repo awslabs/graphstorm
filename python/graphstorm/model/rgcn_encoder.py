@@ -138,7 +138,9 @@ class RelGraphConvLayer(nn.Module):
         else:
             inputs_src = inputs_dst = inputs
 
-        hs = self.conv(g, inputs_src, mod_kwargs=wdict)
+        dst_h = {k: th.zeros((g.num_dst_nodes(k), self.in_feat),
+                             dtype=th.float32, device=g.device) for k in g.dsttypes}
+        hs = self.conv(g, (inputs_src, dst_h), mod_kwargs=wdict)
 
         def _apply(ntype, h):
             if self.self_loop:

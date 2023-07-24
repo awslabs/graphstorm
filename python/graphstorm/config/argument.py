@@ -915,9 +915,17 @@ class GSConfig:
         """
         """
         if hasattr(self, "_reconstructed_embed_ntype"):
+            assert not self.use_node_embeddings
             return self._reconstructed_embed_ntype \
                     if self._reconstructed_embed_ntype is not None else []
         return []
+
+    @property
+    def reconstruct_encoder(self):
+        if hasattr(self, "_reconstruct_encoder"):
+            return self._reconstruct_encoder
+        else:
+            return "rgcn"
 
     @property
     def wd_l2norm(self):

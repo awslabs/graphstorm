@@ -44,15 +44,17 @@ class _ReconstructedNeighborSampler():
             for etype in etypes:
                 if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
                     self._subg_etypes.append(etype)
+        assert len(self._subg_etypes) > 0, f"The sampled edge types is empty."
 
     def sample(self, block):
         nodes = {}
         for src_ntype in block.srctypes:
             if src_ntype in self._reconstructed_embed_ntypes:
                 nodes[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
-        subg = dgl.distributed.sample_neighbors(self._g, nodes, self._fanout)
+        subg = self._g.sample_neighbors(nodes, self._fanout)
         subg = subg.edge_type_subgraph(self._subg_etypes)
-        return dgl.to_block(subg)
+        block = dgl.to_block(subg)
+        return block
 
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
@@ -781,6 +783,8 @@ class GSgnnNodeDataLoader():
             block = self._reconstructed_embed_sampler.sample(blocks[-1])
             if block is not None:
                 blocks.append(block)
+                for ntype in block.srctypes:
+                    input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
         return input_nodes, seeds, blocks
 
     @property

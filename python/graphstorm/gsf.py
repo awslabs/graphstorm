@@ -32,6 +32,7 @@ from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder
 from .model.rgat_encoder import RelationalGATEncoder
+from .model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from .model.node_gnn import GSgnnNodeModel
 from .model.node_glem import GLEM
 from .model.edge_gnn import GSgnnEdgeModel
@@ -445,6 +446,7 @@ def set_encoder(model, g, config, train_task):
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
                                           use_node_embeddings=config.use_node_embeddings,
+                                          force_no_embeddings=len(config.reconstructed_embed_ntype) > 0,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)
 
@@ -477,6 +479,11 @@ def set_encoder(model, g, config, train_task):
                                            num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
+    if len(config.reconstructed_embed_ntype) > 0:
+        gnn_encoder = GNNEncoderWithReconstructedEmbed(g, gnn_encoder,
+                                                       config.reconstructed_embed_ntype,
+                                                       config.reconstruct_encoder,
+                                                       num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_gnn_encoder(gnn_encoder)
 
 def create_builtin_task_tracker(config, rank):

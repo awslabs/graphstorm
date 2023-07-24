@@ -184,6 +184,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
+                 force_no_embeddings=False,
                  embed_type="zero",
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu):
@@ -192,6 +193,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.activation = activation
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
+        if force_no_embeddings:
+            assert not use_node_embeddings
 
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
@@ -217,7 +220,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     # nn.ParameterDict support this assignment operation if not None,
                     # so disable the pylint error
                     self.proj_matrix[ntype] = proj_matrix   # pylint: disable=unsupported-assignment-operation
-            else:
+            elif not force_no_embeddings:
                 if get_rank() == 0:
                     print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
@@ -251,6 +254,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
         embs = {}
         for ntype in input_nodes:
+            emb = None
             if ntype in input_feats:
                 assert ntype in self.input_projs, \
                         f"We need a projection for node type {ntype}"
@@ -262,7 +266,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     node_emb = self._embed_layers[ntype](input_nodes[ntype], emb.device)
                     concat_emb=th.cat((emb, node_emb),dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
-            else: # nodes do not have input features
+            elif ntype in self._embed_layers: # nodes do not have input features
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
@@ -272,10 +276,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     continue
                 emb = self._embed_layers[ntype](input_nodes[ntype], device)
                 emb = emb @ self.proj_matrix[ntype]
-            if self.activation is not None:
-                emb = self.activation(emb)
-            emb = self.dropout(emb)
-            embs[ntype] = emb
+            if emb is not None:
+                if self.activation is not None:
+                    emb = self.activation(emb)
+                emb = self.dropout(emb)
+                embs[ntype] = emb
 
         def _apply(t, h):
             if self.num_ffn_layers_in_input > 0:
