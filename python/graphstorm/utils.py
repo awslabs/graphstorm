@@ -30,6 +30,8 @@ import numpy as np
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 
 def setup_device(local_rank):
+    """Setup computation device
+    """
     if th.cuda.is_available():
         device = 'cuda:%d' % local_rank
         th.cuda.set_device(device)
