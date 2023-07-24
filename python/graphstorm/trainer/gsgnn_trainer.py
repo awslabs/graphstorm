@@ -309,15 +309,19 @@ class GSgnnTrainer():
         print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(
             epoch, i, gnn_forward_time, back_time))
 
-    def restore_model(self, model_path):
+    def restore_model(self, model_path,
+                      model_layer_to_load=None):
         """ Restore a GNN model and the optimizer.
 
         Parameters
         ----------
+        model_layer_to_load: list of str
+            list of model layers to load. Supported layers include
+            'gnn', 'embed', 'decoder'
         model_path : str
             The path where the model and the optimizer state has been saved.
         """
-        self._model.restore_model(model_path)
+        self._model.restore_model(model_path, model_layer_to_load=model_layer_to_load)
         self._optimizer.load_opt_state(model_path, self._model.device)
 
     @property
