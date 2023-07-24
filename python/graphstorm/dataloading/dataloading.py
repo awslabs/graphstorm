@@ -775,6 +775,7 @@ class GSgnnNodeDataLoader():
         return loader
 
     def __iter__(self):
+        self.dataloader = iter(self.dataloader)
         return self
 
     def __next__(self):

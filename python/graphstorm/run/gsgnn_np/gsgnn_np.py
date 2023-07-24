@@ -97,11 +97,13 @@ def main(config_args):
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
-                                             device=device, train_task=False)
+                                             device=device, train_task=False,
+                                             reconstructed_embed_ntype=config.reconstructed_embed_ntype)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
-                                              device=device, train_task=False)
+                                              device=device, train_task=False,
+                                              reconstructed_embed_ntype=config.reconstructed_embed_ntype)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
