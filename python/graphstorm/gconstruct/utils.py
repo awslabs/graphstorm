@@ -252,7 +252,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         while len(return_dict) < num_files:
             file_idx, vals= res_queue.get()
             if not isinstance(vals, tuple):
-                logging.error("Processing file % fails.", file_idx)
+                logging.error("Processing file %d fails.", file_idx)
                 logging.error(vals)
                 raise RuntimeError("One of the worker processes fails. Stop processing.")
             # If the size of `vals`` is larger than utils.SHARED_MEM_OBJECT_THRESHOLD
