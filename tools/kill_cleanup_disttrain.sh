@@ -12,7 +12,7 @@ done < "$1"
 
 graph_name=$2
 
-if [ -z "$3"]; then
+if [ -z "$3" ]; then
     port_num=2222
 else
     port_num=$3
