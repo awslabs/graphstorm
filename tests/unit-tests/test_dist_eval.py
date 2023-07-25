@@ -33,6 +33,7 @@ import numpy as np
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.utils import setup_device
 
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
 
@@ -189,10 +190,7 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
                                       rank=worker_rank)
 
     th.cuda.set_device(worker_rank)
-    if th.cuda.is_available():
-        device = 'cuda:%d' % worker_rank
-    else:
-        device = 'cpu'
+    device = setup_device(worker_rank)
     config, train_data = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:

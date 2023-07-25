@@ -28,7 +28,7 @@ from graphstorm.model.utils import shuffle_predict
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
-from data_utils import generate_dummy_dist_graph
+from data_utils import generate_dummy_dist_graph, setup_device
 from graphstorm.eval.utils import gen_mrr_score
 
 def gen_embedding_with_nid_mapping(num_embs):
@@ -113,10 +113,7 @@ def run_dist_exchange_node_id_mapping(worker_rank, world_size, backend,
                                       world_size=world_size,
                                       rank=worker_rank)
     th.cuda.set_device(worker_rank)
-    if th.cuda.is_available():
-        device = 'cuda:%d' % worker_rank
-    else:
-        device = 'cpu'
+    device = setup_device(worker_rank)
 
     nid_mapping = _exchange_node_id_mapping(worker_rank, world_size, device, node_id_mapping, num_embs)
 
@@ -166,10 +163,7 @@ def run_dist_save_embeddings(model_path, emb, worker_rank,
                                       world_size=world_size,
                                       rank=worker_rank)
     th.cuda.set_device(worker_rank)
-    if th.cuda.is_available():
-        device = 'cuda:%d' % worker_rank
-    else:
-        device = 'cpu'
+    device = setup_device(worker_rank)
 
     save_embeddings(model_path, emb, worker_rank, world_size, device, node_id_mapping_file)
 
@@ -185,10 +179,7 @@ def run_dist_shuffle_predict(pred, worker_rank,
                                       world_size=world_size,
                                       rank=worker_rank)
     th.cuda.set_device(worker_rank)
-    if th.cuda.is_available():
-        device = 'cuda:%d' % worker_rank
-    else:
-        device = 'cpu'
+    device = setup_device(worker_rank)
 
     pred = shuffle_predict(pred, node_id_mapping_file, type, worker_rank, world_size, device)
     conn.send(pred.detach().cpu().numpy())
