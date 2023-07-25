@@ -16,7 +16,6 @@
     Inference script for edge classification/regression tasks with GNN
 """
 
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
