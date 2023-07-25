@@ -92,7 +92,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     "Only GSgnnModel supports full-graph inference."
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
-        on_cpu = (self.device == th.device('cpu'))
+        on_cpu = self.device == th.device('cpu')
         model = DistributedDataParallel(self._model, device_ids=None if on_cpu else [self.device],
                                         output_device=None if on_cpu else self.device,
                                         find_unused_parameters=True,
