@@ -28,8 +28,9 @@ from graphstorm.model.utils import shuffle_predict
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
-from data_utils import generate_dummy_dist_graph, setup_device
+from data_utils import generate_dummy_dist_graph
 from graphstorm.eval.utils import gen_mrr_score
+from graphstorm.utils import setup_device
 
 def gen_embedding_with_nid_mapping(num_embs):
     emb = th.rand((num_embs, 12))
