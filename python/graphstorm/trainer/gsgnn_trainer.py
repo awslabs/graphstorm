@@ -182,7 +182,7 @@ class GSgnnTrainer():
         '''Save the model for a certain iteration in an epoch.
         '''
         th.distributed.barrier()
-        if save_model_path is not None and self.rank == 0:
+        if save_model_path is not None:
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
             model.module.save_model(save_model_path)
             self.optimizer.save_opt_state(save_model_path)
@@ -240,7 +240,6 @@ class GSgnnTrainer():
 
         insert_success, (return_epoch, return_i) = self._topklist.insert(score_rank, (epoch, i))
 
-        print(f"Try insert model {insert_success}")
         if insert_success:
             # if success, should always save this epoch and/or iteration models, and remove the
             # previous worst model saved if the return_epoch or return_i is different from current

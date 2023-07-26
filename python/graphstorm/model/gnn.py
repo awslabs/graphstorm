@@ -564,7 +564,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             The path where all model parameters and optimizer states are saved.
         '''
         start_save_t = time.time()
-        print(f"Try save model {get_rank()}")
         # Only rank 0 save dense model parameters
         # We assume the model is written into a shared filesystem accessable
         # to all trainers.
