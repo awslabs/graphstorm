@@ -68,3 +68,12 @@ python3 /graphstorm/tools/partition_graph_lp.py --dataset ogbn-mag \
 ```
 
 For details of the arguments of the two scripts, please refer to their **main()** funciton.
+
+Below command can generate the homogeneous version of ogbn-arxiv. The partitioned graph is save at the /tmp/ogbn_arxiv_nc_2p folder.
+```bash
+python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
+                                             --filepath /tmp/ogbn-arxiv-nc/ \
+                                             --num-parts 2 \
+                                             --output /tmp/ogbn_arxiv_nc_2p \
+                                             --is-homo                  
+```
