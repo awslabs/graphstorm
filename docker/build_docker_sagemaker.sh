@@ -43,10 +43,8 @@ DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}"
 
 echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
 
-if [[ $IMAGE_TYPE = "GPU" ]]; then
-    docker build -f $GSF_HOME"docker/sagemaker/Dockerfile.sm_gpu" . -t $DOCKER_FULLNAME
-elif [[ $IMAGE_TYPE = "CPU" ]]; then
-    docker build -f $GSF_HOME"docker/sagemaker/Dockerfile.sm_cpu" . -t $DOCKER_FULLNAME
+if [ $IMAGE_TYPE = "GPU" ] || [ $IMAGE_TYPE = "CPU" ]; then
+    docker build --build-arg DEVICE=$IMAGE_TYPE -f $GSF_HOME"docker/sagemaker/Dockerfile.sm" . -t $DOCKER_FULLNAME
 else
     echo "Image type can only be \"GPU\" or \"CPU\", but get \""$IMAGE_TYPE"\""
     exit 1
