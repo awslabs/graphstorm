@@ -548,6 +548,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         else:
             embs = input_feats
         if self.gnn_encoder is not None:
+            embs = embs['_N']
             gnn_embs = self.gnn_encoder(blocks, embs)
         else:
             gnn_embs = embs

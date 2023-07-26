@@ -101,7 +101,7 @@ python3 -m graphstorm.run.gs_link_prediction \
         --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
         --node-feat-name paper:feat \
         --save-model-path /tmp/ogbn-mag/models \
-        --save-perf-results-path /tmp/ogbn-mag/models"
+        --save-perf-results-path /tmp/ogbn-mag/models
 ```
 
 ## Limitation

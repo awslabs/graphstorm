@@ -32,6 +32,7 @@ from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder
 from .model.rgat_encoder import RelationalGATEncoder
+from .model.sage_encoder import SAGEEncoder
 from .model.node_gnn import GSgnnNodeModel
 from .model.node_glem import GLEM
 from .model.edge_gnn import GSgnnEdgeModel
@@ -475,6 +476,15 @@ def set_encoder(model, g, config, train_task):
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop,
                                            num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+    elif model_encoder_type == "sage":
+        # we need to set the num_layers -1 because there is an output layer that is hard coded.
+        gnn_encoder = SAGEEncoder(g,
+                                h_dim=config.hidden_size,
+                                out_dim=config.hidden_size,
+                                num_hidden_layers=config.num_layers - 1,
+                                dropout=dropout,
+                                aggregator_type='pool',
+                                num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)
