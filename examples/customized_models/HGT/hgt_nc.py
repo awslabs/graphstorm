@@ -305,7 +305,7 @@ def main(args):
 
     # Create a trainer for the node classification task.
     trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=config.topk_model_to_save)
-    trainer.setup_cuda(dev_id=gs.get_rank())
+    trainer.setup_cuda(dev_id=config.local_rank)
     device = 'cuda:%d' % trainer.dev_id
 
     # Define the GraphStorm train dataloader
