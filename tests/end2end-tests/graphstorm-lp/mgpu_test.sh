@@ -237,7 +237,7 @@ best_epoch_distmult=$(grep "successfully save the model to" train_log.txt | tail
 echo "The best model is saved in epoch $best_epoch_distmult"
 
 echo "**************dataset: Movielens text, do inference on saved model, decoder: DistMult"
-python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_gnn.py --cf ml_lp_text_infer.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --use-node-embeddings true   --save-embed-path /data/gsgnn_lp_ml_distmult_text/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult_text/epoch-$best_epoch_distmult/ --lp-decoder-type distmult --no-validation True --train-etype user,rating,movie movie,rating-rev,user | tee log2.txt
+python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_gnn.py --cf ml_lp_text_infer.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --use-node-embeddings true   --save-embed-path /data/gsgnn_lp_ml_distmult_text/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult_text/epoch-$best_epoch_distmult/ --lp-decoder-type distmult --no-validation False --train-etype user,rating,movie movie,rating-rev,user | tee log2.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
