@@ -20,9 +20,12 @@ import psutil
 import torch as th
 
 from ..model import GSOptimizer
+from ..model import GSgnnModel, GSgnnModelBase
 from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
+
+from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
 
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
@@ -183,11 +186,14 @@ class GSgnnTrainer():
         '''
         th.distributed.barrier()
         if save_model_path is not None:
+            assert isinstance(model.module, (GSgnnModel, GSgnnModelBase)), \
+                "Please make sure the model derives from GSgnnModel or GSgnnModelBase, " \
+                "which provides a scalable model saving implementation."
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
             model.module.save_model(save_model_path)
             self.optimizer.save_opt_state(save_model_path)
 
-        # wait for rank0 to save the model and/or embeddings
+        # make sure each trainer finishes its own model saving task.
         th.distributed.barrier()
 
     def remove_saved_model(self, epoch, i, save_model_path):
@@ -250,6 +256,7 @@ class GSgnnTrainer():
                 self.remove_saved_model(return_epoch, return_i, save_model_path)
 
             # save this epoch and iteration's model and node embeddings
+            # All trainers will sync in save_model before start saving a model.
             self.save_model(model, epoch, i, save_model_path)
 
             # If this is the best model
@@ -315,14 +322,20 @@ class GSgnnTrainer():
 
         Parameters
         ----------
+        model_path : str
+            The path where the model and the optimizer state has been saved.
         model_layer_to_load: list of str
             list of model layers to load. Supported layers include
             'gnn', 'embed', 'decoder'
-        model_path : str
-            The path where the model and the optimizer state has been saved.
         """
-        self._model.restore_model(model_path, model_layer_to_load=model_layer_to_load)
-        self._optimizer.load_opt_state(model_path, self._model.device)
+        self._model.restore_model(model_path, model_layer_to_load)
+
+        # If we only load part of a saved model for model fine-tuning,
+        # we do not load optimizer states as the model states of
+        # two models (pre-training and fine-tuning) are not 100%
+        # compatible.
+        if model_layer_to_load == GRAPHSTORM_MODEL_ALL_LAYERS:
+            self._optimizer.load_opt_state(model_path, self._model.device)
 
     @property
     def evaluator(self):
