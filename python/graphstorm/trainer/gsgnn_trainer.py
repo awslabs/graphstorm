@@ -240,6 +240,7 @@ class GSgnnTrainer():
 
         insert_success, (return_epoch, return_i) = self._topklist.insert(score_rank, (epoch, i))
 
+        print(f"Try insert model {insert_success}")
         if insert_success:
             # if success, should always save this epoch and/or iteration models, and remove the
             # previous worst model saved if the return_epoch or return_i is different from current

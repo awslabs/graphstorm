@@ -26,6 +26,7 @@ from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
 from ..utils import rt_profiler
+from ..utils import get_rank
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -166,6 +167,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 if save_model_frequency > 0 and \
                     total_steps % save_model_frequency == 0 and \
                     total_steps != 0:
+                    th.distributed.barrier()
+                    print(f"{get_rank()} {val_score}")
                     if self.evaluator is None or val_score is not None:
                         # We will save the best model when
                         # 1. There is no evaluation, we will keep the
