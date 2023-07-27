@@ -196,13 +196,9 @@ class HGT(gsmodel.GSgnnNodeModelBase):
             if self.adapt_ws[ntype] is None:
                 n_id = self.node_dict[ntype]
                 emb_id = self.ntype_id_map[n_id]
-                emb_tensor = torch.Tensor([emb_id]).long()
-                if torch.cuda.is_available():
-                    emb_tensor = emb_tensor.to('cuda')
-                embeding = self.ntype_embed(emb_tensor)
+                device = self.ntype_embed.device
+                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
-            else:
-                n_embed = self.adapt_ws[ntype](node_feats[ntype])
 
             h[ntype] = F.gelu(n_embed)
         # gnn layers
@@ -231,10 +227,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
             if self.adapt_ws[ntype] is None:
                 n_id = self.node_dict[ntype]
                 emb_id = self.ntype_id_map[n_id]
-                emb_tensor = torch.Tensor([emb_id]).long()
-                if torch.cuda.is_available():
-                    emb_tensor = emb_tensor.to('cuda')
-                embeding = self.ntype_embed(emb_tensor)
+                device = self.ntype_embed.device
+                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])

@@ -36,14 +36,14 @@ class GSInfer():
         self._task_tracker = None
 
     def setup_device(self, device):
-        """ Set up the device of this trainer.
+        """ Set up the device for the inference.
 
         The CUDA device is set up based on the local rank.
 
         Parameters
         ----------
         device :
-            The device for model training.
+            The device for inference.
         """
         self._device = th.device(device)
         self._model = self._model.to(self.device)
@@ -110,7 +110,7 @@ class GSInfer():
 
     @property
     def device(self):
-        """ The device associated with the trainer.
+        """ The device associated with the inference.
         """
         return self._device
 
