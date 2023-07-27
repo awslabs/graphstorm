@@ -211,11 +211,78 @@
         <article role="main">
           <section id="environment-setup">
 <span id="setup"></span><h1>Environment Setup<a class="headerlink" href="#environment-setup" title="Permalink to this heading">#</a></h1>
-<p>GraphStorm can be installed as a pip package. However, configuring a GraphStorm environment in various Operation Systems is non-trivial, therefore, GraphStorm provides Docker-based running environment for easy deployment.</p>
-<section id="setup-graphstorm-docker-environment">
-<h2>1. Setup GraphStorm Docker Environment<a class="headerlink" href="#setup-graphstorm-docker-environment" title="Permalink to this heading">#</a></h2>
+<dl class="simple">
+<dt>GraphStorm supports two environment setup methods:</dt><dd><ul class="simple">
+<li><p>Install GraphStorm using as a pip packcage. This method works well for development and test on a signle machine.</p></li>
+<li><p>Setup a GraphStorm Docker image. This method is good for using GraphStorm in distributed environments that commonly used in production.</p></li>
+</ul>
+</dd>
+</dl>
+<section id="setup-graphstorm-with-pip-packages">
+<span id="setup-pip"></span><h2>1. Setup GraphStorm with pip Packages<a class="headerlink" href="#setup-graphstorm-with-pip-packages" title="Permalink to this heading">#</a></h2>
 <section id="prerequisites">
 <h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Linux OS</strong>: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.</p></li>
+<li><p><strong>Python3</strong>: The current version of GraphStorm requires Python installed with the version larger than <strong>3.7</strong>.</p></li>
+<li><p>(Optional) GraphStorm supports <strong>Nvidia GPUs</strong> for using GraphStorm in GPU environments.</p></li>
+</ol>
+</section>
+<section id="install-graphstorm">
+<h3>Install GraphStorm<a class="headerlink" href="#install-graphstorm" title="Permalink to this heading">#</a></h3>
+<p>Users can use <code class="docutils literal notranslate"><span class="pre">pip</span></code> or <code class="docutils literal notranslate"><span class="pre">pip3</span></code> to install GraphStorm.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>graphstorm
+</pre></div>
+</div>
+</section>
+<section id="install-dependencies">
+<h3>Install Dependencies<a class="headerlink" href="#install-dependencies" title="Permalink to this heading">#</a></h3>
+<p>Users should install DGL that is the core dependency of GraphStorm using the following commands.</p>
+<p>For Nvidia GPU environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.4+cu117<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels/cu117/repo.html
+</pre></div>
+</div>
+<p>For CPU environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.4<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels-internal/repo.html
+</pre></div>
+</div>
+</section>
+<section id="configure-ssh-no-password-login">
+<h3>Configure SSH No-password login<a class="headerlink" href="#configure-ssh-no-password-login" title="Permalink to this heading">#</a></h3>
+<p>Use the following commands to configure a local SSH no-password login that GraphStorm relies on.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh-keygen<span class="w"> </span>-t<span class="w"> </span>rsa<span class="w"> </span>-f<span class="w"> </span>~/.ssh/id_rsa<span class="w"> </span>-N<span class="w"> </span><span class="s1">&#39;&#39;</span>
+cat<span class="w"> </span>~/.ssh/id_rsa.pub<span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.ssh/authorized_keys
+</pre></div>
+</div>
+<p>Then use this command to test if the SSH no-password login works.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh<span class="w"> </span><span class="m">127</span>.0.0.1
+</pre></div>
+</div>
+<p>If everything is right, the above command will enter another Linux shell process. Then exit this new shell with the command <code class="docutils literal notranslate"><span class="pre">exit</span></code>.</p>
+</section>
+<section id="clone-graphstorm-toolkits-optional">
+<h3>Clone GraphStorm Toolkits (Optional)<a class="headerlink" href="#clone-graphstorm-toolkits-optional" title="Permalink to this heading">#</a></h3>
+<p>GraphStorm provides a set of toolkits, including scripts, tools, and examples, which can facilitate the use of GraphStrom.</p>
+<ul class="simple">
+<li><p><strong>graphstorm/training_scripts/</strong> and <strong>graphstorm/inference_scripts/</strong> include examplar configuration yaml files that used in GraphStorm documentations and tutorials.</p></li>
+<li><p><strong>graphstorm/examples</strong> includes Python code for customized models and customized data preparation.</p></li>
+<li><p><strong>graphstorm/tools</strong> includes graph partition and related Python code.</p></li>
+<li><p><strong>graphstorm/sagemaker</strong> include commands and code to run GraphStorm on Amazon SageMaker.</p></li>
+</ul>
+<p>Users can clone GraphStorm source code to obtain these toolkits.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If use this method to setup GraphStorm environment, please replace the argument <code class="docutils literal notranslate"><span class="pre">--ssh-port</span></code> of in launch commands in GraphStorm’s tutorials from 2222 with <strong>22</strong>.</p>
+</div>
+</section>
+</section>
+<section id="setup-graphstorm-docker-environment">
+<span id="setup-docker"></span><h2>2. Setup GraphStorm Docker Environment<a class="headerlink" href="#setup-graphstorm-docker-environment" title="Permalink to this heading">#</a></h2>
+<section id="id1">
+<h3>Prerequisites<a class="headerlink" href="#id1" title="Permalink to this heading">#</a></h3>
 <ol class="arabic simple">
 <li><p><strong>Docker</strong>: You need to install Docker in your environment as the <a class="reference external" href="https://docs.docker.com/get-docker/">Docker documentation</a> suggests, and the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html">Nvidia Container Toolkit</a>.</p></li>
 </ol>
@@ -227,7 +294,7 @@ sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> <
 </div>
 <p>If using AWS <cite>Deep Learning AMI GPU version</cite>, the Nvidia Container Toolkit has been preinstalled.</p>
 <ol class="arabic simple" start="2">
-<li><p><strong>GPU</strong>: The current version of GraphStorm requires <strong>at least one Nvidia GPU</strong> installed in the instance.</p></li>
+<li><p>(Optional) GraphStorm supports <strong>Nvidia GPUs</strong> for using GraphStorm in GPU environments.</p></li>
 </ol>
 </section>
 <section id="build-a-graphstorm-docker-image-from-source-code">
@@ -265,76 +332,8 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_oss4local.sh
 </pre></div>
 </div>
 <p>If succeeds, the command prompt will change to the container’s, like</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">root@ip-address:/#</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">root@&lt;ip-address&gt;:/#</span>
 </pre></div>
-</div>
-</section>
-</section>
-<section id="setup-graphstorm-with-pip-packages">
-<span id="setup-pip"></span><h2>2. Setup GraphStorm with pip Packages<a class="headerlink" href="#setup-graphstorm-with-pip-packages" title="Permalink to this heading">#</a></h2>
-<section id="id1">
-<h3>Prerequisites<a class="headerlink" href="#id1" title="Permalink to this heading">#</a></h3>
-<ol class="arabic simple">
-<li><p><strong>Linux OS</strong>: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.</p></li>
-<li><p><strong>GPU</strong>: The current version of GraphStorm requires <strong>at least one Nvidia GPU</strong> installed in the instance.</p></li>
-<li><p><strong>Python3</strong>: The current version of GraphStorm requires Python installed with the version larger than <strong>3.7</strong>.</p></li>
-</ol>
-</section>
-<section id="install-graphstorm">
-<h3>Install GraphStorm<a class="headerlink" href="#install-graphstorm" title="Permalink to this heading">#</a></h3>
-<p>Users can use <code class="docutils literal notranslate"><span class="pre">pip</span></code> or <code class="docutils literal notranslate"><span class="pre">pip3</span></code> to install GraphStorm.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>graphstorm
-</pre></div>
-</div>
-</section>
-<section id="install-dependencies">
-<h3>Install Dependencies<a class="headerlink" href="#install-dependencies" title="Permalink to this heading">#</a></h3>
-<p>GraphStorm requires a set of dependencies, which can be installed with the following <code class="docutils literal notranslate"><span class="pre">pip</span></code> or <code class="docutils literal notranslate"><span class="pre">pip3</span></code> commands.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">boto3</span><span class="o">==</span><span class="m">1</span>.26.126
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">botocore</span><span class="o">==</span><span class="m">1</span>.29.126
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">h5py</span><span class="o">==</span><span class="m">3</span>.8.0
-pip<span class="w"> </span>install<span class="w"> </span>scipy
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">tqdm</span><span class="o">==</span><span class="m">4</span>.65.0
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">pyarrow</span><span class="o">==</span><span class="m">12</span>.0.0
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">transformers</span><span class="o">==</span><span class="m">4</span>.28.1
-pip<span class="w"> </span>install<span class="w"> </span>pandas
-pip<span class="w"> </span>install<span class="w"> </span>scikit-learn
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">ogb</span><span class="o">==</span><span class="m">1</span>.3.6
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">psutil</span><span class="o">==</span><span class="m">5</span>.9.5
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">1</span>.13.1+cu116<span class="w"> </span>--extra-index-url<span class="w"> </span>https://download.pytorch.org/whl/cu116
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.4+cu117<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels/cu117/repo.html
-</pre></div>
-</div>
-</section>
-<section id="configure-ssh-no-password-login">
-<h3>Configure SSH No-password login<a class="headerlink" href="#configure-ssh-no-password-login" title="Permalink to this heading">#</a></h3>
-<p>Use the following commands to configure a local SSH no-password login that GraphStorm relies on.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh-keygen<span class="w"> </span>-t<span class="w"> </span>rsa<span class="w"> </span>-f<span class="w"> </span>~/.ssh/id_rsa<span class="w"> </span>-N<span class="w"> </span><span class="s1">&#39;&#39;</span>
-cat<span class="w"> </span>~/.ssh/id_rsa.pub<span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.ssh/authorized_keys
-</pre></div>
-</div>
-<p>Then use this command to test if the SSH no-password login works.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh<span class="w"> </span><span class="m">127</span>.0.0.1
-</pre></div>
-</div>
-<p>If everything is right, the above command will enter another Linux shell process. Then exit this new shell with the command <code class="docutils literal notranslate"><span class="pre">exit</span></code>.</p>
-</section>
-<section id="clone-graphstorm-toolkits-optional">
-<h3>Clone GraphStorm Toolkits (Optional)<a class="headerlink" href="#clone-graphstorm-toolkits-optional" title="Permalink to this heading">#</a></h3>
-<p>GraphStorm provides a set of toolkits, including scripts, tools, and examples, which can facilitate the use of GraphStrom.</p>
-<ul class="simple">
-<li><p><strong>graphstorm/training_scripts/</strong> and <strong>graphstorm/inference_scripts/</strong> include examplar configuration yaml files that used in GraphStorm documentations and tutorials.</p></li>
-<li><p><strong>graphstorm/examples</strong> includes Python code for customized models and customized data preparation.</p></li>
-<li><p><strong>graphstorm/tools</strong> includes graph partition and related Python code.</p></li>
-<li><p><strong>graphstorm/sagemaker</strong> include commands and code to run GraphStorm on Amazon SageMaker.</p></li>
-</ul>
-<p>Users can clone GraphStorm source code to obtain these toolkits.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>If use this method to setup GraphStorm environment, please replace the argument <code class="docutils literal notranslate"><span class="pre">--ssh-port</span></code> of in launch commands in GraphStorm’s tutorials from 2222 with <strong>22</strong>.</p>
 </div>
 </section>
 </section>
@@ -396,18 +395,18 @@ cat<span class="w"> </span>~/.ssh/id_rsa.pub<span class="w"> </span>&gt;&gt;<spa
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Environment Setup</a><ul>
-<li><a class="reference internal" href="#setup-graphstorm-docker-environment">1. Setup GraphStorm Docker Environment</a><ul>
+<li><a class="reference internal" href="#setup-graphstorm-with-pip-packages">1. Setup GraphStorm with pip Packages</a><ul>
 <li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
-<li><a class="reference internal" href="#build-a-graphstorm-docker-image-from-source-code">Build a GraphStorm Docker image from source code</a></li>
-<li><a class="reference internal" href="#create-a-graphstorm-container">Create a GraphStorm Container</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#setup-graphstorm-with-pip-packages">2. Setup GraphStorm with pip Packages</a><ul>
-<li><a class="reference internal" href="#id1">Prerequisites</a></li>
 <li><a class="reference internal" href="#install-graphstorm">Install GraphStorm</a></li>
 <li><a class="reference internal" href="#install-dependencies">Install Dependencies</a></li>
 <li><a class="reference internal" href="#configure-ssh-no-password-login">Configure SSH No-password login</a></li>
 <li><a class="reference internal" href="#clone-graphstorm-toolkits-optional">Clone GraphStorm Toolkits (Optional)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#setup-graphstorm-docker-environment">2. Setup GraphStorm Docker Environment</a><ul>
+<li><a class="reference internal" href="#id1">Prerequisites</a></li>
+<li><a class="reference internal" href="#build-a-graphstorm-docker-image-from-source-code">Build a GraphStorm Docker image from source code</a></li>
+<li><a class="reference internal" href="#create-a-graphstorm-container">Create a GraphStorm Container</a></li>
 </ul>
 </li>
 </ul>

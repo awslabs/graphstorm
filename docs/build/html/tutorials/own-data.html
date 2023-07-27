@@ -217,10 +217,12 @@
 <li><p>Step 2: Modify the GraphStorm configuration YAML file.</p></li>
 <li><p>Step 3: Launch GraphStorm commands for training/inference.</p></li>
 </ul>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>All commands below should be run in a GraphStorm Docker container. Please refer to the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">GraphStorm Docker environment setup</span></a> to prepare your environment.</p>
-<p>If you <a class="reference internal" href="../install/env-setup.html#setup-pip"><span class="std std-ref">set up the GraphStorm environment with pip Packages</span></a>, please replace all occurrences of “2222” in the argument <code class="docutils literal notranslate"><span class="pre">--ssh-port</span></code> with <strong>22</strong>, and clone GraphStorm toolkits.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<ul class="simple">
+<li><p>All commands below are designed to run in a GraphStorm Docker container. Please refer to the <a class="reference internal" href="../install/env-setup.html#setup"><span class="std std-ref">GraphStorm Docker environment setup</span></a> to prepare the Docker container environment.</p></li>
+<li><p>If you set up the <a class="reference internal" href="../install/env-setup.html#setup-pip"><span class="std std-ref">GraphStorm environment with pip Packages</span></a>, please replace all occurrences of “2222” in the argument <code class="docutils literal notranslate"><span class="pre">--ssh-port</span></code> with <strong>22</strong>, and clone GraphStorm toolkits.</p></li>
+</ul>
 </div>
 <section id="step-1-prepare-your-own-graph-data">
 <h2>Step 1: Prepare Your Own Graph Data<a class="headerlink" href="#step-1-prepare-your-own-graph-data" title="Permalink to this heading">#</a></h2>
@@ -244,7 +246,7 @@
 </pre></div>
 </div>
 <p>Then run the command to create the ACM data with the required raw format.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>/graphstorm/examples/acm_data.py<span class="w"> </span>--output-path<span class="w"> </span>/tmp/acm_raw
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/examples/acm_data.py<span class="w"> </span>--output-path<span class="w"> </span>/tmp/acm_raw
 </pre></div>
 </div>
 <p>Once succeeded, the command will create a set of folders and files under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_raw/</span></code> folder, as shown below:</p>
@@ -265,7 +267,7 @@ config.json
 </div>
 <section id="the-input-configuration-json">
 <span id="input-config"></span><h4>The input configuration JSON<a class="headerlink" href="#the-input-configuration-json" title="Permalink to this heading">#</a></h4>
-<p>GraphStorm’s graph construction tool relies on the configuration JSON to provide graph information. Explanations of the format of the configuration JSON contents could be found in the <a class="reference internal" href="../configuration/configuration-gconstruction.html#gconstruction-json"><span class="std std-ref">GraphStorm Graph Configuration JSON</span></a>. Below show the contents of the examplary ACM config.json file.</p>
+<p>GraphStorm’s graph construction tool relies on the configuration JSON to provide graph information. Explanations of the format of the configuration JSON contents could be found in the <a class="reference internal" href="../configuration/configuration-gconstruction.html#gconstruction-json"><span class="std std-ref">GraphStorm Graph Configuration JSON</span></a>. Below show the contents of the examplary ACM <cite>config.json</cite> file.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;nodes&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">        </span><span class="p">{</span>
@@ -532,9 +534,9 @@ edge_mapping.pt
 <section id="the-acm-graph-data-example">
 <h4>The ACM graph data example<a class="headerlink" href="#the-acm-graph-data-example" title="Permalink to this heading">#</a></h4>
 <p>For the ACM data, the following command can create a DGL graph as the input for GraphStorm’s partition tools.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>/graphstorm/examples/acm_data.py<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--output-type<span class="w"> </span>dgl<span class="w"> </span><span class="se">\</span>
-<span class="w">           </span>--output-path<span class="w"> </span>/tmp/acm_dgl
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/examples/acm_data.py<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--output-type<span class="w"> </span>dgl<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--output-path<span class="w"> </span>/tmp/acm_dgl
 </pre></div>
 </div>
 <p>The below image show how the built DGL ACM data looks like.</p>
