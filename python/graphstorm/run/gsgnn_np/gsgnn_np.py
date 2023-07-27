@@ -89,6 +89,8 @@ def main(config_args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     device = 'cuda:%d' % trainer.dev_id
+    val_dataloader = None
+    test_dataloader = None
     if config.semi_supervised:
         # treat val and test sets as unlabeled node sets
         unlabeled_idxs = combine_idxs(train_data.val_idxs, train_data.test_idxs)
