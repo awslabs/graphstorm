@@ -83,9 +83,9 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
     if data_fields is not None:
         for field in data_fields:
             assert field in data, f"The data field {field} does not exist in the data file."
-        return {field: data[field] for field in data_fields}
+        return {field: data[field].to_numpy() for field in data_fields}
     else:
-        return data
+        return {field: data[field].to_numpy() for field in data}
 
 def write_data_csv(data, data_file, delimiter=','):
     """ Write data to a CSV file.
@@ -101,6 +101,13 @@ def write_data_csv(data, data_file, delimiter=','):
     """
     data_frame = pd.DataFrame(data)
     data_frame.to_csv(data_file, index=True, sep=delimiter)
+
+def _pad_stack(arrs):
+    max_len = max(len(arr) for arr in arrs)
+    new_arrs = np.zeros((len(arrs), max_len), dtype=arrs[0].dtype)
+    for i, arr in enumerate(arrs):
+        new_arrs[i][:len(arr)] = arr
+    return new_arrs
 
 def read_data_json(data_file, data_fields):
     """ Read data from a JSON file.
@@ -131,9 +138,13 @@ def read_data_json(data_file, data_fields):
         for key in data_fields:
             assert key in record, \
                     f"The data field {key} does not exist in the record {record} of {data_file}."
-            data[key].append(record[key])
+            record1 = np.array(record[key]) if isinstance(record[key], list) else record[key]
+            data[key].append(record1)
     for key in data:
-        data[key] = np.array(data[key])
+        if isinstance(data[key][0], np.ndarray):
+            data[key] = _pad_stack(data[key])
+        else:
+            data[key] = np.array(data[key])
     return data
 
 def write_data_json(data, data_file):
@@ -144,12 +155,22 @@ def write_data_json(data, data_file):
         if len(records) == 0:
             records = [{} for _ in range(len(data[key]))]
         assert len(records) == len(data[key])
-        if data[key].shape == 1:
-            for i, val in enumerate(data[key]):
-                records[i][key] = val
+        if isinstance(data[key], np.ndarray):
+            if data[key].shape == 1:
+                for i, val in enumerate(data[key]):
+                    records[i][key] = val
+            else:
+                for i, val in enumerate(data[key]):
+                    records[i][key] = val.tolist()
+        elif isinstance(data[key], list):
+            if isinstance(data[key][0], np.ndarray):
+                for i, val in enumerate(data[key]):
+                    records[i][key] = val.tolist()
+            else:
+                for i, val in enumerate(data[key]):
+                    records[i][key] = val
         else:
-            for i, val in enumerate(data[key]):
-                records[i][key] = val.tolist()
+            raise ValueError("Invalid data.")
     with open(data_file, 'w', encoding="utf8") as json_file:
         for record in records:
             record = json.dumps(record)

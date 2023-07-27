@@ -72,7 +72,10 @@ def main(config_args):
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
     model.prepare_input_encoder(infer_data)
-    infer.infer(infer_data, dataloader, save_embed_path=config.save_embed_path,
+    infer.infer(infer_data, dataloader,
+                save_embed_path=config.save_embed_path,
+                edge_mask_for_gnn_embeddings=None if config.no_validation else \
+                    'train_mask', # if no validation,any edge can be used in message passing.
                 node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
