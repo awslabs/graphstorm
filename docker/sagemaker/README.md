@@ -30,7 +30,14 @@ cd ~/build-docker/
 bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/
 ```
 
+You can change your Docker image type to determine if use GPU or CPU by:
+```
+bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <gpu|cpu>
+```
+The default setting is to build a docker image for using GPUs.
+
 You can rename your Docker image by:
 ```
 bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DOCKER_NAME> <DOCKER_TAG>
 ```
+The default setting of the name and tag of images is `graphstorm` and `sm`.
