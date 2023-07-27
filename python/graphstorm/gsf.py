@@ -444,7 +444,8 @@ def set_encoder(model, g, config, train_task):
     else:
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
-                                          use_node_embeddings=config.use_node_embeddings)
+                                          use_node_embeddings=config.use_node_embeddings,
+                                          num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)
 
     # Set GNN encoders
@@ -462,7 +463,8 @@ def set_encoder(model, g, config, train_task):
                                            num_bases=num_bases,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
-                                           use_self_loop=config.use_self_loop)
+                                           use_self_loop=config.use_self_loop,
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "rgat":
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
@@ -471,7 +473,8 @@ def set_encoder(model, g, config, train_task):
                                            config.num_heads,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
-                                           use_self_loop=config.use_self_loop)
+                                           use_self_loop=config.use_self_loop,
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)

@@ -503,7 +503,7 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     if 'gnn' in checkpoint and gnn_model is not None:
         gnn_model.load_state_dict(checkpoint['gnn'])
     if 'embed' in checkpoint and embed_layer is not None:
-        embed_layer.load_state_dict(checkpoint['embed'])
+        embed_layer.load_state_dict(checkpoint['embed'], strict=False)
     if 'decoder' in checkpoint and decoder is not None:
         decoder.load_state_dict(checkpoint['decoder'])
 

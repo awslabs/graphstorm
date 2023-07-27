@@ -46,6 +46,7 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
+    config.verify_arguments(True)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
@@ -110,10 +111,14 @@ def main(config_args):
         raise ValueError('Unknown test negative sampler.'
             'Supported test negative samplers include '
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
-    val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-        config.eval_batch_size, config.num_negative_edges_eval)
-    test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-        config.eval_batch_size, config.num_negative_edges_eval)
+    val_dataloader = None
+    test_dataloader = None
+    if len(train_data.val_idxs) > 0:
+        val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
+            config.eval_batch_size, config.num_negative_edges_eval)
+    if len(train_data.test_idxs) > 0:
+        test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
+            config.eval_batch_size, config.num_negative_edges_eval)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
