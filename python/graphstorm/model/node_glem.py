@@ -36,18 +36,23 @@ class GLEM(GSgnnNodeModelBase):
         Set true to use GNN in inference time, otherwise inference with LM
     pl_weight: float
         Weight for the pseudo-likelihood loss in GLEM's loss function.
+    num_pretrain_epochs: int
+        Number of pretraining epochs to train LM and GNN independently without
+        pseudo-likelihood loss.        
     """
     def __init__(self,
                  alpha_l2norm,
                  em_order_gnn_first=False,
                  inference_using_gnn=True,
-                 pl_weight=0.5
+                 pl_weight=0.5,
+                 num_pretrain_epochs=1
                  ):
         super(GLEM, self).__init__()
         self.alpha_l2norm = alpha_l2norm
         self.em_order_gnn_first = em_order_gnn_first
         self.inference_using_gnn = inference_using_gnn
         self.pl_weight = pl_weight
+        self.num_pretrain_epochs = num_pretrain_epochs
         self.lm = GSgnnNodeModel(alpha_l2norm)
         self.gnn = GSgnnNodeModel(alpha_l2norm)
         self.training_lm = not em_order_gnn_first
@@ -176,7 +181,7 @@ class GLEM(GSgnnNodeModelBase):
         no_pl : bool
             If True, do not calculate pseudo likelihood, use MLE loss only
         """
-        if blocks_u is None:
+        if blocks_u is None or no_pl:
             # no unlabeled data provided
             if use_gnn:
                 total_loss = self.forward_gnn(blocks, node_feats, edge_feats, labels, input_nodes,

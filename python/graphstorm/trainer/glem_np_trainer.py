@@ -117,7 +117,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 self._model.lm.unfreeze_input_encoder()
                 no_pl = False
 
-            use_gnn = not self._model.em_order_gnn_first
+            use_gnn = self._model.em_order_gnn_first
             # `use_gnn`` determines which part to train, if `em_order_gnn_first`
             # 1st round: train GNN, fix LM; 2nd round: train LM fix gnn
             for _ in range(2):
@@ -193,7 +193,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             total_steps += 1
             batch_tic = time.time()
             # Run forward function to compute loss:
-            loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn, no_pl=no_pl,
+            loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn,
+                         no_pl=no_pl or (epoch < model.module.num_pretrain_epochs),
                          blocks_u=blocks_u, node_feats_u=input_feats_u, edge_feats_u=None,
                          input_nodes_u=input_nodes_u)
             profiler.record('train_forward')
