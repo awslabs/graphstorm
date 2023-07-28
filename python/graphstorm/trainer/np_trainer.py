@@ -16,7 +16,6 @@
     GraphStorm trainer for node prediction.
 """
 import time
-import psutil
 import resource
 import torch as th
 from torch.nn.parallel import DistributedDataParallel

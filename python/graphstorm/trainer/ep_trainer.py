@@ -16,7 +16,6 @@
     GraphStorm trainer for edge prediction
 """
 import time
-import psutil
 import dgl
 import resource
 import torch as th
