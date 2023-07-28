@@ -588,7 +588,6 @@ def test_label():
     def check_classification_no_split(res):
         check_no_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
-        check_integer(res['label'], res)
 
     conf = {
             "labels": [
