@@ -80,7 +80,7 @@ python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movi
 cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_multi_label_ec_infer
 
 # Create data for edge classification with text features
-cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_ec_1p_4t_text
+cp -R /data/movielen_100k_text_train_val_1p_4t /data/movielen_100k_ec_1p_4t_text
 
 # movielens edge classification without data split - used in both single and multi-gpu tests
 rm -Rf /data/movielen_100k_multi_label_ec
