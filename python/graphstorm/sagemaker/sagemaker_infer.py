@@ -92,18 +92,32 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
-    launch_cmd = ["python3", "-u",  "-m", cmd,
-        "--num-trainers", f"{num_gpus}",
-        "--num-servers", "1",
-        "--num-samplers", "0",
-        "--part-config", f"{graph_config}",
-        "--ip-config", f"{ip_list}",
-        "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
-        "--ssh-port", "22", "--inference"]
-    launch_cmd += [custom_script] if custom_script is not None else []
-    launch_cmd += ["--cf", f"{yaml_path}",
-         "--restore-model-path", f"{load_model_path}",
-         "--save-embed-path", f"{save_emb_path}"] + extra_args
+    if num_gpus != 0:
+        launch_cmd = ["python3", "-u",  "-m", cmd,
+            "--num-trainers", f"{num_gpus}",
+            "--num-servers", "1",
+            "--num-samplers", "0",
+            "--part-config", f"{graph_config}",
+            "--ip-config", f"{ip_list}",
+            "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
+            "--ssh-port", "22", "--inference"]
+        launch_cmd += [custom_script] if custom_script is not None else []
+        launch_cmd += ["--cf", f"{yaml_path}",
+             "--restore-model-path", f"{load_model_path}",
+             "--save-embed-path", f"{save_emb_path}"] + extra_args
+    else:
+        launch_cmd = ["python3", "-u", "-m", cmd,
+                      "--num-trainers", "1",
+                      "--num-servers", "1",
+                      "--num-samplers", "0",
+                      "--part-config", f"{graph_config}",
+                      "--ip-config", f"{ip_list}",
+                      "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
+                      "--ssh-port", "22", "--inference"]
+        launch_cmd += [custom_script] if custom_script is not None else []
+        launch_cmd += ["--cf", f"{yaml_path}",
+                       "--restore-model-path", f"{load_model_path}",
+                       "--save-embed-path", f"{save_emb_path}"] + extra_args
 
     def run(launch_cmd, state_q):
         try:
