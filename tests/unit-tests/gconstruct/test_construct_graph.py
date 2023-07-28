@@ -802,7 +802,10 @@ def test_label():
     ops = parse_label_ops(conf, False)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
-    check_no_split(res)
+    assert len(res) == 0
+    assert 'train_mask' not in res
+    assert 'val_mask' not in res
+    assert 'test_mask' not in res
 
 def check_id_map_exist(id_map, input_ids):
     # Test the case that all Ids exist in the map.
