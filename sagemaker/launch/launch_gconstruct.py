@@ -16,7 +16,6 @@
     Launch SageMaker graph construction task
 """
 import os
-import argparse
 
 import boto3 # pylint: disable=import-error
 from sagemaker.processing import (ScriptProcessor,
@@ -24,10 +23,11 @@ from sagemaker.processing import (ScriptProcessor,
                                   ProcessingOutput)
 import sagemaker
 
-INSTANCE_TYPE = "ml.m5.12xlarge"
-INSTANCE_VOLUME_SIZE = 30
+from common_parser import get_common_parser, parse_estimator_kwargs
 
-def run_job(input_args, image, unknowargs):
+INSTANCE_TYPE = "ml.m5.12xlarge"
+
+def run_job(input_args, image, unknownargs):
     """ Run job using SageMaker ScriptProcessor
 
     Parameters
@@ -36,7 +36,7 @@ def run_job(input_args, image, unknowargs):
         Input arguments
     image: str
         ECR image uri
-    unknowargs: dict
+    unknownargs: dict
         GraphStorm graph construction parameters
     """
     sm_task_name = input_args.task_name # SageMaker task name
@@ -48,7 +48,6 @@ def run_job(input_args, image, unknowargs):
     output_graph_s3 = input_args.output_graph_s3
     graph_name = input_args.graph_name # Inference graph name
     graph_config_file = input_args.graph_config_file # graph config file
-    volume_size_in_gb = input_args.volume_size_in_gb # instance disk size
 
     boto_session = boto3.session.Session(region_name=region)
     sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
@@ -60,17 +59,19 @@ def run_job(input_args, image, unknowargs):
     output_path = '/opt/ml/processing/output'
     command=['python3']
 
+    estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
+
     script_processor = ScriptProcessor(
         image_uri=image,
         role=role,
         instance_count=1,
         instance_type=instance_type,
-        volume_size_in_gb=volume_size_in_gb,
         command=command,
-        base_job_name=sm_task_name,
+        base_job_name=f"gs-gconstruct-{graph_name}",
         sagemaker_session=sess,
         tags=[{"Key":"GraphStorm", "Value":"beta"},
               {"Key":"GraphStorm_Task", "Value":"Processing"}],
+        **estimator_kwargs
     )
 
     script_processor.run(
@@ -78,7 +79,7 @@ def run_job(input_args, image, unknowargs):
         arguments=['--graph-config-path', config_path,
                    '--input-path', input_path,
                    '--output-path', output_path,
-                   '--graph-name', graph_name] + unknowargs,
+                   '--graph-name', graph_name] + unknownargs,
         inputs=[
             ProcessingInput(
                 source=input_graph_s3,
@@ -91,48 +92,43 @@ def run_job(input_args, image, unknowargs):
                 destination=output_graph_s3,
                 output_name=graph_name,
             ),
-        ]
+        ],
+        wait=not input_args.async_execution
     )
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
+def get_gconstruct_parser():
+    """
+    Get GraphStorm GConstruct task parser.
+    """
+    parser = get_common_parser()
 
-    parser.add_argument("--image-url", type=str,
-        help="Processing docker image")
-    parser.add_argument("--role", type=str,
-        help="SageMaker role")
-    parser.add_argument("--instance-type", type=str,
-        default=INSTANCE_TYPE,
-        help="instance type used to train models")
-    parser.add_argument("--region", type=str,
-        default="us-east-1",
-        help="Region")
-    parser.add_argument("--task-name", type=str,
-        default=None, help="User defined SageMaker task name")
-    parser.add_argument("--input-graph-s3", type=str,
-        default=None, help="S3 location store the input graph data")
-    parser.add_argument("--output-graph-s3", type=str,
-        default=None, help="S3 location store the constructed graph")
-    parser.add_argument("--volume-size-in-gb", type=int,
-        default=INSTANCE_VOLUME_SIZE,
-        help="Size in GB of the EBS volume to use for storing data during processing")
-    parser.add_argument("--entry-point", type=str,
+    gconstruct_arguments = parser.add_argument_group("GraphStorm Gconstruct arguments")
+
+    gconstruct_arguments.add_argument("--input-graph-s3", type=str,
+        required=True, help="S3 location of the input graph data")
+    gconstruct_arguments.add_argument("--output-graph-s3", type=str,
+        required=True, help="S3 location to store the constructed graph")
+    gconstruct_arguments.add_argument("--entry-point", type=str,
         default="graphstorm/sagemaker/run/gconstruct_entry.py",
         help="PATH-TO graphstorm/sagemaker/run/gconstruct_entry.py")
 
-    parser.add_argument("--graph-name", type=str,
+    gconstruct_arguments.add_argument("--graph-name", type=str,
         required=True, help="Graph name")
-    parser.add_argument("--graph-config-file", type=str,
-        required=True, help="Graph configuration file. It must be a relative path to --input-graph-s3.")
+    gconstruct_arguments.add_argument("--graph-config-file", type=str,
+        required=True, help="Graph configuration file. It must be a relative "
+        "S3 path to the --input-graph-s3 prefix.")
 
     return parser
 
 if __name__ == "__main__":
-    arg_parser = parse_args()
+    arg_parser = get_gconstruct_parser()
     args, unknownargs = arg_parser.parse_known_args()
     print(args)
 
     gconstruct_image = args.image_url
+
+    if not args.instance_type:
+        args.instance_type = INSTANCE_TYPE
 
     run_job(args, gconstruct_image, unknownargs)
