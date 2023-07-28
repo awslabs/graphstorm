@@ -15,15 +15,12 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
 
+# movielens node classification removing test mask
 cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_train_notest_1p_4t
 python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_train_notest_1p_4t --remove_node_mask true
 
-python3 -m graphstorm.gconstruct.construct_graph \
-	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens.json \
-	--num-processes 1 \
-	--output-dir movielen_100k_infer_val_1p_4t \
-	--graph-name movie-lens-100k \
-	--add-reverse-edges
+# movielens node classification inference
+cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_infer_val_1p_4t
 
 # movielens node classification with text features - used in multi-gpu test, 4 trainers
 python3 -m graphstorm.gconstruct.construct_graph \
@@ -41,6 +38,7 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
 
+# movielens link prediction removing test mask
 cp -R /data/movielen_100k_lp_train_val_1p_4t /data/movielen_100k_lp_train_no_test_1p_4t
 python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_lp_train_no_test_1p_4t --remove_node_mask false
 
@@ -65,41 +63,24 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
 
+# movielens edge regression removing test mask
 cp -R /data/movielen_100k_er_1p_4t /data/movielen_100k_er_no_test_1p_4t
 python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_er_no_test_1p_4t --remove_node_mask false
 
-python3 -m graphstorm.gconstruct.construct_graph \
-	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_er.json \
-	--num-processes 1 \
-	--output-dir movielen_100k_er_infer_1p_4t \
-	--graph-name movie-lens-100k \
-	--add-reverse-edges
+#movielens edge regression - inference
+cp -R /data/movielen_100k_er_1p_4t /data/movielen_100k_er_infer_1p_4t
 
 # movielens edge classification - used in both single and multi-gpu tests
-python3 -m graphstorm.gconstruct.construct_graph \
-	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens.json \
-	--num-processes 1 \
-	--output-dir movielen_100k_ec_1p_4t \
-	--graph-name movie-lens-100k \
-	--add-reverse-edges
+cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_ec_1p_4t
 
 cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_ec_no_test_1p_4t
 python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_ec_no_test_1p_4t --remove_node_mask false
 
-python3 -m graphstorm.gconstruct.construct_graph \
-	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens.json \
-	--num-processes 1 \
-	--output-dir movielen_100k_multi_label_ec_infer \
-	--graph-name movie-lens-100k \
-	--add-reverse-edges
+# movielens edge classification - inference
+cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_multi_label_ec_infer
 
 # Create data for edge classification with text features
-python3 -m graphstorm.gconstruct.construct_graph \
-	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens.json \
-	--num-processes 1 \
-	--output-dir movielen_100k_ec_1p_4t_text \
-	--graph-name movie-lens-100k \
-	--add-reverse-edges
+cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_ec_1p_4t_text
 
 # movielens edge classification without data split - used in both single and multi-gpu tests
 rm -Rf /data/movielen_100k_multi_label_ec
@@ -112,6 +93,14 @@ python3 $GS_HOME/tests/end2end-tests/data_gen/process_movielens.py
 # Create data for graph-aware fine-tuning BERT model
 python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/test_data_config/movielens_user_feat_movie_token.json --num-processes 1 --output-dir /data/movielen_100k_lp_user_feat_movie_token_1p --graph-name ml --add-reverse-edges --num-parts 1
 
+# For Custom GNN test 
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_custom.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_custom_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+	
 date
 
 echo 'Done'
