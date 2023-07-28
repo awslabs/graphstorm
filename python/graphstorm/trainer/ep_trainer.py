@@ -16,8 +16,8 @@
     GraphStorm trainer for edge prediction
 """
 import time
-import dgl
 import resource
+import dgl
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
