@@ -18,6 +18,7 @@
 import time
 import psutil
 import dgl
+import resource
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -214,14 +215,18 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
-                                                     1024 / 1024))
-        print("RAM memory used: {:.4f} MB".format(psutil.virtual_memory().used / 1024 / 1024))
+        if th.cuda.is_available():
+            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
+                                                         1024 / 1024))
+        else:
+            print("Peak RAM Mem alloc: {:.4f} MB".format(
+                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
-                       'RAM_mem_used': psutil.virtual_memory().used / 1024 / 1024,
+                       'peak_RAM_mem_alloc_MB': \
+                           resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
                            self.evaluator.best_iter_num[self.evaluator.metric[0]],
                        'best model path': \
