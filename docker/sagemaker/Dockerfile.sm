@@ -1,17 +1,25 @@
 # Docker file for building a docker image for running GraphStorm code on Amazon SageMaker
 # Note: Distributed graph partition will use another docker image which will come soon.
-ARG CUDA_VER=11.7
-ARG PYTHON_VERSION=3.9
 
-FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-gpu-py39-cu117-ubuntu20.04-sagemaker
+ARG DEVICE=gpu
+
+FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-gpu-py39-cu117-ubuntu20.04-sagemaker as branch-gpu
+ENV dev_type=GPU
+# Install DGL GPU version
+RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
+
+FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-cpu-py39-ubuntu20.04-sagemaker as branch-cpu
+ENV dev_type=CPU
+# Install DGL CPU version
+RUN pip3 install dgl==1.0.4 -f https://data.dgl.ai/wheels-internal/repo.html
+
+FROM branch-${DEVICE} AS final
+RUN echo "Build image for ${dev_type}"
 
 LABEL maintainer="Amazon AI Graph ML team"
 
-# Install DGL
-RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
-
 # Install related Python packages
-RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers
+RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers==4.28.1
 
 # Install MPI etc needed by DistDGL
 RUN apt-get update; apt-get install -y --no-install-recommends libopenmpi-dev \

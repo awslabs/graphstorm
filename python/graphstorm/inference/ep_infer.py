@@ -103,8 +103,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
 
-        device = th.device(f"cuda:{self.dev_id}") \
-            if self.dev_id >= 0 else th.device("cpu")
+        device = self.device
 
         if save_embed_path is not None:
             target_ntypes = set()
