@@ -17,6 +17,7 @@
 """
 import argparse
 import os
+import subprocess
 
 from graphstorm.config import SUPPORTED_TASKS
 from graphstorm.sagemaker.sagemaker_infer import run_infer
@@ -65,4 +66,5 @@ if __name__ =='__main__':
     parser = parse_train_args()
     args, unknownargs = parser.parse_known_args()
 
+    subprocess.run(["df", "-h"], check=True)
     run_infer(args, unknownargs)
