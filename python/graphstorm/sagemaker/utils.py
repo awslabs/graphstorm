@@ -248,6 +248,7 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
     s3_input_key = graph_data_s3.split("/", maxsplit=3)[3]
 
     s3_client = boto3.client('s3')
+    graph_config = None
     for config_name  in [f"{graph_name}.json", "metadata.json"]:
         try:
             s3_client.head_object(Bucket=s3_input_bucket, Key=f"{s3_input_key}/{config_name}")

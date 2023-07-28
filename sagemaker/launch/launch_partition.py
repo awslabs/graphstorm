@@ -68,8 +68,10 @@ def run_job(input_args, image):
               "partition-algorithm": input_args.partition_algorithm,}
 
     print(f"Parameters {params}")
+    if input_args.sm_estimator_parameters:
+        print(f"SageMaker Estimator parameters: '{input_args.sm_estimator_parameters}'")
 
-    estimator_kwargs = parse_estimator_kwargs(args.sm_estimator_parameters)
+    estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
 
     est = PyTorch(
         disable_profiler=True,
@@ -83,13 +85,14 @@ def run_job(input_args, image):
         py_version="py3",
         hyperparameters=params,
         sagemaker_session=sagemaker_session,
+        base_job_name=f"gs-partition-{graph_name}",
         tags=[{"Key":"GraphStorm", "Value":"beta"},
               {"Key":"GraphStorm_Task", "Value":"Partition"}],
         container_log_level=logging.getLevelName(input_args.log_level),
         **estimator_kwargs
     )
 
-    est.fit(job_name=sm_task_name, wait=input_args.async_execution)
+    est.fit(job_name=sm_task_name, wait=not input_args.async_execution)
 
 def get_partition_parser():
     """
@@ -97,7 +100,7 @@ def get_partition_parser():
     """
     parser = get_common_parser()
 
-    partition_args = parser.add_argument_group("Partition Arguments")
+    partition_args = parser.add_argument_group("GraphStorm Partition Arguments")
 
     partition_args.add_argument("--graph-data-s3", type=str,
         required=True,
@@ -138,8 +141,8 @@ if __name__ == "__main__":
         format='%(asctime)s - %(levelname)s - %(message)s'
         )
 
-    train_image = args.image_url
+    partition_image = args.image_url
     if not args.instance_type:
         args.instance_type = INSTANCE_TYPE
 
-    run_job(args, train_image)
+    run_job(args, partition_image)

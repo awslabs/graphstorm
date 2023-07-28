@@ -20,18 +20,12 @@ import os
 import boto3 # pylint: disable=import-error
 import sagemaker
 from sagemaker.pytorch.estimator import PyTorch
-from common_parser import get_common_parser
+
+from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_TASKS
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
-SUPPORTED_TASKS = {
-    "node_classification",
-    "node_regression",
-    "edge_classification",
-    "edge_regression",
-    "link_prediction"
-}
 
-def run_job(input_args, image, unknowargs):
+def run_job(input_args, image, unknownargs):
     """ Run job using SageMaker estimator.PyTorch
 
         We use SageMaker training task to run offline inference.
@@ -44,7 +38,7 @@ def run_job(input_args, image, unknowargs):
         Input arguments
     image: str
         ECR image uri
-    unknowargs: dict
+    unknownargs: dict
         GraphStorm parameters
     """
     sm_task_name = input_args.task_name # SageMaker task name
@@ -71,7 +65,7 @@ def run_job(input_args, image, unknowargs):
 
     container_image_uri = image
 
-    prefix = f"graphstorm-infer-{sm_task_name}"
+    prefix = f"gs-infer-{graph_name}"
 
     # In Link Prediction, no prediction outputs
     if task_type == "link_prediction":
@@ -93,21 +87,25 @@ def run_job(input_args, image, unknowargs):
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
     unknow_idx = 0
-    while unknow_idx < len(unknowargs):
-        print(unknowargs[unknow_idx])
-        assert unknowargs[unknow_idx].startswith("--")
+    while unknow_idx < len(unknownargs):
+        print(unknownargs[unknow_idx])
+        assert unknownargs[unknow_idx].startswith("--")
         sub_params = []
-        for i in range(unknow_idx+1, len(unknowargs)+1):
+        for i in range(unknow_idx+1, len(unknownargs)+1):
             # end of loop or stand with --
-            if i == len(unknowargs) or \
-                unknowargs[i].startswith("--"):
+            if i == len(unknownargs) or \
+                unknownargs[i].startswith("--"):
                 break
-            sub_params.append(unknowargs[i])
-        params[unknowargs[unknow_idx][2:]] = ' '.join(sub_params)
+            sub_params.append(unknownargs[i])
+        params[unknownargs[unknow_idx][2:]] = ' '.join(sub_params)
         unknow_idx = i
 
     print(f"Parameters {params}")
-    print(f"GraphStorm Parameters {unknowargs}")
+    print(f"GraphStorm Parameters {unknownargs}")
+    if input_args.sm_estimator_parameters:
+        print(f"SageMaker Estimator parameters: '{input_args.sm_estimator_parameters}'")
+
+    estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
 
     est = PyTorch(
         entry_point=os.path.basename(entry_point),
@@ -123,9 +121,10 @@ def run_job(input_args, image, unknowargs):
         sagemaker_session=sess,
         tags=[{"Key":"GraphStorm", "Value":"beta"},
               {"Key":"GraphStorm_Task", "Value":"Inference"}],
+        **estimator_kwargs
     )
 
-    est.fit(inputs={"train": infer_yaml_s3}, job_name=sm_task_name, wait=input_args.async_execution)
+    est.fit(inputs={"train": infer_yaml_s3}, job_name=sm_task_name, wait=not input_args.async_execution)
 
 def get_inference_parser():
     """
@@ -133,7 +132,7 @@ def get_inference_parser():
     """
     parser = get_common_parser()
 
-    inference_args = parser.add_argument_group("Inference Args")
+    inference_args = parser.add_argument_group("GraphStorm Inference Args")
 
     # task specific
     inference_args.add_argument("--entry-point", type=str,

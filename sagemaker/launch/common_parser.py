@@ -5,6 +5,14 @@ from typing import Any, Dict
 from ast import literal_eval
 import argparse
 
+SUPPORTED_TASKS = {
+    "node_classification",
+    "node_regression",
+    "edge_classification",
+    "edge_regression",
+    "link_prediction"
+}
+
 def get_common_parser() -> argparse.ArgumentParser:
     """
     Returns an argument parser that can be used by all
@@ -21,13 +29,12 @@ def get_common_parser() -> argparse.ArgumentParser:
         help="SageMaker execution role",
         required=True)
     common_args.add_argument("--instance-type", type=str,
-        help="instance type for the SageMaker job",
-        required=True)
+        help="instance type for the SageMaker job")
     common_args.add_argument("--instance-count", type=int,
         default=2,
         help="number of instances")
     common_args.add_argument("--region", type=str,
-        default="us-east-1",
+        default="us-west-2",
         help="Region")
     common_args.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
@@ -38,15 +45,18 @@ def get_common_parser() -> argparse.ArgumentParser:
             'security_group_ids=[\'sg-1234\',\'sg-3456\']"')
     common_args.add_argument("--async-execution", action='store_true',
         help="When set will launch the job in async mode, returning immediately. "
-            "When not set will block until the job completes")
+            "When not set, will block until the job completes")
 
     return parser
 
 def parse_estimator_kwargs(arg_string: str) -> Dict[str, Any]:
     """
-    Parses Estimator arguments for SageMaker. See
+    Parses Estimator/Processor arguments for SageMaker tasks. See
     https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html
-    for the full list of arguments. Argument values are evaluated as Python
+    for the full list of arguments for train/infer/partition tasks.
+    For GConstruct see
+    https://sagemaker.readthedocs.io/en/stable/api/training/processing.html
+    Argument values are evaluated as Python
     literals using ast.literal_eval.
 
     :param arg_string: String of arguments in the form of

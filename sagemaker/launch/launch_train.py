@@ -21,16 +21,9 @@ import boto3 # pylint: disable=import-error
 from sagemaker.pytorch.estimator import PyTorch
 import sagemaker
 
-from common_parser import get_common_parser, parse_estimator_kwargs
+from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_TASKS
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
-SUPPORTED_TASKS = {
-    "node_classification",
-    "node_regression",
-    "edge_classification",
-    "edge_regression",
-    "link_prediction"
-}
 
 def run_job(input_args, image, unknowargs):
     """ Run job using SageMaker estimator.PyTorch
@@ -66,7 +59,7 @@ def run_job(input_args, image, unknowargs):
 
     container_image_uri = image
 
-    prefix = f"graphstorm-train-{sm_task_name}"
+    prefix = f"gs-train-{graph_name}"
 
     params = {"task-type": task_type,
               "graph-name": graph_name,
@@ -93,10 +86,10 @@ def run_job(input_args, image, unknowargs):
 
     print(f"Parameters {params}")
     print(f"GraphStorm Parameters {unknowargs}")
-    if args.sm_estimator_parameters:
-        print(f"SageMaker Estimator parameters: '{args.sm_estimator_parameters}'")
+    if input_args.sm_estimator_parameters:
+        print(f"SageMaker Estimator parameters: '{input_args.sm_estimator_parameters}'")
 
-    estimator_kwargs = parse_estimator_kwargs(args.sm_estimator_parameters)
+    estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
 
     est = PyTorch(
         entry_point=os.path.basename(entry_point),
@@ -115,7 +108,7 @@ def run_job(input_args, image, unknowargs):
         **estimator_kwargs
     )
 
-    est.fit({"train": train_yaml_s3}, job_name=sm_task_name, wait=input_args.async_execution)
+    est.fit({"train": train_yaml_s3}, job_name=sm_task_name, wait=not input_args.async_execution)
 
 def get_train_parser():
     """
