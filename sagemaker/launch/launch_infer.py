@@ -71,7 +71,7 @@ def run_job(input_args, image, unknowargs):
 
     container_image_uri = image
 
-    prefix = f"graphstorm-train-{sm_task_name}"
+    prefix = f"graphstorm-infer-{sm_task_name}"
 
     # In Link Prediction, no prediction outputs
     if task_type == "link_prediction":
