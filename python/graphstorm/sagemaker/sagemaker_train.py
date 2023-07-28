@@ -87,30 +87,17 @@ def launch_train_task(task_type, num_gpus, graph_config,
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
-    if num_gpus != 0:
-        launch_cmd = ["python3", "-u", "-m", cmd,
-            "--num-trainers", f"{num_gpus}",
+    launch_cmd = ["python3", "-u", "-m", cmd,
+            "--num-trainers", f"{num_gpus if num_gpus > 0 else 1}",
             "--num-servers", "1",
             "--num-samplers", "0",
             "--part-config", f"{graph_config}",
             "--ip-config", f"{ip_list}",
             "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
             "--ssh-port", "22"]
-        launch_cmd += [custom_script] if custom_script is not None else []
-        launch_cmd += ["--cf", f"{yaml_path}",
+    launch_cmd += [custom_script] if custom_script is not None else []
+    launch_cmd += ["--cf", f"{yaml_path}",
             "--save-model-path", f"{save_model_path}"] + extra_args
-    else:
-        launch_cmd = ["python3", "-u", "-m", cmd,
-                      "--num-trainers", "1",
-                      "--num-servers", "1",
-                      "--num-samplers", "0",
-                      "--part-config", f"{graph_config}",
-                      "--ip-config", f"{ip_list}",
-                      "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
-                      "--ssh-port", "22"]
-        launch_cmd += [custom_script] if custom_script is not None else []
-        launch_cmd += ["--cf", f"{yaml_path}",
-                       "--save-model-path", f"{save_model_path}"] + extra_args
 
     print(launch_cmd)
 
