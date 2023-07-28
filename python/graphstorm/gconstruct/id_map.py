@@ -160,7 +160,8 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     """ Map node IDs of source and destination nodes of edges.
 
     In the ID mapping, we need to handle multiple errors in the input data:
-    1) we handle the case that endpoint nodes of edges don't exist;
+    1) we handle the case that endpoint nodes of edges don't exist; if all endpoint nodes
+    do not exist, we return an empty edge list.
     2) we handle the case that the data type of node IDs of the endpoint nodes don't
     match the data type of the keys of the ID map.
 
