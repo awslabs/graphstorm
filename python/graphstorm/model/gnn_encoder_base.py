@@ -127,8 +127,8 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
 
             for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
                 if iter_l % 100000 == 0 and get_rank() == 0:
-                    print(f"[Rank 0] dist_inference: Layer [{i}]" \
-                          "finishes [{iter_l}] iterations.")
+                    print(f"[Rank 0] dist_inference: Layer [{i}] " \
+                          f"finishes [{iter_l}] iterations.")
 
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
