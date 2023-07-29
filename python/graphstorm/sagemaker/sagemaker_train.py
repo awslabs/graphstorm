@@ -87,8 +87,9 @@ def launch_train_task(task_type, num_gpus, graph_config,
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
+    
     launch_cmd = ["python3", "-u", "-m", cmd,
-        "--num-trainers", f"{num_gpus if num_gpus > 0 else 1}",
+        "--num-trainers", f"{num_gpus if int(num_gpus) > 0 else 1}",
         "--num-servers", "1",
         "--num-samplers", "0",
         "--part-config", f"{graph_config}",
