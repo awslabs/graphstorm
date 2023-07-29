@@ -92,7 +92,6 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
-
     launch_cmd = ["python3", "-u",  "-m", cmd,
         "--num-trainers", f"{num_gpus if int(num_gpus) > 0 else 1}",
         "--num-servers", "1",
