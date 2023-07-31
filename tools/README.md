@@ -71,9 +71,13 @@ For details of the arguments of the two scripts, please refer to their **main()*
 
 Below command can generate the homogeneous version of ogbn-arxiv. The partitioned graph is save at the /tmp/ogbn_arxiv_nc_2p folder.
 ```bash
+python3 /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/  \
+                          --dataset ogbn-arxiv \
+                          --retain-original-features true \
+                          --is-homo
+                           
 python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
                                              --num-parts 2 \
-                                             --output /tmp/ogbn_arxiv_nc_2p \
-                                             --is-homo                  
+                                             --output /tmp/ogbn_arxiv_nc_2p \         
 ```
