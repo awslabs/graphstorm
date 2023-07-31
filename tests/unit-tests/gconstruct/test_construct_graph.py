@@ -578,6 +578,13 @@ def test_label():
         assert np.sum(res['test_mask']) == 1
         assert np.sum(res['train_mask'] + res['val_mask'] + res['test_mask']) == 10
 
+    def check_no_split(res):
+        assert len(res) == 1
+        assert 'label' in res
+        assert 'train_mask' not in res
+        assert 'val_mask' not in res
+        assert 'test_mask' not in res
+
     def check_integer(label, res):
         train_mask = res['train_mask'] == 1
         val_mask = res['val_mask'] == 1
@@ -591,6 +598,10 @@ def test_label():
         check_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
         check_integer(res['label'], res)
+    def check_classification_no_split(res):
+        check_no_split(res)
+        assert np.issubdtype(res['label'].dtype, np.integer)
+
     conf = {
             "labels": [
                 {'task_type': 'classification',
@@ -700,7 +711,25 @@ def test_label():
     assert "test_mask" in res
     assert np.sum(res["test_mask"]) == 0
 
+    # Check custom data split without providing split
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'split_pct': [0, 0, 0]}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    check_classification_no_split(res)
+
     # Check regression
+    def check_regression(res):
+        check_split(res)
+    def check_regression_no_split(res):
+        check_no_split(res)
+
     conf = {
             "labels": [
                 {'task_type': 'regression',
@@ -711,8 +740,6 @@ def test_label():
     ops = parse_label_ops(conf, True)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
-    def check_regression(res):
-        check_split(res)
     check_regression(res)
     ops = parse_label_ops(conf, False)
     res = process_labels(data, ops)
@@ -747,6 +774,19 @@ def test_label():
     res = process_labels(data, ops)
     check_regression(res)
 
+    # Check custom data split without providing split
+    conf = {
+            "labels": [
+                {'task_type': 'regression',
+                 'label_col': 'label',
+                 'split_pct': [0, 0, 0]}
+            ]
+    }
+    data = {'label' : np.random.uniform(size=10) * 10}
+    ops = parse_label_ops(conf, True)
+    res = process_labels(data, ops)
+    check_regression_no_split(res)
+
     # Check link prediction
     conf = {
             "labels": [
@@ -764,6 +804,21 @@ def test_label():
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
+
+    # Check custom data split without providing split
+    conf = {
+            "labels": [
+                {'task_type': 'link_prediction',
+                 'split_pct': [0, 0, 0]}
+            ]
+    }
+    ops = parse_label_ops(conf, False)
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 0
+    assert 'train_mask' not in res
+    assert 'val_mask' not in res
+    assert 'test_mask' not in res
 
 def check_id_map_exist(id_map, input_ids):
     # Test the case that all Ids exist in the map.

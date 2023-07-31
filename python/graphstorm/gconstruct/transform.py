@@ -985,6 +985,10 @@ class LabelProcessor:
         train_split, val_split, test_split = self._split_pct
         assert train_split + val_split + test_split <= 1, \
                 "The data split of training/val/test cannot be more than the entire dataset."
+        if train_split == 0 and val_split == 0 and test_split == 0:
+            # Train, val and test are all zero
+            # Ignore the split
+            return {}
         rand_idx = get_valid_idx()
         num_labels = len(rand_idx)
         num_train = int(num_labels * train_split)
