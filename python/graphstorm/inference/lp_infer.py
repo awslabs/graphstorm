@@ -73,8 +73,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
                                        edge_mask=edge_mask_for_gnn_embeddings,
                                        task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
-        device = th.device(f"cuda:{self.dev_id}") \
-                if self.dev_id >= 0 else th.device("cpu")
+        device = self.device
         if save_embed_path is not None:
             save_gsgnn_embeddings(save_embed_path, embs, self.rank,
                 th.distributed.get_world_size(),
