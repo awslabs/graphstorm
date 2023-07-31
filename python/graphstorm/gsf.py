@@ -478,6 +478,9 @@ def set_encoder(model, g, config, train_task):
                                            use_self_loop=config.use_self_loop,
                                            num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "sage":
+        # we need to check if the graph is homogeneous
+        # todo runjie: add homogeneous graph check
+        assert check_homo(g) == True
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = SAGEEncoder(g,
                                 h_dim=config.hidden_size,
@@ -489,6 +492,15 @@ def set_encoder(model, g, config, train_task):
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)
+
+
+def check_homo(g):
+    if g.ntypes == ['_N'] and g.etypes == ['_E']:
+        return True
+    print("It is not a required homogeneous graph for DGL, the node type should be '_N' "
+          "and edge type should be '_E'.")
+    return False
+
 
 def create_builtin_task_tracker(config, rank):
     tracker_class = get_task_tracker_class(config.task_tracker)

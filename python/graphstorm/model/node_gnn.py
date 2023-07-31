@@ -113,8 +113,6 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         # TODO(zhengda) we only support node prediction on one node type now
         assert len(labels) == 1, "We only support prediction on one node type for now."
         target_ntype = list(labels.keys())[0]
-
-        encode_embs = {'_N': encode_embs}
         assert target_ntype in encode_embs
         emb = encode_embs[target_ntype]
         labels = labels[target_ntype]
