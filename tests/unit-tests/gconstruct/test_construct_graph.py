@@ -506,7 +506,7 @@ def test_process_features_fp16():
     }]
     (ops_rst, _, _) = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
-    assert len(rst) == 2
+    assert len(rst) == 3
     assert 'test1' in rst
     assert 'test2' in rst
     assert 'test3' in rst
@@ -523,7 +523,7 @@ def test_process_features_fp16():
     data1 = read_data_hdf5(tmpfile, ['test1', 'test2', 'test3'], in_mem=False)
     rst2 = process_features(data1, ops_rst)
     assert isinstance(rst2["test1"], HDF5Array)
-    assert len(rst2) == 2
+    assert len(rst2) == 3
     assert 'test1' in rst2
     assert 'test2' in rst2
     assert 'test3' in rst
