@@ -15,7 +15,7 @@
 
     Graphstorm package.
 """
-__version__ = "0.2"
+__version__ = "0.1.2"
 
 from .utils import get_rank
 from .gsf import initialize, get_feat_size
