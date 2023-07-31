@@ -486,7 +486,7 @@ def test_process_features_fp16():
     data = {}
     data["test1"] = np.random.rand(10, 3)
     data["test2"] = np.random.rand(10)
-    data["test3"] = np.random.rand(10)
+    data["test3"] = np.random.rand(10) * 5
     handle, tmpfile = tempfile.mkstemp()
     os.close(handle)
     write_data_hdf5(data, tmpfile)
@@ -518,7 +518,7 @@ def test_process_features_fp16():
     assert rst['test3'].dtype == np.int8
     assert_almost_equal(rst['test1'], data['test1'], decimal=3)
     assert_almost_equal(rst['test2'], data['test2'].reshape(-1, 1), decimal=3)
-    assert_almost_equal(rst['test3'].astype(np.int8), data['test3'].reshape(-1, 1))
+    assert_almost_equal(rst['test3'], data['test3'].reshape(-1, 1).astype(np.int8))
 
     data1 = read_data_hdf5(tmpfile, ['test1', 'test2', 'test3'], in_mem=False)
     rst2 = process_features(data1, ops_rst)
@@ -538,7 +538,7 @@ def test_process_features_fp16():
     assert_almost_equal(rst2['test1'].to_tensor().numpy(), data['test1'], decimal=3)
     assert_almost_equal(rst2['test1'].to_tensor().numpy(), data_slice)
     assert_almost_equal(rst2['test2'], data['test2'].reshape(-1, 1), decimal=3)
-    assert_almost_equal(rst2['test3'].astype(np.int8), data['test3'].reshape(-1, 1))
+    assert_almost_equal(rst2['test3'], data['test3'].reshape(-1, 1).astype(np.int8))
 
 def test_process_features():
     # Just get the features without transformation.
