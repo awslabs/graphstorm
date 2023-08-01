@@ -39,7 +39,7 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 echo "**************dataset: Generated multilabel EC test, RGCN layer: 1, node feat: generated feature, inference: mini-batch, exclude-training-targets: True"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --multilabel true --node-feat-name feat --num-epochs 1
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --multilabel true --node-feat-name movie:title --num-epochs 1
 
 error_and_exit $?
 

@@ -8,7 +8,7 @@ lm_model:
       gradient_checkpoint: false
       node_types:
         - movie
-        - user
+        # - user
 gsf:
   basic:
     backend: gloo

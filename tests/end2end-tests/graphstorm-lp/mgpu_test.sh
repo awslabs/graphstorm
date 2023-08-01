@@ -319,7 +319,7 @@ rm -fr /data/gsgnn_lp_ml_distmult_all_etype/*
 
 rm train_log.txt
 echo "**************dataset: Movielens, Bert only, inference: full-graph, negative_sampler: joint, decoder: Dot, save model"
-python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_lp.yaml --save-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/emb/ --lp-decoder-type dot_product | tee train_log.txt
+python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_lp.yaml --save-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/emb/ --lp-decoder-type dot_product | tee train_log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -334,7 +334,7 @@ best_epoch_dot=$(grep "successfully save the model to" train_log.txt | tail -1 |
 echo "The best model is saved in epoch $best_epoch_dot"
 
 echo "**************dataset: Movielens, Bert only, do inference on saved model, decoder: Dot, eval_etype: None"
-python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_lp_infer.yaml   --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/epoch-$best_epoch_dot/ --lp-decoder-type dot_product --no-validation True
+python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_lp_infer.yaml   --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/epoch-$best_epoch_dot/ --lp-decoder-type dot_product --no-validation True
 
 error_and_exit $?
 
@@ -345,9 +345,8 @@ error_and_exit $?
 rm -fr /data/gsgnn_lp_ml_lm_dot_all_etype/*
 rm train_log.txt
 
-
 echo "**************dataset: Movielens, input encoder with Bert, inference: full-graph, negative_sampler: joint, decoder: Dot, save model"
-python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lm_lp.py --cf ml_lm_lp.yaml  --save-model-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/emb/ --lp-decoder-type dot_product --model-encoder-type mlp | tee train_log.txt
+python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lm_lp.py --cf ml_lm_lp.yaml  --save-model-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/emb/ --lp-decoder-type dot_product --model-encoder-type mlp | tee train_log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -362,7 +361,7 @@ best_epoch_dot=$(grep "successfully save the model to" train_log.txt | tail -1 |
 echo "The best model is saved in epoch $best_epoch_dot"
 
 echo "**************dataset: Movielens, input encoder with Bert, do inference on saved model, decoder: Dot, eval_etype: None"
-python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_lm.py --cf ml_lm_lp_infer.yaml   --save-embed-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/epoch-$best_epoch_dot/ --lp-decoder-type dot_product --no-validation True --model-encoder-type mlp
+python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_lm.py --cf ml_lm_lp_infer.yaml   --save-embed-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_lmmlp_dot_all_etype/epoch-$best_epoch_dot/ --lp-decoder-type dot_product --no-validation True --model-encoder-type mlp
 
 error_and_exit $?
 
