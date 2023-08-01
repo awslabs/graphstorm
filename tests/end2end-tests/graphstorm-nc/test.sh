@@ -176,8 +176,12 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 echo "**************dataset: ogbn-arxiv, SAGE layer: 1"
+cd /tmp/ogbn-arxiv-nc
+touch ip_list.txt
+echo 127.0.0.1>ip_list.txt
 python3 -m graphstorm.run.gs_node_classification --workspace /tmp/ogbn-arxiv-nc --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /tmp/ogbn_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json --ip-config ip_list.txt --ssh-port 2222 --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml
 
+cd /
 error_and_exit $?
 date
 
