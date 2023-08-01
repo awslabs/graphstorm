@@ -1,6 +1,22 @@
+"""
+    Copyright 2023 Contributors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    Sage layer implementation.
+"""
 import warnings
 
-import torch as th
 from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
@@ -10,18 +26,41 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class SAGEConv(nn.Module):
+    r"""Sage Convolutional layer.
+
+    Parameters
+    ----------
+    in_feat : int
+        Input feature size.
+    out_feat : int
+        Output feature size.
+    aggregator_type : str
+        One of mean, gcn, pool, lstm
+    bias : bool, optional
+        True if bias is added. Default: True
+    activation : callable, optional
+        Activation function. Default: None
+    dropout : float, optional
+        Dropout rate. Default: 0.0
+    num_ffn_layers_in_gnn: int, optional
+        Number of layers of ngnn between gnn layers
+    ffn_actication: torch.nn.functional
+        Activation Method for ngnn
+    """
     def __init__(self,
                  in_feat,
                  out_feat,
                  aggregator_type='mean',
                  bias=True,
                  dropout=0.0,
-                 activation=F.relu,
-                 num_ffn_layers_in_gnn=0):
+                 activation=None,
+                 num_ffn_layers_in_gnn=0,
+                 ffn_activation=F.relu):
+        super(SAGEConv, self).__init__()
         self.in_feat, self.out_feat = in_feat, out_feat
         self.aggregator_type = aggregator_type
 
-        self.conv = dglnn.SAGEConv(self.in_feat, self.out_feat, self.aggregator_type, bias=bias)
+        self.conv = dglnn.SAGEConv(self.in_feat, self.out_feat, self.aggregator_type, feat_drop=dropout, bias=bias)
 
         self.activation = activation
         # ngnn
@@ -32,17 +71,18 @@ class SAGEConv(nn.Module):
     def forward(self, g, inputs):
         g = g.local_var()
 
-        print("information inside: ")
-        print(inputs)
+        inputs = inputs['_N']
         h_conv = self.conv(g, inputs)
         if self.activation:
             h_conv = self.activation(h_conv)
+        if self.num_ffn_layers_in_gnn > 0:
+            h_conv = self.ngnn_mlp(h_conv)
 
-        return h_conv
+        return {'_N': h_conv}
 
 
 class SAGEEncoder(GraphConvEncoder):
-    r""" Relational graph conv encoder.
+    r""" Sage Conv Layer
 
     Parameters
     ----------
@@ -50,26 +90,21 @@ class SAGEEncoder(GraphConvEncoder):
         Hidden dimension
     out_dim : int
         Output dimension
-    num_bases: int
-        Number of bases.
     num_hidden_layers : int
         Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
     dropout : float
         Dropout. Default 0.
-    use_self_loop : bool
-        Whether to add selfloop. Default True
     last_layer_act : torch.function
         Activation for the last layer. Default None
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
     """
     def __init__(self,
-                 g,
                  h_dim, out_dim,
                  num_hidden_layers=1,
                  dropout=0,
                  aggregator_type='mean',
-                 activation='F.relu',
+                 activation=F.relu,
                  num_ffn_layers_in_gnn=0):
         super(SAGEEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         self.aggregator_type = aggregator_type
@@ -80,12 +115,10 @@ class SAGEEncoder(GraphConvEncoder):
             self.layers.append(SAGEConv(h_dim, h_dim, self.aggregator_type,
                                         bias=False, activation=activation,
                                         num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
-            # self.layers.append(dglnn.SAGEConv(h_dim, h_dim, self.aggregator_type, bias=False))
 
         self.layers.append(SAGEConv(h_dim, out_dim, self.aggregator_type,
                                     bias=False, activation=activation,
                                     num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
-        # self.layers.append(dglnn.SAGEConv(h_dim, out_dim, self.aggregator_type, bias=False))
 
     # TODO(zhengda) refactor this to support edge features.
     def forward(self, blocks, h):
@@ -99,8 +132,5 @@ class SAGEEncoder(GraphConvEncoder):
             Input node feature for each node type.
         """
         for layer, block in zip(self.layers, blocks):
-            print('information outside: ')
-            print(block)
-            print(h)
             h = layer(block, h)
         return h

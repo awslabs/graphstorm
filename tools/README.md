@@ -78,6 +78,7 @@ python3 /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/  \
                            
 python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
-                                             --num-parts 2 \
-                                             --output /tmp/ogbn_arxiv_nc_2p \         
+                                             --num-parts 1 \
+                                             --output /tmp/ogbn_arxiv_nc_train_val_1p_4t  \
+                                             --is-homo     
 ```
