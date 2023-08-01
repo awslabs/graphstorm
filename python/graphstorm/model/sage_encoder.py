@@ -15,8 +15,6 @@
 
     Sage layer implementation.
 """
-import warnings
-
 from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
@@ -60,7 +58,8 @@ class SAGEConv(nn.Module):
         self.in_feat, self.out_feat = in_feat, out_feat
         self.aggregator_type = aggregator_type
 
-        self.conv = dglnn.SAGEConv(self.in_feat, self.out_feat, self.aggregator_type, feat_drop=dropout, bias=bias)
+        self.conv = dglnn.SAGEConv(self.in_feat, self.out_feat, self.aggregator_type,
+                                   feat_drop=dropout, bias=bias)
 
         self.activation = activation
         # ngnn
@@ -69,6 +68,19 @@ class SAGEConv(nn.Module):
                                      num_ffn_layers_in_gnn, ffn_activation, dropout)
 
     def forward(self, g, inputs):
+        """Forward computation
+
+        Parameters
+        ----------
+        g : DGLHeteroGraph
+            Input graph.
+        inputs : dict["_N", torch.Tensor]
+            Node feature for each node type.
+        Returns
+        -------
+        dict["_N", torch.Tensor]
+            New node features for each node type.
+        """
         g = g.local_var()
 
         inputs = inputs['_N']

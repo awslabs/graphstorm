@@ -175,4 +175,13 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2
 
 error_and_exit $?
 
+# Create data for SageConv e2e test
+python3 /$GS_HOME/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/  --dataset ogbn-arxiv --retain-original-features true --is-homo
+
+error_and_exit $?
+
+python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv --filepath /tmp/ogbn-arxiv-nc/ --num-parts 1 --output /tmp/ogbn_arxiv_nc_train_val_1p_4t  --is-homo
+
+error_and_exit $?
+
 date
