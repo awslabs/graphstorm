@@ -106,8 +106,6 @@ class SAGEEncoder(GraphConvEncoder):
         Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
     dropout : float
         Dropout. Default 0.
-    last_layer_act : torch.function
-        Activation for the last layer. Default None
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
     """
@@ -140,7 +138,7 @@ class SAGEEncoder(GraphConvEncoder):
         ----------
         blocks: DGL MFGs
             Sampled subgraph in DGL MFG
-        h: dict[str, torch.Tensor]
+        h: dict["_N", torch.Tensor]
             Input node feature for each node type.
         """
         for layer, block in zip(self.layers, blocks):

@@ -114,7 +114,7 @@ def create_sage_node_model(g):
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
 
-def check_node_prediction(model, data):
+def check_node_prediction(model, data, is_homo=False):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnNodeModel with GNN layers.
 
@@ -153,7 +153,7 @@ def check_node_prediction(model, data):
         assert_almost_equal(embs3[ntype][0:len(embs3[ntype])].numpy(),
                             embs4[ntype][0:len(embs4[ntype])].numpy())
 
-    target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
+    target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))} if not is_homo else {"_N": th.arange(g.number_of_nodes("_N"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
@@ -269,7 +269,7 @@ def test_sage_node_prediction():
                                      train_ntypes=['_N'], label_field='label',
                                      node_feat_field='feat')
     model = create_sage_node_model(np_data.g)
-    check_node_prediction(model, np_data)
+    check_node_prediction(model, np_data, is_homo=True)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -880,6 +880,7 @@ if __name__ == '__main__':
     test_rgcn_edge_prediction()
     test_rgcn_node_prediction()
     test_rgat_node_prediction()
+    test_sage_node_prediction()
     test_edge_classification()
     test_edge_classification_feat()
     test_edge_regression()
