@@ -35,6 +35,7 @@ from graphstorm.model import GSLMNodeEncoderInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
+from graphstorm.model.sage_encoder import SAGEEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            MLPEdgeDecoder,
                                            MLPEFeatEdgeDecoder,
@@ -91,6 +92,24 @@ def create_rgat_node_model(g):
                                        num_hidden_layers=1,
                                        dropout=0,
                                        use_self_loop=True)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+    return model
+
+def create_sage_node_model(g):
+    model = GSgnnNodeModel(alpha_l2norm=0)
+
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = SAGEEncoder(4, 4,
+                              num_hidden_layers=1,
+                              dropout=0,
+                              aggregator_type='mean')
+
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
@@ -227,6 +246,29 @@ def test_rgat_node_prediction():
                                      train_ntypes=['n1'], label_field='label',
                                      node_feat_field='feat')
     model = create_rgat_node_model(np_data.g)
+    check_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_sage_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + SAGELayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, is_homo=True)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['_N'], label_field='label',
+                                     node_feat_field='feat')
+    model = create_sage_node_model(np_data.g)
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
