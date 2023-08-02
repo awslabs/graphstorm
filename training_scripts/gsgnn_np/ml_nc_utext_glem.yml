@@ -53,6 +53,6 @@ gsf:
     use_node_embeddings: false
   node_classification:
     target_ntype: "movie"
-    label_field: "label"
+    label_field: "genre"
     multilabel: false
     num_classes: 19
