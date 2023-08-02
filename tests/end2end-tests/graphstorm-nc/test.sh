@@ -28,7 +28,7 @@ echo "Test GraphStorm node classification"
 date
 
 echo "**************dataset: MovieLens, SAGE layer: 1"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/arxiv/ogbn-arxiv.json --ip-config ip_list.txt --ssh-port 2222 --cf arxiv_nc.yaml --model-encoder-type sage
+python3 -m graphstorm.run.gs_node_classification --workspace /data/homo/ogbn-arxiv-nc --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/homo/arxiv/ogbn-arxiv.json --ip-config ip_list.txt --ssh-port 2222 --cf arxiv_nc.yaml --model-encoder-type sage
 
 error_and_exit $?
 
