@@ -229,38 +229,38 @@ fi
 rm -fr /data/gsgnn_lp_ml_dot/*
 
 # Commented out because of Slowness - START 
-# echo "**************dataset: Movielens, RGCN layer 1, BERT nodes: movie, user , inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: true, save model"
-# python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --cf ml_lp_text.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false  --use-node-embeddings true --save-model-path /data/gsgnn_lp_ml_distmult_text/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_distmult_text/emb/ --lp-decoder-type distmult --train-etype user,rating,movie movie,rating-rev,user | tee train_log.txt
+echo "**************dataset: Movielens, RGCN layer 1, BERT nodes: movie, user , inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: true, save model"
+python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t_bert/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --cf ml_lp_text.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false  --use-node-embeddings true --save-model-path /data/gsgnn_lp_ml_distmult_text/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_distmult_text/emb/ --lp-decoder-type distmult --train-etype user,rating,movie movie,rating-rev,user | tee train_log.txt
 
-# error_and_exit ${PIPESTATUS[0]}
+error_and_exit ${PIPESTATUS[0]}
 
-# best_epoch_distmult=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
-# echo "The best model is saved in epoch $best_epoch_distmult"
+best_epoch_distmult=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch_distmult"
 
-# echo "**************dataset: Movielens text, do inference on saved model, decoder: DistMult"
-# python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_gnn.py --cf ml_lp_text_infer.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --use-node-embeddings true   --save-embed-path /data/gsgnn_lp_ml_distmult_text/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult_text/epoch-$best_epoch_distmult/ --lp-decoder-type distmult --no-validation False --train-etype user,rating,movie movie,rating-rev,user | tee log2.txt
+echo "**************dataset: Movielens text, do inference on saved model, decoder: DistMult"
+python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_text_lp_train_val_1p_4t_bert/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_gnn.py --cf ml_lp_text_infer.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --use-node-embeddings true   --save-embed-path /data/gsgnn_lp_ml_distmult_text/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult_text/epoch-$best_epoch_distmult/ --lp-decoder-type distmult --no-validation False --train-etype user,rating,movie movie,rating-rev,user | tee log2.txt
 
-# error_and_exit ${PIPESTATUS[0]}
+error_and_exit ${PIPESTATUS[0]}
 
-# python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_distmult_text/emb/ --infer_embout /data/gsgnn_lp_ml_distmult_text/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_distmult_text/emb/ --infer_embout /data/gsgnn_lp_ml_distmult_text/infer-emb/ --link_prediction
 
-# error_and_exit $?
+error_and_exit $?
 
-# cnt=$(ls /data/gsgnn_lp_ml_distmult_text/infer-emb/ | grep rel_emb.pt | wc -l)
-# if test $cnt -ne 1
-# then
-#     echo "DistMult inference outputs edge embedding"
-#     exit -1
-# fi
+cnt=$(ls /data/gsgnn_lp_ml_distmult_text/infer-emb/ | grep rel_emb.pt | wc -l)
+if test $cnt -ne 1
+then
+    echo "DistMult inference outputs edge embedding"
+    exit -1
+fi
 
-# cnt=$(ls /data/gsgnn_lp_ml_distmult_text/infer-emb/ | grep relation2id_map.json | wc -l)
-# if test $cnt -ne 1
-# then
-#     echo "DistMult inference outputs edge embedding"
-#     exit -1
-# fi
+cnt=$(ls /data/gsgnn_lp_ml_distmult_text/infer-emb/ | grep relation2id_map.json | wc -l)
+if test $cnt -ne 1
+then
+    echo "DistMult inference outputs edge embedding"
+    exit -1
+fi
 
-# rm -fr /data/gsgnn_lp_ml_distmult_text/*
+rm -fr /data/gsgnn_lp_ml_distmult_text/*
 # Commented out because of Slowness - END
 
 echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, inference: full-graph, negative_sampler: localuniform, exclude_training_targets: true, test_negative_sampler: uniform"
