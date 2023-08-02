@@ -292,7 +292,7 @@ class GSConfig:
 
         # ngnn
         _ = self.num_ffn_layers_in_input
-        _ = self.num_fnn_layers_in_decoder
+        _ = self.num_ffn_layers_in_decoder
 
         # Logging.
         _ = self.task_tracker
@@ -1660,14 +1660,14 @@ class GSConfig:
         return 0
 
     @property
-    def num_fnn_layers_in_decoder(self):
+    def num_ffn_layers_in_decoder(self):
         """ Number of extra feedforward neural network layers in decoder
         """
         # pylint: disable=no-member
-        if hasattr(self, "_num_fnn_layers_in_decoder"):
-            assert self._num_fnn_layers_in_decoder >= 0, \
+        if hasattr(self, "_num_ffn_layers_in_decoder"):
+            assert self._num_ffn_layers_in_decoder >= 0, \
                 "Number of extra MLP layers in decoder must be larger or equal than 0"
-            return self._num_fnn_layers_in_decoder
+            return self._num_ffn_layers_in_decoder
         # Set default mlp layer number between gnn layer to 0
         return 0
 

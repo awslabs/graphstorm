@@ -247,9 +247,6 @@ class MLPEdgeDecoder(GSLayer):
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
         self.dropout = nn.Dropout(self.dropout)
-
-
-
         if self.regression:
             self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
 
