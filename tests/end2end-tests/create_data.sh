@@ -4,8 +4,10 @@ mkdir -p /data
 cd /data
 cp -R /storage/ml-100k /data
 
-cp -r /storage/ml-100k/homo /data/sage
+cd /data/ml-100k
 ls
+cd ..
+
 
 python3 /$GS_HOME/python/graphstorm/data/tools/preprocess_movielens.py \
     --input_path ml-100k --output_path movielen-data
