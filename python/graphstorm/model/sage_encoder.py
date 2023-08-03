@@ -117,19 +117,17 @@ class SAGEEncoder(GraphConvEncoder):
                  activation=F.relu,
                  num_ffn_layers_in_gnn=0):
         super(SAGEEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
-        self.aggregator_type = aggregator_type
-        self.dropout = dropout
 
         self.layers = nn.ModuleList()
         for _ in range(num_hidden_layers):
-            self.layers.append(SAGEConv(h_dim, h_dim, self.aggregator_type,
+            self.layers.append(SAGEConv(h_dim, h_dim, ggregator_type,
                                         bias=False, activation=activation,
-                                        dropout=self.dropout,
+                                        dropout=dropout,
                                         num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
-        self.layers.append(SAGEConv(h_dim, out_dim, self.aggregator_type,
+        self.layers.append(SAGEConv(h_dim, out_dim, aggregator_type,
                                     bias=False, activation=activation,
-                                    dropout=self.dropout,
+                                    dropout=dropout,
                                     num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
     # TODO(zhengda) refactor this to support edge features.
