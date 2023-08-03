@@ -53,7 +53,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
     bert_model_name : String
         The bert model used for tokenization
     is_homo: Boolean
-        If we want to generate a homogeneous graph to compat DGL
+        If we want to generate a homogeneous graph.
     """
     def __init__(self, raw_dir, dataset, edge_pct=1,
                  force_reload=False, verbose=True,
