@@ -58,6 +58,8 @@ labels = []
 for i in range(5, 24):
     labels.append(np.array(movie[i]))
 labels = np.stack(labels, axis=1)
+
+# Get the first non zero value and consider it as primary genre as there are multiple genre labels from column 5 to 23
 label_list = []
 for i in range(labels.shape[0]):
     label_list.append(np.nonzero(labels[i])[0][0])
