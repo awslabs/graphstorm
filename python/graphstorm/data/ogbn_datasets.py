@@ -215,7 +215,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
                                                   int(int_edges*self.edge_pct)] = True
             g.edges[self.edge_type].data['test_mask'][int(int_edges*self.edge_pct):] = True
 
-            if self.reverse_edge:
+            if self.reverse_edge and not is_homo:
                 g.edges[self.rev_edge_type].data['train_mask'] = th.full((int_edges,), False,
                                                                       dtype=th.bool)
                 g.edges[self.rev_edge_type].data['val_mask'] = th.full((int_edges,), False,
