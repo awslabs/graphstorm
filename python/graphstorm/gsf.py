@@ -495,8 +495,6 @@ def set_encoder(model, g, config, train_task):
 def check_homo(g):
     if g.ntypes == ['_N'] and g.etypes == ['_E']:
         return True
-    print("It is not a required homogeneous graph for DGL, the node type should be '_N' "
-          "and edge type should be '_E'.")
     return False
 
 

@@ -78,7 +78,7 @@ class SAGEConv(nn.Module):
             Node feature for each node type.
         Returns
         -------
-        dict["_N", torch.Tensor]
+        dict{"_N", torch.Tensor}
             New node features for each node type.
         """
         g = g.local_var()
@@ -124,10 +124,12 @@ class SAGEEncoder(GraphConvEncoder):
         for _ in range(num_hidden_layers):
             self.layers.append(SAGEConv(h_dim, h_dim, self.aggregator_type,
                                         bias=False, activation=activation,
+                                        dropout=self.dropout,
                                         num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
         self.layers.append(SAGEConv(h_dim, out_dim, self.aggregator_type,
                                     bias=False, activation=activation,
+                                    dropout=self.dropout,
                                     num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
     # TODO(zhengda) refactor this to support edge features.

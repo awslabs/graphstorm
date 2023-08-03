@@ -153,7 +153,8 @@ def check_node_prediction(model, data, is_homo=False):
         assert_almost_equal(embs3[ntype][0:len(embs3[ntype])].numpy(),
                             embs4[ntype][0:len(embs4[ntype])].numpy())
 
-    target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))} if not is_homo else {"_N": th.arange(g.number_of_nodes("_N"))}
+    target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))} \
+        if not is_homo else {"_N": th.arange(g.number_of_nodes("_N"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
@@ -892,3 +893,4 @@ if __name__ == '__main__':
     test_mlp_edge_prediction()
     test_mlp_node_prediction()
     test_mlp_link_prediction()
+    
