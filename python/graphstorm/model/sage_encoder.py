@@ -120,7 +120,7 @@ class SAGEEncoder(GraphConvEncoder):
 
         self.layers = nn.ModuleList()
         for _ in range(num_hidden_layers):
-            self.layers.append(SAGEConv(h_dim, h_dim, ggregator_type,
+            self.layers.append(SAGEConv(h_dim, h_dim, aggregator_type,
                                         bias=False, activation=activation,
                                         dropout=dropout,
                                         num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
