@@ -65,7 +65,7 @@ class SAGEConv(nn.Module):
         # ngnn
         self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
         self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
-                                     num_ffn_layers_in_gnn, ffn_activation, dropout)
+                                 num_ffn_layers_in_gnn, ffn_activation, dropout)
 
     def forward(self, g, inputs):
         """Forward computation
