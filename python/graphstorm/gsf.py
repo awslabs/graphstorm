@@ -224,6 +224,9 @@ def create_builtin_edge_model(g, config, train_task):
         target_etype = config.target_etype[0]
         if decoder_type == "DenseBiDecoder":
             num_decoder_basis = config.num_decoder_basis
+            assert config.num_ffn_layers_in_decoder == 0, \
+                "DenseBiDecoder does not support adding extra feedforward neural network layers" \
+                "You can increases num_basis to increase the parameter size."
             decoder = DenseBiDecoder(in_units=model.gnn_encoder.out_dims \
                                         if model.gnn_encoder is not None \
                                         else model.node_input_encoder.out_dims,
@@ -239,7 +242,8 @@ def create_builtin_edge_model(g, config, train_task):
                                         else model.node_input_encoder.out_dims,
                                      num_classes,
                                      multilabel=config.multilabel,
-                                     target_etype=target_etype)
+                                     target_etype=target_etype,
+                                     num_ffn_layers=config.num_ffn_layers_in_decoder)
         elif decoder_type == "MLPEFeatEdgeDecoder":
             decoder_edge_feat = config.decoder_edge_feat
             assert decoder_edge_feat is not None, \
@@ -261,7 +265,8 @@ def create_builtin_edge_model(g, config, train_task):
                 out_dim=num_classes,
                 multilabel=config.multilabel,
                 target_etype=target_etype,
-                dropout=config.dropout)
+                dropout=config.dropout,
+                num_ffn_layers=config.num_ffn_layers_in_decoder)
         else:
             assert False, f"decoder {decoder_type} is not supported."
         model.set_decoder(decoder)
