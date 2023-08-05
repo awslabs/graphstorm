@@ -245,19 +245,20 @@
 
 <span class="nb">cd</span><span class="w"> </span>/path-to-graphstorm/docker/
 
-bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh<span class="w"> </span>/path-to-graphstorm/<span class="w"> </span>&lt;DOCKER_NAME&gt;<span class="w"> </span>&lt;DOCKER_TAG&gt;
+bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh<span class="w"> </span>/path-to-graphstorm/<span class="w"> </span>&lt;DOCKER_TYPE&gt;<span class="w"> </span>&lt;DOCKER_NAME&gt;<span class="w"> </span>&lt;DOCKER_TAG&gt;
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> script takes three arguments:</p>
 <ol class="arabic simple">
 <li><p><strong>path-to-graphstorm</strong> (<strong>required</strong>), is the absolute path of the <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code> folder, where you cloned the GraphStorm source code. For example, the path could be <code class="docutils literal notranslate"><span class="pre">/code/graphstorm</span></code>.</p></li>
+<li><p><strong>DOCKER_TYPE</strong> (optional), is the docker type of the to-be built Docker image. There are two options: <code class="docutils literal notranslate"><span class="pre">cpu</span></code> for building CPU-compatible images, and <code class="docutils literal notranslate"><span class="pre">gpu</span></code> for building Nvidia GPU-compatible images. Default is <code class="docutils literal notranslate"><span class="pre">gpu</span></code>.</p></li>
 <li><p><strong>DOCKER_NAME</strong> (optional), is the assigned name of the to-be built Docker image. Default is <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code>.</p></li>
 </ol>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the &lt;DOCKER_NAME&gt; to include the ECR URI string, <strong>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com/</strong>, e.g., <code class="docutils literal notranslate"><span class="pre">888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm</span></code>.</p>
 </div>
-<ol class="arabic simple" start="3">
+<ol class="arabic simple" start="4">
 <li><p><strong>DOCKER_TAG</strong> (optional), is the assigned tag name of the to-be built Docker image. Default is <code class="docutils literal notranslate"><span class="pre">sm</span></code>.</p></li>
 </ol>
 <p>Once the <code class="docutils literal notranslate"><span class="pre">build_docker_sagemaker.sh</span></code> command completes successfully, there will be a Docker image, named <code class="docutils literal notranslate"><span class="pre">&lt;DOCKER_NAME&gt;:&lt;DOCKER_TAG&gt;</span></code>, such as <code class="docutils literal notranslate"><span class="pre">888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm</span></code>, in the local repository, which could be listed by running:</p>
@@ -404,23 +405,9 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </pre></div>
 </div>
 <ol class="arabic simple" start="2">
-<li><p>Clone GraphStorm and install dependencies.</p></li>
+<li><p>Clone GraphStorm code.</p></li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
-
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">boto3</span><span class="o">==</span><span class="m">1</span>.26.126
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">botocore</span><span class="o">==</span><span class="m">1</span>.29.126
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">h5py</span><span class="o">==</span><span class="m">3</span>.8.0
-pip<span class="w"> </span>install<span class="w"> </span>scipy
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">tqdm</span><span class="o">==</span><span class="m">4</span>.65.0
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">pyarrow</span><span class="o">==</span><span class="m">12</span>.0.0
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">transformers</span><span class="o">==</span><span class="m">4</span>.28.1
-pip<span class="w"> </span>install<span class="w"> </span>pandas
-pip<span class="w"> </span>install<span class="w"> </span>scikit-learn
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">ogb</span><span class="o">==</span><span class="m">1</span>.3.6
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">psutil</span><span class="o">==</span><span class="m">5</span>.9.5
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">1</span>.13.1+cu116<span class="w"> </span>--extra-index-url<span class="w"> </span>https://download.pytorch.org/whl/cu116
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">dgl</span><span class="o">==</span><span class="m">1</span>.0.4+cu117<span class="w"> </span>-f<span class="w"> </span>https://data.dgl.ai/wheels/cu117/repo.html
 </pre></div>
 </div>
 <ol class="arabic simple" start="3">
