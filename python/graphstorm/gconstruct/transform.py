@@ -37,8 +37,10 @@ def _get_output_dtype(dtype_str):
         return np.float16
     elif dtype_str == 'float32':
         return np.float32
+    elif dtype_str == 'int8':
+        return np.int8 # for train, val, test mask
     else:
-        assert False, f"Unknown dtype {dtype_str}, only support float16 and float32"
+        assert False, f"Unknown dtype {dtype_str}, only support int8, float16 and float32"
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -572,7 +574,7 @@ class Text2BERT(FeatTransform):
                     if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
             self.device = f"cuda:{gpu}"
         else:
-            self.device = None
+            self.device = "cpu"
 
         if self.lm_model is None:
             config = BertConfig.from_pretrained(self.model_name)
@@ -981,6 +983,10 @@ class LabelProcessor:
         train_split, val_split, test_split = self._split_pct
         assert train_split + val_split + test_split <= 1, \
                 "The data split of training/val/test cannot be more than the entire dataset."
+        if train_split == 0 and val_split == 0 and test_split == 0:
+            # Train, val and test are all zero
+            # Ignore the split
+            return {}
         rand_idx = get_valid_idx()
         num_labels = len(rand_idx)
         num_train = int(num_labels * train_split)
