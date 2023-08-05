@@ -175,7 +175,11 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
 - **num_ffn_layers_in_gnn**: Graphstorm provides this argument as an option to increase the size of the parameters between gnn layers. This argument will add an MLP layer at the end of each GNN layer. Generally, h = MLP(h) between GNN layers in a GNN model. If the input here is n, it could add n feedforward neural network layers here.
     - Yaml: ``num_ffn_layers_in_gnn: 1``
     - Argument: ``--num-ffn-layers-in-gnn 1``
-    - Default value: ``0.0``
+    - Default value: ``0``
+- **num_ffn_layers_in_decoder**: Graphstorm provides this argument as an option to increase the size of the parameters in the output layer. This argument will add an MLP layer after computing the output embeddings for each node type. It accepts an integer greater than zero. Generally, embeds = MLP(h) for each node in the output layers. If the input here is n, it could add n feedforward neural network layers here.
+    - Yaml: ``num_ffn_layers_in_decoder: 1``
+    - Argument: ``--num-ffn-layers-in-decoder 1``
+    - Default value: ``0``
 
 Early stop configurations
 ..........................
