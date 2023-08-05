@@ -14,6 +14,8 @@ It is easy for users to prepare their own graph data and leverage GraphStorm's b
 
     - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
 
+    - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
+
 Step 1: Prepare Your Own Graph Data
 -------------------------------------
 There are two options to prepare your own graph data for using GraphStorm:

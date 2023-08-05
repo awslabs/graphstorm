@@ -75,7 +75,11 @@ Users can clone GraphStorm source code to obtain these toolkits.
 
     git clone https://github.com/awslabs/graphstorm.git
 
-.. warning:: If use this method to setup GraphStorm environment, please replace the argument ``--ssh-port`` of in launch commands in GraphStorm's tutorials from 2222 with **22**.
+.. warning:: 
+
+    - If use this method to setup GraphStorm environment, please replace the argument ``--ssh-port`` of in launch commands in GraphStorm's tutorials from 2222 with **22**.
+
+    - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
 
 .. _setup_docker:
 
