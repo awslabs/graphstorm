@@ -45,7 +45,7 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 
     bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DOCKER_TYPE> <DOCKER_NAME> <DOCKER_TAG>
 
-The ``build_docker_sagemaker.sh`` script takes three arguments:
+The ``build_docker_sagemaker.sh`` script takes four arguments:
 
 1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
 2. **DOCKER_TYPE** (optional), is the docker type of the to-be built Docker image. There are two options: ``cpu`` for building CPU-compatible images, and ``gpu`` for building Nvidia GPU-compatible images. Default is ``gpu``.
