@@ -3,27 +3,21 @@ version: 1.0
 gsf:
   basic:
     backend: gloo
+    ip_config: ip_list.txt
+    part_config: movielen_100k_train_val_1p_4t/movie-lens-100k.json
     verbose: false
-    save_perf_results_path: null
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
     num_layers: 1
     hidden_size: 128
-    use_mini_batch_infer: true
   input:
-    restore_model_path: null
+    restore_model_path: /data/gsgnn_nc_ml/
   output:
-    save_model_path: null
-    save_embed_path: null
+    save_embed_path: /data/gsgnn_nc_ml/infer-emb/
+    save_prediction_path: /data/gsgnn_nc_ml/prediction/
   hyperparam:
-    dropout: 0.
-    lr: 0.001
-    lm_tune_lr: 0.0001
-    num_epochs: 3
-    batch_size: 128
     bert_infer_bs: 128
-    wd_l2norm: 0
     no_validation: false
   rgcn:
     num_bases: -1
@@ -32,6 +26,6 @@ gsf:
     use_node_embeddings: false
   node_classification:
     target_ntype: "movie"
-    label_field: "label"
+    label_field: "genre"
     multilabel: false
     num_classes: 19
