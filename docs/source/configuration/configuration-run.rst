@@ -168,18 +168,18 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``alpha_l2norm: 0.00001``
     - Argument: ``--alpha-l2norm 0.00001``
     - Default value: ``0.0``
-- **num_ffn_layers_in_input**: Graphstorm provides this argument as an option to increase the size of the parameters in the input layer. This argument will add an MLP layer after computing the input embeddings for each node type. It accepts an integer greater than zero. Generally, embeds = MLP(embeds) for each node type in the input layer. If the input is n, it could add n Feedforward neural network layers in the MLP.
+- **num_ffn_layers_in_input**: Graphstorm provides this argument as an option to increase the size of the parameters in the input layer. This argument will add an MLP layer after computing the input embeddings for each node type. It accepts an integer greater than zero. Generally, `embeds = MLP(embeds)` for each node type in the input layer. If the input is n, it could add n Feedforward neural network layers in the MLP.
     - Yaml: ``num_ffn_layers_in_input: 1``
     - Argument: ``--num-ffn-layers-in-input 1``
     - Default value: ``0``
-- **num_ffn_layers_in_gnn**: Graphstorm provides this argument as an option to increase the size of the parameters between gnn layers. This argument will add an MLP layer at the end of each GNN layer. Generally, h = MLP(h) between GNN layers in a GNN model. If the input here is n, it could add n feedforward neural network layers here.
+- **num_ffn_layers_in_gnn**: Graphstorm provides this argument as an option to increase the size of the parameters between gnn layers. This argument will add an MLP layer at the end of each GNN layer. Generally, `h = MLP(h)` between GNN layers in a GNN model. If the input here is n, it could add n feedforward neural network layers here.
     - Yaml: ``num_ffn_layers_in_gnn: 1``
     - Argument: ``--num-ffn-layers-in-gnn 1``
-    - Default value: ``0.0``
-- **num_ffn_layers_in_decoder**: Graphstorm provides this argument as an option to increase the size of the parameters in the decoder layer. This argument will add an MLP layer before the last layer of a decoder. If the input here is n, it could add n feedforward neural network layers. Please note, it is only effective when the decoder is an MLPEdgeDecoder or an MLPEFeatEdgeDecoder. Support for other decoders will be added later.
+    - Default value: ``0``
+- **num_ffn_layers_in_decoder**: Graphstorm provides this argument as an option to increase the size of the parameters in the decoder layer. This argument will add an MLP layer before the last layer of a decoder. If the input here is n, it could add n feedforward neural network layers. Please note, it is only effective when the decoder is an ``MLPEdgeDecoder`` or an ``MLPEFeatEdgeDecoder``. Support for other decoders will be added later.
     - Yaml: ``num_ffn_layers_in_decoder: 1``
     - Argument: ``--num-ffn-layers-in-decoder 1``
-    - Default value: ``0.0``
+    - Default value: ``0``
 
 Early stop configurations
 ..........................
