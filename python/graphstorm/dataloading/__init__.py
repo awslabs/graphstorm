@@ -48,3 +48,5 @@ from .dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
 
 from .dataloading import (LP_DECODER_EDGE_WEIGHT,
                           EP_DECODER_EDGE_FEAT)
+
+from .graph_lm_dataloading import get_graph_lm_dataloader
