@@ -284,9 +284,15 @@ class GSConfig:
             _ = self.use_node_embeddings
             _ = self.num_bases
             _ = self.num_heads
+            _ = self.num_ffn_layers_in_gnn
 
         _ = self.return_proba
         _ = self.alpha_l2norm
+
+
+        # ngnn
+        _ = self.num_ffn_layers_in_input
+        _ = self.num_ffn_layers_in_decoder
 
         # Logging.
         _ = self.task_tracker
@@ -1653,6 +1659,18 @@ class GSConfig:
         # Set default mlp layer number between gnn layer to 0
         return 0
 
+    @property
+    def num_ffn_layers_in_decoder(self):
+        """ Number of extra feedforward neural network layers in decoder
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_ffn_layers_in_decoder"):
+            assert self._num_ffn_layers_in_decoder >= 0, \
+                "Number of extra MLP layers in decoder must be larger or equal than 0"
+            return self._num_ffn_layers_in_decoder
+        # Set default mlp layer number between gnn layer to 0
+        return 0
+
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")
     group.add_argument(
@@ -1710,6 +1728,8 @@ def _add_gnn_args(parser):
                        help="number of extra feedforward neural network layers in input layer.")
     group.add_argument("--num-ffn-layers-in-gnn", type=int, default=argparse.SUPPRESS,
                        help="number of extra feedforward neural network layers between GNN layers.")
+    group.add_argument("--num-ffn-layers-in-decoder", type=int, default=argparse.SUPPRESS,
+                       help="number of extra feedforward neural network layers in decoder layer.")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",

@@ -17,6 +17,7 @@ from pathlib import Path
 import os
 import yaml
 import tempfile
+import pytest
 from argparse import Namespace
 from types import MethodType
 
@@ -95,7 +96,7 @@ def create_rgat_node_model(g):
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
-
+  
 def create_sage_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
@@ -113,7 +114,7 @@ def create_sage_node_model(g):
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
-
+  
 def check_node_prediction(model, data, is_homo=False):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnNodeModel with GNN layers.
@@ -273,8 +274,8 @@ def test_sage_node_prediction():
     check_node_prediction(model, np_data, is_homo=True)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-
-def create_rgcn_edge_model(g):
+    
+def create_rgcn_edge_model(g, num_ffn_layers):
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
@@ -290,7 +291,8 @@ def create_rgcn_edge_model(g):
                                        use_self_loop=True)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
-                                     3, multilabel=False, target_etype=("n0", "r1", "n1")))
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1"),
+                                     num_ffn_layers=num_ffn_layers))
     return model
 
 
@@ -362,7 +364,8 @@ def check_mlp_edge_prediction(model, data):
     assert(is_int(pred4))
     assert(th.equal(pred3.argmax(dim=1), pred4))
 
-def test_rgcn_edge_prediction():
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_rgcn_edge_prediction(num_ffn_layers):
     """ Test edge prediction logic correctness with a edge prediction model
         composed of InputLayerEncoder + RGCNLayer + Decoder
 
@@ -380,12 +383,12 @@ def test_rgcn_edge_prediction():
         ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
                                      train_etypes=[('n0', 'r1', 'n1')], label_field='label',
                                      node_feat_field='feat')
-    model = create_rgcn_edge_model(ep_data.g)
+    model = create_rgcn_edge_model(ep_data.g, num_ffn_layers=num_ffn_layers)
     check_edge_prediction(model, ep_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def create_mlp_edge_model(g, lm_config):
+def create_mlp_edge_model(g, lm_config, num_ffn_layers):
     """ Create a GSgnnEdgeModel with only an input encoder and a decoder.
 
     Parameters
@@ -407,10 +410,12 @@ def create_mlp_edge_model(g, lm_config):
     model.set_node_input_encoder(encoder)
 
     model.set_decoder(MLPEdgeDecoder(model.node_input_encoder.out_dims,
-                                     3, multilabel=False, target_etype=("n0", "r1", "n1")))
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1"),
+                                     num_ffn_layers=num_ffn_layers))
     return model
 
-def test_mlp_edge_prediction():
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_mlp_edge_prediction(num_ffn_layers):
     """ Test edge prediction logic correctness with a edge prediction model
         composed of InputLayerEncoder + Decoder
 
@@ -429,7 +434,7 @@ def test_mlp_edge_prediction():
                                         train_etypes=[('n0', 'r1', 'n1')], label_field='label',
                                         node_feat_field='feat')
         g.edges['r1'].data['label']= ep_data.g.edges['r1'].data['label']
-    model = create_mlp_edge_model(g, lm_config)
+    model = create_mlp_edge_model(g, lm_config, num_ffn_layers=num_ffn_layers)
     assert model.gnn_encoder is None
     check_mlp_edge_prediction(model, ep_data)
     th.distributed.destroy_process_group()
@@ -893,4 +898,3 @@ if __name__ == '__main__':
     test_mlp_edge_prediction()
     test_mlp_node_prediction()
     test_mlp_link_prediction()
-    
