@@ -23,7 +23,6 @@ import psutil
 
 from .text_dataset import GSgnnTextDataset
 
-
 class OGBTextFeatDataset(GSgnnTextDataset):
     """ This class can be used for ogbn-arxiv, ogbn-papers100M and ogbn-products datasets.
 
@@ -56,7 +55,6 @@ class OGBTextFeatDataset(GSgnnTextDataset):
     is_homo: Boolean
         If we want to generate a homogeneous graph.
     """
-
     def __init__(self, raw_dir, dataset, edge_pct=1,
                  force_reload=False, verbose=True,
                  reverse_edge=True, self_loop=False,
@@ -91,7 +89,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
         elif dataset == "ogbn-papers100M":
             self._num_classes = 172
         self.retain_original_features = retain_original_features
-        self.bert_model_name = bert_model_name
+        self.bert_model_name=bert_model_name
         super(OGBTextFeatDataset, self).__init__(self._name,
                                                  url=self._url,
                                                  raw_dir=raw_dir,
@@ -102,14 +100,14 @@ class OGBTextFeatDataset(GSgnnTextDataset):
     def load(self):
         # load from local storage
         root_path = self._raw_dir
-        gname = self._name + '.bin'
+        gname = self._name+'.bin'
         g, _ = dgl.load_graphs(os.path.join(root_path, gname))
         print(g[0])
         self._g = g[0]
 
     def has_cache(self):
         root_path = self._raw_dir
-        gname = self._name + '.bin'
+        gname = self._name+'.bin'
         return os.path.exists(os.path.join(root_path, gname))
 
     def save_graph(self, path):
@@ -128,6 +126,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
         print('before save graph {}'.format(psutil.virtual_memory()))
         dgl.save_graphs(os.path.join(path, gname), [self._g])
         print('Done save graph {}'.format(psutil.virtual_memory()))
+
 
     def process(self):
         """ Process ogbn dataset
@@ -148,7 +147,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
             # This helps reduce the overhead of creating multiple worker processes
             # during text tokenization. When a graph is large (e.g., papers100m),
             # the overhead is not nigligiable.
-            self._raw_text_feat = {self.node_type: text_feats_list}
+            self._raw_text_feat = {self.node_type:text_feats_list}
             text_feat = self.tokenize_text(self.max_sequence_length,
                                            bert_model_name=self.bert_model_name)
 
@@ -171,7 +170,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
                     (self.node_type, self.rev_edge_type, self.node_type): (dst, src)
                 })
             else:
-                # create a homogeneous graph first and add reverse edges then
+                # create a homogeneous graph first and add reverse edges
                 g = dgl.add_reverse_edges(dgl.heterograph({
                     (self.node_type, self.edge_type, self.node_type): (src, dst),
                 }))
@@ -203,13 +202,13 @@ class OGBTextFeatDataset(GSgnnTextDataset):
         # edge masks
         # edge_pct has to be between 0.2 and 1 since we will use by default 0.1 for validation
         # and 0.1 for testing as the smallest possible.
-        assert self.edge_pct <= 1 and self.edge_pct >= 0.2
+        assert self.edge_pct <= 1 and  self.edge_pct >= 0.2
         int_edges = g.number_of_edges(self.edge_type)
         if self.edge_pct == 1:
             g.edges[self.edge_type].data['train_mask'] = th.full((int_edges,), True, dtype=th.bool)
             if self.reverse_edge:
                 g.edges[self.edge_type].data['train_mask'] = th.full((int_edges,), True,
-                                                                     dtype=th.bool)
+                                                                      dtype=th.bool)
         else:
             # the validation pct is 0.1
             val_pct = 0.1
@@ -218,26 +217,25 @@ class OGBTextFeatDataset(GSgnnTextDataset):
             g.edges[self.edge_type].data['train_mask'] = th.full((int_edges,), False, dtype=th.bool)
             g.edges[self.edge_type].data['val_mask'] = th.full((int_edges,), False, dtype=th.bool)
             g.edges[self.edge_type].data['test_mask'] = th.full((int_edges,), False, dtype=th.bool)
-            g.edges[self.edge_type].data['train_mask'][: int(int_edges * train_pct)] = True
-            g.edges[self.edge_type].data['val_mask'][int(int_edges * train_pct):
-                                                     int(int_edges * self.edge_pct)] = True
-            g.edges[self.edge_type].data['test_mask'][int(int_edges * self.edge_pct):] = True
+            g.edges[self.edge_type].data['train_mask'][: int(int_edges*train_pct)] = True
+            g.edges[self.edge_type].data['val_mask'][int(int_edges*train_pct):
+                                                  int(int_edges*self.edge_pct)] = True
+            g.edges[self.edge_type].data['test_mask'][int(int_edges*self.edge_pct):] = True
 
             if self.reverse_edge and not self.is_homo:
                 g.edges[self.rev_edge_type].data['train_mask'] = th.full((int_edges,), False,
-                                                                         dtype=th.bool)
+                                                                      dtype=th.bool)
                 g.edges[self.rev_edge_type].data['val_mask'] = th.full((int_edges,), False,
-                                                                       dtype=th.bool)
+                                                                    dtype=th.bool)
                 g.edges[self.rev_edge_type].data['test_mask'] = th.full((int_edges,), False,
-                                                                        dtype=th.bool)
+                                                                     dtype=th.bool)
                 g.edges[self.rev_edge_type].data['train_mask'][: int(int_edges * train_pct)] = True
-                g.edges[self.rev_edge_type].data['val_mask'][int(int_edges * train_pct):
-                                                             int(int_edges * self.edge_pct)] = True
-                g.edges[self.rev_edge_type].data['test_mask'][int(int_edges * self.edge_pct):] \
-                    = True
+                g.edges[self.rev_edge_type].data['val_mask'][int(int_edges*train_pct):
+                                                          int(int_edges*self.edge_pct)] = True
+                g.edges[self.rev_edge_type].data['test_mask'][int(int_edges*self.edge_pct):] = True
 
         print(g)
-        self._g = g
+        self._g=g
         self._num_classes = data.num_classes
 
         print("Retaining original node features and discarding the text data. \
