@@ -71,8 +71,9 @@ class OGBTextFeatDataset(GSgnnTextDataset):
         self._raw_dir = raw_dir
         self.self_loop = self_loop
         self.max_sequence_length = max_sequence_length
+        self.is_homo = is_homo
 
-        if is_homo:
+        if self.is_homo:
             self.node_type = '_N'
             self.edge_type, self.rev_edge_type = '_E', '_E'
         else:
@@ -167,6 +168,9 @@ class OGBTextFeatDataset(GSgnnTextDataset):
                 (self.node_type, self.edge_type, self.node_type): (src, dst),
                 (self.node_type, self.rev_edge_type, self.node_type): (dst, src)
             })
+            if self.is_homo:
+                srcs, dsts = g.all_edges()
+                g.add_edges(dsts, srcs)
         else:
             g = dgl.heterograph({
                 (self.node_type, self.edge_type, self.node_type): (src, dst)
@@ -215,7 +219,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
                                                   int(int_edges*self.edge_pct)] = True
             g.edges[self.edge_type].data['test_mask'][int(int_edges*self.edge_pct):] = True
 
-            if self.reverse_edge and not is_homo:
+            if self.reverse_edge and not self.is_homo:
                 g.edges[self.rev_edge_type].data['train_mask'] = th.full((int_edges,), False,
                                                                       dtype=th.bool)
                 g.edges[self.rev_edge_type].data['val_mask'] = th.full((int_edges,), False,
