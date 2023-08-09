@@ -233,7 +233,8 @@ class OGBTextFeatDataset(GSgnnTextDataset):
                 g.edges[self.rev_edge_type].data['train_mask'][: int(int_edges * train_pct)] = True
                 g.edges[self.rev_edge_type].data['val_mask'][int(int_edges * train_pct):
                                                              int(int_edges * self.edge_pct)] = True
-                g.edges[self.rev_edge_type].data['test_mask'][int(int_edges * self.edge_pct):] = True
+                g.edges[self.rev_edge_type].data['test_mask'][int(int_edges * self.edge_pct):] \
+                    = True
 
         print(g)
         self._g = g
