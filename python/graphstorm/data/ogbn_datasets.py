@@ -77,7 +77,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
 
         if self.is_homo:
             self.node_type = '_N'
-            self.edge_type, self.rev_edge_type = '_E', '_E'
+            self.edge_type = '_E'
         else:
             self.node_type = 'node'
             self.edge_type, self.rev_edge_type = 'interacts', 'rev-interacts'
