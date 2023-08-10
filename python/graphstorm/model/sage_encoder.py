@@ -130,7 +130,6 @@ class SAGEEncoder(GraphConvEncoder):
                                     dropout=dropout,
                                     num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
-    # TODO refactor this to support edge features.
     def forward(self, blocks, h):
         """Forward computation
 
