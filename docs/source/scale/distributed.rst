@@ -70,7 +70,7 @@ In the container environment, users can check the connectivity with the command 
 
 .. code-block:: bash
 
-    ssh 172.38.12.143 -p 2222
+    ssh 172.38.12.143 -o StrictHostKeyChecking=no -p 2222
 
 If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance. 
 
