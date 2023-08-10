@@ -484,20 +484,27 @@ def set_encoder(model, g, config, train_task):
                                            num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "sage":
         # we need to check if the graph is homogeneous
-        assert check_homo(g) == True
+        assert check_homo(g) == True, 'The graph is not a homogeneous graph'
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = SAGEEncoder(h_dim=config.hidden_size,
-                                out_dim=config.hidden_size,
-                                num_hidden_layers=config.num_layers - 1,
-                                dropout=dropout,
-                                aggregator_type='pool',
-                                num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+                                  out_dim=config.hidden_size,
+                                  num_hidden_layers=config.num_layers - 1,
+                                  dropout=dropout,
+                                  aggregator_type='pool',
+                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)
 
 
 def check_homo(g):
+    """ Check if it is a valid homogeneous graph
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph used in training and testing
+    """
     if g.ntypes == ['_N'] and g.etypes == ['_E']:
         return True
     return False

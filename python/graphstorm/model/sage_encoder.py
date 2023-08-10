@@ -51,7 +51,7 @@ class SAGEConv(nn.Module):
                  aggregator_type='mean',
                  bias=True,
                  dropout=0.0,
-                 activation=None,
+                 activation=F.relu,
                  num_ffn_layers_in_gnn=0,
                  ffn_activation=F.relu):
         super(SAGEConv, self).__init__()
