@@ -50,4 +50,3 @@ RUN cp ${SSHDIR}/id_rsa.pub ${SSHDIR}/authorized_keys
 EXPOSE 2222
 RUN mkdir /run/sshd
 CMD ["/usr/sbin/sshd", "-D"]
-
