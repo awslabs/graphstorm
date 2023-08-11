@@ -34,15 +34,15 @@ Users should install PyTorch v1.13.1 and DGL v1.0.4 that is the core dependency 
 For Nvidia GPU environment:
 
 .. code-block:: bash
-
-    pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+    
+    pip install torch==2.0.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
     pip install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 For CPU environment:
 
 .. code-block:: bash
 
-    pip install torch==1.13.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+    pip install torch==2.0.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
     pip install dgl==1.0.4 -f https://data.dgl.ai/wheels-internal/repo.html
 
 Configure SSH No-password login
