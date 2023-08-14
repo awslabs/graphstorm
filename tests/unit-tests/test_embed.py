@@ -35,7 +35,7 @@ from data_utils import create_lm_graph, create_lm_graph2
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
-def test_input_layer1():
+def test_input_layer1(input_activate=True):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -46,7 +46,7 @@ def test_input_layer1():
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, 'feat')
-    layer = GSNodeEncoderInputLayer(g, feat_size, 2)
+    layer = GSNodeEncoderInputLayer(g, feat_size, 2, input_activate)
     ntypes = list(layer.input_projs.keys())
     assert set(ntypes) == set(g.ntypes)
     node_feat = {}
@@ -435,6 +435,7 @@ def test_lm_embed_warmup(dev):
 
 if __name__ == '__main__':
     test_input_layer1()
+    test_input_layer1(input_activate=False)
     test_input_layer2()
     test_input_layer3('cpu')
     test_input_layer3('cuda:0')
