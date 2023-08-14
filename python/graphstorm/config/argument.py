@@ -584,7 +584,7 @@ class GSConfig:
         """ Whether do input activate in the input layer
         """
         # pylint: disable=no-member
-        if hasattr(self, "_use_mini_batch_infer"):
+        if hasattr(self, "_input_activate"):
             assert self._input_activate in [True, False], \
                 "Use input activate flag must be True or False"
             return self._input_activate
