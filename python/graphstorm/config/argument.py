@@ -278,6 +278,7 @@ class GSConfig:
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
         else:
+            _ = self.input_activate
             _ = self.hidden_size
             _ = self.num_layers
             _ = self.use_self_loop
@@ -577,6 +578,19 @@ class GSConfig:
         assert self._model_encoder_type in BUILTIN_ENCODER, \
             f"Model encoder type should be in {BUILTIN_ENCODER}"
         return self._model_encoder_type
+
+    @property
+    def input_activate(self):
+        """ Whether do input activate in the input layer
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_use_mini_batch_infer"):
+            assert self._input_activate in [True, False], \
+                "Use input activate flag must be True or False"
+            return self._input_activate
+
+        # By default, use mini batch inference, which requires less memory
+        return True
 
     @property
     def node_feat_name(self):
@@ -1702,6 +1716,11 @@ def _add_gnn_args(parser):
     group = parser.add_argument_group(title="gnn")
     group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
             help='Model type can either be gnn or lm to specify the model encoder')
+    group.add_argument(
+        "--input-activate",
+        type=lambda x: (str(x).lower() in ['true', 'false']),
+        default=argparse.SUPPRESS,
+        help="Whether to add input activate")
     group.add_argument("--node-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
             "1) '--node-feat-name feat_name': global feature name, "
