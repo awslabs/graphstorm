@@ -46,7 +46,7 @@ def test_input_layer1(input_activate=True):
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, 'feat')
-    layer = GSNodeEncoderInputLayer(g, feat_size, 2, input_activate)
+    layer = GSNodeEncoderInputLayer(g, feat_size, 2, input_activate=input_activate)
     ntypes = list(layer.input_projs.keys())
     assert set(ntypes) == set(g.ntypes)
     node_feat = {}
