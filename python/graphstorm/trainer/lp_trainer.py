@@ -144,7 +144,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.optimizer.zero_grad()
                 loss.backward()
                 rt_profiler.record('train_backward')
-                self.optimizer.step()
+                # TODO(Israt): Blocked by DGL's PR to support nccl (https://github.com/dmlc/dgl/pull/5929)
+                # self.optimizer.step()
                 rt_profiler.record('train_step')
 
                 self.log_metric("Train loss", loss.item(), total_steps)
