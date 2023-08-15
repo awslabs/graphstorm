@@ -23,7 +23,7 @@ python3 gen_ogb_dataset.py --savepath /tmp/ogbn_arxiv \
 ```
 Because the OGBN mag is a heterogeneous graph, it has a separated script.
 ```bash
-python3 gen_mag_dataset.py --savepath /tmp/ogbn_arxiv \
+python3 gen_mag_dataset.py --savepath /tmp/ogbn-mag \
                            --edge-pct 0.8
 ```
 
