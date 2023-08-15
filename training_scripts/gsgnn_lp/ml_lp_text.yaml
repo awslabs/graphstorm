@@ -23,7 +23,7 @@ gsf:
     hidden_size: 128
     use_mini_batch_infer: true
   lm:
-    lm_train_nodes: 10
+    lm_train_nodes: 2
     lm_infer_batch_size: 32
     freeze_lm_encoder_epochs: 0
   input:
