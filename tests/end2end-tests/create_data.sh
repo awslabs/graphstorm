@@ -114,14 +114,6 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--output-dir movielen_100k_lm_encoder_lp_train_val_1p_4t \
 	--graph-name movie-lens-100k-text \
 	--add-reverse-edges
-
-# For tests using lm-encoder as Dot Product - link prediction
-python3 -m graphstorm.gconstruct.construct_graph \
-	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lm_encoder_lp.json \
-	--num-processes 1 \
-	--output-dir movielen_100k_lm_encoder_dot_prod_lp_train_val_1p_4t \
-	--graph-name movie-lens-100k-text \
-	--add-reverse-edges
 	
 date
 
