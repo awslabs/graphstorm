@@ -654,7 +654,8 @@ def process_graph(args):
     edges, edge_data, edge_label_stats = \
         process_edge_data(process_confs['edges'], node_id_map,
                           convert2ext_mem,
-                          num_processes=num_processes_for_edges,skip_nonexist_edges=args.skip_nonexist_edges)
+                          num_processes=num_processes_for_edges,
+                          skip_nonexist_edges=args.skip_nonexist_edges)
     sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.output_conf_file is not None:
