@@ -75,6 +75,13 @@ file names that contains training/validation/test node IDs. The keys
 of the dict are "train", "valid" and "test". A node ID in the files
 is stored as a JSON object. Custom data split currently only works for
 nodes.
+* `label_stats_type` specifies how to collect label statistics of the training set.
+This is optional. If it's not specified, no label statistics are collected.
+If specified, the label statistics will be saved as `node_label_stats.json` or
+`edge_label_stats.json` under the output directory for node classification tasks or edge classification tasks,
+respectively. Currently it supports following values: a) `frequency_cnt`, with which
+the graph construction process will count the number of appearance of each label
+value for classification tasks in the training set.
 
 Below shows an example that contains one node type and an edge type.
 ```

@@ -1,5 +1,5 @@
 # Graphstorm CI
-# Test execution order - [lint] -> [pytest] -> [end2end, end2end_mgpu]
+# Test execution order - [lint] -> [pytest] -> [end2end_cpu, end2end, end2end_mgpu]
 name: continuous-integration
 
 on:
@@ -23,6 +23,7 @@ defaults:
 env:
   COMMAND-PYTEST: chmod +x ./pytest_check.sh && ./pytest_check.sh
   COMMAND-LINT: chmod +x ./lint_check.sh && ./lint_check.sh
+  COMMAND-E2E-CPU-TEST: chmod +x ./e2e_cpu_check.sh && ./e2e_cpu_check.sh
   COMMAND-E2E: chmod +x ./e2e_check.sh && ./e2e_check.sh
   COMMAND-E2E-MGPU: chmod +x ./e2e_mgpu_check.sh && ./e2e_mgpu_check.sh
 
@@ -36,6 +37,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v1
       with:
         role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+        role-duration-seconds: 14400
         aws-region: us-east-1
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -110,6 +112,50 @@ jobs:
         echo "Start submitting job - Pull Request"
         python3 ./submitJob.py --job-type CI-CPU --name Graphstorm-PyTest-PR#-'${{ github.event.number }}' \
                                --command "${{ env.COMMAND-PYTEST }}" \
+                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
+                               --source-ref '${{ github.event.pull_request.head.sha }}' \
+                               --wait
+
+
+  e2e_cpu_check:
+    if: ${{ github.event.label.name != 'draft' }}
+    needs: [pytest_check, lint_check]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+        aws-region: us-east-1
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install pytest
+        pip3 install boto3
+    - name: Submit Job (for Push)
+      if: ${{ github.event_name == 'push' }}
+      shell: bash
+      run: |
+        echo "Start submitting job - Push"  
+        python3 ./submitJob.py --job-type CI-CPU-CHECK-PUSH --name Graphstorm-E2ETest-CPU-Push-'${{ github.ref }}' \
+                               --command "${{ env.COMMAND-E2E-CPU-TEST }}" \
+                               --remote https://github.com/'${{ github.repository }}' \
+                               --source-ref '${{ github.ref }}' \
+                               --wait
+    - name: Submit Job (for Pull Request)
+      if: ${{ github.event_name == 'pull_request_target' }}
+      shell: bash
+      run: |
+        echo "Start submitting job - Pull Request"
+        python3 ./submitJob.py --job-type CI-CPU-CHECK --name Graphstorm-E2ETest-CPU-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-E2E-CPU-TEST }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait
