@@ -12,11 +12,13 @@ GraphStorm is designed for easy-to-use GML models, particularly the graph neural
 
 This tutorial will use GraphStorm's built-in OGB-arxiv dataset for a node classification task to demonstrate these three steps.
 
-.. note::
+.. warning::
 
-    All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment. 
+    - All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment. 
 
-    If you :ref:`set up the GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
+    - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
+
+    - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
 
 Download  and Partition OGB-arxiv Data
 --------------------------------------

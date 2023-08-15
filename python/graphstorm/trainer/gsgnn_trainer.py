@@ -50,7 +50,7 @@ class GSgnnTrainer():
             optimizer = GSOptimizer([optimizer])
         self._optimizer = optimizer
         self._rank = rank
-        self._dev_id = -1
+        self._device = -1
         self._evaluator = None
         self._task_tracker = None
         self._best_model_path = None
@@ -60,22 +60,18 @@ class GSgnnTrainer():
                                                         # perf epoch+iteration for
                                                         # saving/removing models.
 
-    def setup_cuda(self, dev_id):
-        """ Set up the CUDA device of this trainer.
+    def setup_device(self, device):
+        """ Set up the device of this trainer.
 
         The CUDA device is set up based on the local rank.
 
         Parameters
         ----------
-        dev_id : int
-            The device ID for model training.
+        device :
+            The device for model training.
         """
-        # setup cuda env
-        use_cuda = th.cuda.is_available()
-        assert use_cuda, "Only support GPU training"
-        th.cuda.set_device(dev_id)
-        self._dev_id = dev_id
-        self._model = self._model.to(self.dev_id)
+        self._device = th.device(device)
+        self._model = self._model.to(self.device)
         self._optimizer.move_to_device(self._model.device)
 
     def setup_task_tracker(self, task_tracker):
@@ -308,12 +304,11 @@ class GSgnnTrainer():
             A tuple of (forward time and backward time)
         '''
         gnn_forward_time, back_time = compute_time
-        device = 'cuda:%d' % self.dev_id
 
-        print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | Peak Mem: {:.4f} MB".
+        print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | GPU Peak Mem: {:.4f} MB".
                 format(epoch, i,
-                    th.cuda.memory_reserved(device) / 1024 / 1024,
-                    th.cuda.max_memory_allocated(device) / 1024 /1024))
+                    th.cuda.memory_reserved(self.device) / 1024 / 1024,
+                    th.cuda.max_memory_allocated(self.device) / 1024 /1024))
         print('Epoch {:05d} | Batch {:03d} | RAM memory {} used | Avg input nodes per iter {}'.
                 format(epoch, i, psutil.virtual_memory(), num_input_nodes))
         print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(
@@ -358,10 +353,10 @@ class GSgnnTrainer():
         return self._task_tracker
 
     @property
-    def dev_id(self):
+    def device(self):
         """ The device associated with the trainer.
         """
-        return self._dev_id
+        return self._device
 
     @property
     def rank(self):

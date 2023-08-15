@@ -93,7 +93,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         raise RuntimeError(f"Unsupported task type {task_type}")
 
     launch_cmd = ["python3", "-u",  "-m", cmd,
-        "--num-trainers", f"{num_gpus}",
+        "--num-trainers", f"{num_gpus if int(num_gpus) > 0 else 1}",
         "--num-servers", "1",
         "--num-samplers", "0",
         "--part-config", f"{graph_config}",
@@ -154,7 +154,7 @@ def run_infer(args, unknownargs):
     num_gpus = args.num_gpus
     data_path = args.data_path
     model_path = '/opt/ml/gsgnn_model'
-    output_path = '/opt/ml/infer_output'
+    output_path = '/tmp/infer_output'
     os.makedirs(model_path, exist_ok=True)
     os.makedirs(output_path, exist_ok=True)
 

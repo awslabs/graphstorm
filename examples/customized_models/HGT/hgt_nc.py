@@ -16,6 +16,7 @@ from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.tracker import GSSageMakerTaskTracker
+from graphstorm.utils import setup_device
 
 from dgl.nn.functional import edge_softmax
 
@@ -195,7 +196,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
             if self.adapt_ws[ntype] is None:
                 n_id = self.node_dict[ntype]
                 emb_id = self.ntype_id_map[n_id]
-                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to('cuda'))
+                device = self.ntype_embed.device
+                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
@@ -227,7 +229,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
             if self.adapt_ws[ntype] is None:
                 n_id = self.node_dict[ntype]
                 emb_id = self.ntype_id_map[n_id]
-                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to('cuda'))
+                device = self.ntype_embed.device
+                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
@@ -259,6 +262,7 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 def main(args):
     gs.initialize(ip_config=args.ip_config, backend="gloo")
     config = GSConfig(args)
+    device = setup_device(config.local_rank)
 
     # Process node_feat_field to define GraphStorm dataset
     node_feat_fields = {}
@@ -305,8 +309,7 @@ def main(args):
 
     # Create a trainer for the node classification task.
     trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=config.topk_model_to_save)
-    trainer.setup_cuda(dev_id=gs.get_rank())
-    device = 'cuda:%d' % trainer.dev_id
+    trainer.setup_device(device=device)
 
     # Define the GraphStorm train dataloader
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
@@ -355,7 +358,7 @@ def main(args):
 
     # Create an inference for a node task.
     infer = GSgnnNodePredictionInfer(model, gs.get_rank())
-    infer.setup_cuda(dev_id=gs.get_rank())
+    infer.setup_device(device=device)
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
     dataloader = GSgnnNodeDataLoader(infer_data, infer_data.test_idxs,
