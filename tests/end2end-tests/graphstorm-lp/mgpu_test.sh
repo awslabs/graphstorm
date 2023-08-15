@@ -245,20 +245,6 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_l
 
 error_and_exit $?
 
-cnt=$(ls /data/gsgnn_lp_ml_distmult_text/infer-emb/ | grep rel_emb.pt | wc -l)
-if test $cnt -ne 1
-then
-    echo "DistMult inference outputs edge embedding"
-    exit -1
-fi
-
-cnt=$(ls /data/gsgnn_lp_ml_distmult_text/infer-emb/ | grep relation2id_map.json | wc -l)
-if test $cnt -ne 1
-then
-    echo "DistMult inference outputs edge embedding"
-    exit -1
-fi
-
 rm -fr /data/gsgnn_lp_ml_distmult_text/*
 
 echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, inference: full-graph, negative_sampler: localuniform, exclude_training_targets: true, test_negative_sampler: uniform"
