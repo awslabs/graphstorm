@@ -114,7 +114,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         # compute loss for each node type and aggregate per node type loss
         pred_loss = 0
         for target_ntype in target_ntypes:
-            assert target_ntype in encode_embs
+            assert target_ntype in encode_embs and target_ntype in labels
             emb = encode_embs[target_ntype]
             ntype_labels = labels[target_ntype]
             ntype_logits = self.decoder(emb)
