@@ -156,6 +156,29 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
+    def get_node_feat(self, input_nodes, feat_name, device='cpu'):
+        """ Get the node features
+
+        Parameters
+        ----------
+        input_nodes : Tensor or dict of Tensors
+            The input node IDs
+        feat_name: feature name
+            Name of the feature to extract
+        device : Pytorch device
+            The device where the returned node features are stored.
+
+        Returns
+        -------
+        dict of Tensors : The returned node features.
+        """
+        g = self._g
+        if not isinstance(input_nodes, dict):
+            assert len(g.ntypes) == 1, \
+                    "We don't know the input node type, but the graph has more than one node type."
+            input_nodes = {g.ntypes[0]: input_nodes}
+        return prepare_batch_input(g, input_nodes, dev=device, feat_field=feat_name)
+
     def get_node_feats(self, input_nodes, device='cpu'):
         """ Get the node features
 
