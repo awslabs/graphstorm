@@ -163,6 +163,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         available.
     num_ffn_layers_in_input: int, optional
         Number of layers of feedforward neural network for each node type in the input layers
+    input_activate: bool, optional
+        Whether to include activation layer and dropout layer in the input layers
     """
     def __init__(self,
                  g,

@@ -581,7 +581,7 @@ class GSConfig:
 
     @property
     def input_activate(self):
-        """ Whether do input activate in the input layer
+        """ Whether include activation layer and dropout in the input layer
         """
         # pylint: disable=no-member
         if hasattr(self, "_input_activate"):
@@ -1720,7 +1720,7 @@ def _add_gnn_args(parser):
         "--input-activate",
         type=lambda x: (str(x).lower() in ['true', 'false']),
         default=argparse.SUPPRESS,
-        help="Whether to add input activate")
+        help="Whether to add activation layer in the input layer")
     group.add_argument("--node-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
             "1) '--node-feat-name feat_name': global feature name, "
