@@ -26,6 +26,7 @@ from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
+from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
 from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
@@ -33,8 +34,10 @@ from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
+                                         ExtMemArrayWrapper,
                                          partition_graph,
-                                         update_two_phase_feat_ops)
+                                         update_two_phase_feat_ops,
+                                         HDF5Array)
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -66,10 +69,23 @@ def test_parquet():
 
     os.remove(tmpfile)
 
-def test_json():
-    handle, tmpfile = tempfile.mkstemp()
-    os.close(handle)
+def test_csv():
+    data = {
+            "t1": np.random.uniform(size=(10,)),
+            "t2": np.random.uniform(size=(10,)),
+    }
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        write_data_csv(data, os.path.join(tmpdirname, 'test.csv'))
+        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'))
+        for key, val in data.items():
+            assert key in data1
+            np.testing.assert_almost_equal(data1[key], data[key])
 
+        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), data_fields=['t1'])
+        assert 't1' in data1
+        np.testing.assert_almost_equal(data1['t1'], data['t1'])
+
+def check_json_same_len(tmpfile):
     data = {}
     data["data1"] = np.random.rand(10, 3)
     data["data2"] = np.random.rand(10)
@@ -78,6 +94,7 @@ def test_json():
     assert len(data1) == 2
     assert "data1" in data1
     assert "data2" in data1
+    assert data['data2'].dtype == np.float64
     assert np.all(data1['data1'] == data['data1'])
     assert np.all(data1['data2'] == data['data2'])
 
@@ -88,7 +105,24 @@ def test_json():
     except:
         pass
 
-    os.remove(tmpfile)
+def check_json_unequal_len(tmpfile):
+    # Here we write arrays of different lengths to a JSON file.
+    data = {
+            "data": [np.random.rand(size) for size in [10, 5, 2, 5]]
+    }
+    write_data_json(data, tmpfile)
+    data1 = read_data_json(tmpfile, ["data"])
+    assert len(data1) == 1
+    assert "data" in data1
+    assert data1['data'].shape == (4, 10)
+    for i, arr in enumerate(data["data"]):
+        assert np.all(data1["data"][i][:len(arr)] == arr)
+        assert np.all(data1["data"][i][len(arr):] == 0)
+
+def test_json():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        check_json_same_len(os.path.join(tmpdirname, "same_len.json"))
+        check_json_unequal_len(os.path.join(tmpdirname, "unequal_len.json"))
 
 def test_hdf5():
     handle, tmpfile = tempfile.mkstemp()
@@ -452,6 +486,7 @@ def test_process_features_fp16():
     data = {}
     data["test1"] = np.random.rand(10, 3)
     data["test2"] = np.random.rand(10)
+    data["test3"] = np.random.rand(10) * 5
     handle, tmpfile = tempfile.mkstemp()
     os.close(handle)
     write_data_hdf5(data, tmpfile)
@@ -464,34 +499,46 @@ def test_process_features_fp16():
         "feature_col": "test2",
         "feature_name": "test2",
         "out_dtype": "float16",
+    },{
+        "feature_col": "test3",
+        "feature_name": "test3",
+        "out_dtype": "int8",
     }]
     (ops_rst, _, _) = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
-    assert len(rst) == 2
+    assert len(rst) == 3
     assert 'test1' in rst
     assert 'test2' in rst
+    assert 'test3' in rst
     assert (len(rst['test1'].shape)) == 2
     assert (len(rst['test2'].shape)) == 2
+    assert (len(rst['test3'].shape)) == 2
     assert rst['test1'].dtype == np.float16
     assert rst['test2'].dtype == np.float16
+    assert rst['test3'].dtype == np.int8
     assert_almost_equal(rst['test1'], data['test1'], decimal=3)
     assert_almost_equal(rst['test2'], data['test2'].reshape(-1, 1), decimal=3)
+    assert_almost_equal(rst['test3'], data['test3'].reshape(-1, 1).astype(np.int8))
 
-    data1 = read_data_hdf5(tmpfile, ['test1', 'test2'], in_mem=False)
+    data1 = read_data_hdf5(tmpfile, ['test1', 'test2', 'test3'], in_mem=False)
     rst2 = process_features(data1, ops_rst)
     assert isinstance(rst2["test1"], HDF5Array)
-    assert len(rst2) == 2
+    assert len(rst2) == 3
     assert 'test1' in rst2
     assert 'test2' in rst2
+    assert 'test3' in rst
     assert (len(rst2['test1'].to_tensor().shape)) == 2
     assert (len(rst2['test2'].shape)) == 2
+    assert (len(rst['test3'].shape)) == 2
     assert rst2['test1'].to_tensor().dtype == th.float16
     assert rst2['test2'].dtype == np.float16
+    assert rst['test3'].dtype == np.int8
     data_slice = rst2['test1'][np.arange(10)]
     assert data_slice.dtype == np.float16
     assert_almost_equal(rst2['test1'].to_tensor().numpy(), data['test1'], decimal=3)
     assert_almost_equal(rst2['test1'].to_tensor().numpy(), data_slice)
     assert_almost_equal(rst2['test2'], data['test2'].reshape(-1, 1), decimal=3)
+    assert_almost_equal(rst2['test3'], data['test3'].reshape(-1, 1).astype(np.int8))
 
 def test_process_features():
     # Just get the features without transformation.
@@ -531,6 +578,13 @@ def test_label():
         assert np.sum(res['test_mask']) == 1
         assert np.sum(res['train_mask'] + res['val_mask'] + res['test_mask']) == 10
 
+    def check_no_split(res):
+        assert len(res) == 1
+        assert 'label' in res
+        assert 'train_mask' not in res
+        assert 'val_mask' not in res
+        assert 'test_mask' not in res
+
     def check_integer(label, res):
         train_mask = res['train_mask'] == 1
         val_mask = res['val_mask'] == 1
@@ -544,6 +598,10 @@ def test_label():
         check_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
         check_integer(res['label'], res)
+    def check_classification_no_split(res):
+        check_no_split(res)
+        assert np.issubdtype(res['label'].dtype, np.integer)
+
     conf = {
             "labels": [
                 {'task_type': 'classification',
@@ -653,7 +711,25 @@ def test_label():
     assert "test_mask" in res
     assert np.sum(res["test_mask"]) == 0
 
+    # Check custom data split without providing split
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'split_pct': [0, 0, 0]}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    check_classification_no_split(res)
+
     # Check regression
+    def check_regression(res):
+        check_split(res)
+    def check_regression_no_split(res):
+        check_no_split(res)
+
     conf = {
             "labels": [
                 {'task_type': 'regression',
@@ -664,8 +740,6 @@ def test_label():
     ops = parse_label_ops(conf, True)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
-    def check_regression(res):
-        check_split(res)
     check_regression(res)
     ops = parse_label_ops(conf, False)
     res = process_labels(data, ops)
@@ -700,6 +774,19 @@ def test_label():
     res = process_labels(data, ops)
     check_regression(res)
 
+    # Check custom data split without providing split
+    conf = {
+            "labels": [
+                {'task_type': 'regression',
+                 'label_col': 'label',
+                 'split_pct': [0, 0, 0]}
+            ]
+    }
+    data = {'label' : np.random.uniform(size=10) * 10}
+    ops = parse_label_ops(conf, True)
+    res = process_labels(data, ops)
+    check_regression_no_split(res)
+
     # Check link prediction
     conf = {
             "labels": [
@@ -717,6 +804,21 @@ def test_label():
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
+
+    # Check custom data split without providing split
+    conf = {
+            "labels": [
+                {'task_type': 'link_prediction',
+                 'split_pct': [0, 0, 0]}
+            ]
+    }
+    ops = parse_label_ops(conf, False)
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 0
+    assert 'train_mask' not in res
+    assert 'val_mask' not in res
+    assert 'test_mask' not in res
 
 def check_id_map_exist(id_map, input_ids):
     # Test the case that all Ids exist in the map.
@@ -816,12 +918,20 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
         raise ValueError("fail")
     except:
         pass
+
     # Test the case that source node IDs don't exist and we skip non exist edges.
     new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_src_ids) for id_ in src_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+
+    # Test the case that none of the source node IDs exists and we skip non exist edges.
+    src_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
+    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                            id_map, True)
+    assert len(new_src_ids) == 0
+    assert len(new_dst_ids) == 0
 
 def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that destination node IDs don't exist.
@@ -833,12 +943,20 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
         raise ValueError("fail")
     except:
         pass
+
     # Test the case that destination node IDs don't exist and we skip non exist edges.
     new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_dst_ids) for id_ in dst_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+
+    # Test the case that none of the destination node IDs exists and we skip non exist edges.
+    dst_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
+    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+                                            id_map, True)
+    assert len(new_src_ids) == 0
+    assert len(new_dst_ids) == 0
 
 def test_map_node_ids():
     # This tests all cases in map_node_ids.
@@ -865,13 +983,13 @@ def test_merge_arrays():
         data1 = read_data_hdf5(tmpfile, in_mem=False)
         arrs = [data1['data1'], data1['data2']]
         res = converter(arrs, "test1")
-        assert isinstance(res, np.ndarray)
+        assert isinstance(res, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(res, np.concatenate([data["data1"],
                                                            data["data2"]]))
 
         # One HDF5 array
         res = converter([data1['data1']], "test1.5")
-        assert isinstance(res, np.ndarray)
+        assert isinstance(res, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(res, data['data1'])
 
         os.remove(tmpfile)
@@ -880,26 +998,26 @@ def test_merge_arrays():
         data1 = np.random.uniform(size=(1000, 10))
         data2 = np.random.uniform(size=(900, 10))
         em_arr = converter([data1, data2], "test2")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
 
         # Merge two arrays whose feature dimension is smaller than 2.
         data1 = np.random.uniform(size=(1000,))
         data2 = np.random.uniform(size=(900,))
         em_arr = converter([data1, data2], "test3")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(np.concatenate([data1, data2]), em_arr)
 
         # Input is an array whose feature dimension is larger than 2.
         data1 = np.random.uniform(size=(1000, 10))
         em_arr = converter([data1], "test4")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
 
         # Input is an array whose feature dimension is smaller than 2.
         data1 = np.random.uniform(size=(1000,))
         em_arr = converter([data1], "test5")
-        assert isinstance(em_arr, np.ndarray)
+        assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
 
 def test_partition_graph():
@@ -1093,6 +1211,7 @@ def test_multiprocessing_checks():
 
 if __name__ == '__main__':
     test_multiprocessing_checks()
+    test_csv()
     test_hdf5()
     test_json()
     test_partition_graph()

@@ -24,6 +24,7 @@ import graphstorm as gs
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
+from graphstorm.utils import setup_device
 
 class MyGNNModel(gsmodel.GSgnnNodeModelBase):
     def __init__(self, g, feat_size, hidden_size, num_classes):
@@ -76,6 +77,7 @@ class MyGNNModel(gsmodel.GSgnnNodeModelBase):
 
 def main(args):
     gs.initialize(ip_config=args.ip_config, backend="gloo")
+    device = setup_device(args.local_rank)
     train_data = GSgnnNodeTrainData(args.graph_name,
                                     args.part_config,
                                     train_ntypes=args.target_ntype,
@@ -86,8 +88,7 @@ def main(args):
     feat_size = gs.get_feat_size(train_data.g, args.node_feat)
     model = MyGNNModel(train_data.g, feat_size, 16, args.num_classes)
     trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=1)
-    trainer.setup_cuda(dev_id=args.local_rank)
-    device = 'cuda:%d' % trainer.dev_id
+    trainer.setup_device(device=device)
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=[10, 10],
                                      batch_size=1000, device=device, train_task=True)
     trainer.fit(train_loader=dataloader, num_epochs=2)

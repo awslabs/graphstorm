@@ -203,6 +203,135 @@ class GSConfig:
                 setattr(self, f"_{arg_key}", arg_val)
                 print(f"Overriding Argument: {arg_key}")
 
+    def verify_arguments(self, is_train):
+        """ Verify the correctness of arguments.
+
+        Parameters
+        ----------
+        is_train : bool
+            Whether this is for training.
+        """
+        # Trigger the checks in the arguments.
+        _ = self.save_perf_results_path
+        _ = self.profile_path
+        _ = self.graph_name
+        _ = self.backend
+        _ = self.ip_config
+        _ = self.part_config
+        _ = self.node_id_mapping_file
+        _ = self.edge_id_mapping_file
+        _ = self.verbose
+
+        # Data
+        _ = self.node_feat_name
+        _ = self.decoder_edge_feat
+
+        # Evaluation
+        _ = self.eval_fanout
+        _ = self.use_mini_batch_infer
+        _ = self.eval_batch_size
+        _ = self.eval_frequency
+        _ = self.no_validation
+        _ = self.save_prediction_path
+        _ = self.eval_etype
+        if self.task_type is not None:
+            _ = self.eval_metric
+
+        # Model training.
+        if is_train:
+            _ = self.batch_size
+            _ = self.fanout
+            _ = self.lm_train_nodes
+            _ = self.lm_tune_lr
+            _ = self.lr
+            _ = self.sparse_optimizer_lr
+            _ = self.num_epochs
+            _ = self.save_model_path
+            _ = self.save_model_frequency
+            _ = self.topk_model_to_save
+            _ = self.early_stop_burnin_rounds
+            _ = self.early_stop_rounds
+            _ = self.early_stop_strategy
+            _ = self.use_early_stop
+            _ = self.wd_l2norm
+            _ = self.train_negative_sampler
+            _ = self.train_etype
+            _ = self.remove_target_edge_type
+
+        # LM module
+        if self.node_lm_configs:
+            _ = self.lm_infer_batch_size
+            _ = self.freeze_lm_encoder_epochs
+
+        # I/O related
+        _ = self.restore_model_layers
+        _ = self.restore_model_path
+        _ = self.restore_optimizer_path
+        _ = self.save_embed_path
+
+        # Model architecture
+        _ = self.dropout
+        _ = self.decoder_type
+        _ = self.num_decoder_basis
+        # Encoder related
+        encoder_type = self.model_encoder_type
+        if encoder_type == "lm":
+            assert self.node_lm_configs is not None
+        else:
+            _ = self.hidden_size
+            _ = self.num_layers
+            _ = self.use_self_loop
+            _ = self.use_node_embeddings
+            _ = self.num_bases
+            _ = self.num_heads
+            _ = self.num_ffn_layers_in_gnn
+
+        _ = self.return_proba
+        _ = self.alpha_l2norm
+
+
+        # ngnn
+        _ = self.num_ffn_layers_in_input
+        _ = self.num_ffn_layers_in_decoder
+
+        # Logging.
+        _ = self.task_tracker
+        _ = self.log_report_frequency
+
+        _ = self.task_type
+        # For classification tasks.
+        if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_EDGE_CLASSIFICATION]:
+            _ = self.label_field
+            _ = self.num_classes
+            _ = self.multilabel
+            _ = self.multilabel_weights
+            _ = self.imbalance_class_weights
+        if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+            _ = self.target_ntype
+        if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+            _ = self.target_etype
+        if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
+                              BUILTIN_TASK_LINK_PREDICTION] and is_train:
+            _ = self.exclude_training_targets
+            _ = self.reverse_edge_types_map
+        if self.task_type == BUILTIN_TASK_LINK_PREDICTION:
+            _ = self.gamma
+            _ = self.lp_decoder_type
+            _ = self.lp_edge_weight_for_loss
+            _ = self.lp_loss_func
+            _ = self.num_negative_edges
+            _ = self.eval_negative_sampler
+            _ = self.num_negative_edges_eval
+
+    def _turn_off_gradient_checkpoint(self, reason):
+        """Turn off `gradient_checkpoint` flags in `node_lm_configs`
+        """
+        for i, _ in enumerate(self.node_lm_configs):
+            if self.node_lm_configs[i]["gradient_checkpoint"]:
+                print(f"WARNING: {reason} can not work with " \
+                        "gradient checkpoint. Turn gradient checkpoint to False")
+                self.node_lm_configs[i]["gradient_checkpoint"] = False
+
     def handle_argument_conflicts(self):
         """Check and resolve argument conflicts
         """
@@ -211,12 +340,10 @@ class GSConfig:
             # gradient checkpoint does not work with freeze_lm_encoder_epochs
             # When freeze_lm_encoder_epochs is set, turn off gradient checkpoint
             if self.freeze_lm_encoder_epochs > 0:
-                for i, _ in enumerate(self.node_lm_configs):
-                    if self.node_lm_configs[i]["gradient_checkpoint"]:
-                        print("WARNING: freeze_lm_encoder_epochs can not work with " \
-                              "gradient checkpoint. Turn gradient checkpoint to False")
-                        self.node_lm_configs[i]["gradient_checkpoint"] = False
-
+                self._turn_off_gradient_checkpoint("freeze_lm_encoder_epochs")
+            # GLEM fine-tuning of LM conflicts with gradient checkpoint
+            if self.training_method["name"] == "glem":
+                self._turn_off_gradient_checkpoint("GLEM model")
         # TODO(xiangsx): Add more check
 
     ###################### Environment Info ######################
@@ -386,6 +513,25 @@ class GSConfig:
 
         return 0
 
+    @property
+    def training_method(self):
+        """ Setting up the LM/GNN co-training method
+        """
+        if hasattr(self, "_training_method"):
+            training_method_name = self._training_method["name"]
+            assert training_method_name in ("default", "glem"),\
+                f"Training method {training_method_name} is unavailable"
+            if training_method_name == "glem":
+                glem_defaults = {
+                    "em_order_gnn_first": False,
+                    "inference_using_gnn": True,
+                    "pl_weight": 0.5
+                }
+                for key, val in glem_defaults.items():
+                    self._training_method["kwargs"].setdefault(key, val)
+            return self._training_method
+        return {"name": "default", "kwargs": {}}
+
     def _check_lm_config(self, lm_config):
         assert "lm_type" in lm_config, "lm_type (type of language model," \
             "e.g., bert) must be provided for node_lm_models."
@@ -459,9 +605,8 @@ class GSConfig:
                         f"Unknown format of the feature name: {feat_name}, " + \
                         "must be NODE_TYPE:FEAT_NAME"
                 ntype = feat_info[0]
-                if ntype in fname_dict:
-                    assert False, \
-                        f"You already specify the feature names of {ntype}" \
+                assert ntype not in fname_dict, \
+                        f"You already specify the feature names of {ntype} " \
                         f"as {fname_dict[ntype]}"
                 assert isinstance(feat_info[1], str), \
                     f"Feature name of {ntype} should be a string not {feat_info[1]}"
@@ -504,11 +649,13 @@ class GSConfig:
         """ training fanout
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_fanout"), \
-            "Training fanout must be provided"
+        if self.model_encoder_type in BUILTIN_GNN_ENCODER:
+            assert hasattr(self, "_fanout"), \
+                    "Training fanout must be provided"
 
-        fanout = self._fanout.split(",")
-        return self._check_fanout(fanout, "Train")
+            fanout = self._fanout.split(",")
+            return self._check_fanout(fanout, "Train")
+        return 0
 
     @property
     def eval_fanout(self):
@@ -1161,8 +1308,6 @@ class GSConfig:
         if hasattr(self, "_num_decoder_basis"):
             assert self._num_decoder_basis > 1, \
                 "Decoder basis must be larger than 1"
-            assert self.decoder_type == "DenseBiDecoder", \
-                "num-decoder-basis only works with DenseBiDecoder"
             return self._num_decoder_basis
 
         # By default, return 2
@@ -1367,8 +1512,6 @@ class GSConfig:
     def gamma(self):
         """ Gamma for DistMult
         """
-        assert self.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER, \
-            "Only used with DistMult"
         if hasattr(self, "_gamma"):
             return float(self._gamma)
 
@@ -1392,13 +1535,13 @@ class GSConfig:
         """ Task type
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_task_type"), \
-            "Task type must be specified"
-        assert self._task_type in SUPPORTED_TASKS, \
-            f"Supported task types include {SUPPORTED_TASKS}, " \
-            f"but got {self._task_type}"
-
-        return self._task_type
+        if hasattr(self, "_task_type"):
+            assert self._task_type in SUPPORTED_TASKS, \
+                    f"Supported task types include {SUPPORTED_TASKS}, " \
+                    f"but got {self._task_type}"
+            return self._task_type
+        else:
+            return None
 
     @property
     def eval_metric(self):
@@ -1492,6 +1635,42 @@ class GSConfig:
 
         return eval_metric
 
+    @property
+    def num_ffn_layers_in_input(self):
+        """ Number of extra feedforward neural network layers in the input layer
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_ffn_layers_in_input"):
+            assert self._num_ffn_layers_in_input >= 0, \
+                "Number of extra MLP layers in input layer must be larger or equal than 0"
+            return self._num_ffn_layers_in_input
+        # Set default mlp layer number in the input layer to 0
+        return 0
+
+    @property
+    def num_ffn_layers_in_gnn(self):
+        """ Number of extra feedforward neural network layers between GNN layers
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_ffn_layers_in_gnn"):
+            assert self._num_ffn_layers_in_gnn >= 0, \
+                "Number of extra MLP layers between GNN layers must be larger or equal than 0"
+            return self._num_ffn_layers_in_gnn
+        # Set default mlp layer number between gnn layer to 0
+        return 0
+
+    @property
+    def num_ffn_layers_in_decoder(self):
+        """ Number of extra feedforward neural network layers in decoder
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_ffn_layers_in_decoder"):
+            assert self._num_ffn_layers_in_decoder >= 0, \
+                "Number of extra MLP layers in decoder must be larger or equal than 0"
+            return self._num_ffn_layers_in_decoder
+        # Set default mlp layer number between gnn layer to 0
+        return 0
+
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")
     group.add_argument(
@@ -1545,6 +1724,12 @@ def _add_gnn_args(parser):
             help="The number of features in the hidden state")
     group.add_argument("--num-layers", type=int, default=argparse.SUPPRESS,
             help="number of layers in the GNN")
+    group.add_argument("--num-ffn-layers-in-input", type=int, default=argparse.SUPPRESS,
+                       help="number of extra feedforward neural network layers in input layer.")
+    group.add_argument("--num-ffn-layers-in-gnn", type=int, default=argparse.SUPPRESS,
+                       help="number of extra feedforward neural network layers between GNN layers.")
+    group.add_argument("--num-ffn-layers-in-decoder", type=int, default=argparse.SUPPRESS,
+                       help="number of extra feedforward neural network layers in decoder layer.")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",

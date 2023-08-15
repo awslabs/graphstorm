@@ -222,7 +222,8 @@ function-naming-style=snake_case
 # s3 - AWS specific
 # lb - sklearn specific
 # ip - distributed specific
-good-names=f,i,j,k,u,v,e,n,m,w,x,y,z,s,d,t,r,g,G,hg,sg,fn,ex,Run,_,us,vs,gs,es,op,ty,A,B,C,W,a,b,N,D1,D2,R,lr,h,hs,t0,t1,t2,t3,pb,s3,lb,bs,bm,ip
+# lm - language model
+good-names=f,i,j,k,u,v,e,n,m,w,x,y,z,s,d,t,r,g,G,hg,sg,fn,ex,Run,_,us,vs,gs,es,op,ty,A,B,C,W,a,b,N,D1,D2,R,lr,h,hs,t0,t1,t2,t3,pb,s3,lb,bs,bm,ip,lm
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint=no
@@ -519,4 +520,4 @@ valid-metaclass-classmethod-first-arg=cls
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "Exception".
-overgeneral-exceptions=Exception
+overgeneral-exceptions=builtins.Exception

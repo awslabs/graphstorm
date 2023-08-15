@@ -78,7 +78,7 @@ nodes.
 * `label_stats_type` specifies how to collect label statistics of the training set.
 This is optional. If it's not specified, no label statistics are collected.
 If specified, the label statistics will be saved as `node_label_stats.json` or
-`edge_label_stats.json` under the output directory for node tasks or edge tasks,
+`edge_label_stats.json` under the output directory for node classification tasks or edge classification tasks,
 respectively. Currently it supports following values: a) `frequency_cnt`, with which
 the graph construction process will count the number of appearance of each label
 value for classification tasks in the training set.

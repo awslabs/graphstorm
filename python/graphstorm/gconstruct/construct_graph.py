@@ -31,7 +31,7 @@ import dgl
 
 from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
-from .file_io import get_in_files, HDF5Array
+from .file_io import get_in_files
 from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
 from .transform import do_multiprocess_transform
@@ -43,7 +43,7 @@ from .transform import (print_node_label_stats,
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
-                    partition_graph)
+                    partition_graph, ExtMemArrayWrapper)
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -307,9 +307,9 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 if feat_name not in type_node_data:
                     type_node_data[feat_name] = [None] * len(return_dict)
                 type_node_data[feat_name][i] = data[feat_name]
-            # If it's HDF5Array, it's better to convert it into a Numpy array.
+            # If it's ExtMemArray, it's better to convert it into a Numpy array.
             # This will make the next operations on it more efficiently.
-            if isinstance(node_ids, HDF5Array):
+            if isinstance(node_ids, ExtMemArrayWrapper):
                 type_node_id_map[i] = node_ids.to_numpy()
             else:
                 type_node_id_map[i] = node_ids
@@ -356,8 +356,8 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                     merged_feat = \
                         after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
                 type_node_data[feat_name] = merged_feat
-                gc.collect()
                 sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
+            gc.collect()
 
         # If we didn't see the node data for this node type before.
         if len(type_node_data) > 0 and node_type not in node_data:
@@ -509,8 +509,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                     merged_feat = \
                         after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
                 type_edge_data[feat_name] = merged_feat
-                gc.collect()
                 sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
+            gc.collect()
 
         if type_src_ids[0] is not None: # handle src_ids and dst_ids
             assert all(src_ids is not None for src_ids in type_src_ids)
@@ -645,21 +645,22 @@ def process_graph(args):
     # We only store data to external memory if we partition a graph for distributed training.
     ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
     convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
+
     node_id_map, node_data, node_label_stats = \
         process_node_data(process_confs['nodes'], convert2ext_mem,
                           args.remap_node_id,
                           num_processes=num_processes_for_nodes)
+    sys_tracker.check('Process the node data')
     edges, edge_data, edge_label_stats = \
         process_edge_data(process_confs['edges'], node_id_map,
                           convert2ext_mem,
-                          num_processes=num_processes_for_edges,
-                          skip_nonexist_edges=args.skip_nonexist_edges)
+                          num_processes=num_processes_for_edges,skip_nonexist_edges=args.skip_nonexist_edges)
+    sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.output_conf_file is not None:
         # Save the new config file.
         with open(args.output_conf_file, "w", encoding="utf8") as outfile:
             json.dump(process_confs, outfile, indent=4)
-    sys_tracker.check('Process input data')
 
     if args.add_reverse_edges:
         edges1 = {}
@@ -705,13 +706,13 @@ def process_graph(args):
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
-                if isinstance(ndata, HDF5Array):
+                if isinstance(ndata, ExtMemArrayWrapper):
                     g.nodes[ntype].data[name] = ndata.to_tensor()
                 else:
                     g.nodes[ntype].data[name] = th.tensor(ndata)
         for etype in edge_data:
             for name, edata in edge_data[etype].items():
-                if isinstance(edata, HDF5Array):
+                if isinstance(edata, ExtMemArrayWrapper):
                     g.edges[etype].data[name] = edata.to_tensor()
                 else:
                     g.edges[etype].data[name] = th.tensor(edata)

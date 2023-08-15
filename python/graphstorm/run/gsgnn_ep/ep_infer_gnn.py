@@ -22,6 +22,7 @@ from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInfer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
+from graphstorm.utils import setup_device
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -40,8 +41,10 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
+    config.verify_arguments(False)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    device = setup_device(config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
@@ -52,16 +55,24 @@ def main(config_args):
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnEdgePredictionInfer(model, gs.get_rank())
-    infer.setup_cuda(dev_id=config.local_rank)
+    infer.setup_device(device=device)
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
+        assert len(infer_data.test_idxs) > 0, \
+            "There is not test data for evaluation. " \
+            "You can use --no-validation true to avoid do testing"
+        target_idxs = infer_data.test_idxs
+    else:
+        assert len(infer_data.infer_idxs) > 0, \
+            f"To do inference on {config.target_etype} without doing evaluation, " \
+            "you should not define test_mask as its edge feature. " \
+            "GraphStorm will do inference on the whole edge set. "
+        target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config, infer.rank)
     infer.setup_task_tracker(tracker)
-    device = 'cuda:%d' % infer.dev_id
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
-    dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=fanout,
+    dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,

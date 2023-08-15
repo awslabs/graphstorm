@@ -54,10 +54,16 @@ with h5py.File("/data/ml-100k/user.hdf5", "w") as f:
 movie = pandas.read_csv('/data/ml-100k/u.item', delimiter='|',
         encoding="ISO-8859-1", header=None)
 title = movie[1]
-attrs = []
+labels = []
 for i in range(5, 24):
-    attrs.append(np.array(movie[i]))
-attrs = np.stack(attrs, axis=1)
+    labels.append(np.array(movie[i]))
+labels = np.stack(labels, axis=1)
+
+# Get the first non zero value and consider it as primary genre as there are multiple genre labels from column 5 to 23
+label_list = []
+for i in range(labels.shape[0]):
+    label_list.append(np.nonzero(labels[i])[0][0])
+labels = np.array(label_list)
 ids = np.array(movie[0])
 
 def write_data_parquet(data, data_file):
@@ -73,7 +79,7 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
-movie_data = {'id': ids, 'feat': attrs, 'title': title}
+movie_data = {'id': ids, 'label': labels, 'title': title}
 write_data_parquet(movie_data, '/data/ml-100k/movie.parquet')
 
 # process edges

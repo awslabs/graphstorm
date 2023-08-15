@@ -375,7 +375,7 @@ def wrap_udf_in_torch_dist_launcher(
     # to:
     #     python -m torch.distributed.launch [DIST TORCH ARGS] path/to/dist_trainer.py arg0 arg1
     udf_command = " ".join(udf_command)
-    new_udf_command = f"{python_bin} {torch_dist_cmd} {udf_command}"
+    new_udf_command = f"{python_bin} -u {torch_dist_cmd} {udf_command}"
 
     return new_udf_command
 
@@ -677,9 +677,9 @@ def submit_jobs(args, udf_command):
 
     udf_command = update_udf_command(udf_command, args)
     # launch server tasks
-    server_cmd = f"{sys.executable} {' '.join(udf_command)}" \
+    server_cmd = f"{sys.executable} -u {' '.join(udf_command)}" \
         if sys.executable is not None and sys.executable != "" \
-        else f"python3 {' '.join(udf_command)}"
+        else f"python3 -u {' '.join(udf_command)}"
 
     server_env_vars = construct_dgl_server_env_vars(
         num_samplers=args.num_samplers,
@@ -858,10 +858,9 @@ def get_argument_parser():
     parser.add_argument(
         "--num-server-threads",
         type=int,
-        default=1,
         help="The number of OMP threads in the server process. \
                         It should be small if server processes and trainer processes run on \
-                        the same machine. By default, it is 1.",
+                        the same machine.",
     )
     parser.add_argument(
         "--graph-format",
@@ -914,9 +913,6 @@ def check_input_arguments(args):
         args.num_servers is not None and args.num_servers > 0
     ), "--num-servers must be a positive number."
     assert (
-        args.num_server_threads > 0
-    ), "--num-server-threads must be a positive number."
-    assert (
         args.part_config is not None
     ), "A user has to specify a partition configuration file with --part-onfig."
     assert (
@@ -929,17 +925,36 @@ def check_input_arguments(args):
     else:
         args.workspace = os.path.abspath(args.workspace)
 
+    total_cpu_cores = multiprocessing.cpu_count()
+
     if args.num_omp_threads is None:
         # Here we assume all machines have the same number of CPU cores as the machine
         # where the launch script runs.
+        # The total number of CPU cores consumed
+        # by trainers will be half of total cpu cores
+        cpu_cores_per_trainer = total_cpu_cores // 2 // args.num_trainers // \
+            (args.num_samplers if args.num_samplers > 1 else 1)
         args.num_omp_threads = max(
-            multiprocessing.cpu_count() // 2 // args.num_trainers, 1
+            cpu_cores_per_trainer, 1
         )
         if args.verbose:
             print(f"The number of OMP threads per trainer is set to {args.num_omp_threads}")
     else:
         assert args.num_omp_threads > 0, \
             "The number of OMP threads per trainer should be larger than 0"
+
+    if args.num_server_threads is None:
+        # The total number of CPU cores consumed
+        # by servers will be 1/4 of total cpu cores
+        cpu_cores_per_server = total_cpu_cores // 4 // args.num_servers
+        args.num_server_threads = max(
+            cpu_cores_per_server, 1
+        )
+        if args.verbose:
+            print(f"The number of OMP threads per server is set to {args.num_server_threads}")
+    else:
+        assert args.num_server_threads > 0, \
+            "The number of OMP threads per server should be larger than 1"
 
 def main():
     """Main func"""

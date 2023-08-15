@@ -14,11 +14,15 @@
     limitations under the License.
 """
 import os
+import tempfile
 
 import numpy as np
 import torch as th
 
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
+from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
+from graphstorm.gconstruct.utils import multiprocessing_data_read
+from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
 
 def gen_data():
     data_th = th.zeros((1024, 16), dtype=th.float32)
@@ -144,6 +148,45 @@ def test_object_conversion():
     check_is_numpy(new_data["tuple"][0][0])
     check_is_numpy(new_data["tuple"][0][1])
 
+def check_ext_mem_array(arr, orig_arr):
+    assert len(arr) == orig_arr.shape[0]
+    assert arr.shape == orig_arr.shape
+    assert arr.dtype == orig_arr.dtype
+    idx = np.array([1, 3, 4])
+    assert np.all(arr[idx] == orig_arr[idx])
+    assert np.all(arr.to_numpy() == orig_arr)
+
+    new_arr = arr.astype(np.float16)
+    assert arr.dtype == np.float32
+    assert new_arr.dtype == np.float16
+    assert new_arr[idx].dtype == np.float16
+
+def test_ext_mem_array():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data = np.random.uniform(size=(1000, 10)).astype(np.float32)
+        tensor_path = os.path.join(tmpdirname, "tmp1.npy")
+        out_arr = np.memmap(tensor_path, np.float32, mode="w+", shape=(1000, 10))
+        out_arr[:] = data
+        check_ext_mem_array(ExtNumpyWrapper(tensor_path, out_arr.shape, out_arr.dtype), data)
+
+        tensor_path = os.path.join(tmpdirname, "tmp2.hdf5")
+        write_data_hdf5({"test": data}, tensor_path)
+        data1 = read_data_hdf5(tensor_path, in_mem=False)
+        check_ext_mem_array(data1['test'], data)
+
+def dummy_read(in_file):
+    assert False
+
+def test_multiprocessing_read():
+    try:
+        multiprocessing_data_read([str(i) for i in range(10)], 2, dummy_read)
+    except RuntimeError as e:
+        print(e)
+        return
+    assert False
+
 if __name__ == '__main__':
+    test_multiprocessing_read()
     test_estimate_sizeof()
     test_object_conversion()
+    test_ext_mem_array()

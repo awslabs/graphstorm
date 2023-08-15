@@ -71,6 +71,11 @@ class GSgnnNodePredictionInfer(GSInfer):
             Whether to return all the predictions or the maximum prediction.
         """
         do_eval = self.evaluator is not None
+        if do_eval:
+            assert loader.data.labels is not None, \
+                "A label field must be provided for node classification " \
+                "or regression inference when evaluation is required."
+
         sys_tracker.check('start inferencing')
         self._model.eval()
         # TODO support multiple ntypes
@@ -95,8 +100,7 @@ class GSgnnNodePredictionInfer(GSInfer):
             label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
-        device = th.device(f"cuda:{self.dev_id}") \
-                if self.dev_id >= 0 else th.device("cpu")
+        device = self.device
 
         # do evaluation first
         # do evaluation if any

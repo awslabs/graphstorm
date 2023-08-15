@@ -30,7 +30,8 @@ from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
-from .file_io import HDF5Array, read_index_json
+from .file_io import read_index_json
+from .utils import ExtMemArrayWrapper
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
@@ -182,8 +183,10 @@ def _get_output_dtype(dtype_str):
         return np.float16
     elif dtype_str == 'float32':
         return np.float32
+    elif dtype_str == 'int8':
+        return np.int8 # for train, val, test mask
     else:
-        assert False, f"Unknown dtype {dtype_str}, only support float16 and float32"
+        assert False, f"Unknown dtype {dtype_str}, only support int8, float16 and float32"
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -367,9 +370,9 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         if len(self._val_dict) > 0:
             return {}
 
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of CategoricalTransform must be numpy array or HDF5Array"
-        if isinstance(feats, HDF5Array):
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of CategoricalTransform must be numpy array or ExtMemArray"
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -465,9 +468,9 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats: np.array
             Data to be processed
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
-        if isinstance(feats, HDF5Array):
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -530,14 +533,14 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         -------
         np.array
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
 
         assert not np.any(self._max_val == self._min_val), \
             f"At least one element of Max Val {self._max_val} " \
             f"and Min Val {self._min_val} is equal. This will cause divide by zero error"
 
-        if isinstance(feats, HDF5Array):
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -588,7 +591,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
 
     def call(self, feats):
         # do nothing. Rank Gauss is done after merging all arrays together.
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
 
         if np.issubdtype(feats.dtype, np.integer) \
@@ -610,6 +613,8 @@ class RankGaussTransform(GlobalProcessFeatTransform):
     def after_merge_transform(self, feats):
         # The feats can be a numpy array or a numpy memmaped object
         # Get ranking information.
+        if isinstance(feats, ExtMemArrayWrapper):
+            feats = feats.to_numpy()
         feats = feats.argsort(axis=0).argsort(axis=0)
         feat_range = len(feats) - 1
         # norm to [-1, 1]
@@ -715,7 +720,7 @@ class Text2BERT(FeatTransform):
                     if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
             self.device = f"cuda:{gpu}"
         else:
-            self.device = None
+            self.device = "cpu"
 
         if self.lm_model is None:
             config = BertConfig.from_pretrained(self.model_name)
@@ -802,7 +807,7 @@ class Noop(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
@@ -946,7 +951,7 @@ def process_features(data, ops):
         for key, val in res.items():
             # Check if has 1D features. If yes, convert to 2D features
             if len(val.shape) == 1:
-                if isinstance(val, HDF5Array):
+                if isinstance(val, ExtMemArrayWrapper):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
@@ -1139,6 +1144,10 @@ class LabelProcessor:
         train_split, val_split, test_split = self._split_pct
         assert train_split + val_split + test_split <= 1, \
                 "The data split of training/val/test cannot be more than the entire dataset."
+        if train_split == 0 and val_split == 0 and test_split == 0:
+            # Train, val and test are all zero
+            # Ignore the split
+            return {}
         rand_idx = get_valid_idx()
         num_labels = len(rand_idx)
         num_train = int(num_labels * train_split)

@@ -23,7 +23,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 import numpy as np
 
-from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json
+from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json, write_data_csv
 from graphstorm.gconstruct.file_io import write_data_hdf5, write_index_json
 
 # Here we construct a graph with multiple node types and edge types
@@ -133,7 +133,7 @@ for i, node_data in enumerate(split_data(node_data3, 10)):
 for i, node_data in enumerate(split_data(node_data4, 10)):
     write_data_json(node_data, os.path.join(in_dir, f'node_data4_{i}.json'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
-    write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data1_{i}.parquet'))
+    write_data_csv(edge_data, os.path.join(in_dir, f'edge_data1_{i}.csv'))
 for i, edge_data in enumerate(split_data(edge_data2, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data2_{i}.parquet'))
 write_data_hdf5(edge_data1_2, os.path.join(in_dir, f'edge_data1_2.hdf5'))
@@ -262,8 +262,8 @@ edge_conf = [
         "source_id_col":    "src",
         "dest_id_col":      "dst",
         "relation":         ("node1", "relation1", "node2"),
-        "format":           {"name": "parquet"},
-        "files":            os.path.join(in_dir, "edge_data1_*.parquet"),
+        "format":           {"name": "csv"},
+        "files":            os.path.join(in_dir, "edge_data1_*.csv"),
         "labels":       [
             {
                 "label_col":    "label",

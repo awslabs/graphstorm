@@ -70,6 +70,11 @@ class GSgnnEdgePredictionInfer(GSInfer):
             Whether to return all the predictions or the maximum prediction.
         """
         do_eval = self.evaluator is not None
+        if do_eval:
+            assert loader.data.labels is not None, \
+                "A label field must be provided for edge classification or regression " \
+                "when evaluation is required."
+
         sys_tracker.check('start inferencing')
         self._model.eval()
         embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
@@ -98,8 +103,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
 
-        device = th.device(f"cuda:{self.dev_id}") \
-            if self.dev_id >= 0 else th.device("cpu")
+        device = self.device
 
         if save_embed_path is not None:
             target_ntypes = set()
