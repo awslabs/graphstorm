@@ -276,7 +276,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 # there is no test set
                 test_pred = None
                 test_label = None
-            sys_tracker.check('after_test_score')    
+            sys_tracker.check('after_test_score')
         sys_tracker.check('predict')
 
         # select node type with largest number of nodes as target evaluation node type
