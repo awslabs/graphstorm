@@ -35,7 +35,7 @@ from data_utils import create_lm_graph, create_lm_graph2
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
-def test_input_layer1(input_activate=True):
+def test_input_layer1(input_activate='none'):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
