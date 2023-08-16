@@ -171,15 +171,15 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     device = model.device
     data = loader.data
     g = data.g
-    preds = {ntype: [] for ntype in g.ntypes}
+    preds = {}
 
     if return_label:
         assert data.labels is not None, \
             "Return label is required, but the label field is not provided whem" \
             "initlaizing the inference dataset."
 
-    embs = {ntype: [] for ntype in g.ntypes}
-    labels = {ntype: [] for ntype in g.ntypes}
+    embs = {}
+    labels = {}
     model.eval()
     with th.no_grad():
         for input_nodes, seeds, blocks in loader:
@@ -190,12 +190,21 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
             for ntype, ntype_pred in pred.items():
-                preds[ntype].append(ntype_pred.cpu())
+                if ntype in preds:
+                    preds[ntype].append(ntype_pred.cpu())
+                else:
+                    preds[ntype] = [ntype_pred.cpu()]
             for ntype, ntype_emb in emb.items():
-                embs[ntype].append(ntype_emb.cpu())
+                if ntype in embs:
+                    embs[ntype].append(ntype_emb.cpu())
+                else:
+                    embs[ntype] = [ntype_emb.cpu()]
             if return_label:
                 for ntype, ntype_labels in data.get_labels(seeds).items():
-                    labels[ntype].append(ntype_labels.cpu())
+                    if ntype in labels:
+                        labels[ntype].append(ntype_labels.cpu())
+                    else:
+                        labels[ntype] = [ntype_labels.cpu()]
     model.train()
     for ntype, ntype_pred in preds.items():
         preds[ntype] = th.cat(ntype_pred)
