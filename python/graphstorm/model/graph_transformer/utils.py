@@ -24,12 +24,45 @@ DFS_TRANSVERSE = "dfs"
 BFS_TRANSVERSE = "bfs"
 
 def pad_seq(sequence, max_sequence_len, value=0):
+    """ Padding the input `sequence` with `value`s in the end
+
+        Parameters
+        ----------
+        sequence: th.Tensor
+            Sequence to pad
+        max_sequence_len: int
+            Maximum length of the padded sequence
+        value: int/float
+            Value to be added to the end of the input sequence.
+
+        Return
+        ------
+        th.Tensor: the padded tensor
+    """
     return F.pad(sequence, (0, max_sequence_len-len(sequence)), value=value)
 
-def sequence_dfs2bfs(sequences, idx, max_sentence_len):
-                    sequences = sequences.chunk(len(sequences) // max_sentence_len)
-                    sequences = sequences[idx]
-                    return th.cat(sequences)
+def sequence_dfs2bfs(sequence, dfs2bfs_idx, sentence_len):
+    """ Shuffle input sequence of sentences (nodes' input tokens or attention masks)
+
+        Parameters
+        ----------
+        sequence: th.Tensor
+            Sequence to shuffle
+        dfs2bfs_idx: th.Tensor
+            Idx tensor to shuffle the sequence
+        sentence_len: int
+            Length of each sentence (node's text tokens) in the sequence.
+
+        Return
+        ------
+        th.Tensor: the shuffled sequence
+    """
+    assert len(sequence) % sentence_len == 0, \
+        "Total length of the sequence should be dividable by the sentence length, " \
+        f"but we got {len(sequence)} and {sentence_len}"
+    sequence = sequence.reshape(len(sequence) // sentence_len, sentence_len)
+    sequence = sequence[dfs2bfs_idx]
+    return sequence.reshape(-1,)
 
 def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
                              max_sentence_len,
@@ -208,11 +241,12 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
         if transverse_format == BFS_TRANSVERSE:
             for i, pos_info in enumerate(ret_position_info[dst_ntype]):
                 new_idx = []
-                for j in range(len(layers)):
-                    idx = th.nonzero(pos_info == j, as_tuple=True).tolist()
+                for j in range(len(layers)+1):
+                    idx = th.nonzero(pos_info == j, as_tuple=True)[0].tolist()
                     new_idx.extend(idx)
                 new_idx = th.tensor(new_idx)
 
+                # shuffle data according to BFS order
                 ret_ordered_token_ids[dst_ntype][i] = \
                     sequence_dfs2bfs(ret_ordered_token_ids[dst_ntype][i],
                                      new_idx, max_sentence_len)
@@ -229,7 +263,7 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
                 ret_position_info[dst_ntype][i] = ret_position_info[dst_ntype][i][new_idx]
         else:
             assert transverse_format == DFS_TRANSVERSE, \
-                f"Unsupported graph tranverse method {transverse_format}")
+                f"Unsupported graph tranverse method {transverse_format}"
 
         ret_ordered_token_ids[dst_ntype] = th.stack( \
             [pad_seq(sequence, max_sequence_len) \
