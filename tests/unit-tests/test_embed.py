@@ -435,7 +435,7 @@ def test_lm_embed_warmup(dev):
 
 if __name__ == '__main__':
     test_input_layer1()
-    test_input_layer1(input_activate=False)
+    test_input_layer1(input_activate='relu')
     test_input_layer2()
     test_input_layer3('cpu')
     test_input_layer3('cuda:0')
