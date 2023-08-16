@@ -268,9 +268,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     continue
                 emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
                 emb = emb @ self.proj_matrix[ntype]
-                if self.activation is not None:
-                    emb = self.activation(emb)
-                    emb = self.dropout(emb)
+            if self.activation is not None:
+                emb = self.activation(emb)
+                emb = self.dropout(emb)
             embs[ntype] = emb
 
         def _apply(t, h):
