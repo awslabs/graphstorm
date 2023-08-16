@@ -30,6 +30,12 @@
                             "task_type":	"link_prediction",
                             "split_pct":	[0.1, 0.1, 0.1]
                         }
+                    ],
+                    "features":[
+                        {
+                                "feature_col": "rate",
+                                "feature_name": "rate"
+                        }
                     ]
             }
     ]
