@@ -228,6 +228,29 @@ def test_rgcn_node_prediction():
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
+    
+def test_rgcn_node_prediction_multi_target_ntypes():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGCNLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n0', 'n1'], label_field='label',
+                                     node_feat_field='feat')
+    model = create_rgcn_node_model(np_data.g)
+    check_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
 
 def test_rgat_node_prediction():
     """ Test edge prediction logic correctness with a node prediction model
@@ -898,3 +921,5 @@ if __name__ == '__main__':
     test_mlp_edge_prediction()
     test_mlp_node_prediction()
     test_mlp_link_prediction()
+    
+    test_rgcn_node_prediction_multi_target_ntypes()

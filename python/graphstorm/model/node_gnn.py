@@ -247,28 +247,34 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             "Return label is required, but the label field is not provided whem" \
             "initlaizing the inference dataset."
 
-    preds = []
-    labels = []
+    preds = {}
+    labels = {}
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
     model.eval()
     with th.no_grad():
         for input_nodes, seeds, _ in loader:
-            assert len(input_nodes) == 1, "Currently we only support one node type"
-            ntype = list(input_nodes.keys())[0]
-            in_nodes = input_nodes[ntype]
-            if return_proba:
-                pred = model.decoder.predict_proba(emb[ntype][in_nodes].to(device))
-            else:
-                pred = model.decoder.predict(emb[ntype][in_nodes].to(device))
-            preds.append(pred.cpu())
-            if return_label:
-                lbl = data.get_labels(seeds)
-                labels.append(lbl[ntype])
+            for ntype, in_nodes in input_nodes.items():
+                if return_proba:
+                    pred = model.decoder.predict_proba(emb[ntype][in_nodes].to(device))
+                else:
+                    pred = model.decoder.predict(emb[ntype][in_nodes].to(device))
+                if ntype in preds:
+                    preds[ntype].append(pred.cpu())
+                else:
+                    preds[ntype] = [pred.cpu()]
+                if return_label:
+                    lbl = data.get_labels(seeds)
+                    if ntype in labels:
+                        labels[ntype].append(lbl[ntype])
+                    else:
+                        labels[ntype] = [lbl[ntype]]
     model.train()
 
-    preds = th.cat(preds)
+    for ntype, ntype_pred in preds.items():
+        preds[ntype] = th.cat(ntype_pred)
     if return_label:
-        labels = th.cat(labels)
+        for ntype, ntype_label in labels.items():
+            labels[ntype] = th.cat(ntype_label)
         return preds, labels
     else:
         return preds, None

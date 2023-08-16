@@ -78,6 +78,7 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
 
     hetero_graph.nodes['n0'].data['feat'] = node_feat['n0']
     hetero_graph.nodes['n1'].data['feat'] = node_feat['n1']
+    hetero_graph.nodes['n0'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('n0'), ))
     hetero_graph.nodes['n1'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('n1'), ))
 
     hetero_graph.edges['r0'].data['feat'] = edge_feat['r0']
@@ -86,12 +87,16 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
 
     # set train/val/test masks for nodes and edges
     if gen_mask:
-        target_ntype = ['n1']
+        target_ntype = ['n0', 'n1']
         target_etype = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
 
         node_train_mask = generate_mask([0,1], data_size)
         node_val_mask = generate_mask([2,3], data_size)
         node_test_mask = generate_mask([4,5], data_size)
+        
+        node_train_mask2 = generate_mask([i for i in range(data_size//2)], data_size)
+        node_val_mask2 = generate_mask([2,3], data_size)
+        node_test_mask2 = generate_mask([4,5], data_size)
 
         edge_train_mask = generate_mask([0,1], 2 * data_size)
         edge_val_mask = generate_mask([2,3], 2 * data_size)
@@ -104,6 +109,10 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
         hetero_graph.nodes[target_ntype[0]].data['train_mask'] = node_train_mask
         hetero_graph.nodes[target_ntype[0]].data['val_mask'] = node_val_mask
         hetero_graph.nodes[target_ntype[0]].data['test_mask'] = node_test_mask
+        
+        hetero_graph.nodes[target_ntype[1]].data['train_mask'] = node_train_mask2
+        hetero_graph.nodes[target_ntype[1]].data['val_mask'] = node_val_mask2
+        hetero_graph.nodes[target_ntype[1]].data['test_mask'] = node_test_mask2
 
         hetero_graph.edges[target_etype[0]].data['train_mask'] = edge_train_mask
         hetero_graph.edges[target_etype[0]].data['val_mask'] = edge_val_mask
