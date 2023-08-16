@@ -357,7 +357,7 @@ def test_rgat_node_prediction_multi_target_ntypes():
                                      train_ntypes=['n0', 'n1'], label_field='label',
                                      node_feat_field='feat')
     model = create_rgat_node_model(np_data.g)
-    check_node_prediction(model, np_data)
+    check_node_prediction_multi_target_ntypes(model, np_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
