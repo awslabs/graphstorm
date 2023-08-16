@@ -99,113 +99,21 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
 
-# Adding old commands for Multi-GPU tests
+# For tests using lm-encoder - node classification and edge classification
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lm_encoder.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lm_encoder_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
 
-# movielens node classifcation with balanced training set - Multi GPU
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
-	--filepath /data \
-	--target-ntype movie \
-	--add-reverse-edges \
-	--num-trainers-per-machine 4 \
-	--output movielen_100k_train_val_1p_4t_mgpu \
-	--generate-new-node-split true \
-	--balance-train \
-	--balance-edges \
-	--num-parts 1
-
-# node classification inference
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
-	--filepath /data \
-	--target-ntype movie \
-	--add-reverse-edges \
-	--num-trainers-per-machine 4 \
-	--output movielen_100k_infer_val_1p_4t_mgpu \
-	--no-split true \
-	--balance-edges \
-	--num-parts 1
-
-# movielens node classification text features
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
-	--filepath /data \
-	--target-ntype movie \
-	--add-reverse-edges \
-	--num-trainers-per-machine 4 \
-	--output movielen_100k_text_train_val_1p_4t_mgpu \
-	--generate-new-node-split true \
-	--balance-train \
-	--balance-edges \
-	--num-parts 1
-
-# movielens link prediction
-python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k \
-	--filepath /data \
-	--target-etype "user,rating,movie" \
-	--num-trainers-per-machine 4 \
-	--output movielen_100k_lp_train_val_1p_4t_mgpu \
-	--balance-train \
-	--balance-edges \
-	--train-pct 0.1 \
-	--val-pct 0.1 \
-	--num-parts 1
-
-# movielens link prediction text features
-python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k-text  \
-	--filepath /data \
-	--target-etype "user,rating,movie" \
-	--num-trainers-per-machine 4 \
-	--output movielen_100k_text_lp_train_val_1p_4t_mgpu \
-	--balance-train \
-	--balance-edges \
-	--train-pct 0.1 \
-	--val-pct 0.1 \
-	--num-parts 1
-
-# movielens edge classification
-export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
-	--filepath /data \
-    --elabel-field "user,rating,movie:rate" \
-    --target-etype "user,rating,movie" \
-    --etask-type "classification" \
-	--num-trainers-per-machine 4 \
-	--output movielen_100k_ec_1p_4t_mgpu \
-	--balance-train \
-	--balance-edges \
-	--generate-new-edge-split true \
-	--train-pct 0.1 \
-	--val-pct 0.1 \
-	--num-parts 1
-
-rm -Rf /data/movielen_100k_multi_label_ec_mgpu
-cp -R /data/movielen_100k_ec_1p_4t_mgpu /data/movielen_100k_multi_label_ec_mgpu
-python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multilabel.py --path /data/movielen_100k_multi_label_ec_mgpu --node_class false --field rate
-
-# movielens edge classification text features
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
-	--filepath /data \
-    --elabel-field "user,rating,movie:rate" \
-    --target-etype "user,rating,movie" \
-    --etask-type "classification" \
-	--num-trainers-per-machine 4 \
-	--output movielen_100k_ec_1p_4t_text_mgpu \
-	--balance-train \
-	--balance-edges \
-	--generate-new-edge-split true \
-	--train-pct 0.1 \
-	--val-pct 0.1 \
-	--num-parts 1
-
-# movielens edge classification inference
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
-	--filepath /data \
-    --elabel-field "user,rating,movie:rate" \
-    --target-etype "user,rating,movie" \
-    --etask-type "classification" \
-	--num-trainers-per-machine 4 \
-	--output movielen_100k_multi_label_ec_infer_mgpu \
-	--balance-edges \
-	--no-split true \
-	--num-parts 1
+# For tests using lm-encoder - link prediction
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lm_encoder_lp.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lm_encoder_lp_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
 	
 date
 

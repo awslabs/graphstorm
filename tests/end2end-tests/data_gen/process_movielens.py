@@ -79,6 +79,9 @@ def write_data_parquet(data, data_file):
     table = pa.Table.from_arrays(list(arr_dict.values()), names=list(arr_dict.keys()))
     pq.write_table(table, data_file)
 
+user_data = {'id': user['id'], 'feat': feat, 'occupation': user['occupation']}
+write_data_parquet(user_data, '/data/ml-100k/users.parquet')
+
 movie_data = {'id': ids, 'label': labels, 'title': title}
 write_data_parquet(movie_data, '/data/ml-100k/movie.parquet')
 
