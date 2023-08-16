@@ -43,17 +43,18 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 
     cd /path-to-graphstorm/docker/
 
-    bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DOCKER_NAME> <DOCKER_TAG>
+    bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DOCKER_TYPE> <DOCKER_NAME> <DOCKER_TAG>
 
-The ``build_docker_sagemaker.sh`` script takes three arguments:
+The ``build_docker_sagemaker.sh`` script takes four arguments:
 
 1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-2. **DOCKER_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
+2. **DOCKER_TYPE** (optional), is the docker type of the to-be built Docker image. There are two options: ``cpu`` for building CPU-compatible images, and ``gpu`` for building Nvidia GPU-compatible images. Default is ``gpu``.
+3. **DOCKER_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
 
 .. warning::
     In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <DOCKER_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
 
-3. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm``.
+4. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm``.
 
 Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, in the local repository, which could be listed by running:
 
@@ -223,25 +224,11 @@ To run GraphStorm SageMaker with Docker Compose, we need to set up a local Linux
 
     pip install sagemaker
 
-2. Clone GraphStorm and install dependencies.
+2. Clone GraphStorm code.
 
 .. code-block:: bash
 
     git clone https://github.com/awslabs/graphstorm.git
-
-    pip install boto3==1.26.126
-    pip install botocore==1.29.126
-    pip install h5py==3.8.0
-    pip install scipy
-    pip install tqdm==4.65.0
-    pip install pyarrow==12.0.0
-    pip install transformers==4.28.1
-    pip install pandas
-    pip install scikit-learn
-    pip install ogb==1.3.6
-    pip install psutil==5.9.5
-    pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
-    pip install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 3. Setup GraphStorm in the PYTHONPATH variable.
 

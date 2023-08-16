@@ -199,6 +199,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                 device = self.ntype_embed.device
                 embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
+            else:
+                n_embed = self.adapt_ws[ntype](node_feats[ntype])
 
             h[ntype] = F.gelu(n_embed)
         # gnn layers

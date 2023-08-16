@@ -185,3 +185,16 @@ dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()
 # here need to convert feat back to 1D to pass test
 np.testing.assert_allclose(src_ids + dst_ids, feat.reshape(-1,))
 np.testing.assert_allclose(src_ids + dst_ids, feat2.reshape(-1,))
+
+assert os.path.exists(os.path.join(out_dir, "node_label_stats.json"))
+assert os.path.exists(os.path.join(out_dir, "edge_label_stats.json"))
+
+with open(os.path.join(out_dir, "node_label_stats.json"), 'r') as f:
+  node_label_stats = json.load(f)
+  assert "node1" in node_label_stats
+  assert "label" in node_label_stats["node1"]
+
+with open(os.path.join(out_dir, "edge_label_stats.json"), 'r') as f:
+  edge_label_stats = json.load(f)
+  assert ("node1,relation1,node2") in edge_label_stats
+  assert "label" in edge_label_stats[("node1,relation1,node2")]

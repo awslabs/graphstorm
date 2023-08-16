@@ -365,7 +365,8 @@ def test_LinkPredictDotDecoder(h_dim, num_pos, num_neg, device):
 @pytest.mark.parametrize("h_dim", [16, 64])
 @pytest.mark.parametrize("feat_dim", [8, 32])
 @pytest.mark.parametrize("out_dim", [2, 32])
-def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim):
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
     g = generate_dummy_hetero_graph()
     target_etype = ("n0", "r0", "n1")
     encoder_feat = {
@@ -380,7 +381,8 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim):
                                   feat_dim,
                                   out_dim,
                                   multilabel=False,
-                                  target_etype=target_etype)
+                                  target_etype=target_etype,
+                                  num_ffn_layers=num_ffn_layers)
     with th.no_grad():
         decoder.eval()
         output = decoder(g, encoder_feat)
@@ -394,6 +396,8 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim):
         feat_h = th.matmul(efeat, decoder.feat_decoder)
         feat_h = decoder.relu(feat_h)
         combine_h = th.cat([nn_h, feat_h], dim=1)
+        if num_ffn_layers > 0:
+            combine_h = decoder.ngnn_mlp(combine_h)
         combine_h = th.matmul(combine_h, decoder.combine_decoder)
         combine_h = decoder.relu(combine_h)
         out = th.matmul(combine_h, decoder.decoder)
@@ -403,7 +407,6 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim):
         prediction = decoder.predict(g, encoder_feat)
         pred = out.argmax(dim=1)
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
-
 
 def test_get_edge_weight():
     g = generate_dummy_hetero_graph()
