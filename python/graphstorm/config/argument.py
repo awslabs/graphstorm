@@ -581,16 +581,16 @@ class GSConfig:
 
     @property
     def input_activate(self):
-        """ Whether include activation layer and dropout in the input layer
+        """ Design activation funtion type in the input layer
         """
         # pylint: disable=no-member
         if hasattr(self, "_input_activate"):
-            assert self._input_activate in [True, False], \
-                "Use input activate flag must be True or False"
+            assert self._input_activate in ["None", "relu"], \
+                "Use input activate flag for None and Relu"
             return self._input_activate
 
-        # By default, use mini batch inference, which requires less memory
-        return True
+        # By default, return relu which will put relu activation funtion here
+        return "relu"
 
     @property
     def node_feat_name(self):
@@ -1717,10 +1717,8 @@ def _add_gnn_args(parser):
     group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
             help='Model type can either be gnn or lm to specify the model encoder')
     group.add_argument(
-        "--input-activate",
-        type=lambda x: (str(x).lower() in ['true', 'false']),
-        default=argparse.SUPPRESS,
-        help="Whether to add activation layer in the input layer")
+        "--input-activate", type=str, default=argparse.SUPPRESS,
+        help="Define the activation type in the input layer")
     group.add_argument("--node-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
             "1) '--node-feat-name feat_name': global feature name, "

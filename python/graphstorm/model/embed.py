@@ -178,7 +178,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  input_activate=True):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
-        self.activation = activation
+        self.activation = F.relu if activation == 'relu' else None
         self.dropout = nn.Dropout(dropout)
         self.input_activate = input_activate
         self.use_node_embeddings = use_node_embeddings
@@ -271,10 +271,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     continue
                 emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
                 emb = emb @ self.proj_matrix[ntype]
-            if self.input_activate:
                 if self.activation is not None:
                     emb = self.activation(emb)
-                emb = self.dropout(emb)
+                    emb = self.dropout(emb)
             embs[ntype] = emb
 
         def _apply(t, h):
