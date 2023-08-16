@@ -163,8 +163,6 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         available.
     num_ffn_layers_in_input: int, optional
         Number of layers of feedforward neural network for each node type in the input layers
-    input_activate: bool, optional
-        Whether to include activation layer and dropout layer in the input layers
     """
     def __init__(self,
                  g,
@@ -175,12 +173,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  use_node_embeddings=False,
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
-                 input_activate=True):
+                 ):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.activation = F.relu if activation == 'relu' else None
         self.dropout = nn.Dropout(dropout)
-        self.input_activate = input_activate
         self.use_node_embeddings = use_node_embeddings
 
         # create weight embeddings for each node for each relation
