@@ -718,6 +718,31 @@ def process_graph(args):
                 else:
                     g.edges[etype].data[name] = th.tensor(edata)
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
+    elif args.output_format == "both":
+        # Save both DistDGL and DGL graph
+        for ntype in node_data:
+            for name, ndata in node_data[ntype].items():
+                if isinstance(ndata, ExtMemArrayWrapper):
+                    g.nodes[ntype].data[name] = ndata.to_tensor()
+                else:
+                    g.nodes[ntype].data[name] = th.tensor(ndata)
+        for etype in edge_data:
+            for name, edata in edge_data[etype].items():
+                if isinstance(edata, ExtMemArrayWrapper):
+                    g.edges[etype].data[name] = edata.to_tensor()
+                else:
+                    g.edges[etype].data[name] = th.tensor(edata)
+        output_dir = os.path.join(args.output_dir, "dglgraph")
+        dgl.save_graphs(os.path.join(output_dir, args.graph_name + ".dgl"), [g])
+
+        assert args.part_method in ["metis", "random"], \
+                "We only support 'metis' or 'random'."
+
+        output_dir = os.path.join(args.output_dir, "dist_dglgraph")
+        partition_graph(g, node_data, edge_data, args.graph_name,
+                        args.num_parts, output_dir,
+                        save_mapping=True, # always save mapping
+                        part_method=args.part_method)
     else:
         raise ValueError('Unknown output format: {}'.format(args.output_format))
     for ntype in node_id_map:
