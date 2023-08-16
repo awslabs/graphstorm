@@ -585,12 +585,12 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_input_activate"):
-            assert self._input_activate in ["None", "relu"], \
+            assert self._input_activate in ["none", "relu"], \
                 "Use input activate flag for None and Relu"
             return self._input_activate
 
         # By default, return relu which will put relu activation funtion here
-        return "relu"
+        return "none"
 
     @property
     def node_feat_name(self):
