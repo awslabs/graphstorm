@@ -19,3 +19,4 @@
 #from .hat_model import HAT_LAYOUTS
 
 from .utils import get_prepare_lm_input
+from .utils import BFS_TRANSVERSE, DFS_TRANSVERSE

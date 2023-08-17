@@ -56,8 +56,8 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
         assert isinstance(model, GSgnnModelBase), \
                 "The input model is not a GSgnnModel"
 
-    def fit(self, train_loader, num_epochs,
-            val_loader=None,            # pylint: disable=unused-argument
+    def fit(self, train_dataset, num_epochs,
+            eval_dataset=None,            # pylint: disable=unused-argument
             test_loader=None,           # pylint: disable=unused-argument
             use_mini_batch_infer=True,      # pylint: disable=unused-argument
             save_model_path=None,
@@ -117,7 +117,7 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
             model=self._model,
             args=training_args,
             train_dataset=train_dataset if training_args.do_train else None,
-            eval_dataset=eval_dataset if training_args.do_eval else None,
+            eval_dataset=None, # GraphStorm store eval and test set in train_dataset
             tokenizer=tokenizer,
             data_collator=data_collator,
             compute_metrics=compute_metrics,
