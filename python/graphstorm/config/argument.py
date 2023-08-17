@@ -23,6 +23,7 @@ import math
 
 import yaml
 import torch as th
+import torch.nn.functional as F
 
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
@@ -278,6 +279,7 @@ class GSConfig:
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
         else:
+            _ = self.input_activate
             _ = self.hidden_size
             _ = self.num_layers
             _ = self.use_self_loop
@@ -577,6 +579,21 @@ class GSConfig:
         assert self._model_encoder_type in BUILTIN_ENCODER, \
             f"Model encoder type should be in {BUILTIN_ENCODER}"
         return self._model_encoder_type
+
+    @property
+    def input_activate(self):
+        """ Design activation funtion type in the input layer
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_input_activate"):
+            if self._input_activate == "none":
+                return None
+            elif self._input_activate == "relu":
+                return F.relu
+            else:
+                raise RuntimeError("Only support input activate flag 'none' for None "
+                                   "and 'relu' for torch.nn.functional.relu")
+        return None
 
     @property
     def node_feat_name(self):
@@ -1702,6 +1719,9 @@ def _add_gnn_args(parser):
     group = parser.add_argument_group(title="gnn")
     group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
             help='Model type can either be gnn or lm to specify the model encoder')
+    group.add_argument(
+        "--input-activate", type=str, default=argparse.SUPPRESS,
+        help="Define the activation type in the input layer")
     group.add_argument("--node-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
             "1) '--node-feat-name feat_name': global feature name, "
