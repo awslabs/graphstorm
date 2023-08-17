@@ -209,17 +209,32 @@ def check_mlp_node_prediction(model, data):
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
-    assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
-    assert_equal(labels1.numpy(), labels2.numpy())
+    if isinstance(pred1, dict):
+        assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
+        for ntype in pred1:
+            assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(), pred2[ntype][0:len(pred2)].numpy(), decimal=5)
+            assert_equal(labels1[ntype].numpy(), labels2[ntype].numpy())
+    else:
+        assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
+        assert_equal(labels1.numpy(), labels2.numpy())
 
     # Test the return_proba argument.
     pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
-    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
-    assert(th.is_floating_point(pred3))
     pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
-    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
-    assert(is_int(pred4))
-    assert(th.equal(pred3.argmax(dim=1), pred4))
+    if isinstance(pred3, dict):
+        assert len(pred3) == len(pred4)
+        for ntype in pred3:
+            assert pred3[ntype].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+            assert(th.is_floating_point(pred3[ntype]))
+            assert(pred4[ntype].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+            assert(is_int(pred4[ntype]))
+            assert(th.equal(pred3[ntype].argmax(dim=1), pred4[ntype]))
+    else:
+        assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+        assert(th.is_floating_point(pred3))
+        assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+        assert(is_int(pred4))
+        assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def test_rgcn_node_prediction():
     """ Test edge prediction logic correctness with a node prediction model
