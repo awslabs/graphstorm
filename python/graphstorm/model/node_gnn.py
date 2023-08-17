@@ -189,22 +189,38 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
-            for ntype, ntype_pred in pred.items():
+            for ntype, ntype_labels in data.get_labels(seeds).items():
+                if ntype in labels:
+                    labels[ntype].append(ntype_labels.cpu())
+                else:
+                    labels[ntype] = [ntype_labels.cpu()]
+            if isinstance(pred, dict):
+                for ntype, ntype_pred in pred.items():
+                    if ntype in preds:
+                        preds[ntype].append(ntype_pred.cpu())
+                    else:
+                        preds[ntype] = [ntype_pred.cpu()]
+            else: # in case model (e.g., llm encoder) only output a tensor without ntype
+                assert len(labels) == 1
+                ntype = list(labels.keys())[0]
                 if ntype in preds:
                     preds[ntype].append(ntype_pred.cpu())
                 else:
                     preds[ntype] = [ntype_pred.cpu()]
-            for ntype, ntype_emb in emb.items():
+            if isinstance(pred, dict):
+                for ntype, ntype_emb in emb.items():
+                    if ntype in embs:
+                        embs[ntype].append(ntype_emb.cpu())
+                    else:
+                        embs[ntype] = [ntype_emb.cpu()]
+            else: # in case model (e.g., llm encoder) only output a tensor without ntype
+                assert len(labels) == 1
+                ntype = list(labels.keys())[0]
                 if ntype in embs:
                     embs[ntype].append(ntype_emb.cpu())
                 else:
                     embs[ntype] = [ntype_emb.cpu()]
-            if return_label:
-                for ntype, ntype_labels in data.get_labels(seeds).items():
-                    if ntype in labels:
-                        labels[ntype].append(ntype_labels.cpu())
-                    else:
-                        labels[ntype] = [ntype_labels.cpu()]
+
     model.train()
     for ntype, ntype_pred in preds.items():
         preds[ntype] = th.cat(ntype_pred)
