@@ -712,7 +712,7 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         for etype in edge_data:
             for name, edata in edge_data[etype].items():
                 efeat_data[_etype_tuple_to_str(etype) + "/" + name] = th.tensor(edata)
-            sys_tracker.check(f'Get edge data of edge {etype} in partition {i}')
+            sys_tracker.check(f'Get edge data of edge {etype} in partition 0')
         dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), efeat_data)
     else:
         for i in range(num_partitions):
