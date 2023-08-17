@@ -179,7 +179,6 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
         self.activation = activation
-        
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
