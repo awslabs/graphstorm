@@ -204,9 +204,9 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 assert len(labels) == 1
                 ntype = list(labels.keys())[0]
                 if ntype in preds:
-                    preds[ntype].append(ntype_pred.cpu())
+                    preds[ntype].append(pred.cpu())
                 else:
-                    preds[ntype] = [ntype_pred.cpu()]
+                    preds[ntype] = [pred.cpu()]
             if isinstance(pred, dict):
                 for ntype, ntype_emb in emb.items():
                     if ntype in embs:
@@ -217,9 +217,9 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 assert len(labels) == 1
                 ntype = list(labels.keys())[0]
                 if ntype in embs:
-                    embs[ntype].append(ntype_emb.cpu())
+                    embs[ntype].append(emb.cpu())
                 else:
-                    embs[ntype] = [ntype_emb.cpu()]
+                    embs[ntype] = [emb.cpu()]
 
     model.train()
     for ntype, ntype_pred in preds.items():
