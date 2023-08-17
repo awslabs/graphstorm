@@ -104,7 +104,7 @@ class GSgnnNodePredictionInfer(GSInfer):
         if isinstance(pred, dict):
             pred = pred[ntype]
         if isinstance(label, dict):
-            label = label[ntype] 
+            label = label[ntype]
         sys_tracker.check('compute embeddings')
 
         device = self.device
