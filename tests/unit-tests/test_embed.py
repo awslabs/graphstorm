@@ -60,6 +60,8 @@ def test_input_layer1(input_activate):
         nn.init.eye_(layer.input_projs[ntype])
         input_nodes[ntype] = np.arange(10)
         node_feat[ntype] = g.nodes[ntype].data['feat'][input_nodes[ntype]]
+        if input_activate:
+            node_feat[ntype] = input_activate(node_feat[ntype])
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
     assert len(embed) == len(node_feat)
