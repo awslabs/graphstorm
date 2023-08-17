@@ -53,7 +53,7 @@ from graphstorm.model.gnn import do_full_graph_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from data_utils import generate_dummy_dist_graph
+from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_multi_target_ntypes
 from data_utils import create_lm_graph
 
 def is_int(a):
@@ -96,7 +96,7 @@ def create_rgat_node_model(g):
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
-  
+
 def create_sage_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
@@ -114,7 +114,7 @@ def create_sage_node_model(g):
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
-  
+
 def check_node_prediction(model, data, is_homo=False):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnNodeModel with GNN layers.
@@ -291,7 +291,7 @@ def test_rgcn_node_prediction():
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-    
+
 def test_rgcn_node_prediction_multi_target_ntypes():
     """ Test edge prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + RGCNLayer + Decoder
@@ -306,7 +306,7 @@ def test_rgcn_node_prediction_multi_target_ntypes():
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        _, part_config = generate_dummy_dist_graph_multi_target_ntypes(tmpdirname)
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n0', 'n1'], label_field='label',
                                      node_feat_field='feat')
@@ -352,7 +352,7 @@ def test_rgat_node_prediction_multi_target_ntypes():
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        _, part_config = generate_dummy_dist_graph_multi_target_ntypes(tmpdirname)
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n0', 'n1'], label_field='label',
                                      node_feat_field='feat')
@@ -383,7 +383,7 @@ def test_sage_node_prediction():
     check_node_prediction(model, np_data, is_homo=True)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-    
+
 def create_rgcn_edge_model(g, num_ffn_layers):
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
@@ -1007,6 +1007,6 @@ if __name__ == '__main__':
     test_mlp_edge_prediction()
     test_mlp_node_prediction()
     test_mlp_link_prediction()
-    
+
     test_rgcn_node_prediction_multi_target_ntypes()
     test_rgat_node_prediction_multi_target_ntypes()
