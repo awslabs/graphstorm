@@ -593,6 +593,7 @@ class GSConfig:
             else:
                 raise RuntimeError("Only support input activate flag 'none' for None "
                                    "and 'relu' for torch.nn.functional.relu")
+                return None
 
     @property
     def node_feat_name(self):
