@@ -23,6 +23,7 @@ import math
 
 import yaml
 import torch as th
+import torch.nn.functional as F
 
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
@@ -585,12 +586,13 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_input_activate"):
-            assert self._input_activate in ["none", "relu"], \
-                "Use input activate flag 'none' for None and 'relu' for torch.nn.functional.relu"
-            return self._input_activate
-
-        # By default, return relu which will put relu activation funtion here
-        return "none"
+            if self._input_activate == "none":
+                return None
+            elif self._input_activate == "relu":
+                return F.relu
+            else:
+                raise RuntimeError("Only support input activate flag 'none' for None "
+                                   "and 'relu' for torch.nn.functional.relu")
 
     @property
     def node_feat_name(self):

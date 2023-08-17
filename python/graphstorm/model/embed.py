@@ -176,10 +176,10 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  ):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
-        self.activation = F.relu if activation == 'relu' else None
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
-
+        self.activation = activation
+        
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
