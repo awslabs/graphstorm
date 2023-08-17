@@ -693,6 +693,22 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
                                         balance_edges=True,
                                         return_mapping=save_mapping)
     sys_tracker.check('Graph partitioning')
+
+    if save_mapping:
+        new_node_mapping, new_edge_mapping = mapping
+
+        # the new_node_mapping contains per entity type on the ith row
+        # the original node id for the ith node.
+        save_maps(output_dir, "node_mapping", new_node_mapping)
+        # the new_edge_mapping contains per edge type on the ith row
+        # the original edge id for the ith edge.
+        save_maps(output_dir, "edge_mapping", new_edge_mapping)
+
+    # If num_partitions is 1, node IDs are not shuffled.
+    # There is no need to reorder the features.
+    if num_partitions == 1:
+        return
+
     for i in range(num_partitions):
         part_dir = os.path.join(output_dir, "part" + str(i))
         data = dgl.data.utils.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
@@ -723,13 +739,3 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         for etype in g.canonical_etypes:
             del data[_etype_tuple_to_str(etype) + '/' + orig_id_name]
         dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), data)
-
-    if save_mapping:
-        new_node_mapping, new_edge_mapping = mapping
-
-        # the new_node_mapping contains per entity type on the ith row
-        # the original node id for the ith node.
-        save_maps(output_dir, "node_mapping", new_node_mapping)
-        # the new_edge_mapping contains per edge type on the ith row
-        # the original edge id for the ith edge.
-        save_maps(output_dir, "edge_mapping", new_edge_mapping)
