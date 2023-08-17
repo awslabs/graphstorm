@@ -180,7 +180,7 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``num_ffn_layers_in_decoder: 1``
     - Argument: ``--num-ffn-layers-in-decoder 1``
     - Default value: ``0``
-- **input_activation**: Graphstorm provides this argument as an option to change the activation function in the input layer. Please note, it only accepts 'relu' and 'none'.
+- **input_activate**: Graphstorm provides this argument as an option to change the activation function in the input layer. Please note, it only accepts 'relu' and 'none'.
     - Yaml: ``input_activation: relu``
     - Argument: ``--input-activation relu``
     - Default value: ``none``
