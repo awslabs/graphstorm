@@ -210,7 +210,6 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         preds[ntype] = th.cat(ntype_pred)
     for ntype, ntype_emb in embs.items():
         embs[ntype] = th.cat(ntype_emb)
-        
     if return_label:
         for ntype, ntype_label in labels.items():
             labels[ntype] = th.cat(ntype_label)
