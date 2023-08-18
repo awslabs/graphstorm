@@ -279,18 +279,18 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             sys_tracker.check('after_test_score')
         sys_tracker.check('predict')
 
-        # select node type with largest number of nodes as target evaluation node type
-        # TODO (wlcong) add a config hyper-parameter to set eval node type
-        ntype_cnts = {k: v.size(0) for k, v in val_label.items()}
-        eval_target_ntype = max(ntype_cnts, key=lambda key: ntype_cnts[key])
-        val_pred = val_pred[eval_target_ntype]
+        # TODO(wlcong) we only support node prediction on one node type for evaluation now
+        assert len(val_label) == 1, "We only support prediction on one node type for now."
+        ntype = list(val_label.keys())[0]
+        target_ntype_val_pred = val_pred[ntype]
+        target_ntype_val_label = val_label[ntype]
         if test_pred is not None:
-            test_pred = test_pred[eval_target_ntype]
-        val_label = val_label[eval_target_ntype]
-        if test_label is not None:
-            test_label = test_label[eval_target_ntype]
-        val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
-                                                        val_label, test_label, total_steps)
+            target_ntype_test_pred = test_pred[ntype]
+            target_ntype_test_label = test_label[ntype]
+
+        val_score, test_score = self.evaluator.evaluate(target_ntype_val_pred, target_ntype_test_pred,
+                                                        target_ntype_val_label, target_ntype_test_label, total_steps)
+
         sys_tracker.check('evaluate')
         if self.rank == 0:
             self.log_print_metrics(val_score=val_score,
