@@ -18,13 +18,14 @@
 
 from transformers import Trainer
 from ...dataloading import get_graph_lm_dataloader
-from .utils import get_prepare_lm_input
 
 class GsHuggingfaceTrainer(Trainer):
     """ Customize Huggingface Trainer
     """
-    def __init__(self, gs_dataloader, device, gs_config, **kwargs):
-        self._gs_dataloader = gs_dataloader
+    def __init__(self, train_loader, val_loader, test_loader, device, gs_config, **kwargs):
+        self._train_dataloader = train_loader
+        self._val_dataloader = val_loader
+        self._test_dataloader = test_loader
         self._gs_config = gs_config
         self._device = device
         super(GsHuggingfaceTrainer, self).__init__(kwargs)
@@ -44,16 +45,8 @@ class GsHuggingfaceTrainer(Trainer):
         # initialize graph dataloader
         train_dataset = self.train_dataset
 
-        dataloader_params = {
-            "device": self._device,
-            "train_task": True,
-            "target_idx": train_dataset.train_idxs,
-            "batch_size": self.args.per_device_train_batch_size,
-            "num_workers": self.args.dataloader_num_workers,
-            "pin_memory": self.args.dataloader_pin_memory,
-        }
 
-        dataloader = get_graph_lm_dataloader(self._gs_dataloader)
+
         prepare_input_fn = get_prepare_lm_input(self._gs_dataloader)
 
         return self.accelerator.prepare(dataloader(train_dataset, prepare_input_fn, **self.gs_config, **dataloader_params))

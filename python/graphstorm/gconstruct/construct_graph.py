@@ -632,7 +632,7 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
 def process_graph(args):
     """ Process the graph.
     """
-    logging.basicConfig(level=get_log_level(args.logging_level))
+    logging.basicConfig(level=get_log_level(args.logging_level), filename="info.log")
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
 

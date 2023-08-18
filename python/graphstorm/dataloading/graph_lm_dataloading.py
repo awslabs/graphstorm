@@ -22,12 +22,6 @@ from .utils import trim_data
 
 from ..model.graph_transformer import BFS_TRANSVERSE
 
-def get_graph_lm_dataloader(dataloader):
-    if dataloader == "lm_hat_node_centric":
-        return GSlmHatNodeDataLoader
-
-    raise RuntimeError(f"Unknow dataloader type {dataloader}")
-
 
 class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
     """ The minibatch dataloader for node centric tasks

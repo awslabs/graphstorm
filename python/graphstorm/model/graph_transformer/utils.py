@@ -294,9 +294,3 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
         ret_shuffled_token_ids, \
         ret_shuffled_atten_mask, \
         ret_position_info
-
-def get_prepare_lm_input(dataloader):
-    if dataloader == "lm_hat_node_centric":
-        return prepare_hat_node_centric
-
-    raise RuntimeError(f"Unknow dataloader type {dataloader}")
