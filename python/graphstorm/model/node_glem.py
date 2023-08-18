@@ -171,7 +171,7 @@ class GLEM(GSgnnNodeModelBase):
         """ Forward pass for GLEM model.
         Parameters
         ----------        
-        blocks : List[dgl.heterograph.DGLBlock]
+        blocks : List[dgl.heterograph.DGLBlock] labeled message flow graphs
         node_feats : Dict[ntype: tensors.shape [bs, feat_dim]]
         edge_feats : None
         labels : Dict[target_ntype: tensor.shape [bs]]
@@ -180,6 +180,10 @@ class GLEM(GSgnnNodeModelBase):
             If True, use GNN's decoder, otherwise, use LM's decoder
         no_pl : bool
             If True, do not calculate pseudo likelihood, use MLE loss only
+        blocks_u : List[dgl.heterograph.DGLBlock] unlabeled message flow graphs
+        node_feats_u : Dict[ntype: tensors.shape [bs, feat_dim]] unlabeled node features
+        edge_feats_u : None
+        input_nodes_u : {target_ntype: tensor.shape [bs], other_ntype: []} unlabeled nodes
         """
         if blocks_u is None or no_pl:
             # no unlabeled data provided

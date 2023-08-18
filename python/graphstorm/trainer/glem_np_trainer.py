@@ -46,6 +46,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GLEM), \
                 "The input model is not a GLEM node model. Please implement GLEM."
         self.early_stop = False # used when early stop is True
+        self.num_pretrain_epochs = model.num_pretrain_epochs
 
     def fit(self, train_loader, num_epochs,
             val_loader=None,
@@ -194,7 +195,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             batch_tic = time.time()
             # Run forward function to compute loss:
             loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn,
-                         no_pl=no_pl or (epoch < model.module.num_pretrain_epochs),
+                         no_pl=no_pl or (epoch < self.num_pretrain_epochs),
                          blocks_u=blocks_u, node_feats_u=input_feats_u, edge_feats_u=None,
                          input_nodes_u=input_nodes_u)
             profiler.record('train_forward')

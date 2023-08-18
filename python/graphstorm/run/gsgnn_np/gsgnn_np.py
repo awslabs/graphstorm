@@ -25,7 +25,6 @@ from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.trainer import GLEMNodePredictionTrainer
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader,\
     GSgnnNodeSemiSupDataLoader
-from graphstorm.dataloading.utils import combine_idxs
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
@@ -91,9 +90,9 @@ def main(config_args):
     device = 'cuda:%d' % trainer.dev_id
     val_dataloader = None
     test_dataloader = None
-    if config.semi_supervised:
-        # treat val and test sets as unlabeled node sets
-        unlabeled_idxs = combine_idxs(train_data.val_idxs, train_data.test_idxs)
+    if config.use_pseudolabel:
+        # Use nodes not in train_idxs as unlabeled node sets
+        unlabeled_idxs = train_data.get_unlabeled_idxs()
         # semi-supervised loader
         dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
                                                 fanout=config.fanout, batch_size=config.batch_size,

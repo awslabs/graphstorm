@@ -1087,14 +1087,14 @@ class GSConfig:
         return self._label_field
 
     @property
-    def semi_supervised(self):
-        """ Whether use unlabeled nodes for semi-supervised training
+    def use_pseudolabel(self):
+        """ Whether use pseudolabeling for unlabeled nodes in semi-supervised training
 
             It only works with node-level tasks.
         """
-        if hasattr(self, "_semi_supervised"):
-            assert self._semi_supervised in (True, False)
-            return self._semi_supervised
+        if hasattr(self, "_use_pseudolabel"):
+            assert self._use_pseudolabel in (True, False)
+            return self._use_pseudolabel
         return False
 
     @property
@@ -1886,10 +1886,10 @@ def _add_node_classification_args(parser):
                        results or only the maximum one. Set True to return the \
                        probabilities. Set False to return the maximum one.")
     group.add_argument(
-        "--semi-supervised",
+        "--use-pseudolabel",
         type=lambda x: (str(x).lower() in ['true', '1']),
         default=argparse.SUPPRESS,
-        help="Whether to use unlabeled nodes for semi-supervised training")
+        help="Whether use pseudolabeling for unlabeled nodes in semi-supervised training")
     return parser
 
 def _add_edge_classification_args(parser):

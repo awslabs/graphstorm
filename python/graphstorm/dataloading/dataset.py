@@ -21,7 +21,7 @@ import dgl
 
 from ..utils import get_rank
 from ..utils import sys_tracker
-from .utils import dist_sum
+from .utils import dist_sum, flip_node_mask
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
@@ -646,6 +646,29 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         self._train_idxs = train_idxs
         self._val_idxs = val_idxs
         self._test_idxs = test_idxs
+
+    def get_unlabeled_idxs(self):
+        """ Collect indices of nodes not used for training.
+        """
+        g = self.g
+        pb = g.get_partition_book()
+        unlabeled_idxs = {}
+        num_unlabeled = 0
+        for ntype in self.train_ntypes:
+            unlabeled_mask = flip_node_mask(g.nodes[ntype].data['train_mask'])
+            if 'trainer_id' in g.nodes[ntype].data:
+                node_trainer_ids = g.nodes[ntype].data['trainer_id']
+                unlabeled_idx = dgl.distributed.node_split(unlabeled_mask,
+                                                       pb, ntype=ntype, force_even=True,
+                                                       node_trainer_ids=node_trainer_ids)
+            else:
+                unlabeled_idx = dgl.distributed.node_split(unlabeled_mask,
+                                                       pb, ntype=ntype, force_even=True)
+            assert unlabeled_idx is not None, "There is no training data."
+            num_unlabeled += len(unlabeled_idx)
+            unlabeled_idxs[ntype] = unlabeled_idx
+        print('part {}, unlabeled: {}'.format(get_rank(), num_unlabeled))
+        return unlabeled_idxs
 
     @property
     def train_ntypes(self):
