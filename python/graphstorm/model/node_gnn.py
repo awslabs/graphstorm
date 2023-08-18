@@ -181,6 +181,14 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     embs = {}
     labels = {}
     model.eval()
+
+    def append_to_dict(from_dict, to_dict):
+        for k, v in from_dict.items():
+            if k in to_dict:
+                to_dict[k].append(v.cpu())
+            else:
+                to_dict[k] = [v.cpu()]
+
     with th.no_grad():
         for input_nodes, seeds, blocks in loader:
             if not isinstance(input_nodes, dict):
@@ -189,37 +197,15 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
-            for ntype, ntype_labels in data.get_labels(seeds).items():
-                if ntype in labels:
-                    labels[ntype].append(ntype_labels.cpu())
-                else:
-                    labels[ntype] = [ntype_labels.cpu()]
+            append_to_dict(data.get_labels(seeds), labels)
             if isinstance(pred, dict):
-                for ntype, ntype_pred in pred.items():
-                    if ntype in preds:
-                        preds[ntype].append(ntype_pred.cpu())
-                    else:
-                        preds[ntype] = [ntype_pred.cpu()]
+                append_to_dict(pred, preds)
+                append_to_dict(emb, embs)
             else: # in case model (e.g., llm encoder) only output a tensor without ntype
                 assert len(labels) == 1
                 ntype = list(labels.keys())[0]
-                if ntype in preds:
-                    preds[ntype].append(pred.cpu())
-                else:
-                    preds[ntype] = [pred.cpu()]
-            if isinstance(pred, dict):
-                for ntype, ntype_emb in emb.items():
-                    if ntype in embs:
-                        embs[ntype].append(ntype_emb.cpu())
-                    else:
-                        embs[ntype] = [ntype_emb.cpu()]
-            else: # in case model (e.g., llm encoder) only output a tensor without ntype
-                assert len(labels) == 1
-                ntype = list(labels.keys())[0]
-                if ntype in embs:
-                    embs[ntype].append(emb.cpu())
-                else:
-                    embs[ntype] = [emb.cpu()]
+                append_to_dict({ntype: pred}, preds)
+                append_to_dict({ntype: emb}, embs)
 
     model.train()
     for ntype, ntype_pred in preds.items():
