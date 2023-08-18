@@ -23,6 +23,7 @@ import math
 
 import yaml
 import torch as th
+import torch.nn.functional as F
 
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
@@ -278,15 +279,22 @@ class GSConfig:
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
         else:
+            _ = self.input_activate
             _ = self.hidden_size
             _ = self.num_layers
             _ = self.use_self_loop
             _ = self.use_node_embeddings
             _ = self.num_bases
             _ = self.num_heads
+            _ = self.num_ffn_layers_in_gnn
 
         _ = self.return_proba
         _ = self.alpha_l2norm
+
+
+        # ngnn
+        _ = self.num_ffn_layers_in_input
+        _ = self.num_ffn_layers_in_decoder
 
         # Logging.
         _ = self.task_tracker
@@ -572,6 +580,21 @@ class GSConfig:
         assert self._model_encoder_type in BUILTIN_ENCODER, \
             f"Model encoder type should be in {BUILTIN_ENCODER}"
         return self._model_encoder_type
+
+    @property
+    def input_activate(self):
+        """ Design activation funtion type in the input layer
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_input_activate"):
+            if self._input_activate == "none":
+                return None
+            elif self._input_activate == "relu":
+                return F.relu
+            else:
+                raise RuntimeError("Only support input activate flag 'none' for None "
+                                   "and 'relu' for torch.nn.functional.relu")
+        return None
 
     @property
     def node_feat_name(self):
@@ -1665,6 +1688,18 @@ class GSConfig:
         # Set default mlp layer number between gnn layer to 0
         return 0
 
+    @property
+    def num_ffn_layers_in_decoder(self):
+        """ Number of extra feedforward neural network layers in decoder
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_ffn_layers_in_decoder"):
+            assert self._num_ffn_layers_in_decoder >= 0, \
+                "Number of extra MLP layers in decoder must be larger or equal than 0"
+            return self._num_ffn_layers_in_decoder
+        # Set default mlp layer number between gnn layer to 0
+        return 0
+
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")
     group.add_argument(
@@ -1696,6 +1731,9 @@ def _add_gnn_args(parser):
     group = parser.add_argument_group(title="gnn")
     group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
             help='Model type can either be gnn or lm to specify the model encoder')
+    group.add_argument(
+        "--input-activate", type=str, default=argparse.SUPPRESS,
+        help="Define the activation type in the input layer")
     group.add_argument("--node-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
             "1) '--node-feat-name feat_name': global feature name, "
@@ -1722,6 +1760,8 @@ def _add_gnn_args(parser):
                        help="number of extra feedforward neural network layers in input layer.")
     group.add_argument("--num-ffn-layers-in-gnn", type=int, default=argparse.SUPPRESS,
                        help="number of extra feedforward neural network layers between GNN layers.")
+    group.add_argument("--num-ffn-layers-in-decoder", type=int, default=argparse.SUPPRESS,
+                       help="number of extra feedforward neural network layers in decoder layer.")
     parser.add_argument(
             "--use-mini-batch-infer",
             help="Whether to use mini-batch or full graph inference during evalution",

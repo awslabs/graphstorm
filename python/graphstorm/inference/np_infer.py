@@ -100,8 +100,7 @@ class GSgnnNodePredictionInfer(GSInfer):
             label = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
-        device = th.device(f"cuda:{self.dev_id}") \
-                if self.dev_id >= 0 else th.device("cpu")
+        device = self.device
 
         # do evaluation first
         # do evaluation if any

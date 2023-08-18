@@ -29,6 +29,7 @@ from .lp_gnn import GSgnnLinkPredictionModel, GSgnnLinkPredictionModelBase
 
 from .rgcn_encoder import RelationalGCNEncoder
 from .rgat_encoder import RelationalGATEncoder
+from .sage_encoder import SAGEEncoder
 
 from .node_decoder import EntityClassifier, EntityRegression
 from .edge_decoder import (DenseBiDecoder,

@@ -430,6 +430,8 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
         else: # pred is not None and labels is not None
             pred = th.squeeze(pred)
             labels = th.squeeze(labels)
+            pred = pred.to(th.float32)
+            labels = labels.to(th.float32)
             for metric in self.metric:
                 scores[metric] = self.metrics_obj.metric_function[metric](pred, labels)
         return scores
