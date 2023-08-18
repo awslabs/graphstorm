@@ -106,20 +106,18 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
 
         training_args.set_dataloader()
 
-
-
         # https://github.com/huggingface/transformers/blob/v4.31.0/src/transformers/trainer.py#L491-L495
 
         # https://github.com/huggingface/transformers/blob/v4.31.0/src/transformers/trainer.py#L281C64-L282C95
 
         # Initialize our transformers.Trainer
         trainer = GsHuggingfaceTrainer(
+            gs_dataloader=gs_dataloader,
+            device=device,
             model=self._model,
             args=training_args,
-            train_dataset=train_dataset if training_args.do_train else None,
+            train_dataset=train_dataset
             eval_dataset=None, # GraphStorm store eval and test set in train_dataset
-            tokenizer=tokenizer,
-            data_collator=data_collator,
             compute_metrics=compute_metrics,
             preprocess_logits_for_metrics=preprocess_logits_for_metrics
     )

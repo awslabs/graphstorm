@@ -32,7 +32,8 @@ def get_graph_lm_dataloader(dataloader):
 class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
     """ The minibatch dataloader for node centric tasks
     """
-    def __init__(self, dataset, prepare_input_fn, target_idx, fanout, batch_size,
+    def __init__(self, dataset, prepare_input_fn,
+                 target_idx, fanout, batch_size,
                  device, train_task, max_sequence_length, max_sentence_length,
                  pin_memory, shuffle, num_workers=0, drop_last=True,
                  transverse_format=BFS_TRANSVERSE,
@@ -74,7 +75,6 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
 
         # Build batch from sampled graph.
         return batch
-
 
     def __len__(self):
         """ Size of dataset

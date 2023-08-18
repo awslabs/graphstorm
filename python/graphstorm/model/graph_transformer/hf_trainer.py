@@ -76,3 +76,21 @@ class GsHuggingfaceTrainer(Trainer):
 
         return self.accelerator.prepare(dataloader(train_dataset, prepare_input_fn, **self.gs_config, **dataloader_params))
 
+    def get_test_dataloader(self, test_dataset=None):
+        # initialize graph dataloader
+        train_dataset = self.train_dataset
+
+        dataloader_params = {
+            "device": self._device,
+            "train_task": False,
+            "target_idx": train_dataset.test_idxs,
+            "batch_size": self.args.per_device_eval_batch_size,
+            "num_workers": self.args.dataloader_num_workers,
+            "pin_memory": self.args.dataloader_pin_memory,
+        }
+
+        dataloader = get_graph_lm_dataloader(self._gs_dataloader)
+        prepare_input_fn = get_prepare_lm_input(self._gs_dataloader)
+
+        return self.accelerator.prepare(dataloader(train_dataset, prepare_input_fn, **self.gs_config, **dataloader_params))
+
