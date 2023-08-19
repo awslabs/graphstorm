@@ -43,7 +43,7 @@ def setup_device(local_rank):
 def is_distributed():
     """ Test whether the process runs in a distributed mode.
     """
-    return dgl.distributed.dist_context.is_initialized()
+    return th.distributed.is_initialized()
 
 def get_rank():
     """ Get rank of a process
