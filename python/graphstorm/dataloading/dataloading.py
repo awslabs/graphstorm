@@ -770,3 +770,41 @@ class GSgnnNodeDataLoader():
         """ The fan out of each GNN layers
         """
         return self._fanout
+
+class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
+    """ Semisupervised Minibatch dataloader for node tasks
+
+    Parameters
+    ----------
+    dataset: GSgnnNodeData
+        The GraphStorm dataset
+    target_idx : dict of Tensors
+        The target nodes for prediction
+    unlabeled_idx : dict of Tensors
+        The unlabeled nodes for semi-supervised training
+    fanout: list of int or dict of list
+        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+    batch_size: int
+        Batch size, the sum of labeled and unlabeled nodes
+    device: torch.device
+        the device trainer is running on.
+    train_task : bool
+        Whether or not for training.
+    """
+    def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size, device,
+                 train_task=True):
+        super().__init__(dataset, target_idx, fanout, batch_size // 2, device,
+                         train_task=train_task)
+        # loader for unlabeled nodes:
+        self.unlabeled_dataloader = self._prepare_dataloader(dataset.g,
+                                                   unlabeled_idx,
+                                                   fanout,
+                                                   batch_size // 2,
+                                                   train_task,
+                                                   device)
+
+    def __iter__(self):
+        return zip(self.dataloader.__iter__(), self.unlabeled_dataloader.__iter__())
+
+    def __next__(self):
+        return self.dataloader.__next__(), self.unlabeled_dataloader.__next__()
