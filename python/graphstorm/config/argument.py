@@ -527,7 +527,8 @@ class GSConfig:
                 glem_defaults = {
                     "em_order_gnn_first": False,
                     "inference_using_gnn": True,
-                    "pl_weight": 0.5
+                    "pl_weight": 0.5,
+                    "num_pretrain_epochs": 1
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
@@ -1107,6 +1108,17 @@ class GSConfig:
         assert hasattr(self, "_label_field"), \
             "Must provide the feature name of labels through label_field"
         return self._label_field
+
+    @property
+    def use_pseudolabel(self):
+        """ Whether use pseudolabeling for unlabeled nodes in semi-supervised training
+
+            It only works with node-level tasks.
+        """
+        if hasattr(self, "_use_pseudolabel"):
+            assert self._use_pseudolabel in (True, False)
+            return self._use_pseudolabel
+        return False
 
     @property
     def num_classes(self):
@@ -1913,6 +1925,11 @@ def _add_node_classification_args(parser):
                        help="Whether to return the probabilities of all the predicted \
                        results or only the maximum one. Set True to return the \
                        probabilities. Set False to return the maximum one.")
+    group.add_argument(
+        "--use-pseudolabel",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help="Whether use pseudolabeling for unlabeled nodes in semi-supervised training")
     return parser
 
 def _add_edge_classification_args(parser):

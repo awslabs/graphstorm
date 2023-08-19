@@ -27,6 +27,7 @@ from .np_trainer import GSgnnNodePredictionTrainer
 
 from ..utils import sys_tracker
 from ..utils import rt_profiler
+from ..dataloading import GSgnnNodeSemiSupDataLoader
 
 class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
     """ A trainer for node prediction
@@ -45,6 +46,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GLEM), \
                 "The input model is not a GLEM node model. Please implement GLEM."
         self.early_stop = False # used when early stop is True
+        self.num_pretrain_epochs = model.num_pretrain_epochs
 
     def fit(self, train_loader, num_epochs,
             val_loader=None,
@@ -117,7 +119,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 self._model.lm.unfreeze_input_encoder()
                 no_pl = False
 
-            use_gnn = not self._model.em_order_gnn_first
+            use_gnn = self._model.em_order_gnn_first
             # `use_gnn`` determines which part to train, if `em_order_gnn_first`
             # 1st round: train GNN, fix LM; 2nd round: train LM fix gnn
             for _ in range(2):
@@ -161,25 +163,42 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                        save_model_frequency=-1, no_pl=False):
         """Fit model for one epoch
         """
-        profiler.start_record()
-        for i, (input_nodes, seeds, blocks) in enumerate(train_loader):
-            profiler.record('train_sample')
-            total_steps += 1
-            batch_tic = time.time()
-
+        def _prepare_batch(input_nodes, seeds, blocks, is_labeled=True):
+            """Prepare a batch of graph data from the data loader, by retrieving features,
+            moving blocks to device, and get labels if `is_labeled` is True.
+            """
             if not isinstance(input_nodes, dict):
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
-            input_feats = data.get_node_feats(input_nodes, device)
-            lbl = data.get_labels(seeds, device)
-            profiler.record('train_node_feats')
 
+            input_feats = data.get_node_feats(input_nodes, device)
+            profiler.record('train_node_feats')
+            lbl = None
+            if is_labeled:
+                lbl = data.get_labels(seeds, device)
             blocks = [block.to(device) for block in blocks]
-            for _, feats in input_feats.items():
-                num_input_nodes += feats.shape[0]
             profiler.record('train_graph2GPU')
+            return input_nodes, input_feats, blocks, lbl
+
+        profiler.start_record()
+        for i, batch in enumerate(train_loader):
+            if isinstance(train_loader, GSgnnNodeSemiSupDataLoader):
+                # semi-supervised setting
+                input_nodes, input_feats, blocks, lbl = _prepare_batch(*batch[0])
+                input_nodes_u, input_feats_u, blocks_u, _ = _prepare_batch(
+                    *batch[1], is_labeled=False)
+            else:
+                # supervised setting, no unlabeled data
+                input_nodes, input_feats, blocks, lbl = _prepare_batch(*batch)
+                input_nodes_u = input_feats_u = blocks_u = None
+            profiler.record('train_sample')
+            total_steps += 1
+            batch_tic = time.time()
             # Run forward function to compute loss:
-            loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn, no_pl=no_pl)
+            loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn,
+                         no_pl=no_pl or (epoch < self.num_pretrain_epochs),
+                         blocks_u=blocks_u, node_feats_u=input_feats_u, edge_feats_u=None,
+                         input_nodes_u=input_nodes_u)
             profiler.record('train_forward')
 
             self.optimizer.zero_grad()
