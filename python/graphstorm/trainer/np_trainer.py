@@ -25,8 +25,8 @@ from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker, is_distributed, barrier
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler
+from ..utils import barrier, is_distributed
 
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ A trainer for node prediction
@@ -160,7 +160,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     val_loader is not None:
                     val_score = self.eval(model.module if is_distributed() else model,
                                           val_loader, test_loader,
-                                          mini_batch_infer, total_steps, return_proba=False)
+                                          use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -195,7 +195,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       val_loader, test_loader,
-                                      mini_batch_infer, total_steps, return_proba=False)
+                                      use_mini_batch_infer, total_steps, return_proba=False)
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
 

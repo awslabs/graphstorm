@@ -842,8 +842,8 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         # When world size == 1, we do not need the barrier
         if get_world_size() > 1:
             barrier()
-        for _, metric_val in metrics.items():
-            th.distributed.all_reduce(metric_val)
+            for _, metric_val in metrics.items():
+                th.distributed.all_reduce(metric_val)
         return_metrics = {}
         for metric, metric_val in metrics.items():
             return_metric = metric_val / get_world_size()
