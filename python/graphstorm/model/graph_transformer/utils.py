@@ -294,3 +294,10 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
         ret_shuffled_token_ids, \
         ret_shuffled_atten_mask, \
         ret_position_info
+
+def preprocess_logits_for_mlm_metrics(logits, labels):
+    if isinstance(logits, tuple):
+        # Depending on the model and config, logits may contain extra tensors,
+        # like past_key_values, but logits always come first
+        logits = logits[0]
+    return logits.argmax(dim=-1)

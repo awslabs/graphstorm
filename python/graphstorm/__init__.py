@@ -26,3 +26,4 @@ from .gsf import create_builtin_lp_gnn_model
 from .gsf import create_builtin_lp_model
 from .gsf import create_builtin_edge_model
 from .gsf import create_builtin_node_model
+from .gsf import create_builtin_hat_model

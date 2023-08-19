@@ -20,24 +20,17 @@ import resource
 import dataclasses
 import torch as th
 
-from transformers import (
-    AutoConfig,
-    AutoTokenizer,
-    AutoModelForSequenceClassification,
-    DataCollatorForLanguageModeling,
-    HfArgumentParser,
-    Trainer,
-    TrainingArguments,
-    EarlyStoppingCallback,
-    set_seed,
-)
+import datasets
+from datasets import load_metric
 
 from ..model.gnn import GSgnnModelBase
-
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker
 from ..utils import rt_profiler
+
+from ..model.graph_transformer import GsHuggingfaceTrainer
+from ..model.graph_transformer import preprocess_logits_for_mlm_metrics, compute_mlm_metrics
 
 class GSgnnHATMasedLMTrainer(GSgnnTrainer):
     """ HAT mask language mask pre-training Trainer
@@ -56,7 +49,8 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
         assert isinstance(model, GSgnnModelBase), \
                 "The input model is not a GSgnnModel"
 
-    def fit(self, train_dataset, num_epochs,
+    def fit(self, train_dataset,
+            training_args,
             train_loader,
             val_loader=None,
             test_loader=None):
@@ -68,6 +62,8 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
             The mini-batch sampler for training.
         num_epochs : int
             The max number of epochs to train the model.
+        training_args: dict
+            Args for Huggingface trainer
         train_loader : GSlmHatNodeDataLoader
             The mini-batch sampler for training.
         val_loader : GSlmHatNodeDataLoader
@@ -76,17 +72,48 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
         test_loader : GSlmHatNodeDataLoader
             The mini-batch sampler for computing test scores.
         """
+        metric = load_metric("accuracy")
+
+        def compute_mlm_metrics(eval_preds):
+            preds, labels = eval_preds
+            # preds have the same shape as the labels, after the argmax(-1) has been calculated
+            # by preprocess_logits_for_metrics
+            labels = labels.reshape(-1)
+            preds = preds.reshape(-1)
+            mask = labels != -100
+            labels = labels[mask]
+            preds = preds[mask]
+            return metric.compute(predictions=preds, references=labels)
 
         # Initialize our transformers.Trainer
         trainer = GsHuggingfaceTrainer(
-            train_loader=dataloader,
-            val_loader=val_dataloader,
-            test_loader=test_dataloader
-            device=device,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            test_loader=test_loader,
             model=self._model,
             args=training_args,
-            train_dataset=train_dataset
+            train_dataset=train_dataset,
             eval_dataset=None, # GraphStorm store eval and test set in train_dataset
-            compute_metrics=compute_metrics,
-            preprocess_logits_for_metrics=preprocess_logits_for_metrics
-    )
+            compute_metrics=compute_mlm_metrics,
+            preprocess_logits_for_metrics=preprocess_logits_for_mlm_metrics)
+
+        # Training
+        if training_args.do_train:
+            checkpoint = None
+            if training_args.resume_from_checkpoint is not None:
+                checkpoint = training_args.resume_from_checkpoint
+
+            train_result = trainer.train(resume_from_checkpoint=checkpoint)
+            trainer.save_model(training_args.output_dir)  # Saves the tokenizer too for easy upload
+            metrics = train_result.metrics
+
+            trainer.log_metrics("train", metrics)
+            trainer.save_metrics("train", metrics)
+            trainer.save_state()
+
+        # Evaluation
+        if training_args.do_eval:
+            metrics = trainer.evaluate()
+            trainer.log_metrics("eval", metrics)
+            trainer.save_metrics("eval", metrics)
+

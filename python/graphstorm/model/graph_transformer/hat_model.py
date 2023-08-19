@@ -619,7 +619,7 @@ class HATForMaskedLM(HATPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids"]
     _keys_to_ignore_on_load_unexpected = [r"pooler"]
 
-        def __init__(self, config):
+    def __init__(self, config):
         super().__init__(config)
 
         self.hi_transformer = HATModel(config)

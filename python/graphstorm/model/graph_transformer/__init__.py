@@ -20,3 +20,12 @@
 
 from .utils import prepare_hat_node_centric
 from .utils import BFS_TRANSVERSE, DFS_TRANSVERSE
+
+from .hf_trainer import GsHuggingfaceTrainer
+from .utils import preprocess_logits_for_mlm_metrics, compute_mlm_metrics
+
+from .hat_model import (HATTokenizer,
+                        HATForMaskedLM)
+from .hat_config import (DataTrainingArguments,
+                         ModelArguments,
+                         HATConfig)

@@ -22,12 +22,10 @@ from ...dataloading import get_graph_lm_dataloader
 class GsHuggingfaceTrainer(Trainer):
     """ Customize Huggingface Trainer
     """
-    def __init__(self, train_loader, val_loader, test_loader, device, gs_config, **kwargs):
+    def __init__(self, train_loader, val_loader, test_loader, **kwargs):
         self._train_dataloader = train_loader
         self._val_dataloader = val_loader
         self._test_dataloader = test_loader
-        self._gs_config = gs_config
-        self._device = device
         super(GsHuggingfaceTrainer, self).__init__(kwargs)
 
     def get_train_dataloader(self):
@@ -42,48 +40,10 @@ class GsHuggingfaceTrainer(Trainer):
         if self.train_dataset is None:
             raise ValueError("Trainer: training requires a train_dataset.")
 
-        # initialize graph dataloader
-        train_dataset = self.train_dataset
-
-
-
-        prepare_input_fn = get_prepare_lm_input(self._gs_dataloader)
-
-        return self.accelerator.prepare(dataloader(train_dataset, prepare_input_fn, **self.gs_config, **dataloader_params))
+        return self.accelerator.prepare(self._train_dataloader)
 
     def get_eval_dataloader(self, eval_dataset=None):
-        # initialize graph dataloader
-        train_dataset = self.train_dataset
-
-        dataloader_params = {
-            "device": self._device,
-            "train_task": False,
-            "target_idx": train_dataset.val_idxs,
-            "batch_size": self.args.per_device_eval_batch_size,
-            "num_workers": self.args.dataloader_num_workers,
-            "pin_memory": self.args.dataloader_pin_memory,
-        }
-
-        dataloader = get_graph_lm_dataloader(self._gs_dataloader)
-        prepare_input_fn = get_prepare_lm_input(self._gs_dataloader)
-
-        return self.accelerator.prepare(dataloader(train_dataset, prepare_input_fn, **self.gs_config, **dataloader_params))
+        return self.accelerator.prepare(self._val_dataloader)
 
     def get_test_dataloader(self, test_dataset=None):
-        # initialize graph dataloader
-        train_dataset = self.train_dataset
-
-        dataloader_params = {
-            "device": self._device,
-            "train_task": False,
-            "target_idx": train_dataset.test_idxs,
-            "batch_size": self.args.per_device_eval_batch_size,
-            "num_workers": self.args.dataloader_num_workers,
-            "pin_memory": self.args.dataloader_pin_memory,
-        }
-
-        dataloader = get_graph_lm_dataloader(self._gs_dataloader)
-        prepare_input_fn = get_prepare_lm_input(self._gs_dataloader)
-
-        return self.accelerator.prepare(dataloader(train_dataset, prepare_input_fn, **self.gs_config, **dataloader_params))
-
+        return self.accelerator.prepare(self._test_dataloader)

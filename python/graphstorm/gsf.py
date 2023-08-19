@@ -49,6 +49,9 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
+from .model.graph_transformer import (HATForMaskedLM,
+                                      HATTokenizer,
+                                      HATConfig)
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config, backend):
@@ -495,6 +498,46 @@ def set_encoder(model, g, config, train_task):
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)
+
+def create_builtin_hat_model(model_args):
+    """ Create a HAT model
+
+    Parameters
+    ----------
+    model_args : ModelArguments
+        Model loading args
+
+    Returns
+    -------
+    HAT model
+    """
+    # Load pretrained model and tokenizer
+    config_kwargs = {
+        "cache_dir": model_args.cache_dir,
+        "revision": model_args.model_revision,
+        "use_auth_token": True if model_args.use_auth_token else None,
+    }
+
+    tokenizer_kwargs = {
+        "cache_dir": model_args.cache_dir,
+        "use_fast": model_args.use_fast_tokenizer,
+        "revision": model_args.model_revision,
+        "use_auth_token": True if model_args.use_auth_token else None,
+    }
+
+    config = HATConfig.from_pretrained(model_args.model_name_or_path, **config_kwargs)
+    tokenizer = HATTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
+    model = HATForMaskedLM.from_pretrained(
+        model_args.model_name_or_path,
+        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        config=config,
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        use_auth_token=True if model_args.use_auth_token else None,
+    )
+    model.resize_token_embeddings(len(tokenizer))
+
+    return model
 
 
 def check_homo(g):
