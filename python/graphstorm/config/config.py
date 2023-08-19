@@ -16,9 +16,16 @@
     Builtin configs
 """
 
-BUILTIN_GNN_ENCODER = ["rgat", "rgcn"]
-BUILTIN_ENCODER = ["lm", "mlp"] + ["rgat", "rgcn"]
+BUILTIN_GNN_ENCODER = ["rgat", "rgcn", "sage"]
+BUILTIN_ENCODER = ["lm", "mlp"] + ["rgat", "rgcn", "sage"]
 SUPPORTED_BACKEND = ["gloo", "nccl"]
+
+GRAPHSTORM_MODEL_EMBED_LAYER = "embed"
+GRAPHSTORM_MODEL_GNN_LAYER = "gnn"
+GRAPHSTORM_MODEL_DECODER_LAYER = "decoder"
+GRAPHSTORM_MODEL_ALL_LAYERS = [GRAPHSTORM_MODEL_EMBED_LAYER,
+                               GRAPHSTORM_MODEL_GNN_LAYER,
+                               GRAPHSTORM_MODEL_DECODER_LAYER]
 
 BUILTIN_LP_LOSS_CROSS_ENTROPY = "cross_entropy"
 BUILTIN_LP_LOSS_LOGSIGMOID_RANKING = "logsigmoid"
@@ -44,3 +51,9 @@ EARLY_STOP_AVERAGE_INCREASE_STRATEGY = "average_increase"
 GRAPHSTORM_SAGEMAKER_TASK_TRACKER = "sagemaker_task_tracker"
 
 SUPPORTED_TASK_TRACKER = [GRAPHSTORM_SAGEMAKER_TASK_TRACKER]
+
+# Link prediction decoder
+BUILTIN_LP_DOT_DECODER = "dot_product"
+BUILTIN_LP_DISTMULT_DECODER = "distmult"
+
+SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER, BUILTIN_LP_DISTMULT_DECODER]

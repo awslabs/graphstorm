@@ -275,10 +275,8 @@ def gen_mrr_score(ranking):
         -------
         link prediction eval metrics: list of dict
     """
-    logs = []
-    for rank in ranking:
-        logs.append(1.0 / rank)
-    metrics = {"mrr": th.tensor(sum(log for log in logs) / len(logs))}
+    logs = th.div(1.0, ranking)
+    metrics = {"mrr": th.tensor(th.div(th.sum(logs),len(logs)))}
     return metrics
 
 

@@ -15,7 +15,9 @@
 
     Test functions and classes in the dataloading.py
 """
+import os
 import tempfile
+import shutil
 import numpy as np
 
 import torch as th
@@ -33,11 +35,76 @@ from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
+from graphstorm.dataloading.dataset import (prepare_batch_input,
+                                            prepare_batch_edge_input)
+from graphstorm.dataloading.utils import modify_fanout_for_target_etype
+
 from numpy.testing import assert_equal
 
 def get_nonzero(mask):
     mask = mask[0:len(mask)]
     return th.nonzero(mask, as_tuple=True)[0]
+
+def test_GSgnnEdgeData_wo_test_mask():
+    for file in os.listdir("/dev/shm/"):
+        shutil.rmtree(file, ignore_errors=True)
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    va_etypes = [("n0", "r1", "n1")]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'),
+                                                            gen_mask=False)
+
+        ev_data_nomask = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                            eval_etypes=va_etypes)
+        ev_data_nomask2 = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                             eval_etypes=None)
+
+    assert ev_data_nomask.eval_etypes == va_etypes
+    assert ev_data_nomask2.eval_etypes == dist_graph.canonical_etypes
+
+    # eval graph without test mask
+    # all edges in the eval etype are treated as target edges
+    assert len(ev_data_nomask.infer_idxs) == len(va_etypes)
+    for etype in va_etypes:
+        assert th.all(ev_data_nomask.infer_idxs[etype] == th.arange(dist_graph.num_edges(etype)))
+
+    assert len(ev_data_nomask2.infer_idxs) == len(dist_graph.canonical_etypes)
+    for etype in dist_graph.canonical_etypes:
+        assert th.all(ev_data_nomask2.infer_idxs[etype] == th.arange(dist_graph.num_edges(etype)))
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+def test_GSgnnNodeData_wo_test_mask():
+    for file in os.listdir("/dev/shm/"):
+        shutil.rmtree(file, ignore_errors=True)
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    va_ntypes = ["n1"]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy2',
+                                                            dirname=os.path.join(tmpdirname, 'dummy2'),
+                                                            gen_mask=False)
+        infer_data_nomask = GSgnnNodeInferData(graph_name='dummy2', part_config=part_config,
+                                            eval_ntypes=va_ntypes)
+    assert infer_data_nomask.eval_ntypes == va_ntypes
+    # eval graph without test mask
+    # all nodes in the eval ntype are treated as target nodes
+    assert len(infer_data_nomask.infer_idxs) == len(va_ntypes)
+    for ntype in va_ntypes:
+        assert th.all(infer_data_nomask.infer_idxs[ntype] == th.arange(dist_graph.num_nodes(ntype)))
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
 
 def test_GSgnnEdgeData():
     # initialize the torch distributed environment
@@ -50,10 +117,11 @@ def test_GSgnnEdgeData():
     tr_single_etype = [("n0", "r1", "n1")]
     va_etypes = [("n0", "r1", "n1")]
     ts_etypes = [("n0", "r1", "n1")]
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=tmpdirname)
+                                                            dirname=os.path.join(tmpdirname, 'dummy'))
         tr_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
                                      train_etypes=tr_etypes, eval_etypes=va_etypes,
                                      label_field='label')
@@ -160,6 +228,7 @@ def test_GSgnnNodeData():
     tr_ntypes = ["n1"]
     va_ntypes = ["n1"]
     ts_ntypes = ["n1"]
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
@@ -522,9 +591,140 @@ def test_GSgnnLinkPredictionJointTestDataLoader(batch_size, num_negative_edges):
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
+def test_prepare_input():
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    test_etypes = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=test_etypes, label_field='label')
+        lp_data.g.nodes['n1'].data['feat2'] = \
+            lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))] * 2
+        lp_data.g.edges['r0'].data['feat2'] = \
+            lp_data.g.edges['r0'].data['feat'][th.arange(lp_data.g.num_edges('r0'))] * 2
+        g = lp_data.g
+
+        # single ntype/edge, single feat
+        input_nodes = {
+            "n0": th.randint(g.num_nodes("n0"), (10,))
+        }
+        input_edges = {
+            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
+        }
+
+        node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
+        edge_feat = prepare_batch_edge_input(g, input_edges, feat_field='feat')
+        assert len(node_feat) == 1
+        assert len(edge_feat) == 1
+        assert_equal(node_feat["n0"].numpy(),
+                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
+        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
+                     g.edges[("n0", "r1", "n1")].data["feat"][
+                         input_edges[("n0", "r1", "n1")]].numpy())
+
+        # multiple ntype/edge, single feat
+        input_nodes = {
+            "n0": th.randint(g.num_nodes("n0"), (10,)),
+            "n1": th.randint(g.num_nodes("n1"), (20,)),
+        }
+        input_edges = {
+            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
+            ("n0", "r0", "n1"): th.randint(g.num_edges(("n0", "r0", "n1")), (10,)),
+        }
+
+        node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
+        edge_feat = prepare_batch_edge_input(g, input_edges, feat_field='feat')
+        assert len(node_feat) == 2
+        assert len(edge_feat) == 2
+        assert_equal(node_feat["n0"].numpy(),
+                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
+        assert_equal(node_feat["n1"].numpy(),
+                     g.nodes["n1"].data["feat"][input_nodes["n1"]].numpy())
+        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
+                     g.edges[("n0", "r1", "n1")].data["feat"][
+                         input_edges[("n0", "r1", "n1")]].numpy())
+        assert_equal(edge_feat[("n0", "r0", "n1")].numpy(),
+                     g.edges[("n0", "r0", "n1")].data["feat"][
+                         input_edges[("n0", "r0", "n1")]].numpy())
+
+        # multiple ntype/edge, multiple feat
+        input_nodes = {
+            "n0": th.randint(g.num_nodes("n0"), (10,)),
+            "n1": th.randint(g.num_nodes("n1"), (20,)),
+        }
+        input_edges = {
+            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
+            ("n0", "r0", "n1"): th.randint(g.num_edges(("n0", "r0", "n1")), (10,)),
+        }
+
+        node_feat = prepare_batch_input(g, input_nodes,
+                                        feat_field={"n0":["feat"],
+                                                    "n1":["feat", "feat2"]})
+        edge_feat = prepare_batch_edge_input(g, input_edges,
+                                             feat_field={
+                                                 ("n0", "r1", "n1"): ["feat"],
+                                                 ("n0", "r0", "n1"): ["feat", "feat2"]})
+        assert len(node_feat) == 2
+        assert len(edge_feat) == 2
+        assert_equal(node_feat["n0"].numpy(),
+                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
+        assert_equal(node_feat["n1"].numpy(),
+                     th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
+                             g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
+        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
+                     g.edges[("n0", "r1", "n1")].data["feat"][
+                         input_edges[("n0", "r1", "n1")]].numpy())
+        assert_equal(edge_feat[("n0", "r0", "n1")].numpy(),
+                     th.cat([g.edges[("n0", "r0", "n1")].data["feat"][
+                                 input_edges[("n0", "r0", "n1")]],
+                             g.edges[("n0", "r0", "n1")].data["feat2"][
+                                 input_edges[("n0", "r0", "n1")]]], dim=-1).numpy())
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+def test_modify_fanout_for_target_etype():
+    data_dict = {
+        ('user', 'follows', 'user'): (th.tensor([0, 1]), th.tensor([1, 2])),
+        ('user', 'follows', 'topic'): (th.tensor([1, 1]), th.tensor([1, 2])),
+        ('user', 'plays', 'game'): (th.tensor([0, 3]), th.tensor([3, 4]))
+    }
+    g = dgl.heterograph(data_dict)
+    fanout = [10,5]
+    target_etypes = [('user', 'follows', 'user')]
+    new_fanout = modify_fanout_for_target_etype(g, fanout, target_etypes)
+    assert len(new_fanout) == 2
+    assert new_fanout[0][('user', 'follows', 'user')] == 0
+    assert new_fanout[0][('user', 'follows', 'topic')] == 10
+    assert new_fanout[0][('user', 'plays', 'game')] == 10
+    assert new_fanout[1][('user', 'follows', 'user')] == 0
+    assert new_fanout[1][('user', 'follows', 'topic')] == 5
+    assert new_fanout[1][('user', 'plays', 'game')] == 5
+
+    fanout = [{("user","follows","user"):20,
+               ("user","follows","topic"):10,
+               ("user","plays","game"):5},
+              {("user","follows","user"):3,
+               ("user","follows","topic"):2,
+               ("user","plays","game"):1}]
+    new_fanout = modify_fanout_for_target_etype(g, fanout, target_etypes)
+    assert len(new_fanout) == 2
+    assert new_fanout[0][('user', 'follows', 'user')] == 0
+    assert new_fanout[0][('user', 'follows', 'topic')] == 10
+    assert new_fanout[0][('user', 'plays', 'game')] == 5
+    assert new_fanout[1][('user', 'follows', 'user')] == 0
+    assert new_fanout[1][('user', 'follows', 'topic')] == 2
+    assert new_fanout[1][('user', 'plays', 'game')] == 1
+
 if __name__ == '__main__':
-    test_GSgnnNodeData()
+    test_GSgnnEdgeData_wo_test_mask()
+    test_GSgnnNodeData_wo_test_mask()
     test_GSgnnEdgeData()
+    test_GSgnnNodeData()
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()
@@ -534,3 +734,6 @@ if __name__ == '__main__':
     test_GSgnnLinkPredictionTestDataLoader(10, 20)
     test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
     test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+
+    test_prepare_input()
+    test_modify_fanout_for_target_etype()

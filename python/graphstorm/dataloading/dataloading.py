@@ -24,10 +24,14 @@ from dgl.dataloading import DistDataLoader
 from dgl.dataloading import EdgeCollator
 from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 
-from .sampler import LocalUniform, JointUniform, GlobalUniform
+from .sampler import (LocalUniform,
+                      JointUniform,
+                      GlobalUniform,
+                      JointLocalUniform, FastMultiLayerNeighborSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
+EP_DECODER_EDGE_FEAT = "ep_edge_feat"
 
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
@@ -56,9 +60,13 @@ class GSgnnEdgeDataLoader():
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
-                 exclude_training_targets=False):
+                 exclude_training_targets=False,
+                 decoder_edge_feat=None):
         self._data = dataset
         self._device = device
+        self._fanout = fanout
+        self._target_eidx = target_idx
+        self._decoder_edge_feat = decoder_edge_feat
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -103,10 +111,21 @@ class GSgnnEdgeDataLoader():
         return loader
 
     def __iter__(self):
-        return self.dataloader.__iter__()
+        self.dataloader.__iter__()
+        return self
 
     def __next__(self):
-        return self.dataloader.__next__()
+        input_nodes, batch_graph, blocks = self.dataloader.__next__()
+        if self._decoder_edge_feat is not None:
+            input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
+                           for etype in batch_graph.canonical_etypes}
+            edge_feats = self._data.get_edge_feats(input_edges,
+                                                   self._decoder_edge_feat,
+                                                   batch_graph.device)
+            # store edge feature into graph
+            for etype, feat in edge_feats.items():
+                batch_graph.edges[etype].data[EP_DECODER_EDGE_FEAT] = feat.to(th.float32)
+        return (input_nodes, batch_graph, blocks)
 
     @property
     def data(self):
@@ -114,14 +133,32 @@ class GSgnnEdgeDataLoader():
         """
         return self._data
 
+    @property
+    def target_eidx(self):
+        """ Target edge idx for prediction
+        """
+        return self._target_eidx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
 
 ################ Minibatch DataLoader (Link Prediction) #######################
 
 BUILTIN_LP_UNIFORM_NEG_SAMPLER = 'uniform'
 BUILTIN_LP_JOINT_NEG_SAMPLER = 'joint'
 BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER = 'localuniform'
+BUILTIN_LP_LOCALJOINT_NEG_SAMPLER = 'localjoint'
 BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER = 'all_etype_uniform'
 BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER = 'all_etype_joint'
+BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER = 'fast_uniform'
+BUILTIN_FAST_LP_JOINT_NEG_SAMPLER = 'fast_joint'
+BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER = 'fast_localuniform'
+BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
+
+LP_DECODER_EDGE_WEIGHT = "lp_edge_weight"
 
 class GSgnnLinkPredictionDataLoader():
     """ Link prediction minibatch dataloader
@@ -152,11 +189,17 @@ class GSgnnLinkPredictionDataLoader():
         The mask that indicates the edges used for computing GNN embeddings. By default,
         the dataloader uses the edges in the training graphs to compute GNN embeddings to
         avoid information leak for link prediction.
+    lp_edge_weight_for_loss: str or dict of [str]
+        The edge data fields that stores the edge weights used
+        in computing link prediction loss
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
-                 edge_mask_for_gnn_embeddings='train_mask'):
+                 edge_mask_for_gnn_embeddings='train_mask', lp_edge_weight_for_loss=None):
         self._data = dataset
+        self._fanout = fanout
+        self._lp_edge_weight_for_loss = lp_edge_weight_for_loss
+        self._device = device
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
@@ -213,16 +256,33 @@ class GSgnnLinkPredictionDataLoader():
         return loader
 
     def __iter__(self):
-        return self.dataloader.__iter__()
+        self.dataloader.__iter__()
+        return self
 
     def __next__(self):
-        return self.dataloader.__next__()
+        input_nodes, pos_graph, neg_graph, blocks = self.dataloader.__next__()
+        if self._lp_edge_weight_for_loss is not None:
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                for etype in pos_graph.canonical_etypes}
+            edge_weight_feats = self._data.get_edge_feats(input_edges,
+                                                          self._lp_edge_weight_for_loss,
+                                                          pos_graph.device)
+            # store edge feature into graph
+            for etype, feat in edge_weight_feats.items():
+                pos_graph.edges[etype].data[LP_DECODER_EDGE_WEIGHT] = feat
+        return (input_nodes, pos_graph, neg_graph, blocks)
 
     @property
     def data(self):
         """ The dataset of this dataloader.
         """
         return self._data
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
@@ -242,6 +302,90 @@ class GSgnnLPLocalUniformNegDataLoader(GSgnnLinkPredictionDataLoader):
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
         negative_sampler = LocalUniform(num_negative_edges)
+        return negative_sampler
+
+class GSgnnLPLocalJointNegDataLoader(GSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with local joint negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # the default negative sampler is uniform sampler
+        negative_sampler = JointLocalUniform(num_negative_edges)
+        return negative_sampler
+
+class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader that does not send train_mask to
+        DGL sampler but use the train_mask to trim the sampled graph.
+    """
+
+    def _prepare_dataloader(self, g, target_idxs, fanout,
+                            num_negative_edges, batch_size, device, train_task=True,
+                            exclude_training_targets=False, reverse_edge_types_map=None,
+                            edge_mask_for_gnn_embeddings=None):
+        # The dataloader can only sample neighbors from the training graph.
+        # This can avoid information leak during the link prediction training.
+        # This avoids two types of information leak: it avoids sampling neighbors
+        # from the test graph during the training; it also avoid sampling neighbors
+        # from the test graph to generate embeddings for evaluating the model performance
+        # on the test set.
+        if edge_mask_for_gnn_embeddings is not None and \
+                any(edge_mask_for_gnn_embeddings in g.edges[etype].data
+                    for etype in g.canonical_etypes):
+            sampler = FastMultiLayerNeighborSampler(fanout,
+                                                    mask=edge_mask_for_gnn_embeddings)
+        else:
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
+        negative_sampler = self._prepare_negative_sampler(num_negative_edges)
+
+        # edge loader
+        if isinstance(target_idxs, dict):
+            for etype in target_idxs:
+                target_idxs[etype] = trim_data(target_idxs[etype], device)
+        else:
+            target_idxs = trim_data(target_idxs, device)
+        exclude = 'reverse_types' if exclude_training_targets else None
+        reverse_etypes = reverse_edge_types_map if exclude_training_targets else None
+        loader = dgl.dataloading.DistEdgeDataLoader(g,
+                                                    target_idxs,
+                                                    sampler,
+                                                    batch_size=batch_size,
+                                                    negative_sampler=negative_sampler,
+                                                    shuffle=train_task,
+                                                    drop_last=False,
+                                                    num_workers=0,
+                                                    exclude=exclude,
+                                                    reverse_etypes=reverse_etypes)
+        return loader
+
+class FastGSgnnLPJointNegDataLoader(FastGSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with joint negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # the default negative sampler is uniform sampler
+        negative_sampler = JointUniform(num_negative_edges)
+        return negative_sampler
+
+class FastGSgnnLPLocalUniformNegDataLoader(FastGSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with local uniform negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # the default negative sampler is uniform sampler
+        negative_sampler = LocalUniform(num_negative_edges)
+        return negative_sampler
+
+class FastGSgnnLPLocalJointNegDataLoader(FastGSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with local joint negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # the default negative sampler is uniform sampler
+        negative_sampler = JointLocalUniform(num_negative_edges)
         return negative_sampler
 
 ######## Per etype sampler ########
@@ -442,10 +586,21 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
         return loader
 
     def __iter__(self):
-        return self.dataloader.__iter__()
+        self.dataloader.__iter__()
+        return self
 
     def __next__(self):
-        return self.dataloader.__next__()
+        input_nodes, pos_graph, neg_graph, blocks = self.dataloader.__next__()
+        if self._lp_edge_weight_for_loss is not None:
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                for etype in pos_graph.canonical_etypes}
+            edge_weight_feats = self._data.get_edge_feats(input_edges,
+                                                          self._lp_edge_weight_for_loss,
+                                                          pos_graph.device)
+            # store edge feature into graph
+            for etype, feat in edge_weight_feats.items():
+                pos_graph.edges[etype].data[LP_DECODER_EDGE_WEIGHT] = feat
+        return (input_nodes, pos_graph, neg_graph, blocks)
 
 class GSgnnAllEtypeLPJointNegDataLoader(GSgnnAllEtypeLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler.
@@ -476,9 +631,12 @@ class GSgnnLinkPredictionTestDataLoader():
         Batch size
     num_negative_edges: int
         The number of negative edges per positive edge
+    fanout: int
+        Evaluation fanout for computing node embedding
     """
-    def __init__(self, dataset, target_idx, batch_size, num_negative_edges):
+    def __init__(self, dataset, target_idx, batch_size, num_negative_edges, fanout=None):
         self._data = dataset
+        self._fanout = fanout
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
@@ -528,6 +686,12 @@ class GSgnnLinkPredictionTestDataLoader():
         # return pos, neg pairs
         return cur_iter, self._neg_sample_type
 
+    @property
+    def fanout(self):
+        """ Get eval fanout
+        """
+        return self._fanout
+
 class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
     """ Link prediction minibatch dataloader for validation and test
         with joint negative sampler
@@ -561,6 +725,8 @@ class GSgnnNodeDataLoader():
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True):
         self._data = dataset
+        self._fanout = fanout
+        self._target_nidx  = target_idx
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -592,3 +758,15 @@ class GSgnnNodeDataLoader():
         """ The dataset of this dataloader.
         """
         return self._data
+
+    @property
+    def target_nidx(self):
+        """ The target node ids for prediction.
+        """
+        return self._target_nidx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout

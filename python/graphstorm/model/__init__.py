@@ -20,18 +20,24 @@ from .lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 
 from .utils import sparse_emb_initializer
 
-from .gnn import GSgnnModel, GSOptimizer, do_full_graph_inference
+from .gnn import GSgnnModel, GSgnnModelBase, GSOptimizer, do_full_graph_inference
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
 from .node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
 from .edge_gnn import GSgnnEdgeModel, GSgnnEdgeModelBase
 from .edge_gnn import edge_mini_batch_gnn_predict, edge_mini_batch_predict
-from .lp_gnn import GSgnnLinkPredictionModelBase
+from .lp_gnn import GSgnnLinkPredictionModel, GSgnnLinkPredictionModelBase
 
 from .rgcn_encoder import RelationalGCNEncoder
 from .rgat_encoder import RelationalGATEncoder
+from .sage_encoder import SAGEEncoder
 
 from .node_decoder import EntityClassifier, EntityRegression
-from .edge_decoder import DenseBiDecoder, MLPEdgeDecoder
-from .edge_decoder import LinkPredictDotDecoder, LinkPredictDistMultDecoder
+from .edge_decoder import (DenseBiDecoder,
+                           MLPEdgeDecoder,
+                           MLPEFeatEdgeDecoder,
+                           LinkPredictDotDecoder,
+                           LinkPredictDistMultDecoder,
+                           LinkPredictWeightedDotDecoder,
+                           LinkPredictWeightedDistMultDecoder)
 
 from .loss_func import ClassifyLossFunc, RegressionLossFunc, LinkPredictLossFunc

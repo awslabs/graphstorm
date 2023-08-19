@@ -19,10 +19,26 @@ import os
 import json
 import time
 import resource
+import logging
 import psutil
 
+import pandas as pd
 import dgl
 import torch as th
+import numpy as np
+
+TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
+
+def setup_device(local_rank):
+    """Setup computation device
+    """
+    if th.cuda.is_available():
+        device = 'cuda:%d' % local_rank
+        th.cuda.set_device(device)
+    else:
+        device='cpu'
+
+    return device
 
 def is_distributed():
     return dgl.distributed.dist_context.is_initialized()
@@ -36,12 +52,16 @@ def get_rank():
         return 0
 
 def get_world_size():
+    """ Get the world size.
+    """
     if is_distributed():
         return th.distributed.get_world_size()
     else:
         return 1
 
 def barrier():
+    """ Run barrier among trainers.
+    """
     if is_distributed():
         th.distributed.barrier()
 
@@ -105,7 +125,7 @@ def estimate_mem_train(root, task):
                     'shared mem: {shared_mem_list[-1]:.3f} GB, cli mem: {max_cli_mem:.3f} GB')
     return max(mem_list), max(shared_mem_list)
 
-def estimate_mem_infer(root, graph_name, num_hidden, num_layers):
+def estimate_mem_infer(root, graph_name, hidden_size, num_layers):
     ''' Estimate the memory consumption for inference.
 
     Parameters
@@ -114,7 +134,7 @@ def estimate_mem_infer(root, graph_name, num_hidden, num_layers):
         The path to the partitioned graph folder.
     graph_name : str
         The graph name.
-    num_hidden : int
+    hidden_size : int
         The hidden size for the GNN embeddings.
     num_layers : int
         The number of GNN layers.
@@ -157,12 +177,12 @@ def estimate_mem_infer(root, graph_name, num_hidden, num_layers):
             # The shared memory stores the graph structure, the node features, edge features
             # as well as the embeddings of the input layer and each GNN layer.
             shared_mem = (struct_size + node_feats + edge_feats
-                    + num_part_nodes * num_hidden * 4 * (num_layers + 1) / 1024/1024/1024)
+                    + num_part_nodes * hidden_size * 4 * (num_layers + 1) / 1024/1024/1024)
             # The memory usage when after the server runs.
             # Majority data is stored in shared memory. When saving the GNN embeddings to the disk,
             # we need to extract the GNN node embeddings, which is stored
             # in the local Pytorch tensor.
-            stable_serv_mem = shared_mem + num_part_nodes * num_hidden * 4 / 1024/1024/1024
+            stable_serv_mem = shared_mem + num_part_nodes * hidden_size * 4 / 1024/1024/1024
             # The peak memory usage
             max_serv_mem = max([struct_size + shared_mem, shared_mem + node_feats,
                 shared_mem + edge_feats, stable_serv_mem])
@@ -183,10 +203,83 @@ class SysTracker:
 
     It tracks the runtime and memory consumption.
     """
-    def __init__(self, debug=True):
+    def __init__(self):
         self._checkpoints = []
-        self._rank = dgl.distributed.rpc.get_rank()
-        self._debug = debug
+        self._rank = -1
+        self._verbose = False
+
+    # This is to create only one instance.
+    _instance = None
+
+    def init(self, verbose=False, rank=None):
+        """ Initialize the profiler.
+
+            Set tracking level.
+            TODO: Only have verbose=True or False.
+            Need to support different logging level later.
+
+        Parameter
+        ---------
+        verbose: bool
+            Verbose for print out more info
+        rank: int
+            Current trainer rank
+        """
+        self._verbose = verbose
+        if rank is None:
+            self._rank = get_rank()
+        else:
+            self._rank = rank
+
+    def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
+        """ Only create one instance.
+        """
+        if not isinstance(cls._instance, cls):
+            cls._instance = object.__new__(cls)
+
+        return cls._instance
+
+    def set_rank(self, rank):
+        """ Manually set rank.
+
+        This can be used if the system is not initialized correctly.
+        """
+        self._rank = rank
+
+    def check(self, name):
+        """ Check the system metrics.
+        """
+        if self._verbose is False:
+            return
+
+        mem_info = psutil.Process(os.getpid()).memory_info()
+        gmem_info = psutil.virtual_memory()
+        self._checkpoints.append((name, time.time(), mem_info.rss, mem_info.shared,
+                                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+                                  gmem_info.used, gmem_info.shared))
+        # We need to get the right rank
+        if self._rank < 0:
+            self._rank = get_rank()
+        if len(self._checkpoints) >= 2 and self._rank == 0:
+            checkpoint1 = self._checkpoints[-2]
+            checkpoint2 = self._checkpoints[-1]
+            logging.debug("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, \
+                    shared: {:.3f}, global curr: {:.3f}, global shared: {:.3f}) GB".format(
+                name, checkpoint2[1] - checkpoint1[1],
+                checkpoint2[2]/1024/1024/1024, checkpoint2[4]/1024/1024,
+                checkpoint2[3]/1024/1024/1024, checkpoint2[5]/1024/1024/1024,
+                checkpoint2[6]/1024/1024/1024))
+
+class RuntimeProfiler:
+    """ This profiles the runtime performance.
+
+    It tracks the runtime.
+    """
+    def __init__(self, profile_path=None):
+        self._checkpoints = []
+        self._runtime = {}
+        self._profile_path = profile_path
+        self._rank = -1
 
     # This is to create only one instance.
     _instance = None
@@ -199,25 +292,74 @@ class SysTracker:
 
         return cls._instance
 
-    def check(self, name):
-        """ Check the system metrics.
+    def init(self, path, rank=None):
+        """ Initialize the profiler.
+
+        Setting the profile path enables profiling.
         """
-        mem_info = psutil.Process(os.getpid()).memory_info()
-        gmem_info = psutil.virtual_memory()
-        self._checkpoints.append((name, time.time(), mem_info.rss, mem_info.shared,
-                                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-                                  gmem_info.used, gmem_info.shared))
-        # We need to get the right rank
-        if self._rank < 0:
-            self._rank = dgl.distributed.rpc.get_rank()
-        if len(self._checkpoints) >= 2 and self._debug and self._rank == 0:
+        self._profile_path = path
+        if rank is None:
+            self._rank = get_rank()
+        else:
+            self._rank = rank
+
+    def start_record(self):
+        """ Start recording.
+
+        This records the first time for the following operations.
+        """
+        if self._profile_path is None:
+            return
+        self._checkpoints.append(("", time.time()))
+        # We put a barrier here so that the next operation starts
+        # at the same time.
+        th.distributed.barrier()
+
+    def record(self, name):
+        """ Record the computation step.
+
+        It basically adds a checkpoint in the place where it is called.
+
+        Parameters
+        ----------
+        name : str
+            The name of the check point.
+        """
+        if self._profile_path is None:
+            return
+
+        self._checkpoints.append((name, time.time()))
+        if len(self._checkpoints) >= 2:
             checkpoint1 = self._checkpoints[-2]
             checkpoint2 = self._checkpoints[-1]
-            print("{}: elapsed time: {:.3f}, mem (curr: {:.3f}, peak: {:.3f}, shared: {:.3f}, \
-                    global curr: {:.3f}, global shared: {:.3f}) GB".format(
-                name, checkpoint2[1] - checkpoint1[1],
-                checkpoint2[2]/1024/1024/1024, checkpoint2[4]/1024/1024,
-                checkpoint2[3]/1024/1024/1024, checkpoint2[5]/1024/1024/1024,
-                checkpoint2[6]/1024/1024/1024))
+            runtime = checkpoint2[1] - checkpoint1[1]
+            name = checkpoint2[0]
+            if name not in self._runtime:
+                self._runtime[name] = [runtime]
+            else:
+                self._runtime[name].append(runtime)
+        # We put a barrier here so that the next operation starts
+        # at the same time.
+        th.distributed.barrier()
+
+    def print_stats(self):
+        """ Print the statistics
+        """
+        if self._rank == 0 and self._profile_path is not None:
+            for name, runtimes in self._runtime.items():
+                print(name, sum(runtimes) / len(runtimes), "seconds")
+
+    def save_profile(self):
+        """ Save the profiling result to a file.
+        """
+        if self._profile_path is not None:
+            runtime = {}
+            for name in self._runtime:
+                runtime[name] = np.array(self._runtime[name])
+            profile_path = os.path.join(self._profile_path, f"{self._rank}.csv")
+            data_frame = pd.DataFrame(runtime)
+            data_frame.to_csv(profile_path, float_format='%.3f', index=False)
+            print(f"save profiling in {profile_path}")
 
 sys_tracker = SysTracker()
+rt_profiler = RuntimeProfiler()

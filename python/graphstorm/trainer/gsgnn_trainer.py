@@ -20,9 +20,11 @@ import psutil
 import torch as th
 
 from ..model import GSOptimizer
+from ..model import GSgnnModel, GSgnnModelBase
 from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
+from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
 
 from ..utils import barrier
 
@@ -50,7 +52,7 @@ class GSgnnTrainer():
             optimizer = GSOptimizer([optimizer])
         self._optimizer = optimizer
         self._rank = rank
-        self._dev_id = -1
+        self._device = -1
         self._evaluator = None
         self._task_tracker = None
         self._best_model_path = None
@@ -60,22 +62,18 @@ class GSgnnTrainer():
                                                         # perf epoch+iteration for
                                                         # saving/removing models.
 
-    def setup_cuda(self, dev_id):
-        """ Set up the CUDA device of this trainer.
+    def setup_device(self, device):
+        """ Set up the device of this trainer.
 
         The CUDA device is set up based on the local rank.
 
         Parameters
         ----------
-        dev_id : int
-            The device ID for model training.
+        device :
+            The device for model training.
         """
-        # setup cuda env
-        use_cuda = th.cuda.is_available()
-        assert use_cuda, "Only support GPU training"
-        th.cuda.set_device(dev_id)
-        self._dev_id = dev_id
-        self._model = self._model.to(self.dev_id)
+        self._device = th.device(device)
+        self._model = self._model.to(self.device)
         self._optimizer.move_to_device(self._model.device)
 
     def setup_task_tracker(self, task_tracker):
@@ -188,12 +186,15 @@ class GSgnnTrainer():
         '''Save the model for a certain iteration in an epoch.
         '''
         barrier()
-        if save_model_path is not None and self.rank == 0:
+        if save_model_path is not None:
+            assert isinstance(model.module, (GSgnnModel, GSgnnModelBase)), \
+                "Please make sure the model derives from GSgnnModel or GSgnnModelBase, " \
+                "which provides a scalable model saving implementation."
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
             model.module.save_model(save_model_path)
             self.optimizer.save_opt_state(save_model_path)
 
-        # wait for rank0 to save the model and/or embeddings
+        # make sure each trainer finishes its own model saving task.
         barrier()
 
     def remove_saved_model(self, epoch, i, save_model_path):
@@ -256,6 +257,7 @@ class GSgnnTrainer():
                 self.remove_saved_model(return_epoch, return_i, save_model_path)
 
             # save this epoch and iteration's model and node embeddings
+            # All trainers will sync in save_model before start saving a model.
             self.save_model(model, epoch, i, save_model_path)
 
             # If this is the best model
@@ -304,27 +306,35 @@ class GSgnnTrainer():
             A tuple of (forward time and backward time)
         '''
         gnn_forward_time, back_time = compute_time
-        device = 'cuda:%d' % self.dev_id
 
-        print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | Peak Mem: {:.4f} MB".
+        print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | GPU Peak Mem: {:.4f} MB".
                 format(epoch, i,
-                    th.cuda.memory_reserved(device) / 1024 / 1024,
-                    th.cuda.max_memory_allocated(device) / 1024 /1024))
+                    th.cuda.memory_reserved(self.device) / 1024 / 1024,
+                    th.cuda.max_memory_allocated(self.device) / 1024 /1024))
         print('Epoch {:05d} | Batch {:03d} | RAM memory {} used | Avg input nodes per iter {}'.
                 format(epoch, i, psutil.virtual_memory(), num_input_nodes))
         print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(
             epoch, i, gnn_forward_time, back_time))
 
-    def restore_model(self, model_path):
+    def restore_model(self, model_path, model_layer_to_load=None):
         """ Restore a GNN model and the optimizer.
 
         Parameters
         ----------
         model_path : str
             The path where the model and the optimizer state has been saved.
+        model_layer_to_load: list of str
+            list of model layers to load. Supported layers include
+            'gnn', 'embed', 'decoder'
         """
-        self._model.restore_model(model_path)
-        self._optimizer.load_opt_state(model_path, self._model.device)
+        self._model.restore_model(model_path, model_layer_to_load)
+
+        # If we only load part of a saved model for model fine-tuning,
+        # we do not load optimizer states as the model states of
+        # two models (pre-training and fine-tuning) are not 100%
+        # compatible.
+        if model_layer_to_load == GRAPHSTORM_MODEL_ALL_LAYERS:
+            self._optimizer.load_opt_state(model_path, self._model.device)
 
     @property
     def evaluator(self):
@@ -345,10 +355,10 @@ class GSgnnTrainer():
         return self._task_tracker
 
     @property
-    def dev_id(self):
+    def device(self):
         """ The device associated with the trainer.
         """
-        return self._dev_id
+        return self._device
 
     @property
     def rank(self):

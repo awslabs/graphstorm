@@ -23,11 +23,11 @@ error_and_exit () {
 	fi
 }
 
-python3 $GS_HOME/tools/gsf_mem_est.py --root_path /data/movielen_100k_train_val_1p_4t --supervise_task edge --is_train 1
+python3 $GS_HOME/tools/gsf_mem_est.py --root-path /data/movielen_100k_train_val_1p_4t --supervise-task edge --is-train 1
 
 error_and_exit $?
 
-python3 $GS_HOME/tools/gsf_mem_est.py --root_path /data/movielen_100k_train_val_1p_4t --is_train 0 --num_hidden 16 --num_layers 1 --graph_name movie-lens-100k
+python3 $GS_HOME/tools/gsf_mem_est.py --root-path /data/movielen_100k_train_val_1p_4t --is-train 0 --hidden-size 16 --num-layers 1 --graph-name movie-lens-100k
 
 error_and_exit $?
 

@@ -44,7 +44,6 @@ def trim_data(nids, device):
 
     # NCCL backend only supports GPU tensors, thus here we need to allocate it to gpu
     num_nodes = th.tensor(nids.numel()).to(device)
-    assert num_nodes.is_cuda, "NCCL does not support CPU all_reduce"
     dist.all_reduce(num_nodes, dist.ReduceOp.MIN)
     min_num_nodes = int(num_nodes)
     nids_length = nids.shape[0]
@@ -71,8 +70,11 @@ def dist_sum(size):
     if not is_distributed():
         return size
 
-    dev_id = th.cuda.current_device()
-    size = th.tensor([size], device=th.device(dev_id))
+    if th.cuda.is_available():
+        dev_id = th.cuda.current_device()
+        size = th.tensor([size], device=th.device(dev_id))
+    else:
+        size = th.tensor([size], device=th.device("cpu"))
     dist.all_reduce(size, dist.ReduceOp.SUM)
     return int(size.cpu())
 
@@ -98,11 +100,11 @@ def modify_fanout_for_target_etype(g, fanout, target_etypes):
     # The user can decide to not use the target etype for message passing.
     for fan in fanout:
         edge_fanout_dic = {}
-        for etype in g.etypes:
-            if g.to_canonical_etype(etype) not in target_etypes:
+        for etype in g.canonical_etypes:
+            if etype not in target_etypes:
                 edge_fanout_dic[etype] = fan if not isinstance(fan, dict) else fan[etype]
             else:
-                print(f"Ignoring edges for {etype} etype")
+                print(f"Ignoring edges for etype {etype}")
                 edge_fanout_dic[etype] = 0
         edge_fanout_lis.append(edge_fanout_dic)
     return edge_fanout_lis

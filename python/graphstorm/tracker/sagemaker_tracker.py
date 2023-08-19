@@ -54,7 +54,10 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         """
         if force_report or self._do_report(step):
             if metric_value is not None:
-                print(f"Step {step} | {metric_name}: {metric_value:.4f}")
+                if isinstance(metric_value, str):
+                    print(f"Step {step} | {metric_name}: {metric_value}")
+                else:
+                    print(f"Step {step} | {metric_name}: {metric_value:.4f}")
 
     def log_train_metric(self, metric_name, metric_value, step, force_report=False):
         """ Log train metric

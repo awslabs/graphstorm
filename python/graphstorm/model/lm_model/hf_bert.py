@@ -64,12 +64,12 @@ class HFBertWrapper(GSFLanguageModelWrapper):
     def __init__(self,
                  lm_model,
                  num_train,
-                 lm_infer_batchszie=32,
+                 lm_infer_batch_size=32,
                  profile=False):
         super(HFBertWrapper, self).__init__(
             lm_model, num_train,
             lm_model.config.hidden_size, [TOKEN_IDX, ATT_MASK_IDX, VALID_LEN, TOKEN_TID_IDX],
-            lm_infer_batchszie, profile)
+            lm_infer_batch_size, profile)
 
         self.origin_num_train = self.num_train
         assert isinstance(self.lm_model, BertModel), \
@@ -190,10 +190,10 @@ class HFBertWrapper(GSFLanguageModelWrapper):
                 attention_mask = att_mask.reshape((1, -1)) < valid_len.reshape((-1, 1))
 
             input_ids.append(input_id)
-            attention_masks.append(attention_mask)
+            attention_masks.append(attention_mask.long())
             if TOKEN_TID_IDX in input_lm_feats[ntype]:
                 token_tid = input_lm_feats[ntype][TOKEN_TID_IDX].to(dev)
-                token_tids.append(token_tid)
+                token_tids.append(token_tid.long())
 
         input_ids = th.cat(input_ids, dim=0)
         attention_masks = th.cat(attention_masks, dim=0)

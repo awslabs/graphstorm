@@ -18,6 +18,7 @@
 from enum import Enum
 from functools import partial
 import operator
+import warnings
 import numpy as np
 import torch as th
 from sklearn.metrics import roc_auc_score
@@ -25,7 +26,7 @@ from sklearn.metrics import precision_recall_curve, auc, classification_report
 
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
     'roc_auc', 'f1_score', 'per_class_f1_score'}
-SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse'}
+SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
 SUPPORTED_LINK_PREDICTION_METRICS = {"mrr"}
 
 class ClassificationMetrics:
@@ -91,11 +92,13 @@ class RegressionMetrics:
         self.metric_comparator = {}
         self.metric_comparator["rmse"] = operator.ge
         self.metric_comparator["mse"] = operator.ge
+        self.metric_comparator["mae"] = operator.ge
 
         # This is the operator used to measure each metric performance
         self.metric_function = {}
         self.metric_function["rmse"] = compute_rmse
         self.metric_function["mse"] = compute_mse
+        self.metric_function["mae"] = compute_mae
 
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
@@ -207,6 +210,13 @@ def eval_roc_auc(logits,labels):
 def eval_acc(pred, labels):
     """compute evaluation accuracy.
     """
+    if pred.dim() > 1:
+        # if pred has dimension > 1, it has full logits instead of final prediction
+        assert th.is_floating_point(pred), "Logits are expected to be float type"
+        pred = pred.argmax(dim=1)
+    # Check if pred is integer tensor
+    assert(not th.is_floating_point(pred) and not th.is_complex(pred)), "Predictions are " \
+        "expected to be integer type"
     return th.sum(pred.cpu() == labels.cpu()).item() / len(labels)
 
 
@@ -331,17 +341,53 @@ def compute_acc(pred, labels, multilabel):
 def compute_rmse(pred, labels):
     """ compute RMSE for regression.
     """
-    assert pred.dtype == labels.dtype, \
-            "prediction and labels have different data types. {} vs. {}".format(pred.dtype,
-                                                                                labels.dtype)
+    # TODO: check dtype of label before training or evaluation
+    assert th.is_floating_point(pred) and th.is_floating_point(labels), \
+        "prediction and labels must be floating points"
+
     assert pred.shape == labels.shape, \
-            "prediction and labels have different shapes. {} vs. {}".format(pred.shape,
-                                                                            labels.shape)
+        f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
+    if pred.dtype != labels.dtype:
+        warnings.warn("prediction and labels have different data types: "
+                      f"{pred.dtype} vs. {labels.dtype}")
+        warnings.warn("casting pred to the same dtype as labels")
+        pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
+
     diff = pred.cpu() - labels.cpu()
     return th.sqrt(th.mean(diff * diff)).cpu().item()
 
 def compute_mse(pred, labels):
     """ compute MSE for regression
     """
+    # TODO: check dtype of label before training or evaluation
+    assert th.is_floating_point(pred) and th.is_floating_point(labels), \
+        "prediction and labels must be floating points"
+
+    assert pred.shape == labels.shape, \
+        f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
+    if pred.dtype != labels.dtype:
+        warnings.warn("prediction and labels have different data types: "
+                      f"{pred.dtype} vs. {labels.dtype}")
+        warnings.warn("casting pred to the same dtype as labels")
+        pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
+
     diff = pred.cpu() - labels.cpu()
     return th.mean(diff * diff).cpu().item()
+
+def compute_mae(pred, labels):
+    """ compute MAE for regression
+    """
+    # TODO: check dtype of label before training or evaluation
+    assert th.is_floating_point(pred) and th.is_floating_point(labels), \
+        "prediction and labels must be floating points"
+
+    assert pred.shape == labels.shape, \
+        f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
+    if pred.dtype != labels.dtype:
+        warnings.warn("prediction and labels have different data types: "
+                      f"{pred.dtype} vs. {labels.dtype}")
+        warnings.warn("casting pred to the same dtype as labels")
+        pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
+
+    diff = th.abs(pred.cpu() - labels.cpu())
+    return th.mean(diff).cpu().item()

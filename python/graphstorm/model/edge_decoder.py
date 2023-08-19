@@ -19,9 +19,12 @@ import numpy as np
 import torch as th
 from torch import nn
 
+from .ngnn_mlp import NGNNMLP
 from .gs_layer import GSLayer, GSLayerNoParam
-from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                           BUILTIN_LP_JOINT_NEG_SAMPLER,
+                           LP_DECODER_EDGE_WEIGHT,
+                           EP_DECODER_EDGE_FEAT)
 from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score
 from ..eval.utils import calc_distmult_neg_head_score, calc_distmult_neg_tail_score
 
@@ -121,7 +124,7 @@ class DenseBiDecoder(GSLayer):
 
         Returns
         -------
-        Tensor : the scores of each edge.
+        Tensor : the maximum score of each edge.
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
@@ -132,8 +135,39 @@ class DenseBiDecoder(GSLayer):
             out = self.combine_basis(out)
             if self.regression:
                 out = self.regression_head(out)
-            elif not self._multilabel:
+            elif self._multilabel:
+                out = (th.sigmoid(out) > .5).long()
+            else:  # not multilabel
                 out = out.argmax(dim=1)
+        return out
+
+    def predict_proba(self, g, h):
+        """predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : all the scores of each edge.
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+            out = th.einsum('ai,bij,aj->ab', ufeat, self.basis_para.to(ifeat.device), ifeat)
+            out = self.combine_basis(out)
+            if self.regression:
+                out = self.regression_head(out)
+            elif self._multilabel:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 1)
         return out
 
     @property
@@ -184,21 +218,63 @@ class MLPEdgeDecoder(GSLayer):
                  target_etype,
                  num_hidden_layers=1,
                  dropout=0,
-                 regression=False):
+                 regression=False,
+                 num_ffn_layers=0):
         super(MLPEdgeDecoder, self).__init__()
         self.h_dim = h_dim
         self.multilabel = multilabel
         self.out_dim = h_dim if regression else out_dim
-        # Here we assume the source and destination nodes have the same dimension.
-        self.decoder = nn.Parameter(th.randn(h_dim * 2, out_dim))
         self.target_etype = target_etype
-        assert num_hidden_layers == 1, "More than one layers not supported"
+        self.regression = regression
+        self.dropout = dropout
+        self.num_hidden_layers = num_hidden_layers
+        self.num_ffn_layers = num_ffn_layers
+
+        self._init_model()
+
+    def _init_model(self):
+        """ Init decoder model
+        """
+        # ngnn layer
+        self.ngnn_mlp = NGNNMLP(self.h_dim * 2, self.h_dim * 2,
+                                self.num_ffn_layers,
+                                th.nn.functional.relu,
+                                self.dropout)
+
+        # Here we assume the source and destination nodes have the same dimension.
+        self.decoder = nn.Parameter(th.randn(self.h_dim * 2, self.out_dim))
+        assert self.num_hidden_layers == 1, "More than one layers not supported"
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
-        self.dropout = nn.Dropout(dropout)
-        self.regression = regression
-        if regression:
+        self.dropout = nn.Dropout(self.dropout)
+        if self.regression:
             self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
+
+    def _compute_logits(self, g, h):
+        """ Compute forword output
+
+            Parameters
+            ----------
+            g : DGLBlock
+                The minibatch graph
+            h : dict of Tensors
+                The dictionary containing the embeddings
+            Returns
+            -------
+            th.Tensor
+                Output of forward
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+
+            h = th.cat([ufeat, ifeat], dim=1)
+            if self.num_ffn_layers > 0:
+                h = self.ngnn_mlp(h)
+            out = th.matmul(h, self.decoder)
+        return out
 
     def forward(self, g, h):
         """Forward function.
@@ -215,21 +291,14 @@ class MLPEdgeDecoder(GSLayer):
         th.Tensor
             Predicting scores for each user-movie edge. Shape: (B, num_classes)
         """
-        with g.local_scope():
-            u, v = g.edges(etype=self.target_etype)
-            src_type, _, dest_type = self.target_etype
-            ufeat = h[src_type][u]
-            ifeat = h[dest_type][v]
+        out = self._compute_logits(g, h)
 
-            h = th.cat([ufeat, ifeat], dim=1)
-            out = th.matmul(h, self.decoder)
-            if self.regression:
-                out = self.regression_head(out)
-
+        if self.regression:
+            out = self.regression_head(out)
         return out
 
     def predict(self, g, h):
-        """predict function for this decoder
+        """Predict function for this decoder
 
         Parameters
         ----------
@@ -242,18 +311,38 @@ class MLPEdgeDecoder(GSLayer):
         -------
         Tensor : the scores of each edge.
         """
-        with g.local_scope():
-            u, v = g.edges(etype=self.target_etype)
-            src_type, _, dest_type = self.target_etype
-            ufeat = h[src_type][u]
-            ifeat = h[dest_type][v]
+        out = self._compute_logits(g, h)
 
-            h = th.cat([ufeat, ifeat], dim=1)
-            out = th.matmul(h, self.decoder)
-            if self.regression:
-                out = self.regression_head(out)
-            elif self.multilabel:
-                out = out.argmax(dim=1)
+        if self.regression:
+            out = self.regression_head(out)
+        elif self.multilabel:
+            out = (th.sigmoid(out) > .5).long()
+        else:  # not multilabel
+            out = out.argmax(dim=1)
+        return out
+
+    def predict_proba(self, g, h):
+        """Predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+
+        Returns
+        -------
+        Tensor : the scores of each edge.
+        """
+        out = self._compute_logits(g, h)
+
+        if self.regression:
+            out = self.regression_head(out)
+        elif self.multilabel:
+            out = th.sigmoid(out)
+        else:
+            out = th.softmax(out, 1)
         return out
 
     @property
@@ -276,6 +365,119 @@ class MLPEdgeDecoder(GSLayer):
         """
         return 1 if self.regression else self.out_dim
 
+class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
+    """ MLP based edge classificaiton/regression decoder
+
+    Parameters
+    ----------
+    h_dim : int
+        The input dim of decoder. It is the dim of source or destinatioin node embeddings.
+    feat_dim : int
+        The input dim of edge features which are used with NN output.
+    out_dim : int
+        Output dim. e.g., number of classes
+    multilabel : bool
+        Whether this is a multilabel classification.
+    target_etype : tuple of str
+        Target etype for prediction
+    regression : Bool
+        If this is true then we perform regression
+    dropout: float
+        Dropout
+    """
+    def __init__(self,
+                 h_dim,
+                 feat_dim,
+                 out_dim,
+                 multilabel,
+                 target_etype,
+                 dropout=0,
+                 regression=False,
+                 num_ffn_layers=2):
+        self.feat_dim = feat_dim
+        super(MLPEFeatEdgeDecoder, self).__init__(h_dim=h_dim,
+                                                  out_dim=out_dim,
+                                                  multilabel=multilabel,
+                                                  target_etype=target_etype,
+                                                  dropout=dropout,
+                                                  regression=regression,
+                                                  num_ffn_layers=num_ffn_layers)
+
+    def _init_model(self):
+        """ Init decoder model
+        """
+        self.relu = th.nn.ReLU()
+
+        # [src_emb | dest_emb] @ W -> h_dim
+        # Here we assume the source and destination nodes have the same dimension.
+        self.nn_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
+        # [edge_feat] @ W -> h_dim
+        self.feat_decoder = nn.Parameter(th.randn(self.feat_dim, self.h_dim))
+
+        # ngnn before combine layer
+        self.ngnn_mlp = NGNNMLP(self.h_dim * 2, self.h_dim * 2,
+                                self.num_ffn_layers,
+                                th.nn.functional.relu,
+                                self.dropout)
+
+        # combine output of nn_decoder and feat_decoder
+        self.combine_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
+        self.decoder = nn.Parameter(th.randn(self.h_dim, self.out_dim))
+        self.dropout = nn.Dropout(self.dropout)
+
+
+        nn.init.xavier_uniform_(self.nn_decoder,
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self.feat_decoder,
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self.combine_decoder,
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self.decoder,
+                                gain=nn.init.calculate_gain('relu'))
+        if self.regression:
+            self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
+
+    def _compute_logits(self, g, h):
+        """ Compute forword output
+
+            Parameters
+            ----------
+            g : DGLBlock
+                The minibatch graph
+            h : dict of Tensors
+                The dictionary containing the embeddings
+            Returns
+            -------
+            th.Tensor
+                Output of forward
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self.target_etype)
+            src_type, _, dest_type = self.target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+            efeat = g.edges[self.target_etype].data[EP_DECODER_EDGE_FEAT]
+
+            # [src_emb | dest_emb] @ W -> h_dim
+            h = th.cat([ufeat, ifeat], dim=1)
+            nn_h = th.matmul(h, self.nn_decoder)
+            nn_h = self.relu(nn_h)
+            nn_h = self.dropout(nn_h)
+            # [edge_feat] @ W -> h_dim
+            feat_h = th.matmul(efeat, self.feat_decoder)
+            feat_h = self.relu(feat_h)
+            feat_h = self.dropout(feat_h)
+            # [nn_h | feat_h] @ W -> h_dim
+            combine_h = th.cat([nn_h, feat_h], dim=1)
+            if self.num_ffn_layers > 0:
+                combine_h = self.ngnn_mlp(combine_h)
+            combine_h = th.matmul(combine_h, self.combine_decoder)
+            combine_h = self.relu(combine_h)
+            out = th.matmul(combine_h, self.decoder)
+
+        return out
+
+##################### Link Prediction Decoders #######################
 class LinkPredictDotDecoder(GSLayerNoParam):
     """ Link prediction decoder with the score function of dot product
     """
@@ -639,3 +841,108 @@ class LinkPredictDistMultDecoder(GSLayer):
         int : the number of output dimensions.
         """
         return 1
+
+def _get_edge_weight(g, weight_field, etype):
+    """ Get the edge weight feature from g according to etype.
+        If the corresponding edge type does not have edge weight, set the weight to 1.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            Graph.
+        weight_field: str
+            Edge weight feature field in a graph
+        etype: (str, str, str)
+            Canonical etype
+    """
+    # edge_weight_fields is a str
+    if weight_field in g.edges[etype].data:
+        eid = g.edges(form="eid", etype=etype)
+        weight = g.edges[etype].data[weight_field][eid]
+        weight = weight.flatten()
+        assert len(weight) == len(eid), \
+                "Edge weight must be a tensor of shape (num_edges,) " \
+            f"or (num_edges, 1). But get {g.edges[etype].data[weight_field].shape}"
+    else:
+        # current etype does not has weight
+        weight = th.ones((g.num_edges(etype),))
+    return weight
+
+class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
+    """Link prediction decoder with the score function of DistMult
+       with edge weight.
+
+       When computing loss, edge weights are used to adjust the loss
+    """
+    def __init__(self, etypes, h_dim, gamma=40., edge_weight_fields=None):
+        self._edge_weight_fields = edge_weight_fields
+        super(LinkPredictWeightedDistMultDecoder, self).__init__(etypes, h_dim, gamma)
+
+    def forward(self, g, h):
+        """Forward function.
+
+        This computes the DistMult score on every edge type.
+        """
+        with g.local_scope():
+            scores=[]
+            weights = []
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                i = self.etype2rid[canonical_etype]
+                self.trained_rels[i] += 1
+                rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
+                rel_embedding = rel_embedding.unsqueeze(dim=1)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                src_emb = h[src_type][u]
+
+                dest_emb = h[dest_type][v]
+                rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
+                scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
+
+                weight = _get_edge_weight(g, LP_DECODER_EDGE_WEIGHT, canonical_etype)
+                weights.append(weight.to(scores_etype.device))
+                scores.append(scores_etype)
+            scores = th.cat(scores)
+            weights = th.cat(weights)
+            return (scores, weights)
+
+class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
+    """Link prediction decoder with the score function of dot product
+       with edge weight.
+
+       When computing loss, edge weights are used to adjust the loss
+    """
+    def __init__(self, in_dim, edge_weight_fields):
+        self._edge_weight_fields = edge_weight_fields
+        super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
+
+    def forward(self, g, h): # pylint: disable=arguments-differ
+        """Forward function.
+
+        This computes the dot product score on every edge type.
+        """
+        with g.local_scope():
+            scores = []
+            weights = []
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                src_emb = h[src_type][u]
+                dest_emb = h[dest_type][v]
+                scores_etype = calc_dot_pos_score(src_emb, dest_emb)
+
+                weight = _get_edge_weight(g, LP_DECODER_EDGE_WEIGHT, canonical_etype)
+                weights.append(weight.to(scores_etype.device))
+                scores.append(scores_etype)
+
+            scores = th.cat(scores)
+            weights = th.cat(weights)
+            return (scores, weights)

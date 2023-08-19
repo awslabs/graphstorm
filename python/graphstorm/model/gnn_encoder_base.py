@@ -15,13 +15,13 @@
 
     Relational GNN
 """
-import tqdm
-
 import dgl
 import torch as th
 from torch import nn
 from dgl.distributed import DistTensor, node_split
 from .gs_layer import GSLayer
+
+from ..utils import get_rank
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -60,7 +60,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return self._h_dim
 
     @property
-    def n_layers(self):
+    def num_layers(self):
         """ The number of GNN layers.
         """
         # The number of GNN layer is the number of hidden layers + 1
@@ -72,7 +72,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         """
         return self._layers
 
-def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
+def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                    edge_mask=None, task_tracker=None):
     """Distributed inference of final representation over all node types.
 
@@ -86,7 +86,7 @@ def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
         The node features of the graph.
     batch_size : int
         The batch size for the GNN inference.
-    fanout : int
+    fanout : list of int
         The fanout for computing the GNN embeddings in a GNN layer.
     edge_mask : str
         The edge mask indicates which edges are used to compute GNN embeddings.
@@ -98,7 +98,6 @@ def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
     dict of Tensor : the final GNN embeddings of all nodes.
     """
     device = gnn_encoder.device
-    x = node_feats
     with th.no_grad():
         for i, layer in enumerate(gnn_encoder.layers):
             # get the fanout for this layer
@@ -119,17 +118,21 @@ def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
                                                 partition_book=g.get_partition_book(),
                                                 ntype=ntype, force_even=False)
             # need to provide the fanout as a list, the number of layers is one obviously here
-            sampler = dgl.dataloading.MultiLayerNeighborSampler([fanout], mask=edge_mask)
+            fanout_i = [-1] if fanout is None or len(fanout) == 0 else [fanout[i]]
+            sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout_i, mask=edge_mask)
             dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
                                                             batch_size=batch_size,
-                                                            shuffle=True,
+                                                            shuffle=False,
                                                             drop_last=False)
 
-            for iter_l, (input_nodes, output_nodes, blocks) in enumerate(tqdm.tqdm(dataloader)):
+            for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
+                if iter_l % 100000 == 0 and get_rank() == 0:
+                    print(f"[Rank 0] dist_inference: Layer [{i}] " \
+                          f"finishes [{iter_l}] iterations.")
+
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
                 block = blocks[0].to(device)
-
                 if not isinstance(input_nodes, dict):
                     # This happens on a homogeneous graph.
                     assert len(g.ntypes) == 1
@@ -140,7 +143,10 @@ def dist_inference(g, gnn_encoder, node_feats, batch_size, fanout,
                     assert len(g.ntypes) == 1
                     output_nodes = {g.ntypes[0]: output_nodes}
 
-                h = {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
+                if i == 0:
+                    h = get_input_embeds(input_nodes)
+                else:
+                    h = {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
                 h = layer(block, h)
 
                 for k in h.keys():

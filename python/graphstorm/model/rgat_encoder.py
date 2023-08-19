@@ -15,13 +15,16 @@
 
     RGAT layer implementation
 """
+import warnings
 
 import torch as th
 from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 
+from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
+
 
 class RelationalAttLayer(nn.Module):
     r"""Relational graph attention layer.
@@ -37,7 +40,7 @@ class RelationalAttLayer(nn.Module):
         Output feature size.
     rel_names : list[str]
         Relation names.
-    n_heads : int
+    num_heads : int
         Number of attention heads
     bias : bool, optional
         True if bias is added. Default: True
@@ -47,17 +50,23 @@ class RelationalAttLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
+    num_ffn_layers_in_gnn: int, optional
+        Number of layers of ngnn between gnn layers
+    ffn_actication: torch.nn.functional
+        Activation Method for ngnn
     """
     def __init__(self,
                  in_feat,
                  out_feat,
                  rel_names,
-                 n_heads,
+                 num_heads,
                  *,
                  bias=True,
                  activation=None,
                  self_loop=False,
-                 dropout=0.0):
+                 dropout=0.0,
+                 num_ffn_layers_in_gnn=0,
+                 fnn_activation=F.relu):
         super(RelationalAttLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -67,7 +76,7 @@ class RelationalAttLayer(nn.Module):
         self.self_loop = self_loop
 
         self.conv = dglnn.HeteroGraphConv({
-                rel : dglnn.GATConv(in_feat, out_feat // n_heads, n_heads, bias=False)
+                rel : dglnn.GATConv(in_feat, out_feat // num_heads, num_heads, bias=False)
                 for rel in rel_names
             })
 
@@ -82,6 +91,12 @@ class RelationalAttLayer(nn.Module):
             nn.init.xavier_uniform_(self.loop_weight,
                                     gain=nn.init.calculate_gain('relu'))
 
+        # ngnn
+        self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
+        self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
+                                     num_ffn_layers_in_gnn, fnn_activation, dropout)
+
+        # dropout
         self.dropout = nn.Dropout(dropout)
 
     # pylint: disable=invalid-name
@@ -117,13 +132,15 @@ class RelationalAttLayer(nn.Module):
                 h = h + self.h_bias
             if self.activation:
                 h = self.activation(h)
+            if self.num_ffn_layers_in_gnn > 0:
+                h = self.ngnn_mlp(h)
             return self.dropout(h)
 
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    print("Warning. Graph convolution returned empty dictionary, "
-                          f"for node with type: {str(k)}")
+                    warnings.warn("Warning. Graph convolution returned empty "
+                          f"dictionary, for node with type: {str(k)}")
                     for _, in_v in inputs_src.items():
                         device = in_v.device
                     hs[k] = th.zeros((g.number_of_dst_nodes(k), self.out_feat), device=device)
@@ -143,7 +160,7 @@ class RelationalGATEncoder(GraphConvEncoder):
         Hidden dimension size
     out_dim: int
         Output dimension size
-    n_heads: int
+    num_heads: int
         Number of heads
     num_hidden_layers: int
         Num hidden layers
@@ -153,26 +170,30 @@ class RelationalGATEncoder(GraphConvEncoder):
         Self loop
     last_layer_act: bool
         Whether add activation at the last layer
+    num_ffn_layers_in_gnn: int
+        Number of ngnn gnn layers between GNN layers
     """
     def __init__(self,
                  g,
-                 h_dim, out_dim, n_heads,
+                 h_dim, out_dim, num_heads,
                  num_hidden_layers=1,
                  dropout=0,
                  use_self_loop=True,
-                 last_layer_act=False):
+                 last_layer_act=False,
+                 num_ffn_layers_in_gnn=0):
         super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
-        self.n_heads = n_heads
+        self.num_heads = num_heads
         # h2h
         for _ in range(num_hidden_layers):
             self.layers.append(RelationalAttLayer(
                 h_dim, h_dim, g.canonical_etypes,
-                self.n_heads, activation=F.relu, self_loop=use_self_loop,
-                dropout=dropout))
+                self.num_heads, activation=F.relu, self_loop=use_self_loop,
+                dropout=dropout, num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
+                fnn_activation=F.relu))
         # h2o
         self.layers.append(RelationalAttLayer(
             h_dim, out_dim, g.canonical_etypes,
-            self.n_heads, activation=F.relu if last_layer_act else None,
+            self.num_heads, activation=F.relu if last_layer_act else None,
             self_loop=use_self_loop))
 
     def forward(self, blocks, h):

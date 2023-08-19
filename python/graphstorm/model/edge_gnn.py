@@ -56,7 +56,7 @@ class GSgnnEdgeModelInterface:
         """
 
     @abc.abstractmethod
-    def predict(self, blocks, batch_graph, node_feats, edge_feats):
+    def predict(self, blocks, batch_graph, node_feats, edge_feats, input_nodes, return_proba):
         """ Make prediction on the edges.
 
         Parameters
@@ -69,10 +69,15 @@ class GSgnnEdgeModelInterface:
             The node features of the message passing graphs.
         edge_feats : dict of Tensors
             The edge features of the message passing graphs.
+        input_nodes: dict of Tensors
+            The input nodes of a mini-batch.
+        return_proba : bool
+            Whether or not to return all the predicted results or only the maximum one
 
         Returns
         -------
-        Tensor : the prediction results.
+        Tensor : the prediction results. Return all the results when return_proba
+            is true otherwise return the maximum value.
         """
 
 class GSgnnEdgeModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
@@ -125,13 +130,19 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-    def predict(self, blocks, batch_graph, node_feats, _):
+    def predict(self, blocks, batch_graph, node_feats, _, input_nodes, return_proba=False):
         """ Make prediction on edges.
         """
-        gnn_embs = self.compute_embed_step(blocks, node_feats)
-        return self.decoder.predict(batch_graph, gnn_embs)
+        if blocks is None or len(blocks) == 0:
+            # no GNN message passing in encoder
+            encode_embs = self.comput_input_embed(input_nodes, node_feats)
+        else:
+            encode_embs = self.compute_embed_step(blocks, node_feats)
+        if return_proba:
+            return self.decoder.predict_proba(batch_graph, encode_embs)
+        return self.decoder.predict(batch_graph, encode_embs)
 
-def edge_mini_batch_gnn_predict(model, loader, return_label=False):
+def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
 
     Parameters
@@ -140,12 +151,15 @@ def edge_mini_batch_gnn_predict(model, loader, return_label=False):
         The GraphStorm GNN model
     loader : GSgnnEdgeDataLoader
         The GraphStorm dataloader
+    return_proba: bool
+        Whether to return all the predictions or the maximum prediction
     return_label : bool
-        Whether or not to return labels.
+        Whether or not to return labels
 
     Returns
     -------
-    Tensor : GNN prediction results.
+    Tensor : GNN prediction results. Return all the results when return_proba is true
+        otherwise return the maximum result.
     Tensor : labels if return_labels is True
     """
     device = model.device
@@ -161,19 +175,21 @@ def edge_mini_batch_gnn_predict(model, loader, return_label=False):
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
-            pred = model.predict(blocks, batch_graph, input_feats, None)
+            batch_graph = batch_graph.to(device)
+            pred = model.predict(blocks, batch_graph, input_feats, None, input_nodes,
+                                 return_proba)
             preds.append(pred.cpu())
 
             if return_label:
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
                 assert len(batch_graph.etypes) == 1
-                predict_etype = batch_graph.canonical_etypes[0]
+                target_etype = batch_graph.canonical_etypes[0]
                 # TODO(zhengda) the data loader should return labels directly.
-                seeds = batch_graph.edges[predict_etype].data[dgl.EID]
-                lbl = data.get_labels({predict_etype: seeds})
+                seeds = batch_graph.edges[target_etype].data[dgl.EID]
+                lbl = data.get_labels({target_etype: seeds})
                 assert len(lbl) == 1
-                labels.append(lbl[predict_etype])
+                labels.append(lbl[target_etype])
     model.train()
     preds = th.cat(preds)
     if return_label:
@@ -181,7 +197,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_label=False):
     else:
         return preds
 
-def edge_mini_batch_predict(model, emb, loader, return_label=False):
+def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction.
 
     This function usually follows full-grain GNN embedding inference. After having
@@ -196,18 +212,27 @@ def edge_mini_batch_predict(model, emb, loader, return_label=False):
         The GNN embeddings
     loader : GSgnnEdgeDataLoader
         The GraphStorm dataloader
+    return_proba: bool
+        Whether to return all the predictions or the maximum prediction
     return_label : bool
-        Whether or not to return labels.
+        Whether or not to return labels
 
     Returns
     -------
-    Tensor : GNN prediction results.
+    Tensor : GNN prediction results. Return all the results when return_proba is true
+        otherwise return the maximum result.
     Tensor : labels if return_labels is True
     """
     # find the target src and dst ntypes
     model.eval()
     decoder = model.decoder
     data = loader.data
+
+    if return_label:
+        assert data.labels is not None, \
+            "Return label is required, but the label field is not provided whem" \
+            "initlaizing the inference dataset."
+
     with th.no_grad():
         # save preds and labels together in order not to shuffle
         # the order when gather tensors from other trainers
@@ -222,7 +247,10 @@ def edge_mini_batch_predict(model, emb, loader, return_label=False):
                 batch_embs[ntype] = emb[ntype][in_nodes].to(device)
             batch_graph = batch_graph.to(device)
             # TODO(zhengda) how to deal with edge features?
-            preds_list.append(decoder.predict(batch_graph, batch_embs))
+            if return_proba:
+                preds_list.append(decoder.predict_proba(batch_graph, batch_embs))
+            else:
+                preds_list.append(decoder.predict(batch_graph, batch_embs))
             # TODO(zhengda) we need to have the data loader reads everything,
             # instead of reading labels here.
             if return_label:
@@ -236,4 +264,4 @@ def edge_mini_batch_predict(model, emb, loader, return_label=False):
     if return_label:
         return preds, th.cat(labels_list)
     else:
-        return preds
+        return preds, None

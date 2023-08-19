@@ -17,11 +17,13 @@
 """
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 from dgl.distributed import DistEmbedding, DistTensor, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
 from ..utils import get_rank
+from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
     """Create a tensor with the given shape and date type.
@@ -79,8 +81,26 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         Default action: Do nothing
         """
 
+    def get_general_dense_parameters(self):
+        """ Get dense layers' parameters.
+
+        Returns
+        -------
+        list of Tensors: the dense parameters
+        """
+        return self.parameters()
+
+    def get_lm_dense_parameters(self):
+        """ Get the language model related parameters
+        Returns
+        -------
+        list of Tensors: the language model parameters.
+        """
+        # By default, there is no language model
+        return []
+
     def get_sparse_params(self):
-        """ get the sparse parameters.
+        """ Get the sparse parameters.
 
         Returns
         -------
@@ -88,6 +108,19 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         """
         # By default, there is no sparse_embeds
         return []
+
+    def require_cache_embed(self):
+        """ Whether to cache the embeddings for inference.
+
+        If the input encoder has heavy computations, such as BERT computations,
+        it should return True and the inference engine will cache the embeddings
+        from the input encoder.
+
+        Returns
+        -------
+        Bool : True if we need to cache the embeddings for inference.
+        """
+        return False
 
     @property
     def sparse_embeds(self):
@@ -128,6 +161,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     use_node_embeddings : bool
         Whether we will use the node embeddings for individual nodes even when node features are
         available.
+    num_ffn_layers_in_input: int, optional
+        Number of layers of feedforward neural network for each node type in the input layers
     """
     def __init__(self,
                  g,
@@ -135,13 +170,15 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  embed_size,
                  activation=None,
                  dropout=0.0,
-                 use_node_embeddings=False):
+                 use_node_embeddings=False,
+                 num_ffn_layers_in_input=0,
+                 ffn_activation=F.relu,
+                 ):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
-        self.activation = activation
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
-
+        self.activation = activation
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
@@ -182,6 +219,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                                 embed_name + '_' + ntype,
                                 init_emb,
                                 part_policy=part_policy)
+
+        # ngnn
+        self.num_ffn_layers_in_input = num_ffn_layers_in_input
+        self.ngnn_mlp = nn.ModuleDict({})
+        for ntype in g.ntypes:
+            self.ngnn_mlp[ntype] = NGNNMLP(embed_size, embed_size,
+                            num_ffn_layers_in_input, ffn_activation, dropout)
 
     def forward(self, input_feats, input_nodes):
         """Forward computation
@@ -225,9 +269,15 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 emb = emb @ self.proj_matrix[ntype]
             if self.activation is not None:
                 emb = self.activation(emb)
-            emb = self.dropout(emb)
+                emb = self.dropout(emb)
             embs[ntype] = emb
 
+        def _apply(t, h):
+            if self.num_ffn_layers_in_input > 0:
+                h = self.ngnn_mlp[t](h)
+            return h
+
+        embs = {ntype: _apply(ntype, h) for ntype, h in embs.items()}
         return embs
 
     def get_sparse_params(self):
