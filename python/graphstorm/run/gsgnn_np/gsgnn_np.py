@@ -133,7 +133,7 @@ def main(config_args):
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size(),
+                        gs.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 

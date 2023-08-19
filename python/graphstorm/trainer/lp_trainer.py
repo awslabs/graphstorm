@@ -25,8 +25,8 @@ from ..model.lp_gnn import lp_mini_batch_predict
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler
+from ..utils import barrier
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -184,7 +184,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
             # ------- end of an epoch -------
 
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - epoch_start
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
@@ -204,8 +204,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
             rt_profiler.print_stats()
-
-            th.distributed.barrier()
+            barrier()
 
             # early_stop, exit training
             if early_stop is True:

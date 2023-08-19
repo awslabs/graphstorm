@@ -26,8 +26,8 @@ from ..model.edge_gnn import GSgnnEdgeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler
+from ..utils import barrier
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
@@ -188,7 +188,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
             # ------- end of an epoch -------
 
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - epoch_start
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
@@ -206,8 +206,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             # depends on the setting of top k. To show this is after epoch save, set the iteration
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
-
-            th.distributed.barrier()
+            barrier()
 
             # early_stop, exit training
             if early_stop is True:
