@@ -16,6 +16,7 @@
     GraphStorm trainer for link prediction
 """
 import time
+import resource
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -91,8 +92,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     "Only GSgnnModel supports full-graph inference."
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
-        model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
-                                        output_device=self.dev_id,
+        on_cpu = self.device == th.device('cpu')
+        model = DistributedDataParallel(self._model, device_ids=None if on_cpu else [self.device],
+                                        output_device=None if on_cpu else self.device,
                                         find_unused_parameters=True,
                                         static_graph=static_graph)
         device = model.device
@@ -210,11 +212,18 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        if th.cuda.is_available():
+            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
+                                                         1024 / 1024))
+        else:
+            print("Peak RAM Mem alloc: {:.4f} MB".format(
+                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,
                        'best_val_mrr':self.evaluator.best_val_score,
-                       'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_RAM_mem_alloc_MB': \
+                           resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
                            self.evaluator.best_iter_num[self.evaluator.metric[0]],
                        'best model path': \
@@ -256,12 +265,13 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
-        device = th.device(f"cuda:{self.dev_id}") \
-            if self.dev_id >= 0 else th.device("cpu")
-        val_scores = lp_mini_batch_predict(model, emb, val_loader, device) \
+        val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
             if val_loader is not None else None
         sys_tracker.check('after_val_score')
-        test_scores = lp_mini_batch_predict(model, emb, test_loader, device)
+        if test_loader is not None:
+            test_scores = lp_mini_batch_predict(model, emb, test_loader, self.device)
+        else:
+            test_scores = None
         sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
             val_scores, test_scores, total_steps)

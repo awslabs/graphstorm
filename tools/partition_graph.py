@@ -89,6 +89,8 @@ if __name__ == '__main__':
     argparser.add_argument('--num-trainers-per-machine', type=int, default=1,
                            help='the number of trainers per machine. The trainer ids are stored\
                                 in the node feature \'trainer_id\'')
+    argparser.add_argument('--is-homo', action='store_true', help='if user wants to '
+                                'start a partition on homogeneous graph')
     # output arguments
     argparser.add_argument('--output', type=str, default='data',
                            help='The output directory to store the partitioned results.')
@@ -127,13 +129,13 @@ if __name__ == '__main__':
     pred_ntypes = args.target_ntype.split(',') if args.target_ntype is not None else None
     if pred_ntypes is None:
         try:
-            pred_ntypes = [dataset.predict_category]
+            pred_ntypes = [dataset.predict_category] if not args.is_homo else ['_N']
         except:
             pass
     pred_etypes = [tuple(args.target_etype.split(','))] if args.target_etype is not None else None
     if pred_etypes is None:
         try:
-            pred_etypes = [dataset.target_etype]
+            pred_etypes = [dataset.target_etype] if not args.is_homo else ['_E']
         except:
             pass
     assert pred_ntypes is not None or pred_etypes is not None, \

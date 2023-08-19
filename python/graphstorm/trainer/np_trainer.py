@@ -16,6 +16,7 @@
     GraphStorm trainer for node prediction.
 """
 import time
+import resource
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -88,8 +89,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
-        model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
-                                        output_device=self.dev_id,
+        on_cpu = self.device == th.device('cpu')
+        model = DistributedDataParallel(self._model, device_ids=None if on_cpu else [self.device],
+                                        output_device=None if on_cpu else self.device,
                                         find_unused_parameters=True,
                                         static_graph=static_graph)
         device = model.device
@@ -202,11 +204,18 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        if th.cuda.is_available():
+            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
+                                                         1024 / 1024))
+        else:
+            print("Peak RAM Mem alloc: {:.4f} MB".format(
+                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
-                       'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_RAM_mem_alloc_MB': \
+                           resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
                            self.evaluator.best_iter_num[self.evaluator.metric[0]],
                        'best model path': \
@@ -244,8 +253,13 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                                  return_label=True)
             sys_tracker.check('after_val_score')
-            test_pred, _, test_label = node_mini_batch_gnn_predict(model, test_loader, return_proba,
-                                                                   return_label=True)
+            if test_loader is not None:
+                test_pred, _, test_label = \
+                    node_mini_batch_gnn_predict(model, test_loader, return_proba,
+                                                return_label=True)
+            else: # there is no test set
+                test_pred = None
+                test_label = None
             sys_tracker.check('after_test_score')
         else:
             emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
@@ -254,8 +268,14 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             val_pred, val_label = node_mini_batch_predict(model, emb, val_loader, return_proba,
                                                           return_label=True)
             sys_tracker.check('after_val_score')
-            test_pred, test_label = node_mini_batch_predict(model, emb, test_loader, return_proba,
-                                                            return_label=True)
+            if test_loader is not None:
+                test_pred, test_label = \
+                    node_mini_batch_predict(model, emb, test_loader, return_proba,
+                                            return_label=True)
+            else:
+                # there is no test set
+                test_pred = None
+                test_label = None
             sys_tracker.check('after_test_score')
         sys_tracker.check('predict')
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,

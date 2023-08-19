@@ -187,15 +187,16 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  force_no_embeddings=False,
                  embed_type="zero",
                  num_ffn_layers_in_input=0,
-                 ffn_activation=F.relu):
+                 ffn_activation=F.relu,
+                 ):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
-        self.activation = activation
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
         if force_no_embeddings:
             assert not use_node_embeddings
 
+        self.activation = activation
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
@@ -279,7 +280,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             if emb is not None:
                 if self.activation is not None:
                     emb = self.activation(emb)
-                emb = self.dropout(emb)
+                    emb = self.dropout(emb)
                 embs[ntype] = emb
 
         def _apply(t, h):

@@ -35,6 +35,14 @@ job_type_info = {
     'CI-LINT-PUSH': {
         'job_definition': 'graphstorm-definition-lint',
         'job_queue': 'graphstorm-queue-lint',
+    },
+    'CI-CPU-CHECK-PUSH': {
+        'job_definition': 'graphstorm-definition-check',
+        'job_queue': 'graphstorm-queue-lint',
+    },
+    'CI-CPU-CHECK': {
+        'job_definition': 'graphstorm-definition-check',
+        'job_queue': 'graphstorm-queue-lint',
     }
 }
 

@@ -48,7 +48,7 @@ from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker
+from graphstorm.utils import rt_profiler, sys_tracker, setup_device
 
 def main(config_args):
     """ main function
@@ -59,6 +59,7 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
+    device = setup_device(config.local_rank)
     node_feat_field = config.node_feat_name
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
@@ -71,7 +72,7 @@ def main(config_args):
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_cuda(dev_id=config.local_rank)
+    trainer.setup_device(device=device)
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         trainer.setup_evaluator(
@@ -113,7 +114,6 @@ def main(config_args):
         dataloader_cls = FastGSgnnLPLocalJointNegDataLoader
     else:
         raise ValueError('Unknown negative sampler')
-    device = 'cuda:%d' % trainer.dev_id
     dataloader = dataloader_cls(train_data, train_data.train_idxs, config.fanout,
                                 config.batch_size, config.num_negative_edges, device,
                                 train_task=True,
@@ -130,10 +130,14 @@ def main(config_args):
         raise ValueError('Unknown test negative sampler.'
             'Supported test negative samplers include '
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
-    val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-        config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
-    test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-        config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
+    val_dataloader = None
+    test_dataloader = None
+    if len(train_data.val_idxs) > 0:
+        val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
+            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
+    if len(train_data.test_idxs) > 0:
+        test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
+            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

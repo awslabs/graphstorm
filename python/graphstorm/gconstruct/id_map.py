@@ -107,6 +107,8 @@ class IdMap:
         -------
         tuple of tensors : the tensor of new IDs, the location of the IDs in the input ID tensor.
         """
+        if len(ids) == 0:
+            return np.array([], dtype=np.int64), np.array([], dtype=np.int64)
         for id_ in self._ids:
             # If the data type of the key is string, the input Ids should not be integer.
             if isinstance(id_, str):
@@ -158,7 +160,8 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     """ Map node IDs of source and destination nodes of edges.
 
     In the ID mapping, we need to handle multiple errors in the input data:
-    1) we handle the case that endpoint nodes of edges don't exist;
+    1) we handle the case that endpoint nodes of edges don't exist; if all endpoint nodes
+    do not exist, we return an empty edge list.
     2) we handle the case that the data type of node IDs of the endpoint nodes don't
     match the data type of the keys of the ID map.
 
@@ -184,26 +187,28 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     # If some of the source nodes don't exist in the node set.
     if len(orig_locs) != len(src_ids):
         bool_mask = np.ones(len(src_ids), dtype=bool)
-        bool_mask[orig_locs] = False
+        if len(orig_locs) > 0:
+            bool_mask[orig_locs] = False
         if skip_nonexist_edges:
-            logging.warning("source nodes of %s do not exist: %s",
-                            src_type, str(src_ids[bool_mask]))
+            logging.warning("source nodes of %s do not exist. Skip %d edges",
+                            src_type, len(src_ids[bool_mask]))
         else:
             raise ValueError(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
-        dst_ids = dst_ids[orig_locs]
+        dst_ids = dst_ids[orig_locs] if len(orig_locs) > 0 else np.array([], dtype=dst_ids.dtype)
     src_ids = new_src_ids
 
     new_dst_ids, orig_locs = node_id_map[dst_type].map_id(dst_ids)
     # If some of the dest nodes don't exist in the node set.
     if len(orig_locs) != len(dst_ids):
         bool_mask = np.ones(len(dst_ids), dtype=bool)
-        bool_mask[orig_locs] = False
+        if len(orig_locs) > 0:
+            bool_mask[orig_locs] = False
         if skip_nonexist_edges:
-            logging.warning("dest nodes of %s do not exist: %s",
-                            dst_type, str(dst_ids[bool_mask]))
+            logging.warning("dest nodes of %s do not exist. Skip %d edges",
+                            dst_type, len(dst_ids[bool_mask]))
         else:
             raise ValueError(f"dest nodes of {dst_type} do not exist: {dst_ids[bool_mask]}")
         # We need to remove the source nodes as well.
-        src_ids = src_ids[orig_locs]
+        src_ids = src_ids[orig_locs] if len(orig_locs) > 0 else np.array([], dtype=src_ids.dtype)
     dst_ids = new_dst_ids
     return src_ids, dst_ids

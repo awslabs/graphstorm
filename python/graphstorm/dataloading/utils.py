@@ -15,6 +15,7 @@
 
     Utils for data loading.
 """
+from copy import deepcopy
 import torch as th
 import torch.distributed as dist
 
@@ -37,9 +38,7 @@ def trim_data(nids, device):
         -------
         Trimed nids: th.Tensor
     """
-    # NCCL backend only supports GPU tensors, thus here we need to allocate it to gpu
     num_nodes = th.tensor(nids.numel()).to(device)
-    assert num_nodes.is_cuda, "NCCL does not support CPU all_reduce"
     dist.all_reduce(num_nodes, dist.ReduceOp.MIN)
     min_num_nodes = int(num_nodes)
     nids_length = nids.shape[0]
@@ -63,8 +62,11 @@ def dist_sum(size):
     -------
     int : the global size.
     """
-    dev_id = th.cuda.current_device()
-    size = th.tensor([size], device=th.device(dev_id))
+    if th.cuda.is_available():
+        dev_id = th.cuda.current_device()
+        size = th.tensor([size], device=th.device(dev_id))
+    else:
+        size = th.tensor([size], device=th.device("cpu"))
     dist.all_reduce(size, dist.ReduceOp.SUM)
     return int(size.cpu())
 
@@ -98,3 +100,21 @@ def modify_fanout_for_target_etype(g, fanout, target_etypes):
                 edge_fanout_dic[etype] = 0
         edge_fanout_lis.append(edge_fanout_dic)
     return edge_fanout_lis
+
+def flip_node_mask(dist_tensor):
+    """ Flip the node mask (0->1; 1->0) and return a flipped mask.
+        This is equivalent to the `~` operator for boolean tensors. 
+        
+        Parameters
+        ----------
+        dist_tensor: dgl.distributed.DistTensor
+            The input mask
+
+        Returns
+        -------
+        flipped mask: dgl.distributed.DistTensor
+    """
+    flipped_dist_tensor = deepcopy(dist_tensor)
+    for idx in range(dist_tensor.shape[0]):
+        flipped_dist_tensor[idx] = 1 - dist_tensor[idx]
+    return flipped_dist_tensor
