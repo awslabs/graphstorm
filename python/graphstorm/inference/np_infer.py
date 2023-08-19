@@ -16,7 +16,6 @@
     Infer wrapper for node classification and regression.
 """
 import time
-import torch as th
 from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInfer
