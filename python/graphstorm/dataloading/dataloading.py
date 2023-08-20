@@ -34,6 +34,20 @@ from .utils import trim_data, modify_fanout_for_target_etype
 EP_DECODER_EDGE_FEAT = "ep_edge_feat"
 
 class _ReconstructedNeighborSampler():
+    """ This samples an additional hop for a mini-batch.
+
+    The additional hop is used to compute the features of the nodes in the input layer.
+    Users can specify which input nodes requires to reconstruct node features.
+
+    Parameters
+    ----------
+    dataset: GSgnnData
+        The GraphStorm dataset
+    reconstructed_embed_ntypes : a list of strings.
+        The node type in the input layer that requires to reconstruct node features.
+    fanout : int
+        The fanout for the additional layer.
+    """
     def __init__(self, dataset, reconstructed_embed_ntypes, fanout):
         self._reconstructed_embed_ntypes = set(reconstructed_embed_ntypes)
         self._g = dataset.g
@@ -44,9 +58,20 @@ class _ReconstructedNeighborSampler():
             for etype in etypes:
                 if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
                     self._subg_etypes.append(etype)
-        assert len(self._subg_etypes) > 0, f"The sampled edge types is empty."
+        assert len(self._subg_etypes) > 0, "The sampled edge types is empty."
 
     def sample(self, block):
+        """ Sample an additional hop for the input block.
+
+        Parameters
+        ----------
+        block : DGLBlock
+            The input block of a mini-batch.
+
+        Returns
+        -------
+        DGLBlock : an additional hop for computing the features of the input nodes.
+        """
         nodes = {}
         for src_ntype in block.srctypes:
             if src_ntype in self._reconstructed_embed_ntypes:
@@ -747,10 +772,12 @@ class GSgnnNodeDataLoader():
         Whether or not for training.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
-                 reconstructed_embed_ntype=[]):
+                 reconstructed_embed_ntype=None):
         self._data = dataset
         self._fanout = fanout
         self._target_nidx  = target_idx
+        if reconstructed_embed_ntype is None:
+            reconstructed_embed_ntype = []
         self._reconstructed_embed_sampler = \
                 _ReconstructedNeighborSampler(dataset, reconstructed_embed_ntype, 5) \
                 if len(reconstructed_embed_ntype) > 0 else None
