@@ -25,6 +25,7 @@ import dgl
 import pytest
 from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_reconstruct
 
+import graphstorm as gs
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
@@ -395,11 +396,14 @@ def test_node_dataloader_reconstruct():
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
                                      train_task=False, reconstructed_embed_ntype=['n1', 'n2'])
     all_nodes = []
+    feat_sizes = gs.gsf.get_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
+    rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
+                                                                     ['n1', 'n2'], feat_sizes)
     for input_nodes, seeds, blocks in dataloader:
         assert 'n0' in seeds
         assert len(blocks) == 2
         for etype in blocks[1].canonical_etypes:
-            if etype == ('n4', 'r3', 'n2'):
+            if etype in rel_names_for_reconstruct:
                 assert blocks[1].number_of_edges(etype) > 0
             else:
                 assert blocks[1].number_of_edges(etype) == 0

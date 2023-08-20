@@ -138,7 +138,7 @@ def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
     """
     etypes = g.canonical_etypes
     reconstruct_etypes = []
-    for dst_ntype in reconstructed_embed_ntypes:
+    for dst_ntype in reconstructed_embed_ntype:
         for etype in etypes:
             src_type = etype[0]
             if etype[2] == dst_ntype and feat_size[src_type] > 0:
