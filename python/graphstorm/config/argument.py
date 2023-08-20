@@ -942,7 +942,7 @@ class GSConfig:
 
     @property
     def reconstructed_embed_ntype(self):
-        """
+        """ The node types that require to reconstruct node features.
         """
         if hasattr(self, "_reconstructed_embed_ntype"):
             assert not self.use_node_embeddings
@@ -952,6 +952,8 @@ class GSConfig:
 
     @property
     def reconstruct_encoder(self):
+        """ The encoder used for reconstructing node features.
+        """
         if hasattr(self, "_reconstruct_encoder"):
             return self._reconstruct_encoder
         else:
@@ -1845,7 +1847,7 @@ def _add_hyperparam_args(parser):
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
     group.add_argument("--reconstructed-embed-ntype", type=str, nargs="+",
-            help="The node types whose input embeddings are reconstructed from neighbors' features.")
+            help="The node types whose features are reconstructed from neighbors' features.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,

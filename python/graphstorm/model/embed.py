@@ -129,6 +129,13 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         return None
 
 class ZeroEmbedding:
+    """ Generate embeddings with zero values.
+
+    Parameters
+    ----------
+    embed_size : int
+        The embedding size.
+    """
     def __init__(self, embed_size):
         self._embed_size = embed_size
 
@@ -137,6 +144,8 @@ class ZeroEmbedding:
 
     @property
     def embedding_dim(self):
+        """ The embedding size.
+        """
         return self._embed_size
 
 def _get_node_embed(g, ntype, embed_size, embed_type):
