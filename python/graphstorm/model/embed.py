@@ -22,7 +22,7 @@ from dgl.distributed import DistEmbedding, DistTensor, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
-from ..utils import get_rank
+from ..utils import get_rank, barrier
 from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
@@ -363,5 +363,5 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
             print("Extract node embeddings")
     if embed_layer is not None:
         embed_layer.train()
-    th.distributed.barrier()
+    barrier()
     return n_embs

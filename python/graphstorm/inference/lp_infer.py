@@ -16,7 +16,6 @@
     Infer wrapper for link predicion.
 """
 import time
-import torch as th
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
@@ -25,7 +24,7 @@ from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
-from ..utils import sys_tracker
+from ..utils import sys_tracker, get_world_size, barrier
 
 class GSgnnLinkPredictionInfer(GSInfer):
     """ Link prediction infer.
@@ -76,10 +75,10 @@ class GSgnnLinkPredictionInfer(GSInfer):
         device = self.device
         if save_embed_path is not None:
             save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                th.distributed.get_world_size(),
+                get_world_size(),
                 device=device,
                 node_id_mapping_file=node_id_mapping_file)
-        th.distributed.barrier()
+        barrier()
         sys_tracker.check('save embeddings')
 
         if self.evaluator is not None:
@@ -93,7 +92,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
 
-        th.distributed.barrier()
+        barrier()
         # save relation embedding if any
         if self.rank == 0:
             decoder = self._model.decoder

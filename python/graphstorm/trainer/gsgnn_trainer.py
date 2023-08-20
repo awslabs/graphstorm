@@ -26,6 +26,8 @@ from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
 from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
 
+from ..utils import barrier
+
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
 
@@ -183,7 +185,7 @@ class GSgnnTrainer():
     def save_model(self, model, epoch, i, save_model_path):
         '''Save the model for a certain iteration in an epoch.
         '''
-        th.distributed.barrier()
+        barrier()
         if save_model_path is not None:
             assert isinstance(model.module, (GSgnnModel, GSgnnModelBase)), \
                 "Please make sure the model derives from GSgnnModel or GSgnnModelBase, " \
@@ -193,7 +195,7 @@ class GSgnnTrainer():
             self.optimizer.save_opt_state(save_model_path)
 
         # make sure each trainer finishes its own model saving task.
-        th.distributed.barrier()
+        barrier()
 
     def remove_saved_model(self, epoch, i, save_model_path):
         """ remove previously saved model, which may not be the best K performed or other reasons.
