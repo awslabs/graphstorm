@@ -16,10 +16,11 @@
     GSF utility functions.
 """
 
-
+import warnings
 import numpy as np
 import dgl
 import torch as th
+import torch.nn.functional as F
 
 from .utils import sys_tracker, get_rank
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
@@ -30,7 +31,7 @@ from .config import BUILTIN_LP_DOT_DECODER
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
-from .model.rgcn_encoder import RelationalGCNEncoder
+from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
 from .model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from .model.sage_encoder import SAGEEncoder
@@ -139,6 +140,9 @@ def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
     etypes = g.canonical_etypes
     reconstruct_etypes = []
     for dst_ntype in reconstructed_embed_ntype:
+        if feat_size[dst_ntype] > 0:
+            warnings.warn(f"Node {dst_ntype} already have features. " \
+                    + "No need to reconstruct their features.")
         for etype in etypes:
             src_type = etype[0]
             if etype[2] == dst_ntype and feat_size[src_type] > 0:
@@ -460,6 +464,7 @@ def set_encoder(model, g, config, train_task):
     """
     # Set input layer
     feat_size = get_feat_size(g, config.node_feat_name)
+    reconstruct_feats = len(config.reconstructed_embed_ntype) > 0
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:
         if model_encoder_type == "lm":
@@ -479,7 +484,7 @@ def set_encoder(model, g, config, train_task):
                                           dropout=config.dropout,
                                           activation=config.input_activate,
                                           use_node_embeddings=config.use_node_embeddings,
-                                          force_no_embeddings=len(config.reconstructed_embed_ntype) > 0,
+                                          force_no_embeddings=reconstruct_feats,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)
 
@@ -522,10 +527,18 @@ def set_encoder(model, g, config, train_task):
                                   num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
-    if len(config.reconstructed_embed_ntype) > 0:
-        rel_names = get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size)
+
+    if reconstruct_feats:
+        rel_names = get_rel_names_for_reconstruct(g, config.reconstructed_embed_ntype, feat_size)
+        dst_types = set([rel_name[2] for rel_name in rel_names])
+        for ntype in config.reconstructed_embed_ntype:
+            assert ntype in dst_types, \
+                    f"We cannot reconstruct features of node {ntype} " \
+                    + "probably because their neighbors don't have features."
+        assert config.reconstruct_encoder == "rgcn", \
+                "We only support RGCN for reconstructing node features."
         input_gnn = RelGraphConvLayer(config.hidden_size, config.hidden_size,
-                                      rel_names,
+                                      rel_names, len(rel_names),
                                       activation=F.relu,
                                       num_ffn_layers_in_gnn=config.num_ffn_layers_in_input)
         gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn)

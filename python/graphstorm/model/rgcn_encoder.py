@@ -37,7 +37,7 @@ class RelGraphConvLayer(nn.Module):
         Output feature size.
     rel_names : list[str]
         Relation names.
-    num_bases : int, optional
+    num_bases : int
         Number of bases. If is none, use number of relations. Default: None.
     weight : bool, optional
         True if a linear layer is applied after message passing. Default: True
