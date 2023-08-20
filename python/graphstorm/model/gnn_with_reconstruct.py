@@ -49,7 +49,7 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         h: dict[str, torch.Tensor]
             Input node feature for each node type.
         """
-        outs = self._input_gnn(blocks[0], h)
+        outs = self._input_gnn(blocks[-1], h)
         for ntype, out in outs.items():
             h[ntype] = out
-        return self._gnn_encoder(blocks[1:], h)
+        return self._gnn_encoder(blocks[:-1], h)

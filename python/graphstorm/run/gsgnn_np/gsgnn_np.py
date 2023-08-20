@@ -88,11 +88,6 @@ def main(config_args):
     if trainer.rank == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True,
-                                     reconstructed_embed_ntype=config.reconstructed_embed_ntype)
-    val_dataloader = None
-    test_dataloader = None
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
         unlabeled_idxs = train_data.get_unlabeled_idxs()
@@ -102,10 +97,13 @@ def main(config_args):
                                                 device=device, train_task=True)
     else:
         dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                         batch_size=config.batch_size, device=device,
-                                         train_task=True)
+                                         batch_size=config.batch_size,
+                                         device=device, train_task=True,
+                                         reconstructed_embed_ntype=config.reconstructed_embed_ntype)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
+    val_dataloader = None
+    test_dataloader = None
     if len(train_data.val_idxs) > 0:
         _ntype = config.reconstructed_embed_ntype
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
