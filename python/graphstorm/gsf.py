@@ -120,6 +120,31 @@ def get_feat_size(g, node_feat_names):
                 feat_size[ntype] += fsize
     return feat_size
 
+def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
+    """ Get the relation types for reconstructing node features.
+
+    Parameters
+    ----------
+    g : DistGraph
+        The input graph.
+    reconstructed_embed_ntype : list of str
+        The node type that requires to reconstruct node features.
+    feat_size : dict of int
+        The feature size on each node type.
+
+    Returns
+    -------
+    list of tuples : the relation types for reconstructing node features.
+    """
+    etypes = g.canonical_etypes
+    reconstruct_etypes = []
+    for dst_ntype in reconstructed_embed_ntypes:
+        for etype in etypes:
+            src_type = etype[0]
+            if etype[2] == dst_ntype and feat_size[src_type] > 0:
+                reconstruct_etypes.append(etype)
+    return reconstruct_etypes
+
 def create_builtin_node_gnn_model(g, config, train_task):
     """ Create a GNN model for node prediction.
 
@@ -498,12 +523,13 @@ def set_encoder(model, g, config, train_task):
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     if len(config.reconstructed_embed_ntype) > 0:
-        gnn_encoder = GNNEncoderWithReconstructedEmbed(g, gnn_encoder,
-                                                       config.reconstructed_embed_ntype,
-                                                       config.reconstruct_encoder,
-                                                       num_ffn_layers_in_input=config.num_ffn_layers_in_input)
+        rel_names = get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size)
+        input_gnn = RelGraphConvLayer(config.hidden_size, config.hidden_size,
+                                      rel_names,
+                                      activation=F.relu,
+                                      num_ffn_layers_in_gnn=config.num_ffn_layers_in_input)
+        gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn)
     model.set_gnn_encoder(gnn_encoder)
-
 
 def check_homo(g):
     """ Check if it is a valid homogeneous graph

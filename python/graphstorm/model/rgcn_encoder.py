@@ -170,6 +170,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
 
     Parameters
     ----------
+    g : DistGraph
+        The distributed graph object.
     h_dim : int
         Hidden dimension
     out_dim : int
