@@ -74,12 +74,13 @@ class _ReconstructedNeighborSampler():
         -------
         DGLBlock : an additional hop for computing the features of the input nodes.
         """
-        nodes = {}
+        seeds = {}
         for src_ntype in block.srctypes:
             if src_ntype in self._reconstructed_embed_ntypes:
-                nodes[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
-        subg = self._g.sample_neighbors(nodes, self._fanout)
-        return dgl.to_block(subg)
+                seeds[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
+        subg = self._g.sample_neighbors(seeds, self._fanout)
+        # We cannot invoke to_block like this.
+        return dgl.to_block(subg, seeds)
 
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
@@ -814,7 +815,8 @@ class GSgnnNodeDataLoader():
             if block is not None:
                 blocks.append(block)
                 for ntype in block.srctypes:
-                    input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
+                    if block.num_src_nodes(ntype) > 0:
+                        input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
         return input_nodes, seeds, blocks
 
     @property

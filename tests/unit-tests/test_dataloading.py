@@ -403,6 +403,11 @@ def test_node_dataloader_reconstruct():
                 assert blocks[1].number_of_edges(etype) > 0
             else:
                 assert blocks[1].number_of_edges(etype) == 0
+        for ntype in blocks[0].srctypes:
+            nids = blocks[0].srcnodes[ntype].data[dgl.NID].numpy()
+            nodes = input_nodes[ntype].numpy()
+            for nid in nids:
+                assert nid in nodes
         all_nodes.append(seeds['n0'])
     all_nodes = th.cat(all_nodes)
     assert_equal(all_nodes.numpy(), target_idx['n0'])
