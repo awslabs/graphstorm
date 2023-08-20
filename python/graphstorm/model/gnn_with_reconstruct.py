@@ -15,7 +15,6 @@
 
     RGCN layer implementation.
 """
-import torch.nn.functional as F
 
 from .gnn_encoder_base import GraphConvEncoder
 
@@ -34,10 +33,22 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         The GNN layer to construct node features.
     """
     def __init__(self, gnn_encoder, input_gnn):
+        super(GNNEncoderWithReconstructedEmbed, self).__init__(gnn_encoder.h_dims,
+                                                               gnn_encoder.out_dims,
+                                                               gnn_encoder.num_layers)
         self._gnn_encoder = gnn_encoder
         self._input_gnn = input_gnn
 
     def forward(self, blocks, h):
+        """ The forward function.
+
+        Parameters
+        ----------
+        blocks: DGL MFGs
+            Sampled subgraph in DGL MFG
+        h: dict[str, torch.Tensor]
+            Input node feature for each node type.
+        """
         outs = self._input_gnn(blocks[0], h)
         for ntype, out in outs.items():
             h[ntype] = out
