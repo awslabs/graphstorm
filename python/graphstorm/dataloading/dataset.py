@@ -157,7 +157,16 @@ class GSgnnData():
         return self._edge_feat_field
 
     def has_node_feats(self, ntype):
-        """
+        """ Test if the specified node type has features.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        bool : whether the node type has features.
         """
         if isinstance(self.node_feat_field, str):
             return True
