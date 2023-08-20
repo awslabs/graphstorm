@@ -76,10 +76,9 @@ class _ReconstructedNeighborSampler():
         for src_ntype in block.srctypes:
             if src_ntype in self._reconstructed_embed_ntypes:
                 nodes[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
-        subg = self._g.sample_neighbors(nodes, self._fanout)
-        subg = subg.edge_type_subgraph(self._subg_etypes)
-        block = dgl.to_block(subg)
-        return block
+        fanout = {etype: self._fanout for etype in self._subg_etypes}
+        subg = self._g.sample_neighbors(nodes, fanout)
+        return dgl.to_block(subg)
 
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
