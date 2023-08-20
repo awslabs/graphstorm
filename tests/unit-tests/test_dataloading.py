@@ -23,7 +23,7 @@ import numpy as np
 import torch as th
 import dgl
 import pytest
-from data_utils import generate_dummy_dist_graph
+from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_reconstruct
 
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
@@ -371,6 +371,41 @@ def test_node_dataloader():
         all_nodes2.append(seeds['n1'])
     all_nodes2 = th.cat(all_nodes2)
     assert not np.all(all_nodes1.numpy() == all_nodes2.numpy())
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+def test_node_dataloader_reconstruct():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph_reconstruct(graph_name='dummy',
+                                                               dirname=tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n0'], label_field='label',
+                                     node_feat_field={'n0': ['feat'], 'n4': ['feat']})
+
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {'n0': th.arange(np_data.g.number_of_nodes('n0'))}
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
+                                     train_task=False, reconstructed_embed_ntype=['n1', 'n2'])
+    all_nodes = []
+    for input_nodes, seeds, blocks in dataloader:
+        assert 'n0' in seeds
+        assert len(blocks) == 2
+        for etype in blocks[1].canonical_etypes:
+            if etype == ('n4', 'r3', 'n2'):
+                assert blocks[1].number_of_edges(etype) > 0
+            else:
+                assert blocks[1].number_of_edges(etype) == 0
+        all_nodes.append(seeds['n0'])
+    all_nodes = th.cat(all_nodes)
+    assert_equal(all_nodes.numpy(), target_idx['n0'])
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
@@ -728,6 +763,7 @@ if __name__ == '__main__':
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()
+    test_node_dataloader_reconstruct()
     test_GSgnnAllEtypeLinkPredictionDataLoader(10)
     test_GSgnnAllEtypeLinkPredictionDataLoader(1)
     test_GSgnnLinkPredictionTestDataLoader(1, 1)

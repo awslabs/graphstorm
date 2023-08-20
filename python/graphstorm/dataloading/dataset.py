@@ -625,7 +625,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         num_train = num_val = num_test = 0
         for ntype in self.train_ntypes:
             assert 'train_mask' in g.nodes[ntype].data, \
-                    "For training dataset, train_mask must be provided."
+                    f"For training dataset, train_mask must be provided on nodes of {ntype}."
 
             if 'trainer_id' in g.nodes[ntype].data:
                 node_trainer_ids = g.nodes[ntype].data['trainer_id']

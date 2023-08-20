@@ -52,12 +52,14 @@ class _ReconstructedNeighborSampler():
         self._reconstructed_embed_ntypes = set(reconstructed_embed_ntypes)
         self._g = dataset.g
         etypes = self._g.canonical_etypes
-        self._fanout = fanout
         self._subg_etypes = []
         for dst_ntype in reconstructed_embed_ntypes:
             for etype in etypes:
                 if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
                     self._subg_etypes.append(etype)
+        self._fanout = {}
+        for etype in etypes:
+            self._fanout[etype] = fanout if etype in self._subg_etypes else 0
         assert len(self._subg_etypes) > 0, "The sampled edge types is empty."
 
     def sample(self, block):
@@ -76,8 +78,7 @@ class _ReconstructedNeighborSampler():
         for src_ntype in block.srctypes:
             if src_ntype in self._reconstructed_embed_ntypes:
                 nodes[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
-        fanout = {etype: self._fanout for etype in self._subg_etypes}
-        subg = self._g.sample_neighbors(nodes, fanout)
+        subg = self._g.sample_neighbors(nodes, self._fanout)
         return dgl.to_block(subg)
 
 class GSgnnEdgeDataLoader():
@@ -769,6 +770,8 @@ class GSgnnNodeDataLoader():
         the device trainer is running on.
     train_task : bool
         Whether or not for training.
+    reconstructed_embed_ntype : list of str
+        The node types that requires to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
                  reconstructed_embed_ntype=None):
