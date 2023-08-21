@@ -323,6 +323,5 @@ def broadcast_data(rank, world_size, data_tensor):
     else: #get_backend() == "nccl"
         alltoallv_nccl(rank, world_size, gather_list, data_tensors)
 
-
     data_tensor = th.cat(gather_list, dim=0)
     return data_tensor
