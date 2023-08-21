@@ -541,7 +541,7 @@ def set_encoder(model, g, config, train_task):
                                       rel_names, len(rel_names),
                                       activation=F.relu,
                                       num_ffn_layers_in_gnn=config.num_ffn_layers_in_input)
-        gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn)
+        gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn, rel_names)
     model.set_gnn_encoder(gnn_encoder)
 
 def check_homo(g):

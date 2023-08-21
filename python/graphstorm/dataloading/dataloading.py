@@ -810,7 +810,7 @@ class GSgnnNodeDataLoader():
 
     def __next__(self):
         input_nodes, seeds, blocks = self.dataloader.__next__()
-        if self._reconstructed_embed_sampler is not None:
+        if self._reconstructed_embed_sampler is not None and len(blocks) > 0:
             block = self._reconstructed_embed_sampler.sample(blocks[-1])
             if block is not None:
                 blocks.append(block)
