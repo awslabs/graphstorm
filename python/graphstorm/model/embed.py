@@ -22,7 +22,7 @@ from dgl.distributed import DistEmbedding, DistTensor, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
-from ..utils import get_rank, barrier
+from ..utils import get_rank, barrier, is_distributed, get_backend
 from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
@@ -183,7 +183,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         # NCCL backend is not supported for utilizing learnable embeddings on nodes. It has a
         # dependency on distDGL (PR https://github.com/dmlc/dgl/pull/5929).
         # TODO (Israt): Add NCCL support to distDGL.
-        if th.distributed.is_initialized() and th.distributed.get_backend() == "nccl":
+        if is_distributed() and get_backend() == "nccl":
             if self.use_node_embeddings:
                 raise NotImplementedError('NCCL backend is not supported for utilizing \
                     node embeddings. Please use gloo backend.')
