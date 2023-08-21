@@ -17,7 +17,6 @@
 """
 
 from transformers import Trainer
-from ...dataloading import get_graph_lm_dataloader
 
 class GsHuggingfaceTrainer(Trainer):
     """ Customize Huggingface Trainer

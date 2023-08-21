@@ -19,9 +19,7 @@ import random
 import torch.nn.functional as F
 
 from ..lm_model import TOKEN_IDX, VALID_LEN, ATT_MASK_IDX
-
-DFS_TRANSVERSE = "dfs"
-BFS_TRANSVERSE = "bfs"
+from ...dataloading.graph_lm_dataloading import DFS_TRANSVERSE, BFS_TRANSVERSE
 
 def pad_seq(sequence, max_sequence_len, value=0):
     """ Padding the input `sequence` with `value`s in the end

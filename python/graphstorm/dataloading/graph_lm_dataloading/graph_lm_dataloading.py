@@ -17,11 +17,11 @@
 """
 import dgl
 
-from .dataloading import GSgnnNodeDataLoader
-from .utils import trim_data
+from ..dataloading import GSgnnNodeDataLoader
+from ..utils import trim_data
 
-from ..model.graph_transformer import BFS_TRANSVERSE
-
+DFS_TRANSVERSE = "dfs"
+BFS_TRANSVERSE = "bfs"
 
 class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
     """ The minibatch dataloader for node centric tasks

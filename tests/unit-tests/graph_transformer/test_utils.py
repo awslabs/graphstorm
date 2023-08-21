@@ -25,7 +25,7 @@ import dgl
 
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX
 from graphstorm.model.graph_transformer import get_prepare_lm_input
-from graphstorm.model.graph_transformer.utils import BFS_TRANSVERSE
+from graphstorm.dataloading.graph_lm_dataloading import BFS_TRANSVERSE
 from graphstorm.model.graph_transformer.utils import (pad_seq,
                                                       sequence_dfs2bfs,
                                                       prepare_hat_node_centric)

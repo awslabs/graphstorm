@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 from transformers import PretrainedConfig
 
+from ...dataloading.graph_lm_dataloading import BFS_TRANSVERSE
+
 @dataclass
 class DataTrainingArguments:
     """

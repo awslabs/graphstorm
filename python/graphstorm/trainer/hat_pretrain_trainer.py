@@ -30,7 +30,7 @@ from ..utils import sys_tracker
 from ..utils import rt_profiler
 
 from ..model.graph_transformer import GsHuggingfaceTrainer
-from ..model.graph_transformer import preprocess_logits_for_mlm_metrics, compute_mlm_metrics
+from ..model.graph_transformer import preprocess_logits_for_mlm_metrics
 
 class GSgnnHATMasedLMTrainer(GSgnnTrainer):
     """ HAT mask language mask pre-training Trainer

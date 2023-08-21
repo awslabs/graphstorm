@@ -26,8 +26,8 @@ from graphstorm.dataloading import GSgnnNodeTrainData
 from graphstorm.trainer import GSgnnHATMasedLMTrainer
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device
 
-from graphstorm.dataloading import GSlmHatNodeDataLoader
-from graphstorm.model.graph_transformer import prepare_hat_node_centric, BFS_TRANSVERSE
+from graphstorm.dataloading.graph_lm_dataloading import GSlmHatNodeDataLoader, BFS_TRANSVERSE
+from graphstorm.model.graph_transformer import prepare_hat_node_centric
 from graphstorm.model.graph_transformer import (DataTrainingArguments,
                                                 ModelArguments)
 
@@ -45,8 +45,6 @@ def main(config_args):
 
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    device = setup_device(config.local_rank)
-
 
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,

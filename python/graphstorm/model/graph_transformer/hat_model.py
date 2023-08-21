@@ -48,14 +48,6 @@ from transformers import PretrainedConfig
 
 from .hat_config import HATConfig
 
-try:
-    import nltk
-    from nltk import sent_tokenize
-    nltk.download('punkt')
-except:
-    raise Exception('NLTK is not installed! Install it with `pip install nltk`...')
-
-
 HAT_LAYOUTS = {
     's1': 'SD|SD|SD|SD|SD|SD',
     's2': 'S|SD|D|S|SD|D|S|SD|D',
@@ -70,6 +62,7 @@ HAT_LAYOUTS = {
     'f12': 'S|S|S|S|S|S|S|S|S|S|S|S',
     'f8': 'S|S|S|S|S|S|S|S',
     'f6': 'S|S|S|S|S|S',
+    'sci12': 'SD|SD|SD|SD|SD|SD|SD|SD|SD|SD|SD|SD',
 }
 
 @dataclass
@@ -587,6 +580,128 @@ class HATPreTrainedModel(PreTrainedModel):
     @classmethod
     def from_config(cls, config):
         return cls._from_config(config)
+
+class HATModel(HATPreTrainedModel):
+    """ HAT model
+
+    The model can behave as an encoder (with only self-attention) as well as a decoder,
+    in which case a layer of cross-attention is added between the self-attention layers,
+    following the architecture described in *Attention is all you need*_ by Ashish Vaswani,
+    Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz
+    Kaiser and Illia Polosukhin.
+
+    To behave as an decoder the model needs to be initialized with the `is_decoder` argument
+    of the configuration set to `True`. To be used in a Seq2Seq model, the model needs to
+    initialized with both `is_decoder` argument and `add_cross_attention` set to `True`; an
+    `encoder_hidden_states` is then expected as an input to the forward pass.
+
+    .. _*Attention is all you need*: https://arxiv.org/abs/1706.03762
+
+    """
+
+    _keys_to_ignore_on_load_missing = [r"position_ids"]
+
+    # Copied from transformers.models.bert.modeling_bert.BertModel.__init__ with Bert->HAT
+    def __init__(self, config):
+        super().__init__(config)
+        self.config = config
+
+        self.embeddings = HATEmbeddings(config)
+        self.encoder = HATEncoder(config)
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def get_input_embeddings(self):
+        return self.embeddings.word_embeddings
+
+    def set_input_embeddings(self, value):
+        self.embeddings.word_embeddings = value
+
+    def _prune_heads(self, heads_to_prune):
+        """
+        Prunes heads of the model. heads_to_prune: dict of {layer_num: list of heads to prune in this layer} See base
+        class PreTrainedModel
+        """
+        for layer, heads in heads_to_prune.items():
+            self.encoder.layer[layer].attention.prune_heads(heads)
+
+    # Copied from transformers.models.bert.modeling_bert.BertModel.forward
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        inputs_embeds=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        """ Forword func
+        """
+
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_hidden_states = (
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        if input_ids is not None and inputs_embeds is not None:
+            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+        elif input_ids is not None:
+            input_shape = input_ids.size()
+        elif inputs_embeds is not None:
+            input_shape = inputs_embeds.size()[:-1]
+        else:
+            raise ValueError("You have to specify either input_ids or inputs_embeds")
+
+        batch_size, seq_length = input_shape
+        device = input_ids.device if input_ids is not None else inputs_embeds.device
+
+        if attention_mask is None:
+            attention_mask = torch.ones(((batch_size, seq_length)), device=device)
+
+        if token_type_ids is None:
+            if hasattr(self.embeddings, "token_type_ids"):
+                buffered_token_type_ids = self.embeddings.token_type_ids[:, :seq_length]
+                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(batch_size, seq_length)
+                token_type_ids = buffered_token_type_ids_expanded
+            else:
+                token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
+
+        # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
+        # ourselves in which case we just need to make it broadcastable to all heads.
+        extended_attention_mask: torch.Tensor = self.get_extended_attention_mask(attention_mask, input_shape, device)
+
+        # Compute number of sentences
+        num_batch_sentences = input_ids.shape[-1] // self.config.max_sentence_length
+
+        embedding_output = self.embeddings(
+            input_ids=input_ids,
+            position_ids=position_ids,
+            token_type_ids=token_type_ids,
+            inputs_embeds=inputs_embeds,
+        )
+        encoder_outputs = self.encoder(
+            embedding_output,
+            attention_mask=extended_attention_mask,
+            num_sentences=num_batch_sentences,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        sequence_output = encoder_outputs[0]
+
+        if not return_dict:
+            return (sequence_output) + encoder_outputs[1:]
+
+        return BaseModelOutputWithSentenceAttentions(
+            last_hidden_state=sequence_output,
+            hidden_states=encoder_outputs.hidden_states,
+            attentions=encoder_outputs.attentions,
+            sentence_attentions=encoder_outputs.sentence_attentions,
+        )
 
 class HATLMHead(nn.Module):
     """HAT Head for masked language modeling."""
