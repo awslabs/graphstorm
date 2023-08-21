@@ -40,6 +40,12 @@ def setup_device(local_rank):
 
     return device
 
+def get_backend():
+    """ Get the backend of a process group.
+    """
+    assert is_distributed(), "get_backend() is valid only when is_distributed() is True."
+    return th.distributed.get_backend()
+
 def is_distributed():
     """ Test whether the process runs in a distributed mode.
     """

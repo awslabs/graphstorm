@@ -19,6 +19,7 @@ import numpy as np
 import torch as th
 from torch import nn
 
+from ..utils import get_backend, is_distributed
 from .ngnn_mlp import NGNNMLP
 from .gs_layer import GSLayer, GSLayerNoParam
 from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
@@ -605,11 +606,11 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         neg_scores = th.cat(neg_scores, dim=-1).detach()
         # gloo with cpu will consume less GPU memory
         neg_scores = neg_scores.cpu() \
-            if th.distributed.get_backend() == "gloo" \
+            if is_distributed() and get_backend() == "gloo" \
             else neg_scores
         pos_scores = pos_scores.detach()
         pos_scores = pos_scores.cpu() \
-            if th.distributed.get_backend() == "gloo" \
+            if is_distributed() and get_backend() == "gloo" \
             else pos_scores
         scores[canonical_etype] = (pos_scores, neg_scores)
         return scores
@@ -826,12 +827,12 @@ class LinkPredictDistMultDecoder(GSLayer):
             neg_scores = th.cat(neg_scores, dim=-1).detach()
             # gloo with cpu will consume less GPU memory
             neg_scores = neg_scores.cpu() \
-                if th.distributed.get_backend() == "gloo" \
+                if is_distributed() and get_backend() == "gloo" \
                 else neg_scores
 
             pos_scores = pos_scores.detach()
             pos_scores = pos_scores.cpu() \
-                if th.distributed.get_backend() == "gloo" \
+                if is_distributed() and get_backend() == "gloo" \
                 else pos_scores
             scores[canonical_etype] = (pos_scores, neg_scores)
 
