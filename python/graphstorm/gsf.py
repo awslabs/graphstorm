@@ -65,7 +65,8 @@ def initialize(ip_config, backend):
     # This problem will be fixed in the future.
     dgl.distributed.initialize(ip_config, net_type='socket')
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
-    th.distributed.init_process_group(backend=backend)
+    if ip_config is not None:
+        th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
 
 def get_feat_size(g, node_feat_names):

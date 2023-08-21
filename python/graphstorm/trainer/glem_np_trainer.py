@@ -25,8 +25,8 @@ from ..model.node_glem import GLEM
 from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler
+from ..utils import barrier
 from ..dataloading import GSgnnNodeSemiSupDataLoader
 
 class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
@@ -240,7 +240,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 break
 
         # end of an epoch
-        th.distributed.barrier()
+        barrier()
 
         val_score = None
         if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):

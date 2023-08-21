@@ -31,7 +31,7 @@ from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_inference
-from ..utils import get_rank
+from ..utils import get_rank, get_world_size, barrier
 from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
@@ -451,10 +451,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             load_sparse_embeds(restore_model_path,
                                 self.node_input_encoder,
                                 get_rank(),
-                                th.distributed.get_world_size())
+                                get_world_size())
         # We need to make sure that the sparse embedding is completely loaded
         # before all processes use the model.
-        th.distributed.barrier()
+        barrier()
 
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
@@ -575,12 +575,12 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             # Need to create embedding path and chmod to 0o777 first
             create_sparse_embeds_path(model_path, self.node_input_encoder)
         # make sure rank 0 creates the folder and change permission first
-        th.distributed.barrier()
+        barrier()
 
         save_sparse_embeds(model_path,
                            self.node_input_encoder,
                            get_rank(),
-                           th.distributed.get_world_size())
+                           get_world_size())
         if get_rank() == 0:
             print('successfully save the model to ' + model_path)
             print('Time on save model {}'.format(time.time() - start_save_t))
@@ -649,7 +649,7 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
     assert isinstance(model, GSgnnModel), "Only GSgnnModel supports full-graph inference."
     t1 = time.time() # pylint: disable=invalid-name
     # full graph evaluation
-    th.distributed.barrier()
+    barrier()
     if model.gnn_encoder is None:
         # Only graph aware but not GNN models
         embeddings = compute_node_input_embeddings(data.g,

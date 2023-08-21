@@ -19,7 +19,7 @@ import abc
 import torch as th
 import dgl
 
-from ..utils import get_rank
+from ..utils import get_rank, get_world_size
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
 
@@ -29,9 +29,9 @@ def split_full_edge_list(g, etype, rank):
     # TODO(zhengda) we need to split the edges to co-locate data and computation.
     # We assume that the number of edges is larger than the number of processes.
     # This should always be true unless a user's training set is extremely small.
-    assert g.num_edges(etype) >= th.distributed.get_world_size()
-    start = g.num_edges(etype) // th.distributed.get_world_size() * rank
-    end = g.num_edges(etype) // th.distributed.get_world_size() * (rank + 1)
+    assert g.num_edges(etype) >= get_world_size()
+    start = g.num_edges(etype) // get_world_size() * rank
+    end = g.num_edges(etype) // get_world_size() * (rank + 1)
     return th.arange(start, end)
 
 def prepare_batch_input(g, input_nodes,

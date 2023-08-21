@@ -24,7 +24,7 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from ..utils import get_rank
+from ..utils import get_rank, barrier
 
 def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batch_size):
     """ Update the lm_emb_cache using lanaguage models.
@@ -71,7 +71,7 @@ def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batch
                 }
                 text_embs = lm_model(input_ntypes, input_lm_feats)
                 input_emb[input_nodes] = text_embs[ntype].to('cpu')
-            th.distributed.barrier()
+            barrier()
             lm_emb_cache[ntype] = input_emb
         lm_model.train()
 

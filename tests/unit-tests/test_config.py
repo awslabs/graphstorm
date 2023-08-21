@@ -148,7 +148,6 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "backend")
-        check_failure(config, "ip_config")
         check_failure(config, "part_config")
         check_failure(config, "eval_frequency")
         check_failure(config, "model_encoder_type")

@@ -40,15 +40,32 @@ def setup_device(local_rank):
 
     return device
 
+def is_distributed():
+    """ Test whether the process runs in a distributed mode.
+    """
+    return th.distributed.is_initialized()
+
 def get_rank():
     """ Get rank of a process
     """
-    try:
+    if is_distributed():
         return th.distributed.get_rank()
-    except RuntimeError:
-        # If Pytorch distributed is not set up correctly, we should set
-        # the rank to 0.
+    else:
         return 0
+
+def get_world_size():
+    """ Get the world size.
+    """
+    if is_distributed():
+        return th.distributed.get_world_size()
+    else:
+        return 1
+
+def barrier():
+    """ Run barrier among trainers.
+    """
+    if is_distributed():
+        th.distributed.barrier()
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.

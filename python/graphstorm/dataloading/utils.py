@@ -19,6 +19,8 @@ from copy import deepcopy
 import torch as th
 import torch.distributed as dist
 
+from ..utils import is_distributed
+
 def trim_data(nids, device):
     """ In distributed traning scenario, we need to make sure that
         each worker has same number of batches. Otherwise the synchronization
@@ -38,6 +40,10 @@ def trim_data(nids, device):
         -------
         Trimed nids: th.Tensor
     """
+    if not is_distributed():
+        return nids
+
+    # NCCL backend only supports GPU tensors, thus here we need to allocate it to gpu
     num_nodes = th.tensor(nids.numel()).to(device)
     dist.all_reduce(num_nodes, dist.ReduceOp.MIN)
     min_num_nodes = int(num_nodes)
@@ -62,6 +68,9 @@ def dist_sum(size):
     -------
     int : the global size.
     """
+    if not is_distributed():
+        return size
+
     if th.cuda.is_available():
         dev_id = th.cuda.current_device()
         size = th.tensor([size], device=th.device(dev_id))
