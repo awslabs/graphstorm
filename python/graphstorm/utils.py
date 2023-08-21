@@ -49,6 +49,7 @@ def is_distributed():
 def get_backend():
     """ Get the backend of a process group.
     """
+    assert is_distributed()
     return th.distributed.get_backend()
 
 
