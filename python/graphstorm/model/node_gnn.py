@@ -197,13 +197,15 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
-            append_to_dict(data.get_labels(seeds), labels)
+            label = data.get_labels(seeds)
+            if return_label:
+                append_to_dict(label, labels)
             if isinstance(pred, dict):
                 append_to_dict(pred, preds)
                 append_to_dict(emb, embs)
             else: # in case model (e.g., llm encoder) only output a tensor without ntype
-                assert len(labels) == 1
-                ntype = list(labels.keys())[0]
+                assert len(label) == 1
+                ntype = list(label.keys())[0]
                 append_to_dict({ntype: pred}, preds)
                 append_to_dict({ntype: emb}, embs)
 
