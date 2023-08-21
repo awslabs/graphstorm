@@ -172,8 +172,6 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 if save_model_frequency > 0 and \
                     total_steps % save_model_frequency == 0 and \
                     total_steps != 0:
-                    th.distributed.barrier()
-                    print(f"{get_rank()} {val_score}")
                     if self.evaluator is None or val_score is not None:
                         # We will save the best model when
                         # 1. There is no evaluation, we will keep the

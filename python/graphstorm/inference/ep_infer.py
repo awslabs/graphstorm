@@ -101,7 +101,6 @@ class GSgnnEdgePredictionInfer(GSInfer):
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
-
         device = self.device
         if save_embed_path is not None:
             target_ntypes = set()
