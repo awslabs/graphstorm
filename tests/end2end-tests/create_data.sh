@@ -3,7 +3,7 @@ GS_HOME=$(pwd)
 export PYTHONPATH=$GS_HOME/python/
 mkdir -p /data
 cd /data
-# cp -R /storage/ml-100k /data
+cp -R /storage/ml-100k /data
 
 # Generate movielens dataset in gconstruct input format
 python3 $GS_HOME/tests/end2end-tests/data_gen/process_movielens.py
