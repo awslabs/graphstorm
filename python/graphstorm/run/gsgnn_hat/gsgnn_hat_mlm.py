@@ -39,7 +39,7 @@ def main(config_args):
 
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     model_args, data_args, training_args = \
-        parser.parse_args_into_dataclasses(config.hf_args, config.hf_args_filename)
+        parser.parse_args_into_dataclasses(args=config.hf_args, args_filename=config.hf_args_filename)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
 
