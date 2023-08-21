@@ -74,7 +74,8 @@ def create_rgcn_node_model(g):
                                        num_bases=2,
                                        num_hidden_layers=1,
                                        dropout=0,
-                                       use_self_loop=True)
+                                       use_self_loop=True,
+                                       norm='batch')
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
@@ -92,7 +93,8 @@ def create_rgat_node_model(g):
                                        num_heads=2,
                                        num_hidden_layers=1,
                                        dropout=0,
-                                       use_self_loop=True)
+                                       use_self_loop=True,
+                                       norm='batch')
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
@@ -548,6 +550,7 @@ def create_ec_config(tmp_path, file_name):
                 "hidden_size": 4,
                 "model_encoder_type": "rgcn",
                 "lr": 0.001,
+                "norm": "batch"
             },
             "input": {},
             "output": {},
@@ -756,6 +759,7 @@ def create_nc_config(tmp_path, file_name):
                 "num_layers": 1,
                 "hidden_size": 4,
                 "lr": 0.001,
+                "norm": "layer"
             },
             "input": {},
             "output": {},
