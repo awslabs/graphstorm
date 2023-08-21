@@ -733,6 +733,18 @@ class GSConfig:
         # By default, use mini batch inference, which requires less memory
         return True
 
+    @property
+    def norm(self):
+        """ Normalization (Batch or Layer)
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_norm"):
+            return None
+        assert self._norm in ['batch', 'layer'], \
+            "Normalization type must be one of batch or layer"
+
+        return self._norm
+
     ###################### I/O related ######################
     ### Restore model ###
     @property
@@ -1816,6 +1828,7 @@ def _add_hyperparam_args(parser):
     group = parser.add_argument_group(title="hp")
     group.add_argument("--dropout", type=float, default=argparse.SUPPRESS,
             help="dropout probability")
+    group.add_argument("--norm", type=str, default=argparse.SUPPRESS, help="norm type")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
     group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,

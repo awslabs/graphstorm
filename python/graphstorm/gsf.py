@@ -473,7 +473,8 @@ def set_encoder(model, g, config, train_task):
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop,
-                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
+                                           norm=config.norm)
     elif model_encoder_type == "rgat":
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
@@ -483,7 +484,8 @@ def set_encoder(model, g, config, train_task):
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop,
-                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
+                                           norm=config.norm)
     elif model_encoder_type == "sage":
         # we need to check if the graph is homogeneous
         assert check_homo(g) == True, 'The graph is not a homogeneous graph'

@@ -54,6 +54,8 @@ class RelationalAttLayer(nn.Module):
         Number of layers of ngnn between gnn layers
     ffn_actication: torch.nn.functional
         Activation Method for ngnn
+    norm : str, optional
+        Normalization Method. Default: "batch" for batch normalization
     """
     def __init__(self,
                  in_feat,
@@ -66,7 +68,8 @@ class RelationalAttLayer(nn.Module):
                  self_loop=False,
                  dropout=0.0,
                  num_ffn_layers_in_gnn=0,
-                 fnn_activation=F.relu):
+                 fnn_activation=F.relu,
+                 norm='batch'):
         super(RelationalAttLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -79,6 +82,22 @@ class RelationalAttLayer(nn.Module):
                 rel : dglnn.GATConv(in_feat, out_feat // num_heads, num_heads, bias=False)
                 for rel in rel_names
             })
+
+        # get the node types
+        ntypes = set()
+        for rel in rel_names:
+            ntypes.add(rel[0])
+            ntypes.add(rel[2])
+
+        # normalization
+        self.norm = None
+        if norm == "batch":
+            self.norm = nn.ParameterDict({ntype:nn.BatchNorm1d(out_feat) for ntype in ntypes})
+        elif norm == "layer":
+            self.norm = nn.ParameterDict({ntype:nn.LayerNorm(out_feat) for ntype in ntypes})
+        else:
+            # by default we don't apply any normalization
+            self.norm = None
 
         # bias
         if bias:
@@ -132,6 +151,8 @@ class RelationalAttLayer(nn.Module):
                 h = h + self.h_bias
             if self.activation:
                 h = self.activation(h)
+            if self.norm:
+                h = self.norm[ntype](h)
             if self.num_ffn_layers_in_gnn > 0:
                 h = self.ngnn_mlp(h)
             return self.dropout(h)
@@ -172,6 +193,8 @@ class RelationalGATEncoder(GraphConvEncoder):
         Whether add activation at the last layer
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
+    norm : str, optional
+        Normalization Method. Default: "batch" for batch normalization
     """
     def __init__(self,
                  g,
@@ -180,7 +203,8 @@ class RelationalGATEncoder(GraphConvEncoder):
                  dropout=0,
                  use_self_loop=True,
                  last_layer_act=False,
-                 num_ffn_layers_in_gnn=0):
+                 num_ffn_layers_in_gnn=0,
+                 norm='batch'):
         super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         self.num_heads = num_heads
         # h2h
@@ -189,12 +213,12 @@ class RelationalGATEncoder(GraphConvEncoder):
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_heads, activation=F.relu, self_loop=use_self_loop,
                 dropout=dropout, num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
-                fnn_activation=F.relu))
+                fnn_activation=F.relu, norm=norm))
         # h2o
         self.layers.append(RelationalAttLayer(
             h_dim, out_dim, g.canonical_etypes,
             self.num_heads, activation=F.relu if last_layer_act else None,
-            self_loop=use_self_loop))
+            self_loop=use_self_loop, norm=norm if last_layer_act else None))
 
     def forward(self, blocks, h):
         """Forward computation
