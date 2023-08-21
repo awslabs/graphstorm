@@ -3,8 +3,6 @@ version: 1.0
 gsf:
   basic:
     backend: gloo
-    ip_config: ip_list.txt
-    part_config: movielen_100k_train_val_1p_4t/movie-lens-100k.json
     verbose: false
     save_perf_results_path: null
   gnn:

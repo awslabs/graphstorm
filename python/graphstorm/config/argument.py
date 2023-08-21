@@ -78,14 +78,14 @@ def get_argument_parser():
         parser.add_argument(
                 "--local-rank",
                 type=int,
-                default=-1,
+                default=0,
                 help="local_rank for distributed training on gpus",
                 )
     else:
         parser.add_argument(
                 "--local_rank",
                 type=int,
-                default=-1,
+                default=0,
                 help="local_rank for distributed training on gpus",
                 )
 
@@ -389,10 +389,12 @@ class GSConfig:
         """ IP config of instances in a cluster
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_ip_config"), "IP config must be provided"
-        assert os.path.isfile(self._ip_config), \
-            f"IP config file {self._ip_config} does not exist"
-        return self._ip_config
+        if hasattr(self, "_ip_config"):
+            assert os.path.isfile(self._ip_config), \
+                    f"IP config file {self._ip_config} does not exist"
+            return self._ip_config
+        else:
+            return None
 
     @property
     def part_config(self):

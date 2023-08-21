@@ -21,6 +21,8 @@ import torch.distributed as dist
 
 from sklearn.preprocessing import LabelBinarizer
 
+from ..utils import barrier
+
 def get_id(nid_dict, key):
     """ Convert Raw node id into integer ids.
 
@@ -265,7 +267,7 @@ def alltoallv_cpu(rank, world_size, output_tensor_list, input_tensor_list):
         if i != rank:
             dist.recv(output_tensor_list[i], src=i)
 
-    th.distributed.barrier()
+    barrier()
 
 def alltoallv_nccl(rank, world_size, output_tensor_list, input_tensor_list):
     """Each process scatters list of input tensors to all processes in a cluster
@@ -298,7 +300,7 @@ def alltoallv_nccl(rank, world_size, output_tensor_list, input_tensor_list):
         if i != rank:
             dist.recv(output_tensor_list[i], src=i)
 
-    th.distributed.barrier()
+    barrier()
 
 def all_reduce_sum(tensor):
     """Use a specific dist.all_reduce function
