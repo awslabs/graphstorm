@@ -15,6 +15,8 @@
 
     Relational GNN
 """
+
+from functools import partial
 import dgl
 import torch as th
 from torch import nn
@@ -98,7 +100,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         dict of Tensor : the final GNN embeddings of all nodes.
         """
         return dist_inference(g, self, get_input_embeds, batch_size, fanout,
-                              edge_mask=None, task_tracker=None)
+                              edge_mask=edge_mask, task_tracker=task_tracker)
 
 def dist_inference_one_layer(g, dataloader, layer, get_input_embeds, y, device, task_tracker):
     """ Run distributed inference for one GNN layer.
@@ -200,9 +202,9 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                             drop_last=False)
 
             if i > 0:
-                def get_input_embeds1(input_nodes):
+                def get_input_embeds1(input_nodes, x):
                     return {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
-                get_input_embeds = get_input_embeds1
+                get_input_embeds = partial(get_input_embeds1, x=x)
             dist_inference_one_layer(g, dataloader, layer, get_input_embeds, y,
                                      device, task_tracker)
             x = y

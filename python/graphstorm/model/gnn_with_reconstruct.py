@@ -86,7 +86,7 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         dict of Tensor : the final GNN embeddings of all nodes.
         """
         device = self._gnn_encoder.device
-        target_ntypes = set([rel_name[2] for rel_name in self._input_rel_names])
+        target_ntypes = {rel_name[2] for rel_name in self._input_rel_names}
         with th.no_grad():
             y = {}
             for k in target_ntypes:
