@@ -22,7 +22,7 @@ from dgl.distributed import DistEmbedding, DistTensor, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
-from ..utils import get_rank
+from ..utils import get_rank, barrier
 from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
@@ -172,12 +172,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  dropout=0.0,
                  use_node_embeddings=False,
                  num_ffn_layers_in_input=0,
-                 ffn_activation=F.relu):
+                 ffn_activation=F.relu,
+                 ):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
-        self.activation = activation
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
+        self.activation = activation
 
         # NCCL backend is not supported for utilizing learnable embeddings on nodes. It has a
         # dependency on distDGL (PR https://github.com/dmlc/dgl/pull/5929).
@@ -281,7 +282,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 emb = emb @ self.proj_matrix[ntype]
             if self.activation is not None:
                 emb = self.activation(emb)
-            emb = self.dropout(emb)
+                emb = self.dropout(emb)
             embs[ntype] = emb
 
         def _apply(t, h):
@@ -375,5 +376,5 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
             print("Extract node embeddings")
     if embed_layer is not None:
         embed_layer.train()
-    th.distributed.barrier()
+    barrier()
     return n_embs

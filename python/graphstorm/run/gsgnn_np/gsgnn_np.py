@@ -17,13 +17,13 @@
 """
 
 import os
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.trainer import GLEMNodePredictionTrainer
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
+from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader,\
+    GSgnnNodeSemiSupDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
@@ -91,6 +91,17 @@ def main(config_args):
                                      batch_size=config.batch_size, device=device, train_task=True)
     val_dataloader = None
     test_dataloader = None
+    if config.use_pseudolabel:
+        # Use nodes not in train_idxs as unlabeled node sets
+        unlabeled_idxs = train_data.get_unlabeled_idxs()
+        # semi-supervised loader
+        dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
+                                                fanout=config.fanout, batch_size=config.batch_size,
+                                                device=device, train_task=True)
+    else:
+        dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
+                                         batch_size=config.batch_size, device=device,
+                                         train_task=True)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     if len(train_data.val_idxs) > 0:
@@ -133,7 +144,7 @@ def main(config_args):
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size(),
+                        gs.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 
