@@ -32,6 +32,7 @@ from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder
 from .model.rgat_encoder import RelationalGATEncoder
+from .model.sage_encoder import SAGEEncoder
 from .model.node_gnn import GSgnnNodeModel
 from .model.node_glem import GLEM
 from .model.edge_gnn import GSgnnEdgeModel
@@ -63,7 +64,9 @@ def initialize(ip_config, backend):
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
     dgl.distributed.initialize(ip_config, net_type='socket')
-    th.distributed.init_process_group(backend=backend)
+    assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
+    if ip_config is not None:
+        th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
 
 def get_feat_size(g, node_feat_names):
@@ -223,6 +226,9 @@ def create_builtin_edge_model(g, config, train_task):
         target_etype = config.target_etype[0]
         if decoder_type == "DenseBiDecoder":
             num_decoder_basis = config.num_decoder_basis
+            assert config.num_ffn_layers_in_decoder == 0, \
+                "DenseBiDecoder does not support adding extra feedforward neural network layers" \
+                "You can increases num_basis to increase the parameter size."
             decoder = DenseBiDecoder(in_units=model.gnn_encoder.out_dims \
                                         if model.gnn_encoder is not None \
                                         else model.node_input_encoder.out_dims,
@@ -238,7 +244,8 @@ def create_builtin_edge_model(g, config, train_task):
                                         else model.node_input_encoder.out_dims,
                                      num_classes,
                                      multilabel=config.multilabel,
-                                     target_etype=target_etype)
+                                     target_etype=target_etype,
+                                     num_ffn_layers=config.num_ffn_layers_in_decoder)
         elif decoder_type == "MLPEFeatEdgeDecoder":
             decoder_edge_feat = config.decoder_edge_feat
             assert decoder_edge_feat is not None, \
@@ -260,7 +267,8 @@ def create_builtin_edge_model(g, config, train_task):
                 out_dim=num_classes,
                 multilabel=config.multilabel,
                 target_etype=target_etype,
-                dropout=config.dropout)
+                dropout=config.dropout,
+                num_ffn_layers=config.num_ffn_layers_in_decoder)
         else:
             assert False, f"decoder {decoder_type} is not supported."
         model.set_decoder(decoder)
@@ -444,7 +452,9 @@ def set_encoder(model, g, config, train_task):
     else:
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
-                                          use_node_embeddings=config.use_node_embeddings)
+                                          activation=config.input_activate,
+                                          use_node_embeddings=config.use_node_embeddings,
+                                          num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)
 
     # Set GNN encoders
@@ -462,7 +472,8 @@ def set_encoder(model, g, config, train_task):
                                            num_bases=num_bases,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
-                                           use_self_loop=config.use_self_loop)
+                                           use_self_loop=config.use_self_loop,
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "rgat":
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
@@ -471,10 +482,35 @@ def set_encoder(model, g, config, train_task):
                                            config.num_heads,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
-                                           use_self_loop=config.use_self_loop)
+                                           use_self_loop=config.use_self_loop,
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+    elif model_encoder_type == "sage":
+        # we need to check if the graph is homogeneous
+        assert check_homo(g) == True, 'The graph is not a homogeneous graph'
+        # we need to set the num_layers -1 because there is an output layer that is hard coded.
+        gnn_encoder = SAGEEncoder(h_dim=config.hidden_size,
+                                  out_dim=config.hidden_size,
+                                  num_hidden_layers=config.num_layers - 1,
+                                  dropout=dropout,
+                                  aggregator_type='pool',
+                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)
+
+
+def check_homo(g):
+    """ Check if it is a valid homogeneous graph
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph used in training and testing
+    """
+    if g.ntypes == ['_N'] and g.etypes == ['_E']:
+        return True
+    return False
+
 
 def create_builtin_task_tracker(config, rank):
     tracker_class = get_task_tracker_class(config.task_tracker)

@@ -21,6 +21,7 @@ import torch as th
 
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
+from graphstorm.gconstruct.utils import multiprocessing_data_read
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
 
 def gen_data():
@@ -173,7 +174,19 @@ def test_ext_mem_array():
         data1 = read_data_hdf5(tensor_path, in_mem=False)
         check_ext_mem_array(data1['test'], data)
 
+def dummy_read(in_file):
+    assert False
+
+def test_multiprocessing_read():
+    try:
+        multiprocessing_data_read([str(i) for i in range(10)], 2, dummy_read)
+    except RuntimeError as e:
+        print(e)
+        return
+    assert False
+
 if __name__ == '__main__':
+    test_multiprocessing_read()
     test_estimate_sizeof()
     test_object_conversion()
     test_ext_mem_array()
