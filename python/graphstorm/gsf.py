@@ -495,7 +495,8 @@ def set_encoder(model, g, config, train_task):
                                   num_hidden_layers=config.num_layers - 1,
                                   dropout=dropout,
                                   aggregator_type='pool',
-                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
+                                  norm=config.norm)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)

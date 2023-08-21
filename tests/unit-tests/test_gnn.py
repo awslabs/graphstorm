@@ -111,7 +111,8 @@ def create_sage_node_model(g):
     gnn_encoder = SAGEEncoder(4, 4,
                               num_hidden_layers=1,
                               dropout=0,
-                              aggregator_type='mean')
+                              aggregator_type='mean',
+                              norm='batch')
 
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))

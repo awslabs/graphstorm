@@ -53,7 +53,8 @@ class SAGEConv(nn.Module):
                  dropout=0.0,
                  activation=F.relu,
                  num_ffn_layers_in_gnn=0,
-                 ffn_activation=F.relu):
+                 ffn_activation=F.relu,
+                 norm=None):
         super(SAGEConv, self).__init__()
         self.in_feat, self.out_feat = in_feat, out_feat
         self.aggregator_type = aggregator_type
@@ -62,6 +63,15 @@ class SAGEConv(nn.Module):
                                    feat_drop=dropout, bias=bias)
 
         self.activation = activation
+        # normalization
+        self.norm = None
+        if norm == "batch":
+            self.norm = nn.BatchNorm1d(out_feat)
+        elif norm == "layer":
+            self.norm = nn.LayerNorm(out_feat)
+        else:
+            # by default we don't apply any normalization
+            self.norm = None
         # ngnn
         self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
         self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
@@ -87,6 +97,8 @@ class SAGEConv(nn.Module):
         h_conv = self.conv(g, inputs)
         if self.activation:
             h_conv = self.activation(h_conv)
+        if self.norm:
+            h_conv = self.norm(h_conv)
         if self.num_ffn_layers_in_gnn > 0:
             h_conv = self.ngnn_mlp(h_conv)
 
@@ -115,7 +127,8 @@ class SAGEEncoder(GraphConvEncoder):
                  dropout=0,
                  aggregator_type='mean',
                  activation=F.relu,
-                 num_ffn_layers_in_gnn=0):
+                 num_ffn_layers_in_gnn=0,
+                 norm=None):
         super(SAGEEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
 
         self.layers = nn.ModuleList()
@@ -123,7 +136,8 @@ class SAGEEncoder(GraphConvEncoder):
             self.layers.append(SAGEConv(h_dim, h_dim, aggregator_type,
                                         bias=False, activation=activation,
                                         dropout=dropout,
-                                        num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
+                                        num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
+                                        norm=norm))
 
         self.layers.append(SAGEConv(h_dim, out_dim, aggregator_type,
                                     bias=False, activation=activation,

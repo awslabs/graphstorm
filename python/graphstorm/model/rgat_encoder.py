@@ -69,7 +69,7 @@ class RelationalAttLayer(nn.Module):
                  dropout=0.0,
                  num_ffn_layers_in_gnn=0,
                  fnn_activation=F.relu,
-                 norm='batch'):
+                 norm=None):
         super(RelationalAttLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -204,7 +204,7 @@ class RelationalGATEncoder(GraphConvEncoder):
                  use_self_loop=True,
                  last_layer_act=False,
                  num_ffn_layers_in_gnn=0,
-                 norm='batch'):
+                 norm=None):
         super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         self.num_heads = num_heads
         # h2h

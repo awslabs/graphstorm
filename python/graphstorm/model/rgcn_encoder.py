@@ -69,7 +69,7 @@ class RelGraphConvLayer(nn.Module):
                  dropout=0.0,
                  num_ffn_layers_in_gnn=0,
                  ffn_activation=F.relu,
-                 norm='batch'):
+                 norm=None):
         super(RelGraphConvLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -217,7 +217,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
                  use_self_loop=True,
                  last_layer_act=False,
                  num_ffn_layers_in_gnn=0,
-                 norm='batch'):
+                 norm=None):
         super(RelationalGCNEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         if num_bases < 0 or num_bases > len(g.canonical_etypes):
             self.num_bases = len(g.canonical_etypes)
