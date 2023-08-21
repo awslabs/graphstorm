@@ -19,6 +19,7 @@ import numpy as np
 import torch as th
 from torch import nn
 
+from .ngnn_mlp import NGNNMLP
 from .gs_layer import GSLayer, GSLayerNoParam
 from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                            BUILTIN_LP_JOINT_NEG_SAMPLER,
@@ -217,7 +218,8 @@ class MLPEdgeDecoder(GSLayer):
                  target_etype,
                  num_hidden_layers=1,
                  dropout=0,
-                 regression=False):
+                 regression=False,
+                 num_ffn_layers=0):
         super(MLPEdgeDecoder, self).__init__()
         self.h_dim = h_dim
         self.multilabel = multilabel
@@ -226,12 +228,19 @@ class MLPEdgeDecoder(GSLayer):
         self.regression = regression
         self.dropout = dropout
         self.num_hidden_layers = num_hidden_layers
+        self.num_ffn_layers = num_ffn_layers
 
         self._init_model()
 
     def _init_model(self):
         """ Init decoder model
         """
+        # ngnn layer
+        self.ngnn_mlp = NGNNMLP(self.h_dim * 2, self.h_dim * 2,
+                                self.num_ffn_layers,
+                                th.nn.functional.relu,
+                                self.dropout)
+
         # Here we assume the source and destination nodes have the same dimension.
         self.decoder = nn.Parameter(th.randn(self.h_dim * 2, self.out_dim))
         assert self.num_hidden_layers == 1, "More than one layers not supported"
@@ -262,6 +271,8 @@ class MLPEdgeDecoder(GSLayer):
             ifeat = h[dest_type][v]
 
             h = th.cat([ufeat, ifeat], dim=1)
+            if self.num_ffn_layers > 0:
+                h = self.ngnn_mlp(h)
             out = th.matmul(h, self.decoder)
         return out
 
@@ -381,14 +392,16 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                  multilabel,
                  target_etype,
                  dropout=0,
-                 regression=False):
+                 regression=False,
+                 num_ffn_layers=2):
         self.feat_dim = feat_dim
         super(MLPEFeatEdgeDecoder, self).__init__(h_dim=h_dim,
                                                   out_dim=out_dim,
                                                   multilabel=multilabel,
                                                   target_etype=target_etype,
                                                   dropout=dropout,
-                                                  regression=regression)
+                                                  regression=regression,
+                                                  num_ffn_layers=num_ffn_layers)
 
     def _init_model(self):
         """ Init decoder model
@@ -400,6 +413,13 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         self.nn_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
         # [edge_feat] @ W -> h_dim
         self.feat_decoder = nn.Parameter(th.randn(self.feat_dim, self.h_dim))
+
+        # ngnn before combine layer
+        self.ngnn_mlp = NGNNMLP(self.h_dim * 2, self.h_dim * 2,
+                                self.num_ffn_layers,
+                                th.nn.functional.relu,
+                                self.dropout)
+
         # combine output of nn_decoder and feat_decoder
         self.combine_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
         self.decoder = nn.Parameter(th.randn(self.h_dim, self.out_dim))
@@ -449,6 +469,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             feat_h = self.dropout(feat_h)
             # [nn_h | feat_h] @ W -> h_dim
             combine_h = th.cat([nn_h, feat_h], dim=1)
+            if self.num_ffn_layers > 0:
+                combine_h = self.ngnn_mlp(combine_h)
             combine_h = th.matmul(combine_h, self.combine_decoder)
             combine_h = self.relu(combine_h)
             out = th.matmul(combine_h, self.decoder)

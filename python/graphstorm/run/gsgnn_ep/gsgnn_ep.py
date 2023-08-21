@@ -17,7 +17,6 @@
 """
 
 import os
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -84,7 +83,6 @@ def main(config_args):
     if trainer.rank == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                      batch_size=config.batch_size, device=device, train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
@@ -149,7 +147,7 @@ def main(config_args):
         # The order of the ntypes must be sorted
         embs = {ntype: embeddings[ntype] for ntype in sorted(target_ntypes)}
         save_embeddings(config.save_embed_path, embs, gs.get_rank(),
-                        th.distributed.get_world_size(),
+                        gs.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 

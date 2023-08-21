@@ -36,18 +36,23 @@ class GLEM(GSgnnNodeModelBase):
         Set true to use GNN in inference time, otherwise inference with LM
     pl_weight: float
         Weight for the pseudo-likelihood loss in GLEM's loss function.
+    num_pretrain_epochs: int
+        Number of pretraining epochs to train LM and GNN independently without
+        pseudo-likelihood loss.        
     """
     def __init__(self,
                  alpha_l2norm,
                  em_order_gnn_first=False,
                  inference_using_gnn=True,
-                 pl_weight=0.5
+                 pl_weight=0.5,
+                 num_pretrain_epochs=1
                  ):
         super(GLEM, self).__init__()
         self.alpha_l2norm = alpha_l2norm
         self.em_order_gnn_first = em_order_gnn_first
         self.inference_using_gnn = inference_using_gnn
         self.pl_weight = pl_weight
+        self.num_pretrain_epochs = num_pretrain_epochs
         self.lm = GSgnnNodeModel(alpha_l2norm)
         self.gnn = GSgnnNodeModel(alpha_l2norm)
         self.training_lm = not em_order_gnn_first
@@ -161,11 +166,12 @@ class GLEM(GSgnnNodeModelBase):
             raise ValueError(f"Unknown model part: {part}")
 
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes, use_gnn=True,
-                no_pl=False):
+                no_pl=False, blocks_u=None, node_feats_u=None, edge_feats_u=None,
+                input_nodes_u=None):
         """ Forward pass for GLEM model.
         Parameters
         ----------        
-        blocks : List[dgl.heterograph.DGLBlock]
+        blocks : List[dgl.heterograph.DGLBlock] labeled message flow graphs
         node_feats : Dict[ntype: tensors.shape [bs, feat_dim]]
         edge_feats : None
         labels : Dict[target_ntype: tensor.shape [bs]]
@@ -174,13 +180,28 @@ class GLEM(GSgnnNodeModelBase):
             If True, use GNN's decoder, otherwise, use LM's decoder
         no_pl : bool
             If True, do not calculate pseudo likelihood, use MLE loss only
+        blocks_u : List[dgl.heterograph.DGLBlock] unlabeled message flow graphs
+        node_feats_u : Dict[ntype: tensors.shape [bs, feat_dim]] unlabeled node features
+        edge_feats_u : None
+        input_nodes_u : {target_ntype: tensor.shape [bs], other_ntype: []} unlabeled nodes
         """
-        if use_gnn:
-            total_loss = self.forward_gnn(blocks, node_feats, edge_feats, labels, input_nodes,
-                                          no_pl=no_pl)
+        if blocks_u is None or no_pl:
+            # no unlabeled data provided
+            if use_gnn:
+                total_loss = self.forward_gnn(blocks, node_feats, edge_feats, labels, input_nodes,
+                                            no_pl=no_pl)
+            else:
+                total_loss = self.forward_lm(blocks, node_feats, edge_feats, labels, input_nodes,
+                                            no_pl=no_pl)
         else:
-            total_loss = self.forward_lm(blocks, node_feats, edge_feats, labels, input_nodes,
-                                         no_pl=no_pl)
+            if use_gnn:
+                total_loss = self.forward_gnn_semisup(blocks, node_feats, edge_feats, labels,
+                                                      input_nodes, blocks_u, node_feats_u,
+                                                      edge_feats_u, input_nodes_u)
+            else:
+                total_loss = self.forward_lm_semisup(blocks, node_feats, edge_feats, labels,
+                                                     input_nodes, blocks_u, node_feats_u,
+                                                     edge_feats_u, input_nodes_u)
         return total_loss
 
     def forward_gnn(self, blocks, node_feats, _, labels, input_nodes, no_pl=False):
@@ -210,6 +231,31 @@ class GLEM(GSgnnNodeModelBase):
         # weighted addition to the total loss
         return loss + self.alpha_l2norm * reg_loss
 
+    def forward_gnn_semisup(self, blocks, node_feats, edge_feats, labels, input_nodes, blocks_u,
+                            node_feats_u, edge_feats_u, input_nodes_u):
+        """Forward pass for node prediction using GNN with unlabeled nodes
+        """
+        _, emb_gnn = self._embed_nodes(blocks, node_feats, edge_feats, input_nodes,
+                                       do_gnn_encode=True)
+        labels = self._process_labels(labels)
+
+        emb_lm_u, emb_gnn_u = self._embed_nodes(blocks_u, node_feats_u, edge_feats_u,
+                                                input_nodes_u, do_gnn_encode=True)
+        # compute pseudo labels from LM
+        logits_lm = self.lm.decoder(emb_lm_u)
+        pseudo_labels = logits_lm.argmax(-1)
+        logits = self.gnn.decoder(th.cat([emb_gnn, emb_gnn_u]))
+        # GLEM loss
+        loss = compute_loss(self.gnn.loss_func, logits, labels, pseudo_labels,
+                            pl_weight=self.pl_weight)
+
+        # add regularization loss to all parameters to avoid the unused parameter errors
+        reg_loss = th.tensor(0.).to(loss.device)
+        # L2 regularization of dense parameters
+        for d_para in self.gnn.get_dense_params():
+            reg_loss += d_para.square().sum()
+        # weighted addition to the total loss
+        return loss + self.alpha_l2norm * reg_loss
 
     def forward_lm(self, blocks, node_feats, _, labels, input_nodes, no_pl=False):
         """Forward pass for node prediction using LM"""
@@ -238,6 +284,29 @@ class GLEM(GSgnnNodeModelBase):
         # weighted addition to the total loss
         return loss + self.alpha_l2norm * reg_loss
 
+    def forward_lm_semisup(self, blocks, node_feats, edge_feats, labels, input_nodes, blocks_u,
+                           node_feats_u, edge_feats_u, input_nodes_u):
+        """Forward pass for node prediction using LM with unlabeled nodes
+        """
+        emb_lm, _ = self._embed_nodes(blocks, node_feats, edge_feats, input_nodes,
+                                      do_gnn_encode=False)
+        labels = self._process_labels(labels)
+        emb_lm_u, emb_gnn_u = self._embed_nodes(blocks_u, node_feats_u, edge_feats_u, input_nodes_u,
+                                                do_gnn_encode=True)
+        logits = self.lm.decoder(th.cat([emb_lm, emb_lm_u]))
+        # compute pseudo labels from GNN
+        logits_gnn = self.gnn.decoder(emb_gnn_u)
+        pseudo_labels = logits_gnn.argmax(-1)
+        # GLEM loss
+        loss = compute_loss(self.gnn.loss_func, logits, labels, pseudo_labels,
+                            pl_weight=self.pl_weight)
+        # add regularization loss to all parameters to avoid the unused parameter errors
+        reg_loss = th.tensor(0.).to(loss.device)
+        # L2 regularization of dense parameters
+        for d_para in self.gnn.get_dense_params():
+            reg_loss += d_para.square().sum()
+        # weighted addition to the total loss
+        return loss + self.alpha_l2norm * reg_loss
 
     def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
         """Make prediction on the nodes with the LM or GNN. 

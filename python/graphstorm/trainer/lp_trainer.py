@@ -16,6 +16,7 @@
     GraphStorm trainer for link prediction
 """
 import time
+import resource
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -24,9 +25,8 @@ from ..model.lp_gnn import lp_mini_batch_predict
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
-from ..utils import get_rank
+from ..utils import sys_tracker, rt_profiler
+from ..utils import barrier, is_distributed
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -92,10 +92,15 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     "Only GSgnnModel supports full-graph inference."
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
-        model = DistributedDataParallel(self._model, device_ids=[self.device],
-                                        output_device=self.device,
-                                        find_unused_parameters=True,
-                                        static_graph=static_graph)
+        on_cpu = self.device == th.device('cpu')
+        if is_distributed():
+            model = DistributedDataParallel(self._model,
+                                            device_ids=None if on_cpu else [self.device],
+                                            output_device=None if on_cpu else self.device,
+                                            find_unused_parameters=True,
+                                            static_graph=static_graph)
+        else:
+            model = self._model
         device = model.device
         data = train_loader.data
 
@@ -155,8 +160,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(model.module, data,
-                                          val_loader, test_loader, total_steps,
+                    val_score = self.eval(model.module if is_distributed() else model,
+                                          data, val_loader, test_loader, total_steps,
                                           edge_mask_for_gnn_embeddings)
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -185,15 +190,15 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
             # ------- end of an epoch -------
 
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - epoch_start
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, data,
-                                      val_loader, test_loader, total_steps,
+                val_score = self.eval(model.module if is_distributed() else model,
+                                      data, val_loader, test_loader, total_steps,
                                       edge_mask_for_gnn_embeddings)
 
                 if self.evaluator.do_early_stop(val_score):
@@ -205,19 +210,25 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
             rt_profiler.print_stats()
-
-            th.distributed.barrier()
+            barrier()
 
             # early_stop, exit training
             if early_stop is True:
                 break
 
         rt_profiler.save_profile()
-        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        if th.cuda.is_available():
+            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
+                                                         1024 / 1024))
+        else:
+            print("Peak RAM Mem alloc: {:.4f} MB".format(
+                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,
                        'best_val_mrr':self.evaluator.best_val_score,
-                       'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_RAM_mem_alloc_MB': \
+                           resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
                            self.evaluator.best_iter_num[self.evaluator.metric[0]],
                        'best model path': \
@@ -259,14 +270,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                                       edge_mask=edge_mask_for_gnn_embeddings,
                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
-        device = self.device
-        if val_loader is not None:
-            val_scores = lp_mini_batch_predict(model, emb, val_loader, device)
-        else:
-            val_scores = None
+        val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
+            if val_loader is not None else None
         sys_tracker.check('after_val_score')
         if test_loader is not None:
-            test_scores = lp_mini_batch_predict(model, emb, test_loader, device)
+            test_scores = lp_mini_batch_predict(model, emb, test_loader, self.device)
         else:
             test_scores = None
         sys_tracker.check('after_test_score')

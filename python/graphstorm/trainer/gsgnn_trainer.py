@@ -27,6 +27,8 @@ from ..model.utils import save_model_results_json
 
 from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
 
+from ..utils import barrier
+
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
 
@@ -184,7 +186,7 @@ class GSgnnTrainer():
     def save_model(self, model, epoch, i, save_model_path):
         '''Save the model for a certain iteration in an epoch.
         '''
-        th.distributed.barrier()
+        barrier()
         if save_model_path is not None:
             assert isinstance(model.module, (GSgnnModel, GSgnnModelBase)), \
                 "Please make sure the model derives from GSgnnModel or GSgnnModelBase, " \
@@ -194,7 +196,7 @@ class GSgnnTrainer():
             self.optimizer.save_opt_state(save_model_path)
 
         # make sure each trainer finishes its own model saving task.
-        th.distributed.barrier()
+        barrier()
 
     def remove_saved_model(self, epoch, i, save_model_path):
         """ remove previously saved model, which may not be the best K performed or other reasons.
@@ -305,12 +307,11 @@ class GSgnnTrainer():
             A tuple of (forward time and backward time)
         '''
         gnn_forward_time, back_time = compute_time
-        device = self.device
 
-        print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | Peak Mem: {:.4f} MB".
+        print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | GPU Peak Mem: {:.4f} MB".
                 format(epoch, i,
-                    th.cuda.memory_reserved(device) / 1024 / 1024,
-                    th.cuda.max_memory_allocated(device) / 1024 /1024))
+                    th.cuda.memory_reserved(self.device) / 1024 / 1024,
+                    th.cuda.max_memory_allocated(self.device) / 1024 /1024))
         print('Epoch {:05d} | Batch {:03d} | RAM memory {} used | Avg input nodes per iter {}'.
                 format(epoch, i, psutil.virtual_memory(), num_input_nodes))
         print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(

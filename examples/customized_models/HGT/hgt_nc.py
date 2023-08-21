@@ -196,7 +196,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
             if self.adapt_ws[ntype] is None:
                 n_id = self.node_dict[ntype]
                 emb_id = self.ntype_id_map[n_id]
-                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to('cuda'))
+                device = self.ntype_embed.device
+                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
@@ -228,7 +229,8 @@ class HGT(gsmodel.GSgnnNodeModelBase):
             if self.adapt_ws[ntype] is None:
                 n_id = self.node_dict[ntype]
                 emb_id = self.ntype_id_map[n_id]
-                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to('cuda'))
+                device = self.ntype_embed.device
+                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
