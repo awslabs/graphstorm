@@ -883,7 +883,7 @@ def test_link_prediction_weight():
     dgl.distributed.kvstore.close_kvstore()
 
 if __name__ == '__main__':
-    test_rgcn_edge_prediction()
+    test_rgcn_edge_prediction(2)
     test_rgcn_node_prediction()
     test_rgat_node_prediction()
     test_sage_node_prediction()
@@ -895,6 +895,6 @@ if __name__ == '__main__':
     test_link_prediction()
     test_link_prediction_weight()
 
-    test_mlp_edge_prediction()
+    test_mlp_edge_prediction(2)
     test_mlp_node_prediction()
     test_mlp_link_prediction()
