@@ -18,6 +18,7 @@ import torch as th
 import dgl
 from dgl.distributed import DistTensor, node_split
 
+from ..utils import barrier
 from .gnn_encoder_base import GraphConvEncoder, dist_inference_one_layer
 
 class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
@@ -109,7 +110,7 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
                                                             drop_last=False)
             dist_inference_one_layer(g, dataloader, self._input_gnn,
                                      get_input_embeds, y, device, task_tracker)
-        th.distributed.barrier()
+        barrier()
         def get_input_embeds1(input_nodes):
             orig_inputs = {}
             embeds = {}
