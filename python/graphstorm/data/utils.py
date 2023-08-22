@@ -286,9 +286,10 @@ def alltoallv_nccl(rank, world_size, output_tensor_list, input_tensor_list):
     input_tensor_list : List of tensor
         The tensors to exchange
     """
-    # send tensor to each target trainer using torch.distributed.isend
+        # send tensor to each target trainer using torch.distributed.isend
     # isend is async
     senders = []
+    receivers = []
     for i in range(world_size):
         if i == rank:
             output_tensor_list[i] = input_tensor_list[i]
@@ -298,8 +299,13 @@ def alltoallv_nccl(rank, world_size, output_tensor_list, input_tensor_list):
 
     for i in range(world_size):
         if i != rank:
-            dist.recv(output_tensor_list[i], src=i)
+            receiver = dist.irecv(output_tensor_list[i], src=i)
+            receivers.append(receiver)
 
+    for sender in senders:
+        sender.wait()
+    for receiver in receivers:
+        receiver.wait()
     barrier()
 
 def all_reduce_sum(tensor):
