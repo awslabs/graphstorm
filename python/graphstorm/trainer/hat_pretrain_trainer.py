@@ -44,10 +44,8 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save):
-        super(GSgnnHATMasedLMTrainer, self).__init__(model, rank, topk_model_to_save)
-        assert isinstance(model, GSgnnModelBase), \
-                "The input model is not a GSgnnModel"
+    def __init__(self, model):
+        self._model = model
 
     def fit(self, train_dataset,
             training_args,

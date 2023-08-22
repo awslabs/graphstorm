@@ -25,7 +25,7 @@ class GsHuggingfaceTrainer(Trainer):
         self._train_dataloader = train_loader
         self._val_dataloader = val_loader
         self._test_dataloader = test_loader
-        super(GsHuggingfaceTrainer, self).__init__(kwargs)
+        super(GsHuggingfaceTrainer, self).__init__(**kwargs)
 
     def get_train_dataloader(self):
         """

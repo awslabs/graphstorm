@@ -11,3 +11,5 @@ gsf:
   gnn:
     fanout: "5"
     num_layers: 1
+  hat_mlm:
+    target_ntype: "node"

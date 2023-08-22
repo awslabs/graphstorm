@@ -54,56 +54,59 @@ def main(config_args):
 
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
-                                    train_ntypes=config.target_ntype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    train_ntypes=config.target_ntype)
 
     dataloader = GSlmHatNodeDataLoader(train_data,
-                                       prepare_input_fn=prepare_hat_node_centric,
-                                       target_idx=train_data.train_idxs,
-                                       fanout=config.fanout,
-                                       batch_size=config.batch_size,
-                                       max_sequence_length=data_args.max_seq_length,
-                                       max_sentence_length=data_args.max_sentence_length,
-                                       pin_memory=training_args.dataloader_pin_memory,
-                                       num_workers=training_args.dataloader_num_workers,
-                                       transverse_format=data_args.transverse_format,
-                                       shuffle_neighbor_order=data_args.shuffle_neighbor_order)
+        prepare_input_fn=prepare_hat_node_centric,
+        target_idx=train_data.train_idxs,
+        fanout=config.fanout,
+        device=device,
+        batch_size=training_args.per_device_train_batch_size, # use batch size from hf config
+        train_task=True,
+        max_sequence_length=data_args.max_seq_length,
+        max_sentence_length=data_args.max_sentence_length,
+        pin_memory=training_args.dataloader_pin_memory,
+        num_workers=training_args.dataloader_num_workers,
+        transverse_format=data_args.transverse_format,
+        shuffle_neighbor_order=data_args.shuffle_neighbor_order)
 
 
     val_dataloader = None
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSlmHatNodeDataLoader(train_data,
-                                       prepare_input_fn=prepare_hat_node_centric,
-                                       target_idx=train_data.val_idxs,
-                                       fanout=config.eval_fanout,
-                                       batch_size=config.batch_size,
-                                       max_sequence_length=data_args.max_seq_length,
-                                       max_sentence_length=data_args.max_sentence_length,
-                                       pin_memory=training_args.dataloader_pin_memory,
-                                       num_workers=0,
-                                       transverse_format=data_args.transverse_format,
-                                       shuffle_neighbor_order=False)
+                                            prepare_input_fn=prepare_hat_node_centric,
+                                            target_idx=train_data.val_idxs,
+                                            fanout=config.eval_fanout,
+                                            device=device,
+                                            batch_size=training_args.per_device_eval_batch_size,
+                                            train_task=False,
+                                            max_sequence_length=data_args.max_seq_length,
+                                            max_sentence_length=data_args.max_sentence_length,
+                                            pin_memory=training_args.dataloader_pin_memory,
+                                            num_workers=0,
+                                            transverse_format=data_args.transverse_format,
+                                            shuffle_neighbor_order=False)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSlmHatNodeDataLoader(train_data,
-                                       prepare_input_fn=prepare_hat_node_centric,
-                                       target_idx=train_data.test_idxs,
-                                       fanout=config.eval_fanout,
-                                       batch_size=config.batch_size,
-                                       max_sequence_length=data_args.max_seq_length,
-                                       max_sentence_length=data_args.max_sentence_length,
-                                       pin_memory=training_args.dataloader_pin_memory,
-                                       num_workers=0,
-                                       transverse_format=data_args.transverse_format,
-                                       shuffle_neighbor_order=False)
+                                            prepare_input_fn=prepare_hat_node_centric,
+                                            target_idx=train_data.test_idxs,
+                                            fanout=config.eval_fanout,
+                                            device=device,
+                                            batch_size=training_args.per_device_eval_batch_size,
+                                            train_task=False,
+                                            max_sequence_length=data_args.max_seq_length,
+                                            max_sentence_length=data_args.max_sentence_length,
+                                            pin_memory=training_args.dataloader_pin_memory,
+                                            num_workers=0,
+                                            transverse_format=data_args.transverse_format,
+                                            shuffle_neighbor_order=False)
 
     model = gs.create_builtin_hat_model(model_args)
 
-    trainer = GSgnnHATMasedLMTrainer(model, gs.get_rank(),
-        topk_model_to_save=config.topk_model_to_save)
+    trainer = GSgnnHATMasedLMTrainer(model)
 
-    trainer.fit(train_data, config.num_epochs,
+    trainer.fit(train_data,
                 training_args=training_args,
                 train_loader=dataloader,
                 val_loader=val_dataloader,

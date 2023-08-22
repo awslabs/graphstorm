@@ -29,7 +29,7 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
     def __init__(self, dataset, prepare_input_fn,
                  target_idx, fanout, batch_size,
                  device, train_task, max_sequence_length, max_sentence_length,
-                 pin_memory, shuffle, num_workers=0, drop_last=True,
+                 pin_memory, num_workers=0, drop_last=True,
                  transverse_format=BFS_TRANSVERSE,
                  shuffle_neighbor_order=True):
         self._max_sentence_len = max_sentence_length
