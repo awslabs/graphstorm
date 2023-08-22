@@ -15,7 +15,7 @@
 
     GSgnn HAT masked language model pre-training
 """
-from transformer import (HfArgumentParser,
+from transformers import (HfArgumentParser,
                          TrainingArguments)
 
 import graphstorm as gs
@@ -38,8 +38,13 @@ def main(config_args):
     config.verify_arguments(True)
 
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
-    model_args, data_args, training_args = \
-        parser.parse_args_into_dataclasses(args=config.hf_args, args_filename=config.hf_args_filename)
+    if config.hf_args_filename is not None:
+        print(config.hf_args_filename)
+        model_args, data_args, training_args = \
+            parser.parse_json_file(json_file=config.hf_args_filename)
+    else:
+        model_args, data_args, training_args = \
+            parser.parse_args_into_dataclasses()
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)

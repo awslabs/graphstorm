@@ -25,7 +25,7 @@ import yaml
 import torch as th
 import torch.nn.functional as F
 
-from .config import BUILTIN_GNN_ENCODER
+from .config import BUILTIN_GNN_ENCODER, BUILTIN_GRAPH_TRANSFORMER_ENCODER
 from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
 from .config import BUILTIN_LP_LOSS_FUNCTION
@@ -232,6 +232,22 @@ class GSConfig:
         _ = self.edge_id_mapping_file
         _ = self.verbose
 
+        # Encoder related
+        encoder_type = self.model_encoder_type
+        if encoder_type == "lm":
+            assert self.node_lm_configs is not None
+        if encoder_type in BUILTIN_GRAPH_TRANSFORMER_ENCODER:
+            _ = self.num_layers
+        else:
+            _ = self.input_activate
+            _ = self.hidden_size
+            _ = self.num_layers
+            _ = self.use_self_loop
+            _ = self.use_node_embeddings
+            _ = self.num_bases
+            _ = self.num_heads
+            _ = self.num_ffn_layers_in_gnn
+
         # Data
         _ = self.node_feat_name
         _ = self.decoder_edge_feat
@@ -249,24 +265,28 @@ class GSConfig:
 
         # Model training.
         if is_train:
-            _ = self.batch_size
             _ = self.fanout
-            _ = self.lm_train_nodes
-            _ = self.lm_tune_lr
-            _ = self.lr
-            _ = self.sparse_optimizer_lr
-            _ = self.num_epochs
-            _ = self.save_model_path
-            _ = self.save_model_frequency
-            _ = self.topk_model_to_save
-            _ = self.early_stop_burnin_rounds
-            _ = self.early_stop_rounds
-            _ = self.early_stop_strategy
-            _ = self.use_early_stop
-            _ = self.wd_l2norm
             _ = self.train_negative_sampler
             _ = self.train_etype
             _ = self.remove_target_edge_type
+
+            # graph transformer encoder will use huggingface config
+            # skip checking graphstorm train config
+            if encoder_type not in BUILTIN_GRAPH_TRANSFORMER_ENCODER:
+                _ = self.batch_size
+                _ = self.lm_train_nodes
+                _ = self.lm_tune_lr
+                _ = self.lr
+                _ = self.sparse_optimizer_lr
+                _ = self.num_epochs
+                _ = self.save_model_path
+                _ = self.save_model_frequency
+                _ = self.topk_model_to_save
+                _ = self.early_stop_burnin_rounds
+                _ = self.early_stop_rounds
+                _ = self.early_stop_strategy
+                _ = self.use_early_stop
+                _ = self.wd_l2norm
 
         # LM module
         if self.node_lm_configs:
@@ -287,23 +307,9 @@ class GSConfig:
         _ = self.dropout
         _ = self.decoder_type
         _ = self.num_decoder_basis
-        # Encoder related
-        encoder_type = self.model_encoder_type
-        if encoder_type == "lm":
-            assert self.node_lm_configs is not None
-        else:
-            _ = self.input_activate
-            _ = self.hidden_size
-            _ = self.num_layers
-            _ = self.use_self_loop
-            _ = self.use_node_embeddings
-            _ = self.num_bases
-            _ = self.num_heads
-            _ = self.num_ffn_layers_in_gnn
 
         _ = self.return_proba
         _ = self.alpha_l2norm
-
 
         # ngnn
         _ = self.num_ffn_layers_in_input
@@ -706,7 +712,7 @@ class GSConfig:
         """ training fanout
         """
         # pylint: disable=no-member
-        if self.model_encoder_type in BUILTIN_GNN_ENCODER:
+        if self.model_encoder_type in BUILTIN_GNN_ENCODER + BUILTIN_GRAPH_TRANSFORMER_ENCODER:
             assert hasattr(self, "_fanout"), \
                     "Training fanout must be provided"
 
@@ -745,7 +751,7 @@ class GSConfig:
         """ Number of GNN layers
         """
         # pylint: disable=no-member
-        if self.model_encoder_type in BUILTIN_GNN_ENCODER:
+        if self.model_encoder_type in BUILTIN_GNN_ENCODER + BUILTIN_GRAPH_TRANSFORMER_ENCODER:
             assert hasattr(self, "_num_layers"), \
                 "Number of GNN layers must be provided"
             assert isinstance(self._num_layers, int), \

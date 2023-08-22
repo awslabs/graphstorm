@@ -1,9 +1,13 @@
 ---
 version: 1.0
+huggingface:
+  hf_args_filename: "./hat-config/scibert-scivocab-uncased-hat-model/mlm-tuned/arxiv_hf_mlm_config.json"
 gsf:
   basic:
     backend: nccl
     verbose: false
     save_perf_results_path: null
-  huggingface:
-    hf_args_filename: "./hat-config/scibert-scivocab-uncased-hat-model/mlm-tuned/"
+    model_encoder_type: "hat"
+  gnn:
+    fanout: "5"
+    num_layers: 1

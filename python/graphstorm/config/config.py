@@ -17,7 +17,10 @@
 """
 
 BUILTIN_GNN_ENCODER = ["rgat", "rgcn", "sage"]
-BUILTIN_ENCODER = ["lm", "mlp"] + ["rgat", "rgcn", "sage"]
+BUILTIN_GRAPH_TRANSFORMER_ENCODER = ["hat"]
+BUILTIN_ENCODER = ["lm", "mlp"] + \
+    BUILTIN_GNN_ENCODER + \
+    BUILTIN_GRAPH_TRANSFORMER_ENCODER
 SUPPORTED_BACKEND = ["gloo", "nccl"]
 
 GRAPHSTORM_MODEL_EMBED_LAYER = "embed"
