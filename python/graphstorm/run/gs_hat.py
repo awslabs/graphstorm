@@ -38,6 +38,7 @@ def main():
     """ Main function
     """
     parser = get_argument_parser()
+    parser = add_hat_arguments(parser)
     args, exec_script_args = parser.parse_known_args()
     check_input_arguments(args)
 

@@ -2,13 +2,8 @@
 version: 1.0
 gsf:
   basic:
-    backend: gloo
+    backend: nccl
     verbose: false
     save_perf_results_path: null
-  input:
-    restore_model_path: null
-  output:
-    save_model_path: "./hat-model/scibert-scivocab-uncased-hat-model/mlm-tuned/"
-    save_embed_path: null
   huggingface:
     hf_args_filename: "./hat-config/scibert-scivocab-uncased-hat-model/mlm-tuned/"

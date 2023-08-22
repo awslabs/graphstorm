@@ -42,6 +42,7 @@ def main(config_args):
         parser.parse_args_into_dataclasses(args=config.hf_args, args_filename=config.hf_args_filename)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    device = setup_device(config.local_rank)
 
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
