@@ -15,9 +15,9 @@ gsf:
     restore_model_path: null
   output:
     topk_model_to_save: 7
-    save_model_path: /data/outputs
-    save_embeds_path: /data/outputs
-    save_prediction_path: /data/outputs
+    save_model_path: /tmp/outputs
+    save_embeds_path: /tmp/outputs
+    save_prediction_path: /tmp/outputs
   hyperparam:
     dropout: 0.
     lr: 0.0001

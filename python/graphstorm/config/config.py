@@ -16,8 +16,8 @@
     Builtin configs
 """
 
-BUILTIN_GNN_ENCODER = ["rgat", "rgcn"]
-BUILTIN_ENCODER = ["lm", "mlp"] + ["rgat", "rgcn"]
+BUILTIN_GNN_ENCODER = ["rgat", "rgcn", "sage"]
+BUILTIN_ENCODER = ["lm", "mlp"] + ["rgat", "rgcn", "sage"]
 SUPPORTED_BACKEND = ["gloo", "nccl"]
 
 GRAPHSTORM_MODEL_EMBED_LAYER = "embed"

@@ -4,7 +4,7 @@ service ssh start
 
 GSF_HOME=$(pwd)
 export PYTHONPATH=${GSF_HOME}/python/
-PART_CONFIG=/data/movielen_100k_train_val_1p_4t/movie-lens-100k.json
+PART_CONFIG=/data/movielen_100k_custom_train_val_1p_4t/movie-lens-100k.json
 
 NUM_TRAINERS=1
 NUM_SERVERS=1
@@ -36,6 +36,6 @@ python3 -m graphstorm.run.launch \
         --target-ntype movie \
         --node-feat feat \
         --num-classes 19 \
-        --label genre
+        --label label
 
 error_and_exit $?

@@ -8,6 +8,23 @@ Use scripts under graphstorm.sagemaker.launch to launch SageMaker tasks.
 Please make sure you already setup your SageMaker environment.
 Please refer to [Amazon SageMaker service](https://aws.amazon.com/pm/sagemaker) for how to get access to Amazon SageMaker.
 
+### Common task arguments
+
+All SageMaker tasks share some common arguments that can be found in `<gs-root>/sagemaker/launch/common_parser.py`
+
+* `image_url`: (required) The URI to the GraphStorm SageMaker image on ECR.
+* `role`: (required) The SageMaker execution role that will be used to run the job.
+* `instance-type`: The SageMaker instance type used to run the job.
+* `instance-count`: The number of SageMaker instances used to run the job.
+    For GConstruct jobs, the number is always 1.
+* `region`: The region in which we will launch the job. Default is `us-west-2`, but ensure it matches the
+    region of your image.
+* `task-name`: A user-defined task name for the job.
+* `sm-estimator-parameters`: Parameters that will be forwarded to the SageMaker Estimator/Processor.
+    See the section `Passing additional arguments to the SageMaker Estimator/Processor` for details.
+* `async-exection`: When this flag is set the job will run in async mode and return immediatelly.
+    Otherwise the job will block and logs will be printed to the console.
+
 ### Launch GraphStorm graph construction using Amazon SageMaker service
 
 #### Preparing the example dataset
@@ -35,14 +52,14 @@ Then, you can use the following command to launch a SageMaker graph construction
 ```bash
 python3 launch/launch_gconstruct.py \
         --image-url <AMAZON_ECR_IMAGE_URI> \
-        --region us-east-1 \
+        --region <region> \
         --entry-point run/gconstruct_entry.py \
         --role <ROLE_ARN> \
         --input-graph-s3 s3://PATH_TO/acm/ \
         --output-graph-s3 s3://PATH_TO/acm_output/ \
-        --volume-size-in-gb 10 \
         --graph-name acm \
-        --graph-config-file acm_raw/config.json
+        --graph-config-file acm_raw/config.json \
+        --sm-estimator-parameters "volume_size_in_gb=10"
 ```
 The processed graph data is stored at s3://PATH_TO/acm_output/.
 
@@ -61,16 +78,15 @@ python launch/launch_partition.py --graph-data-s3 ${DATASET_S3_PATH} \
     --output-data-s3 ${OUTPUT_PATH} --instance-type ${INSTANCE_TYPE} \
     --image-url ${IMAGE_URI} --region ${REGION} \
     --role ${ROLE}  --entry-point "run/partition_entry.py" \
-    --job-prefix part-${ALGORITHM}-${DATASET_NAME}-${NUM_PARTITIONS}parts --metadata-filename ${METADATA_FILE} \
+    --metadata-filename ${METADATA_FILE} \
     --log-level INFO --partition-algorithm ${ALGORITHM}
-
 ```
 
 Running the above will take as input the dataset in chunked format from `${DATASET_S3_PATH}`
 and create a DistDGL graph with `${NUM_PARTITIONS}` under the output path,
 `${OUTPUT_PATH}`. Currently we only support `random` as the partitioning algorithm.
 
-### Launch GraphStorm trainingusing Amazon SageMaker service
+### Launch GraphStorm training using Amazon SageMaker service
 
 #### Preparing training data and training task config.
 
@@ -132,7 +148,7 @@ In this example, we will use the same graph.
 You can use the following command to launch a SageMaker offline inference task.
 ```bash
 cd $GS_HOME/sagemaker/
-python3 launch/launch_infer \
+python3 launch/launch_infer.py \
         --image-url <AMAZON_ECR_IMAGE_URI> \
         --region us-east-1 \
         --entry-point run/infer_entry.py \
@@ -158,6 +174,54 @@ You can use following command to check the corresponding outputs:
 aws s3 ls s3://PATH_TO_SAVE_GENERATED_NODE_EMBEDDING/
 aws s3 ls s3://PATH_TO_SAVE_PREDICTION_RESULTS/
 ```
+
+### Passing additional arguments to the SageMaker Estimator/Processor
+
+Sometimes you might want to pass additional arguments to the constructor of the SageMaker
+Estimator/Processor object we use to launch SageMaker tasks, e.g. to set a max runtime, or
+set a VPC configuration. Our launch scripts support forwarding arguments to the base class
+object through a `kwargs` dictionary.
+
+To pass additional `kwargs` directly to the Estimator/Processor constructor, you can use
+the `--sm-estimator-parameters` argument, providing a string of space-separated arguments
+(enclosed in double quotes `"` to ensure correct parsing) and the
+format `<argname>=<value>` for each argument.
+
+`<argname>` needs to be a valid SageMaker Estimator/Processor
+argument name and `<value>` a value that can be parsed as a Python literal, **without
+spaces**.
+
+For example, to pass a specific max runtime, subnet list, and enable inter-container
+traffic encryption for a train, inference, or partition job you'd use:
+
+```bash
+python3 launch/launch_[infer|train|partition] \
+    <other arugments> \
+    --sm-estimator-parameters "max_run=3600 volume_size=100 encrypt_inter_container_traffic=True subnets=['subnet-1234','subnet-4567']"
+```
+
+Notice how we don't include any spaces in `['subnet-1234','subnet-4567']` to ensure correct parsing of the list.
+
+The train, inference and partition scripts launch SageMaker Training jobs that rely on the `Estimator` base class:
+For a full list of `Estimator` parameters see:
+https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html#sagemaker.estimator.EstimatorBase
+
+The GConstruct job will launch a SageMaker Processing job that relies on the `Processor` base class, so its
+arguments are different, e.g. `volume_size_in_gb` for the `Processor` vs. `volume_size` for the `Estimator`.
+
+So the above example would become:
+
+```bash
+python3 launch/launch_gconstruct \
+    <other arugments> \
+    --sm-estimator-parameters "max_runtime_in_seconds=3600 volume_size_in_gb=100"
+```
+
+
+For a full list of `Processor` parameters see:
+https://sagemaker.readthedocs.io/en/stable/api/training/processing.html
+
+
 
 ---
 

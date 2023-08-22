@@ -101,11 +101,11 @@ python3 -m graphstorm.run.gs_link_prediction \
         --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
         --node-feat-name paper:feat \
         --save-model-path /tmp/ogbn-mag/models \
-        --save-perf-results-path /tmp/ogbn-mag/models"
+        --save-perf-results-path /tmp/ogbn-mag/models
 ```
 
 ## Limitation
-GraphStorm framework only works on GPU environments. It was only tested on AWS instances equipped with NVidia GPUs including P4, V100, A10 and A100.
+GraphStorm framework now supports using CPU or NVidia GPU for model training and inference. But it only works with PyTorch-gloo backend. It was only tested on AWS CPU instances or AWS GPU instances equipped with NVidia GPUs including P4, V100, A10 and A100.
 
 Multiple samplers are not supported for PyTorch versions greater than 1.12. Please use `--num-samplers 0` when your PyTorch version is above 1.12. You can find more details [here](https://github.com/awslabs/graphstorm/issues/199).
 

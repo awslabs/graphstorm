@@ -17,7 +17,6 @@
 """
 
 import os
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -40,7 +39,7 @@ from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker
+from graphstorm.utils import rt_profiler, sys_tracker, setup_device
 
 def main(config_args):
     """ main function
@@ -51,6 +50,7 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
+    device = setup_device(config.local_rank)
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
                                     train_etypes=config.train_etype,
@@ -62,7 +62,7 @@ def main(config_args):
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_cuda(dev_id=config.local_rank)
+    trainer.setup_device(device=device)
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         trainer.setup_evaluator(
@@ -96,7 +96,6 @@ def main(config_args):
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
     else:
         raise ValueError('Unknown negative sampler')
-    device = 'cuda:%d' % trainer.dev_id
     dataloader = dataloader_cls(train_data, train_data.train_idxs, [],
                                 config.batch_size, config.num_negative_edges, device,
                                 train_task=True,
@@ -151,7 +150,7 @@ def main(config_args):
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              edge_mask="train_mask", task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size(),
+                        gs.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 

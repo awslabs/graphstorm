@@ -8,11 +8,13 @@ It is easy for users to prepare their own graph data and leverage GraphStorm's b
 * Step 2: Modify the GraphStorm configuration YAML file.
 * Step 3: Launch GraphStorm commands for training/inference.
 
-.. Note::
+.. warning::
 
-    All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare your environment.
+    - All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment. 
 
-    If you :ref:`set up the GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
+    - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
+
+    - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
 
 Step 1: Prepare Your Own Graph Data
 -------------------------------------
@@ -45,7 +47,7 @@ Then run the command to create the ACM data with the required raw format.
 
 .. code-block:: bash
     
-    python3 -m /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw 
+    python3 /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw 
 
 Once succeeded, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder, as shown below:
 
@@ -71,7 +73,7 @@ Once succeeded, the command will create a set of folders and files under the ``/
 
 The input configuration JSON
 ```````````````````````````````
-GraphStorm's graph construction tool relies on the configuration JSON to provide graph information. Explanations of the format of the configuration JSON contents could be found in the :ref:`GraphStorm Graph Configuration JSON <gconstruction-json>`. Below show the contents of the examplary ACM config.json file.
+GraphStorm's graph construction tool relies on the configuration JSON to provide graph information. Explanations of the format of the configuration JSON contents could be found in the :ref:`GraphStorm Graph Configuration JSON <gconstruction-json>`. Below show the contents of the examplary ACM `config.json` file.
 
 .. code-block:: json
 
@@ -340,9 +342,9 @@ For the ACM data, the following command can create a DGL graph as the input for 
 
 .. code-block:: bash
 
-    python3 -m /graphstorm/examples/acm_data.py \
-               --output-type dgl \
-               --output-path /tmp/acm_dgl 
+    python3 /graphstorm/examples/acm_data.py \
+            --output-type dgl \
+            --output-path /tmp/acm_dgl 
 
 The below image show how the built DGL ACM data looks like.
 

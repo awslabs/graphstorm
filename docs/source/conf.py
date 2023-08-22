@@ -9,7 +9,7 @@
 project = 'GraphStorm'
 copyright = '2023, AGML team'
 author = 'AGML team'
-release = '0.1'
+release = '0.1.2'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
