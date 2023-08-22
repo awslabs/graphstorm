@@ -284,6 +284,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 test_label = None
             sys_tracker.check('after_test_score')
         sys_tracker.check('predict')
+
+        # TODO(wlcong) we only support node prediction on one node type for evaluation now
+        assert len(val_label) == 1, "We only support prediction on one node type for now."
+        ntype = list(val_label.keys())[0]
+        val_pred = val_pred[ntype]
+        val_label = val_label[ntype]
+        if test_pred is not None:
+            test_pred = test_pred[ntype]
+            test_label = test_label[ntype]
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
                                                         val_label, test_label, total_steps)
         sys_tracker.check('evaluate')
