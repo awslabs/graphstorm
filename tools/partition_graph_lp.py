@@ -75,8 +75,10 @@ if __name__ == '__main__':
     argparser.add_argument('--save-mappings', action='store_true',
                            help='Store the mappings for the edges and nodes after partition.')
     # bert model name if any
-    argparser.add_argument('--bert-name', type=str, default='bert-base-uncased',
-                           help='bert model use to encode text feature if any')
+    argparser.add_argument('--lm-model-name', type=str, default='bert-base-uncased',
+                           help='lm model use to encode text feature if any')
+    argparser.add_argument('--max-seq-length', type=int, default=128,
+                           help="maximum sequence length when tokenizing text data")
 
     args = argparser.parse_args()
     print(args)
@@ -93,11 +95,13 @@ if __name__ == '__main__':
     if args.dataset == 'ogbn-arxiv':
         dataset = OGBTextFeatDataset(args.filepath, args.dataset, edge_pct=edge_pct,
                                      retain_original_features=args.retain_original_features,
-                                     bert_model_name=args.bert_name)
+                                     max_sequence_length=args.max_seq_length,
+                                     lm_model_name=args.lm_model_name)
     elif args.dataset == 'ogbn-products':
         dataset = OGBTextFeatDataset(args.filepath, args.dataset, edge_pct=edge_pct,
                                      retain_original_features=args.retain_original_features,
-                                     bert_model_name=args.bert_name)
+                                     max_sequence_length=args.max_seq_length,
+                                     lm_model_name=args.lm_model_name)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath, edge_pct=edge_pct)
     elif args.dataset == 'movie-lens-100k-text':

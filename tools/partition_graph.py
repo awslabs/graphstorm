@@ -95,8 +95,10 @@ if __name__ == '__main__':
     argparser.add_argument('--output', type=str, default='data',
                            help='The output directory to store the partitioned results.')
     # bert model name if any
-    argparser.add_argument('--bert-name', type=str, default='bert-base-uncased',
-                           help='bert model use to encode text feature if any')
+    argparser.add_argument('--lm-model-name', type=str, default='bert-base-uncased',
+                           help='lm model use to encode text feature if any')
+    argparser.add_argument('--max-seq-length', type=int, default=128,
+                           help="maximum sequence length when tokenizing text data")
 
     args = argparser.parse_args()
     print(args)
@@ -108,11 +110,13 @@ if __name__ == '__main__':
     if args.dataset == 'ogbn-arxiv':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features,
-                                     bert_model_name=args.bert_name)
+                                     max_sequence_length=args.max_seq_length,
+                                     bert_model_name=args.lm_model_name)
     elif args.dataset == 'ogbn-products':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features,
-                                     bert_model_name=args.bert_name)
+                                     max_sequence_length=args.max_seq_length,
+                                     bert_model_name=args.lm_model_name)
     elif args.dataset == 'ogbn-papers100m':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features,
