@@ -184,6 +184,10 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``input_activate: relu``
     - Argument: ``--input-activate relu``
     - Default value: ``none``
+- **input_activate**: Graphstorm provides this argument as an option to define the norm type. Please note, it only accepts 'batch' and 'layer' for batchnorm and layernorm.
+    - Yaml: ``norm: batch``
+    - Argument: ``--norm batch``
+    - Default value: ``none``
 
 Early stop configurations
 ..........................
