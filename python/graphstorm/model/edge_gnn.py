@@ -21,6 +21,8 @@ import dgl
 
 from .gnn import GSgnnModel, GSgnnModelBase
 
+from ..utils import barrier
+
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
 
@@ -258,7 +260,7 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
                 labels_list.append(labels[etype])
         # can't use torch.stack here becasue the size of last tensor is different
         preds = th.cat(preds_list)
-    th.distributed.barrier()
+    barrier()
 
     model.train()
     if return_label:

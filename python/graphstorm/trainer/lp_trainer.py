@@ -25,8 +25,8 @@ from ..model.lp_gnn import lp_mini_batch_predict
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler
+from ..utils import barrier, is_distributed
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -93,10 +93,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
         on_cpu = self.device == th.device('cpu')
-        model = DistributedDataParallel(self._model, device_ids=None if on_cpu else [self.device],
-                                        output_device=None if on_cpu else self.device,
-                                        find_unused_parameters=True,
-                                        static_graph=static_graph)
+        if is_distributed():
+            model = DistributedDataParallel(self._model,
+                                            device_ids=None if on_cpu else [self.device],
+                                            output_device=None if on_cpu else self.device,
+                                            find_unused_parameters=True,
+                                            static_graph=static_graph)
+        else:
+            model = self._model
         device = model.device
         data = train_loader.data
 
@@ -156,8 +160,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(model.module, data,
-                                          val_loader, test_loader, total_steps,
+                    val_score = self.eval(model.module if is_distributed() else model,
+                                          data, val_loader, test_loader, total_steps,
                                           edge_mask_for_gnn_embeddings)
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -184,15 +188,15 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
             # ------- end of an epoch -------
 
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - epoch_start
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, data,
-                                      val_loader, test_loader, total_steps,
+                val_score = self.eval(model.module if is_distributed() else model,
+                                      data, val_loader, test_loader, total_steps,
                                       edge_mask_for_gnn_embeddings)
 
                 if self.evaluator.do_early_stop(val_score):
@@ -204,8 +208,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
             rt_profiler.print_stats()
-
-            th.distributed.barrier()
+            barrier()
 
             # early_stop, exit training
             if early_stop is True:
