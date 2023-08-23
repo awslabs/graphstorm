@@ -628,7 +628,7 @@ class GSConfig:
                 # Each etype should be a canonical etype in format of
                 # srcntype/relation/dstntype
 
-                fanout = [{tuple(k.split(":")[0].split('/')): int(k.split(":")[1]) \
+                fanout = [{k.split(":")[0]: int(k.split(":")[1]) \
                     for k in val.split("@")} for val in fanout]
         except Exception: # pylint: disable=broad-except
             assert False, f"{fot_name} Fanout should either in format 20,10 " \
