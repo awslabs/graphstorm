@@ -1,0 +1,50 @@
+---
+version: 1.0
+gsf:
+  basic:
+    backend: gloo
+    ip_config: ip_list_debug.txt
+    part_config: /fsx-CoreModeling/zhanhouy/home/m5gnn_dataset/us_ads_sourcing/20230501_20230531-3clicks-002ctr-20maxa2a-enriched-100c2q-2c2aclicks-2c2apurchases-evalv5-debug-json-graph-dgl-graph/dist_1/20230501_20230531-3clicks-002ctr-20maxa2a-enriched-100c2q-2c2aclicks-2c2apurchases-evalv5-debug-json-graph.json
+    verbose: false
+    save_perf_results_path: null
+  gnn:
+    model_encoder_type: rgcn
+    fanout: "clicks:20@clicks-rev:20@substitutes:20@substitutes-rev:20@a2b:20@a2b-rev:20@a2pt:20@a2pt-rev:20"
+    eval_fanout: "clicks:20@clicks-rev:20@substitutes:20@substitutes-rev:20@a2b:20@a2b-rev:20@a2pt:20@a2pt-rev:20"
+    num_layers: 1
+    hidden_size: 128
+    use_mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: /fsx-CoreModeling/zhanhouy/home/embeddings/graphstorm/gnn_distill/infert_test/debug
+  hyperparam:
+    dropout: 0.
+    lr: 0.0001
+    lm_tune_lr: 0.0001
+    num_epochs: 3
+    batch_size: 128
+    bert_infer_bs: 128
+    wd_l2norm: 0
+    no_validation: false
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    lp_decoder_type: dot_product
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  link_prediction:
+    num_negative_edges: 4
+    num_negative_edges_eval: 100
+    train_negative_sampler: joint
+    eval_etype:
+      - "query,clicks,asin"
+    train_etype:
+      - "query,clicks,asin"
+    exclude_training_targets: true
+    reverse_edge_types_map: 
+      - "query,clicks,clicks-rev,asin"
+      - "asin,substitutes,substitutes-rev,asin"
+      - "asin,a2b,a2b-rev,brand"
+      - "asin,a2pt,a2pt-rev,pt"
