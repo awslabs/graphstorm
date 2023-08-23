@@ -1,10 +1,7 @@
 # Customized TGAT model for snapshot-based temporal graph learning
 
 This folder contains python codes that demonstrate how to leverage the GraphStorm Framework (GSF) for production level snapshot-based temporal graph data.
-
 This example uses the TGAT as GNN model and the MAG graph data.
-
-(Details on model architecture and data statistics will come soon)
 
 ## How to run this example
 
