@@ -189,7 +189,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
-        self._embed_layers = {}
+        embed_name = 'embed'
         for ntype in g.ntypes:
             feat_dim = 0
             if feat_size[ntype] > 0:
@@ -215,6 +215,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     # so disable the pylint error
                     self.proj_matrix[ntype] = proj_matrix   # pylint: disable=unsupported-assignment-operation
             elif not force_no_embeddings:
+                part_policy = g.get_node_partition_policy(ntype)
                 if get_rank() == 0:
                     print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
