@@ -96,7 +96,9 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
         input_nodes = {g.ntypes[0]: input_nodes}
 
     token_ids = data.get_node_feat(input_nodes, TOKEN_IDX)
-    attention_masks = data.get_node_feat(input_nodes, ATT_MASK_IDX)
+    attention_masks = data.get_node_feat(input_nodes, ATT_MASK_IDX) \
+        if data.has_node_feat(input_nodes, ATT_MASK_IDX) \
+        else data.get_node_feat(input_nodes, VALID_LEN)
 
     # create a list for each seed node.
     batch_input = {seed_ntype: th.unsqueeze(seed_ids, 1) for seed_ntype, seed_ids in seeds.items()}

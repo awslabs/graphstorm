@@ -17,6 +17,8 @@
 """
 import dgl
 
+from transformers import BatchEncoding
+
 from ..dataloading import GSgnnNodeDataLoader
 from ..utils import trim_data
 
@@ -64,11 +66,19 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
                                        transverse_format=self._transverse_format,
                                        shuffle_neighbor_order=self._shuffle_neighbor_order)
 
+        # TODO: we assume there is only one target node type
+        # We need to support multiple node types later
+        batch = [list(data.values())[0] if len(data) == 1 else None for data in list(batch)]
+
+
         if self._pin_memory:
-            batch = tuple([data.pin_memory() for data in list(batch)])
+            batch = [data.pin_memory() if data is not None else None for data in list(batch)]
 
         # Build batch from sampled graph.
-        return batch
+        return BatchEncoding({
+            "input_ids": batch[0],
+            "attention_mask": batch[1]
+        })
 
     def __len__(self):
         """ Size of dataset

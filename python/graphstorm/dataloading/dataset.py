@@ -63,9 +63,12 @@ def prepare_batch_input(g, input_nodes,
             else feat_field[ntype] if ntype in feat_field else None
 
         if feat_name is not None:
-            # concatenate multiple features together
-            feat[ntype] = th.cat([g.nodes[ntype].data[fname][nid].to(dev) \
-                for fname in feat_name], dim=1)
+            if len(feat_name) == 1:
+                feat[ntype] = g.nodes[ntype].data[feat_name[0]][nid].to(dev)
+            else:
+                # concatenate multiple features together
+                feat[ntype] = th.cat([g.nodes[ntype].data[fname][nid].to(dev) \
+                    for fname in feat_name], dim=1)
     return feat
 
 def prepare_batch_edge_input(g, input_edges,
@@ -155,6 +158,21 @@ class GSgnnData():
     def edge_feat_field(self):
         """the field of edge feature"""
         return self._edge_feat_field
+
+    def has_node_feat(self, input_nodes, feat_name):
+        """ Check whether node features with feat_name exist
+
+        """
+        g = self._g
+        if not isinstance(input_nodes, dict):
+            assert len(g.ntypes) == 1, \
+                    "We don't know the input node type, but the graph has more than one node type."
+            input_nodes = {g.ntypes[0]: input_nodes}
+        assert isinstance(feat_name, str), "feature name must be a string"
+        for ntype in input_nodes.keys():
+            if feat_name not in g.nodes[ntype].data:
+                return False
+        return True
 
     def get_node_feat(self, input_nodes, feat_name, device='cpu'):
         """ Get the node features
