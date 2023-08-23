@@ -285,6 +285,8 @@ class HATEmbeddings(nn.Module):
     def forward(self, input_ids=None, token_type_ids=None, position_ids=None, inputs_embeds=None):
         """ forward function
         """
+        print(input_ids.shape)
+        print(position_ids.shape)
         if position_ids is None:
             if input_ids is not None:
                 # Create the position ids from the input token ids. Any padded tokens remain padded.
@@ -677,6 +679,8 @@ class HATModel(HATPreTrainedModel):
         # Compute number of sentences
         num_batch_sentences = input_ids.shape[-1] // self.config.max_sentence_length
 
+        print(input_ids)
+        print(position_ids)
         embedding_output = self.embeddings(
             input_ids=input_ids,
             position_ids=position_ids,

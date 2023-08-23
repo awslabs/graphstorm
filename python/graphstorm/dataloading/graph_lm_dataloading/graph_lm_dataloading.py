@@ -77,7 +77,8 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
         # Build batch from sampled graph.
         return BatchEncoding({
             "input_ids": batch[0],
-            "attention_mask": batch[1]
+            "attention_mask": batch[1],
+            "position_ids": batch[4]
         })
 
     def __len__(self):
