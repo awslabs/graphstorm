@@ -42,7 +42,6 @@ def comput_bert(lm_model, input_ids, attention_masks, token_type_ids=None):
     ("camembert", "camembert-base"),
     ("ernie", "nghuyong/ernie-1.0-base-zh"),
     ("ibert", "kssteven/ibert-roberta-base"),
-    # ("luke", "studio-ousia/luke-base"),
     ("mega", "mnaylor/mega-base-wikitext"),
     ("mpnet", "microsoft/mpnet-base"),
     ("nezha", "sijunhe/nezha-cn-base"),
