@@ -57,6 +57,8 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
     def __init__(self, g):
         super(GSNodeInputLayer, self).__init__()
         self.g = g
+        # By default, there is no learnable embeddings (sparse_embeds)
+        self._sparse_embeds = {}
 
     def prepare(self, _):
         """ Preparing input layer for training or inference.
@@ -121,43 +123,18 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         return False
 
     @property
+    def sparse_embeds(self):
+        """ Get sparse embeds
+        """
+        return self._sparse_embeds
+
+    @property
     def in_dims(self):
         """ The number of input dimensions.
 
         The input dimension can be different for different node types.
         """
         return None
-
-class ZeroEmbedding:
-    """ Generate embeddings with zero values.
-
-    Parameters
-    ----------
-    embed_size : int
-        The embedding size.
-    """
-    def __init__(self, embed_size):
-        self._embed_size = embed_size
-
-    def __call__(self, input_nodes, device):
-        return th.zeros(len(input_nodes), self._embed_size, device=device)
-
-    @property
-    def embedding_dim(self):
-        """ The embedding size.
-        """
-        return self._embed_size
-
-def _get_node_embed(g, ntype, embed_size, embed_type):
-    if embed_type == "learnable":
-        part_policy = g.get_node_partition_policy(ntype)
-        embed_name = 'learnable_embed'
-        return DistEmbedding(g.number_of_nodes(ntype), embed_size,
-                             embed_name + '_' + ntype, init_emb, part_policy)
-    elif embed_type == "zero":
-        return ZeroEmbedding(embed_size)
-    else:
-        raise ValueError(f"Invalid embed type: {embed_type}")
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """The input encoder layer for all nodes in a heterogeneous graph.
@@ -181,10 +158,14 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     dropout : float
         The dropout parameter
     use_node_embeddings : bool
-        Whether we will use the node embeddings for individual nodes even when node features are
+        Whether we will use learnable embeddings for individual nodes even when node features are
         available.
+    force_no_embeddings : bool
+        Whether we force to not use learnable embeddings even on featureless nodes.
     num_ffn_layers_in_input: int, optional
         Number of layers of feedforward neural network for each node type in the input layers
+    ffn_activation : callable
+        The activation function for the feedforward neural networks.
     """
     def __init__(self,
                  g,
@@ -194,7 +175,6 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  dropout=0.0,
                  use_node_embeddings=False,
                  force_no_embeddings=False,
-                 embed_type="zero",
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
                  ):
@@ -223,8 +203,12 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 if self.use_node_embeddings:
                     if get_rank() == 0:
                         print('Use additional sparse embeddings on node {}'.format(ntype))
-                    self._embed_layers[ntype] = _get_node_embed(g, ntype, self.embed_size,
-                                                                embed_type)
+                    part_policy = g.get_node_partition_policy(ntype)
+                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
+                                                               self.embed_size,
+                                                               embed_name + '_' + ntype,
+                                                               init_emb,
+                                                               part_policy)
                     proj_matrix = nn.Parameter(th.Tensor(2 * self.embed_size, self.embed_size))
                     nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                     # nn.ParameterDict support this assignment operation if not None,
@@ -236,8 +220,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                 nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                 self.proj_matrix[ntype] = proj_matrix
-                self._embed_layers[ntype] = _get_node_embed(g, ntype, self.embed_size,
-                                                            embed_type)
+                self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
+                                self.embed_size,
+                                embed_name + '_' + ntype,
+                                init_emb,
+                                part_policy=part_policy)
 
         # ngnn
         self.num_ffn_layers_in_input = num_ffn_layers_in_input
@@ -271,20 +258,21 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 # If the input data is not float, we need to convert it t float first.
                 emb = input_feats[ntype].float() @ self.input_projs[ntype]
                 if self.use_node_embeddings:
-                    assert ntype in self._embed_layers, \
+                    assert ntype in self.sparse_embeds, \
                             f"We need sparse embedding for node type {ntype}"
-                    node_emb = self._embed_layers[ntype](input_nodes[ntype], emb.device)
+                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
                     concat_emb=th.cat((emb, node_emb),dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
-            elif ntype in self._embed_layers: # nodes do not have input features
+            elif ntype in self.sparse_embeds: # nodes do not have input features
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
                 if len(input_nodes[ntype]) == 0:
-                    embs[ntype] = th.zeros((0, self._embed_layers[ntype].embedding_dim),
-                                           device=device, dtype=th.float32)
+                    dtype = self.sparse_embeds[ntype].weight.dtype
+                    embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
+                                           device=device, dtype=dtype)
                     continue
-                emb = self._embed_layers[ntype](input_nodes[ntype], device)
+                emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
                 emb = emb @ self.proj_matrix[ntype]
             if emb is not None:
                 if self.activation is not None:
@@ -307,12 +295,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         -------
         list of Tensors: the sparse embeddings.
         """
-        if len(self._embed_layers) > 0:
-            sparse_embeds = []
-            for embed in self._embed_layers.values():
-                if isinstance(embed, DistEmbedding):
-                    sparse_embeds.append(embed)
-            return sparse_embeds
+        if self.sparse_embeds is not None and len(self.sparse_embeds) > 0:
+            return list(self.sparse_embeds.values())
         else:
             return []
 
