@@ -89,16 +89,8 @@ class IdMap:
             # node_ids are integer ids
             self._ids = {id1: i for i, id1 in enumerate(ids)}
         else:
-            self._ids = {}
-            print(len(ids))
-            num_nids = len(ids)
             # cast everything else into string
-
-            for i, id1 in enumerate(ids):
-                assert str(id1) not in self._ids, f"{str(id1)} already in self._ids, previous idx {self._ids[str(id1)]}"
-                self._ids[str(id1)] = i
-            print(len(self._ids))
-            assert num_nids == len(self.ids), "ids should not contains any duplicated nodes"
+            self._ids = {str(id1): i for i, id1 in enumerate(ids)}
 
     def __len__(self):
         return len(self._ids)
