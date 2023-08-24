@@ -1082,7 +1082,7 @@ class GSConfig:
         # By default do not use num_bases
         return -1
 
-    ## RGAT only ##
+    ## RGAT and HGT only ##
     @property
     def num_heads(self):
         """ Number of attention heads
@@ -1094,6 +1094,19 @@ class GSConfig:
             return self._num_heads
         # By default use 4 heads
         return 4
+
+    ## HGT only ##
+    @property
+    def use_norm(self):
+        """ Whether to use layer normalization or not.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_use_norm"):
+            assert self._use_norm in [True, False], \
+                "use_norm should be in [True, False]"
+            return self._use_norm
+
+        return False
 
     ############ task related #############
     ###classification/regression related ####

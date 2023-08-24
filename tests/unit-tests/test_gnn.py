@@ -37,6 +37,7 @@ from graphstorm.model import GSgnnLinkPredictionModel
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.sage_encoder import SAGEEncoder
+from graphstorm.model.hgt_encoder import HGTEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            MLPEdgeDecoder,
                                            MLPEFeatEdgeDecoder,
@@ -96,6 +97,27 @@ def create_rgat_node_model(g):
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
+
+def create_hgt_node_model(g):
+    model = GSgnnNodeModel(alpha_l2norm=0)
+    
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = HGTEncoder(g,
+                            hid_dim=feat_size,
+                            out_dim=4,
+                            num_hidden_layers=1,
+                            num_heads=2,
+                            dropout=0.0,
+                            use_norm=False,
+                            num_ffn_layers_in_gnn=0)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+    return model
   
 def create_sage_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
@@ -114,7 +136,7 @@ def create_sage_node_model(g):
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
-  
+
 def check_node_prediction(model, data, is_homo=False):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnNodeModel with GNN layers.
