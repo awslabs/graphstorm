@@ -402,13 +402,13 @@ def test_node_dataloader_reconstruct():
     for input_nodes, seeds, blocks in dataloader:
         assert 'n0' in seeds
         assert len(blocks) == 2
-        for etype in blocks[1].canonical_etypes:
+        for etype in blocks[0].canonical_etypes:
             if etype in rel_names_for_reconstruct:
-                assert blocks[1].number_of_edges(etype) > 0
+                assert blocks[0].number_of_edges(etype) > 0
             else:
-                assert blocks[1].number_of_edges(etype) == 0
-        for ntype in blocks[0].srctypes:
-            nids = blocks[0].srcnodes[ntype].data[dgl.NID].numpy()
+                assert blocks[0].number_of_edges(etype) == 0
+        for ntype in blocks[1].srctypes:
+            nids = blocks[1].srcnodes[ntype].data[dgl.NID].numpy()
             nodes = input_nodes[ntype].numpy()
             for nid in nids:
                 assert nid in nodes
