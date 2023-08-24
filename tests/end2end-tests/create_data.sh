@@ -106,6 +106,13 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--output-dir movielen_100k_lm_encoder_train_val_1p_4t \
 	--graph-name movie-lens-100k-text \
 	--add-reverse-edges
+# roberta as the LM:
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_roberta_encoder.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_roberta_encoder_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
 
 # For tests using lm-encoder - link prediction
 python3 -m graphstorm.gconstruct.construct_graph \
