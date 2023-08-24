@@ -811,12 +811,11 @@ class GSgnnNodeDataLoader():
     def __next__(self):
         input_nodes, seeds, blocks = self.dataloader.__next__()
         if self._reconstructed_embed_sampler is not None and len(blocks) > 0:
-            block = self._reconstructed_embed_sampler.sample(blocks[-1])
-            if block is not None:
-                blocks.append(block)
-                for ntype in block.srctypes:
-                    if block.num_src_nodes(ntype) > 0:
-                        input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
+            block = self._reconstructed_embed_sampler.sample(blocks[0])
+            blocks.insert(0, block)
+            for ntype in block.srctypes:
+                if block.num_src_nodes(ntype) > 0:
+                    input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
         return input_nodes, seeds, blocks
 
     @property

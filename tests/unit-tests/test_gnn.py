@@ -24,17 +24,19 @@ from types import MethodType
 import torch as th
 from torch import nn
 import numpy as np
+import torch.nn.functional as F
 from numpy.testing import assert_almost_equal, assert_equal
 
 import dgl
 
 from graphstorm.config import GSConfig
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
-from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
+from graphstorm.model import GSNodeEncoderInputLayer
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
-from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
+from graphstorm.model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
+from graphstorm.model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.sage_encoder import SAGEEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
@@ -49,11 +51,12 @@ from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
 from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_model
 from graphstorm import create_builtin_lp_gnn_model
 from graphstorm import get_feat_size
+from graphstorm.gsf import get_rel_names_for_reconstruct
 from graphstorm.model.gnn import do_full_graph_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from data_utils import generate_dummy_dist_graph
+from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_reconstruct
 from data_utils import create_lm_graph
 
 def is_int(a):
@@ -75,6 +78,36 @@ def create_rgcn_node_model(g):
                                        num_hidden_layers=1,
                                        dropout=0,
                                        use_self_loop=True)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+    return model
+
+def create_rgcn_node_model_with_reconstruct(g):
+    model = GSgnnNodeModel(alpha_l2norm=0)
+
+    feat_size = get_feat_size(g, {'n0': 'feat', 'n4': 'feat'})
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=False,
+                                      force_no_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = RelationalGCNEncoder(g, 4, 4,
+                                       num_bases=2,
+                                       num_hidden_layers=0,
+                                       dropout=0,
+                                       use_self_loop=True)
+    reconstructed_embed_ntype=['n2']
+    rel_names = get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size)
+    dst_types = set([rel_name[2] for rel_name in rel_names])
+    for ntype in reconstructed_embed_ntype:
+        assert ntype in dst_types, \
+                f"We cannot reconstruct features of node {ntype} " \
+                + "probably because their neighbors don't have features."
+    input_gnn = RelGraphConvLayer(4, 4,
+                                  rel_names, len(rel_names),
+                                  activation=F.relu)
+    gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn, rel_names)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
@@ -154,7 +187,9 @@ def check_node_prediction(model, data, is_homo=False):
         assert_almost_equal(embs3[ntype][0:len(embs3[ntype])].numpy(),
                             embs4[ntype][0:len(embs4[ntype])].numpy())
 
-    target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))} \
+    assert len(data.train_ntypes) == 1
+    target_ntype = data.train_ntypes[0]
+    target_nidx = {target_ntype: th.arange(g.number_of_nodes(target_ntype))} \
         if not is_homo else {"_N": th.arange(g.number_of_nodes("_N"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
@@ -173,6 +208,32 @@ def check_node_prediction(model, data, is_homo=False):
     assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
     assert(is_int(pred4))
     assert(th.equal(pred3.argmax(dim=1), pred4))
+
+def check_node_prediction_with_reconstruct(model, data):
+    """ Check whether full graph inference and mini batch inference generate the same
+        prediction result for GSgnnNodeModel with GNN layers.
+
+    Parameters
+    ----------
+    model: GSgnnNodeModel
+        Node model
+    data: GSgnnNodeTrainData
+        Train data
+    """
+    g = data.g
+    embs = do_full_graph_inference(model, data)
+
+    assert len(data.train_ntypes) == 1
+    target_ntype = data.train_ntypes[0]
+    target_nidx = {target_ntype: th.arange(g.number_of_nodes(target_ntype))}
+    dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1],
+                                     batch_size=10, device="cuda:0", train_task=False,
+                                     reconstructed_embed_ntype=['n2'])
+    pred1, embs1, _ = node_mini_batch_gnn_predict(model, dataloader)
+    embs1 = embs1[0:len(embs1)].numpy()
+    embs = embs[target_ntype]
+    embs = embs[0:len(embs)].numpy()
+    assert_almost_equal(embs1, embs, decimal=5)
 
 def check_mlp_node_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
@@ -207,7 +268,7 @@ def check_mlp_node_prediction(model, data):
     assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def test_rgcn_node_prediction():
-    """ Test edge prediction logic correctness with a node prediction model
+    """ Test node prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + RGCNLayer + Decoder
 
         The test will compare the prediction results from full graph inference
@@ -226,6 +287,30 @@ def test_rgcn_node_prediction():
                                      node_feat_field='feat')
     model = create_rgcn_node_model(np_data.g)
     check_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_rgcn_node_prediction_with_reconstruct():
+    """ Test node prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGCNLayerWithReconstruct + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph_reconstruct(graph_name='dummy',
+                                                               dirname=tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n0'], label_field='label',
+                                     node_feat_field={'n0': ['feat'], 'n4': ['feat']})
+    model = create_rgcn_node_model_with_reconstruct(np_data.g)
+    check_node_prediction_with_reconstruct(model, np_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -883,6 +968,7 @@ def test_link_prediction_weight():
     dgl.distributed.kvstore.close_kvstore()
 
 if __name__ == '__main__':
+    test_rgcn_node_prediction_with_reconstruct()
     test_rgcn_edge_prediction(2)
     test_rgcn_node_prediction()
     test_rgat_node_prediction()

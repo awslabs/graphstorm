@@ -183,7 +183,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
         if force_no_embeddings:
-            assert not use_node_embeddings
+            assert not use_node_embeddings, \
+                    "When forcing no embeddings, we don't allow use_node_embeddings=True."
 
         self.activation = activation
         # create weight embeddings for each node for each relation

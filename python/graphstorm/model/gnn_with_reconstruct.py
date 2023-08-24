@@ -55,10 +55,12 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         h: dict[str, torch.Tensor]
             Input node feature for each node type.
         """
-        outs = self._input_gnn(blocks[-1], h)
+        assert len(blocks) == self._gnn_encoder.num_layers + 1, \
+                "There are {len(blocks)}, but there are {self._gnn_encoder.num_layers} GNN layers."
+        outs = self._input_gnn(blocks[0], h)
         for ntype, out in outs.items():
             h[ntype] = out
-        return self._gnn_encoder(blocks[:-1], h)
+        return self._gnn_encoder(blocks[1:], h)
 
     def dist_inference(self, g, get_input_embeds, batch_size, fanout,
                        edge_mask=None, task_tracker=None):
