@@ -267,7 +267,6 @@ def generate_dummy_hetero_graph_reconstruct(size='tiny', gen_mask=True):
 
     return hetero_graph
 
-
 def generate_dummy_homo_graph(size='tiny', gen_mask=True):
     """
     generate a dummy homogeneous graph.

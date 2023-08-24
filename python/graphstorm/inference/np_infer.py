@@ -89,7 +89,10 @@ class GSgnnNodePredictionInfer(GSInfer):
             embs = res[1]
             label = res[2] if do_eval else None
 
-            embs = {ntype: embs}
+            if isinstance(embs, dict):
+                embs = {ntype: embs[ntype]}
+            else:
+                embs = {ntype: embs}
         else:
             embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
                                            task_tracker=self.task_tracker)
@@ -97,6 +100,10 @@ class GSgnnNodePredictionInfer(GSInfer):
                                           return_label=do_eval)
             pred = res[0]
             label = res[1] if do_eval else None
+        if isinstance(pred, dict):
+            pred = pred[ntype]
+        if isinstance(label, dict):
+            label = label[ntype]
         sys_tracker.check('compute embeddings')
 
         device = self.device
