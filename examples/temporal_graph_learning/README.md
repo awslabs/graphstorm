@@ -19,8 +19,19 @@ wget -P ./DATA/GDELT https://s3.us-west-2.amazonaws.com/dgl-data/dataset/tgl/GDE
 
 **Step 2: Pre-processing the raw data into GraphStorm/DGL's data structure**
 
+Run the command to create the data with the required raw format.
 ```
 python3 gen_graph.py
+```
+
+Once succeeded, the command will create a set of folders and files under the `./DATA` folder.
+Then we can use the tool to create the partition graph data with the following command.
+
+```
+python3 -m graphstorm.gconstruct.construct_graph \
+           --conf-file ./DATA/partition_config.json \
+           --output-dir ./DATA/MAG_Temporal \
+           --num-parts 1 \
 ```
 
 **Step 3: Run the modified TGAT model**
