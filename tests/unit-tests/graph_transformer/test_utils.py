@@ -133,7 +133,7 @@ def test_prepare_hat_node_centric_input():
     random.seed(0)
     dfs_ordered_token_ids, dfs_ordered_atten_mask, \
         dfs_shuffled_token_ids, dfs_shuffled_atten_mask, \
-        dfs_position_info = prepare_hat_node_centric(
+        _, dfs_position_info = prepare_hat_node_centric(
             data, input_nodes, seeds, blocks, max_sentence_len, max_sequence_len)
 
     # check position encoding first
@@ -466,7 +466,7 @@ def test_prepare_hat_node_centric_input():
 
     bfs_ordered_token_ids, bfs_ordered_atten_mask, \
         bfs_shuffled_token_ids, bfs_shuffled_atten_mask, \
-        bfs_position_info = prepare_hat_node_centric(
+        _, bfs_position_info = prepare_hat_node_centric(
             data, input_nodes, seeds, blocks, max_sentence_len, max_sequence_len,
             transverse_format=BFS_TRANSVERSE)
 
@@ -546,7 +546,7 @@ def test_prepare_hat_node_centric_input():
     random.seed(0)
     dfs_ordered_token_ids_2, dfs_ordered_atten_mask_2, \
         dfs_shuffled_token_ids_2, dfs_shuffled_atten_mask_2, \
-        dfs_position_info_2 = prepare_hat_node_centric(
+        _, dfs_position_info_2 = prepare_hat_node_centric(
             data, input_nodes, seeds, blocks, max_sentence_len, max_sequence_len)
     assert th.sum(dfs_ordered_atten_mask["ntype0"][0]) != th.sum(dfs_ordered_atten_mask_2["ntype0"][0])
     assert th.sum(dfs_ordered_atten_mask["ntype0"][0]) != th.sum(dfs_shuffled_atten_mask_2["ntype0"][0])
@@ -587,7 +587,7 @@ def test_prepare_hat_node_centric_input():
 
     bfs_ordered_token_ids_2, bfs_ordered_atten_mask_2, \
         bfs_shuffled_token_ids_2, bfs_shuffled_atten_mask_2, \
-        bfs_position_info_2 = prepare_hat_node_centric(
+        _, bfs_position_info_2 = prepare_hat_node_centric(
             data, input_nodes, seeds, blocks, max_sentence_len, max_sequence_len,
             transverse_format=BFS_TRANSVERSE)
     assert th.sum(bfs_ordered_atten_mask["ntype0"][0]) != th.sum(bfs_ordered_atten_mask_2["ntype0"][0])

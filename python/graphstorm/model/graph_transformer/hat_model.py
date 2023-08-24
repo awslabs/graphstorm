@@ -275,6 +275,8 @@ class HATEmbeddings(nn.Module):
         self.register_buffer("position_ids", torch.arange(
             self.padding_idx + 1,
             config.max_sentence_length + self.padding_idx + 1).repeat(config.max_sentences).expand((1, -1)))
+
+        # TODO: add doc_position_ids
         if version.parse(torch.__version__) > version.parse("1.6.0"):
             self.register_buffer(
                 "token_type_ids",
@@ -282,11 +284,10 @@ class HATEmbeddings(nn.Module):
                 persistent=False,
             )
 
-    def forward(self, input_ids=None, token_type_ids=None, position_ids=None, inputs_embeds=None):
+    def forward(self, input_ids=None, token_type_ids=None, position_ids=None,
+                doc_position_ids=None, inputs_embeds=None):
         """ forward function
         """
-        print(input_ids.shape)
-        print(position_ids.shape)
         if position_ids is None:
             if input_ids is not None:
                 # Create the position ids from the input token ids. Any padded tokens remain padded.
@@ -295,6 +296,8 @@ class HATEmbeddings(nn.Module):
                                                                   self.position_ids)
             else:
                 position_ids = self.create_position_ids_from_inputs_embeds(inputs_embeds)
+
+        #TODO: use doc_position_ids
 
         if input_ids is not None:
             input_shape = input_ids.size()
@@ -642,7 +645,7 @@ class HATModel(HATPreTrainedModel):
     ):
         """ Forword func
         """
-
+        position_ids, doc_position_ids = position_ids
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -679,11 +682,10 @@ class HATModel(HATPreTrainedModel):
         # Compute number of sentences
         num_batch_sentences = input_ids.shape[-1] // self.config.max_sentence_length
 
-        print(input_ids)
-        print(position_ids)
         embedding_output = self.embeddings(
             input_ids=input_ids,
             position_ids=position_ids,
+            doc_position_ids=doc_position_ids,
             token_type_ids=token_type_ids,
             inputs_embeds=inputs_embeds,
         )

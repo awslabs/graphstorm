@@ -144,14 +144,14 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
     ordered_atten_mask = [{} for _ in range(len(layers))]
     shuffled_token_ids = [{} for _ in range(len(layers))]
     shuffled_atten_mask = [{} for _ in range(len(layers))]
-    position_info = [{} for _ in range(len(layers))]
+    doc_position_info = [{} for _ in range(len(layers))]
     for i, layer in enumerate(layers):
         for dst_ntype, dst_info in layer.items():
             ordered_token_ids[i][dst_ntype] = {}
             ordered_atten_mask[i][dst_ntype] = {}
             shuffled_token_ids[i][dst_ntype] = {}
             shuffled_atten_mask[i][dst_ntype] = {}
-            position_info[i][dst_ntype] = {}
+            doc_position_info[i][dst_ntype] = {}
             for dst_id, neighbor_info in dst_info.items():
                 tokens = token_ids[dst_ntype][dst_id]
                 attention_mask = attention_masks[dst_ntype][dst_id]
@@ -165,7 +165,7 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
                     att_mask = attention_mask
                 ordered_token_ids[i][dst_ntype][dst_id] = [tokens]
                 ordered_atten_mask[i][dst_ntype][dst_id] = [att_mask]
-                position_info[i][dst_ntype][dst_id] = [len(layers)-i-1]
+                doc_position_info[i][dst_ntype][dst_id] = [len(layers)-i-1]
                 if shuffle_neighbor_order: # shuffled neighbors
                     shuffled_token_ids[i][dst_ntype][dst_id] = [tokens]
                     shuffled_atten_mask[i][dst_ntype][dst_id] = [att_mask]
@@ -184,7 +184,7 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
                     else:
                         tokens = ordered_token_ids[i-1][src_ntype][src_id]
                         att_mask = ordered_atten_mask[i-1][src_ntype][src_id]
-                        pos = position_info[i-1][src_ntype][src_id]
+                        pos = doc_position_info[i-1][src_ntype][src_id]
                     return tokens, att_mask, pos
 
                 for (src_ntype, src_list) in neighbor_info:
@@ -193,11 +193,11 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
                         if i == 0: # first layer
                             ordered_token_ids[i][dst_ntype][dst_id].append(tokens)
                             ordered_atten_mask[i][dst_ntype][dst_id].append(att_mask)
-                            position_info[i][dst_ntype][dst_id].append(pos)
+                            doc_position_info[i][dst_ntype][dst_id].append(pos)
                         else:
                             ordered_token_ids[i][dst_ntype][dst_id].extend(tokens)
                             ordered_atten_mask[i][dst_ntype][dst_id].extend(att_mask)
-                            position_info[i][dst_ntype][dst_id].extend(pos)
+                            doc_position_info[i][dst_ntype][dst_id].extend(pos)
 
                 if shuffle_neighbor_order:
                     # shuffle the order of different etype
@@ -219,14 +219,14 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
     ret_ordered_atten_mask = {}
     ret_shuffled_token_ids = {}
     ret_shuffled_atten_mask = {}
-    ret_position_info = {}
+    ret_doc_position_info = {}
     for dst_ntype in ordered_token_ids[-1].keys():
         # ordered_token_ids[-1][dst_ntype] stores:
         # { dst_id_0: sequences of the ego network of dst_id_0)
         #   ...
         #   dst_id_N: sequences of the ego network of dst_id_N}
-        ret_position_info[dst_ntype] = [th.tensor(pos) \
-            for pos in position_info[-1][dst_ntype].values()]
+        ret_doc_position_info[dst_ntype] = [th.tensor(pos) \
+            for pos in doc_position_info[-1][dst_ntype].values()]
         ret_ordered_token_ids[dst_ntype] = [th.cat(sequences) \
             for sequences in ordered_token_ids[-1][dst_ntype].values()]
         ret_ordered_atten_mask[dst_ntype] = [th.cat(sequences) \
@@ -239,7 +239,7 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
 
         # originally, graph are stored in DFS format
         if transverse_format == BFS_TRANSVERSE:
-            for i, pos_info in enumerate(ret_position_info[dst_ntype]):
+            for i, pos_info in enumerate(ret_doc_position_info[dst_ntype]):
                 new_idx = []
                 for j in range(len(layers)+1):
                     idx = th.nonzero(pos_info == j, as_tuple=True)[0].tolist()
@@ -260,7 +260,7 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
                     ret_shuffled_atten_mask[dst_ntype][i] = \
                         sequence_dfs2bfs(ret_shuffled_atten_mask[dst_ntype][i],
                                         new_idx, max_sentence_len)
-                ret_position_info[dst_ntype][i] = ret_position_info[dst_ntype][i][new_idx]
+                ret_doc_position_info[dst_ntype][i] = ret_doc_position_info[dst_ntype][i][new_idx]
         else:
             assert transverse_format == DFS_TRANSVERSE, \
                 f"Unsupported graph tranverse method {transverse_format}"
@@ -274,10 +274,10 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
             if len(sequence) <= max_sequence_len else sequence[:max_sequence_len] \
             for sequence in ret_ordered_atten_mask[dst_ntype]])
         max_num_setence = max_sequence_len // max_sentence_len
-        ret_position_info[dst_ntype] = th.stack( \
+        ret_doc_position_info[dst_ntype] = th.stack( \
             [pad_seq(th.tensor(pos_info), max_num_setence, -1) \
             if len(pos_info) <= max_num_setence else th.tensor(pos_info[:max_num_setence]) \
-            for pos_info in ret_position_info[dst_ntype]])
+            for pos_info in ret_doc_position_info[dst_ntype]])
 
         if shuffle_neighbor_order:
             ret_shuffled_token_ids[dst_ntype] = th.stack( \
@@ -289,11 +289,13 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
                 if len(sequence) <= max_sequence_len else sequence[:max_sequence_len] \
                 for sequence in ret_shuffled_atten_mask[dst_ntype]])
 
+    # There is no specific sentence level position info
     return ret_ordered_token_ids, \
         ret_ordered_atten_mask, \
         ret_shuffled_token_ids, \
         ret_shuffled_atten_mask, \
-        ret_position_info
+        {}, \
+        ret_doc_position_info
 
 def preprocess_logits_for_mlm_metrics(logits, labels):
     if isinstance(logits, tuple):

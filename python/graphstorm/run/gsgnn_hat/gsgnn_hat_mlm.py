@@ -102,11 +102,12 @@ def main(config_args):
                                             transverse_format=data_args.transverse_format,
                                             shuffle_neighbor_order=False)
 
-    model = gs.create_builtin_hat_model(model_args)
+    model, tokenizer = gs.create_builtin_hat_model(model_args)
 
-    trainer = GSgnnHATMasedLMTrainer(model)
+    trainer = GSgnnHATMasedLMTrainer(model, tokenizer)
 
     trainer.fit(train_data,
+                data_args=data_args,
                 training_args=training_args,
                 train_loader=dataloader,
                 val_loader=val_dataloader,

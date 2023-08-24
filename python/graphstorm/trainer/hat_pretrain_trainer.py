@@ -20,7 +20,7 @@ import resource
 import dataclasses
 import torch as th
 
-import datasets
+from transformers import DataCollatorForLanguageModeling
 from datasets import load_metric
 
 from ..model.gnn import GSgnnModelBase
@@ -39,15 +39,15 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
     ----------
     model : GSgnnLinkPredictionModelBase
         The HAT model for pre-training
-    rank : int
-        The rank.
-    topk_model_to_save : int
-        The top K model to save.
+    tokenizer : huggingface Tokenizer
+        Tokenizer corresponding to the ML model
     """
-    def __init__(self, model):
+    def __init__(self, model, tokenizer):
         self._model = model
+        self._tokenizer = tokenizer
 
     def fit(self, train_dataset,
+            data_args,
             training_args,
             train_loader,
             val_loader=None,
@@ -58,8 +58,8 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
         ----------
         train_loader : GSgnnLinkPredictionDataLoader
             The mini-batch sampler for training.
-        num_epochs : int
-            The max number of epochs to train the model.
+        data_args: dict
+            Info of input data
         training_args: dict
             Args for Huggingface trainer
         train_loader : GSlmHatNodeDataLoader
@@ -83,6 +83,12 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
             preds = preds[mask]
             return metric.compute(predictions=preds, references=labels)
 
+        data_collator = DataCollatorForLanguageModeling(
+            tokenizer=self._tokenizer,
+            mlm_probability=data_args.mlm_probability,
+            pad_to_multiple_of=training_args.max_sentence_length,
+        )
+
         # Initialize our transformers.Trainer
         trainer = GsHuggingfaceTrainer(
             train_loader=train_loader,
@@ -91,6 +97,7 @@ class GSgnnHATMasedLMTrainer(GSgnnTrainer):
             model=self._model,
             args=training_args,
             train_dataset=train_dataset,
+            data_collator=data_collator,
             eval_dataset=None, # GraphStorm store eval and test set in train_dataset
             compute_metrics=compute_mlm_metrics,
             preprocess_logits_for_metrics=preprocess_logits_for_mlm_metrics)

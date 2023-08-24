@@ -42,6 +42,7 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
         self._drop_last = drop_last
         self._pin_memory = pin_memory
         self._prepare_input_fn = prepare_input_fn
+
         super(GSlmHatNodeDataLoader, self).__init__(dataset, target_idx, fanout, batch_size, device, train_task)
 
     def _prepare_dataloader(self, g, target_idx, fanout, batch_size, train_task, device):
@@ -70,16 +71,23 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
         # We need to support multiple node types later
         batch = [list(data.values())[0] if len(data) == 1 else None for data in list(batch)]
 
-
         if self._pin_memory:
             batch = [data.pin_memory() if data is not None else None for data in list(batch)]
 
-        # Build batch from sampled graph.
-        return BatchEncoding({
-            "input_ids": batch[0],
-            "attention_mask": batch[1],
-            "position_ids": batch[4]
-        })
+        if self._shuffle_neighbor_order:
+            # Build batch from sampled graph.
+            return BatchEncoding({
+                "input_ids": batch[2],
+                "attention_mask": batch[3],
+                "position_ids": (batch[4], batch[5]),
+            })
+        else:
+            # Build batch from sampled graph.
+            return BatchEncoding({
+                "input_ids": batch[0],
+                "attention_mask": batch[1],
+                "position_ids": (batch[4], batch[5]),
+            })
 
     def __len__(self):
         """ Size of dataset

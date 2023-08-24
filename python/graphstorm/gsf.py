@@ -538,9 +538,7 @@ def create_builtin_hat_model(model_args):
         use_auth_token=True if model_args.use_auth_token else None,
     )
     model.resize_token_embeddings(len(tokenizer))
-
-    return model
-
+    return model, tokenizer
 
 def check_homo(g):
     """ Check if it is a valid homogeneous graph
