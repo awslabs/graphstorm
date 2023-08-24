@@ -27,7 +27,7 @@ from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker, rt_profiler
-from ..utils import barrier, is_distributed
+from ..utils import barrier, is_distributed, get_backend
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
@@ -296,6 +296,19 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 test_pred = None
                 test_label = None
             sys_tracker.check("after_test_score")
+
+        # We need to have val and label (test and test label) data in GPU
+        # when backend is nccl, as we need to use nccl.all_reduce to exchange
+        # data between GPUs
+        val_pred = val_pred.to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_pred
+        val_label = val_label.to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_label
+        if test_pred is not None:
+            test_pred = test_pred.to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_pred
+            test_label = test_label.to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_label
 
         model.train()
         sys_tracker.check('predict')

@@ -45,13 +45,11 @@ def is_distributed():
     """
     return th.distributed.is_initialized()
 
-
 def get_backend():
     """ Get the backend of a process group.
     """
     assert is_distributed(), "get_backend() is valid only when is_distributed() is True."
     return th.distributed.get_backend()
-
 
 def get_rank():
     """ Get rank of a process

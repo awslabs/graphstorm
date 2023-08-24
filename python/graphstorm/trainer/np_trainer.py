@@ -26,7 +26,7 @@ from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker, rt_profiler
-from ..utils import barrier, is_distributed
+from ..utils import barrier, is_distributed, get_backend
 
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ A trainer for node prediction
@@ -288,11 +288,18 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         # TODO(wlcong) we only support node prediction on one node type for evaluation now
         assert len(val_label) == 1, "We only support prediction on one node type for now."
         ntype = list(val_label.keys())[0]
-        val_pred = val_pred[ntype]
-        val_label = val_label[ntype]
+        # We need to have val and label (test and test label) data in GPU
+        # when backend is nccl, as we need to use nccl.all_reduce to exchange
+        # data between GPUs
+        val_pred = val_pred[ntype].to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_pred[ntype]
+        val_label = val_label[ntype].to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_label[ntype]
         if test_pred is not None:
-            test_pred = test_pred[ntype]
-            test_label = test_label[ntype]
+            test_pred = test_pred[ntype].to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_pred[ntype]
+            test_label = test_label[ntype].to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_label[ntype]
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
                                                         val_label, test_label, total_steps)
         sys_tracker.check('evaluate')
