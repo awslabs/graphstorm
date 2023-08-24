@@ -35,8 +35,8 @@ from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
-from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
+from graphstorm.model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.sage_encoder import SAGEEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
@@ -57,6 +57,7 @@ from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_g
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
 from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_multi_target_ntypes
+from data_utils import generate_dummy_dist_graph_reconstruct
 from data_utils import create_lm_graph
 
 def is_int(a):
@@ -243,6 +244,7 @@ def check_node_prediction_with_reconstruct(model, data):
                                      batch_size=10, device="cuda:0", train_task=False,
                                      reconstructed_embed_ntype=['n2'])
     pred1, embs1, _ = node_mini_batch_gnn_predict(model, dataloader)
+    embs1 = embs1[target_ntype]
     embs1 = embs1[0:len(embs1)].numpy()
     embs = embs[target_ntype]
     embs = embs[0:len(embs)].numpy()
