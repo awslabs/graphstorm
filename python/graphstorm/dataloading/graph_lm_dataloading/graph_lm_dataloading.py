@@ -31,7 +31,8 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
     def __init__(self, dataset, prepare_input_fn,
                  target_idx, fanout, batch_size,
                  device, train_task, max_sequence_length, max_sentence_length,
-                 pin_memory, num_workers=0, drop_last=True,
+                 pin_memory, data_collator,
+                 num_workers=0, drop_last=True,
                  transverse_format=BFS_TRANSVERSE,
                  shuffle_neighbor_order=True):
         self._max_sentence_len = max_sentence_length
@@ -41,6 +42,7 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
         self._num_workers = num_workers
         self._drop_last = drop_last
         self._pin_memory = pin_memory
+        self._data_collator = data_collator
         self._prepare_input_fn = prepare_input_fn
 
         super(GSlmHatNodeDataLoader, self).__init__(dataset, target_idx, fanout, batch_size, device, train_task)
@@ -76,18 +78,18 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
 
         if self._shuffle_neighbor_order:
             # Build batch from sampled graph.
-            return BatchEncoding({
+            return self._data_collator([{
                 "input_ids": batch[2],
                 "attention_mask": batch[3],
-                "position_ids": (batch[4], batch[5]),
-            })
+                "doc_position_ids": batch[5],
+            }])
         else:
             # Build batch from sampled graph.
-            return BatchEncoding({
+            return self._data_collator([{
                 "input_ids": batch[0],
                 "attention_mask": batch[1],
-                "position_ids": (batch[4], batch[5]),
-            })
+                "doc_position_ids": batch[5],
+            }])
 
     def __len__(self):
         """ Size of dataset

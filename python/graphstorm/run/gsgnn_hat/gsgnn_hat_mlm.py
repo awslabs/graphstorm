@@ -16,7 +16,8 @@
     GSgnn HAT masked language model pre-training
 """
 from transformers import (HfArgumentParser,
-                         TrainingArguments)
+                         TrainingArguments,
+                         DataCollatorForLanguageModeling)
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
@@ -55,6 +56,12 @@ def main(config_args):
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.target_ntype)
+    model, tokenizer = gs.create_builtin_hat_model(model_args)
+    data_collator = DataCollatorForLanguageModeling(
+        tokenizer=tokenizer,
+        mlm_probability=data_args.mlm_probability,
+        pad_to_multiple_of=data_args.max_sentence_length,
+    )
 
     dataloader = GSlmHatNodeDataLoader(train_data,
         prepare_input_fn=prepare_hat_node_centric,
@@ -66,6 +73,7 @@ def main(config_args):
         max_sequence_length=data_args.max_seq_length,
         max_sentence_length=data_args.max_sentence_length,
         pin_memory=training_args.dataloader_pin_memory,
+        data_collator=data_collator,
         num_workers=training_args.dataloader_num_workers,
         transverse_format=data_args.transverse_format,
         shuffle_neighbor_order=data_args.shuffle_neighbor_order)
@@ -84,6 +92,7 @@ def main(config_args):
                                             max_sequence_length=data_args.max_seq_length,
                                             max_sentence_length=data_args.max_sentence_length,
                                             pin_memory=training_args.dataloader_pin_memory,
+                                            data_collator=data_collator,
                                             num_workers=0,
                                             transverse_format=data_args.transverse_format,
                                             shuffle_neighbor_order=False)
@@ -97,17 +106,14 @@ def main(config_args):
                                             train_task=False,
                                             max_sequence_length=data_args.max_seq_length,
                                             max_sentence_length=data_args.max_sentence_length,
-                                            pin_memory=training_args.dataloader_pin_memory,
+                                            pin_memory=training_args.dataloader_pin_memory,data_collator=data_collator,
                                             num_workers=0,
                                             transverse_format=data_args.transverse_format,
                                             shuffle_neighbor_order=False)
 
-    model, tokenizer = gs.create_builtin_hat_model(model_args)
-
-    trainer = GSgnnHATMasedLMTrainer(model, tokenizer)
+    trainer = GSgnnHATMasedLMTrainer(model)
 
     trainer.fit(train_data,
-                data_args=data_args,
                 training_args=training_args,
                 train_loader=dataloader,
                 val_loader=val_dataloader,
