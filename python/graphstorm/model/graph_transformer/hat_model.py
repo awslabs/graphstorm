@@ -638,6 +638,7 @@ class HATModel(HATPreTrainedModel):
         attention_mask=None,
         token_type_ids=None,
         position_ids=None,
+        doc_position_ids=None,
         inputs_embeds=None,
         output_attentions=None,
         output_hidden_states=None,
@@ -645,7 +646,6 @@ class HATModel(HATPreTrainedModel):
     ):
         """ Forword func
         """
-        position_ids, doc_position_ids = position_ids
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states

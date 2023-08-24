@@ -289,6 +289,8 @@ def prepare_hat_node_centric(data, input_nodes, seeds, blocks,
                 if len(sequence) <= max_sequence_len else sequence[:max_sequence_len] \
                 for sequence in ret_shuffled_atten_mask[dst_ntype]])
 
+        print(ret_ordered_token_ids[dst_ntype].shape)
+
     # There is no specific sentence level position info
     return ret_ordered_token_ids, \
         ret_ordered_atten_mask, \
