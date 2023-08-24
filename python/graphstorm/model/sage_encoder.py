@@ -95,10 +95,10 @@ class SAGEConv(nn.Module):
 
         inputs = inputs['_N']
         h_conv = self.conv(g, inputs)
-        if self.activation:
-            h_conv = self.activation(h_conv)
         if self.norm:
             h_conv = self.norm(h_conv)
+        if self.activation:
+            h_conv = self.activation(h_conv)
         if self.num_ffn_layers_in_gnn > 0:
             h_conv = self.ngnn_mlp(h_conv)
 

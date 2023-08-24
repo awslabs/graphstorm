@@ -164,10 +164,10 @@ class RelGraphConvLayer(nn.Module):
                 h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
                 h = h + self.h_bias
-            if self.activation:
-                h = self.activation(h)
             if self.norm:
                 h = self.norm[ntype](h)
+            if self.activation:
+                h = self.activation(h)
             if self.num_ffn_layers_in_gnn > 0:
                 h = self.ngnn_mlp(h)
             return self.dropout(h)
