@@ -242,6 +242,12 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit ${PIPESTATUS[0]}
 rm -fr /data/gsgnn_nc_ml_text/*
 
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: RoBERTa nodes: movie, user inference: mini-batch save model save emb node, train_nodes 0"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_roberta_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_roberta.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 3 --lm-train-nodes 0 | tee train_log.txt
+
+error_and_exit ${PIPESTATUS[0]}
+rm -fr /data/gsgnn_nc_ml_text/*
+
 echo "**************dataset: MovieLens classification, GLEM co-training, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model save emb node"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml  --save-model-path /data/gsgnn_nc_ml_text/ --topk-model-to-save 1 --num-epochs 3 | tee train_log.txt
 
@@ -269,3 +275,8 @@ then
 fi
 
 rm -fr /data/gsgnn_nc_ml_text/*
+
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch save model save emb node, Backend nccl"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_nc_ml/ --num-epochs 1 --backend nccl --node-feat-name movie:title user:feat
+
+error_and_exit $?

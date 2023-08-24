@@ -71,8 +71,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
         do_eval = self.evaluator is not None
         if do_eval:
             assert loader.data.labels is not None, \
-                "A label field must be provided for edge classification or regression " \
-                "when evaluation is required."
+                "A label field must be provided for edge classification " \
+                "or regression inference when evaluation is required."
 
         sys_tracker.check('start inferencing')
         self._model.eval()
@@ -101,9 +101,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
-
         device = self.device
-
         if save_embed_path is not None:
             target_ntypes = set()
             for etype in infer_data.eval_etypes:
