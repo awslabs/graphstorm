@@ -275,6 +275,8 @@ class GSConfig:
         _ = self.decoder_type
         _ = self.num_decoder_basis
         # Encoder related
+        _ = self.reconstructed_embed_ntype
+        _ = self.reconstruct_encoder
         encoder_type = self.model_encoder_type
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
@@ -946,11 +948,12 @@ class GSConfig:
     def reconstructed_embed_ntype(self):
         """ The node types that require to reconstruct node features.
         """
-        if hasattr(self, "_reconstructed_embed_ntype"):
+        if hasattr(self, "_reconstructed_embed_ntype") \
+                and self._reconstructed_embed_ntype is not None:
             assert not self.use_node_embeddings
-            return self._reconstructed_embed_ntype \
-                    if self._reconstructed_embed_ntype is not None else []
-        return []
+            return self._reconstructed_embed_ntype
+        else:
+            return []
 
     @property
     def reconstruct_encoder(self):
