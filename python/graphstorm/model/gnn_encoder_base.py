@@ -175,6 +175,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
     """
     device = gnn_encoder.device
     with th.no_grad():
+        x = None
         for i, layer in enumerate(gnn_encoder.layers):
             # get the fanout for this layer
             y = {}
