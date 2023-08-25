@@ -15,7 +15,7 @@
 
     Heterogeneous Graph Transformer (HGT) layer implementation
 """
-
+import warnings
 
 import math
 import torch
@@ -65,8 +65,10 @@ class HGTLayer(nn.Module):
                  fnn_activation=F.relu):
         super(HGTLayer, self).__init__()
         self.num_heads = num_heads
+        self.out_dim = out_dim
         self.d_k = out_dim // num_heads
         self.sqrt_dk = math.sqrt(self.d_k)
+        self.use_norm = use_norm
 
         # Define node type parameters
         k_linears = {}
@@ -91,6 +93,7 @@ class HGTLayer(nn.Module):
         self.a_linears = nn.ModuleDict(a_linears)
         if use_norm:
             self.norms = nn.ModuleDict(norms)
+        self.skip = nn.ParameterDict(skip)
 
         # Define edge type parameters
         relation_pri = {}
@@ -104,10 +107,9 @@ class HGTLayer(nn.Module):
             relation_msg[c_etype_str] = nn.init.xavier_uniform_(
                 nn.Parameter(torch.Tensor(self.num_heads, self.d_k, self.d_k)))
 
-        self.relation_pri = nn.ModuleDict(relation_pri)
-        self.relation_att = nn.ModuleDict(relation_att)
-        self.relation_msg = nn.ModuleDict(relation_msg)
-        self.skip = nn.ModuleDict(skip)
+        self.relation_pri = nn.ParameterDict(relation_pri)
+        self.relation_att = nn.ParameterDict(relation_att)
+        self.relation_msg = nn.ParameterDict(relation_msg)
 
         # ngnn
         self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
@@ -132,83 +134,81 @@ class HGTLayer(nn.Module):
         dict[str, torch.Tensor]
             New node features for each node type.
         """
-        if g.is_block:
-            h_src = {}
-            h_dst = {}
+        with g.local_scope():
             for srctype, etype, dsttype in g.canonical_etypes:
+                c_etype_str = '_'.join((srctype, etype, dsttype))
                 # extract each relation as a sub graph
                 sub_graph = g[srctype, etype, dsttype]
-                
-                h_src[srctype] = h[srctype]
-                h_dst[dsttype] = h[dsttype][:sub_graph.num_dst_nodes()]
-        else:
-            h_src = {}
-            h_dst = {}
+
+                # check if no edges exist for this can_etype
+                if sub_graph.num_edges() == 0:
+                    continue
+
+                k_linear = self.k_linears[srctype]
+                v_linear = self.v_linears[srctype]
+                q_linear = self.q_linears[dsttype]
+
+                k = k_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
+                v = v_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
+                if g.is_block:
+                    q = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1,
+                                                                            self.num_heads,
+                                                                            self.d_k)
+                else:
+                    q = q_linear(h[dsttype]).view(-1, self.num_heads, self.d_k)
+
+                relation_att = self.relation_att[c_etype_str]
+                relation_pri = self.relation_pri[c_etype_str]
+                relation_msg = self.relation_msg[c_etype_str]
+
+                k = torch.einsum("bij,ijk->bik", k, relation_att)
+                v = torch.einsum("bij,ijk->bik", v, relation_msg)
+
+                sub_graph.srcdata['k'] = k
+                sub_graph.dstdata['q'] = q
+                sub_graph.srcdata[f'v_{c_etype_str}'] = v
+
+                sub_graph.apply_edges(fn.v_dot_u('q', 'k', 't'))
+                attn_score = sub_graph.edata.pop('t').sum(-1) * relation_pri / self.sqrt_dk
+                attn_score = edge_softmax(sub_graph, attn_score, norm_by='dst')
+                sub_graph.edata[f't_{c_etype_str}'] = attn_score.unsqueeze(-1)
+
+            edge_fn = {}
             for srctype, etype, dsttype in g.canonical_etypes:
-                # extract each relation as a sub graph
-                sub_graph = g[srctype, etype, dsttype]
-                
-                h_src[srctype] = h[srctype]
-                h_dst[dsttype] = h[dsttype]
+                c_etype_str = '_'.join((srctype, etype, dsttype))
+                edge_fn[srctype, etype, dsttype] = (fn.u_mul_e(f'v_{c_etype_str}',
+                                                               f't_{c_etype_str}', 'm'),
+                                                    fn.sum('m', 't'))
 
-        edge_fn = {}
-        for srctype, etype, dsttype in g.canonical_etypes:
-            # extract each relation as a sub graph
-            sub_graph = g[srctype, etype, dsttype]
+            g.multi_update_all(edge_fn, cross_reducer="mean")
 
-            # check if no edges exist for this can_etype
-            if sub_graph.num_edges() == 0:
-                continue
+            new_h = {}
+            for k, _ in h.items():
+                if g.num_dst_nodes(k) > 0:
+                    if g.dstnodes[k].data.get('t') != None:
+                        alpha = torch.sigmoid(self.skip[k])
+                        t = g.dstnodes[k].data['t'].view(-1, self.out_dim)
+                        trans_out = self.drop(self.a_linears[k](t))
+                        if g.is_block:
+                            trans_out = trans_out * alpha + h[k][:g.num_dst_nodes(k)] * (1-alpha)
+                        else:
+                            trans_out = trans_out * alpha + h[k] * (1-alpha)
+                    else:                       # Nodes not really in destination side.
+                        warnings.warn("Warning. Graph convolution returned empty "
+                          f"dictionary, for node with type: {str(k)}")
+                        trans_out = h[k]        # So add psudo self-loop with feature copy only.
+                else:
+                    continue
 
-            k_linear = self.k_linears[srctype]
-            v_linear = self.v_linears[srctype]
-            q_linear = self.q_linears[dsttype]
+                if self.use_norm:
+                    new_h[k] = self.norms[k](trans_out)
+                else:
+                    new_h[k] = trans_out
 
-            k = k_linear(h_src[srctype]).view(-1, self.num_heads, self.d_k)
-            v = v_linear(h_src[srctype]).view(-1, self.num_heads, self.d_k)
-            q = q_linear(h_dst[dsttype]).view(-1, self.num_heads, self.d_k)
+                if self.num_ffn_layers_in_gnn > 0:
+                    new_h[k] = self.ngnn_mlp(new_h[k])
 
-            c_etype_str = '_'.join((srctype, etype, dsttype))
-
-            relation_att = self.relation_att[c_etype_str]
-            relation_pri = self.relation_pri[c_etype_str]
-            relation_msg = self.relation_msg[c_etype_str]
-
-            k = torch.einsum("bij,ijk->bik", k, relation_att)
-            v = torch.einsum("bij,ijk->bik", v, relation_msg)
-
-            sub_graph.srcdata['k'] = k
-            sub_graph.dstdata['q'] = q
-            sub_graph.srcdata[f'v_{c_etype_str}'] = v
-
-            sub_graph.apply_edges(fn.v_dot_u('q', 'k', 't'))
-            attn_score = sub_graph.edata.pop('t').sum(-1) * relation_pri / self.sqrt_dk
-            attn_score = edge_softmax(sub_graph, attn_score, norm_by='dst')
-
-            sub_graph.edata['t'] = attn_score.unsqueeze(-1)
-
-            edge_fn[(srctype, etype, dsttype)] = (fn.u_mul_e(f'v_{c_etype_str}', 't', 'm'), fn.sum('m', 't'))
-
-        g.multi_update_all(edge_fn, cross_reducer = 'mean')
-
-        new_h = {}
-        for ntype in g.dsttypes:
-            if g.num_dst_nodes(ntype) == 0:
-                continue
-
-            alpha = torch.sigmoid(self.skip[ntype])
-            t = g.dstnodes[ntype].data['t'].view(-1, self.out_dim)
-            trans_out = self.drop(self.a_linears[ntype](t))
-            trans_out = trans_out * alpha + h_dst[ntype] * (1-alpha)
-            if self.use_norm:
-                new_h[ntype] = self.norms[ntype](trans_out)
-            else:
-                new_h[ntype] = trans_out
-
-            if self.num_ffn_layers_in_gnn > 0:
-                new_h[ntype] = self.ngnn_mlp(new_h[ntype])
-
-        return new_h
+            return new_h
 
 
 class HGTEncoder(GraphConvEncoder):
@@ -241,7 +241,7 @@ class HGTEncoder(GraphConvEncoder):
                  dropout=0.0,
                  use_norm=False,
                  num_ffn_layers_in_gnn=0):
-        super(HGTEncoder, self).__init__()
+        super(HGTEncoder, self).__init__(hid_dim, out_dim, num_hidden_layers)
 
         self.layers = nn.ModuleList()
         # h2h
