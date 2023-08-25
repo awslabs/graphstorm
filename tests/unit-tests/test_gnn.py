@@ -274,6 +274,29 @@ def test_rgat_node_prediction():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_hgt_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGATLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n1'], label_field='label',
+                                     node_feat_field='feat')
+    model=create_hgt_node_model(np_data.g)
+    check_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()    
+
 def test_sage_node_prediction():
     """ Test edge prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + SAGELayer + Decoder
@@ -317,6 +340,28 @@ def create_rgcn_edge_model(g, num_ffn_layers):
                                      num_ffn_layers=num_ffn_layers))
     return model
 
+def create_hgt_edge_model(g, num_ffn_layers):
+    model = GSgnnEdgeModel(alpha_l2norm=0)
+    
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = HGTEncoder(g,
+                            hid_dim=feat_size,
+                            out_dim=4,
+                            num_hidden_layers=1,
+                            num_heads=2,
+                            dropout=0.0,
+                            use_norm=False,
+                            num_ffn_layers_in_gnn=0)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1"),
+                                     num_ffn_layers=num_ffn_layers))
+    return model
 
 def check_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
@@ -905,18 +950,19 @@ def test_link_prediction_weight():
     dgl.distributed.kvstore.close_kvstore()
 
 if __name__ == '__main__':
-    test_rgcn_edge_prediction()
-    test_rgcn_node_prediction()
-    test_rgat_node_prediction()
-    test_sage_node_prediction()
-    test_edge_classification()
-    test_edge_classification_feat()
-    test_edge_regression()
-    test_node_classification()
-    test_node_regression()
-    test_link_prediction()
-    test_link_prediction_weight()
+    # test_rgcn_edge_prediction()
+    # test_rgcn_node_prediction()
+    # test_rgat_node_prediction()
+    test_hgt_node_prediction()
+    # test_sage_node_prediction()
+    # test_edge_classification()
+    # test_edge_classification_feat()
+    # test_edge_regression()
+    # test_node_classification()
+    # test_node_regression()
+    # test_link_prediction()
+    # test_link_prediction_weight()
 
-    test_mlp_edge_prediction()
-    test_mlp_node_prediction()
-    test_mlp_link_prediction()
+    # test_mlp_edge_prediction()
+    # test_mlp_node_prediction()
+    # test_mlp_link_prediction()
