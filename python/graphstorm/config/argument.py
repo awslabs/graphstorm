@@ -1244,6 +1244,7 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_eval_target_ntype"):
             return self._eval_target_ntype
+        return None
 
     #### edge related task variables ####
     @property
