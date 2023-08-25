@@ -8,7 +8,6 @@ from graphstorm.dataloading import GSgnnNodeTrainData
 from graphstorm.utils import setup_device
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 
-from dataset import CustomizeNodeTrainData
 from model_nc import create_rgcn_model_for_nc
 
 def main(config_args):
@@ -20,6 +19,7 @@ def main(config_args):
         config.graph_name,
         config.part_config,
         train_ntypes=config.target_ntype,
+        eval_ntypes=config.eval_target_ntype,
         label_field=config.label_field,
         node_feat_field=config.node_feat_name,
     )
