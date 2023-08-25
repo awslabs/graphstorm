@@ -17,7 +17,6 @@
 """
 import os
 import logging
-import psutil
 import torch as th
 
 from ..model import GSOptimizer
