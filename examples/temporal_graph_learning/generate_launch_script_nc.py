@@ -3,10 +3,11 @@ import os
 import sys
 
 workspace = os.getcwd()
-ip_config = "/tmp/ip_config.txt"
-gs_config = "/tmp/graphstorm_train_script_nc_config.yaml"
+ip_config = "./ip_config.txt"
+gs_config = "./graphstorm_train_script_nc_config.yaml"
 
-train_data_path = os.path.join(workspace, 'DATA/MAG_Temporal.json')
+
+train_data_path = os.path.join(workspace, 'DATA/MAG_Temporal/MAG_Temporal.json')
 restore_model_path = None
 
 save_model_path = os.path.join(workspace, 'model')
@@ -49,6 +50,7 @@ yaml_dict = {
         "node_classification": {
             "node_feat_name": ["paper:feat"],
             "target_ntype": ["paper"],
+            "eval_target_ntype": ["paper"],
             "label_field": "label",
             "multilabel": False,
             "num_classes": 152,
@@ -59,7 +61,6 @@ yaml_dict = {
     },
     "udf": {
         "save_result_path": "tgat_nc_gpu",
-        "node_embed_size": 6
     },
 }
 
