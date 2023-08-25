@@ -148,25 +148,25 @@ class HGTLayer(nn.Module):
                 v_linear = self.v_linears[srctype]
                 q_linear = self.q_linears[dsttype]
 
-                k = k_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
-                v = v_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
+                k_val = k_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
+                v_val = v_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
                 if g.is_block:
-                    q = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1,
+                    q_val = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1,
                                                                             self.num_heads,
                                                                             self.d_k)
                 else:
-                    q = q_linear(h[dsttype]).view(-1, self.num_heads, self.d_k)
+                    q_val = q_linear(h[dsttype]).view(-1, self.num_heads, self.d_k)
 
                 relation_att = self.relation_att[c_etype_str]
                 relation_pri = self.relation_pri[c_etype_str]
                 relation_msg = self.relation_msg[c_etype_str]
 
-                k = torch.einsum("bij,ijk->bik", k, relation_att)
-                v = torch.einsum("bij,ijk->bik", v, relation_msg)
+                k_val = torch.einsum("bij,ijk->bik", k_val, relation_att)
+                v_val = torch.einsum("bij,ijk->bik", v_val, relation_msg)
 
-                sub_graph.srcdata['k'] = k
-                sub_graph.dstdata['q'] = q
-                sub_graph.srcdata[f'v_{c_etype_str}'] = v
+                sub_graph.srcdata['k'] = k_val
+                sub_graph.dstdata['q'] = q_val
+                sub_graph.srcdata[f'v_{c_etype_str}'] = v_val
 
                 sub_graph.apply_edges(fn.v_dot_u('q', 'k', 't'))
                 attn_score = sub_graph.edata.pop('t').sum(-1) * relation_pri / self.sqrt_dk
@@ -185,8 +185,8 @@ class HGTLayer(nn.Module):
             new_h = {}
             for k, _ in h.items():
                 if g.num_dst_nodes(k) > 0:
+                    alpha = torch.sigmoid(self.skip[k])
                     if g.dstnodes[k].data.get('t') is not None:
-                        alpha = torch.sigmoid(self.skip[k])
                         t = g.dstnodes[k].data['t'].view(-1, self.out_dim)
                         trans_out = self.drop(self.a_linears[k](t))
                         if g.is_block:
@@ -196,7 +196,9 @@ class HGTLayer(nn.Module):
                     else:                       # Nodes not really in destination side.
                         warnings.warn("Warning. Graph convolution returned empty "
                           f"dictionary, for node with type: {str(k)}")
-                        trans_out = h[k]        # So add psudo self-loop with feature copy only.
+                        # So add psudo self-loop with feature copy.
+                        trans_out = self.drop(self.a_linears[k](h[k]))
+                        trans_out = trans_out * alpha + h[k] * (1-alpha)
                 else:
                     continue
 
