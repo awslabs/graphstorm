@@ -203,7 +203,7 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
-                logging.debug(f"Overriding Argument: {arg_key}")
+                logging.debug("Overriding Argument: %s", arg_key)
 
     def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.
