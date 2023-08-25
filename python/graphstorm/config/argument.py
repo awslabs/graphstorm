@@ -310,6 +310,7 @@ class GSConfig:
             _ = self.imbalance_class_weights
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             _ = self.target_ntype
+            _ = self.eval_target_ntype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
             _ = self.target_etype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
@@ -1235,6 +1236,14 @@ class GSConfig:
         assert hasattr(self, "_target_ntype"), \
             "Must provide the target ntype through target_ntype"
         return self._target_ntype
+
+    @property
+    def eval_target_ntype(self):
+        """ The node type for evaluation prediction
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_eval_target_ntype"):
+            return self._eval_target_ntype
 
     #### edge related task variables ####
     @property

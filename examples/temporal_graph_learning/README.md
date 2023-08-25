@@ -32,6 +32,7 @@ python3 -m graphstorm.gconstruct.construct_graph \
            --conf-file ./DATA/partition_config.json \
            --output-dir ./DATA/MAG_Temporal \
            --num-parts 1 \
+           --graph-name MAG_Temporal --add-reverse-edges
 ```
 
 **Step 3: Run the modified TGAT model**

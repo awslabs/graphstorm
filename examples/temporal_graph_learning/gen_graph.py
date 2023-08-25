@@ -75,7 +75,7 @@ node = labels_df['node'].values
 label = labels_df['label'].values - 1 # label [0, 1, ..., 151]
 
 # nodes not in train val test set has label -1
-new_label = - np.ones((remain_nodes, 1), np.int32)
+new_label = - np.ones(remain_nodes, np.int32)
 train_val_test_nodes = []
 
 for i, j in zip(node, label):
