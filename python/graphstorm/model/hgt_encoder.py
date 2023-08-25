@@ -19,10 +19,9 @@ import warnings
 
 import math
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import dgl.function as fn
-
+from torch import nn
 from dgl.nn.functional import edge_softmax
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
@@ -78,12 +77,12 @@ class HGTLayer(nn.Module):
         norms = {}
         skip = {}
         for ntype in ntypes:
-            k_linears[ntype] = (nn.Linear(in_dim, out_dim))
-            q_linears[ntype] = (nn.Linear(in_dim, out_dim))
-            v_linears[ntype] = (nn.Linear(in_dim, out_dim))
-            a_linears[ntype] = (nn.Linear(in_dim, out_dim))
+            k_linears[ntype] = nn.Linear(in_dim, out_dim)
+            q_linears[ntype] = nn.Linear(in_dim, out_dim)
+            v_linears[ntype] = nn.Linear(in_dim, out_dim)
+            a_linears[ntype] = nn.Linear(in_dim, out_dim)
             if use_norm:
-                norms[ntype] = (nn.LayerNorm(out_dim))
+                norms[ntype] = nn.LayerNorm(out_dim)
             skip[ntype] = nn.Parameter(torch.ones(1))
 
 
@@ -134,6 +133,7 @@ class HGTLayer(nn.Module):
         dict[str, torch.Tensor]
             New node features for each node type.
         """
+        # pylint: disable=no-member
         with g.local_scope():
             for srctype, etype, dsttype in g.canonical_etypes:
                 c_etype_str = '_'.join((srctype, etype, dsttype))
@@ -185,7 +185,7 @@ class HGTLayer(nn.Module):
             new_h = {}
             for k, _ in h.items():
                 if g.num_dst_nodes(k) > 0:
-                    if g.dstnodes[k].data.get('t') != None:
+                    if g.dstnodes[k].data.get('t') is not None:
                         alpha = torch.sigmoid(self.skip[k])
                         t = g.dstnodes[k].data['t'].view(-1, self.out_dim)
                         trans_out = self.drop(self.a_linears[k](t))
