@@ -56,13 +56,27 @@ etypes = [
     ('paper', 'cite_09', 'paper'),
 ]
 
+
+def to_bidirect_remove_duplicate(src_nodes, dst_nodes):
+    edges = np.concatenate([
+        np.stack([src_nodes, dst_nodes]),
+        np.stack([dst_nodes, src_nodes])
+    ], axis=1)
+    edges = np.unique(edges, axis=1)
+    edges = {
+        'src_id': edges[0],
+        'dst_id': edges[1]
+    }
+    return edges
+
 for etype in etypes:
     t = int(etype[1].split('_')[1])
     edge_mask = timestamp == (100 + t)
-    edge_data = {
-        'src_id': new_src_nodes[edge_mask],
-        'dst_id': new_dst_nodes[edge_mask],
-    }
+    to_bidirect_remove_duplicate
+    edge_data = to_bidirect_remove_duplicate(
+        src_nodes=new_src_nodes[edge_mask],
+        dst_nodes=new_dst_nodes[edge_mask],
+    )
     write_data_parquet(edge_data, f'./DATA/edge-{etype[0]}-{etype[1]}-{etype[2]}.parquet')
 
 # add node features to dgl graph
