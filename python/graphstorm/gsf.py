@@ -16,7 +16,7 @@
     GSF utility functions.
 """
 
-
+import logging
 import numpy as np
 import dgl
 import torch as th
@@ -381,8 +381,8 @@ def create_builtin_lp_model(g, config, train_task):
         # if the training set only contains one edge type or it is specified in the arguments,
         # we use dot product as the score function.
         if get_rank() == 0:
-            print('use dot product for single-etype task.')
-            print("Using inner product objective for supervision")
+            logging.debug('use dot product for single-etype task.')
+            logging.debug("Using inner product objective for supervision")
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
                                                 if model.gnn_encoder is not None \
@@ -394,7 +394,7 @@ def create_builtin_lp_model(g, config, train_task):
                                                     config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
-            print("Using distmult objective for supervision")
+            logging.debug("Using distmult objective for supervision")
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
                                                 model.gnn_encoder.out_dims \

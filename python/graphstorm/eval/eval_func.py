@@ -15,6 +15,7 @@
 
     Evaluation functions
 """
+import logging
 from enum import Enum
 from functools import partial
 import operator
@@ -201,7 +202,7 @@ def eval_roc_auc(logits,labels):
                                              predicted_labels[is_labeled, i]))
 
     if len(rocauc_list) == 0:
-        print('No positively labeled data available. Cannot compute ROC-AUC.')
+        logging.error('No positively labeled data available. Cannot compute ROC-AUC.')
         return 0
 
     return sum(rocauc_list) / len(rocauc_list)
@@ -286,7 +287,7 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
     try:
         auc_score = roc_auc_score(y_true, y_pred, sample_weight=weights, multi_class='ovr')
     except ValueError as e:
-        print("Failure found during evaluation of the auc metric returning -1", e)
+        logging.error("Failure found during evaluation of the auc metric returning -1: %s", str(e))
     return auc_score
 
 
@@ -312,7 +313,7 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
         precision, recall = pr_curve[PRKeys.PRECISION], pr_curve[PRKeys.RECALL]
         auc_score = auc(recall, precision)
     except ValueError as e:
-        print("Failure found during evaluation of the auc metric returning -1", e)
+        logging.error("Failure found during evaluation of the auc metric returning -1: %s", str(e))
     return auc_score
 
 def compute_acc(pred, labels, multilabel):
