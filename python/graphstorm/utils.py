@@ -207,6 +207,8 @@ def estimate_mem_infer(root, graph_name, hidden_size, num_layers):
     return max(mem_list), max(shared_mem_list)
 
 def print_mem(device):
+    """ Print memory consumption
+    """
     if th.cuda.is_available():
         logging.info("Peak GPU Mem alloc: %.4f MB",
                      th.cuda.max_memory_allocated(device) / 1024 / 1024)
