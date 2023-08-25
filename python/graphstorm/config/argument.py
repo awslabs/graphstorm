@@ -960,6 +960,8 @@ class GSConfig:
         """ The encoder used for reconstructing node features.
         """
         if hasattr(self, "_reconstruct_encoder"):
+            assert self._reconstruct_encoder in BUILTIN_GNN_ENCODER, \
+                    f"Feature reconstruction encoder type should be in {BUILTIN_GNN_ENCODER}"
             return self._reconstruct_encoder
         else:
             return "rgcn"
@@ -1853,6 +1855,8 @@ def _add_hyperparam_args(parser):
             help="Whether to use extra learnable node embeddings")
     group.add_argument("--reconstructed-embed-ntype", type=str, nargs="+",
             help="The node types whose features are reconstructed from neighbors' features.")
+    group.add_argument("--reconstruct-encoder", type=str, default=argparse.SUPPRESS,
+            help="The encoder used for constructing node features.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
