@@ -488,13 +488,12 @@ def set_encoder(model, g, config, train_task):
     elif model_encoder_type == "hgt":
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = HGTEncoder(g,
-                                config.hidden_size,
-                                config.hidden_size,
-                                config.num_heads,
-                                num_hidden_layers=config.num_layers -1,
-                                dropout=dropout,
-                                use_norm=config.use_norm,
-                                num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+                                 config.hidden_size,
+                                 config.num_heads,
+                                 num_hidden_layers=config.num_layers -1,
+                                 dropout=dropout,
+                                 use_norm=config.use_norm,
+                                 num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "sage":
         # we need to check if the graph is homogeneous
         assert check_homo(g) == True, 'The graph is not a homogeneous graph'
