@@ -26,8 +26,8 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
-from ..utils import get_rank
-from ..data.utils import alltoallv_nccl, alltoallv_cpu
+from ..utils import get_rank, barrier
+from ..data.utils import alltoallv_cpu
 
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
@@ -307,7 +307,7 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
     if backend == "gloo":
         alltoallv_cpu(local_rank, world_size, gather_list, data_tensors)
     else: # backend == "nccl"
-        alltoallv_nccl(local_rank, world_size, gather_list, data_tensors)
+        th.distributed.all_to_all(gather_list, data_tensors)
     return gather_list[0]
 
 def save_embeddings(model_path, embeddings, local_rank, world_size,
@@ -342,7 +342,7 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
         os.chmod(model_path, 0o767)
 
     # make sure the model_path permission is changed before other process start to save
-    th.distributed.barrier()
+    barrier()
 
     assert local_rank < world_size
     # Node ID mapping won't be very large if number of nodes is
@@ -463,7 +463,7 @@ def save_prediction_results(predictions, prediction_path, local_rank):
         #     - others can read, write, and execute.
         os.chmod(prediction_path, 0o767)
     # make sure the prediction_path permission is changed before other process start to save
-    th.distributed.barrier()
+    barrier()
 
     th.save(predictions, os.path.join(prediction_path, "predict-{}.pt".format(local_rank)))
 

@@ -17,7 +17,6 @@
 """
 
 import os
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -151,7 +150,7 @@ def main(config_args):
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              edge_mask="train_mask", task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size(),
+                        gs.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 

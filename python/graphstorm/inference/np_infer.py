@@ -16,7 +16,6 @@
     Infer wrapper for node classification and regression.
 """
 import time
-import torch as th
 from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInfer
@@ -27,7 +26,7 @@ from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
 
-from ..utils import sys_tracker
+from ..utils import sys_tracker, get_world_size, barrier
 
 class GSgnnNodePredictionInfer(GSInfer):
     """ Node classification/regression infer.
@@ -90,7 +89,10 @@ class GSgnnNodePredictionInfer(GSInfer):
             embs = res[1]
             label = res[2] if do_eval else None
 
-            embs = {ntype: embs}
+            if isinstance(embs, dict):
+                embs = {ntype: embs[ntype]}
+            else:
+                embs = {ntype: embs}
         else:
             embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
                                            task_tracker=self.task_tracker)
@@ -98,6 +100,10 @@ class GSgnnNodePredictionInfer(GSInfer):
                                           return_label=do_eval)
             pred = res[0]
             label = res[1] if do_eval else None
+        if isinstance(pred, dict):
+            pred = pred[ntype]
+        if isinstance(label, dict):
+            label = label[ntype]
         sys_tracker.check('compute embeddings')
 
         device = self.device
@@ -130,10 +136,10 @@ class GSgnnNodePredictionInfer(GSInfer):
             embeddings = {ntype: ntype_emb}
 
             save_gsgnn_embeddings(save_embed_path,
-                embeddings, self.rank, th.distributed.get_world_size(),
+                embeddings, self.rank, get_world_size(),
                 device=device,
                 node_id_mapping_file=node_id_mapping_file)
-            th.distributed.barrier()
+            barrier()
             sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
@@ -152,7 +158,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                 # entire node set.
                 pred_data[loader.target_nidx[ntype]] = pred.cpu()
                 pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, self.rank,
-                    th.distributed.get_world_size(), device=device)
+                    get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)
-        th.distributed.barrier()
+        barrier()
         sys_tracker.check('save predictions')

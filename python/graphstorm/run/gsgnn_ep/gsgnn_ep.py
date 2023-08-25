@@ -17,7 +17,6 @@
 """
 
 import os
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -148,7 +147,7 @@ def main(config_args):
         # The order of the ntypes must be sorted
         embs = {ntype: embeddings[ntype] for ntype in sorted(target_ntypes)}
         save_embeddings(config.save_embed_path, embs, gs.get_rank(),
-                        th.distributed.get_world_size(),
+                        gs.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 

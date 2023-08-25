@@ -103,7 +103,7 @@ Users can set up language model in GraphStorm's configuration YAML file. Below i
         - author
         - subject
 
-The current version of GraphStorm supports pre-trained BERT models from HuggingFace reposity on nodes only. Users can choose any `HuggingFace BERT models <https://huggingface.co/models>`_. But the value of ``model_name`` **MUST** be the same as the one specified in the raw data JSON file's ``bert_model`` field. Here in the example, it is the ``bert-base-uncased`` model.
+The current version of GraphStorm supports several types of pre-trained LM models from HuggingFace reposity on nodes only. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ under the following ``lm_type``: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``. But the value of ``model_name`` **MUST** be the same as the one specified in the raw data JSON file's ``bert_model`` field. Here in the example, it is the ``bert-base-uncased`` model.
 
 The ``node_type`` field lists the types of nodes that have tokenized text features. In this ACM example, all three types of nodes have tokenized text features, which are all list in the configuration YAML file.
 
