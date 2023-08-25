@@ -86,7 +86,6 @@ class _ReconstructedNeighborSampler():
             if src_ntype in self._reconstructed_embed_ntypes:
                 seeds[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
         subg = self._g.sample_neighbors(seeds, self._fanout)
-        # We cannot invoke to_block like this.
         return dgl.to_block(subg, seeds)
 
 class GSgnnEdgeDataLoader():

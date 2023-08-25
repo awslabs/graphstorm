@@ -393,8 +393,14 @@ def test_node_dataloader_reconstruct():
 
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {'n0': th.arange(np_data.g.number_of_nodes('n0'))}
+    try:
+        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
+                                         train_task=False, reconstructed_embed_ntype=['n1', 'n2'])
+        assert False
+    except:
+        pass
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
-                                     train_task=False, reconstructed_embed_ntype=['n1', 'n2'])
+                                     train_task=False, reconstructed_embed_ntype=['n2'])
     all_nodes = []
     feat_sizes = gs.gsf.get_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
