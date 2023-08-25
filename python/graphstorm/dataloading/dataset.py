@@ -660,6 +660,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
             assert train_idx is not None, "There is no training data."
             num_train += len(train_idx)
             train_idxs[ntype] = train_idx
+        self._num_train = num_train
 
         for ntype in self.eval_ntypes:
             if 'val_mask' in g.nodes[ntype].data:
@@ -720,6 +721,10 @@ class GSgnnNodeTrainData(GSgnnNodeData):
     def eval_ntypes(self):
         """node type for evaluation"""
         return self._eval_ntypes
+
+    @property
+    def __len__(self):
+        return self._num_train
 
 class GSgnnNodeInferData(GSgnnNodeData):
     """ Inference data for node tasks

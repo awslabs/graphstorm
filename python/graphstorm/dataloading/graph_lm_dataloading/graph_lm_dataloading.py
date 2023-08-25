@@ -79,17 +79,17 @@ class GSlmHatNodeDataLoader(GSgnnNodeDataLoader):
         if self._shuffle_neighbor_order:
             # Build batch from sampled graph.
             return self._data_collator([{
-                "input_ids": batch[2],
-                "attention_mask": batch[3],
-                "doc_position_ids": batch[5],
-            }])
+                "input_ids": batch[2][i],
+                "attention_mask": batch[3][i],
+                "doc_position_ids": batch[5][i],
+            } for i in range(len(batch[2]))])
         else:
             # Build batch from sampled graph.
             return self._data_collator([{
-                "input_ids": batch[0],
-                "attention_mask": batch[1],
-                "doc_position_ids": batch[5],
-            }])
+                "input_ids": batch[0][i],
+                "attention_mask": batch[1][i],
+                "doc_position_ids": batch[5][i],
+            } for i in range(len(batch[0]))])
 
     def __len__(self):
         """ Size of dataset
