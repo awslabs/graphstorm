@@ -20,6 +20,7 @@ import os
 import sys
 import argparse
 import math
+import logging
 
 import yaml
 import torch as th
@@ -132,7 +133,7 @@ class GSConfig:
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
-        print(configuration)
+        logging.debug(str(configuration))
         if 'lm_model' in configuration:
             # has language model configuration
             # lm_model:
@@ -202,7 +203,7 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
-                print(f"Overriding Argument: {arg_key}")
+                logging.debug(f"Overriding Argument: {arg_key}")
 
     def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.
@@ -330,8 +331,8 @@ class GSConfig:
         """
         for i, _ in enumerate(self.node_lm_configs):
             if self.node_lm_configs[i]["gradient_checkpoint"]:
-                print(f"WARNING: {reason} can not work with " \
-                        "gradient checkpoint. Turn gradient checkpoint to False")
+                logging.warning("%s can not work with gradient checkpoint. " \
+                        + "Turn gradient checkpoint to False", reason)
                 self.node_lm_configs[i]["gradient_checkpoint"] = False
 
     def handle_argument_conflicts(self):
@@ -1180,7 +1181,7 @@ class GSConfig:
 
             if self._return_proba is True and \
                 self.task_type in [BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_EDGE_REGRESSION]:
-                print("WARNING: node regression and edge regression tasks "
+                logging.warning("node regression and edge regression tasks "
                       "automatically ignore --return-proba flag. Regression "
                       "prediction results will be returned.")
             return self._return_proba
@@ -1296,10 +1297,10 @@ class GSConfig:
         assert len(self._target_etype) > 0, \
             "There must be at least one target etype."
         if len(self._target_etype) != 1:
-            print(f"WARNING: only {self._target_etype[0]} will be used."
-                "Currently, GraphStorm only supports single task edge "
-                "classification/regression. Please contact GraphStorm "
-                "dev team to support multi-task.")
+            logging.warning("only %s will be used." + \
+                "Currently, GraphStorm only supports single task edge " + \
+                "classification/regression. Please contact GraphStorm " + \
+                "dev team to support multi-task.", str(self._target_etype[0]))
 
         return [tuple(target_etype.split(',')) for target_etype in self._target_etype]
 
