@@ -53,10 +53,17 @@ class _ReconstructedNeighborSampler():
         self._g = dataset.g
         etypes = self._g.canonical_etypes
         self._subg_etypes = []
+        target_ntypes = set()
         for dst_ntype in reconstructed_embed_ntypes:
             for etype in etypes:
                 if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
                     self._subg_etypes.append(etype)
+                    target_ntypes.add(dst_ntype)
+        remain_ntypes = set(reconstructed_embed_ntypes) - target_ntypes
+        # We need to make sure all node types that require feature construction
+        # can be constructed.
+        assert len(remain_ntypes) == 0, \
+                f"The features of some node types cannot be reconstructed: {remain_ntypes}"
         self._fanout = {}
         for etype in etypes:
             self._fanout[etype] = fanout if etype in self._subg_etypes else 0
