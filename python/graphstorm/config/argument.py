@@ -35,7 +35,8 @@ from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
-from .config import BUILTIN_TASK_LINK_PREDICTION
+from .config import (BUILTIN_TASK_LINK_PREDICTION,
+                     LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
@@ -1667,6 +1668,24 @@ class GSConfig:
         return eval_metric
 
     @property
+    def lp_major_eval_etype(self):
+        """ Canonical etype used for selecting the best model
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_lp_major_eval_etype"):
+            etype = self._lp_major_eval_etype.split(",")
+            if len(etype) == 1:
+                assert etype[0] == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL, \
+                    f"If you want to select model based on the average eval value of all edge types please set lp_major_eval_etype to {LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL}"
+                return etype
+            assert len(etype) == 3, \
+                "If you want to select model based on eval value of a specific etype, the lp_major_eval_etype must be a canonical etype in the format of src,rel,dst"
+            return tuple(etype)
+
+        # Per edge type lp evaluation is disabled.
+        return None
+
+    @property
     def num_ffn_layers_in_input(self):
         """ Number of extra feedforward neural network layers in the input layer
         """
@@ -2016,6 +2035,16 @@ def _add_link_prediction_args(parser):
             "The corresponding feature name is <feat_name>"
             "2)'--lp-edge-weight-for-loss query,adds,asin:weight0 query,clicks,asin:weight1 ..."
             "Different edge types have different weight fields.")
+    group.add_argument("--lp-major-eval-etype", type=str, default=argparse.SUPPRESS,
+            help="Canonical edge type used for selecting best model during link prediction training"
+            "When --lp-major-eval-etype is set, GraphStorm will output per edge type link prediction "
+            "evaluation metric(s) instead of averaged metric(s). And the metric corresponding to "
+            "lp_major_eval_etype will be used to choose the best model. "
+            "It can be in following format:"
+            "1) '--lp-major-eval-etype ALL': Use the average of the evaluation metrics of each edge type"
+            "to select the best model"
+            "2) '--lp-major-eval-etype query,adds,asin': Use the evaluation metric of edge type "
+            "(query,adds,asin) to select the best model")
 
     return parser
 

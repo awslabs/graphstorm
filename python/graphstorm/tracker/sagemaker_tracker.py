@@ -15,6 +15,8 @@
 
     SageMaker task tracker
 """
+import numbers
+
 from .graphstorm_tracker import GSTaskTrackerAbc
 
 class GSSageMakerTaskTracker(GSTaskTrackerAbc):
@@ -54,10 +56,10 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         """
         if force_report or self._do_report(step):
             if metric_value is not None:
-                if isinstance(metric_value, str):
-                    print(f"Step {step} | {metric_name}: {metric_value}")
-                else:
+                if isinstance(metric_value, numbers.Number):
                     print(f"Step {step} | {metric_name}: {metric_value:.4f}")
+                else:
+                    print(f"Step {step} | {metric_name}: {metric_value}")
 
     def log_train_metric(self, metric_name, metric_value, step, force_report=False):
         """ Log train metric

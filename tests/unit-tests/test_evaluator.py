@@ -20,7 +20,7 @@ import torch as th
 from numpy.testing import assert_equal, assert_almost_equal
 import dgl
 
-from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.eval.evaluator import early_stop_avg_increase_judge
@@ -45,14 +45,7 @@ def gen_hg():
     hg = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
     return hg
 
-def test_mrr_lp_evaluator():
-    # system heavily depends on th distributed
-    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
-        master_ip='127.0.0.1', master_port='12346')
-    th.distributed.init_process_group(backend="gloo",
-                                      init_method=dist_init_method,
-                                      world_size=1,
-                                      rank=0)
+def gen_mrr_lp_eval_data():
     # common Dummy objects
     train_data = Dummy({
             "train_idxs": th.randint(10, (10,)),
@@ -72,16 +65,66 @@ def test_mrr_lp_evaluator():
     # test compute_score
     val_pos_scores = th.rand((10,1))
     val_neg_scores = th.rand((10,10))
-    val_scores = {
-        ("u", "r0", "v") : [(val_pos_scores, val_neg_scores / 2), (val_pos_scores, val_neg_scores / 2)],
-        ("u", "r1", "v") : [(val_pos_scores, val_neg_scores / 4)]
-    }
     test_pos_scores = th.rand((10,1))
     test_neg_scores = th.rand((10,10))
-    test_scores = {
-        ("u", "r0", "v") : [(test_pos_scores, test_neg_scores / 2), (test_pos_scores, test_neg_scores / 2)],
-        ("u", "r1", "v") : [(test_pos_scores, test_neg_scores / 4)]
-    }
+
+    return train_data, config, etypes, (val_pos_scores, val_neg_scores), (test_pos_scores, test_neg_scores)
+
+def test_mrr_per_etype_lp_evaluation():
+    # system heavily depends on th distributed
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12346')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=1,
+                                      rank=0)
+    train_data, config, etypes, val_scores, test_scores = gen_mrr_lp_eval_data()
+    val_pos_scores, val_neg_scores = val_scores
+    test_pos_scores, test_neg_scores = test_scores
+
+    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+                                     train_data,
+                                     num_negative_edges_eval=config.num_negative_edges_eval,
+                                     lp_decoder_type=config.lp_decoder_type,
+                                     use_early_stop=config.use_early_stop)
+
+    rank0 = []
+    rank1 = []
+    for i in range(len(val_pos_scores)):
+        val_pos = val_pos_scores[i]
+        val_neg0 = val_neg_scores[i] / 2
+        val_neg1 = val_neg_scores[i] / 4
+        scores = th.cat([val_pos, val_neg0])
+        _, indices = th.sort(scores, descending=True)
+        ranking = th.nonzero(indices == 0) + 1
+        rank0.append(ranking.cpu().detach())
+        rank0.append(ranking.cpu().detach())
+        scores = th.cat([val_pos, val_neg1])
+        _, indices = th.sort(scores, descending=True)
+        ranking = th.nonzero(indices == 0) + 1
+        rank1.append(ranking.cpu().detach())
+    val_ranks = {etypes[0]: th.cat(rank0, dim=0), etypes[1]: th.cat(rank1, dim=0)}
+    val_s = lp.compute_score(val_ranks)
+    mrr = 1.0/val_ranks[etypes[0]]
+    mrr = th.sum(mrr) / len(mrr)
+    assert_almost_equal(val_s['mrr'][etypes[0]], mrr.numpy(), decimal=7)
+    mrr = 1.0/val_ranks[etypes[1]]
+    mrr = th.sum(mrr) / len(mrr)
+    assert_almost_equal(val_s['mrr'][etypes[0]], mrr.numpy(), decimal=7)
+
+
+
+def test_mrr_lp_evaluator():
+    # system heavily depends on th distributed
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12346')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=1,
+                                      rank=0)
+    train_data, config, etypes, val_scores, test_scores = gen_mrr_lp_eval_data()
+    val_pos_scores, val_neg_scores = val_scores
+    test_pos_scores, test_neg_scores = test_scores
 
     lp = GSgnnMrrLPEvaluator(config.eval_frequency,
                              train_data,
