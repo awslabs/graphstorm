@@ -30,10 +30,7 @@ from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
 from graphstorm.config import BUILTIN_LP_DISTMULT_DECODER
-from graphstorm.config import (GRAPHSTORM_MODEL_EMBED_LAYER,
-                               GRAPHSTORM_MODEL_GNN_LAYER,
-                               GRAPHSTORM_MODEL_DECODER_LAYER,
-                               GRAPHSTORM_MODEL_ALL_LAYERS)
+from graphstorm.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
 def check_failure(config, field):
     has_error = False
@@ -926,7 +923,8 @@ def create_lp_config(tmp_path, file_name):
         "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
         "eval_metric": "MRR",
         "lp_decoder_type": "dot_product",
-        "lp_edge_weight_for_loss": ["weight"]
+        "lp_edge_weight_for_loss": ["weight"],
+        "lp_major_eval_etype": "query,click,asin"
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
@@ -940,7 +938,8 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
         "gamma": 1.0,
-        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"]
+        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"],
+        "lp_major_eval_etype": "all"
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -954,7 +953,8 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
         "lp_decoder_type": "transe",
-        "lp_edge_weight_for_loss": ["query,click,asin:weight1"]
+        "lp_edge_weight_for_loss": ["query,click,asin:weight1"],
+        "lp_major_eval_etype": "fail"
     }
     # config for check error value
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
@@ -1007,6 +1007,7 @@ def test_lp_info():
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 12.0
         assert config.lp_edge_weight_for_loss == None
+        assert config.lp_major_eval_etype == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1026,6 +1027,7 @@ def test_lp_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.lp_edge_weight_for_loss == "weight"
+        assert config.lp_major_eval_etype == ("query", "click", "asin")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1043,6 +1045,7 @@ def test_lp_info():
         assert config.gamma == 1.0
         assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == ["weight0"]
         assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == ["weight1"]
+        assert config.lp_major_eval_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1055,6 +1058,7 @@ def test_lp_info():
         check_failure(config, "lp_loss_func")
         check_failure(config, "lp_decoder_type")
         check_failure(config, "lp_edge_weight_for_loss")
+        check_failure(config, "lp_major_eval_etype")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)

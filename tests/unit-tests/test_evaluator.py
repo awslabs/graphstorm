@@ -29,6 +29,8 @@ from graphstorm.eval.evaluator import early_stop_cons_increase_judge
 from graphstorm.config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from graphstorm.config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
+from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+
 
 from util import Dummy
 
@@ -80,6 +82,35 @@ def test_mrr_per_etype_lp_evaluation():
                                       world_size=1,
                                       rank=0)
     train_data, config, etypes, val_scores, test_scores = gen_mrr_lp_eval_data()
+
+    score = {
+        ("a", "r1", "b"): 0.9,
+        ("a", "r2", "b"): 0.8,
+    }
+
+    # Test get_major_score
+    lp = GSgnnPerEtypeMrrLPEvaluator(10,
+        train_data,
+        num_negative_edges_eval=4,
+        lp_decoder_type=BUILTIN_LP_DOT_DECODER,
+        use_early_stop=False)
+    assert lp.major_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+
+    m_score = lp._get_major_score(score)
+    assert m_score == sum(score.values()) / 2
+
+    # Test get_major_score
+    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+        train_data,
+        major_etype=("a", "r2", "b"),
+        num_negative_edges_eval=config.num_negative_edges_eval,
+        lp_decoder_type=config.lp_decoder_type,
+        use_early_stop=config.use_early_stop)
+    assert lp.major_etype == ("a", "r2", "b")
+
+    m_score = lp._get_major_score(score)
+    assert m_score == score[("a", "r2", "b")]
+
     val_pos_scores, val_neg_scores = val_scores
     test_pos_scores, test_neg_scores = test_scores
 

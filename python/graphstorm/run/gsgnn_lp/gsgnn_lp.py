@@ -61,7 +61,7 @@ def get_evaluator(config, train_data):
     """
     assert len(config.eval_metric) == 1, \
         "GraphStorm doees not support computing multiple metrics at the same time."
-    if config.major_etype is None:
+    if config.lp_major_eval_etype is None:
         return GSgnnMrrLPEvaluator(config.eval_frequency,
                                    train_data,
                                    config.num_negative_edges_eval,

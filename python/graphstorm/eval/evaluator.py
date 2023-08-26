@@ -971,6 +971,14 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnMrrLPEvaluator):
                 return_metrics[metric_key][etype] = return_metric.item()
         return return_metrics
 
+    def _get_major_score(self, score):
+        if isinstance(self.major_etype, str) and \
+            self.major_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL:
+            major_score = sum(score.values()) / len(score)
+        else:
+            major_score = score[self.major_etype]
+        return major_score
+
     def evaluate(self, val_scores, test_scores, total_iters):
         """ GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
 
@@ -990,16 +998,6 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnMrrLPEvaluator):
         test_mrr: float
             Test mrr
         """
-        def get_major_score(val_score, test_score):
-            if isinstance(self.major_etype, str) and \
-                self.major_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL:
-                major_val_score = sum(val_score.values()) / len(val_score)
-                major_test_score = sum(test_score.values()) / len(test_score)
-            else:
-                major_val_score = val_score[self.major_etype]
-                major_test_score = test_score[self.major_etype]
-            return major_val_score, major_test_score
-
         with th.no_grad():
             if test_scores is not None:
                 test_score = self.compute_score(test_scores)
@@ -1012,8 +1010,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnMrrLPEvaluator):
                 if get_rank() == 0:
                     for metric in self.metric:
                         # be careful whether > or < it might change per metric.
-                        major_val_score, major_test_score = \
-                            get_major_score(val_score[metric], test_score[metric])
+                        major_val_score = self._get_major_score(val_score[metric])
+                        major_test_score = self._get_major_score(test_score[metric])
                         if self.metrics_obj.metric_comparator[metric](
                             self._best_val_score[metric], major_val_score):
                             self._best_val_score[metric] = major_val_score
@@ -1023,3 +1021,24 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnMrrLPEvaluator):
                 val_score = {"mrr": "N/A"} # Dummy
 
         return val_score, test_score
+
+    def get_val_score_rank(self, val_score):
+        """
+        Get the rank of the given validation score by comparing its values to the existing value
+        list.
+
+        Parameters
+        ----------
+        val_score: dict
+            A dictionary whose key is the metric and the value is a score from evaluator's
+            validation computation.
+        """
+        val_score = list(val_score.values())[0]
+        val_score = self._get_major_score(val_score)
+
+        rank = get_val_score_rank(val_score,
+                                  self._val_perf_rank_list,
+                                  self.get_metric_comparator())
+        # after compare, append the score into existing list
+        self._val_perf_rank_list.append(val_score)
+        return rank

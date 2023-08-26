@@ -325,6 +325,7 @@ class GSConfig:
             _ = self.num_negative_edges
             _ = self.eval_negative_sampler
             _ = self.num_negative_edges_eval
+            _ = self.lp_major_eval_etype
 
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
@@ -1675,9 +1676,9 @@ class GSConfig:
         if hasattr(self, "_lp_major_eval_etype"):
             etype = self._lp_major_eval_etype.split(",")
             if len(etype) == 1:
-                assert etype[0] == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL, \
+                assert etype[0].upper() == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL, \
                     f"If you want to select model based on the average eval value of all edge types please set lp_major_eval_etype to {LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL}"
-                return etype
+                return LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
             assert len(etype) == 3, \
                 "If you want to select model based on eval value of a specific etype, the lp_major_eval_etype must be a canonical etype in the format of src,rel,dst"
             return tuple(etype)
