@@ -921,7 +921,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnMrrLPEvaluator):
     """
     def __init__(self, eval_frequency, data,
                  num_negative_edges_eval, lp_decoder_type,
-                 major_etype = "all",
+                 major_etype = LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,

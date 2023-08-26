@@ -17,6 +17,7 @@ from unittest.mock import patch, MagicMock
 import operator
 
 import torch as th
+import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal
 import dgl
 
@@ -83,10 +84,10 @@ def test_mrr_per_etype_lp_evaluation():
     test_pos_scores, test_neg_scores = test_scores
 
     lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
-                                     train_data,
-                                     num_negative_edges_eval=config.num_negative_edges_eval,
-                                     lp_decoder_type=config.lp_decoder_type,
-                                     use_early_stop=config.use_early_stop)
+        train_data,
+        num_negative_edges_eval=config.num_negative_edges_eval,
+        lp_decoder_type=config.lp_decoder_type,
+        use_early_stop=config.use_early_stop)
 
     rank0 = []
     rank1 = []
@@ -110,9 +111,60 @@ def test_mrr_per_etype_lp_evaluation():
     assert_almost_equal(val_s['mrr'][etypes[0]], mrr.numpy(), decimal=7)
     mrr = 1.0/val_ranks[etypes[1]]
     mrr = th.sum(mrr) / len(mrr)
-    assert_almost_equal(val_s['mrr'][etypes[0]], mrr.numpy(), decimal=7)
+    assert_almost_equal(val_s['mrr'][etypes[1]], mrr.numpy(), decimal=7)
 
+    rank0 = []
+    rank1 = []
+    for i in range(len(test_pos_scores)):
+        val_pos = test_pos_scores[i]
+        val_neg0 = test_neg_scores[i] / 2
+        val_neg1 = test_neg_scores[i] / 4
+        scores = th.cat([val_pos, val_neg0])
+        _, indices = th.sort(scores, descending=True)
+        ranking = th.nonzero(indices == 0) + 1
+        rank0.append(ranking.cpu().detach())
+        rank0.append(ranking.cpu().detach())
+        scores = th.cat([val_pos, val_neg1])
+        _, indices = th.sort(scores, descending=True)
+        ranking = th.nonzero(indices == 0) + 1
+        rank1.append(ranking.cpu().detach())
+    test_ranks =  {etypes[0]: th.cat(rank0, dim=0), etypes[1]: th.cat(rank1, dim=0)}
+    test_s = lp.compute_score(test_ranks)
+    mrr = 1.0/test_ranks[etypes[0]]
+    mrr = th.sum(mrr) / len(mrr)
+    assert_almost_equal(np.array([test_s['mrr'][etypes[0]]]), mrr.numpy(), decimal=7)
+    mrr = 1.0/test_ranks[etypes[1]]
+    mrr = th.sum(mrr) / len(mrr)
+    assert_almost_equal(np.array([test_s['mrr'][etypes[1]]]), mrr.numpy(), decimal=7)
 
+    val_sc, test_sc = lp.evaluate(val_ranks, test_ranks, 0)
+    val_s_mrr = (val_s['mrr'][etypes[0]] + val_s['mrr'][etypes[1]]) / 2
+    test_s_mrr = (test_s['mrr'][etypes[0]] + test_s['mrr'][etypes[1]]) / 2
+    assert_equal(val_s['mrr'][etypes[0]], val_sc['mrr'][etypes[0]])
+    assert_equal(val_s['mrr'][etypes[1]], val_sc['mrr'][etypes[1]])
+    assert_equal(test_s['mrr'][etypes[0]], test_sc['mrr'][etypes[0]])
+    assert_equal(test_s['mrr'][etypes[1]], test_sc['mrr'][etypes[1]])
+
+    assert_almost_equal(np.array([val_s_mrr]), lp.best_val_score['mrr'])
+    assert_almost_equal(np.array([test_s_mrr]), lp.best_test_score['mrr'])
+
+    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+        train_data,
+        major_etype=etypes[1],
+        num_negative_edges_eval=config.num_negative_edges_eval,
+        lp_decoder_type=config.lp_decoder_type,
+        use_early_stop=config.use_early_stop)
+
+    val_sc, test_sc = lp.evaluate(val_ranks, test_ranks, 0)
+    assert_equal(val_s['mrr'][etypes[0]], val_sc['mrr'][etypes[0]])
+    assert_equal(val_s['mrr'][etypes[1]], val_sc['mrr'][etypes[1]])
+    assert_equal(test_s['mrr'][etypes[0]], test_sc['mrr'][etypes[0]])
+    assert_equal(test_s['mrr'][etypes[1]], test_sc['mrr'][etypes[1]])
+
+    assert_almost_equal(val_s['mrr'][etypes[1]], lp.best_val_score['mrr'])
+    assert_almost_equal(test_s['mrr'][etypes[1]], lp.best_test_score['mrr'])
+
+    th.distributed.destroy_process_group()
 
 def test_mrr_lp_evaluator():
     # system heavily depends on th distributed
@@ -844,6 +896,7 @@ def test_get_val_score_rank():
 
 if __name__ == '__main__':
     # test evaluators
+    test_mrr_per_etype_lp_evaluation()
     test_mrr_lp_evaluator()
     test_acc_evaluator()
     test_regression_evaluator()
