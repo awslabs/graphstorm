@@ -391,18 +391,20 @@ def test_node_dataloader_reconstruct():
                                      train_ntypes=['n0'], label_field='label',
                                      node_feat_field={'n0': ['feat'], 'n4': ['feat']})
 
-    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    feat_sizes = gs.gsf.get_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
     target_idx = {'n0': th.arange(np_data.g.number_of_nodes('n0'))}
+    # Test the case that we cannot construct all node features.
     try:
         dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
                                          train_task=False, reconstructed_embed_ntype=['n1', 'n2'])
         assert False
     except:
         pass
+
+    # Test the case that we construct node features for one-layer GNN.
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
                                      train_task=False, reconstructed_embed_ntype=['n2'])
     all_nodes = []
-    feat_sizes = gs.gsf.get_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
                                                                      ['n1', 'n2'], feat_sizes)
     for input_nodes, seeds, blocks in dataloader:
@@ -413,11 +415,50 @@ def test_node_dataloader_reconstruct():
                 assert blocks[0].number_of_edges(etype) > 0
             else:
                 assert blocks[0].number_of_edges(etype) == 0
-        for ntype in blocks[1].srctypes:
-            nids = blocks[1].srcnodes[ntype].data[dgl.NID].numpy()
+        for ntype in blocks[0].srctypes:
+            assert ntype in input_nodes
+            nids = blocks[0].srcnodes[ntype].data[dgl.NID].numpy()
+            assert len(nids) <= len(input_nodes[ntype])
             nodes = input_nodes[ntype].numpy()
-            for nid in nids:
-                assert nid in nodes
+            if len(nids) > 0:
+                assert np.all(nodes[-len(nids):] == nids)
+        for ntype in blocks[1].srctypes:
+            assert ntype in input_nodes
+            nids = blocks[1].srcnodes[ntype].data[dgl.NID].numpy()
+            assert len(nids) <= len(input_nodes[ntype])
+            nodes = input_nodes[ntype].numpy()
+            assert np.all(nodes[0:len(nids)] == nids)
+        all_nodes.append(seeds['n0'])
+    all_nodes = th.cat(all_nodes)
+    assert_equal(all_nodes.numpy(), target_idx['n0'])
+
+    # Test the case that we construct node features for two-layer GNN.
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10, 10], 10, 'cuda:0',
+                                     train_task=False, reconstructed_embed_ntype=['n3'])
+    all_nodes = []
+    rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
+                                                                     ['n3'], feat_sizes)
+    for input_nodes, seeds, blocks in dataloader:
+        assert 'n0' in seeds
+        assert len(blocks) == 3
+        for etype in blocks[0].canonical_etypes:
+            if etype in rel_names_for_reconstruct:
+                assert blocks[0].number_of_edges(etype) > 0
+            else:
+                assert blocks[0].number_of_edges(etype) == 0
+        for ntype in blocks[0].srctypes:
+            assert ntype in input_nodes
+            nids = blocks[0].srcnodes[ntype].data[dgl.NID].numpy()
+            assert len(nids) <= len(input_nodes[ntype])
+            nodes = input_nodes[ntype].numpy()
+            if len(nids) > 0:
+                assert np.all(nodes[-len(nids):] == nids)
+        for ntype in blocks[1].srctypes:
+            assert ntype in input_nodes
+            nids = blocks[1].srcnodes[ntype].data[dgl.NID].numpy()
+            assert len(nids) <= len(input_nodes[ntype])
+            nodes = input_nodes[ntype].numpy()
+            assert np.all(nodes[0:len(nids)] == nids)
         all_nodes.append(seeds['n0'])
     all_nodes = th.cat(all_nodes)
     assert_equal(all_nodes.numpy(), target_idx['n0'])

@@ -821,7 +821,8 @@ class GSgnnNodeDataLoader():
             blocks.insert(0, block)
             for ntype in block.srctypes:
                 if block.num_src_nodes(ntype) > 0:
-                    input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
+                    input_nodes[ntype] = th.cat([input_nodes[ntype],
+                                                 block.srcnodes[ntype].data[dgl.NID]])
         return input_nodes, seeds, blocks
 
     @property

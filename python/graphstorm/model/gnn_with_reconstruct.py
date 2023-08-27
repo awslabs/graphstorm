@@ -57,9 +57,22 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         """
         assert len(blocks) == self._gnn_encoder.num_layers + 1, \
                 "There are {len(blocks)}, but there are {self._gnn_encoder.num_layers} GNN layers."
-        outs = self._input_gnn(blocks[0], h)
+        ins = {}
+        # The node features of the input layer may be stored at the end of the input tensors.
+        for ntype in blocks[0].srctypes:
+            if ntype in h and blocks[0].num_src_nodes(ntype) > 0:
+                ins[ntype] = h[ntype][-blocks[0].num_src_nodes(ntype):]
+        outs = self._input_gnn(blocks[0], ins)
         for ntype, out in outs.items():
             h[ntype] = out
+        # The node features for the remaining layers may be stored
+        # at the beginning of the input tensors.
+        for ntype in blocks[1].srctypes:
+            if ntype in h:
+                assert len(h[ntype]) >= blocks[1].num_src_nodes(ntype)
+                num_src_nodes = blocks[1].num_src_nodes(ntype)
+                if len(h[ntype]) > num_src_nodes:
+                    h[ntype] = h[ntype][0:num_src_nodes]
         return self._gnn_encoder(blocks[1:], h)
 
     def dist_inference(self, g, get_input_embeds, batch_size, fanout,
@@ -122,6 +135,7 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
                 else:
                     orig_inputs[ntype] = nodes
             embeds1 = get_input_embeds(orig_inputs)
+            assert len(embeds1) == len(orig_inputs)
             embeds.update(embeds1)
             return {ntype: embed.to(device) for ntype, embed in embeds.items()}
         return self._gnn_encoder.dist_inference(g, get_input_embeds1, batch_size, fanout,
