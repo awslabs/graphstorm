@@ -820,7 +820,14 @@ class GSgnnNodeDataLoader():
             block = self._reconstructed_embed_sampler.sample(blocks[0])
             blocks.insert(0, block)
             for ntype in block.srctypes:
-                if block.num_src_nodes(ntype) > 0:
+                # If the node type are destination nodes, these nodes are input nodes
+                # for the GNN layers. All source nodes contains all input nodes
+                # of this node type for the mini-batch.
+                if block.num_dst_nodes(ntype) > 0:
+                    input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
+                # If the node type only exists in the source nodes, we should add
+                # these source nodes as input nodes for the mini-batch.
+                elif block.num_src_nodes(ntype) > 0:
                     input_nodes[ntype] = th.cat([input_nodes[ntype],
                                                  block.srcnodes[ntype].data[dgl.NID]])
         return input_nodes, seeds, blocks
