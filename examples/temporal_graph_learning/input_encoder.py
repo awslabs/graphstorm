@@ -14,6 +14,24 @@ import dgl
 
 
 class NodeEncoderInputLayer(gsmodel.embed.GSNodeInputLayer):
+    """The temporal input encoder layer for all nodes in a heterogeneous graph.
+
+    The input layer adds a linear layer on nodes with node features and the linear layer projects the node
+    features to a specified dimension.
+    Then, the input layer adds learnable embeddings as temporal encoding on the projected node features.
+
+
+    Parameters
+    ----------
+    g: DistGraph
+        The distributed graph
+    feat_size : dict of int
+        The original feat sizes of each node type
+    embed_size : int
+        The embedding size
+    dropout : float
+        The dropout parameter
+    """
     def __init__(
         self,
         g,
@@ -40,6 +58,19 @@ class NodeEncoderInputLayer(gsmodel.embed.GSNodeInputLayer):
     def forward(
         self, input_feats, input_nodes
     ):
+        """Forward computation
+
+        Parameters
+        ----------
+        input_feats: dict
+            input features
+        input_nodes: dict
+            input node ids
+
+        Returns
+        -------
+        a dict of Tensor: the node embeddings.
+        """
         assert isinstance(input_nodes, dict), "The input node IDs should be in a dict."
 
         for ntype, feats in input_feats.items():

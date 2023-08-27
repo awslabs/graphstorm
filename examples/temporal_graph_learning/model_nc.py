@@ -5,16 +5,29 @@ import torch.nn.functional as F
 import graphstorm as gs
 
 from input_encoder import NodeEncoderInputLayer
-from gnn_encoder import RelationalGraphEncoder
+from gnn_encoder import TemporalRelationalGraphEncoder
 from graphstorm.model.node_decoder import EntityClassifier
 from graphstorm.model.loss_func import ClassifyLossFunc
 
 def create_rgcn_model_for_nc(g, config):
+    """ Create a customized model for node prediction.
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph used in training and testing
+    config: GSConfig
+        Configurations
+
+    Returns
+    -------
+    GSgnnNodeModel : The GNN model.
+    """
+
     model = gs.model.GSgnnNodeModel(config.alpha_l2norm)
 
     # Set input layer (project input feats to hidden dims)
     feat_size = gs.get_feat_size(g, config.node_feat_name)
-    print('feat_size', feat_size)
     encoder = NodeEncoderInputLayer(
         g,
         config.hidden_size,
@@ -23,9 +36,9 @@ def create_rgcn_model_for_nc(g, config):
     )
     model.set_node_input_encoder(encoder)
 
-    # Set customized GNN encoders & decoder 
+    # Set customized GNN encoders & decoder
     model.set_gnn_encoder(
-        RelationalGraphEncoder(
+        TemporalRelationalGraphEncoder(
             g,
             config.hidden_size,
             config.hidden_size,

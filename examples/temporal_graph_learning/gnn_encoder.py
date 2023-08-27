@@ -15,13 +15,30 @@ import torch.nn.functional as F
 
 from dgl.nn import GATConv
 
-class RelationalGraphEncoder(gsmodel.gnn_encoder_base.GraphConvEncoder):
+class TemporalRelationalGraphEncoder(gsmodel.gnn_encoder_base.GraphConvEncoder):
+    """ Relational temporal graph conv encoder.
+
+    Parameters
+    ----------
+    g: DistGraph
+        The distributed graph
+    h_dim : int
+        Hidden dimension
+    out_dim : int
+        Output dimension
+    num_hidden_layers : int
+        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
+    num_heads : int
+        Number of attention heads
+    dropout : float
+        Dropout. Default 0.
+    """
     def __init__(self, g, h_dim, out_dim, num_hidden_layers, num_heads=0, dropout=0):
-        super(RelationalGraphEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
+        super(TemporalRelationalGraphEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         self.node_fields = get_unique_nfields(g.etypes)
         for _ in range(num_hidden_layers):
             self.layers.append(
-                RelGraphConvLayer(
+                ResidualTemporalRelationalGraphConv(
                     g,
                     in_feat=h_dim,
                     out_feat=h_dim,
@@ -31,7 +48,7 @@ class RelationalGraphEncoder(gsmodel.gnn_encoder_base.GraphConvEncoder):
                 )
             )
         self.layers.append(
-            RelGraphConvLayer(
+            ResidualTemporalRelationalGraphConv(
                 g,
                 in_feat=h_dim,
                 out_feat=out_dim,
@@ -42,24 +59,59 @@ class RelationalGraphEncoder(gsmodel.gnn_encoder_base.GraphConvEncoder):
         )
 
     def forward(self, blocks, inputs):
+        """Forward computation.
+
+        Parameters
+        ----------
+        blocks: DGL MFGs
+            Sampled subgraph in DGL MFG
+        inputs: dict[str, torch.Tensor]
+            Input node feature for each node type.
+        """
         h = to_per_field_nfeats(inputs, self.node_fields)
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)
         h = average_over_fields(h)
         return h
 
-class RelGraphConvLayer(nn.Module):
+class ResidualTemporalRelationalGraphConv(nn.Module):
+    """ Relational temporal graph conv layer with residual connection.
+
+    Parameters
+    ----------
+    g: DistGraph
+        The distributed graph
+    in_feat : int
+        Input dimension
+    out_dim : int
+        Output dimension
+    num_heads : int
+        Number of attention heads
+    activation: torch.nn.Module
+        Activation function.
+    dropout : float
+        Dropout. Default 0.
+    """
     def __init__(self, g, in_feat, out_feat, num_heads, activation=None, dropout=0.0):
-        super(RelGraphConvLayer, self).__init__()
+        super(ResidualTemporalRelationalGraphConv, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
         self.activation = activation
         self.dropout = nn.Dropout(dropout)
 
-        self.conv = HeteroGraphConv(g, in_feat, out_feat, num_heads)
+        self.conv = TemporalRelationalGraphConv(g, in_feat, out_feat, num_heads)
         self.loop_weights = nn.Linear(in_feat, out_feat, bias=True)
 
     def forward(self, g, inputs):
+        """Forward computation. Residual connection is used.
+
+        Parameters
+        ----------
+        g: DGL MFGs
+            Sampled subgraph in DGL MFG
+        inputs: dict[str, torch.Tensor]
+            Input node feature for each node type.
+        """
         g = g.local_var()
         hs = self.conv(g, inputs)
 
@@ -80,9 +132,22 @@ class RelGraphConvLayer(nn.Module):
 
         return outputs
 
-class HeteroGraphConv(nn.Module):
+class TemporalRelationalGraphConv(nn.Module):
+    """ Relational temporal graph conv layer without residual connection.
+
+    Parameters
+    ----------
+    g: DistGraph
+        The distributed graph
+    in_feat : int
+        Input dimension
+    out_dim : int
+        Output dimension
+    num_heads : int
+        Number of attention heads
+    """
     def __init__(self, g, in_feat, out_feat, num_heads):
-        super(HeteroGraphConv, self).__init__()
+        super(TemporalRelationalGraphConv, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
         self.node_fields = get_unique_nfields(g.etypes)
@@ -104,6 +169,15 @@ class HeteroGraphConv(nn.Module):
             self.conv[conv_name] = gc_layer
 
     def forward(self, g, inputs):
+        """Forward computation.
+
+        Parameters
+        ----------
+        g: DGL MFGs
+            Sampled subgraph in DGL MFG
+        inputs: dict[str, torch.Tensor]
+            Input node feature for each node type.
+        """
         mapping = get_merge_canonical_etype_mapping(g.canonical_etypes)
 
         outputs = {}
@@ -112,6 +186,7 @@ class HeteroGraphConv(nn.Module):
 
         for stype, etype, dtype in g.canonical_etypes:
             merge_canonical_etypes = mapping[stype, etype, dtype]
+            # construct a new DGLBlock for temporal aggregation
             rel_graph, src_inputs, dst_inputs = merge_multi_blocks(
                 g, inputs, merge_canonical_etypes
             )

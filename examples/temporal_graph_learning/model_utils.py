@@ -17,7 +17,7 @@ def get_trainable_params(in_dims, out_dims):
 
     Returns
     -------
-    Tensor of size (in_dims, out_dims)
+        Tensor of size (in_dims, out_dims)
     """
     params = nn.Parameter(torch.Tensor(in_dims, out_dims))
     nn.init.xavier_uniform_(params, gain=nn.init.calculate_gain("relu"))
@@ -25,7 +25,7 @@ def get_trainable_params(in_dims, out_dims):
 
 def to_per_field_nfeats(inputs, fields):
     """
-    This function column-wise splits tensors in `inputs` into multiple sub-tensors,
+    This function splits tensors in `inputs` into multiple sub-tensors column-wise,
     then name each sub-tensor according to the field name in `fields`.
 
         inputs = {
@@ -41,15 +41,14 @@ def to_per_field_nfeats(inputs, fields):
 
     Parameters
     ----------
-    inputs: dict of Tensors
+    inputs: dict of Tensor
         A dictionary that maps the ntype to its ntype feature
-    fields: list of Strings
+    fields: list of String
         The fields that contain the node features
 
     Returns
     -------
-    Dict of Dict of Tensor that map ntype -> field_name -> tensor
-
+        dict of dict of Tensor
     """
     outputs = {}
     for ntype, all_feats in inputs.items():
@@ -153,7 +152,7 @@ def get_unique_nfields(rel_names):
 
     Returns
     -------
-        list of int: list of number suffix of each relation name
+        list of int: list of sorted number suffix of each relation name
     """
     field_ids = [rel_field_map(rel_name) for rel_name in rel_names]
     field_ids = list(set(field_ids))
@@ -223,7 +222,7 @@ def merge_multi_blocks(block, embs, merge_canonical_etypes):
             ('paper', 'cite_05', 'paper')
         ]
     Then, this function return a new DGLBlock that considers all edges in `merge_canonical_etypes`
-    to construct the edges in ('paper', 'cite_05', 'paper'). By doing so, we can day 5's output only get information
+    to construct the edges in ('paper', 'cite_05', 'paper'). By doing so, day 5's output only get information
     from day 4's input embeddings and day 5's input embeddings.
 
     Parameters
@@ -234,7 +233,7 @@ def merge_multi_blocks(block, embs, merge_canonical_etypes):
     embs: dict of Tensor
         This is the hidden embs, e.g., {ntype1: Tensor1, ntype2: Tensor2}
 
-    merge_canonical_etypes: dict that map each edge type to a list of etyeps
+    merge_canonical_etypes: list of edge types
         This is the return of function `get_merge_canonical_etype_mapping`
 
     Returns

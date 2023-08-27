@@ -11,6 +11,8 @@ from graphstorm.trainer import GSgnnNodePredictionTrainer
 from model_nc import create_rgcn_model_for_nc
 
 def main(config_args):
+    """ main function
+    """
     config = GSConfig(config_args)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
 
