@@ -160,8 +160,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     use_node_embeddings : bool
         Whether we will use learnable embeddings for individual nodes even when node features are
         available.
-    force_no_embeddings : bool
-        Whether we force to not use learnable embeddings even on featureless nodes.
+    force_no_embeddings : list of str
+        The list node types that are forced to not have learnable embeddings.
     num_ffn_layers_in_input: int, optional
         Number of layers of feedforward neural network for each node type in the input layers
     ffn_activation : callable
@@ -174,7 +174,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
-                 force_no_embeddings=False,
+                 force_no_embeddings=None,
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
                  ):
@@ -182,9 +182,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
-        if force_no_embeddings:
-            assert not use_node_embeddings, \
-                    "When forcing no embeddings, we don't allow use_node_embeddings=True."
+        if force_no_embeddings is None:
+            force_no_embeddings = []
 
         self.activation = activation
 
@@ -228,7 +227,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     # nn.ParameterDict support this assignment operation if not None,
                     # so disable the pylint error
                     self.proj_matrix[ntype] = proj_matrix   # pylint: disable=unsupported-assignment-operation
-            elif not force_no_embeddings:
+            elif ntype not in force_no_embeddings:
                 part_policy = g.get_node_partition_policy(ntype)
                 if get_rank() == 0:
                     print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')

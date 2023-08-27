@@ -87,10 +87,11 @@ def create_rgcn_node_model_with_reconstruct(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, {'n0': 'feat', 'n4': 'feat'})
+    reconstructed_embed_ntype=['n2']
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=False,
-                                      force_no_embeddings=True)
+                                      force_no_embeddings=reconstructed_embed_ntype)
     model.set_node_input_encoder(encoder)
 
     gnn_encoder = RelationalGCNEncoder(g, 4, 4,
@@ -98,7 +99,6 @@ def create_rgcn_node_model_with_reconstruct(g):
                                        num_hidden_layers=0,
                                        dropout=0,
                                        use_self_loop=True)
-    reconstructed_embed_ntype=['n2']
     rel_names = get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size)
     dst_types = set([rel_name[2] for rel_name in rel_names])
     for ntype in reconstructed_embed_ntype:

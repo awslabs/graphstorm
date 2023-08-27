@@ -485,7 +485,7 @@ def set_encoder(model, g, config, train_task):
                                           dropout=config.dropout,
                                           activation=config.input_activate,
                                           use_node_embeddings=config.use_node_embeddings,
-                                          force_no_embeddings=reconstruct_feats,
+                                          force_no_embeddings=config.reconstructed_embed_ntype,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)
 

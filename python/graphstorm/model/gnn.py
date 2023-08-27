@@ -522,7 +522,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         return embs
 
-    def compute_embed_step(self, blocks, input_feats):
+    def compute_embed_step(self, blocks, input_feats, input_nodes):
         """ Compute the GNN embeddings on a mini-batch.
 
         This function is used for mini-batch inference.
@@ -533,6 +533,8 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             The message flow graphs for computing GNN embeddings.
         input_feats : dict of Tensors
             The input node features.
+        input_nodes : dict of Tensors
+            The input node IDs.
 
         Returns
         -------
@@ -540,8 +542,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         device = blocks[0].device
         if self.node_input_encoder is not None:
-            input_nodes = {ntype: blocks[0].srcnodes[ntype].data[dgl.NID].cpu() \
-                    for ntype in blocks[0].srctypes}
             embs = self.node_input_encoder(input_feats, input_nodes)
             embs = {name: emb.to(device) for name, emb in embs.items()}
         else:
