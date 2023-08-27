@@ -960,8 +960,8 @@ class GSConfig:
         """ The encoder used for reconstructing node features.
         """
         if hasattr(self, "_reconstruct_encoder"):
-            assert self._reconstruct_encoder in BUILTIN_GNN_ENCODER, \
-                    f"Feature reconstruction encoder type should be in {BUILTIN_GNN_ENCODER}"
+            assert self._reconstruct_encoder == "rgcn", \
+                    f"Feature reconstruction currently only support rgcn."
             return self._reconstruct_encoder
         else:
             return "rgcn"
