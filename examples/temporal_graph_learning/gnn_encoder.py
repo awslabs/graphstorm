@@ -6,7 +6,6 @@ from model_utils import rel_field_map
 from model_utils import rel_name_map
 from model_utils import average_over_fields
 from model_utils import get_unique_etype_triplet
-from model_utils import get_temporal_restrict_fields
 
 from model_utils import merge_multi_blocks, get_merge_canonical_etype_mapping
 
@@ -87,7 +86,6 @@ class HeteroGraphConv(nn.Module):
         self.in_feat = in_feat
         self.out_feat = out_feat
         self.node_fields = get_unique_nfields(g.etypes)
-        self.temporal_restrict_fields = get_temporal_restrict_fields(self.node_fields)
 
         self.conv = nn.ModuleDict()
         for canonical_etypes in get_unique_etype_triplet(g.canonical_etypes):
