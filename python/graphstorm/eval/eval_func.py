@@ -25,7 +25,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import precision_recall_curve, auc, classification_report
 
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
-    'roc_auc', 'f1_score', 'per_class_f1_score'}
+    'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc'}
 SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
 SUPPORTED_LINK_PREDICTION_METRICS = {"mrr"}
 
@@ -43,6 +43,7 @@ class ClassificationMetrics:
         self.metric_comparator["roc_auc"] = operator.le
         self.metric_comparator["f1_score"] = operator.le
         self.metric_comparator["per_class_f1_score"] = comparator_per_class_f1_score
+        self.metric_comparator["per_class_roc_auc"] = operator.le
 
         # This is the operator used to measure each metric performance in training
         self.metric_function = {}
@@ -51,6 +52,7 @@ class ClassificationMetrics:
         self.metric_function["roc_auc"] = compute_roc_auc
         self.metric_function["f1_score"] = compute_f1_score
         self.metric_function["per_class_f1_score"] = compute_f1_score
+        self.metric_function["per_class_roc_auc"] = compute_roc_auc
 
         # This is the operator used to measure each metric performance in evaluation
         self.metric_eval_function = {}
@@ -59,6 +61,7 @@ class ClassificationMetrics:
         self.metric_eval_function["roc_auc"] = compute_roc_auc
         self.metric_eval_function["f1_score"] = compute_f1_score
         self.metric_eval_function["per_class_f1_score"] = compute_per_class_f1_score
+        self.metric_eval_function["per_class_roc_auc"] = compute_per_class_roc_auc
 
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
@@ -289,6 +292,17 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
         print("Failure found during evaluation of the auc metric returning -1", e)
     return auc_score
 
+def compute_per_class_roc_auc(y_preds, y_targets):
+    """ compute f1 score per class
+    """
+    y_true = y_targets.cpu().numpy()
+    y_pred = y_preds.cpu().numpy()
+    roc_auc_report = {}
+
+    for class_id in range(y_true.shape[1]):
+        roc_auc_report[class_id] = roc_auc_score(y_true[:,class_id],
+                                                 y_pred[:,class_id])
+    return roc_auc_report
 
 class PRKeys(str, Enum):
     """ Enums support iteration in definition order--order matters here
