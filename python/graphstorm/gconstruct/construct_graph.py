@@ -642,8 +642,14 @@ def process_graph(args):
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
     verify_confs(process_confs)
+    output_format = args.output_format.split(" ")
+    for format in output_format:
+        assert format in ["DGL", "DistDGL"], \
+            f'Unknown output format: {format}'
+
     # We only store data to external memory if we partition a graph for distributed training.
-    ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
+    ext_mem_workspace = args.ext_mem_workspace \
+        if len(output_format) == 1 and output_format == "DistDGL" else None
     convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
 
     node_id_map, node_data, node_label_stats = \
@@ -693,15 +699,15 @@ def process_graph(args):
             edge_data[srctype_etype_dsttype]["test_mask"] = \
                 edge_data[srctype_etype_dsttype]["test_mask"].squeeze(1).astype('int8')
 
-    if args.output_format == "DistDGL":
+    if  "DistDGL" in output_format:
         assert args.part_method in ["metis", "random"], \
                 "We only support 'metis' or 'random'."
         partition_graph(g, node_data, edge_data, args.graph_name,
                         args.num_parts, args.output_dir,
                         save_mapping=True, # always save mapping
                         part_method=args.part_method)
-        output_dirs = [args.output_dir]
-    elif args.output_format == "DGL":
+
+    if "DGL" in output_format:
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
                 if isinstance(ndata, ExtMemArrayWrapper):
@@ -715,47 +721,17 @@ def process_graph(args):
                 else:
                     g.edges[etype].data[name] = th.tensor(edata)
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
-        output_dirs = [args.output_dir]
-    elif args.output_format == "both":
-        # Save both DistDGL and DGL graph
-        for ntype in node_data:
-            for name, ndata in node_data[ntype].items():
-                if isinstance(ndata, ExtMemArrayWrapper):
-                    g.nodes[ntype].data[name] = ndata.to_tensor()
-                else:
-                    g.nodes[ntype].data[name] = th.tensor(ndata)
-        for etype in edge_data:
-            for name, edata in edge_data[etype].items():
-                if isinstance(edata, ExtMemArrayWrapper):
-                    g.edges[etype].data[name] = edata.to_tensor()
-                else:
-                    g.edges[etype].data[name] = th.tensor(edata)
-        dglgraph_output_dir = os.path.join(args.output_dir, "dglgraph")
-        dgl.save_graphs(os.path.join(dglgraph_output_dir, args.graph_name + ".dgl"), [g])
 
-        assert args.part_method in ["metis", "random"], \
-                "We only support 'metis' or 'random'."
+    if len(node_label_stats) > 0:
+        save_node_label_stats(args.output_dir, node_label_stats)
+    if len(edge_label_stats) > 0:
+        save_edge_label_stats(args.output_dir, edge_label_stats)
 
-        distdgl_output_dir = os.path.join(args.output_dir, "dist_dglgraph")
-        partition_graph(g, node_data, edge_data, args.graph_name,
-                        args.num_parts, distdgl_output_dir,
-                        save_mapping=True, # always save mapping
-                        part_method=args.part_method)
-        output_dirs = [dglgraph_output_dir, distdgl_output_dir]
-    else:
-        raise ValueError('Unknown output format: {}'.format(args.output_format))
-
-    for output_dir in output_dirs:
-        if len(node_label_stats) > 0:
-            save_node_label_stats(output_dir, node_label_stats)
-        if len(edge_label_stats) > 0:
-            save_edge_label_stats(output_dir, edge_label_stats)
-
-        for ntype in node_id_map:
-            map_file = os.path.join(output_dir, ntype + "_id_remap.parquet")
-            if node_id_map[ntype].save(map_file):
-                logging.info("Graph construction generates new node IDs for '%s'. " + \
-                        "The ID map is saved in %s.", ntype, map_file)
+    for ntype in node_id_map:
+        map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
+        if node_id_map[ntype].save(map_file):
+            logging.info("Graph construction generates new node IDs for '%s'. " + \
+                    "The ID map is saved in %s.", ntype, map_file)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
@@ -778,7 +754,10 @@ if __name__ == '__main__':
     argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
     argparser.add_argument("--output-format", type=str, default="DistDGL",
-                           help="The output format of the constructed graph.")
+                           help="The output format of the constructed graph."
+                                "It can be a single output format, for example "
+                                "--output-format 'DGL'. It can also be multiple "
+                                "formats, for example --output-format 'DGL DistDGL'")
     argparser.add_argument("--num-parts", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
