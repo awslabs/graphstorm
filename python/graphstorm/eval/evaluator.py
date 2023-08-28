@@ -972,6 +972,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnMrrLPEvaluator):
         return return_metrics
 
     def _get_major_score(self, score):
+        """ Get the score for save best model(s) and early stop
+        """
         if isinstance(self.major_etype, str) and \
             self.major_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL:
             major_score = sum(score.values()) / len(score)
