@@ -21,6 +21,7 @@ import math
 import torch
 import torch.nn.functional as F
 import dgl.function as fn
+
 from torch import nn
 from dgl.nn.functional import edge_softmax
 from .ngnn_mlp import NGNNMLP
@@ -31,7 +32,7 @@ class HGTLayer(nn.Module):
     r"""Heterogenous graph transformer (HGT) layer.
     
     Different from DGL's HGTConv, this implementation is based on heterogeneous graph.
-    Other hyperparameters' default values are same as the DGL's setting.
+    Other hyperparameters' default values are same as the DGL's HGTConv setting.
     
     Parameters
     ----------
@@ -219,16 +220,16 @@ class HGTEncoder(GraphConvEncoder):
     Parameters
     g : DGLHeteroGraph
         Input graph.
-    h_dim: int
+    hid_dim: int
         Hidden dimension size
     out_dim: int
         Output dimension size
+    num_hidden_layers: int
+        Number of hidden layers
     num_heads: int
         Number of heads
-    num_hidden_layers: int
-        Num hidden layers
     dropout: float
-        Dropout
+        Dropout, default is 0.2
     use_norm: boolean
         If use layer normalization or not, default is False
     num_ffn_layers_in_gnn: int
@@ -240,7 +241,7 @@ class HGTEncoder(GraphConvEncoder):
                  out_dim,
                  num_hidden_layers,
                  num_heads,
-                 dropout=0.0,
+                 dropout=0.2,
                  use_norm=False,
                  num_ffn_layers_in_gnn=0):
         super(HGTEncoder, self).__init__(hid_dim, out_dim, num_hidden_layers)
@@ -275,6 +276,11 @@ class HGTEncoder(GraphConvEncoder):
             Sampled subgraph in DGL MFG
         h: dict[str, torch.Tensor]
             Input node feature for each node type.
+            
+        Returns
+        ----------
+        h: dict[str, torch.Tensor]
+            Output node feature for each node type.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)
