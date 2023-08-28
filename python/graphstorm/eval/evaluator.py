@@ -23,7 +23,7 @@ from .eval_func import ClassificationMetrics, RegressionMetrics, LinkPredictionM
 from .utils import broadcast_data
 from ..config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from ..config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
-from ..utils import get_rank
+from ..utils import get_rank, get_world_size, barrier
 from .utils import gen_mrr_score
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
@@ -385,8 +385,8 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
                 Test MSE
         """
         # exchange preds and labels between runners
-        local_rank = th.distributed.get_rank()
-        world_size = th.distributed.get_world_size()
+        local_rank = get_rank()
+        world_size = get_world_size()
         val_pred = broadcast_data(local_rank, world_size, val_pred)
         val_labels = broadcast_data(local_rank, world_size, val_labels)
         test_pred = broadcast_data(local_rank, world_size, test_pred) \
@@ -501,8 +501,8 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
                 Test Score
         """
         # exchange preds and labels between runners
-        local_rank = th.distributed.get_rank()
-        world_size = th.distributed.get_world_size()
+        local_rank = get_rank()
+        world_size = get_world_size()
         val_pred = broadcast_data(local_rank, world_size, val_pred)
         val_labels = broadcast_data(local_rank, world_size, val_labels)
         test_pred = broadcast_data(local_rank, world_size, test_pred) \
@@ -840,14 +840,13 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         metrics = gen_mrr_score(ranking)
 
         # When world size == 1, we do not need the barrier
-        if th.distributed.get_world_size() > 1:
-            th.distributed.barrier()
-        for _, metric_val in metrics.items():
-            th.distributed.all_reduce(metric_val)
+        if get_world_size() > 1:
+            barrier()
+            for _, metric_val in metrics.items():
+                th.distributed.all_reduce(metric_val)
         return_metrics = {}
         for metric, metric_val in metrics.items():
-            return_metric = \
-                metric_val / th.distributed.get_world_size()
+            return_metric = metric_val / get_world_size()
             return_metrics[metric] = return_metric.item()
         return return_metrics
 

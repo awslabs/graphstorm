@@ -43,8 +43,8 @@ def _check_scores(score, pos_score, neg_scores, etype, num_neg, batch_size):
     assert len(score[etype][1].shape) == 2
     assert score[etype][1].shape[0] == batch_size
     assert score[etype][1].shape[1] == num_neg
-    assert_almost_equal(score[etype][0].numpy(), pos_score.numpy(), decimal=5)
-    assert_almost_equal(score[etype][1].numpy(), neg_scores.numpy(), decimal=5)
+    assert_almost_equal(score[etype][0].cpu().numpy(), pos_score.cpu().numpy(), decimal=5)
+    assert_almost_equal(score[etype][1].cpu().numpy(), neg_scores.cpu().numpy(), decimal=5)
 
 
 def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device):

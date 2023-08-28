@@ -91,7 +91,7 @@ python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multilabel.py --path /data/mov
 # Create data for graph-aware fine-tuning BERT model
 python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/test_data_config/movielens_user_feat_movie_token.json --num-processes 1 --output-dir /data/movielen_100k_lp_user_feat_movie_token_1p --graph-name ml --add-reverse-edges --num-parts 1
 
-# For Custom GNN test 
+# For Custom GNN test
 python3 -m graphstorm.gconstruct.construct_graph \
 	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_custom.json \
 	--num-processes 1 \
@@ -106,6 +106,13 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--output-dir movielen_100k_lm_encoder_train_val_1p_4t \
 	--graph-name movie-lens-100k-text \
 	--add-reverse-edges
+# roberta as the LM:
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_roberta_encoder.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_roberta_encoder_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
 
 # For tests using lm-encoder - link prediction
 python3 -m graphstorm.gconstruct.construct_graph \
@@ -114,7 +121,7 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--output-dir movielen_100k_lm_encoder_lp_train_val_1p_4t \
 	--graph-name movie-lens-100k-text \
 	--add-reverse-edges
-	
+
 date
 
 echo 'Done'

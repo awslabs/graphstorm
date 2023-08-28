@@ -65,7 +65,8 @@ def initialize(ip_config, backend):
     # This problem will be fixed in the future.
     dgl.distributed.initialize(ip_config, net_type='socket')
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
-    th.distributed.init_process_group(backend=backend)
+    if ip_config is not None:
+        th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
 
 def get_feat_size(g, node_feat_names):
@@ -451,6 +452,7 @@ def set_encoder(model, g, config, train_task):
     else:
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
+                                          activation=config.input_activate,
                                           use_node_embeddings=config.use_node_embeddings,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)

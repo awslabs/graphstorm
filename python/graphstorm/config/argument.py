@@ -23,6 +23,7 @@ import math
 
 import yaml
 import torch as th
+import torch.nn.functional as F
 
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
@@ -77,14 +78,14 @@ def get_argument_parser():
         parser.add_argument(
                 "--local-rank",
                 type=int,
-                default=-1,
+                default=0,
                 help="local_rank for distributed training on gpus",
                 )
     else:
         parser.add_argument(
                 "--local_rank",
                 type=int,
-                default=-1,
+                default=0,
                 help="local_rank for distributed training on gpus",
                 )
 
@@ -278,6 +279,7 @@ class GSConfig:
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
         else:
+            _ = self.input_activate
             _ = self.hidden_size
             _ = self.num_layers
             _ = self.use_self_loop
@@ -387,10 +389,12 @@ class GSConfig:
         """ IP config of instances in a cluster
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_ip_config"), "IP config must be provided"
-        assert os.path.isfile(self._ip_config), \
-            f"IP config file {self._ip_config} does not exist"
-        return self._ip_config
+        if hasattr(self, "_ip_config"):
+            assert os.path.isfile(self._ip_config), \
+                    f"IP config file {self._ip_config} does not exist"
+            return self._ip_config
+        else:
+            return None
 
     @property
     def part_config(self):
@@ -525,7 +529,8 @@ class GSConfig:
                 glem_defaults = {
                     "em_order_gnn_first": False,
                     "inference_using_gnn": True,
-                    "pl_weight": 0.5
+                    "pl_weight": 0.5,
+                    "num_pretrain_epochs": 1
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
@@ -577,6 +582,21 @@ class GSConfig:
         assert self._model_encoder_type in BUILTIN_ENCODER, \
             f"Model encoder type should be in {BUILTIN_ENCODER}"
         return self._model_encoder_type
+
+    @property
+    def input_activate(self):
+        """ Design activation funtion type in the input layer
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_input_activate"):
+            if self._input_activate == "none":
+                return None
+            elif self._input_activate == "relu":
+                return F.relu
+            else:
+                raise RuntimeError("Only support input activate flag 'none' for None "
+                                   "and 'relu' for torch.nn.functional.relu")
+        return None
 
     @property
     def node_feat_name(self):
@@ -1090,6 +1110,17 @@ class GSConfig:
         assert hasattr(self, "_label_field"), \
             "Must provide the feature name of labels through label_field"
         return self._label_field
+
+    @property
+    def use_pseudolabel(self):
+        """ Whether use pseudolabeling for unlabeled nodes in semi-supervised training
+
+            It only works with node-level tasks.
+        """
+        if hasattr(self, "_use_pseudolabel"):
+            assert self._use_pseudolabel in (True, False)
+            return self._use_pseudolabel
+        return False
 
     @property
     def num_classes(self):
@@ -1702,6 +1733,9 @@ def _add_gnn_args(parser):
     group = parser.add_argument_group(title="gnn")
     group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
             help='Model type can either be gnn or lm to specify the model encoder')
+    group.add_argument(
+        "--input-activate", type=str, default=argparse.SUPPRESS,
+        help="Define the activation type in the input layer")
     group.add_argument("--node-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
             "1) '--node-feat-name feat_name': global feature name, "
@@ -1893,6 +1927,11 @@ def _add_node_classification_args(parser):
                        help="Whether to return the probabilities of all the predicted \
                        results or only the maximum one. Set True to return the \
                        probabilities. Set False to return the maximum one.")
+    group.add_argument(
+        "--use-pseudolabel",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help="Whether use pseudolabeling for unlabeled nodes in semi-supervised training")
     return parser
 
 def _add_edge_classification_args(parser):
