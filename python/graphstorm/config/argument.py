@@ -1149,7 +1149,8 @@ class GSConfig:
     @property
     def multilabel_weights(self):
         """Used to specify label weight of each class in a
-           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss.
+           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss
+           as pos_weight.
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
@@ -1197,7 +1198,6 @@ class GSConfig:
             Customer should provide the weight in following format 0.1,0.2,0.3,0.1
         """
         if hasattr(self, "_imbalance_class_weights"):
-            assert self.multilabel is False, "Only used with single label classfication."
             try:
                 weights = self._imbalance_class_weights.split(",")
                 weights = [float(w) for w in weights]
@@ -1909,7 +1909,7 @@ def _add_node_classification_args(parser):
             "--multilabel-weights",
             type=str,
             default=argparse.SUPPRESS,
-            help="Used to specify label weight of each class in a "
+            help="Used to specify the weight of positive examples of each class in a "
             "multi-label classifiction task."
             "It is feed into th.nn.BCEWithLogitsLoss."
             "The weights should in following format 0.1,0.2,0.3,0.1,0.0 ")
@@ -1919,7 +1919,7 @@ def _add_node_classification_args(parser):
             default=argparse.SUPPRESS,
             help="Used to specify a manual rescaling weight given to each class "
             "in a single-label multi-class classification task."
-            "It is feed into th.nn.CrossEntropyLoss."
+            "It is feed into th.nn.CrossEntropyLoss or th.nn.BCEWithLogitsLoss."
             "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
     group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
                        help="The cardinality of labels in a classifiction task")
