@@ -30,7 +30,7 @@ from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
 from graphstorm.config import BUILTIN_LP_DISTMULT_DECODER
-from graphstorm.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
 def check_failure(config, field):
     has_error = False
