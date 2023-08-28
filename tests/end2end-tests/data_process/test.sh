@@ -64,7 +64,7 @@ error_and_exit $?
 
 # Test create both DGL and DistDGL graph
 echo "********* Test the DGLGraph format *********"
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 2 --output-dir /tmp/test_out --graph-name test --output-format both --output-conf-file /tmp/test_data/test_data_transform_new.conf
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 2 --output-dir /tmp/test_out --graph-name test --output-format "DGL DistDGL" --output-conf-file /tmp/test_data/test_data_transform_new.conf
 
 error_and_exit $?
 
