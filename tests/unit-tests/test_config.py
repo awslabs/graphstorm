@@ -640,8 +640,7 @@ def test_node_class_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test1.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.multilabel == True
-        # imbalance_class_weight does not work with multilabel == True
-        check_failure(config, "imbalance_class_weights")
+        assert config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_metric1.yaml'), local_rank=0)
         config = GSConfig(args)
