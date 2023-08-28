@@ -643,8 +643,8 @@ def process_graph(args):
             if args.num_processes_for_edges is not None else args.num_processes
     verify_confs(process_confs)
     output_format = args.output_format.split(" ")
-    for format in output_format:
-        assert format in ["DGL", "DistDGL"], \
+    for out_format in output_format:
+        assert out_format in ["DGL", "DistDGL"], \
             f'Unknown output format: {format}'
 
     # We only store data to external memory if we partition a graph for distributed training.
