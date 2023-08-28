@@ -68,6 +68,6 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/test_out/dglgraph --conf_file /tmp/test_data/test_data_transform_new.conf --graph-format DGL
+python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf --graph-format DGL
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format DistDGL --graph_dir /tmp/test_out/dist_dglgraph --conf_file /tmp/test_data/test_data_transform_new.conf
+python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format DistDGL --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf
