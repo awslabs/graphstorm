@@ -80,7 +80,7 @@ def create_rgcn_node_model(g, norm):
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
 
-def create_rgat_node_model(g):
+def create_rgat_node_model(g, norm=None):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
@@ -94,12 +94,12 @@ def create_rgat_node_model(g):
                                        num_hidden_layers=1,
                                        dropout=0,
                                        use_self_loop=True,
-                                       norm='batch')
+                                       norm=norm)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
 
-def create_sage_node_model(g):
+def create_sage_node_model(g, norm=None):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
@@ -112,7 +112,7 @@ def create_sage_node_model(g):
                               num_hidden_layers=1,
                               dropout=0,
                               aggregator_type='mean',
-                              norm='batch')
+                              norm=norm)
 
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
@@ -286,7 +286,8 @@ def test_rgcn_node_prediction_multi_target_ntypes():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def test_rgat_node_prediction():
+@pytest.mark.parametrize("norm", [None, 'batch', 'layer'])
+def test_rgat_node_prediction(norm):
     """ Test edge prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + RGATLayer + Decoder
 
@@ -304,7 +305,7 @@ def test_rgat_node_prediction():
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n1'], label_field='label',
                                      node_feat_field='feat')
-    model = create_rgat_node_model(np_data.g)
+    model = create_rgat_node_model(np_data.g, norm)
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -332,6 +333,7 @@ def test_rgat_node_prediction_multi_target_ntypes():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+@pytest.mark.parametrize("norm", [None, 'batch', 'layer'])
 def test_sage_node_prediction():
     """ Test edge prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + SAGELayer + Decoder
@@ -350,7 +352,7 @@ def test_sage_node_prediction():
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['_N'], label_field='label',
                                      node_feat_field='feat')
-    model = create_sage_node_model(np_data.g)
+    model = create_sage_node_model(np_data.g, norm)
     check_node_prediction(model, np_data, is_homo=True)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
