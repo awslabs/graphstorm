@@ -19,6 +19,7 @@
 BUILTIN_GNN_ENCODER = ["rgat", "rgcn", "sage"]
 BUILTIN_ENCODER = ["lm", "mlp"] + ["rgat", "rgcn", "sage"]
 SUPPORTED_BACKEND = ["gloo", "nccl"]
+BUILTIN_GNN_NORM = ["batch", "layer"]
 
 GRAPHSTORM_MODEL_EMBED_LAYER = "embed"
 GRAPHSTORM_MODEL_GNN_LAYER = "gnn"

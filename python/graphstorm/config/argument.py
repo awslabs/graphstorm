@@ -245,6 +245,7 @@ class GSConfig:
             _ = self.lm_train_nodes
             _ = self.lm_tune_lr
             _ = self.lr
+            _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
             _ = self.save_model_path
