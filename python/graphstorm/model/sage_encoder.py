@@ -65,6 +65,8 @@ class SAGEConv(nn.Module):
         self.activation = activation
         # normalization
         self.norm = None
+        if activation is None and norm is not None:
+            raise Exception("Cannot set gnn norm layer when activation layer is None")
         if norm == "batch":
             self.norm = nn.BatchNorm1d(out_feat)
         elif norm == "layer":
