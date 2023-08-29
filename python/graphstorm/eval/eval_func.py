@@ -43,7 +43,7 @@ class ClassificationMetrics:
         self.metric_comparator["roc_auc"] = operator.le
         self.metric_comparator["f1_score"] = operator.le
         self.metric_comparator["per_class_f1_score"] = comparator_per_class_f1_score
-        self.metric_comparator["per_class_roc_auc"] = operator.le
+        self.metric_comparator["per_class_roc_auc"] = comparator_per_class_roc_auc
 
         # This is the operator used to measure each metric performance in training
         self.metric_function = {}
@@ -292,16 +292,27 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
         print("Failure found during evaluation of the auc metric returning -1", e)
     return auc_score
 
+def comparator_per_class_roc_auc(best_report, current_report):
+    """ compare method for roc_auc score per class
+    """
+    print(best_report)
+    print(current_report)
+    return best_report["overall avg"] < current_report["overall avg"]
+
+
 def compute_per_class_roc_auc(y_preds, y_targets):
-    """ compute f1 score per class
+    """ compute ROC-AUC score per class
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
     roc_auc_report = {}
 
+    avg_roc_auc = compute_roc_auc(y_preds, y_targets)
     for class_id in range(y_true.shape[1]):
         roc_auc_report[class_id] = roc_auc_score(y_true[:,class_id],
                                                  y_pred[:,class_id])
+    roc_auc_report["overall avg"] = avg_roc_auc
+
     return roc_auc_report
 
 class PRKeys(str, Enum):
