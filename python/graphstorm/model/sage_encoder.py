@@ -98,7 +98,6 @@ class SAGEConv(nn.Module):
         inputs = inputs['_N']
         h_conv = self.conv(g, inputs)
         if self.norm:
-            h_conv = h_conv / h_conv.norm(p=2, dim=1, keepdim=True)
             h_conv = self.norm(h_conv)
         if self.activation:
             h_conv = self.activation(h_conv)

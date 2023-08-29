@@ -167,7 +167,6 @@ class RelGraphConvLayer(nn.Module):
             if self.bias:
                 h = h + self.h_bias
             if self.norm:
-                h = h / h.norm(p=2, dim=1, keepdim=True)
                 h = self.norm[ntype](h)
             if self.activation:
                 h = self.activation(h)
