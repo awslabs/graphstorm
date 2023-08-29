@@ -598,7 +598,7 @@ def create_node_class_config(tmp_path, file_name):
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "multilabel": True,
-        "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,0", # Does not work with multilabel
+        "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,0.1", # Does not work with multilabel
     }
 
     with open(os.path.join(tmp_path, file_name+"_multilabel_imb_l.yaml"), "w") as f:
@@ -700,7 +700,7 @@ def test_node_class_info():
         config = GSConfig(args)
         assert config.num_classes == 20
         assert config.multilabel == True
-        assert config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,0]
+        assert config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,0.1]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_imb_l_w4.yaml'), local_rank=0)
         config = GSConfig(args)
