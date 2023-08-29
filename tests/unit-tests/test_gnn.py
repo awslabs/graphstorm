@@ -334,7 +334,7 @@ def test_rgat_node_prediction_multi_target_ntypes():
     dgl.distributed.kvstore.close_kvstore()
 
 @pytest.mark.parametrize("norm", [None, 'batch', 'layer'])
-def test_sage_node_prediction():
+def test_sage_node_prediction(norm):
     """ Test edge prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + SAGELayer + Decoder
 
