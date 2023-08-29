@@ -103,7 +103,7 @@ class RelGraphConvLayer(nn.Module):
         # normalization
         self.norm = None
         if activation is None and norm is not None:
-            raise Exception("Cannot set gnn norm layer when activation layer is None")
+            raise ValueError("Cannot set gnn norm layer when activation layer is None")
         if norm == "batch":
             self.norm = nn.ParameterDict({ntype:nn.BatchNorm1d(out_feat) for ntype in ntypes})
         elif norm == "layer":
