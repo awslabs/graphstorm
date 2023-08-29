@@ -61,7 +61,7 @@ def is_int(a):
         return True
     return False
 
-def create_rgcn_node_model(g):
+def create_rgcn_node_model(g, norm):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
@@ -75,7 +75,7 @@ def create_rgcn_node_model(g):
                                        num_hidden_layers=1,
                                        dropout=0,
                                        use_self_loop=True,
-                                       norm='batch')
+                                       norm=norm)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
@@ -239,7 +239,8 @@ def check_mlp_node_prediction(model, data):
         assert(is_int(pred4))
         assert(th.equal(pred3.argmax(dim=1), pred4))
 
-def test_rgcn_node_prediction():
+@pytest.mark.parametrize("norm", [None, 'batch', 'layer'])
+def test_rgcn_node_prediction(norm):
     """ Test edge prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + RGCNLayer + Decoder
 
@@ -257,7 +258,7 @@ def test_rgcn_node_prediction():
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n1'], label_field='label',
                                      node_feat_field='feat')
-    model = create_rgcn_node_model(np_data.g)
+    model = create_rgcn_node_model(np_data.g, norm)
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -280,7 +281,7 @@ def test_rgcn_node_prediction_multi_target_ntypes():
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n0', 'n1'], label_field='label',
                                      node_feat_field='feat')
-    model = create_rgcn_node_model(np_data.g)
+    model = create_rgcn_node_model(np_data.g, None)
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()

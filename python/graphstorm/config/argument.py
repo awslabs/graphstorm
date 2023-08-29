@@ -741,7 +741,7 @@ class GSConfig:
         # pylint: disable=no-member
         if not hasattr(self, "_gnn_norm"):
             return None
-        assert self._gnn_norm in ['batch', 'layer'], \
+        assert self._gnn_norm in BUILTIN_GNN_NORM, \
             "Normalization type must be one of batch or layer"
 
         return self._gnn_norm

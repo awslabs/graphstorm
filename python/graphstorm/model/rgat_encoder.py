@@ -55,7 +55,7 @@ class RelationalAttLayer(nn.Module):
     ffn_actication: torch.nn.functional
         Activation Method for ngnn
     norm : str, optional
-        Normalization Method. Default: "batch" for batch normalization
+        Normalization Method. Default: None for batch normalization
     """
     def __init__(self,
                  in_feat,
