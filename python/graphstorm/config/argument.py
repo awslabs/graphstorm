@@ -734,16 +734,16 @@ class GSConfig:
         return True
 
     @property
-    def norm(self):
+    def gnn_norm(self):
         """ Normalization (Batch or Layer)
         """
         # pylint: disable=no-member
-        if not hasattr(self, "_norm"):
+        if not hasattr(self, "_gnn_norm"):
             return None
-        assert self._norm in ['batch', 'layer'], \
+        assert self._gnn_norm in ['batch', 'layer'], \
             "Normalization type must be one of batch or layer"
 
-        return self._norm
+        return self._gnn_norm
 
     ###################### I/O related ######################
     ### Restore model ###
@@ -1828,7 +1828,7 @@ def _add_hyperparam_args(parser):
     group = parser.add_argument_group(title="hp")
     group.add_argument("--dropout", type=float, default=argparse.SUPPRESS,
             help="dropout probability")
-    group.add_argument("--norm", type=str, default=argparse.SUPPRESS, help="norm type")
+    group.add_argument("--gnn-norm", type=str, default=argparse.SUPPRESS, help="norm type")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
     group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
@@ -1858,7 +1858,7 @@ def _add_hyperparam_args(parser):
     group.add_argument('--eval-frequency',
             type=int,
             default=argparse.SUPPRESS,
-            help="How offen to run the evaluation. "
+            help="How often to run the evaluation. "
                  "Every #eval-frequency iterations.")
     group.add_argument(
             '--no-validation',
