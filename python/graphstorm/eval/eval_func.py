@@ -295,10 +295,8 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
 def comparator_per_class_roc_auc(best_report, current_report):
     """ compare method for roc_auc score per class
     """
-    print(best_report)
-    print(current_report)
-    return best_report["overall avg"] < current_report["overall avg"]
-
+    return best_report["overall avg"] < current_report["overall avg"] \
+        if best_report != 0 else 0 < current_report["overall avg"]
 
 def compute_per_class_roc_auc(y_preds, y_targets):
     """ compute ROC-AUC score per class
