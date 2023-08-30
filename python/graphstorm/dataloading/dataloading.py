@@ -779,17 +779,19 @@ class GSgnnNodeDataLoader():
         Whether or not for training.
     reconstructed_embed_ntype : list of str
         The node types that requires to construct node features.
+    reconstruct_embed_fanout : int or dict of int
+        The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
-                 reconstructed_embed_ntype=None):
+                 reconstructed_embed_ntype=None, reconstruct_embed_fanout=5):
         self._data = dataset
         self._fanout = fanout
         self._target_nidx  = target_idx
         if reconstructed_embed_ntype is None:
             reconstructed_embed_ntype = []
         self._reconstructed_embed_sampler = \
-                _ReconstructedNeighborSampler(dataset, reconstructed_embed_ntype, 5) \
-                if len(reconstructed_embed_ntype) > 0 else None
+                _ReconstructedNeighborSampler(dataset, reconstructed_embed_ntype,
+                        reconstruct_embed_fanout) if len(reconstructed_embed_ntype) > 0 else None
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \

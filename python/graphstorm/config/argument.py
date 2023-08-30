@@ -950,7 +950,6 @@ class GSConfig:
         """
         if hasattr(self, "_reconstructed_embed_ntype") \
                 and self._reconstructed_embed_ntype is not None:
-            assert not self.use_node_embeddings
             return self._reconstructed_embed_ntype
         else:
             return []
@@ -965,6 +964,15 @@ class GSConfig:
             return self._reconstruct_encoder
         else:
             return "rgcn"
+
+    @property
+    def reconstruct_feat_fanout(self):
+        """ The fanout for reconstructing node features
+        """
+        if hasattr(self, "_reconstruct_feat_fanout"):
+            return self._reconstruct_feat_fanout
+        else:
+            return 0
 
     @property
     def wd_l2norm(self):
@@ -1857,6 +1865,8 @@ def _add_hyperparam_args(parser):
             help="The node types whose features are reconstructed from neighbors' features.")
     group.add_argument("--reconstruct-encoder", type=str, default=argparse.SUPPRESS,
             help="The encoder used for constructing node features.")
+    group.add_argument("--reconstruct-feat-fanout", type=int, default=argparse.SUPPRESS,
+            help="The fanout used for reconstructing node features.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
