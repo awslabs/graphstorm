@@ -292,7 +292,7 @@ Classification and Regression Task
     - Yaml: ``multilabel: true``
     - Argument: ``--multilabel true``
     - Default value: ``false``
-- **multilabel_weights**: Used to specify label weight of each class in a multi-label classification task. This is used together with **multilabel**. It is feed into ``torch.nn.BCEWithLogitsLoss``. The weights should be in the following format `0.1,0.2,0.3,0.1,0.0`. Each field represents a weight for a class. Suppose there are 3 classes. The multilabel_weights is set to `0.1,0.2,0.3`. Class 0 will have weight of 0.1, class 1 will have weight of 0.2 and class 2 will have weight of 0.3. For more details, see `BCEWithLogitsLoss <https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html>`_. If not provided, all classes are treated equally.
+- **multilabel_weights**: Used to specify a weight of positive examples for each class in a multi-label classification task. This is used together with **multilabel**. It is feed into ``torch.nn.BCEWithLogitsLoss`` as ``pos_weight``. The weights should be in the following format `0.1,0.2,0.3,0.1,0.0`. Each field represents the weight of the positive answer for the class n. Suppose there are 3 classes. The multilabel_weights is set to `0.1,0.2,0.3`. Class 0 will have weight of 0.1, class 1 will have weight of 0.2 and class 2 will have weight of 0.3. For more details, see `BCEWithLogitsLoss <https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html>`_. If not provided, all classes are treated equally.
     - Yaml: ``multilabel_weights: 0.1,0.2,0.3``
     - Argument: ``--multilabel-weights 0.1,0.2,0.3``
     - Default value: ``None``
