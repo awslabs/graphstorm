@@ -52,7 +52,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             save_model_path=None,
             save_model_frequency=-1,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None):
         """ The fit function for node prediction.
 
         Parameters
@@ -78,6 +79,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             Freeze the input layer for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -146,6 +150,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_backward')
                 self.optimizer.step()
                 rt_profiler.record('train_step')
+
+                if max_grad_norm is not None:
+                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
 

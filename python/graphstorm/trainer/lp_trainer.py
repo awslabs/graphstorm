@@ -56,7 +56,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             save_model_frequency=None,
             save_perf_results_path=None,
             edge_mask_for_gnn_embeddings='train_mask',
-            freeze_input_layer_epochs=0):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None):
         """ The fit function for link prediction.
 
         Parameters
@@ -86,6 +87,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             Freeze input layer model for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
         """
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
@@ -150,6 +154,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_backward')
                 self.optimizer.step()
                 rt_profiler.record('train_step')
+
+                if max_grad_norm is not None:
+                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
 
                 self.log_metric("Train loss", loss.item(), total_steps)
                 if i % 20 == 0 and self.rank == 0:
