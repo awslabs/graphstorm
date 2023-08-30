@@ -61,7 +61,7 @@ def is_int(a):
         return True
     return False
 
-def create_rgcn_node_model(g, norm):
+def create_rgcn_node_model(g, norm=None):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
