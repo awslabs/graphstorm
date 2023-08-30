@@ -36,6 +36,7 @@ from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import BUILTIN_TASK_LINK_PREDICTION
+from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
@@ -245,6 +246,7 @@ class GSConfig:
             _ = self.lm_train_nodes
             _ = self.lm_tune_lr
             _ = self.lr
+            _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
             _ = self.save_model_path
@@ -732,6 +734,18 @@ class GSConfig:
 
         # By default, use mini batch inference, which requires less memory
         return True
+
+    @property
+    def gnn_norm(self):
+        """ Normalization (Batch or Layer)
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_gnn_norm"):
+            return None
+        assert self._gnn_norm in BUILTIN_GNN_NORM, \
+            "Normalization type must be one of batch or layer"
+
+        return self._gnn_norm
 
     ###################### I/O related ######################
     ### Restore model ###
@@ -1816,6 +1830,7 @@ def _add_hyperparam_args(parser):
     group = parser.add_argument_group(title="hp")
     group.add_argument("--dropout", type=float, default=argparse.SUPPRESS,
             help="dropout probability")
+    group.add_argument("--gnn-norm", type=str, default=argparse.SUPPRESS, help="norm type")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
     group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
@@ -1845,7 +1860,7 @@ def _add_hyperparam_args(parser):
     group.add_argument('--eval-frequency',
             type=int,
             default=argparse.SUPPRESS,
-            help="How offen to run the evaluation. "
+            help="How often to run the evaluation. "
                  "Every #eval-frequency iterations.")
     group.add_argument(
             '--no-validation',
