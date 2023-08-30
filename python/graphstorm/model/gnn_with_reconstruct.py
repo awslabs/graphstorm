@@ -14,6 +14,8 @@
     limitations under the License.
 """
 
+from functools import partial
+
 import torch as th
 import dgl
 from dgl.distributed import DistTensor, node_split
@@ -126,17 +128,18 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
             dist_inference_one_layer(g, dataloader, self._input_gnn,
                                      get_input_embeds, y, device, task_tracker)
         barrier()
-        def get_input_embeds1(input_nodes):
+        def get_input_embeds1(input_nodes, node_feats):
             orig_inputs = {}
             embeds = {}
             for ntype, nodes in input_nodes.items():
-                if ntype in y:
-                    embeds[ntype] = y[ntype][nodes]
+                if ntype in node_feats:
+                    embeds[ntype] = node_feats[ntype][nodes]
                 else:
                     orig_inputs[ntype] = nodes
             embeds1 = get_input_embeds(orig_inputs)
             assert len(embeds1) == len(orig_inputs)
             embeds.update(embeds1)
             return {ntype: embed.to(device) for ntype, embed in embeds.items()}
-        return self._gnn_encoder.dist_inference(g, get_input_embeds1, batch_size, fanout,
+        get_input_embeds = partial(get_input_embeds1, node_feats=y)
+        return self._gnn_encoder.dist_inference(g, get_input_embeds, batch_size, fanout,
                                                 edge_mask=edge_mask, task_tracker=task_tracker)

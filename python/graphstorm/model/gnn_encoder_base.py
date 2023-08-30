@@ -203,9 +203,9 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                             drop_last=False)
 
             if i > 0:
-                def get_input_embeds1(input_nodes, x):
-                    return {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
-                get_input_embeds = partial(get_input_embeds1, x=x)
+                def get_input_embeds1(input_nodes, node_feats):
+                    return {k: node_feats[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
+                get_input_embeds = partial(get_input_embeds1, node_feats=x)
             dist_inference_one_layer(g, dataloader, layer, get_input_embeds, y,
                                      device, task_tracker)
             x = y
