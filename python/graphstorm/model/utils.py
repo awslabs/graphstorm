@@ -27,7 +27,7 @@ from torch.nn.parallel import DistributedDataParallel
 import dgl
 
 from ..utils import get_rank, barrier
-from ..data.utils import alltoallv_nccl, alltoallv_cpu
+from ..data.utils import alltoallv_cpu
 
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
@@ -307,7 +307,7 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
     if backend == "gloo":
         alltoallv_cpu(local_rank, world_size, gather_list, data_tensors)
     else: # backend == "nccl"
-        alltoallv_nccl(local_rank, world_size, gather_list, data_tensors)
+        th.distributed.all_to_all(gather_list, data_tensors)
     return gather_list[0]
 
 def save_embeddings(model_path, embeddings, local_rank, world_size,

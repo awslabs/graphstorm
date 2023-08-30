@@ -269,39 +269,6 @@ def alltoallv_cpu(rank, world_size, output_tensor_list, input_tensor_list):
 
     barrier()
 
-def alltoallv_nccl(rank, world_size, output_tensor_list, input_tensor_list):
-    """Each process scatters list of input tensors to all processes in a cluster
-    and return gathered list of tensors in output list.
-
-    Note: for NCCL backend
-
-    Parameters
-    ----------
-    rank : int
-        The rank of current worker
-    world_size : int
-        The size of the entire
-    output_tensor_list : List of tensor
-        The received tensors
-    input_tensor_list : List of tensor
-        The tensors to exchange
-    """
-    # send tensor to each target trainer using torch.distributed.isend
-    # isend is async
-    senders = []
-    for i in range(world_size):
-        if i == rank:
-            output_tensor_list[i] = input_tensor_list[i]
-        else:
-            sender = dist.isend(input_tensor_list[i], dst=i)
-            senders.append(sender)
-
-    for i in range(world_size):
-        if i != rank:
-            dist.recv(output_tensor_list[i], src=i)
-
-    barrier()
-
 def all_reduce_sum(tensor):
     """Use a specific dist.all_reduce function
     """

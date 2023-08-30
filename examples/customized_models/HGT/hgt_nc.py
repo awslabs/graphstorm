@@ -349,7 +349,7 @@ def main(args):
     # After training, get the best model from the trainer.
     best_model_path = trainer.get_best_model_path()
     model.restore_model(best_model_path)
-    
+
     # Create a dataset for inference.
     infer_data = GSgnnNodeInferData(config.graph_name, config.part_config,
                                     eval_ntypes=config.target_ntype,

@@ -163,3 +163,8 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 
 error_and_exit $?
 rm -fr /data/gsgnn_ec/*
+
+echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True,  Backend nccl"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --num-epochs 1 --backend nccl
+
+error_and_exit $?
