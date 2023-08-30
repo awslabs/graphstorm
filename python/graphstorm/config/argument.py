@@ -975,7 +975,7 @@ class GSConfig:
         """
         if hasattr(self, "_construct_feat_encoder"):
             assert self._construct_feat_encoder == "rgcn", \
-                    f"Feature construction currently only support rgcn."
+                    "Feature construction currently only support rgcn."
             return self._construct_feat_encoder
         else:
             return "rgcn"
