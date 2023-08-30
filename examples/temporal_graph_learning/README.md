@@ -38,14 +38,23 @@ Please note that we modified the downloaded data to undirected graph and removed
 
 **Step 3: Run the modified TGAT model**
 
-Generate the GraphStorm launch script `run_script.sh`, IP configurations `ip_config.txt`, and model configurations `graphstorm_train_script_nc_config.yaml` using the Python script:
-```
-python3 generate_launch_script_nc.py
-```
+Run the command below to train the modified TGAT model with GraphStorm:
 
-Then run the command below to train the modified TGAT model with GraphStorm:
 ```
-bash run_script.sh
+export WORKSPACE=/home/ubuntu/graphstorm/examples/temporal_graph_learning/
+
+python3 -m graphstorm.run.launch \
+    --workspace $WORKSPACE \
+    --part-config $WORKSPACE/DATA/MAG_Temporal/MAG_Temporal.json \
+    --ip-config ./ip_config.txt \
+    --num-trainers 1 \
+    --num-servers 1 \
+    --num-omp-threads 1 \
+    --num-samplers 4 \
+    --ssh-port 22 \
+    main_nc.py \
+    --cf ./graphstorm_train_script_nc_config.yaml \
+    --save-model-path $WORKSPACE/model
 ```
 
 # Implementation
