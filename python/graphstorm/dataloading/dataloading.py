@@ -37,33 +37,33 @@ class _ReconstructedNeighborSampler():
     """ This samples an additional hop for a mini-batch.
 
     The additional hop is used to compute the features of the nodes in the input layer.
-    Users can specify which input nodes requires to reconstruct node features.
+    Users can specify which input nodes requires to construct node features.
 
     Parameters
     ----------
     dataset: GSgnnData
         The GraphStorm dataset
-    reconstructed_embed_ntypes : a list of strings.
-        The node type in the input layer that requires to reconstruct node features.
+    constructed_embed_ntypes : a list of strings.
+        The node type in the input layer that requires to construct node features.
     fanout : int
         The fanout for the additional layer.
     """
-    def __init__(self, dataset, reconstructed_embed_ntypes, fanout):
-        self._reconstructed_embed_ntypes = set(reconstructed_embed_ntypes)
+    def __init__(self, dataset, constructed_embed_ntypes, fanout):
+        self._constructed_embed_ntypes = set(constructed_embed_ntypes)
         self._g = dataset.g
         etypes = self._g.canonical_etypes
         self._subg_etypes = []
         target_ntypes = set()
-        for dst_ntype in reconstructed_embed_ntypes:
+        for dst_ntype in constructed_embed_ntypes:
             for etype in etypes:
                 if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
                     self._subg_etypes.append(etype)
                     target_ntypes.add(dst_ntype)
-        remain_ntypes = set(reconstructed_embed_ntypes) - target_ntypes
+        remain_ntypes = set(constructed_embed_ntypes) - target_ntypes
         # We need to make sure all node types that require feature construction
         # can be constructed.
         assert len(remain_ntypes) == 0, \
-                f"The features of some node types cannot be reconstructed: {remain_ntypes}"
+                f"The features of some node types cannot be constructed: {remain_ntypes}"
         self._fanout = {}
         for etype in etypes:
             self._fanout[etype] = fanout if etype in self._subg_etypes else 0
@@ -83,7 +83,7 @@ class _ReconstructedNeighborSampler():
         """
         seeds = {}
         for src_ntype in block.srctypes:
-            if src_ntype in self._reconstructed_embed_ntypes:
+            if src_ntype in self._constructed_embed_ntypes:
                 seeds[src_ntype] = block.nodes[src_ntype].data[dgl.NID]
         subg = self._g.sample_neighbors(seeds, self._fanout)
         return dgl.to_block(subg, seeds)
@@ -777,21 +777,21 @@ class GSgnnNodeDataLoader():
         the device trainer is running on.
     train_task : bool
         Whether or not for training.
-    reconstructed_embed_ntype : list of str
+    construct_feat_ntype : list of str
         The node types that requires to construct node features.
-    reconstruct_embed_fanout : int or dict of int
+    construct_feat_fanout : int or dict of int
         The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
-                 reconstructed_embed_ntype=None, reconstruct_embed_fanout=5):
+                 construct_feat_ntype=None, construct_feat_fanout=5):
         self._data = dataset
         self._fanout = fanout
         self._target_nidx  = target_idx
-        if reconstructed_embed_ntype is None:
-            reconstructed_embed_ntype = []
-        self._reconstructed_embed_sampler = \
-                _ReconstructedNeighborSampler(dataset, reconstructed_embed_ntype,
-                        reconstruct_embed_fanout) if len(reconstructed_embed_ntype) > 0 else None
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
+        self._construct_feat_sampler = \
+                _ReconstructedNeighborSampler(dataset, construct_feat_ntype,
+                        construct_feat_fanout) if len(construct_feat_ntype) > 0 else None
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -818,8 +818,8 @@ class GSgnnNodeDataLoader():
 
     def __next__(self):
         input_nodes, seeds, blocks = self.dataloader.__next__()
-        if self._reconstructed_embed_sampler is not None and len(blocks) > 0:
-            block = self._reconstructed_embed_sampler.sample(blocks[0])
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block = self._construct_feat_sampler.sample(blocks[0])
             blocks.insert(0, block)
             for ntype in block.srctypes:
                 # If the node type are destination nodes, these nodes are input nodes

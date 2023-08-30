@@ -536,7 +536,7 @@ def set_encoder(model, g, config, train_task):
             assert ntype in dst_types, \
                     f"We cannot reconstruct features of node {ntype} " \
                     + "probably because their neighbors don't have features."
-        assert config.reconstruct_encoder == "rgcn", \
+        assert config.construct_feat_encoder == "rgcn", \
                 "We only support RGCN for reconstructing node features."
         input_gnn = RelGraphConvLayer(config.hidden_size, config.hidden_size,
                                       rel_names, len(rel_names),

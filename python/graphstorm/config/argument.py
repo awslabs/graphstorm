@@ -275,8 +275,9 @@ class GSConfig:
         _ = self.decoder_type
         _ = self.num_decoder_basis
         # Encoder related
-        _ = self.reconstructed_embed_ntype
-        _ = self.reconstruct_encoder
+        _ = self.construct_feat_ntype
+        _ = self.construct_feat_encoder
+        _ = self.construct_feat_fanout
         encoder_type = self.model_encoder_type
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
@@ -945,32 +946,32 @@ class GSConfig:
         return False
 
     @property
-    def reconstructed_embed_ntype(self):
-        """ The node types that require to reconstruct node features.
+    def construct_feat_ntype(self):
+        """ The node types that require to construct node features.
         """
-        if hasattr(self, "_reconstructed_embed_ntype") \
-                and self._reconstructed_embed_ntype is not None:
-            return self._reconstructed_embed_ntype
+        if hasattr(self, "_construct_feat_ntype") \
+                and self._construct_feat_ntype is not None:
+            return self._construct_feat_ntype
         else:
             return []
 
     @property
-    def reconstruct_encoder(self):
-        """ The encoder used for reconstructing node features.
+    def construct_feat_encoder(self):
+        """ The encoder used for constructing node features.
         """
-        if hasattr(self, "_reconstruct_encoder"):
-            assert self._reconstruct_encoder == "rgcn", \
-                    f"Feature reconstruction currently only support rgcn."
-            return self._reconstruct_encoder
+        if hasattr(self, "_construct_feat_encoder"):
+            assert self._construct_feat_encoder == "rgcn", \
+                    f"Feature construction currently only support rgcn."
+            return self._construct_feat_encoder
         else:
             return "rgcn"
 
     @property
-    def reconstruct_feat_fanout(self):
-        """ The fanout for reconstructing node features
+    def construct_feat_fanout(self):
+        """ The fanout for constructing node features
         """
-        if hasattr(self, "_reconstruct_feat_fanout"):
-            return self._reconstruct_feat_fanout
+        if hasattr(self, "_construct_feat_fanout"):
+            return self._construct_feat_fanout
         else:
             return 0
 
@@ -1861,12 +1862,12 @@ def _add_hyperparam_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
-    group.add_argument("--reconstructed-embed-ntype", type=str, nargs="+",
-            help="The node types whose features are reconstructed from neighbors' features.")
-    group.add_argument("--reconstruct-encoder", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--construct-feat-ntype", type=str, nargs="+",
+            help="The node types whose features are constructed from neighbors' features.")
+    group.add_argument("--construct-feat-encoder", type=str, default=argparse.SUPPRESS,
             help="The encoder used for constructing node features.")
-    group.add_argument("--reconstruct-feat-fanout", type=int, default=argparse.SUPPRESS,
-            help="The fanout used for reconstructing node features.")
+    group.add_argument("--construct-feat-fanout", type=int, default=argparse.SUPPRESS,
+            help="The fanout used for constructing node features.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,

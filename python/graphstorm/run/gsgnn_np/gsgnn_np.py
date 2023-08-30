@@ -98,26 +98,26 @@ def main(config_args):
         dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                          batch_size=config.batch_size,
                                          device=device, train_task=True,
-                                         reconstructed_embed_ntype=config.reconstructed_embed_ntype,
-                                         reconstruct_feat_fanout=config.reconstruct_feat_fanout)
+                                         construct_feat_ntype=config.construct_feat_ntype,
+                                         construct_feat_fanout=config.construct_feat_fanout)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     val_dataloader = None
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
-        _ntype = config.reconstructed_embed_ntype
+        _ntype = config.construct_feat_ntype
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
                                              device=device, train_task=False,
-                                             reconstructed_embed_ntype=_ntype,
-                                             reconstruct_feat_fanout=config.reconstruct_feat_fanout)
+                                             construct_feat_ntype=_ntype,
+                                             construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
-        _ntype = config.reconstructed_embed_ntype
+        _ntype = config.construct_feat_ntype
         test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
                                               device=device, train_task=False,
-                                              reconstructed_embed_ntype=_ntype,
-                                              reconstruct_feat_fanout=config.reconstruct_feat_fanout)
+                                              construct_feat_ntype=_ntype,
+                                              construct_feat_fanout=config.construct_feat_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

@@ -242,7 +242,7 @@ def check_node_prediction_with_reconstruct(model, data):
     target_nidx = {target_ntype: th.arange(g.number_of_nodes(target_ntype))}
     dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1],
                                      batch_size=10, device="cuda:0", train_task=False,
-                                     reconstructed_embed_ntype=['n2'])
+                                     construct_feat_ntype=['n2'])
     pred1, embs1, _ = node_mini_batch_gnn_predict(model, dataloader)
     embs1 = embs1[target_ntype]
     embs1 = embs1[0:len(embs1)].numpy()
