@@ -465,7 +465,7 @@ def set_encoder(model, g, config, train_task):
     """
     # Set input layer
     feat_size = get_feat_size(g, config.node_feat_name)
-    reconstruct_feats = len(config.reconstructed_embed_ntype) > 0
+    reconstruct_feats = len(config.construct_feat_ntype) > 0
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:
         if model_encoder_type == "lm":
@@ -485,7 +485,7 @@ def set_encoder(model, g, config, train_task):
                                           dropout=config.dropout,
                                           activation=config.input_activate,
                                           use_node_embeddings=config.use_node_embeddings,
-                                          force_no_embeddings=config.reconstructed_embed_ntype,
+                                          force_no_embeddings=config.construct_feat_ntype,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)
 
@@ -530,9 +530,9 @@ def set_encoder(model, g, config, train_task):
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
 
     if reconstruct_feats:
-        rel_names = get_rel_names_for_reconstruct(g, config.reconstructed_embed_ntype, feat_size)
+        rel_names = get_rel_names_for_reconstruct(g, config.construct_feat_ntype, feat_size)
         dst_types = set([rel_name[2] for rel_name in rel_names])
-        for ntype in config.reconstructed_embed_ntype:
+        for ntype in config.construct_feat_ntype:
             assert ntype in dst_types, \
                     f"We cannot reconstruct features of node {ntype} " \
                     + "probably because their neighbors don't have features."

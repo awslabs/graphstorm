@@ -140,6 +140,6 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
             assert len(embeds1) == len(orig_inputs)
             embeds.update(embeds1)
             return {ntype: embed.to(device) for ntype, embed in embeds.items()}
-        get_input_embeds = partial(get_input_embeds1, node_feats=y)
-        return self._gnn_encoder.dist_inference(g, get_input_embeds, batch_size, fanout,
-                                                edge_mask=edge_mask, task_tracker=task_tracker)
+        return self._gnn_encoder.dist_inference(g, partial(get_input_embeds1, node_feats=y),
+                                                batch_size, fanout, edge_mask=edge_mask,
+                                                task_tracker=task_tracker)
