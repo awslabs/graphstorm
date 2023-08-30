@@ -21,18 +21,24 @@ class GConstructConfigConverter(ConfigConverter):
 
         Parameters
         ----------
-        labels: the label information in the GConstruct format
+        labels: list[dict]
+            The label information in the GConstruct format
+
+        Returns
+        -------
+        list[dict]
+            The label information in the GSProcessing format
         """
         labels_list = []
-        if labels == [] or labels == [{}]:
+        if labels in [[], [{}]]:
             return []
-        for l in labels:
+        for label in labels:
             try:
-                label_column = l["label_col"]
-                label_type = l["task_type"]
+                label_column = label["label_col"]
+                label_type = label["task_type"]
                 label_dict = {"column": label_column, "type": label_type}
-                if "split_pct" in l:
-                    label_splitrate = l["split_pct"]
+                if "split_pct" in label:
+                    label_splitrate = label["split_pct"]
                     # check if split_pct is valid
                     assert sum(label_splitrate) == 1.0, "sum of the label split rate should be 1.0"
                     label_dict["split_rate"] = {
@@ -40,12 +46,12 @@ class GConstructConfigConverter(ConfigConverter):
                         "val": label_splitrate[1],
                         "test": label_splitrate[2],
                     }
-                if "separator" in l:
-                    label_sep = l["separator"]
+                if "separator" in label:
+                    label_sep = label["separator"]
                     label_dict["separator"] = label_sep
                 labels_list.append(label_dict)
             except KeyError as exc:
-                raise KeyError(f"A required key was missing from label input {l}") from exc
+                raise KeyError(f"A required key was missing from label input {label}") from exc
         return labels_list
 
     @staticmethod
@@ -53,10 +59,16 @@ class GConstructConfigConverter(ConfigConverter):
         """Convert the feature config
         Parameters
         ----------
-        feats: the feature information in the GConstruct format
+        feats: list[dict]
+            The feature information in the GConstruct format
+
+        Returns
+        -------
+        list[dict]
+            The feature information in the GSProcessing format
         """
         feats_list = []
-        if feats == [{}] or feats == []:
+        if feats in [[], [{}]]:
             return []
         for ele in feats:
             if "transform" in ele:
@@ -76,7 +88,6 @@ class GConstructConfigConverter(ConfigConverter):
 
     @staticmethod
     def convert_nodes(nodes_entries):
-        """Convert the node config to the NodeConfig Class"""
         res = []
         for n in nodes_entries:
             # type, column id
@@ -116,7 +127,6 @@ class GConstructConfigConverter(ConfigConverter):
 
     @staticmethod
     def convert_edges(edges_entries):
-        """Convert the Edge config to the EdgeConfig Class"""
         res = []
         for e in edges_entries:
             # source_col, source_type, dest_col, dest_type, format, files, separator, relation
@@ -127,7 +137,7 @@ class GConstructConfigConverter(ConfigConverter):
             source_type, relation, dest_type = e["relation"][0], e["relation"][1], e["relation"][2]
 
             # files
-            edge_files = e["files"] if type(e["files"]) == list else [e["files"]]
+            edge_files = e["files"] if isinstance(e["files"], list) else [e["files"]]
             for file_name in edge_files:
                 if "*" in file_name or "?" in file_name:
                     raise ValueError("Not Support for wildcard in edge file name")

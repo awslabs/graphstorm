@@ -15,8 +15,22 @@ from .data_config_base import DataConfig
 
 
 def parse_feat_config(feature_dict: Dict) -> FeatureConfig:
-    """
-    Parses a feature configuration, converting it to the correct type of feature config.
+    """Parses a feature configuration, converting it to the correct type of feature config.
+
+    Parameters
+    ----------
+    feature_dict : Dict
+        A feature configuration dictionary in GSProcessing format
+
+    Returns
+    -------
+    FeatureConfig
+        A feature configuration object
+
+    Raises
+    ------
+    RuntimeError
+        _description_
     """
     # Special case: missing transformation is parsed as a no-op
     if "transformation" not in feature_dict:

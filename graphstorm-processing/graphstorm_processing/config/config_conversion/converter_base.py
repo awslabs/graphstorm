@@ -15,24 +15,53 @@ class ConfigConverter(abc.ABC):
     @staticmethod
     @abstractmethod
     def convert_nodes(nodes_entries: list[dict]) -> list[NodeConfig]:
-        """Convert a list of node attributes into a list of `NodeConfig` objects."""
+        """Convert a list of node attributes into a list of `NodeConfig` objects.
+
+        Parameters
+        ----------
+        nodes_entries : list[dict]
+            List of node entry dictionaries.
+
+        Returns
+        -------
+        list[NodeConfig]
+            List of node entry configuration objects.
+        """
 
     @staticmethod
     @abstractmethod
     def convert_edges(edges_entries: list[dict]) -> list[EdgeConfig]:
-        """Convert a list of edge attributes into a list of `EdgeConfig` objects."""
+        """Convert a list of edge attributes into a list of `EdgeConfig` objects.
+
+        Parameters
+        ----------
+        edges_entries : list[dict]
+            List of edges entry dictionaries.
+
+        Returns
+        -------
+        list[EdgeConfig]
+            List of edges entry configuration objects.
+        """
 
     def convert_to_gsprocessing(self, input_dictionary: dict) -> dict:
-        """
-        Take a graph configuration input dictionary and convert it to a GSProcessing-compatible
+        """Take a graph configuration input dictionary and convert it to a GSProcessing-compatible
         dictionary.
 
-        The input dict needs to provide two top-level lists-of-dicts for the
-        keys 'nodes' and 'edges'.
+        Parameters
+        ----------
+        input_dictionary : dict
+            Input graph configuration dictionary. Needs to provide two top-level
+            lists-of-dicts for the keys 'nodes' and 'edges'.
+
+        Returns
+        -------
+        dict
+            A graph description dictionary compatible with GSProcessing
         """
         # deal with corner case
         if input_dictionary == {}:
-            return {"version": "v1.0", "graph": {"nodes": [], "edges": []}}
+            return {"version": "gsprocessing-v1.0", "graph": {"nodes": [], "edges": []}}
 
         nodes_entries: list[dict] = input_dictionary["nodes"]
         edges_entries: list[dict] = input_dictionary["edges"]
