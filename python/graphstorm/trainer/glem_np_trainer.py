@@ -212,7 +212,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
 
             if max_grad_norm is not None:
                 th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-
             self.log_metric("Train loss", loss.item(), total_steps)
 
             if i % 20 == 0 and self.rank == 0:
