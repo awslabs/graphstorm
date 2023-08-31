@@ -46,7 +46,7 @@ jobs:
       - name: Install Semgrep
         run: |
           pip install semgrep
-          echo ${{ github.event.pull_request.title }}
+          echo ${{ startsWith(github.event.pull_request.title, '[Test-PR]') }}
           semgrep --version
 
       # Period (.) to run scan in the current directory to avoid blocking findings in the future use --exclude=+BLOCKING
