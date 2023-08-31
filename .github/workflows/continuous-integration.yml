@@ -7,7 +7,7 @@ on:
     branches:
       - main
       - ci_dev
-  pull_request_target:
+  pull_request:
     
 
 permissions:
@@ -30,7 +30,7 @@ env:
 jobs:
 
   lint_check:
-    if: ${{ github.event.label.name != 'draft' && startsWith(github.event.pull_request.title, '[Test-PR]')}}
+    if: ${{ github.event.label.name != 'draft' && !startsWith(github.event.pull_request.title, '[Test-PR]')}}
     runs-on: ubuntu-latest
     steps:
     - name: Configure AWS Credentials
@@ -52,7 +52,7 @@ jobs:
         python3 -m pip install pytest
         pip3 install boto3
     - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'pull_request_target' }}
+      if: ${{ github.event_name == 'push' }}
       shell: bash
       run: |
         echo "Start submitting job - Push"  
@@ -62,12 +62,16 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'push' }}
+      if: ${{ github.event_name == 'pull_request' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        echo ${{ github.event.pull_request.title }}
-        echo "end of print"
+        echo github.event.pull_request.title
+        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-LINT }}" \
+                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
+                               --source-ref '${{ github.event.pull_request.head.sha }}' \
+                               --wait
 
 
   pytest_check:
@@ -103,7 +107,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
+      if: ${{ github.event_name == 'pull_request' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
@@ -147,7 +151,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
+      if: ${{ github.event_name == 'pull_request' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
@@ -191,7 +195,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
+      if: ${{ github.event_name == 'pull_request' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
@@ -235,7 +239,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
+      if: ${{ github.event_name == 'pull_request' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
@@ -244,4 +248,3 @@ jobs:
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait    
-
