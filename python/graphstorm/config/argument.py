@@ -129,7 +129,10 @@ class GSConfig:
         self.local_rank = cmd_args.local_rank
 
         # We need to config the logging at very beginning. Otherwise, logging will not work.
-        logging.basicConfig(level=self.logging_level)
+        if self.logging_file is None:
+            logging.basicConfig(level=self.logging_level)
+        else:
+            logging.basicConfig(filename=self.logging_file, level=self.logging_level)
         logging.debug(str(configuration))
         cmd_args_dict = cmd_args.__dict__
         # Print overriden arguments.
@@ -229,7 +232,6 @@ class GSConfig:
         _ = self.node_id_mapping_file
         _ = self.edge_id_mapping_file
         _ = self.verbose
-        _ = self.logging_level
 
         # Data
         _ = self.node_feat_name
@@ -474,6 +476,15 @@ class GSConfig:
             return get_log_level(self._logging_level)
         else:
             return logging.INFO
+
+    @property
+    def logging_file(self):
+        """ The file where logs are saved to.
+        """
+        if hasattr(self, "_logging_file"):
+            return self._logging_file
+        else:
+            return None
 
     ###################### language model support #########################
     # Bert related
@@ -1744,6 +1755,8 @@ def _add_initialization_args(parser):
                        help="Change the logging level. " + \
                                "Potential values are 'debug', 'info', 'warning', 'error'." + \
                                "The default value is 'info'.")
+    group.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
+                       help='The file where the logging is saved to.')
     return parser
 
 def _add_gsgnn_basic_args(parser):
