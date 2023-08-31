@@ -123,18 +123,24 @@ class GSConfig:
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
-
         self.set_attributes(configuration)
-
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
+
+        # We need to config the logging at very beginning. Otherwise, logging will not work.
+        logging.basicConfig(level=self.logging_level)
+        logging.debug(str(configuration))
+        cmd_args_dict = cmd_args.__dict__
+        # Print overriden arguments.
+        for arg_key, arg_val in cmd_args_dict.items():
+            if arg_key not in ["yaml_config_file", "local_rank"]:
+                logging.debug("Overriding Argument: %s", arg_key)
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
-        logging.debug(str(configuration))
         if 'lm_model' in configuration:
             # has language model configuration
             # lm_model:
@@ -204,7 +210,6 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
-                logging.debug("Overriding Argument: %s", arg_key)
 
     def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.

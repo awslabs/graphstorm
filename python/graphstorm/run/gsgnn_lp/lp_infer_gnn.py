@@ -16,8 +16,6 @@
     Inference script for link prediction tasks with GNN
 """
 
-import logging
-
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -36,7 +34,6 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(False)
 
-    logging.basicConfig(level=config.logging_level)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
 

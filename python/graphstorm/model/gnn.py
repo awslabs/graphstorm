@@ -583,7 +583,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                            get_rank(),
                            get_world_size())
         if get_rank() == 0:
-            logging.info('Successfully save the model to %s.', model_path)
+            logging.info('successfully save the model to %s.', model_path)
             logging.info('Time on save model: %.3f seconds', time.time() - start_save_t)
 
     @property
