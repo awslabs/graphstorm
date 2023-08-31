@@ -118,7 +118,9 @@ def main(config_args):
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
                                 exclude_training_targets=config.exclude_training_targets,
-                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss)
+                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss,
+                                construct_feat_ntype=config.construct_feat_ntype,
+                                construct_feat_fanout=config.construct_feat_fanout)
 
     # TODO(zhengda) let's use full-graph inference for now.
     if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
@@ -133,10 +135,14 @@ def main(config_args):
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
         val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
+            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
+            construct_feat_ntype=config.construct_feat_ntype,
+            construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
         test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
+            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
+            construct_feat_ntype=config.construct_feat_ntype,
+            construct_feat_fanout=config.construct_feat_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

@@ -111,12 +111,18 @@ class GSgnnEdgeDataLoader():
         Whether to exclude training edges during neighbor sampling
     remove_target_edge_type: bool
         Whether we will exclude all edges of the target edge type in message passing.
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int or dict of int
+        The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
                  exclude_training_targets=False,
-                 decoder_edge_feat=None):
+                 decoder_edge_feat=None,
+                 construct_feat_ntype=None,
+                 construct_feat_fanout=5):
         self._data = dataset
         self._device = device
         self._fanout = fanout
@@ -139,6 +145,11 @@ class GSgnnEdgeDataLoader():
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
+        self._construct_feat_sampler = \
+                _ReconstructedNeighborSampler(dataset, construct_feat_ntype,
+                        construct_feat_fanout) if len(construct_feat_ntype) > 0 else None
         self.dataloader = self._prepare_dataloader(dataset.g,
                                                    target_idx,
                                                    edge_fanout_lis,
@@ -171,6 +182,10 @@ class GSgnnEdgeDataLoader():
 
     def __next__(self):
         input_nodes, batch_graph, blocks = self.dataloader.__next__()
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block, input_nodes = sample_input_block(self._construct_feat_sampler,
+                                                    blocks[0], input_nodes)
+            blocks.insert(0, block)
         if self._decoder_edge_feat is not None:
             input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
                            for etype in batch_graph.canonical_etypes}
@@ -247,10 +262,15 @@ class GSgnnLinkPredictionDataLoader():
     lp_edge_weight_for_loss: str or dict of [str]
         The edge data fields that stores the edge weights used
         in computing link prediction loss
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int or dict of int
+        The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
-                 edge_mask_for_gnn_embeddings='train_mask', lp_edge_weight_for_loss=None):
+                 edge_mask_for_gnn_embeddings='train_mask', lp_edge_weight_for_loss=None,
+                 construct_feat_ntype=None, construct_feat_fanout=5):
         self._data = dataset
         self._fanout = fanout
         self._lp_edge_weight_for_loss = lp_edge_weight_for_loss
@@ -259,6 +279,9 @@ class GSgnnLinkPredictionDataLoader():
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
 
+        self._construct_feat_sampler = \
+                _ReconstructedNeighborSampler(dataset, construct_feat_ntype,
+                        construct_feat_fanout) if len(construct_feat_ntype) > 0 else None
         self.dataloader = self._prepare_dataloader(dataset.g, target_idx, fanout,
                 num_negative_edges, batch_size, device,
                 train_task=train_task,
@@ -316,6 +339,10 @@ class GSgnnLinkPredictionDataLoader():
 
     def __next__(self):
         input_nodes, pos_graph, neg_graph, blocks = self.dataloader.__next__()
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block, input_nodes = sample_input_block(self._construct_feat_sampler,
+                                                    blocks[0], input_nodes)
+            blocks.insert(0, block)
         if self._lp_edge_weight_for_loss is not None:
             input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                 for etype in pos_graph.canonical_etypes}
@@ -758,6 +785,40 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
         self._neg_sample_type = BUILTIN_LP_JOINT_NEG_SAMPLER
         return negative_sampler
 
+def sample_input_block(sampler, block, input_nodes):
+    """ Sample an input block.
+
+    When constructing node features with neighbor features, we need to sample
+    neighbors for the feature construction.
+
+    Parameters
+    ----------
+    sampler : _ReconstructedNeighborSampler
+        The sampler that sample neighbors for feature construction.
+    block : DGLBlock
+        The input block for the GNN model.
+    input_nodes : dict of tensors
+        The input nodes of the GNN model.
+
+    Returns
+    -------
+    DGLBlock : the subgraph for constructing node features with neighbor features.
+    dict of tensors : the input nodes to construct the node features.
+    """
+    block = sampler.sample(block)
+    for ntype in block.srctypes:
+        # If the node type are destination nodes, these nodes are input nodes
+        # for the GNN layers. All source nodes contains all input nodes
+        # of this node type for the mini-batch.
+        if block.num_dst_nodes(ntype) > 0:
+            input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
+        # If the node type only exists in the source nodes, we should add
+        # these source nodes as input nodes for the mini-batch.
+        elif block.num_src_nodes(ntype) > 0:
+            input_nodes[ntype] = th.cat([input_nodes[ntype],
+                                         block.srcnodes[ntype].data[dgl.NID]])
+    return block, input_nodes
+
 ################ Minibatch DataLoader (Node classification) #######################
 
 class GSgnnNodeDataLoader():
@@ -819,19 +880,9 @@ class GSgnnNodeDataLoader():
     def __next__(self):
         input_nodes, seeds, blocks = self.dataloader.__next__()
         if self._construct_feat_sampler is not None and len(blocks) > 0:
-            block = self._construct_feat_sampler.sample(blocks[0])
+            block, input_nodes = sample_input_block(self._construct_feat_sampler,
+                                                    blocks[0], input_nodes)
             blocks.insert(0, block)
-            for ntype in block.srctypes:
-                # If the node type are destination nodes, these nodes are input nodes
-                # for the GNN layers. All source nodes contains all input nodes
-                # of this node type for the mini-batch.
-                if block.num_dst_nodes(ntype) > 0:
-                    input_nodes[ntype] = block.srcnodes[ntype].data[dgl.NID]
-                # If the node type only exists in the source nodes, we should add
-                # these source nodes as input nodes for the mini-batch.
-                elif block.num_src_nodes(ntype) > 0:
-                    input_nodes[ntype] = th.cat([input_nodes[ntype],
-                                                 block.srcnodes[ntype].data[dgl.NID]])
         return input_nodes, seeds, blocks
 
     @property

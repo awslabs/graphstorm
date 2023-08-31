@@ -105,18 +105,16 @@ def main(config_args):
     val_dataloader = None
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
-        _ntype = config.construct_feat_ntype
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
                                              device=device, train_task=False,
-                                             construct_feat_ntype=_ntype,
+                                             construct_feat_ntype=config.construct_feat_ntype,
                                              construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
-        _ntype = config.construct_feat_ntype
         test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
                                               device=device, train_task=False,
-                                              construct_feat_ntype=_ntype,
+                                              construct_feat_ntype=config.construct_feat_ntype,
                                               construct_feat_fanout=config.construct_feat_fanout)
 
     # Preparing input layer for training or inference.
