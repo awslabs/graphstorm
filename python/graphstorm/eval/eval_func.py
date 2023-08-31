@@ -19,7 +19,6 @@ import logging
 from enum import Enum
 from functools import partial
 import operator
-import warnings
 import numpy as np
 import torch as th
 from sklearn.metrics import roc_auc_score
@@ -349,9 +348,9 @@ def compute_rmse(pred, labels):
     assert pred.shape == labels.shape, \
         f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
     if pred.dtype != labels.dtype:
-        warnings.warn("prediction and labels have different data types: "
-                      f"{pred.dtype} vs. {labels.dtype}")
-        warnings.warn("casting pred to the same dtype as labels")
+        logging.warning("prediction and labels have different data types: %s vs. %s.",
+                        str(pred.dtype), str(labels.dtype))
+        logging.warning("casting pred to the same dtype as labels.")
         pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
 
     diff = pred.cpu() - labels.cpu()
@@ -367,9 +366,9 @@ def compute_mse(pred, labels):
     assert pred.shape == labels.shape, \
         f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
     if pred.dtype != labels.dtype:
-        warnings.warn("prediction and labels have different data types: "
-                      f"{pred.dtype} vs. {labels.dtype}")
-        warnings.warn("casting pred to the same dtype as labels")
+        logging.warning("prediction and labels have different data types: %s vs. %s.",
+                        str(pred.dtype), str(labels.dtype))
+        logging.warning("casting pred to the same dtype as labels.")
         pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
 
     diff = pred.cpu() - labels.cpu()
@@ -385,9 +384,9 @@ def compute_mae(pred, labels):
     assert pred.shape == labels.shape, \
         f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
     if pred.dtype != labels.dtype:
-        warnings.warn("prediction and labels have different data types: "
-                      f"{pred.dtype} vs. {labels.dtype}")
-        warnings.warn("casting pred to the same dtype as labels")
+        logging.warning("prediction and labels have different data types: %s vs. %s.",
+                        pred.dtype, labels.dtype)
+        logging.warning("casting pred to the same dtype as labels.")
         pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
 
     diff = th.abs(pred.cpu() - labels.cpu())
