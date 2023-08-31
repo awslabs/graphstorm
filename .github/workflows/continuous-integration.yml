@@ -52,7 +52,7 @@ jobs:
         python3 -m pip install pytest
         pip3 install boto3
     - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
+      if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Push"  
@@ -62,7 +62,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
+      if: ${{ github.event_name == 'push' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
