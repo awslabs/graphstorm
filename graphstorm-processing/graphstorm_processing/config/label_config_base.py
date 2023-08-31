@@ -23,7 +23,11 @@ class LabelConfig(abc.ABC):
     def __init__(self, config_dict: Dict[str, Any]):
         self._config = config_dict
 
-        cols = config_dict["column"]
+        if "column" in config_dict:
+            cols = config_dict["column"]
+        else:
+            cols = [""]
+            assert config_dict["type"] == "link_prediction"
         if isinstance(cols, list) is False:
             cols = [cols]
         self._cols: List[str] = cols

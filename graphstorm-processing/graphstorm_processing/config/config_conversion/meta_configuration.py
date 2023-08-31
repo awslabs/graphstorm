@@ -67,8 +67,9 @@ class EdgeConfig:
         data format, "csv" or "parquet"
     files: list of string
         list of files
-    relation: dict
-        {type: str}
+    relation: dict[str, str]
+        Fully qualified relation type. Can include a plain type,
+        and a column that identifies the relation sub-type.
     separator: Optional[str]
     features: Optional[list[dict]]
         List of feature configuration dicts

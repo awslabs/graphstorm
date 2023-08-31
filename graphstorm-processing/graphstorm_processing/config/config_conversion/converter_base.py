@@ -21,7 +21,14 @@ from .meta_configuration import NodeConfig, EdgeConfig
 
 
 class ConfigConverter(abc.ABC):
-    """The Config base Converter"""
+    """Base class for configuration converters.
+
+    We use these converters to convert input configuration files
+    into a format that is compatible with GSProcessing.
+
+    This allows us to decouple GSProcessing from specific
+    configuration formats that can be used as input.
+    """
 
     @staticmethod
     @abstractmethod

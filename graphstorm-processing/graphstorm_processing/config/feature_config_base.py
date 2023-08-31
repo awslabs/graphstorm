@@ -16,7 +16,7 @@ limitations under the License.
 import abc
 from typing import Any, Mapping, Sequence
 
-from .data_config_base import DataConfig
+from .data_config_base import DataStorageConfig
 
 
 class FeatureConfig(abc.ABC):
@@ -38,7 +38,7 @@ class FeatureConfig(abc.ABC):
 
         self._data_config = None
         if "data" in config:
-            self._data_config = DataConfig(**config["data"])
+            self._data_config = DataStorageConfig(**config["data"])
 
     def __str__(self) -> str:
         return str(self._config)

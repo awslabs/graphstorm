@@ -45,13 +45,15 @@ class GConstructConfigConverter(ConfigConverter):
             return []
         for label in labels:
             try:
-                label_column = label["label_col"]
+                label_column = label["label_col"] if "label_col" in label else ""
                 label_type = label["task_type"]
                 label_dict = {"column": label_column, "type": label_type}
                 if "split_pct" in label:
                     label_splitrate = label["split_pct"]
                     # check if split_pct is valid
-                    assert sum(label_splitrate) == 1.0, "sum of the label split rate should be 1.0"
+                    assert (
+                        sum(label_splitrate) <= 1.0
+                    ), "sum of the label split rate should be <=1.0"
                     label_dict["split_rate"] = {
                         "train": label_splitrate[0],
                         "val": label_splitrate[1],
@@ -92,7 +94,10 @@ class GConstructConfigConverter(ConfigConverter):
             for col in ele["feature_col"]:
                 feat_dict = {"column": col, "transform": kwargs}
                 feats_list.append(feat_dict)
-            # TODO: out_dtype: currently gsprocessing only support one type
+            if "out_dtype" in ele:
+                assert (
+                    ele["out_dtype"] == "float32"
+                ), "GSProcessing currently only supports float32 features"
             if "feature_name" in ele:
                 feat_dict["name"] = ele["feature_name"]
         return feats_list
@@ -140,7 +145,6 @@ class GConstructConfigConverter(ConfigConverter):
     def convert_edges(edges_entries):
         res = []
         for e in edges_entries:
-            # source_col, source_type, dest_col, dest_type, format, files, separator, relation
             # column name
             source_col, dest_col = e["source_id_col"], e["dest_id_col"]
 

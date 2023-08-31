@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from graphstorm_processing.constants import SUPPORTED_FILE_TYPES
 from .label_config_base import LabelConfig, EdgeLabelConfig, NodeLabelConfig
 from .feature_config_base import FeatureConfig, NoopFeatureConfig
-from .data_config_base import DataConfig
+from .data_config_base import DataStorageConfig
 
 
 def parse_feat_config(feature_dict: Dict) -> FeatureConfig:
@@ -62,7 +62,7 @@ class StructureConfig(ABC):
     """
 
     def __init__(self, data_dict: Dict[str, Any]):
-        self._data_config = DataConfig(
+        self._data_config = DataStorageConfig(
             format=data_dict["format"],
             files=data_dict["files"],
             separator=data_dict.get("separator", None),
@@ -74,7 +74,7 @@ class StructureConfig(ABC):
         self._labels: List[LabelConfig] = []
 
     @property
-    def data_config(self) -> DataConfig:
+    def data_config(self) -> DataStorageConfig:
         """
         The data configuration for the structure.
         """
@@ -114,11 +114,6 @@ class StructureConfig(ABC):
         The list of labels, if they exist, None otherwise.
         """
         return self._feature_configs if self._feature_configs else None
-
-    def merge_same_type_features(self) -> None:
-        """
-        Merge features of the same type into one config object
-        """
 
     def set_labels(self, labels: List[LabelConfig]) -> None:
         """
@@ -262,7 +257,7 @@ class NodeConfig(StructureConfig):
     ----------
     node_config: dict
         File config
-    data_config: DataConfig
+    data_config: dict
         Data configuration of the input.
 
     Notes
@@ -272,17 +267,36 @@ class NodeConfig(StructureConfig):
         {
             "data": {
                 "format": "csv",
-                "files": ["nodes/genre.csv"],
+                "files": ["nodes/user.csv"],
                 "separator" : ","
             },
             "column" : "~id",
-            "type": "genre"
-        },
-        ...
+            "type": "user",
+            "labels" : [
+                {
+                  "column": "gender",
+                  "type": "classification",
+                  "split_rate" : {
+                    "train": 0.8,
+                    "val": 0.1,
+                    "test": 0.1
+                  }
+                }
+            ],
+            "features": [
+                {
+                    "column": "age",
+                    "transformation": {
+                        "name": "no-op"
+                    }
+                }
+            ]
+        }
     ]
     """
 
     def __init__(self, node_config: Dict, data_config: Dict[str, Any]):
+        # TODO: Since the data_config is part of the node_config, remove the arg
         super().__init__(data_config)
         self._node_col = node_config["column"]
         self._ntype = node_config["type"]

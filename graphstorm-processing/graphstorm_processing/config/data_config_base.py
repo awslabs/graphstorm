@@ -21,7 +21,7 @@ from graphstorm_processing.constants import SUPPORTED_FILE_TYPES
 
 
 @dataclass
-class DataConfig:
+class DataStorageConfig:
     """
     Data configuration class, used to store information about a data source.
     """
