@@ -246,6 +246,7 @@ class GSConfig:
             _ = self.lm_train_nodes
             _ = self.lm_tune_lr
             _ = self.lr
+            _ = self.max_grad_norm
             _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
@@ -584,6 +585,16 @@ class GSConfig:
         assert self._model_encoder_type in BUILTIN_ENCODER, \
             f"Model encoder type should be in {BUILTIN_ENCODER}"
         return self._model_encoder_type
+
+    @property
+    def max_grad_norm(self):
+        """ Maximum gradient norm, it can used for gradient clip
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_max_grad_norm"):
+            max_grad_norm = float(self._max_grad_norm)
+            assert max_grad_norm > 0
+        return None
 
     @property
     def input_activate(self):
