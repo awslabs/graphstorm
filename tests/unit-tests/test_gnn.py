@@ -395,7 +395,7 @@ def check_edge_prediction(model, data):
                                       remove_target_edge_type=False)
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[("n0", "r1", "n1")][0:len(pred1[("n0", "r1", "n1")])].numpy(),
-                        pred2[0:len(pred2[("n0", "r1", "n1")])].numpy(), decimal=5)
+                        pred2[("n0", "r1", "n1")][0:len(pred2[("n0", "r1", "n1")])].numpy(), decimal=5)
     assert_equal(labels1[("n0", "r1", "n1")].numpy(), labels2[("n0", "r1", "n1")].numpy())
 
     # Test the return_proba argument.
@@ -405,7 +405,7 @@ def check_edge_prediction(model, data):
     pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
     assert(pred4[("n0", "r1", "n1")].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
     assert(is_int(pred4[("n0", "r1", "n1")]))
-    assert(th.equal(pred3.argmax(dim=1), pred4[("n0", "r1", "n1")]))
+    assert(th.equal(pred3[("n0", "r1", "n1")].argmax(dim=1), pred4[("n0", "r1", "n1")]))
 
 def check_mlp_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
