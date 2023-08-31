@@ -37,6 +37,7 @@ from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import BUILTIN_TASK_LINK_PREDICTION
+from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
@@ -247,6 +248,7 @@ class GSConfig:
             _ = self.lm_train_nodes
             _ = self.lm_tune_lr
             _ = self.lr
+            _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
             _ = self.save_model_path
@@ -744,6 +746,18 @@ class GSConfig:
         # By default, use mini batch inference, which requires less memory
         return True
 
+    @property
+    def gnn_norm(self):
+        """ Normalization (Batch or Layer)
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_gnn_norm"):
+            return None
+        assert self._gnn_norm in BUILTIN_GNN_NORM, \
+            "Normalization type must be one of batch or layer"
+
+        return self._gnn_norm
+
     ###################### I/O related ######################
     ### Restore model ###
     @property
@@ -1160,7 +1174,8 @@ class GSConfig:
     @property
     def multilabel_weights(self):
         """Used to specify label weight of each class in a
-           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss.
+           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss
+           as pos_weight.
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
@@ -1208,7 +1223,6 @@ class GSConfig:
             Customer should provide the weight in following format 0.1,0.2,0.3,0.1
         """
         if hasattr(self, "_imbalance_class_weights"):
-            assert self.multilabel is False, "Only used with single label classfication."
             try:
                 weights = self._imbalance_class_weights.split(",")
                 weights = [float(w) for w in weights]
@@ -1831,6 +1845,7 @@ def _add_hyperparam_args(parser):
     group = parser.add_argument_group(title="hp")
     group.add_argument("--dropout", type=float, default=argparse.SUPPRESS,
             help="dropout probability")
+    group.add_argument("--gnn-norm", type=str, default=argparse.SUPPRESS, help="norm type")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
     group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
@@ -1860,7 +1875,7 @@ def _add_hyperparam_args(parser):
     group.add_argument('--eval-frequency',
             type=int,
             default=argparse.SUPPRESS,
-            help="How offen to run the evaluation. "
+            help="How often to run the evaluation. "
                  "Every #eval-frequency iterations.")
     group.add_argument(
             '--no-validation',
@@ -1924,7 +1939,7 @@ def _add_node_classification_args(parser):
             "--multilabel-weights",
             type=str,
             default=argparse.SUPPRESS,
-            help="Used to specify label weight of each class in a "
+            help="Used to specify the weight of positive examples of each class in a "
             "multi-label classifiction task."
             "It is feed into th.nn.BCEWithLogitsLoss."
             "The weights should in following format 0.1,0.2,0.3,0.1,0.0 ")
@@ -1934,7 +1949,7 @@ def _add_node_classification_args(parser):
             default=argparse.SUPPRESS,
             help="Used to specify a manual rescaling weight given to each class "
             "in a single-label multi-class classification task."
-            "It is feed into th.nn.CrossEntropyLoss."
+            "It is feed into th.nn.CrossEntropyLoss or th.nn.BCEWithLogitsLoss."
             "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
     group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
                        help="The cardinality of labels in a classifiction task")
