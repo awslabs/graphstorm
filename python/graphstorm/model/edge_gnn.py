@@ -194,7 +194,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 seeds = target_edge_graph.edges[target_etype].data[dgl.EID]
                 lbl = data.get_labels({target_etype: seeds})
                 assert len(lbl) == 1
-                append_to_dict(labels, lbl)
+                append_to_dict(lbl, labels)
             if isinstance(pred, dict):
                 append_to_dict(pred, preds)
             else: # model.predict return a tensor instead of a dict
@@ -272,7 +272,7 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             if return_label:
                 lbl = data.get_labels(
                     {target_etype: target_edge_graph.edges[target_etype].data[dgl.EID]})
-                append_to_dict(labels, lbl)
+                append_to_dict(lbl, labels)
     barrier()
 
     model.train()
