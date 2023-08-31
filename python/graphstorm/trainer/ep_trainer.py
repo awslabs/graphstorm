@@ -15,6 +15,7 @@
 
     GraphStorm trainer for edge prediction
 """
+import logging
 import time
 import resource
 import dgl
