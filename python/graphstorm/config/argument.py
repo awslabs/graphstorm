@@ -50,7 +50,7 @@ from .config import SUPPORTED_LP_DECODER
 from .config import GRAPHSTORM_MODEL_ALL_LAYERS
 
 from .utils import get_graph_name
-from ..utils import TORCH_MAJOR_VER
+from ..utils import TORCH_MAJOR_VER, get_log_level
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -457,6 +457,15 @@ class GSConfig:
             return self._verbose
 
         return False
+
+    @property
+    def logging_level(self):
+        """ Get the logging level.
+        """
+        if hasattr(self, "_logging_level"):
+            return get_log_level(self._logging_level)
+        else:
+            return logging.INFO
 
     ###################### language model support #########################
     # Bert related

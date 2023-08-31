@@ -29,7 +29,7 @@ import numpy as np
 import torch as th
 import dgl
 
-from ..utils import sys_tracker
+from ..utils import sys_tracker, get_log_level
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files
 from .transform import parse_feat_ops, process_features, preprocess_features
@@ -559,21 +559,6 @@ def verify_confs(confs):
                 f"source node type {src_type} does not exist. Please check your input data."
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
-
-def get_log_level(log_level):
-    """ Map the logging level.
-    """
-    if log_level == "debug":
-        return logging.DEBUG
-    elif log_level == "info":
-        return logging.INFO
-    elif log_level == "warning":
-        return logging.WARNING
-    elif log_level == "error":
-        return logging.ERROR
-    else:
-        raise ValueError(f"Unknown logging level {log_level}. " + \
-                "The possible values are: debug, info, warning, error.")
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats):
     """ Print graph information.

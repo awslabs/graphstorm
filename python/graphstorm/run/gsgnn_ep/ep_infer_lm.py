@@ -17,6 +17,8 @@
     model as encoder only.
 """
 
+import logging
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -42,7 +44,7 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-
+    logging.basicConfig(level=args.logging_level)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
 
