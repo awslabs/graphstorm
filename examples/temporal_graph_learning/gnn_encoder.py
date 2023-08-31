@@ -7,7 +7,7 @@ from model_utils import rel_name_map
 from model_utils import average_over_fields
 from model_utils import get_unique_etype_triplet
 
-from model_utils import merge_multi_blocks, get_merge_canonical_etype_mapping
+from model_utils import merge_multi_blocks, get_temporal_ordered_etypes
 
 import torch
 import torch.nn as nn
@@ -178,7 +178,7 @@ class TemporalRelationalGraphConv(nn.Module):
         inputs: dict[str, torch.Tensor]
             Input node feature for each node type.
         """
-        mapping = get_merge_canonical_etype_mapping(g.canonical_etypes)
+        mapping = get_temporal_ordered_etypes(g.canonical_etypes)
 
         outputs = {}
         for ntype in g.dsttypes:

@@ -159,7 +159,7 @@ def get_unique_nfields(rel_names):
     field_ids.sort()
     return field_ids
 
-def get_merge_canonical_etype_mapping(etypes):
+def get_temporal_ordered_etypes(etypes):
     """
     This function is used to construct the DGLBlock for temporal aggregation,
     which is later used with `merge_multi_blocks` to construct a new DGLBlock for temporal aggregation.
@@ -234,7 +234,7 @@ def merge_multi_blocks(block, embs, merge_canonical_etypes):
         This is the hidden embs, e.g., {ntype1: Tensor1, ntype2: Tensor2}
 
     merge_canonical_etypes: list of edge types
-        This is the return of function `get_merge_canonical_etype_mapping`
+        This is the return of function `get_temporal_ordered_etypes`
 
     Returns
     -------
