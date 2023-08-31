@@ -223,6 +223,7 @@ class GSConfig:
         _ = self.node_id_mapping_file
         _ = self.edge_id_mapping_file
         _ = self.verbose
+        _ = self.logging_level
 
         # Data
         _ = self.node_feat_name
