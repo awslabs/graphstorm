@@ -47,7 +47,7 @@ def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batch
         lm_model.eval()
         for ntype in lm_ntypes:
             if get_rank() == 0:
-                logging.debug('compute bert embedding on node %d', ntype)
+                logging.info('Compute bert embedding on node %s.', ntype)
             hidden_size = lm_model.feat_size
             if 'bert_emb' not in g.nodes[ntype].data:
                 g.nodes[ntype].data['bert_emb'] = \

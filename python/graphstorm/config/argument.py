@@ -1721,6 +1721,10 @@ def _add_initialization_args(parser):
         default=argparse.SUPPRESS,
         help="Print more information.",
     )
+    group.add_argument('--logging-level', type=str, default="info",
+                       help="Change the logging level. " + \
+                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
+                               "The default value is 'info'.")
     return parser
 
 def _add_gsgnn_basic_args(parser):

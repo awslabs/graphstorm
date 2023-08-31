@@ -392,7 +392,7 @@ class RuntimeProfiler:
             profile_path = os.path.join(self._profile_path, f"{self._rank}.csv")
             data_frame = pd.DataFrame(runtime)
             data_frame.to_csv(profile_path, float_format='%.3f', index=False)
-            logging.debug("save profiling in %s", profile_path)
+            logging.info("Save profiling in %s.", profile_path)
 
 sys_tracker = SysTracker()
 rt_profiler = RuntimeProfiler()

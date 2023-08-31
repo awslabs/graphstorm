@@ -380,8 +380,8 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
                 # If there are test data globally, we should add them to the dict.
                 if dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
-        logging.debug('part %d, train: %d, val: %d, test: %d',
-                      get_rank(), num_train, num_val, num_test)
+        logging.info('part %d, train: %d, val: %d, test: %d',
+                     get_rank(), num_train, num_val, num_test)
 
         self._train_idxs = train_idxs
         self._val_idxs = val_idxs
@@ -642,8 +642,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
                 if dist_sum(len(test_idx)) > 0:
                     test_idxs[ntype] = test_idx
 
-        logging.debug('part %d, train: %d, val: %d, test: %d',
-                      get_rank(), num_train, num_val, num_test)
+        logging.info('part %d, train: %d, val: %d, test: %d',
+                     get_rank(), num_train, num_val, num_test)
 
         self._train_idxs = train_idxs
         self._val_idxs = val_idxs
