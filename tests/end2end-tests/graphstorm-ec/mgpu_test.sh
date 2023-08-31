@@ -24,7 +24,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 1000 | tee train_log.txt
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 1000 --logging-file train_log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -74,8 +74,10 @@ fi
 best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
 echo "The best model is saved in epoch $best_epoch"
 
+rm train_log.txt
+
 echo "**************dataset: Generated multilabel MovieLens EC, load only embed layer and GNN layer of the saved model to retrain"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --restore-model-layers embed,gnn --save-model-path /data/gsgnn_ec_retrain/ --save-model-frequency 1000 | tee train_log.txt
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --restore-model-layers embed,gnn --save-model-path /data/gsgnn_ec_retrain/ --save-model-frequency 1000
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -87,7 +89,7 @@ then
 fi
 
 echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model"
-python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ | tee log.txt
+python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ --logging-file log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -126,6 +128,8 @@ then
     exit -1
 fi
 
+rm log.txt
+
 cd $GS_HOME/tests/end2end-tests/
 python3 check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/gsgnn_ec/infer-emb/
 
@@ -139,15 +143,17 @@ error_and_exit $?
 rm -fr /data/gsgnn_ec/*
 
 echo "**************dataset: Generated MovieLens EC, language model only, node feat: text feature, inference: full graph, exclude-training-targets: True, train_nodes 10"
-python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec.yaml  --exclude-training-targets True --num-classes 6 --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_lm/emb/ --save-model-path /data/gsgnn_ec_lm/ --save-model-frequency 1000 | tee train_log.txt
+python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec.yaml  --exclude-training-targets True --num-classes 6 --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_lm/emb/ --save-model-path /data/gsgnn_ec_lm/ --save-model-frequency 1000 --logging-file train_log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
 best_epoch=$(grep "successfully save the model to" train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
 echo "The best model is saved in epoch $best_epoch"
 
+rm train_log.txt
+
 echo "**************dataset: Generated MovieLens EC, node feat: text feature, do inference on saved model"
-python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec_infer.yaml   --num-classes 6 --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec_lm/infer-emb/ --restore-model-path /data/gsgnn_ec_lm/epoch-$best_epoch/ | tee log.txt
+python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec_infer.yaml   --num-classes 6 --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec_lm/infer-emb/ --restore-model-path /data/gsgnn_ec_lm/epoch-$best_epoch/
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -156,7 +162,6 @@ python3 check_infer.py --train_embout /data/gsgnn_ec_lm/emb/ --infer_embout /dat
 
 error_and_exit $?
 rm -fr /data/gsgnn_ec_lm/*
-rm train_log.txt
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, decoder edge feat: label"
 python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 1000 --decoder-edge-feat user,rating,movie:rate --fanout 'user/rating/movie:4@movie/rating-rev/user:5,user/rating/movie:2@movie/rating-rev/user:2' --num-layers 2 --decoder-type MLPEFeatEdgeDecoder
