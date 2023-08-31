@@ -588,7 +588,7 @@ class GSConfig:
 
     @property
     def max_grad_norm(self):
-        """ Maximum gradient norm, it can used for gradient clip
+        """ maximum L2 norm of gradients, used for gradient clip
         """
         # pylint: disable=no-member
         if hasattr(self, "_max_grad_norm"):
