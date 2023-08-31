@@ -63,7 +63,19 @@ This example code provides time encoding and temporal aggregation based on Graph
 
 - Time encoding is implemented as `field_embeds` in `NodeEncoderInputLayer`. `field_embeds` is a set of trainable embeddings for each timestamps. The corresponding embedding for each timestamp is selected from `field_embeds` and then added to the original node features to help the neural network in distinguishing between different timestamps.
 
-- Temporal aggregation is implemented within `TemporalRelationalGraphConv`. This ensures that hidden embeddings with time $t$ are only computed by aggregating input embeddings with time $t^\prime \leq t$.
+- Temporal aggregation is implemented within `TemporalRelationalGraphEncoder`. This ensures that hidden embeddings with time $t$ are only computed by aggregating input embeddings with time $t^\prime \leq t$.
+
+In this implementation, the node hidden embeddings at different timestamps are stored as the following format
+```
+embeds = {
+    node_type_1: {
+        'time_stamp_1': torch.Tensor,
+        'time_stamp_2': torch.Tensor,
+                    ...
+        'time_stamp_t': torch.Tensor,
+    }
+}
+```
 
 # Performance
 

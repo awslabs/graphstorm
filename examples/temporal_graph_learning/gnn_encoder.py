@@ -109,7 +109,7 @@ class ResidualTemporalRelationalGraphConv(nn.Module):
         ----------
         g: DGL MFGs
             Sampled subgraph in DGL MFG
-        inputs: dict[str, torch.Tensor]
+        inputs: dict[str, dict[str, torch.Tensor]]
             Input node feature for each node type.
         """
         g = g.local_var()
