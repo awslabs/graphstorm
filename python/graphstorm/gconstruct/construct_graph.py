@@ -753,7 +753,7 @@ if __name__ == '__main__':
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
-    argparser.add_argument("--output-format", type=str, nargs='+', default="DistDGL",
+    argparser.add_argument("--output-format", type=str, nargs='+', default=["DistDGL"],
                            help="The output format of the constructed graph."
                                 "It can be a single output format, for example "
                                 "--output-format 'DGL'. It can also be multiple "
