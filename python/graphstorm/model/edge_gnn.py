@@ -202,10 +202,10 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
 
     model.train()
     for target_etype, pred in preds.items():
-        preds[target_etype] = th.cat(pred[target_etype])
+        preds[target_etype] = th.cat(pred)
     if return_label:
         for target_etype, label in labels.items():
-            labels[target_etype] = th.cat(label[target_etype])
+            labels[target_etype] = th.cat(label)
         return preds, labels
     else:
         return preds, None
@@ -277,10 +277,10 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
 
     model.train()
     for target_etype, pred in preds.items():
-        preds[target_etype] = th.cat(pred[target_etype])
+        preds[target_etype] = th.cat(pred)
     if return_label:
         for target_etype, label in labels.items():
-            labels[target_etype] = th.cat(label[target_etype])
+            labels[target_etype] = th.cat(label)
         return preds, labels
     else:
         return preds, None
