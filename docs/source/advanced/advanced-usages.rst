@@ -21,11 +21,3 @@ GraphStorm relies on ``dgl.dataloading.MultiLayerNeighborSampler`` and ``train_m
 To be more specific, these dataloaders will do neighbor sampling regardless of any masks in the beginning, and later remove edges with  ``val_mask`` or ``test_mask`` set to be `True`. In theory, a sampled subgraph may have less neighbor nodes than expected as some of them would be removed. However, with a graph having hundreds of millions of edges (or more) and small validation and test sets, e.g., each with less than 10% edges, the impact is negligible.
 
 With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localuniform`` dataloader on training a 2 layer RGCN on MAG dataset on four g5.48x instances.
-
-Multiple Target Node Types Training
----------------------------------------------
-When training on hetergenious graph, we often need to train a model by minimizing the objective function on more than one node type. GraphStorm provides supports to achieve this goal.
-
-* Training: The users only need to edit the `target_ntype: [ntype_1, ntype_2, ..., ntype_k]` in model config YAML file to minimize the objective function defined on `ntype_1, ntype_2, ..., ntype_k`.
-
-* Evaluation: Our current implementation only support evaluating on a single node type. Set `eval_target_ntype: ntype`.
