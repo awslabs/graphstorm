@@ -136,7 +136,7 @@ class GSConfig:
         logging.debug(str(configuration))
         cmd_args_dict = cmd_args.__dict__
         # Print overriden arguments.
-        for arg_key, arg_val in cmd_args_dict.items():
+        for arg_key in cmd_args_dict:
             if arg_key not in ["yaml_config_file", "local_rank"]:
                 logging.debug("Overriding Argument: %s", arg_key)
         # We do argument check as early as possible to prevent config bugs.
