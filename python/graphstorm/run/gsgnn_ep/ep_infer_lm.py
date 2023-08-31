@@ -44,7 +44,9 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-    logging.basicConfig(level=args.logging_level)
+    config.verify_arguments(False)
+
+    logging.basicConfig(level=config.logging_level)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
 

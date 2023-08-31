@@ -59,7 +59,7 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    logging.basicConfig(level=args.logging_level)
+    logging.basicConfig(level=config.logging_level)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
