@@ -594,6 +594,7 @@ class GSConfig:
         if hasattr(self, "_max_grad_norm"):
             max_grad_norm = float(self._max_grad_norm)
             assert max_grad_norm > 0
+            return self._max_grad_norm
         return None
 
     @property
