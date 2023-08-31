@@ -66,6 +66,7 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
+        echo github.event.pull_request.title
         python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' \
                                --command "${{ env.COMMAND-LINT }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
