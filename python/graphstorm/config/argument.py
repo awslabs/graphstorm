@@ -1851,6 +1851,8 @@ def _add_hyperparam_args(parser):
             help="Mini-batch size. Must be larger than 0")
     group.add_argument("--sparse-optimizer-lr", type=float, default=argparse.SUPPRESS,
             help="sparse optimizer learning rate")
+    group.add_argument("--max-grad-norm", type=float, default=argparse.SUPPRESS,
+            help="maximum L2 norm of gradients")
     group.add_argument(
             "--use-node-embeddings",
             type=lambda x: (str(x).lower() in ['true', '1']),
