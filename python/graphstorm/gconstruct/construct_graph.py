@@ -642,14 +642,14 @@ def process_graph(args):
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
     verify_confs(process_confs)
-    output_format = args.output_format.split(" ")
+    output_format = args.output_format
     for out_format in output_format:
         assert out_format in ["DGL", "DistDGL"], \
             f'Unknown output format: {format}'
 
     # We only store data to external memory if we partition a graph for distributed training.
     ext_mem_workspace = args.ext_mem_workspace \
-        if len(output_format) == 1 and output_format == "DistDGL" else None
+        if len(output_format) == 1 and output_format[0] == "DistDGL" else None
     convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
 
     node_id_map, node_data, node_label_stats = \
@@ -753,11 +753,11 @@ if __name__ == '__main__':
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
-    argparser.add_argument("--output-format", type=str, default="DistDGL",
+    argparser.add_argument("--output-format", type=str, nargs='+', default="DistDGL",
                            help="The output format of the constructed graph."
                                 "It can be a single output format, for example "
                                 "--output-format 'DGL'. It can also be multiple "
-                                "formats, for example --output-format 'DGL DistDGL'")
+                                "formats, for example --output-format DGL DistDGL")
     argparser.add_argument("--num-parts", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
