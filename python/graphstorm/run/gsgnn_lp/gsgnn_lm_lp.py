@@ -79,8 +79,6 @@ def main(config_args):
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
     tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
-        tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
     if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
