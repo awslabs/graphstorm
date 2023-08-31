@@ -90,7 +90,7 @@ class EdgeLabelConfig(LabelConfig):
     def _sanity_check(self):
         super()._sanity_check()
         assert self._task_type in ["classification", "regression", "link_prediction"], (
-            "Currently Neptune ML only support three task types: "
+            "Currently GraphStorm only supports three task types: "
             "classification, regression and link_prediction, but given {}".format(self._task_type)
         )
 
@@ -111,6 +111,6 @@ class NodeLabelConfig(LabelConfig):
     def _sanity_check(self):
         super()._sanity_check()
         assert self._task_type in ["classification", "regression"], (
-            "Currently Neptune ML only support three task types: "
+            "Currently GraphStorm only supports three task types: "
             "classification, regression, but given {}".format(self._task_type)
         )
