@@ -449,6 +449,16 @@ class GSConfig:
             else None
 
     @property
+    def use_wholegraph(self):
+        """ Whether to use wholegraph for feature transfer. Default is False.
+        """
+        if hasattr(self, "_use_wholegraph"):
+            assert self._use_wholegraph in [True, False]
+            return self._use_wholegraph
+
+        return False
+
+    @property
     def verbose(self):
         """ verbose for print out more information.Default is False
         """
@@ -1757,6 +1767,12 @@ def _add_gnn_args(parser):
             "the corresponding feature name is <feat_name>"
             "2)'--node-feat-name ntype0:feat0,feat1 ntype1:feat0,feat1 ...': "
             "different node types have different node features.")
+    parser.add_argument(
+            "--use-wholegraph",
+            help="Whether to use wholegraph for feature transfer",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS
+    )
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
                  "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2"
