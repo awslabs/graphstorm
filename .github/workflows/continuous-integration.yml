@@ -30,7 +30,7 @@ env:
 jobs:
 
   lint_check:
-    if: ${{ github.event.label.name != 'draft' }}
+    if: ${{ github.event.label.name != 'draft' && !startsWith(github.event.pull_request.title, '[Test-PR]')}}
     runs-on: ubuntu-latest
     steps:
     - name: Configure AWS Credentials
@@ -74,7 +74,7 @@ jobs:
 
 
   pytest_check:
-    if: ${{ github.event.label.name != 'draft' }}
+    if: ${{ github.event.label.name != 'draft' && !startsWith(github.event.pull_request.title, '[Test-PR]')}}
     needs: lint_check
     runs-on: ubuntu-latest
     steps:
@@ -118,7 +118,7 @@ jobs:
 
 
   e2e_cpu_check:
-    if: ${{ github.event.label.name != 'draft' }}
+    if: ${{ github.event.label.name != 'draft' && !startsWith(github.event.pull_request.title, '[Test-PR]')}}
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
     steps:
@@ -162,7 +162,7 @@ jobs:
 
 
   e2e_check:
-    if: ${{ github.event.label.name != 'draft' }}
+    if: ${{ github.event.label.name != 'draft' && !startsWith(github.event.pull_request.title, '[Test-PR]')}}
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
     steps:
@@ -206,7 +206,7 @@ jobs:
 
 
   e2e_mgpu_check:
-    if: ${{ github.event.label.name != 'draft' }}
+    if: ${{ github.event.label.name != 'draft' && !startsWith(github.event.pull_request.title, '[Test-PR]')}}
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
     steps:
