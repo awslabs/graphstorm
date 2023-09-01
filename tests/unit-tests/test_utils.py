@@ -43,7 +43,7 @@ def gen_predict_with_nid_mapping(num_embs):
     pred = pred.long()
     ori_nid_mapping = th.randperm(num_embs)
     _, nid_mapping = th.sort(ori_nid_mapping)
-    return pred[nid_mapping], ori_nid_mapping
+    return pred, ori_nid_mapping, nid_mapping
 
 def helper_save_embedding(tmpdirname):
     random_emb = th.rand((103, 12))
@@ -198,8 +198,8 @@ def test_shuffle_predict(num_embs, backend):
 
     # node_mapping is tensor
     with tempfile.TemporaryDirectory() as tmpdirname:
-        pred, nid_mapping = gen_predict_with_nid_mapping(num_embs)
-        save_maps(tmpdirname, "node_mapping", nid_mapping)
+        pred, ori_nid_mapping, nid_mapping = gen_predict_with_nid_mapping(num_embs)
+        save_maps(tmpdirname, "node_mapping", ori_nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         conn1, conn2 = mp.Pipe()
@@ -230,9 +230,9 @@ def test_shuffle_predict(num_embs, backend):
 
      # node mapping is a dict
     with tempfile.TemporaryDirectory() as tmpdirname:
-        pred, nid_mapping = gen_predict_with_nid_mapping(num_embs)
-        nid_mapping = {"node": nid_mapping}
-        save_maps(tmpdirname, "node_mapping", nid_mapping)
+        pred, ori_nid_mapping, nid_mapping = gen_predict_with_nid_mapping(num_embs)
+        ori_nid_mapping = {"node": ori_nid_mapping}
+        save_maps(tmpdirname, "node_mapping", ori_nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         conn1, conn2 = mp.Pipe()
