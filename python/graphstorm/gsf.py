@@ -179,7 +179,7 @@ def create_builtin_node_model(g, config, train_task, share_decoder):
                                                 else model.node_input_encoder.out_dims,
                                                config.num_classes,
                                                config.multilabel)
-            model.set_decoder_dict(decoder)
+            model.set_decoder(decoder)
         model.set_loss_func(ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
                                              config.imbalance_class_weights))
@@ -194,7 +194,7 @@ def create_builtin_node_model(g, config, train_task, share_decoder):
                 decoder[ntype] = EntityRegression(model.gnn_encoder.out_dims \
                                                 if model.gnn_encoder is not None \
                                                 else model.node_input_encoder.out_dims)
-            model.set_decoder_dict(decoder)
+            model.set_decoder(decoder)
         model.set_loss_func(RegressionLossFunc())
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))

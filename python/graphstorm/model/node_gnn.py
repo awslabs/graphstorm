@@ -275,8 +275,8 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
         for input_nodes, seeds, _ in loader:
             for ntype, in_nodes in input_nodes.items():
                 if isinstance(model.decoder, th.nn.ModuleDict):
-                    assert target_ntype in model.decoder, f"Node type {target_ntype} not in decoder"
-                    decoder = model.decoder[target_ntype]
+                    assert ntype in model.decoder, f"Node type {ntype} not in decoder"
+                    decoder = model.decoder[ntype]
                 else:
                     decoder = model.decoder
                 if return_proba:
