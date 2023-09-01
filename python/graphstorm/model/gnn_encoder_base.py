@@ -17,6 +17,8 @@
 """
 
 from functools import partial
+import logging
+
 import dgl
 import torch as th
 from torch import nn
@@ -124,7 +126,7 @@ def dist_inference_one_layer(g, dataloader, layer, get_input_embeds, y, device, 
     """
     for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
         if iter_l % 100000 == 0 and get_rank() == 0:
-            print(f"[Rank 0] dist_inference: finishes [{iter_l}] iterations.")
+            logging.info("[Rank 0] dist_inference: finishes %d iterations.", iter_l)
 
         if task_tracker is not None:
             task_tracker.keep_alive(report_step=iter_l)

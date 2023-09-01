@@ -693,36 +693,58 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
                                         balance_edges=True,
                                         return_mapping=save_mapping)
     sys_tracker.check('Graph partitioning')
-    for i in range(num_partitions):
-        part_dir = os.path.join(output_dir, "part" + str(i))
-        data = dgl.data.utils.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
-        # Get the node features for the partition and save the node features in node_feat.dgl.
-        for ntype in node_data:
-            # We store the original node IDs as a node feature when we partition the graph.
-            # We can get the original node IDs from the node features and now
-            # we use them to retrieve the right node features.
-            orig_ids = data[ntype + "/" + orig_id_name]
-            for name, ndata in node_data[ntype].items():
-                data[ntype + "/" + name] = th.tensor(ndata[orig_ids])
-            sys_tracker.check(f'Get node data of node {ntype} in partition {i}')
-        # Delete the original node IDs from the node data.
-        for ntype in g.ntypes:
-            del data[ntype + "/" + orig_id_name]
-        dgl.data.utils.save_tensors(os.path.join(part_dir, "node_feat.dgl"), data)
 
-        data = dgl.data.utils.load_tensors(os.path.join(part_dir, "edge_feat.dgl"))
+    # If num_partitions is 1, node IDs are not shuffled.
+    # There is no need to reorder the features.
+    if num_partitions == 1:
+        part_dir = os.path.join(output_dir, "part0")
+        # Get the node features for the partition and save the node features in node_feat.dgl.
+        nfeat_data = {}
+        for ntype in node_data:
+            for name, ndata in node_data[ntype].items():
+                nfeat_data[ntype + "/" + name] = th.tensor(ndata)
+            sys_tracker.check(f'Get node data of node {ntype} in partition 0')
+
+        dgl.data.utils.save_tensors(os.path.join(part_dir, "node_feat.dgl"), nfeat_data)
+
         # Get the edge features for the partition and save the edge features in edge_feat.dgl.
+        efeat_data = {}
         for etype in edge_data:
-            # We store the original edge IDs as a edge feature when we partition the graph.
-            # We can get the original edge IDs from the edge features and now
-            # we use them to retrieve the right edge features.
-            orig_ids = data[_etype_tuple_to_str(etype) + '/' + orig_id_name]
             for name, edata in edge_data[etype].items():
-                data[_etype_tuple_to_str(etype) + "/" + name] = th.tensor(edata[orig_ids])
-            sys_tracker.check(f'Get edge data of edge {etype} in partition {i}')
-        for etype in g.canonical_etypes:
-            del data[_etype_tuple_to_str(etype) + '/' + orig_id_name]
-        dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), data)
+                efeat_data[_etype_tuple_to_str(etype) + "/" + name] = th.tensor(edata)
+            sys_tracker.check(f'Get edge data of edge {etype} in partition 0')
+        dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), efeat_data)
+    else:
+        for i in range(num_partitions):
+            part_dir = os.path.join(output_dir, "part" + str(i))
+            data = dgl.data.utils.load_tensors(os.path.join(part_dir, "node_feat.dgl"))
+            # Get the node features for the partition and save the node features in node_feat.dgl.
+            for ntype in node_data:
+                # We store the original node IDs as a node feature when we partition the graph.
+                # We can get the original node IDs from the node features and now
+                # we use them to retrieve the right node features.
+                orig_ids = data[ntype + "/" + orig_id_name]
+                for name, ndata in node_data[ntype].items():
+                    data[ntype + "/" + name] = th.tensor(ndata[orig_ids])
+                sys_tracker.check(f'Get node data of node {ntype} in partition {i}')
+            # Delete the original node IDs from the node data.
+            for ntype in g.ntypes:
+                del data[ntype + "/" + orig_id_name]
+            dgl.data.utils.save_tensors(os.path.join(part_dir, "node_feat.dgl"), data)
+
+            data = dgl.data.utils.load_tensors(os.path.join(part_dir, "edge_feat.dgl"))
+            # Get the edge features for the partition and save the edge features in edge_feat.dgl.
+            for etype in edge_data:
+                # We store the original edge IDs as a edge feature when we partition the graph.
+                # We can get the original edge IDs from the edge features and now
+                # we use them to retrieve the right edge features.
+                orig_ids = data[_etype_tuple_to_str(etype) + '/' + orig_id_name]
+                for name, edata in edge_data[etype].items():
+                    data[_etype_tuple_to_str(etype) + "/" + name] = th.tensor(edata[orig_ids])
+                sys_tracker.check(f'Get edge data of edge {etype} in partition {i}')
+            for etype in g.canonical_etypes:
+                del data[_etype_tuple_to_str(etype) + '/' + orig_id_name]
+            dgl.data.utils.save_tensors(os.path.join(part_dir, "edge_feat.dgl"), data)
 
     if save_mapping:
         new_node_mapping, new_edge_mapping = mapping

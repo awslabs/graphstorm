@@ -43,16 +43,18 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 error_and_exit $?
 
 echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, negative_sampler: joint, exclude_training_targets: false, no test"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_no_test_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --num-epochs 1 --eval-frequency 300 | tee train_log.txt
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_no_test_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --num-epochs 1 --eval-frequency 300 --logging-file /tmp/train_log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
-bst_cnt=$(grep "Best Test mrr: N/A" train_log.txt | wc -l)
+bst_cnt=$(grep "Best Test mrr: N/A" /tmp/train_log.txt | wc -l)
 if test $bst_cnt -lt 1
 then
     echo "Test set is empty we should have Best Test mrr: N/A"
     exit -1
 fi
+
+rm /tmp/train_log.txt
 
 mkdir -p /tmp/ML_lp_profile
 
