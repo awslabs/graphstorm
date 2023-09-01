@@ -136,14 +136,10 @@ def main(config_args):
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
         val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
-            construct_feat_ntype=config.construct_feat_ntype,
-            construct_feat_fanout=config.construct_feat_fanout)
+            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
     if len(train_data.test_idxs) > 0:
         test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
-            construct_feat_ntype=config.construct_feat_ntype,
-            construct_feat_fanout=config.construct_feat_fanout)
+            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
