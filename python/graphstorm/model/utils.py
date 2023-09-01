@@ -352,8 +352,11 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
     if node_id_mapping_file is not None:
         if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
             # only host 0 will load node id mapping from disk
-            node_id_mapping = th.load(node_id_mapping_file) \
-                if local_rank == 0 else None
+            if local_rank == 0:
+                ori_node_id_mapping = th.load(node_id_mapping_file)
+                _, node_id_mapping = th.sort(ori_node_id_mapping)
+            else:
+                None
 
             nid_mapping = _exchange_node_id_mapping(
                 local_rank, world_size, device, node_id_mapping, len(embeddings))
