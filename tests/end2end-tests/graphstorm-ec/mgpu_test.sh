@@ -142,8 +142,8 @@ error_and_exit $?
 
 rm -fr /data/gsgnn_ec/*
 
-echo "**************dataset: Generated MovieLens EC, language model only, node feat: text feature, inference: full graph, exclude-training-targets: True, train_nodes 10"
-python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec.yaml  --exclude-training-targets True --num-classes 6 --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_lm/emb/ --save-model-path /data/gsgnn_ec_lm/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt
+echo "**************dataset: Generated MovieLens EC, language model only, node feat: text feature, inference: full graph, train_nodes 10"
+python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec.yaml --num-classes 6 --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_lm/emb/ --save-model-path /data/gsgnn_ec_lm/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt
 
 error_and_exit ${PIPESTATUS[0]}
 
