@@ -40,6 +40,12 @@ jobs:
     if: (github.actor != 'dependabot[bot]')
 
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+          aws-region: "us-east-1"
+
       - name: Checkout Repository
         uses: actions/checkout@v3
 
