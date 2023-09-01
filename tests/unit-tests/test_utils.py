@@ -231,6 +231,7 @@ def test_shuffle_predict(num_embs, backend):
      # node mapping is a dict
     with tempfile.TemporaryDirectory() as tmpdirname:
         pred, ori_nid_mapping, nid_mapping = gen_predict_with_nid_mapping(num_embs)
+        nid_mapping = {"node": nid_mapping}
         ori_nid_mapping = {"node": ori_nid_mapping}
         save_maps(tmpdirname, "node_mapping", ori_nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
