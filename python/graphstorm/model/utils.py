@@ -445,7 +445,7 @@ def shuffle_predict(predictions, id_mapping_file, pred_type,
         _, id_mapping = th.sort(ori_id_mapping)
     else:
         id_mapping = None
-        
+
     local_id_mapping = _exchange_node_id_mapping(
                 local_rank, world_size, device, id_mapping,
                 len(predictions)).cpu() # predictions are stored in CPU
