@@ -383,6 +383,23 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                     + 'match the input dimension of the decoder.'
         self._decoder = decoder
 
+    def set_decoder_dict(self, decoders):
+        """set the decoder layer."""
+
+        self._decoder = nn.ModuleDict()
+
+        for name, decoder in decoders.items():
+            assert isinstance(
+                decoder, GSLayerBase
+            ), "The decoder should be the class of GSLayerBase."
+
+            if self.gnn_encoder is not None:
+                assert self.gnn_encoder.out_dims == decoder.in_dims, (
+                    "The output dimensions of the GNN encoder should "
+                    + "match the input dimension of the decoder."
+                )
+            self._decoder[name] = decoder
+
     def set_loss_func(self, loss_fn):
         """set the loss function.
 
@@ -394,6 +411,22 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         assert isinstance(loss_fn, nn.Module), \
                 'The loss function should be the class of nn.Module.'
         self._loss_fn = loss_fn
+
+    def set_loss_func_dict(self, loss_fns):
+        """set the loss function.
+
+        Parameters
+        ----------
+        loss_fn : Pytorch nn.Module
+            The loss function.
+        """
+        self._loss_fn = nn.ModuleDict()
+
+        for name, loss_fn in loss_fns.items():
+            assert isinstance(
+                loss_fn, nn.Module
+            ), "The loss function should be the class of nn.Module."
+            self._loss_fn[name] = loss_fn
 
     def prepare_input_encoder(self, train_data):
         """ Preparing input layer for training or inference.

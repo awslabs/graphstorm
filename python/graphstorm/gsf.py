@@ -120,7 +120,7 @@ def get_feat_size(g, node_feat_names):
                 feat_size[ntype] += fsize
     return feat_size
 
-def create_builtin_node_gnn_model(g, config, train_task):
+def create_builtin_node_gnn_model(g, config, train_task, share_decoder=True):
     """ Create a GNN model for node prediction.
 
     Parameters
@@ -131,14 +131,16 @@ def create_builtin_node_gnn_model(g, config, train_task):
         Configurations
     train_task : bool
         Whether this model is used for training.
+    share_decoder: bool
+        Whether this model share decoder for different node types.
 
     Returns
     -------
     GSgnnModel : The GNN model.
     """
-    return create_builtin_node_model(g, config, train_task)
+    return create_builtin_node_model(g, config, train_task, share_decoder)
 
-def create_builtin_node_model(g, config, train_task):
+def create_builtin_node_model(g, config, train_task, share_decoder):
     """ Create a built-in model for node prediction.
 
     Parameters
@@ -149,6 +151,8 @@ def create_builtin_node_model(g, config, train_task):
         Configurations
     train_task : bool
         Whether this model is used for training.
+    share_decoder: bool
+        Whether this model share decoder for different node types.
 
     Returns
     -------
@@ -161,18 +165,36 @@ def create_builtin_node_model(g, config, train_task):
     set_encoder(model, g, config, train_task)
 
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
-        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims \
-                                            if model.gnn_encoder is not None \
-                                            else model.node_input_encoder.out_dims,
-                                           config.num_classes,
-                                           config.multilabel))
+        if share_decoder:
+            model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims,
+                                               config.num_classes,
+                                               config.multilabel))
+        else:
+            decoder = {}
+            for ntype in config.target_ntype:
+                decoder[ntype] = EntityClassifier(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims,
+                                               config.num_classes,
+                                               config.multilabel)
+            model.set_decoder_dict(decoder)
         model.set_loss_func(ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
                                              config.imbalance_class_weights))
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
-        model.set_decoder(EntityRegression(model.gnn_encoder.out_dims \
-                                            if model.gnn_encoder is not None \
-                                            else model.node_input_encoder.out_dims))
+        if share_decoder:
+            model.set_decoder(EntityRegression(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims))
+        else:
+            decoder = {}
+            for ntype in config.target_ntype:
+                decoder[ntype] = EntityRegression(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims)
+            model.set_decoder_dict(decoder)
         model.set_loss_func(RegressionLossFunc())
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
