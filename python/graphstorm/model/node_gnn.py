@@ -125,7 +125,8 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
                 decoder = self.decoder
             ntype_logits = decoder(emb)
             if isinstance(self.loss_func, th.nn.ModuleDict):
-                assert target_ntype in self.loss_func, f"Node type {target_ntype} not in loss function"
+                assert target_ntype in self.loss_func, \
+                    f"Node type {target_ntype} not in loss function"
                 loss_func = self.loss_func[target_ntype]
             else:
                 loss_func = self.loss_func
@@ -151,7 +152,8 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         # predict for each node type
         predicts = {}
         if isinstance(self.decoder, th.nn.ModuleDict):
-            assert target_ntype in self.decoder, f"Node type {target_ntype} not in decoder"
+            assert target_ntype in self.decoder, \
+                f"Node type {target_ntype} not in decoder"
             decoder = self.decoder[target_ntype]
         else:
             decoder = self.decoder
