@@ -367,7 +367,9 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
                 if local_rank == 0:
                     assert name in node_id_mappings, \
                         f"node id mapping for ntype {name} should exists"
-                    node_id_mapping = node_id_mappings[name]
+                    # new mapping back index
+                    ori_node_id_mapping = node_id_mappings[name]
+                    _, node_id_mapping = th.sort(ori_node_id_mapping)
                 else:
                     node_id_mapping = None
 
@@ -434,10 +436,16 @@ def shuffle_predict(predictions, id_mapping_file, pred_type,
         device : torch device
             Device used to do data shuffling.
     """
-    id_mapping = th.load(id_mapping_file) if local_rank == 0 else None
     # In most of cases, id_mapping is a dict for heterogeneous graph.
     # For homogeneous graph, it is just a tensor.
-    id_mapping = id_mapping[pred_type] if isinstance(id_mapping, dict) else id_mapping
+    if local_rank == 0:
+        id_mappings = th.load(id_mapping_file)
+        ori_id_mapping = id_mappings[pred_type] if isinstance(id_mappings, dict) else id_mappings
+        # new mapping back index
+        _, id_mapping = th.sort(ori_id_mapping)
+    else:
+        id_mapping = None
+        
     local_id_mapping = _exchange_node_id_mapping(
                 local_rank, world_size, device, id_mapping,
                 len(predictions)).cpu() # predictions are stored in CPU
