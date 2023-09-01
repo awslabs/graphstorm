@@ -36,7 +36,6 @@ def gen_embedding_with_nid_mapping(num_embs):
     emb = th.rand((num_embs, 12))
     ori_nid_mapping = th.randperm(num_embs)
     _, nid_mapping = th.sort(ori_nid_mapping)
-
     emb = LazyDistTensor(emb, th.arange(num_embs))
     return emb, ori_nid_mapping, nid_mapping
 
