@@ -116,7 +116,7 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit ${PIPESTATUS[0]}
 
 # check early stop
-cnt=$(cat exec.log | grep "Evaluation step" | wc -l)
+cnt=$(cat /tmp/exec.log | grep "Evaluation step" | wc -l)
 if test $cnt -eq 30
 then
 	echo "Early stop should work, but it didn't"
