@@ -111,7 +111,7 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch early stop"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --use-early-stop True --early-stop-burnin-rounds 2 -e 30 --early-stop-rounds 3 --eval-frequency 100 --lr 0.01 | tee exec.log
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --use-early-stop True --early-stop-burnin-rounds 2 -e 30 --early-stop-rounds 3 --eval-frequency 100 --lr 0.01 --logging-file /tmp/exec.log
 
 error_and_exit ${PIPESTATUS[0]}
 
@@ -129,6 +129,8 @@ then
 	echo "Need at least 5 iters"
 	exit -1
 fi
+
+rm /tmp/exec.log
 
 date
 
