@@ -13,7 +13,7 @@ on:
 permissions:
   id-token: write
   pull-requests: write
-  contents: write
+  contents: read
 
 defaults:
   run:
@@ -30,14 +30,13 @@ env:
 jobs:
 
   lint_check:
-    if: ${{ github.event.label.name != 'draft'}}
+    if: ${{ github.event.label.name != 'draft' }}
     runs-on: ubuntu-latest
     steps:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        role-duration-seconds: 14400
         aws-region: us-east-1
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -56,7 +55,6 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        echo "hahaha"
         python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-Push-'${{ github.ref }}' \
                                --command "${{ env.COMMAND-LINT }}" \
                                --remote https://github.com/'${{ github.repository }}' \
@@ -67,7 +65,6 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        echo github.event.pull_request.title
         python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' \
                                --command "${{ env.COMMAND-LINT }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
