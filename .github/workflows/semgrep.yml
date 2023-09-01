@@ -47,6 +47,7 @@ jobs:
         run: |
           pip install semgrep
           echo ${{ startsWith(github.event.pull_request.title, '[Test-PR2]') }}
+          echo "I succeed"
           semgrep --version
 
       # Period (.) to run scan in the current directory to avoid blocking findings in the future use --exclude=+BLOCKING
