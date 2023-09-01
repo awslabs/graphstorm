@@ -56,6 +56,7 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
+        echo "hahaha"
         python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-Push-'${{ github.ref }}' \
                                --command "${{ env.COMMAND-LINT }}" \
                                --remote https://github.com/'${{ github.repository }}' \
