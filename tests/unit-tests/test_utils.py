@@ -43,7 +43,7 @@ def gen_predict_with_nid_mapping(num_embs):
     pred = pred.long()
     ori_nid_mapping = th.randperm(num_embs)
     _, nid_mapping = th.sort(ori_nid_mapping)
-    return pred, nid_mapping
+    return pred[nid_mapping], ori_nid_mapping
 
 def helper_save_embedding(tmpdirname):
     random_emb = th.rand((103, 12))
