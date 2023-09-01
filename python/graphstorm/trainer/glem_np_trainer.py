@@ -133,7 +133,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                                     save_model_path, save_model_frequency, no_pl)
                 stage_finish_time = time.time()
                 if self.rank == 0:
-                    logging.info("Epoch %d: %d takes %.2f seconds",
+                    logging.info("Epoch %d: %s takes %.2f seconds",
                                  epoch, part_to_train, stage_finish_time-stage_start_time)
                 use_gnn = not use_gnn
 
