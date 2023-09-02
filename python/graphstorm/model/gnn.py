@@ -30,7 +30,7 @@ from .utils import create_sparse_embeds_path
 from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
-from .gnn_encoder_base import dist_inference
+from .gnn_encoder_base import dist_inference, dist_minibatch_inference
 from ..utils import get_rank, get_world_size, barrier
 from ..dataloading.dataset import prepare_batch_input
 
@@ -622,7 +622,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         return self._loss_fn
 
 def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask=None,
-                            task_tracker=None):
+                            task_tracker=None, minibatch=False):
     """ Do fullgraph inference
 
     It may use some of the edges indicated by `edge_mask` to compute GNN embeddings.
@@ -641,6 +641,10 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
         The edge mask that indicates what edges are used to compute GNN embeddings.
     task_tracker: GSTaskTrackerAbc
         Task tracker
+    minibatch: bool
+        Whether do inference in a minibatch way. If false, GraphStorm will
+        compute node embeddings in a layer-by-layer fasion. If true, it
+        will compute node embeddings in a minibatch fasion.
 
     Returns
     -------
@@ -673,9 +677,16 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             return {ntype: input_embeds[ntype][ids].to(device) \
                     for ntype, ids in input_nodes.items()}
-        embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
-                                    batch_size, fanout, edge_mask=edge_mask,
-                                    task_tracker=task_tracker)
+        if minibatch:
+            embeddings = dist_minibatch_inference(data.g,
+                                                  model.gnn_encoder,
+                                                  get_input_embeds,
+                                                  batch_size, fanout, edge_mask=edge_mask,
+                                                  task_tracker=task_tracker)
+        else:
+            embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
+                                        batch_size, fanout, edge_mask=edge_mask,
+                                        task_tracker=task_tracker)
         model.train()
     else:
         model.eval()
@@ -687,9 +698,16 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
             feats = prepare_batch_input(data.g, input_nodes, dev=device,
                                         feat_field=data.node_feat_field)
             return model.node_input_encoder(feats, input_nodes)
-        embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
-                                    batch_size, fanout, edge_mask=edge_mask,
-                                    task_tracker=task_tracker)
+        if minibatch:
+            embeddings = dist_minibatch_inference(data.g,
+                                                  model.gnn_encoder,
+                                                  get_input_embeds,
+                                                  batch_size, fanout, edge_mask=edge_mask,
+                                                  task_tracker=task_tracker)
+        else:
+            embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
+                                        batch_size, fanout, edge_mask=edge_mask,
+                                        task_tracker=task_tracker)
         model.train()
     if get_rank() == 0:
         print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")

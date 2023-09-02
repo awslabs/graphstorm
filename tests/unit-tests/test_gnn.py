@@ -966,7 +966,44 @@ def test_link_prediction_weight():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_mini_batch_full_graph_inference(num_ffn_layers):
+    """ Test will compare embedings from layer-by-layer full graph inference
+        and mini-batch full graph inference
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                  train_etypes=[('n0', 'r1', 'n1')], label_field='label',
+                                  node_feat_field='feat')
+    model = create_rgcn_edge_model(data.g, num_ffn_layers=num_ffn_layers)
+
+    embs_layer = do_full_graph_inference(model, data, fanout=[-1, -1], minibatch=False)
+    embs_mini_batch = do_full_graph_inference(model, data, fanout=[-1, -1], minibatch=True)
+    for ntype in data.g.ntypes:
+        assert_almost_equal(embs_layer[ntype][0:data.g.num_nodes(ntype)].numpy(),
+                            embs_mini_batch[ntype][0:data.g.num_nodes(ntype)].numpy())
+
+    embs_layer = do_full_graph_inference(model, data, minibatch=False)
+    embs_mini_batch = do_full_graph_inference(model, data, minibatch=True)
+    for ntype in data.g.ntypes:
+        assert_almost_equal(embs_layer[ntype][0:data.g.num_nodes(ntype)].numpy(),
+                            embs_mini_batch[ntype][0:data.g.num_nodes(ntype)].numpy())
+
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+
 if __name__ == '__main__':
+    test_mini_batch_full_graph_inference(0)
+
     test_rgcn_edge_prediction()
     test_rgcn_node_prediction()
     test_rgat_node_prediction()
