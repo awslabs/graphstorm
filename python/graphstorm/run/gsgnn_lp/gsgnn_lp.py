@@ -17,6 +17,7 @@
 """
 
 import os
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -184,5 +185,4 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     args = arg_parser.parse_args()
-    print(args)
     main(args)
