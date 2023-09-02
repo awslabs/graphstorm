@@ -415,10 +415,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         Parameters
         ----------
-        loss_fn : Pytorch nn.Module or dist[str, Pytorch nn.Module]
+        loss_fns : Pytorch nn.Module or dist[str, Pytorch nn.Module]
             The loss function or dictionary of Pytorch nn.Module.
         """
-        if isinstance(loss_fn, dict):
+        if isinstance(loss_fns, dict):
             self._loss_fn = nn.ModuleDict()
             for name, loss_fn in loss_fns.items():
                 assert isinstance(
