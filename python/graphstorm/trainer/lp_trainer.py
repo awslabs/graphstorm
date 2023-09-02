@@ -17,6 +17,7 @@
 """
 import time
 import resource
+import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -25,7 +26,7 @@ from ..model.lp_gnn import lp_mini_batch_predict
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker, rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem
 from ..utils import barrier, is_distributed
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
@@ -154,8 +155,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.log_metric("Train loss", loss.item(), total_steps)
                 if i % 20 == 0 and self.rank == 0:
                     rt_profiler.print_stats()
-                    print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
-                            format(epoch, i, loss.item(), time.time() - batch_tic))
+                    logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
+                                 epoch, i, loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -191,7 +192,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             barrier()
             epoch_time = time.time() - epoch_start
             if self.rank == 0:
-                print("Epoch {} take {}".format(epoch, epoch_time))
+                logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
@@ -215,12 +216,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        if th.cuda.is_available():
-            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
-                                                         1024 / 1024))
-        else:
-            print("Peak RAM Mem alloc: {:.4f} MB".format(
-                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
+        print_mem(device)
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,
                        'best_val_mrr':self.evaluator.best_val_score,
