@@ -279,6 +279,8 @@ class GSgnnLinkPredictionDataLoader():
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
 
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
         self._construct_feat_sampler = \
                 _ReconstructedNeighborSampler(dataset, construct_feat_ntype,
                         construct_feat_fanout) if len(construct_feat_ntype) > 0 else None
