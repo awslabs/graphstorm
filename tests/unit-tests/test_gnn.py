@@ -48,6 +48,7 @@ from graphstorm.model.edge_decoder import (DenseBiDecoder,
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnEdgeTrainData
 from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
+from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_model
 from graphstorm import create_builtin_lp_gnn_model
 from graphstorm import get_feat_size
@@ -55,6 +56,7 @@ from graphstorm.gsf import get_rel_names_for_reconstruct
 from graphstorm.model.gnn import do_full_graph_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
+from graphstorm.model.gnn_with_reconstruct import construct_node_feat, get_input_embeds_combined
 
 from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_multi_target_ntypes
 from data_utils import generate_dummy_dist_graph_reconstruct
@@ -237,20 +239,55 @@ def check_node_prediction_with_reconstruct(model, data):
     data: GSgnnNodeTrainData
         Train data
     """
-    g = data.g
-    embs = do_full_graph_inference(model, data)
-
-    assert len(data.train_ntypes) == 1
     target_ntype = data.train_ntypes[0]
+    device = "cuda:0"
+    g = data.g
+    feat_ntype = ['n0', 'n4']
+    construct_feat_ntype = ['n2']
+    model = model.to(device)
+
+    # Verify the internal of full-graph inference.
+    def get_input_embeds(input_nodes):
+        feats = prepare_batch_input(g, input_nodes, dev=device,
+                                    feat_field=data.node_feat_field)
+        return model.node_input_encoder(feats, input_nodes)
+    feat_size = get_feat_size(g, {'n0': 'feat', 'n4': 'feat'})
+    rel_names = get_rel_names_for_reconstruct(g, construct_feat_ntype, feat_size)
+    constructed = construct_node_feat(g, rel_names, model.gnn_encoder._input_gnn,
+                                      get_input_embeds, 10, device=device)
+    assert set(constructed.keys()) == set(construct_feat_ntype)
+
+    input_nodes = {}
+    for ntype in feat_ntype + construct_feat_ntype:
+        input_nodes[ntype] = th.arange(g.number_of_nodes(ntype))
+    combined_node_feats = get_input_embeds_combined(input_nodes, constructed,
+                                                    get_input_embeds, device=device)
+    assert set(combined_node_feats.keys()) == set(feat_ntype + construct_feat_ntype)
+    for ntype in construct_feat_ntype:
+        feat1 = combined_node_feats[ntype].detach().cpu()
+        feat2 = constructed[ntype]
+        assert np.all(feat1[0:len(feat1)].numpy() == feat2[0:len(feat2)].numpy())
+    for ntype in feat_ntype:
+        emb = get_input_embeds({ntype: input_nodes[ntype]})[ntype].detach().cpu()
+        feat = combined_node_feats[ntype].detach().cpu()
+        assert np.all(emb.numpy() == feat.numpy())
+
+    # Run end-to-end full-graph inference.
+    embs = do_full_graph_inference(model, data)
+    embs = embs[target_ntype]
+    embs = embs[0:len(embs)].numpy()
+
+    # Verify the internal of mini-batch inference.
+    assert len(data.train_ntypes) == 1
     target_nidx = {target_ntype: th.arange(g.number_of_nodes(target_ntype))}
     dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1],
-                                     batch_size=10, device="cuda:0", train_task=False,
-                                     construct_feat_ntype=['n2'])
+                                     batch_size=10, device=device, train_task=False,
+                                     construct_feat_ntype=construct_feat_ntype)
+
+    # verify the end-to-end mini-batch inference.
     pred1, embs1, _ = node_mini_batch_gnn_predict(model, dataloader)
     embs1 = embs1[target_ntype]
     embs1 = embs1[0:len(embs1)].numpy()
-    embs = embs[target_ntype]
-    embs = embs[0:len(embs)].numpy()
     assert_almost_equal(embs1, embs, decimal=5)
 
 def check_mlp_node_prediction(model, data):

@@ -23,6 +23,85 @@ from dgl.distributed import DistTensor, node_split
 from ..utils import barrier
 from .gnn_encoder_base import GraphConvEncoder, dist_inference_one_layer
 
+def construct_node_feat(g, rel_names, input_gnn, get_input_embeds, batch_size,
+                        edge_mask=None, device="cpu", task_tracker=None):
+    """ Construct node features with the input layer.
+
+    Parameters
+    ----------
+    g : DistGraph
+        The distributed graph.
+    rel_names : list
+        The relation types used to construct node features.
+    input_encoder : GraphConvEncoder
+        The encoder to construct node features.
+    get_input_embeds : callable
+        Get the node features of the input nodes.
+    batch_size : int
+        The batch size for the GNN inference.
+    edge_mask : str
+        The edge mask indicates which edges are used to compute GNN embeddings.
+    device : Pytorch Device
+        The device where to perform the computation.
+    task_tracker : GSTaskTrackerAbc
+        The task tracker.
+
+    Returns
+    -------
+    dict of Tensor : the constructed node features.
+    """
+    # Here we only need to compute embeddings for the destination node types
+    # of the required relation types.
+    target_ntypes = {rel_name[2] for rel_name in rel_names}
+    with th.no_grad():
+        infer_nodes = {}
+        for ntype in target_ntypes:
+            infer_nodes[ntype] = node_split(th.ones((g.number_of_nodes(ntype),),
+                                                    dtype=th.bool),
+                                            partition_book=g.get_partition_book(),
+                                            ntype=ntype, force_even=False)
+        # We use all neighbors to reconstruct node features.
+        sampler = dgl.dataloading.MultiLayerNeighborSampler([-1], mask=edge_mask)
+        dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
+                                                        batch_size=batch_size,
+                                                        shuffle=False,
+                                                        drop_last=False)
+        return dist_inference_one_layer(g, dataloader, input_gnn,
+                                        get_input_embeds, device, task_tracker)
+
+def get_input_embeds_combined(input_nodes, feats, get_input_embeds, device='cpu'):
+    """ This gets the node embeddings from feats or get_input_embeds.
+
+    If required node embeddings are in feats, it reads from feats directly.
+    Otherise, it reads from get_input_embeds.
+
+    Parameters
+    ----------
+    input_nodes : dict of Tensors
+        The input node IDs.
+    feats : dict of Tensors
+        The node features.
+    get_input_embeds : callable
+        The function to get input node embeddings.
+    device : Pytorch device
+        The device where the output tensors are stored.
+
+    Returns
+    -------
+    dict of Tensors : The node embeddings of the input nodes.
+    """
+    orig_inputs = {}
+    embeds = {}
+    for ntype, nodes in input_nodes.items():
+        if ntype in feats:
+            embeds[ntype] = feats[ntype][nodes]
+        else:
+            orig_inputs[ntype] = nodes
+    embeds1 = get_input_embeds(orig_inputs)
+    assert len(embeds1) == len(orig_inputs)
+    embeds.update(embeds1)
+    return {ntype: embed.to(device) for ntype, embed in embeds.items()}
+
 class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
     """ A GNN encoder wrapper.
 
@@ -88,46 +167,15 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         dict of Tensor : the final GNN embeddings of all nodes.
         """
         device = self._gnn_encoder.device
-        # Compute the node embeddings for the input layer.
-        # Here we only need to compute embeddings for the destination node types
-        # of the required relation types.
-        target_ntypes = {rel_name[2] for rel_name in self._input_rel_names}
-        with th.no_grad():
-            y = {}
-            for k in target_ntypes:
-                h_dim = self._gnn_encoder.h_dims
-                y[k] = DistTensor((g.number_of_nodes(k), h_dim),
-                                  dtype=th.float32, name='h-reconstruct',
-                                  part_policy=g.get_node_partition_policy(k),
-                                  # TODO(zhengda) this makes the tensor persistent in memory.
-                                  persistent=True)
-            infer_nodes = {}
-            for ntype in target_ntypes:
-                infer_nodes[ntype] = node_split(th.ones((g.number_of_nodes(ntype),),
-                                                        dtype=th.bool),
-                                                partition_book=g.get_partition_book(),
-                                                ntype=ntype, force_even=False)
-            # We use all neighbors to reconstruct node features.
-            sampler = dgl.dataloading.MultiLayerNeighborSampler([-1], mask=edge_mask)
-            dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
-                                                            batch_size=batch_size,
-                                                            shuffle=False,
-                                                            drop_last=False)
-            dist_inference_one_layer(g, dataloader, self._input_gnn,
-                                     get_input_embeds, y, device, task_tracker)
+        constructed_feats = construct_node_feat(g, self._input_rel_names,
+                                                self._input_gnn, get_input_embeds,
+                                                batch_size, edge_mask=edge_mask,
+                                                device=device, task_tracker=task_tracker)
         barrier()
-        def get_input_embeds1(input_nodes, node_feats):
-            orig_inputs = {}
-            embeds = {}
-            for ntype, nodes in input_nodes.items():
-                if ntype in node_feats:
-                    embeds[ntype] = node_feats[ntype][nodes]
-                else:
-                    orig_inputs[ntype] = nodes
-            embeds1 = get_input_embeds(orig_inputs)
-            assert len(embeds1) == len(orig_inputs)
-            embeds.update(embeds1)
-            return {ntype: embed.to(device) for ntype, embed in embeds.items()}
-        return self._gnn_encoder.dist_inference(g, partial(get_input_embeds1, node_feats=y),
+        get_input_embeds = partial(get_input_embeds_combined,
+                                   feats=constructed_feats,
+                                   get_input_embeds=get_input_embeds,
+                                   device=device)
+        return self._gnn_encoder.dist_inference(g, get_input_embeds,
                                                 batch_size, fanout, edge_mask=edge_mask,
                                                 task_tracker=task_tracker)
