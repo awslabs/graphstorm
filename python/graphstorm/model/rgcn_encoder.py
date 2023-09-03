@@ -155,13 +155,17 @@ class RelGraphConvLayer(nn.Module):
 
         if g.is_block:
             inputs_src = inputs
-            inputs_dst = {k: v[:g.number_of_dst_nodes(k)] for k, v in inputs.items()}
+            if self.self_loop:
+                inputs_dst = {k: v[:g.number_of_dst_nodes(k)] for k, v in inputs.items()}
+            else:
+                # If we use RGCN for constructing node features, the destination nodes
+                # may not in the input features.
+                inputs_dst = {k: th.zeros((g.num_dst_nodes(k), self.in_feat),
+                                          dtype=th.float32, device=g.device) for k in g.dsttypes}
         else:
             inputs_src = inputs_dst = inputs
 
-        dst_h = {k: th.zeros((g.num_dst_nodes(k), self.in_feat),
-                             dtype=th.float32, device=g.device) for k in g.dsttypes}
-        hs = self.conv(g, (inputs_src, dst_h), mod_kwargs=wdict)
+        hs = self.conv(g, (inputs_src, inputs_dst), mod_kwargs=wdict)
 
         def _apply(ntype, h):
             if self.self_loop:

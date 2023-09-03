@@ -543,6 +543,9 @@ def set_encoder(model, g, config, train_task):
                 "We only support RGCN for reconstructing node features."
         input_gnn = RelGraphConvLayer(config.hidden_size, config.hidden_size,
                                       rel_names, len(rel_names),
+                                      self_loop=False, # We should disable self loop so that
+                                                       # the encoder doesn't use dest node
+                                                       # features.
                                       activation=F.relu,
                                       num_ffn_layers_in_gnn=config.num_ffn_layers_in_input)
         gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn, rel_names)

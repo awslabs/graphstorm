@@ -245,12 +245,12 @@ def check_node_prediction_with_reconstruct(model, data):
     feat_ntype = ['n0', 'n4']
     construct_feat_ntype = ['n2']
     model = model.to(device)
-
-    # Verify the internal of full-graph inference.
     def get_input_embeds(input_nodes):
         feats = prepare_batch_input(g, input_nodes, dev=device,
                                     feat_field=data.node_feat_field)
         return model.node_input_encoder(feats, input_nodes)
+
+    # Verify the internal of full-graph inference.
     feat_size = get_feat_size(g, {'n0': 'feat', 'n4': 'feat'})
     rel_names = get_rel_names_for_reconstruct(g, construct_feat_ntype, feat_size)
     constructed = construct_node_feat(g, rel_names, model.gnn_encoder._input_gnn,
@@ -289,6 +289,9 @@ def check_node_prediction_with_reconstruct(model, data):
         input_feats = get_input_embeds(input_nodes)
         for ntype, feat in input_feats.items():
             assert model.gnn_encoder.in_dims == feat.shape[1]
+        for ntype in blocks[0].srctypes:
+            assert ntype in input_nodes
+            assert blocks[0].num_src_nodes(ntype) == len(input_nodes[ntype])
         hs = model.gnn_encoder.construct_node_feat(blocks[0], input_feats)
         for ntype, h in hs.items():
             if ntype not in construct_feat_ntype and ntype in feat_ntype:
@@ -297,6 +300,7 @@ def check_node_prediction_with_reconstruct(model, data):
 
     # verify the end-to-end mini-batch inference.
     pred1, embs1, _ = node_mini_batch_gnn_predict(model, dataloader)
+
     embs1 = embs1[target_ntype]
     embs1 = embs1[0:len(embs1)].numpy()
     assert_almost_equal(embs1, embs, decimal=5)
