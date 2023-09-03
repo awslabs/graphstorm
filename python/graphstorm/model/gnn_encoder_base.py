@@ -104,13 +104,16 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return dist_inference(g, self, get_input_embeds, batch_size, fanout,
                               edge_mask=edge_mask, task_tracker=task_tracker)
 
-def dist_inference_one_layer(g, dataloader, layer, get_input_embeds, device, task_tracker):
+def dist_inference_one_layer(g, dataloader, target_ntypes, layer, get_input_embeds, device,
+                             task_tracker):
     """ Run distributed inference for one GNN layer.
 
     Parameters
     ----------
     g : DistGraph
         The full distributed graph.
+    target_ntypes : list of str
+        The node types where we compute GNN embeddings.
     dataloader : Pytorch dataloader
         The iterator over the nodes for computing GNN embeddings.
     layer : nn module
@@ -149,12 +152,21 @@ def dist_inference_one_layer(g, dataloader, layer, get_input_embeds, device, tas
 
         # For the first iteration, we need to create output tensors.
         if iter_l == 0:
-            for k in h.keys():
+            # Infer the hidden dim size.
+            # Here we assume all node embeddings have the same dim size.
+            h_dim = 0
+            dtype = None
+            for k in h:
                 assert len(h[k].shape) == 2, \
                         "The embedding tensors should have only two dimensions."
                 h_dim = h[k].shape[1]
+                dtype = h[k].dtype
+            assert h_dim > 0, "Cannot inference the hidden dim size."
+
+            # Create distributed tensors to store the embeddings.
+            for k in target_ntypes:
                 y[k] = DistTensor((g.number_of_nodes(k), h_dim),
-                                  dtype=h[k].dtype, name='h-reconstruct',
+                                  dtype=dtype, name='h-reconstruct',
                                   part_policy=g.get_node_partition_policy(k),
                                   # TODO(zhengda) this makes the tensor persistent in memory.
                                   persistent=True)
@@ -214,7 +226,8 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                 def get_input_embeds1(input_nodes, node_feats):
                     return {k: node_feats[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
                 get_input_embeds = partial(get_input_embeds1, node_feats=next_layer_input)
-            next_layer_input = dist_inference_one_layer(g, dataloader, layer,
-                                                        get_input_embeds, device, task_tracker)
+            next_layer_input = dist_inference_one_layer(g, dataloader, list(infer_nodes.keys()),
+                                                        layer, get_input_embeds, device,
+                                                        task_tracker)
             barrier()
     return next_layer_input
