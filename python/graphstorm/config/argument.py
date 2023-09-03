@@ -1702,7 +1702,7 @@ class GSConfig:
             return tuple(etype)
 
         # Per edge type lp evaluation is disabled.
-        return None
+        return LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
     @property
     def num_ffn_layers_in_input(self):
