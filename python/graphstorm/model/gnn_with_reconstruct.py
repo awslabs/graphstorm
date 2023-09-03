@@ -18,7 +18,7 @@ from functools import partial
 
 import torch as th
 import dgl
-from dgl.distributed import DistTensor, node_split
+from dgl.distributed import node_split
 
 from ..utils import barrier
 from .gnn_encoder_base import GraphConvEncoder, dist_inference_one_layer
