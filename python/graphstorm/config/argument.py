@@ -2071,7 +2071,7 @@ def _add_task_general_args(parser):
                 "the evaluation metric used. Supported metrics are accuracy,"
                 "precision_recall, or roc_auc multiple metrics"
                 "can be specified e.g. --eval-metric accuracy precision_recall")
-    group.add_argumet('--report-eval-per-type', type=bool, default=argparse.SUPPRESS,
+    group.add_argument('--report-eval-per-type', type=bool, default=argparse.SUPPRESS,
             help="Whether report evaluation metrics per node type or edge type."
                  "If True, report evaluation results for each node type/edge type."
                  "If False, report an average evaluation result.")
