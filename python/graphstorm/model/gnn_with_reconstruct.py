@@ -125,6 +125,8 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         self._gnn_encoder = gnn_encoder
         self._input_gnn = input_gnn
         self._input_rel_names = input_rel_names
+        self._required_src_type = {etype[0] for etype in input_rel_names}
+        self._constructed_ntype = {etype[2] for etype in input_rel_names}
 
     def forward(self, blocks, h):
         """ The forward function.
@@ -138,8 +140,35 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         """
         assert len(blocks) == self._gnn_encoder.num_layers + 1, \
                 "There are {len(blocks)}, but there are {self._gnn_encoder.num_layers} GNN layers."
-        h = self._input_gnn(blocks[0], h)
+        h = self.construct_node_feat(blocks[0], h)
         return self._gnn_encoder(blocks[1:], h)
+
+    def construct_node_feat(self, block, h):
+        """ Construct node features in a mini-batch.
+
+        It uses the input GNN layer to construct node features on the specified
+        node types. It reads the remaining node features directly.
+
+        Parameters
+        ----------
+        block : DGLBlock
+            The subgraph for node construction.
+        h : dict of Tensors
+            The input node features.
+
+        Returns
+        -------
+        dict of Tensors : the output node embeddings.
+        """
+        input_h = {}
+        for ntype in self._required_src_type:
+            assert ntype in h, f"The features of node type {ntype} are required."
+            input_h[ntype] = h[ntype]
+        out_h = self._input_gnn(block, input_h)
+        for ntype in h:
+            if ntype not in self._constructed_ntype:
+                out_h[ntype] = h[ntype]
+        return out_h
 
     def dist_inference(self, g, get_input_embeds, batch_size, fanout,
                        edge_mask=None, task_tracker=None):

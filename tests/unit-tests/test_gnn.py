@@ -283,6 +283,17 @@ def check_node_prediction_with_reconstruct(model, data):
     dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1],
                                      batch_size=10, device=device, train_task=False,
                                      construct_feat_ntype=construct_feat_ntype)
+    for input_nodes, seeds, blocks in dataloader:
+        assert len(blocks) == 2
+        blocks = [block.to(device) for block in blocks]
+        input_feats = get_input_embeds(input_nodes)
+        for ntype, feat in input_feats.items():
+            assert model.gnn_encoder.in_dims == feat.shape[1]
+        hs = model.gnn_encoder.construct_node_feat(blocks[0], input_feats)
+        for ntype, h in hs.items():
+            if ntype not in construct_feat_ntype and ntype in feat_ntype:
+                assert np.all(h.detach().cpu().numpy()
+                        == input_feats[ntype][0:len(h)].detach().cpu().numpy())
 
     # verify the end-to-end mini-batch inference.
     pred1, embs1, _ = node_mini_batch_gnn_predict(model, dataloader)
@@ -1091,9 +1102,9 @@ def test_link_prediction_weight():
 if __name__ == '__main__':
     test_rgcn_node_prediction_with_reconstruct()
     test_rgcn_edge_prediction(2)
-    test_rgcn_node_prediction()
-    test_rgat_node_prediction()
-    test_sage_node_prediction()
+    test_rgcn_node_prediction(None)
+    test_rgat_node_prediction(None)
+    test_sage_node_prediction(None)
     test_edge_classification()
     test_edge_classification_feat()
     test_edge_regression()
