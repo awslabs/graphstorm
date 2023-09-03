@@ -415,13 +415,6 @@ def test_node_dataloader_reconstruct():
                 assert blocks[0].number_of_edges(etype) > 0
             else:
                 assert blocks[0].number_of_edges(etype) == 0
-        for ntype in blocks[0].srctypes:
-            assert ntype in input_nodes
-            nids = blocks[0].srcnodes[ntype].data[dgl.NID].numpy()
-            assert len(nids) <= len(input_nodes[ntype])
-            nodes = input_nodes[ntype].numpy()
-            if len(nids) > 0:
-                assert np.all(nodes[-len(nids):] == nids)
         for ntype in blocks[1].srctypes:
             assert ntype in input_nodes
             nids = blocks[1].srcnodes[ntype].data[dgl.NID].numpy()
@@ -446,13 +439,6 @@ def test_node_dataloader_reconstruct():
                 assert blocks[0].number_of_edges(etype) > 0
             else:
                 assert blocks[0].number_of_edges(etype) == 0
-        for ntype in blocks[0].srctypes:
-            assert ntype in input_nodes
-            nids = blocks[0].srcnodes[ntype].data[dgl.NID].numpy()
-            assert len(nids) <= len(input_nodes[ntype])
-            nodes = input_nodes[ntype].numpy()
-            if len(nids) > 0:
-                assert np.all(nodes[-len(nids):] == nids)
         for ntype in blocks[1].srctypes:
             assert ntype in input_nodes
             nids = blocks[1].srcnodes[ntype].data[dgl.NID].numpy()

@@ -59,22 +59,7 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         """
         assert len(blocks) == self._gnn_encoder.num_layers + 1, \
                 "There are {len(blocks)}, but there are {self._gnn_encoder.num_layers} GNN layers."
-        ins = {}
-        # The node features of the input layer may be stored at the end of the input tensors.
-        for ntype in blocks[0].srctypes:
-            if ntype in h and blocks[0].num_src_nodes(ntype) > 0:
-                ins[ntype] = h[ntype][-blocks[0].num_src_nodes(ntype):]
-        outs = self._input_gnn(blocks[0], ins)
-        for ntype, out in outs.items():
-            h[ntype] = out
-        # The node features for the remaining layers may be stored
-        # at the beginning of the input tensors.
-        for ntype in blocks[1].srctypes:
-            if ntype in h:
-                assert len(h[ntype]) >= blocks[1].num_src_nodes(ntype)
-                num_src_nodes = blocks[1].num_src_nodes(ntype)
-                if len(h[ntype]) > num_src_nodes:
-                    h[ntype] = h[ntype][0:num_src_nodes]
+        h = self._input_gnn(blocks[0], h)
         return self._gnn_encoder(blocks[1:], h)
 
     def dist_inference(self, g, get_input_embeds, batch_size, fanout,
@@ -103,6 +88,9 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         dict of Tensor : the final GNN embeddings of all nodes.
         """
         device = self._gnn_encoder.device
+        # Compute the node embeddings for the input layer.
+        # Here we only need to compute embeddings for the destination node types
+        # of the required relation types.
         target_ntypes = {rel_name[2] for rel_name in self._input_rel_names}
         with th.no_grad():
             y = {}
