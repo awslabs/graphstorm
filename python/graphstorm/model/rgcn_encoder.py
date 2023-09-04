@@ -183,10 +183,9 @@ class RelGraphConvLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    logging.warning("Graph convolution returns empty dict for node of %s.", k)
                     for _, in_v in inputs_src.items():
                         device = in_v.device
-                    hs[k] = th.zeros((g.number_of_dst_nodes(k), self.out_feat), device=device)
+                    hs[k] = inputs[k][0:g.number_of_dst_nodes(k)]
                     # TODO the above might fail if the device is a different GPU
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 

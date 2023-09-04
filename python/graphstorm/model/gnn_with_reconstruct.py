@@ -167,7 +167,7 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
         out_h = self._input_gnn(block, input_h)
         for ntype in h:
             if ntype not in self._constructed_ntype:
-                out_h[ntype] = h[ntype]
+                out_h[ntype] = h[ntype][0:block.num_dst_nodes(ntype)]
         return out_h
 
     def dist_inference(self, g, get_input_embeds, batch_size, fanout,
