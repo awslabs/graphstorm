@@ -15,7 +15,6 @@
 
     RGCN layer implementation.
 """
-import logging
 
 import torch as th
 from torch import nn
@@ -183,8 +182,6 @@ class RelGraphConvLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    for _, in_v in inputs_src.items():
-                        device = in_v.device
                     hs[k] = inputs[k][0:g.number_of_dst_nodes(k)]
                     # TODO the above might fail if the device is a different GPU
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
