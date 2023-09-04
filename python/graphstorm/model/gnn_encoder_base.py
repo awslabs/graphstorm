@@ -104,12 +104,14 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return dist_inference(g, self, get_input_embeds, batch_size, fanout,
                               edge_mask=edge_mask, task_tracker=task_tracker)
 
-def dist_inference_one_layer(g, dataloader, target_ntypes, layer, get_input_embeds, device,
-                             task_tracker):
+def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_input_embeds,
+                             device, task_tracker):
     """ Run distributed inference for one GNN layer.
 
     Parameters
     ----------
+    layer_id : str
+        The layer ID.
     g : DistGraph
         The full distributed graph.
     target_ntypes : list of str
@@ -166,7 +168,7 @@ def dist_inference_one_layer(g, dataloader, target_ntypes, layer, get_input_embe
             # Create distributed tensors to store the embeddings.
             for k in target_ntypes:
                 y[k] = DistTensor((g.number_of_nodes(k), h_dim),
-                                  dtype=dtype, name='h-reconstruct',
+                                  dtype=dtype, name=f'h-{layer_id}',
                                   part_policy=g.get_node_partition_policy(k),
                                   # TODO(zhengda) this makes the tensor persistent in memory.
                                   persistent=True)
@@ -226,7 +228,8 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                 def get_input_embeds1(input_nodes, node_feats):
                     return {k: node_feats[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
                 get_input_embeds = partial(get_input_embeds1, node_feats=next_layer_input)
-            next_layer_input = dist_inference_one_layer(g, dataloader, list(infer_nodes.keys()),
+            next_layer_input = dist_inference_one_layer(str(i), g, dataloader,
+                                                        list(infer_nodes.keys()),
                                                         layer, get_input_embeds, device,
                                                         task_tracker)
             barrier()

@@ -66,7 +66,7 @@ def construct_node_feat(g, rel_names, input_gnn, get_input_embeds, batch_size,
                                                         batch_size=batch_size,
                                                         shuffle=False,
                                                         drop_last=False)
-        return dist_inference_one_layer(g, dataloader, target_ntypes, input_gnn,
+        return dist_inference_one_layer('input', g, dataloader, target_ntypes, input_gnn,
                                         get_input_embeds, device, task_tracker)
 
 def get_input_embeds_combined(input_nodes, feats, get_input_embeds, device='cpu'):
