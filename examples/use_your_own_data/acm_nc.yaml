@@ -14,7 +14,7 @@ gsf:
     restore_model_path: null
   output:
     save_model_path: /tmp/acm_nc/models
-    save_embeds_path: /tmp/acm_nc/embeds
+    save_embed_path: /tmp/acm_nc/embeds
   hyperparam:
     dropout: 0.
     lr: 0.0001

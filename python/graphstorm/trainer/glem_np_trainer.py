@@ -17,6 +17,7 @@
 """
 
 import time
+import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -25,7 +26,7 @@ from ..model.node_glem import GLEM
 from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
-from ..utils import sys_tracker, rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem
 from ..utils import barrier
 from ..dataloading import GSgnnNodeSemiSupDataLoader
 
@@ -132,8 +133,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                                     save_model_path, save_model_frequency, no_pl)
                 stage_finish_time = time.time()
                 if self.rank == 0:
-                    print("Epoch {}, {} takes {:.2f} seconds".format(
-                        epoch, part_to_train, stage_finish_time-stage_start_time))
+                    logging.info("Epoch %d: %s takes %.2f seconds",
+                                 epoch, part_to_train, stage_finish_time-stage_start_time)
                 use_gnn = not use_gnn
 
             # early_stop, exit training
@@ -144,7 +145,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             dur.append(epoch_time)
 
         rt_profiler.save_profile()
-        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        print_mem(device)
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
@@ -211,8 +212,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
 
             if i % 20 == 0 and self.rank == 0:
                 rt_profiler.print_stats()
-                print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
-                        format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
+                logging.info("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f",
+                             self.rank, epoch, i,  loss.item(), time.time() - batch_tic)
 
             val_score = None
             if self.evaluator is not None and \

@@ -15,6 +15,9 @@
 
     Relational GNN
 """
+
+import logging
+
 import dgl
 import torch as th
 from torch import nn
@@ -127,8 +130,8 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
 
             for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
                 if iter_l % 100000 == 0 and get_rank() == 0:
-                    print(f"[Rank 0] dist_inference: Layer [{i}] " \
-                          f"finishes [{iter_l}] iterations.")
+                    logging.info("dist_inference: Layer %d finishes %d iterations.",
+                                 i, iter_l)
 
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)

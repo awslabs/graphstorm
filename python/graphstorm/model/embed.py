@@ -15,6 +15,8 @@
 
     Embedding layer implementation
 """
+
+import logging
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -202,13 +204,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 feat_dim += feat_size[ntype]
             if feat_dim > 0:
                 if get_rank() == 0:
-                    print('Node {} has {} features.'.format(ntype, feat_dim))
+                    logging.debug('Node %s has %d features.', ntype, feat_dim)
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
                 nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain('relu'))
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
                     if get_rank() == 0:
-                        print('Use additional sparse embeddings on node {}'.format(ntype))
+                        logging.debug('Use additional sparse embeddings on node %s', ntype)
                     part_policy = g.get_node_partition_policy(ntype)
                     self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
                                                                self.embed_size,
@@ -223,7 +225,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             else:
                 part_policy = g.get_node_partition_policy(ntype)
                 if get_rank() == 0:
-                    print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')
+                    logging.debug('Use sparse embeddings on node %s:%d',
+                                  ntype, g.number_of_nodes(ntype))
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                 nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                 self.proj_matrix[ntype] = proj_matrix
@@ -372,8 +375,6 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
                 emb = embed_layer(feat, {ntype: input_nodes})
                 input_emb[input_nodes] = emb[ntype].to('cpu')
             n_embs[ntype] = input_emb
-        if get_rank() == 0:
-            print("Extract node embeddings")
     if embed_layer is not None:
         embed_layer.train()
     barrier()

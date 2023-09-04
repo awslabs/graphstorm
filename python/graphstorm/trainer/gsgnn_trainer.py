@@ -16,7 +16,7 @@
     GraphStorm trainer base
 """
 import os
-import psutil
+import logging
 import torch as th
 
 from ..model import GSOptimizer
@@ -47,8 +47,7 @@ class GSgnnTrainer():
         assert optimizer is not None, "The model cannot provide an optimizer"
         if not isinstance(optimizer, GSOptimizer):
             if rank == 0:
-                print("Warining: the optimizer is not GSOptimizer. "
-                        + "Convert it to GSOptimizer.")
+                logging.warning("the optimizer is not GSOptimizer. Convert it to GSOptimizer.")
             optimizer = GSOptimizer([optimizer])
         self._optimizer = optimizer
         self._rank = rank
@@ -217,7 +216,8 @@ class GSgnnTrainer():
             # remove the folder that contains saved model files.
             remove_status = remove_gsgnn_models(saved_model_path)
             if remove_status == 0:
-                print(f'Successfully removed the saved model files in {saved_model_path}')
+                logging.debug('Successfully removed the saved model files in %s',
+                              saved_model_path)
 
     def save_topk_models(self, model, epoch, i, val_score, save_model_path):
         """ Based on the given val_score, decided if save the current model trained in the i_th
@@ -291,30 +291,6 @@ class GSgnnTrainer():
         save_model_results_json(conf=conf,
                                 test_model_performance=test_model_performance,
                                 save_perf_results_path=save_perf_results_path)
-
-    def print_info(self, epoch, i, num_input_nodes, compute_time):
-        ''' Print basic information during training
-
-        Parameters:
-        epoch: int
-            The epoch number
-        i: int
-            The current iteration
-        num_input_nodes: int
-            number of input nodes
-        compute_time: tuple of ints
-            A tuple of (forward time and backward time)
-        '''
-        gnn_forward_time, back_time = compute_time
-
-        print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | GPU Peak Mem: {:.4f} MB".
-                format(epoch, i,
-                    th.cuda.memory_reserved(self.device) / 1024 / 1024,
-                    th.cuda.max_memory_allocated(self.device) / 1024 /1024))
-        print('Epoch {:05d} | Batch {:03d} | RAM memory {} used | Avg input nodes per iter {}'.
-                format(epoch, i, psutil.virtual_memory(), num_input_nodes))
-        print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(
-            epoch, i, gnn_forward_time, back_time))
 
     def restore_model(self, model_path, model_layer_to_load=None):
         """ Restore a GNN model and the optimizer.
