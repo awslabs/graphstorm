@@ -391,9 +391,9 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 error_and_exit $?
 
 echo "**************dataset: Movielens, two training edges with per etype evaluation result***********"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_2etype_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 1024 --exclude-training-targets false --train-etype user,rating,movie user,rating2,movie --eval-etype user,rating,movie user,rating2,movie --model-select-etype ALL --report-eval-per-type True --node-feat-name movie:title user:feat 2>&1 | tee train_log.txt
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_2etype_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 1024 --exclude-training-targets false --train-etype user,rating,movie user,rating2,movie --eval-etype user,rating,movie user,rating2,movie --model-select-etype ALL --report-eval-per-type True --node-feat-name movie:title user:feat --logging-file train_log.txt
 
-error_and_exit ${PIPESTATUS[0]}
+error_and_exit $?
 
 cnt=$(grep "Test mrr: {('user', 'rating', 'movie'):" train_log.txt | wc -l)
 if test $cnt -lt 1
@@ -403,9 +403,9 @@ then
 fi
 
 echo "**************dataset: Movielens, two training edges with per etype evaluation result***********"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_2etype_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 1024 --exclude-training-targets false --train-etype user,rating,movie user,rating2,movie --eval-etype user,rating,movie user,rating2,movie --model-select-etype user,rating2,movie --report-eval-per-type True --node-feat-name movie:title user:feat 2>&1 | tee train_log.txt
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_2etype_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 1024 --exclude-training-targets false --train-etype user,rating,movie user,rating2,movie --eval-etype user,rating,movie user,rating2,movie --model-select-etype user,rating2,movie --report-eval-per-type True --node-feat-name movie:title user:feat --logging-file train_log.txt
 
-error_and_exit ${PIPESTATUS[0]}
+error_and_exit $?
 
 cnt=$(grep "Test mrr: {('user', 'rating', 'movie'):" train_log.txt | wc -l)
 if test $cnt -lt 1
