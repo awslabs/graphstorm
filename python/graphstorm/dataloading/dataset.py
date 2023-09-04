@@ -15,8 +15,10 @@
 
     Various datasets for the GSF
 """
+import os
 import abc
 import torch as th
+import json
 import dgl
 from dgl.distributed import role
 
@@ -136,19 +138,15 @@ class GSgnnData():
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._wg_init = False
         if use_wholegraph and th.distributed.is_initialized():
-            for ntype in self._g.ntypes:
-                names = self._g._get_ndata_names(ntype)
-                data = {}
-                for name in names:
-                    assert name.is_node()
-                    print('Allocate features with Wholegraph')
-                    part = self.load_wg_feat(th.distributed.get_rank(), th.distributed.get_world_size())
-                    data[name.get_name()] = part
-                if len(self._g.ntypes) == 1:
-                    self._g._ndata_store = data
-                else:
-                    self._g._ndata_store[ntype] = data
-
+            paper_feat_path = "/data/ogbn_mag_lp_2p/wholegraph/paper~feat"
+            parts = paper_feat_path.split("/")
+            ntype, name = parts[-1].split("~")
+            part = self.load_wg_feat(part_config, th.distributed.get_rank(),
+                                     th.distributed.get_world_size())
+            if len(self._g.ntypes) == 1:
+                self._g._ndata_store[name] = part
+            else:
+                self._g._ndata_store[ntype][name] = part
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
 
@@ -184,7 +182,7 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
-    def load_wg_feat(self, rank, num_ranks):
+    def load_wg_feat(self, part_config, rank, num_ranks):
         """the features via wholegraph"""
         import pylibwholegraph.torch as wgth
         from pylibwholegraph.torch.tensor import WholeMemoryTensor
@@ -219,18 +217,22 @@ class GSgnnData():
             "readonly", # access type
             0.0, # cache ratio
         )
-        # TODO(IN): tensor.shape is hard coded for ogbn-mag's paper node
+        metadata_file = os.path.join(os.path.dirname(part_config), 'wholegraph/metadata.json')
+        with open(metadata_file) as f:
+            wg_metadata = json.load(f)
+        # TODO(IN): feat name is hard coded for ogbn-mag's paper node
         node_feat_wm_embedding = wgth.create_embedding(
             feature_comm,
             embedding_wholememory_type,
             embedding_wholememory_location,
-            th.float,
-            (736389,128), #dist_tensor.shape,
+            getattr(th, wg_metadata['paper/feat']['dtype'].split('.')[1]),
+            wg_metadata['paper/feat']['shape'],
             optimizer=None,
             cache_policy=cache_policy,
         )
         # TODO(IN): part_count is hard coded for ogbn-mag
-        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix('/data/ogbn_mag_lp_2p/wholegraph/paper~feat', part_count=2)
+        paper_feat_path = "/data/ogbn_mag_lp_2p/wholegraph/paper~feat"
+        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(paper_feat_path, part_count=2)
         return node_feat_wm_embedding
 
     def get_node_feats(self, input_nodes, device='cpu'):
