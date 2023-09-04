@@ -143,7 +143,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
-                             input_feats, None, input_nodes)
+                             node_feats=input_feats,
+                             edge_feats=None,
+                             input_nodes=input_nodes)
                 rt_profiler.record('train_forward')
 
                 self.optimizer.zero_grad()
