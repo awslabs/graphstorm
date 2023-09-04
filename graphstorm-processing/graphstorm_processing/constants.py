@@ -34,7 +34,11 @@ VALUE_COUNTS = "VALUE_COUNTS"
 SPECIAL_CHARACTERS = {".", "+", "*", "?", "^", "$", "(", ")", "[", "]", "{", "}", "|", "\\"}
 
 """Configuration to define driver and executor memory for distributed"""
+# Percentage of instance memory to allocate to the driver process
 DRIVER_MEM_INSTANCE_MEM_RATIO = 0.9
+# Fraction of driver memory to be allocated as additional non-heap memory per process
 DRIVER_MEM_OVERHEAD_RATIO = 0.1
+# Percentage of instance memory to allocate to executor processes
 EXECUTOR_MEM_INSTANCE_MEM_RATIO = 0.95
+# Fraction of executor memory to be allocated as additional non-heap memory per process
 EXECUTOR_MEM_OVERHEAD_RATIO = 0.1

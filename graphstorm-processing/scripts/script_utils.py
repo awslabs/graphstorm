@@ -22,9 +22,21 @@ import boto3
 
 
 def check_if_instances_available(instance_type: str, instance_count: int, region: str) -> None:
-    """
-    Checks if we have enough of a quota for the requested instance type and count in a region.
-    Raises a runtime error if the requested capacity exceeds the current quota.
+    """Checks if we have enough of a quota for the requested instance type and count in a region.
+
+    Parameters
+    ----------
+    instance_type : str
+        The type of the instance, e.g. m5.xlarge
+    instance_count : int
+        The number of instances we want to launch
+    region : str
+        The region we'll check the quota for, e.g. 'us-west-2'.
+
+    Raises
+    ------
+    RuntimeError
+        Raises a runtime error if the requested capacity exceeds the current quota.
     """
     quota_name = f"{instance_type} for processing job usage"
     quota_value = get_quota_value("sagemaker", quota_name, region)
@@ -40,8 +52,30 @@ def check_if_instances_available(instance_type: str, instance_count: int, region
 
 
 def get_quota_value(service_code: str, quota_name: str, region: str) -> float:
-    """
-    For a given service code, quota name, and region, return the quota value.
+    """For a given service code, quota name, and region, return the quota value.
+
+    Parameters
+    ----------
+    service_code : str
+        The service code for the service we will get quotas value for.
+        To find the service code value for an Amazon Web Services service,
+        use the ListServices operation.
+    quota_name : str
+        The descriptive name of the quota, e.g. 'Number of instances for a processing job'
+        See https://docs.aws.amazon.com/general/latest/gr/sagemaker.html#limits_sagemaker
+        for a full list of SageMaker quotas.
+    region : str
+        _description_
+
+    Returns
+    -------
+    float
+        The region we'll check the quota for, e.g. 'us-west-2'.
+
+    Raises
+    ------
+    RuntimeError
+        If it wasn't possible to retrieve the service value.
     """
 
     def get_value_for_quota_name(
@@ -77,9 +111,17 @@ def get_quota_value(service_code: str, quota_name: str, region: str) -> float:
 
 
 def get_max_volume_size_for_processing(region: str) -> int:
-    """
-    Get the maximum allowed EBS volume size for a processing instance for the region.
-    Returns an integer value in GB, or `sys.maxsize` if it's not possible to retrieve the quota.
+    """Get the maximum allowed EBS volume size for a processing instance for the region, in GB.
+
+    Parameters
+    ----------
+    region : str
+        The region we'll check the quota for, e.g. 'us-west-2'.
+
+    Returns
+    -------
+    int
+        The maximum allowed EBS volume size for a processing instance for the region, in GB.
     """
     quota_name = "Size of EBS volume for a processing job instance"
     try:
@@ -91,8 +133,21 @@ def get_max_volume_size_for_processing(region: str) -> int:
 
 
 def determine_byte_size_on_s3(bucket: str, prefix: str, s3_boto_client=None) -> int:
-    """
-    Returns the total byte size under all files under a common prefix.
+    """Returns the total byte size under all files under a S3 common prefix.
+
+    Parameters
+    ----------
+    bucket : str
+        The bucket under which we are checking.
+    prefix : str
+        The prefix key under which we will sum the object size.
+    s3_boto_client : S3.Client, optional
+        Optional boto S3 client, by default None
+
+    Returns
+    -------
+    int
+        Total size of all objects under the prefix, in bytes.
     """
     s3_boto_client = (
         boto3.client("s3", region_name=get_bucket_region(bucket))

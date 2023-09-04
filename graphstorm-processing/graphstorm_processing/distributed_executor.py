@@ -138,12 +138,36 @@ class DistributedExecutor:
         self.sm_execution = executor_config.sm_execution
         self.add_reverse_edges = executor_config.add_reverse_edges
 
+        # Ensure we have write access to the output path
+        if self.filesystem_type == "local":
+            if not os.path.exists(self.output_prefix):
+                try:
+                    os.makedirs(self.output_prefix, exist_ok=True)
+                except OSError as e:
+                    logging.error("Unable to create output path: %s", e)
+                    raise e
+        else:
+            # Ensure we can read and write files from/to the S3 prefix
+            s3 = boto3.resource("s3")
+            bucket_name = self.output_prefix.split("/")[2]
+            prefix = self.output_prefix.split("/", 3)[3]
+            head_bucket_response = s3.meta.client.head_bucket(Bucket=bucket_name)
+            assert head_bucket_response["ResponseMetadata"]["HTTPStatusCode"] == 200
+            bucket_resouce = s3.Bucket(bucket_name)
+            bucket_resouce.put_object(Key=f"{prefix}/test_file.txt", Body=b"test")
+            response = bucket_resouce.delete_objects(
+                Delete={"Objects": [{"Key": f"{prefix}/test_file.txt"}], "Quiet": True}
+            )
+            assert "Deleted" in response
+
         graph_conf = os.path.join(self.local_config_path, self.config_filename)
         with open(graph_conf, "r", encoding="utf-8") as f:
             dataset_config_dict: Dict[str, Any] = json.load(f)
 
         if "version" in dataset_config_dict:
             self.config_version = dataset_config_dict["version"]
+            if self.config_version != "gsprocessing-v1.0":
+                logging.warning("Unrecognized version name: %s", self.config_version)
             self.graph_config_dict = dataset_config_dict["graph"]
         else:
             # TODO: Change once GConstruct adds a version to their config spec
@@ -158,11 +182,11 @@ class DistributedExecutor:
         """
         Executes the Spark processing job.
         """
-        print("Performing data processing with PySpark...")
+        logging.info("Performing data processing with PySpark...")
         data_configs = create_config_objects(self.graph_config_dict)
 
         t0 = time.time()
-        print("Constructing DGLGraph for Heterogeneous Graph")
+        logging.info("Constructing DGLGraph for Heterogeneous Graph")
         # Prefer explicit arguments for clarity
         loader = DistHeterogeneousGraphLoader(
             spark=self.spark,
