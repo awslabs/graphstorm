@@ -1014,7 +1014,7 @@ class GSConfig:
         if hasattr(self, "_construct_feat_fanout"):
             return self._construct_feat_fanout
         else:
-            return 0
+            return 5
 
     @property
     def wd_l2norm(self):
