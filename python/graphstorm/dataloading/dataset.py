@@ -138,15 +138,16 @@ class GSgnnData():
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._wg_init = False
         if use_wholegraph and th.distributed.is_initialized():
-            paper_feat_path = "/data/ogbn_mag_lp_2p/wholegraph/paper~feat"
-            parts = paper_feat_path.split("/")
-            ntype, name = parts[-1].split("~")
-            part = self.load_wg_feat(part_config, th.distributed.get_rank(),
-                                     th.distributed.get_world_size())
-            if len(self._g.ntypes) == 1:
-                self._g._ndata_store[name] = part
-            else:
-                self._g._ndata_store[ntype][name] = part
+            for ntype in node_feat_field.keys():
+                assert ntype in self._g.ntypes, \
+                        f"Cannot load features of node type '{ntype}' as graph has" \
+                        f" no such node type."
+                part = self.load_wg_feat(part_config, ntype, th.distributed.get_rank(),
+                                         th.distributed.get_world_size())
+                if len(self._g.ntypes) == 1:
+                    self._g._ndata_store['feat'] = part
+                else:
+                    self._g._ndata_store[ntype]['feat'] = part
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
 
@@ -182,7 +183,7 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
-    def load_wg_feat(self, part_config, rank, num_ranks):
+    def load_wg_feat(self, part_config, ntype, rank, num_ranks):
         """the features via wholegraph"""
         import pylibwholegraph.torch as wgth
         from pylibwholegraph.torch.tensor import WholeMemoryTensor
@@ -225,14 +226,13 @@ class GSgnnData():
             feature_comm,
             embedding_wholememory_type,
             embedding_wholememory_location,
-            getattr(th, wg_metadata['paper/feat']['dtype'].split('.')[1]),
-            wg_metadata['paper/feat']['shape'],
+            getattr(th, wg_metadata[ntype + '/feat']['dtype'].split('.')[1]),
+            wg_metadata[ntype + '/feat']['shape'],
             optimizer=None,
             cache_policy=cache_policy,
         )
-        # TODO(IN): part_count is hard coded for ogbn-mag
-        paper_feat_path = "/data/ogbn_mag_lp_2p/wholegraph/paper~feat"
-        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(paper_feat_path, part_count=2)
+        feat_path = os.path.join(os.path.dirname(part_config), 'wholegraph', ntype+'~feat')
+        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path, part_count=2)
         return node_feat_wm_embedding
 
     def get_node_feats(self, input_nodes, device='cpu'):
