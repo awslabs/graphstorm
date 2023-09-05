@@ -35,7 +35,9 @@ from graphstorm.gconstruct.file_io import write_data_hdf5, write_index_json
 # We create multiple edges in a similar way.
 def gen_rand_nid(max_nid, num_nodes):
     node_ids = np.unique(np.random.randint(0, max_nid, num_nodes))
-    if len(node_ids != num_nodes)
+    if len(node_ids) != num_nodes:
+        print(f"The length of generated node ids is {len(node_ids)}."
+              "But {num_nodes} is needed. Regenerate the node ids.")
         return gen_rand_nid(max_nid, num_nodes)
     return node_ids
 
