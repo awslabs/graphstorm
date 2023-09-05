@@ -1730,12 +1730,6 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_model_select_etype"):
             etype = self._model_select_etype.split(",")
-            if len(etype) == 1:
-                assert etype[0].upper() == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL, \
-                    "If you want to select model based on the average eval value of" \
-                    "all edge types please set model_select_etype to " \
-                    f"{LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL}"
-                return LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
             assert len(etype) == 3, \
                 "If you want to select model based on eval value of " \
                 "a specific etype, the model_select_etype must be a " \
