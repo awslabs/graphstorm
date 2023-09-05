@@ -221,13 +221,17 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     edge_feat_field : str or dict of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
     """
     def __init__(self, graph_name, part_config, label_field=None,
-                 node_feat_field=None, edge_feat_field=None):
+                 node_feat_field=None, edge_feat_field=None,
+                 decoder_edge_feat=None):
         super(GSgnnEdgeData, self).__init__(graph_name, part_config,
                                             node_feat_field, edge_feat_field)
 
         self._label_field = label_field
+        self._decoder_edge_feat = decoder_edge_feat
         if label_field is not None:
             self._labels = {}
             for etype in self._g.canonical_etypes:
@@ -262,6 +266,11 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     def labels(self):
         """Labels"""
         return self._labels
+
+    @property
+    def decoder_edge_feat(self):
+        """edge features used by decoder"""
+        return self._decoder_edge_feat
 
     @property
     def train_idxs(self):

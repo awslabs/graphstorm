@@ -444,13 +444,13 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             th.Tensor
                 Output of forward
         """
+        assert eh is not None, "edge feature is required"
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
             ufeat = h[src_type][u]
             ifeat = h[dest_type][v]
-            efaat = eh[self.target_etype]
-            efeat = g.edges[self.target_etype].data[EP_DECODER_EDGE_FEAT]
+            efeat = eh[self.target_etype]
 
             # [src_emb | dest_emb] @ W -> h_dim
             h = th.cat([ufeat, ifeat], dim=1)

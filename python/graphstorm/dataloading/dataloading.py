@@ -60,13 +60,11 @@ class GSgnnEdgeDataLoader():
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
-                 exclude_training_targets=False,
-                 decoder_edge_feat=None):
+                 exclude_training_targets=False):
         self._data = dataset
         self._device = device
         self._fanout = fanout
         self._target_eidx = target_idx
-        self._decoder_edge_feat = decoder_edge_feat
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -115,17 +113,7 @@ class GSgnnEdgeDataLoader():
         return self
 
     def __next__(self):
-        input_nodes, batch_graph, blocks = self.dataloader.__next__()
-        if self._decoder_edge_feat is not None:
-            input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
-                           for etype in batch_graph.canonical_etypes}
-            edge_feats = self._data.get_edge_feats(input_edges,
-                                                   self._decoder_edge_feat,
-                                                   batch_graph.device)
-            # store edge feature into graph
-            for etype, feat in edge_feats.items():
-                batch_graph.edges[etype].data[EP_DECODER_EDGE_FEAT] = feat.to(th.float32)
-        return (input_nodes, batch_graph, blocks)
+        return self.dataloader.__next__()
 
     @property
     def data(self):
