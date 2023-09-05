@@ -1332,6 +1332,8 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_target_ntype"):
+            assert instance(self._eval_target_ntype, str), \
+                "Now we only support single ntype evaluation"
             return self._eval_target_ntype
         else:
             if isinstance(self.target_ntype, str):
