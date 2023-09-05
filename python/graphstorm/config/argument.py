@@ -20,6 +20,7 @@ import os
 import sys
 import argparse
 import math
+import logging
 
 import yaml
 import torch as th
@@ -50,7 +51,7 @@ from .config import SUPPORTED_LP_DECODER
 from .config import GRAPHSTORM_MODEL_ALL_LAYERS
 
 from .utils import get_graph_name
-from ..utils import TORCH_MAJOR_VER
+from ..utils import TORCH_MAJOR_VER, get_log_level
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -122,18 +123,27 @@ class GSConfig:
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
-
         self.set_attributes(configuration)
-
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
+
+        # We need to config the logging at very beginning. Otherwise, logging will not work.
+        if self.logging_file is None:
+            logging.basicConfig(level=self.logging_level)
+        else:
+            logging.basicConfig(filename=self.logging_file, level=self.logging_level)
+        logging.debug(str(configuration))
+        cmd_args_dict = cmd_args.__dict__
+        # Print overriden arguments.
+        for arg_key in cmd_args_dict:
+            if arg_key not in ["yaml_config_file", "local_rank"]:
+                logging.debug("Overriding Argument: %s", arg_key)
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
-        print(configuration)
         if 'lm_model' in configuration:
             # has language model configuration
             # lm_model:
@@ -203,7 +213,6 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
-                print(f"Overriding Argument: {arg_key}")
 
     def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.
@@ -333,8 +342,8 @@ class GSConfig:
         """
         for i, _ in enumerate(self.node_lm_configs):
             if self.node_lm_configs[i]["gradient_checkpoint"]:
-                print(f"WARNING: {reason} can not work with " \
-                        "gradient checkpoint. Turn gradient checkpoint to False")
+                logging.warning("%s can not work with gradient checkpoint. " \
+                        + "Turn gradient checkpoint to False", reason)
                 self.node_lm_configs[i]["gradient_checkpoint"] = False
 
     def handle_argument_conflicts(self):
@@ -459,6 +468,24 @@ class GSConfig:
             return self._verbose
 
         return False
+
+    @property
+    def logging_level(self):
+        """ Get the logging level.
+        """
+        if hasattr(self, "_logging_level"):
+            return get_log_level(self._logging_level)
+        else:
+            return logging.INFO
+
+    @property
+    def logging_file(self):
+        """ The file where logs are saved to.
+        """
+        if hasattr(self, "_logging_file"):
+            return self._logging_file
+        else:
+            return None
 
     ###################### language model support #########################
     # Bert related
@@ -1207,7 +1234,7 @@ class GSConfig:
 
             if self._return_proba is True and \
                 self.task_type in [BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_EDGE_REGRESSION]:
-                print("WARNING: node regression and edge regression tasks "
+                logging.warning("node regression and edge regression tasks "
                       "automatically ignore --return-proba flag. Regression "
                       "prediction results will be returned.")
             return self._return_proba
@@ -1322,10 +1349,10 @@ class GSConfig:
         assert len(self._target_etype) > 0, \
             "There must be at least one target etype."
         if len(self._target_etype) != 1:
-            print(f"WARNING: only {self._target_etype[0]} will be used."
-                "Currently, GraphStorm only supports single task edge "
-                "classification/regression. Please contact GraphStorm "
-                "dev team to support multi-task.")
+            logging.warning("only %s will be used." + \
+                "Currently, GraphStorm only supports single task edge " + \
+                "classification/regression. Please contact GraphStorm " + \
+                "dev team to support multi-task.", str(self._target_etype[0]))
 
         return [tuple(target_etype.split(',')) for target_etype in self._target_etype]
 
@@ -1736,6 +1763,12 @@ def _add_initialization_args(parser):
         default=argparse.SUPPRESS,
         help="Print more information.",
     )
+    group.add_argument('--logging-level', type=str, default="info",
+                       help="Change the logging level. " + \
+                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
+                               "The default value is 'info'.")
+    group.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
+                       help='The file where the logging is saved to.')
     return parser
 
 def _add_gsgnn_basic_args(parser):
