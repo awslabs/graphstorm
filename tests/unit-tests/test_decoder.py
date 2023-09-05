@@ -374,9 +374,6 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         "n1": th.randn(g.num_nodes("n1"), h_dim)
     }
     efeat = th.randn(g.num_edges(target_etype), feat_dim)
-    g.edges[target_etype].data[EP_DECODER_EDGE_FEAT] = efeat
-
-
     decoder = MLPEFeatEdgeDecoder(h_dim,
                                   feat_dim,
                                   out_dim,
@@ -385,7 +382,7 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
                                   num_ffn_layers=num_ffn_layers)
     with th.no_grad():
         decoder.eval()
-        output = decoder(g, encoder_feat)
+        output = decoder(g, encoder_feat, efeat)
         u, v = g.edges(etype=target_etype)
         ufeat = encoder_feat["n0"][u]
         ifeat = encoder_feat["n1"][v]

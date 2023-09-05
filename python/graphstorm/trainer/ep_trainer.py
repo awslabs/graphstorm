@@ -54,8 +54,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             save_model_path=None,
             save_model_frequency=None,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0,
-            decoder_edge_feat=None):
+            freeze_input_layer_epochs=0):
         """ The fit function for edge prediction.
 
         Parameters

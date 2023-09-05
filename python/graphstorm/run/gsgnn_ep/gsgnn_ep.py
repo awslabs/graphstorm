@@ -99,15 +99,13 @@ def main(config_args):
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
-            remove_target_edge_type=config.remove_target_edge_type,
-            decoder_edge_feat=config.decoder_edge_feat)
+            remove_target_edge_type=config.remove_target_edge_type)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
-            remove_target_edge_type=config.remove_target_edge_type,
-            decoder_edge_feat=config.decoder_edge_feat)
+            remove_target_edge_type=config.remove_target_edge_type)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
