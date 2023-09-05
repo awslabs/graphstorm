@@ -25,8 +25,7 @@ from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictWeightedDistMultDecoder,
                               MLPEFeatEdgeDecoder)
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
-                                    EP_DECODER_EDGE_FEAT)
+                                    BUILTIN_LP_JOINT_NEG_SAMPLER)
 from graphstorm.eval.utils import calc_distmult_pos_score
 from graphstorm.eval.utils import calc_dot_pos_score
 from graphstorm.model.edge_decoder import _get_edge_weight

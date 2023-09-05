@@ -25,8 +25,7 @@ from .ngnn_mlp import NGNNMLP
 from .gs_layer import GSLayer, GSLayerNoParam
 from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                            BUILTIN_LP_JOINT_NEG_SAMPLER,
-                           LP_DECODER_EDGE_WEIGHT,
-                           EP_DECODER_EDGE_FEAT)
+                           LP_DECODER_EDGE_WEIGHT)
 from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score
 from ..eval.utils import calc_distmult_neg_head_score, calc_distmult_neg_tail_score
 

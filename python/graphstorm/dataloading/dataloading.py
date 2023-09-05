@@ -31,7 +31,6 @@ from .sampler import (LocalUniform,
 from .utils import trim_data, modify_fanout_for_target_etype
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
-EP_DECODER_EDGE_FEAT = "ep_edge_feat"
 
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
