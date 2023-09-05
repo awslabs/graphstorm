@@ -17,6 +17,7 @@
 """
 
 import abc
+import logging
 import time
 import torch as th
 import dgl
@@ -435,7 +436,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         # Restore the model weights from a checkpoint saved previously.
         if restore_model_path is not None:
-            print('load GNN model from ', restore_model_path)
+            logging.debug('load GNN model from %s', restore_model_path)
             # TODO(zhengda) we need to load edge_input_encoder.
             model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
                 if model_layer_to_load is None else model_layer_to_load
@@ -447,7 +448,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                 self.decoder \
                     if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
-            print('Load Sparse embedding from ', restore_model_path)
+            logging.debug('Load Sparse embedding from %s', restore_model_path)
             load_sparse_embeds(restore_model_path,
                                 self.node_input_encoder,
                                 get_rank(),
@@ -582,8 +583,8 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                            get_rank(),
                            get_world_size())
         if get_rank() == 0:
-            print('successfully save the model to ' + model_path)
-            print('Time on save model {}'.format(time.time() - start_save_t))
+            logging.info('successfully save the model to %s', model_path)
+            logging.info('Time on save model: %.3f seconds', time.time() - start_save_t)
 
     @property
     def node_input_encoder(self):
@@ -692,5 +693,5 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                     task_tracker=task_tracker)
         model.train()
     if get_rank() == 0:
-        print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
+        logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)
     return embeddings

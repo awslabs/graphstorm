@@ -20,6 +20,7 @@ import os
 import sys
 import argparse
 import math
+import logging
 
 import yaml
 import torch as th
@@ -36,6 +37,7 @@ from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import BUILTIN_TASK_LINK_PREDICTION
+from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
@@ -49,7 +51,7 @@ from .config import SUPPORTED_LP_DECODER
 from .config import GRAPHSTORM_MODEL_ALL_LAYERS
 
 from .utils import get_graph_name
-from ..utils import TORCH_MAJOR_VER
+from ..utils import TORCH_MAJOR_VER, get_log_level
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -121,18 +123,27 @@ class GSConfig:
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
-
         self.set_attributes(configuration)
-
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
+
+        # We need to config the logging at very beginning. Otherwise, logging will not work.
+        if self.logging_file is None:
+            logging.basicConfig(level=self.logging_level)
+        else:
+            logging.basicConfig(filename=self.logging_file, level=self.logging_level)
+        logging.debug(str(configuration))
+        cmd_args_dict = cmd_args.__dict__
+        # Print overriden arguments.
+        for arg_key in cmd_args_dict:
+            if arg_key not in ["yaml_config_file", "local_rank"]:
+                logging.debug("Overriding Argument: %s", arg_key)
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
-        print(configuration)
         if 'lm_model' in configuration:
             # has language model configuration
             # lm_model:
@@ -202,7 +213,6 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
-                print(f"Overriding Argument: {arg_key}")
 
     def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.
@@ -245,6 +255,7 @@ class GSConfig:
             _ = self.lm_train_nodes
             _ = self.lm_tune_lr
             _ = self.lr
+            _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
             _ = self.save_model_path
@@ -330,8 +341,8 @@ class GSConfig:
         """
         for i, _ in enumerate(self.node_lm_configs):
             if self.node_lm_configs[i]["gradient_checkpoint"]:
-                print(f"WARNING: {reason} can not work with " \
-                        "gradient checkpoint. Turn gradient checkpoint to False")
+                logging.warning("%s can not work with gradient checkpoint. " \
+                        + "Turn gradient checkpoint to False", reason)
                 self.node_lm_configs[i]["gradient_checkpoint"] = False
 
     def handle_argument_conflicts(self):
@@ -456,6 +467,24 @@ class GSConfig:
             return self._verbose
 
         return False
+
+    @property
+    def logging_level(self):
+        """ Get the logging level.
+        """
+        if hasattr(self, "_logging_level"):
+            return get_log_level(self._logging_level)
+        else:
+            return logging.INFO
+
+    @property
+    def logging_file(self):
+        """ The file where logs are saved to.
+        """
+        if hasattr(self, "_logging_file"):
+            return self._logging_file
+        else:
+            return None
 
     ###################### language model support #########################
     # Bert related
@@ -732,6 +761,18 @@ class GSConfig:
 
         # By default, use mini batch inference, which requires less memory
         return True
+
+    @property
+    def gnn_norm(self):
+        """ Normalization (Batch or Layer)
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_gnn_norm"):
+            return None
+        assert self._gnn_norm in BUILTIN_GNN_NORM, \
+            "Normalization type must be one of batch or layer"
+
+        return self._gnn_norm
 
     ###################### I/O related ######################
     ### Restore model ###
@@ -1149,7 +1190,8 @@ class GSConfig:
     @property
     def multilabel_weights(self):
         """Used to specify label weight of each class in a
-           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss.
+           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss
+           as pos_weight.
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
@@ -1180,7 +1222,7 @@ class GSConfig:
 
             if self._return_proba is True and \
                 self.task_type in [BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_EDGE_REGRESSION]:
-                print("WARNING: node regression and edge regression tasks "
+                logging.warning("node regression and edge regression tasks "
                       "automatically ignore --return-proba flag. Regression "
                       "prediction results will be returned.")
             return self._return_proba
@@ -1197,7 +1239,6 @@ class GSConfig:
             Customer should provide the weight in following format 0.1,0.2,0.3,0.1
         """
         if hasattr(self, "_imbalance_class_weights"):
-            assert self.multilabel is False, "Only used with single label classfication."
             try:
                 weights = self._imbalance_class_weights.split(",")
                 weights = [float(w) for w in weights]
@@ -1296,10 +1337,10 @@ class GSConfig:
         assert len(self._target_etype) > 0, \
             "There must be at least one target etype."
         if len(self._target_etype) != 1:
-            print(f"WARNING: only {self._target_etype[0]} will be used."
-                "Currently, GraphStorm only supports single task edge "
-                "classification/regression. Please contact GraphStorm "
-                "dev team to support multi-task.")
+            logging.warning("only %s will be used." + \
+                "Currently, GraphStorm only supports single task edge " + \
+                "classification/regression. Please contact GraphStorm " + \
+                "dev team to support multi-task.", str(self._target_etype[0]))
 
         return [tuple(target_etype.split(',')) for target_etype in self._target_etype]
 
@@ -1710,6 +1751,12 @@ def _add_initialization_args(parser):
         default=argparse.SUPPRESS,
         help="Print more information.",
     )
+    group.add_argument('--logging-level', type=str, default="info",
+                       help="Change the logging level. " + \
+                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
+                               "The default value is 'info'.")
+    group.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
+                       help='The file where the logging is saved to.')
     return parser
 
 def _add_gsgnn_basic_args(parser):
@@ -1816,6 +1863,7 @@ def _add_hyperparam_args(parser):
     group = parser.add_argument_group(title="hp")
     group.add_argument("--dropout", type=float, default=argparse.SUPPRESS,
             help="dropout probability")
+    group.add_argument("--gnn-norm", type=str, default=argparse.SUPPRESS, help="norm type")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
     group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
@@ -1845,7 +1893,7 @@ def _add_hyperparam_args(parser):
     group.add_argument('--eval-frequency',
             type=int,
             default=argparse.SUPPRESS,
-            help="How offen to run the evaluation. "
+            help="How often to run the evaluation. "
                  "Every #eval-frequency iterations.")
     group.add_argument(
             '--no-validation',
@@ -1909,7 +1957,7 @@ def _add_node_classification_args(parser):
             "--multilabel-weights",
             type=str,
             default=argparse.SUPPRESS,
-            help="Used to specify label weight of each class in a "
+            help="Used to specify the weight of positive examples of each class in a "
             "multi-label classifiction task."
             "It is feed into th.nn.BCEWithLogitsLoss."
             "The weights should in following format 0.1,0.2,0.3,0.1,0.0 ")
@@ -1919,7 +1967,7 @@ def _add_node_classification_args(parser):
             default=argparse.SUPPRESS,
             help="Used to specify a manual rescaling weight given to each class "
             "in a single-label multi-class classification task."
-            "It is feed into th.nn.CrossEntropyLoss."
+            "It is feed into th.nn.CrossEntropyLoss or th.nn.BCEWithLogitsLoss."
             "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
     group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
                        help="The cardinality of labels in a classifiction task")

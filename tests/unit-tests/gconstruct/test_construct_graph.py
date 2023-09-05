@@ -16,6 +16,7 @@
 import random
 import os
 import tempfile
+import pytest
 import decimal
 import pyarrow.parquet as pq
 import numpy as np
@@ -1020,7 +1021,8 @@ def test_merge_arrays():
         assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
 
-def test_partition_graph():
+@pytest.mark.parametrize("num_parts", [1, 2])
+def test_partition_graph(num_parts):
     # This is to verify the correctness of partition_graph.
     # This function does some manual node/edge feature constructions for each partition.
     num_nodes = {'node1': 100,
@@ -1037,7 +1039,6 @@ def test_partition_graph():
     # Partition the graph with our own partition_graph.
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     dgl.random.seed(0)
-    num_parts = 2
     node_data1 = []
     edge_data1 = []
     with tempfile.TemporaryDirectory() as tmpdirname:
