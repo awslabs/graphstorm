@@ -85,8 +85,7 @@ def main(config_args):
     trainer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=[],
                                      batch_size=config.batch_size, device=device, train_task=True,
-                                     remove_target_edge_type=False,
-                                     decoder_edge_feat=config.decoder_edge_feat)
+                                     remove_target_edge_type=False)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference

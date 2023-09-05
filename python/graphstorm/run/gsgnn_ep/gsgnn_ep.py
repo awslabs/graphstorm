@@ -88,8 +88,7 @@ def main(config_args):
                                      batch_size=config.batch_size, device=device, train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
-                                     exclude_training_targets=config.exclude_training_targets,
-                                     decoder_edge_feat=config.decoder_edge_feat)
+                                     exclude_training_targets=config.exclude_training_targets)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
