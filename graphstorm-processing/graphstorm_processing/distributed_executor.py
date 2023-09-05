@@ -350,7 +350,9 @@ def main():
     with open(os.path.join(local_output_path, "launch_arguments.json"), "w", encoding="utf-8") as f:
         json.dump(dataclasses.asdict(gsprocessing_args), f, indent=4)
 
-    # Used during local execution with S3 data, uploading arguments file to S3
+    # In SageMaker execution, all files under `local_output_path` get automatically
+    # uploaded to S3 at the end of the job. For local execution with S3 data, we
+    # need to upload all output files manually.
     if not is_sagemaker_execution and filesystem_type == "s3":
         output_bucket = gsprocessing_args.output_prefix.split("/")[2]
         output_s3_prefix = gsprocessing_args.output_prefix.split("/", 3)[3]
