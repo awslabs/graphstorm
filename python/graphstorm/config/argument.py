@@ -1172,7 +1172,11 @@ class GSConfig:
         # pylint: disable=no-member
         assert hasattr(self, "_num_classes"), \
             "Must provide the number possible labels through num_classes"
-        assert self._num_classes > 1
+        if isinstance(self._num_classes, dict):
+            for num_classes in self._num_classes.values():
+                assert num_classes > 1
+        else:
+            assert self._num_classes > 1
         return self._num_classes
 
     @property
@@ -1181,11 +1185,18 @@ class GSConfig:
 
             Used by node classification and edge classification
         """
-        if hasattr(self, "_multilabel"):
-            assert self._multilabel in [True, False]
-            return self._multilabel
-
-        return False
+        if isinstance(self.num_classes, dict):
+            if hasattr(self, "_multilabel"):
+                assert isinstance(self._multilabel, dict)
+                for ntype in self.num_classes:
+                    assert self._multilabel[ntype] in [True, False]
+                return self._multilabel
+            return {ntype: False for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_multilabel"):
+                assert self._multilabel in [True, False]
+                return self._multilabel
+            return False
 
     @property
     def multilabel_weights(self):
@@ -1195,21 +1206,39 @@ class GSConfig:
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
-        if hasattr(self, "_multilabel_weights"):
-            assert self.multilabel is True, "Must be a multi-label classification task."
-            try:
-                weights = self._multilabel_weights.split(",")
-                weights = [float(w) for w in weights]
-            except Exception: # pylint: disable=broad-except
-                assert False, "The weights should in following format 0.1,0.2,0.3,0.1,0.0"
-            for w in weights:
-                assert w >= 0., "multilabel weights can not be negative values"
-            assert len(weights) == self.num_classes, \
-                "Each class must have an assigned weight"
+        if isinstance(self.num_classes, dict):
+            if hasattr(self, "_multilabel_weights"):
+                ntype_weights = {}
+                for ntype in self.num_classes:
+                    assert self.multilabel[ntype] is True, "Must be a multi-label classification task."
+                    try:
+                        weights = self._multilabel_weights[ntype].split(",")
+                        weights = [float(w) for w in weights]
+                    except Exception: # pylint: disable=broad-except
+                        assert False, "The weights should in following format 0.1,0.2,0.3,0.1,0.0"
+                    for w in weights:
+                        assert w >= 0., "multilabel weights can not be negative values"
+                    assert len(weights) == self.num_classes[ntype], \
+                        "Each class must have an assigned weight"
+                    ntype_weights[ntype] = weights
+                return ntype_weights
+            return {ntype: False for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_multilabel_weights"):
+                assert self.multilabel is True, "Must be a multi-label classification task."
+                try:
+                    weights = self._multilabel_weights.split(",")
+                    weights = [float(w) for w in weights]
+                except Exception: # pylint: disable=broad-except
+                    assert False, "The weights should in following format 0.1,0.2,0.3,0.1,0.0"
+                for w in weights:
+                    assert w >= 0., "multilabel weights can not be negative values"
+                assert len(weights) == self.num_classes, \
+                    "Each class must have an assigned weight"
 
-            return th.tensor(weights)
+                return th.tensor(weights)
 
-        return None
+            return None
 
     @property
     def return_proba(self):
@@ -1238,21 +1267,40 @@ class GSConfig:
 
             Customer should provide the weight in following format 0.1,0.2,0.3,0.1
         """
-        if hasattr(self, "_imbalance_class_weights"):
-            try:
-                weights = self._imbalance_class_weights.split(",")
-                weights = [float(w) for w in weights]
-            except Exception: # pylint: disable=broad-except
-                assert False, \
-                    "The rescaling weights should in following format 0.1,0.2,0.3,0.1"
-            for w in weights:
-                assert w > 0., "Each weight should be larger than 0."
-            assert len(weights) == self.num_classes, \
-                "Each class must have an assigned weight"
+        if isinstance(self.num_classes, dict):
+            if hasattr(self, "_imbalance_class_weights"):
+                assert isinstance(self._imbalance_class_weights, dict)
+                ntype_weights = {}
+                for ntype in self.num_classes:
+                    try:
+                        weights = self._imbalance_class_weights[ntype].split(",")
+                        weights = [float(w) for w in weights]
+                    except Exception: # pylint: disable=broad-except
+                        assert False, \
+                            "The rescaling weights should in following format 0.1,0.2,0.3,0.1"
+                    for w in weights:
+                        assert w > 0., "Each weight should be larger than 0."
+                    assert len(weights) == self.num_classes[ntype], \
+                        "Each class must have an assigned weight"
+                    ntype_weights[ntype] = weights
+                return ntype_weights
+            return {ntype: False for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_imbalance_class_weights"):
+                try:
+                    weights = self._imbalance_class_weights.split(",")
+                    weights = [float(w) for w in weights]
+                except Exception: # pylint: disable=broad-except
+                    assert False, \
+                        "The rescaling weights should in following format 0.1,0.2,0.3,0.1"
+                for w in weights:
+                    assert w > 0., "Each weight should be larger than 0."
+                assert len(weights) == self.num_classes, \
+                    "Each class must have an assigned weight"
 
-            return th.tensor(weights)
+                return th.tensor(weights)
 
-        return None
+            return None
 
     ###classification/regression inference related ####
     @property
@@ -1626,8 +1674,13 @@ class GSConfig:
         # Task is node classification
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, \
             BUILTIN_TASK_EDGE_CLASSIFICATION]:
-            assert self.num_classes > 1, \
-                "For node classification, num_classes must be provided"
+            if isinstance(self.num_classes, dict):
+                for num_classes in list(self.num_classes.values()):
+                    assert num_classes > 1, \
+                        "For node classification, num_classes must be provided"
+            else:
+                assert self.num_classes > 1, \
+                    "For node classification, num_classes must be provided"
 
             # check evaluation metrics
             if hasattr(self, "_eval_metric"):
