@@ -1222,7 +1222,7 @@ class GSConfig:
                         "Each class must have an assigned weight"
                     ntype_weights[ntype] = weights
                 return ntype_weights
-            return {ntype: False for ntype in self.num_classes}
+            return {ntype: None for ntype in self.num_classes}
         else:
             if hasattr(self, "_multilabel_weights"):
                 assert self.multilabel is True, "Must be a multi-label classification task."
@@ -1284,7 +1284,7 @@ class GSConfig:
                         "Each class must have an assigned weight"
                     ntype_weights[ntype] = weights
                 return ntype_weights
-            return {ntype: False for ntype in self.num_classes}
+            return {ntype: None for ntype in self.num_classes}
         else:
             if hasattr(self, "_imbalance_class_weights"):
                 try:
