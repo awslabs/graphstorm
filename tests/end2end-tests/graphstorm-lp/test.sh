@@ -77,6 +77,11 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 
 error_and_exit $?
 
+echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, negative_sampler: uniform, exclude_training_targets: true, gradient clip: 0.1, gradient norm type: 1"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --train-negative-sampler uniform --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --num-epochs 1 --eval-frequency 300 --max-grad-norm 0.1 --grad-norm-type 1
+
+error_and_exit $?
+
 echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, negative_sampler: uniform, exclude_training_targets: true, norm: layer"
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --train-negative-sampler uniform --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --num-epochs 1 --eval-frequency 300 --gnn-norm layer
 

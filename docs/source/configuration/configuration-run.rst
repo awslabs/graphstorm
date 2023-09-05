@@ -148,6 +148,10 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``max_grad_norm: 0.1``
     - Argument: ``--max-grad-norm 0.1``
     - Default value: None
+- **grad_norm_type**: Type of norm that is used to compute the gradient norm
+    - Yaml: ``grad_norm_type: inf``
+    - Argument: ``grad_norm_type 2``
+    - Default value: 2.0
 - **num_epochs**: Number of training epochs. Must be integer.
     - Yaml: ``num_epochs: 5``
     - Argument: ``--num-epochs 5``
