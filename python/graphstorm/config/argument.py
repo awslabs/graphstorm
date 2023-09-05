@@ -1211,7 +1211,8 @@ class GSConfig:
             if hasattr(self, "_multilabel_weights"):
                 ntype_weights = {}
                 for ntype in self.num_classes:
-                    assert self.multilabel[ntype] is True, "Must be a multi-label classification task."
+                    assert self.multilabel[ntype] is True, \
+                        "Must be a multi-label classification task."
                     try:
                         weights = self._multilabel_weights[ntype].split(",")
                         weights = [float(w) for w in weights]
