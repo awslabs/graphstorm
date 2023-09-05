@@ -17,12 +17,12 @@
 """
 import os
 import abc
-import torch as th
 import json
+import torch as th
 import dgl
 from dgl.distributed import role
 
-from ..utils import get_rank, get_world_size
+from ..utils import get_rank, get_world_size, is_distributed
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
 
@@ -136,24 +136,27 @@ class GSgnnData():
 
     def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field, use_wholegraph):
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
-        self._wg_init = False
-        if use_wholegraph and th.distributed.is_initialized():
-            for ntype in node_feat_field.keys():
-                assert ntype in self._g.ntypes, \
-                        f"Cannot load features of node type '{ntype}' as graph has" \
-                        f" no such node type."
-                part = self.load_wg_feat(part_config, ntype, th.distributed.get_rank(),
-                                         th.distributed.get_world_size())
-                if len(self._g.ntypes) == 1:
-                    self._g._ndata_store['feat'] = part
-                else:
-                    self._g._ndata_store[ntype]['feat'] = part
+
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
 
         self._train_idxs = {}
         self._val_idxs = {}
         self._test_idxs = {}
+
+        if use_wholegraph and is_distributed():
+            self._wg_init = False
+            num_parts = self._g.get_partition_book().num_partitions()
+            for ntype in node_feat_field.keys():
+                assert ntype in self._g.ntypes, \
+                        f"Cannot load features of node type '{ntype}' as graph has" \
+                        f" no such node type."
+                part = self.load_wg_feat(part_config, num_parts, ntype,
+                                         get_rank(), get_world_size())
+                if len(self._g.ntypes) == 1:
+                    self._g._ndata_store['feat'] = part
+                else:
+                    self._g._ndata_store[ntype]['feat'] = part
 
         self.prepare_data(self._g)
         sys_tracker.check('construct training data')
@@ -183,28 +186,42 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
-    def load_wg_feat(self, part_config, ntype, rank, num_ranks):
-        """the features via wholegraph"""
+    def load_wg_feat(self, part_config, num_parts, ntype, rank, num_ranks):
+        """Load features from wholegraph memory
+
+        Parameters
+        ----------
+        part_config : str
+            The path of the partition configuration file.
+        num_parts : int
+            The number of partitions of the dataset
+        ntype: str
+            The type of node for which to fetch features.
+        rank: int
+            The rank of the process
+        num_ranks: int
+            The total number of ranks (world size)
+        """
         import pylibwholegraph.torch as wgth
-        from pylibwholegraph.torch.tensor import WholeMemoryTensor
         import pylibwholegraph.binding.wholememory_binding as wmb
 
         if not self._wg_init:
-            class options: pass
-            options.launch_agent = 'pytorch'
-            options.launch_env_name_world_rank = 'RANK'
-            options.launch_env_name_world_size = 'WORLD_SIZE'
-            options.launch_env_name_local_rank = 'LOCAL_RANK'
-            options.launch_env_name_local_size = 'LOCAL_WORLD_SIZE'
-            options.launch_env_name_master_addr = 'MASTER_ADDR'
-            options.launch_env_name_master_port = 'MASTER_PORT'
-            options.local_rank = rank % role.get_num_trainers()
-            options.local_size = role.get_num_trainers()
+            class Options:
+                """Set Wholegraph's environment variables """
+            Options.launch_agent = 'pytorch'
+            Options.launch_env_name_world_rank = 'RANK'
+            Options.launch_env_name_world_size = 'WORLD_SIZE'
+            Options.launch_env_name_local_rank = 'LOCAL_RANK'
+            Options.launch_env_name_local_size = 'LOCAL_WORLD_SIZE'
+            Options.launch_env_name_master_addr = 'MASTER_ADDR'
+            Options.launch_env_name_master_port = 'MASTER_PORT'
+            Options.local_rank = rank % role.get_num_trainers()
+            Options.local_size = role.get_num_trainers()
 
-            wgth.distributed_launch(options, lambda: None)
+            wgth.distributed_launch(Options, lambda: None)
             wmb.init(0)
             th.set_num_threads(1)
-            wgth.comm.set_world_info(rank, num_ranks, options.local_rank, options.local_size)
+            wgth.comm.set_world_info(rank, num_ranks, Options.local_rank, Options.local_size)
             self._wg_init = True
         global_comm = wgth.comm.get_global_communicator()
 
@@ -221,7 +238,6 @@ class GSgnnData():
         metadata_file = os.path.join(os.path.dirname(part_config), 'wholegraph/metadata.json')
         with open(metadata_file) as f:
             wg_metadata = json.load(f)
-        # TODO(IN): feat name is hard coded for ogbn-mag's paper node
         node_feat_wm_embedding = wgth.create_embedding(
             feature_comm,
             embedding_wholememory_type,
@@ -231,8 +247,9 @@ class GSgnnData():
             optimizer=None,
             cache_policy=cache_policy,
         )
-        feat_path = os.path.join(os.path.dirname(part_config), 'wholegraph', ntype+'~feat')
-        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path, part_count=2)
+        feat_path = os.path.join(os.path.dirname(part_config), 'wholegraph', ntype + '~feat')
+        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
+                                                                       part_count=num_parts)
         return node_feat_wm_embedding
 
     def get_node_feats(self, input_nodes, device='cpu'):
@@ -584,8 +601,8 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
     """
     def __init__(self, graph_name, part_config, label_field=None,
                  node_feat_field=None, edge_feat_field=None):
-        super(GSgnnNodeData, self).__init__(graph_name, part_config,
-                                            node_feat_field, edge_feat_field)
+        super(GSgnnNodeData, self).__init__(graph_name, part_config, node_feat_field,
+                                            edge_feat_field, use_wholegraph=None)
         self._label_field = label_field
         if label_field is not None:
             self._labels = {}
