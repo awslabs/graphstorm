@@ -321,6 +321,7 @@ class GSConfig:
             _ = self.imbalance_class_weights
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             _ = self.target_ntype
+            _ = self.eval_target_ntype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
             _ = self.target_etype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
@@ -1325,6 +1326,22 @@ class GSConfig:
             "Must provide the target ntype through target_ntype"
         return self._target_ntype
 
+    @property
+    def eval_target_ntype(self):
+        """ The node type for evaluation prediction
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_eval_target_ntype"):
+            return self._eval_target_ntype
+        else:
+            if isinstance(self.target_ntype, str):
+                return self.target_ntype
+            elif isinstance(self.target_ntype, list):
+                # (wlcong) Now only support single ntype evaluation
+                return self.target_ntype[0]
+            else:
+                return None
+
     #### edge related task variables ####
     @property
     def reverse_edge_types_map(self):
@@ -1675,7 +1692,7 @@ class GSConfig:
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, \
             BUILTIN_TASK_EDGE_CLASSIFICATION]:
             if isinstance(self.num_classes, dict):
-                for num_classes in list(self.num_classes.values()):
+                for num_classes in self.num_classes.values():
                     assert num_classes > 1, \
                         "For node classification, num_classes must be provided"
             else:

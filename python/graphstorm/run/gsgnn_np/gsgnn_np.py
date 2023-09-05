@@ -35,13 +35,22 @@ def get_evaluator(config):
     """ Get evaluator class
     """
     if config.task_type == "node_classification":
-        return GSgnnAccEvaluator(config.eval_frequency,
-                                 config.eval_metric,
-                                 config.multilabel,
-                                 config.use_early_stop,
-                                 config.early_stop_burnin_rounds,
-                                 config.early_stop_rounds,
-                                 config.early_stop_strategy)
+        if isinstance(config.multilabel, dict):
+            return GSgnnAccEvaluator(config.eval_frequency,
+                                    config.eval_metric,
+                                    config.multilabel[config.eval_target_ntype],
+                                    config.use_early_stop,
+                                    config.early_stop_burnin_rounds,
+                                    config.early_stop_rounds,
+                                    config.early_stop_strategy)
+        else:
+            return GSgnnAccEvaluator(config.eval_frequency,
+                                    config.eval_metric,
+                                    config.multilabel,
+                                    config.use_early_stop,
+                                    config.early_stop_burnin_rounds,
+                                    config.early_stop_rounds,
+                                    config.early_stop_strategy)
     elif config.task_type == "node_regression":
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,
@@ -65,6 +74,7 @@ def main(config_args):
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.target_ntype,
+                                    eval_ntypes=config.eval_target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
