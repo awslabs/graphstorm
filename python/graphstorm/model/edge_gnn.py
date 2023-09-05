@@ -31,7 +31,7 @@ class GSgnnEdgeModelInterface:
     """
     @abc.abstractmethod
     def forward(self, blocks, target_edges, node_feats, edge_feats,
-        labels, input_nodes=None):
+                target_edge_feats, labels, input_nodes=None):
         """ The forward function for edge prediction.
 
         This method is used for training. It takes a mini-batch, including
@@ -48,6 +48,8 @@ class GSgnnEdgeModelInterface:
             The input node features of the message passing graphs.
         edge_feats : dict of Tensors
             The input edge features of the message passing graphs.
+        target_edge_feats: dict of Tensors
+            The edge features of target_edges
         labels: dict of Tensor
             The labels of the predicted edges.
         input_nodes: dict of Tensors
@@ -59,7 +61,8 @@ class GSgnnEdgeModelInterface:
         """
 
     @abc.abstractmethod
-    def predict(self, blocks, target_edges, node_feats, edge_feats, input_nodes, return_proba):
+    def predict(self, blocks, target_edges, node_feats, edge_feats,
+                target_edge_feats, input_nodes, return_proba):
         """ Make prediction on the edges.
 
         Parameters
@@ -72,6 +75,8 @@ class GSgnnEdgeModelInterface:
             The node features of the message passing graphs.
         edge_feats : dict of Tensors
             The edge features of the message passing graphs.
+        target_edge_feats: dict of Tensors
+            The edge features of target_edges
         input_nodes: dict of Tensors
             The input nodes of a mini-batch.
         return_proba : bool
@@ -106,7 +111,8 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         super(GSgnnEdgeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
 
-    def forward(self, blocks, target_edges, node_feats, _,
+    # pylint: disable=unused-argument
+    def forward(self, blocks, target_edges, node_feats, edge_feats, target_edge_feats,
         labels, input_nodes=None):
         """ The forward function for edge prediction.
 
@@ -134,7 +140,8 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-    def predict(self, blocks, target_edges, node_feats, _, input_nodes, return_proba=False):
+    def predict(self, blocks, target_edges, node_feats, edge_feats,
+                target_edge_feats, input_nodes, return_proba=False):
         """ Make prediction on edges.
         """
         if blocks is None or len(blocks) == 0:
@@ -181,7 +188,8 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             input_feats = data.get_node_feats(input_nodes, device)
             blocks = [block.to(device) for block in blocks]
             target_edge_graph = target_edge_graph.to(device)
-            pred = model.predict(blocks, target_edge_graph, input_feats, None, input_nodes,
+            pred = model.predict(blocks, target_edge_graph, input_feats,
+                                 None, None, input_nodes,
                                  return_proba)
 
             # TODO expand code for multiple edge types

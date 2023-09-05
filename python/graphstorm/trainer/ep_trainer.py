@@ -144,7 +144,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_graph2GPU')
 
                 # TODO(zhengda) we don't support edge features for now.
-                loss = model(blocks, batch_graph, input_feats, None, lbl, input_nodes)
+                loss = model(blocks, batch_graph, input_feats, None, None, lbl, input_nodes)
                 rt_profiler.record('train_forward')
 
                 self.optimizer.zero_grad()
