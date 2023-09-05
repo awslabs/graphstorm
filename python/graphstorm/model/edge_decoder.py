@@ -34,7 +34,7 @@ class GSEdgeDecoder(GSLayer):
     """ The abstract class of a GraphStorm edge decoder
     """
     @abc.abstractmethod
-    def forward(self, g, h, eh):
+    def forward(self, g, h, e_h):
         """Forward function.
 
         Compute logits for each pair ``(ufeat[i], ifeat[i])``. The target
@@ -46,7 +46,7 @@ class GSEdgeDecoder(GSLayer):
             The target edge graph
         h : dict of Tensors
             The dictionary containing the embeddings
-        eh : dict of tensors
+        e_h : dict of tensors
             The dictionary containing the edge features for g.
         Returns
         -------
@@ -57,7 +57,7 @@ class GSEdgeDecoder(GSLayer):
         """
 
     @abc.abstractmethod
-    def predict(self, g, h, eh):
+    def predict(self, g, h, e_h):
         """predict function for this decoder
 
         Parameters
@@ -66,7 +66,7 @@ class GSEdgeDecoder(GSLayer):
             The minibatch graph
         h : dict of Tensors
             The dictionary containing the embeddings
-        eh : dict of tensors
+        e_h : dict of tensors
             The dictionary containing the edge features for g.
 
         Returns
@@ -75,7 +75,7 @@ class GSEdgeDecoder(GSLayer):
         """
 
     @abc.abstractmethod
-    def predict_proba(self, g, h, eh):
+    def predict_proba(self, g, h, e_h):
         """predict function for this decoder
 
         Parameters
@@ -84,7 +84,7 @@ class GSEdgeDecoder(GSLayer):
             The minibatch graph
         h : dict of Tensors
             The dictionary containing the embeddings
-        eh : dict of tensors
+        e_h : dict of tensors
             The dictionary containing the edge features for g.
 
         Returns
@@ -182,7 +182,7 @@ class DenseBiDecoder(GSEdgeDecoder):
                 out = out.argmax(dim=1)
         return out
 
-    def predict_proba(self, g, h):
+    def predict_proba(self, g, h, _):
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -429,7 +429,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         if self.regression:
             self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
 
-    def _compute_logits(self, g, h, eh):
+    # pylint: disable=arguments-differ
+    def _compute_logits(self, g, h, e_h):
         """ Compute forword output
 
             Parameters
@@ -443,13 +444,13 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             th.Tensor
                 Output of forward
         """
-        assert eh is not None, "edge feature is required"
+        assert e_h is not None, "edge feature is required"
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
             ufeat = h[src_type][u]
             ifeat = h[dest_type][v]
-            efeat = eh[self.target_etype]
+            efeat = e_h[self.target_etype]
 
             # [src_emb | dest_emb] @ W -> h_dim
             h = th.cat([ufeat, ifeat], dim=1)
@@ -470,15 +471,15 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
         return out
 
-    def forward(self, g, h, eh):
-        out = self._compute_logits(g, h, eh)
+    def forward(self, g, h, e_h):
+        out = self._compute_logits(g, h, e_h)
 
         if self.regression:
             out = self.regression_head(out)
         return out
 
-    def predict(self, g, h, eh):
-        out = self._compute_logits(g, h, eh)
+    def predict(self, g, h, e_h):
+        out = self._compute_logits(g, h, e_h)
 
         if self.regression:
             out = self.regression_head(out)
@@ -488,8 +489,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             out = out.argmax(dim=1)
         return out
 
-    def predict_proba(self, g, h, eh):
-        out = self._compute_logits(g, h, eh)
+    def predict_proba(self, g, h, e_h):
+        out = self._compute_logits(g, h, e_h)
 
         if self.regression:
             out = self.regression_head(out)
