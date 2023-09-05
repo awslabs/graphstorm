@@ -937,8 +937,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
         "gamma": 1.0,
-        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"],
-        "model_select_etype": "all"
+        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"]
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
