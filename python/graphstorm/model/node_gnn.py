@@ -151,13 +151,13 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         target_ntypes = list(encode_embs.keys())
         # predict for each node type
         predicts = {}
-        if isinstance(self.decoder, th.nn.ModuleDict):
-            assert target_ntype in self.decoder, \
-                f"Node type {target_ntype} not in decoder"
-            decoder = self.decoder[target_ntype]
-        else:
-            decoder = self.decoder
         for target_ntype in target_ntypes:
+            if isinstance(self.decoder, th.nn.ModuleDict):
+                assert target_ntype in self.decoder, \
+                    f"Node type {target_ntype} not in decoder"
+                decoder = self.decoder[target_ntype]
+            else:
+                decoder = self.decoder
             if return_proba:
                 predicts[target_ntype] = decoder.predict_proba(encode_embs[target_ntype])
             else:
