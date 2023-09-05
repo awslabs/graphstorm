@@ -16,6 +16,8 @@
     Various datasets for the GSF
 """
 import abc
+import logging
+
 import torch as th
 import dgl
 
@@ -378,8 +380,8 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
                 # If there are test data globally, we should add them to the dict.
                 if dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
-        print('part {}, train: {}, val: {}, test: {}'.format(get_rank(), num_train,
-                                                             num_val, num_test))
+        logging.info('part %d, train: %d, val: %d, test: %d',
+                     get_rank(), num_train, num_val, num_test)
 
         self._train_idxs = train_idxs
         self._val_idxs = val_idxs
@@ -458,9 +460,9 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
             else:
                 # Inference only
                 # we will do inference on the entire edge set
-                print(f"NOTE: {canonical_etype} does not contains " \
-                      f"test_mask, skip testing {canonical_etype}. \n" \
-                      "We will do inference on the entire edge set.")
+                logging.info("%s does not contains test_mask, skip testing %s. " + \
+                        "We will do inference on the entire edge set.",
+                             str(canonical_etype), str(canonical_etype))
                 infer_idx = dgl.distributed.edge_split(
                     th.full((g.num_edges(canonical_etype),), True, dtype=th.bool),
                     pb, etype=canonical_etype, force_even=True)
@@ -640,8 +642,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
                 if dist_sum(len(test_idx)) > 0:
                     test_idxs[ntype] = test_idx
 
-        print('part {}, train: {}, val: {}, test: {}'.format(get_rank(), num_train,
-                                                             num_val, num_test))
+        logging.info('part %d, train: %d, val: %d, test: %d',
+                     get_rank(), num_train, num_val, num_test)
 
         self._train_idxs = train_idxs
         self._val_idxs = val_idxs
@@ -667,7 +669,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
             assert unlabeled_idx is not None, "There is no training data."
             num_unlabeled += len(unlabeled_idx)
             unlabeled_idxs[ntype] = unlabeled_idx
-        print('part {}, unlabeled: {}'.format(get_rank(), num_unlabeled))
+        logging.debug('part %d, unlabeled: %d', get_rank(), num_unlabeled)
         return unlabeled_idxs
 
     @property
@@ -741,13 +743,13 @@ class GSgnnNodeInferData(GSgnnNodeData):
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[ntype] = test_idx
                 elif test_idx is None:
-                    print(f"WARNING: {ntype} does not contains test data, skip testing {ntype}")
+                    logging.warning("%s does not contains test data, skip testing %s",
+                                    ntype, ntype)
             else:
                 # Inference only
                 # we will do inference on the entire edge set
-                print(f"NOTE: {ntype} does not contains " \
-                      f"test_mask, skip testing {ntype}. \n" \
-                      "We will do inference on the entire node set.")
+                logging.info("%s does not contains test_mask, skip testing %s. " + \
+                        "We will do inference on the entire node set.", ntype, ntype)
                 infer_idx = dgl.distributed.node_split(
                     th.full((g.num_nodes(ntype),), True, dtype=th.bool),
                     pb, ntype=ntype, force_even=True,

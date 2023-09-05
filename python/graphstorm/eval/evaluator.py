@@ -15,6 +15,7 @@
 
     Evaluator for different tasks.
 """
+import logging
 import abc
 from statistics import mean
 import torch as th
@@ -227,7 +228,8 @@ class GSgnnInstanceEvaluator():
         """ Print history eval info
         """
         for val_score, test_score in self._history:
-            print(f"val {self.metric}: {val_score:.3f}, test {self.metric}: {test_score:.3f}")
+            logging.info("val %s: %.3f, test %s: %.3f",
+                         self.metric, val_score, self.metric, test_score)
 
     def do_early_stop(self, val_score):
         """ Decide whether to stop the training

@@ -16,7 +16,7 @@
     GSF utility functions.
 """
 
-
+import logging
 import numpy as np
 import dgl
 import torch as th
@@ -382,8 +382,8 @@ def create_builtin_lp_model(g, config, train_task):
         # if the training set only contains one edge type or it is specified in the arguments,
         # we use dot product as the score function.
         if get_rank() == 0:
-            print('use dot product for single-etype task.')
-            print("Using inner product objective for supervision")
+            logging.debug('use dot product for single-etype task.')
+            logging.debug("Using inner product objective for supervision")
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
                                                 if model.gnn_encoder is not None \
@@ -395,7 +395,7 @@ def create_builtin_lp_model(g, config, train_task):
                                                     config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
-            print("Using distmult objective for supervision")
+            logging.debug("Using distmult objective for supervision")
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
                                                 model.gnn_encoder.out_dims \
@@ -474,7 +474,8 @@ def set_encoder(model, g, config, train_task):
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop,
-                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
+                                           norm=config.gnn_norm)
     elif model_encoder_type == "rgat":
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
@@ -484,7 +485,8 @@ def set_encoder(model, g, config, train_task):
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop,
-                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+                                           num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
+                                           norm=config.gnn_norm)
     elif model_encoder_type == "hgt":
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = HGTEncoder(g,
@@ -504,7 +506,8 @@ def set_encoder(model, g, config, train_task):
                                   num_hidden_layers=config.num_layers - 1,
                                   dropout=dropout,
                                   aggregator_type='pool',
-                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
+                                  norm=config.gnn_norm)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
     model.set_gnn_encoder(gnn_encoder)

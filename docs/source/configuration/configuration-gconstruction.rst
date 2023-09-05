@@ -14,7 +14,7 @@ Graph Construction
 * **-\-graph-name**: (**Required**) the name assigned for the graph.
 * **-\-remap-node_id**: boolean value to decide whether to rename node IDs or not. Default is true.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
-* **-\-output-format**: the format of constructed graph, options are ``DGL`` and ``DistDGL``. Default is ``DistDGL``. The output format is explained in the :ref:`Output <output-format>` section below.
+* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
 * **-\-num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
