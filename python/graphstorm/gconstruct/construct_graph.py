@@ -434,6 +434,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
     edge_data = {}
     label_stats = {}
     for process_conf in process_confs:
+        print(process_conf)
         # each iteration is to process an edge type.
         assert 'relation' in process_conf, \
                 "'relation' is not defined for an edge type."

@@ -927,7 +927,7 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
                 rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
                 scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
 
-                if canonical_etype in e_h.keys():
+                if e_h is not None and canonical_etype in e_h.keys():
                     weight = e_h[canonical_etype]
                     weight = weight.flatten()
                 else:
@@ -970,7 +970,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
                 dest_emb = h[dest_type][v]
                 scores_etype = calc_dot_pos_score(src_emb, dest_emb)
 
-                if canonical_etype in e_h.keys():
+                if e_h is not None and canonical_etype in e_h.keys():
                     weight = e_h[canonical_etype]
                     weight = weight.flatten()
                 else:
