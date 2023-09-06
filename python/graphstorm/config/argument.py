@@ -1139,19 +1139,6 @@ class GSConfig:
         # By default use 4 heads
         return 4
 
-    ## HGT only ##
-    @property
-    def use_norm(self):
-        """ Whether to use layer normalization or not.
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_use_norm"):
-            assert self._use_norm in [True, False], \
-                "use_norm should be in [True, False]"
-            return self._use_norm
-
-        return False
-
     ############ task related #############
     ###classification/regression related ####
     @property

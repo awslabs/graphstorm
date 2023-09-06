@@ -34,3 +34,6 @@ from .config import (GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_GNN_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER,
                      GRAPHSTORM_MODEL_ALL_LAYERS)
+from .config import (BUILTIN_GNN_NORM,
+                     BUILDIN_GNN_LAYER_NORM,
+                     BUILDIN_GNN_BATCH_NORM)

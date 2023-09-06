@@ -495,7 +495,7 @@ def set_encoder(model, g, config, train_task):
                                  num_hidden_layers=config.num_layers -1,
                                  num_heads=config.num_heads,
                                  dropout=dropout,
-                                 use_norm=config.use_norm,
+                                 norm=config.gnn_norm,
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "sage":
         # we need to check if the graph is homogeneous

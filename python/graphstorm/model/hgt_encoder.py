@@ -24,6 +24,7 @@ import dgl.function as fn
 
 from torch import nn
 from dgl.nn.functional import edge_softmax
+from ..config import BUILDIN_GNN_BATCH_NORM, BUILDIN_GNN_LAYER_NORM, BUILTIN_GNN_NORM
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
 
@@ -46,6 +47,8 @@ class HGTLayer(nn.Module):
         List of canonical edge types
     num_heads : int
         Number of attention heads
+    activation : callable, optional
+        Activation function. Default: None
     dropout : float, optional
         Dropout rate. Default: 0.2
     use_norm: boolean
@@ -59,18 +62,27 @@ class HGTLayer(nn.Module):
                  ntypes,
                  canonical_etypes,
                  num_heads,
+                 activation=None,
                  dropout=0.2,
-                 use_norm=True,
+                 norm=True,
                  num_ffn_layers_in_gnn=0,
                  fnn_activation=F.relu):
         super(HGTLayer, self).__init__()
         self.num_heads = num_heads
         self.out_dim = out_dim
+        assert (out_dim % num_heads) == 0, f'The output dimension: {out_dim} should be divisible \
+                                             by the number of heads: {num_heads}.'
         self.d_k = out_dim // num_heads
         self.sqrt_dk = math.sqrt(self.d_k)
-        self.use_norm = use_norm
+        self.activation = activation
+        
+        # normalization
+        if norm in BUILTIN_GNN_NORM:
+            self.use_norm = True
+        else:
+            self.use_norm = False
 
-        # Define node type parameters
+        # Node type parameters
         k_linears = {}
         q_linears = {}
         v_linears = {}
@@ -82,20 +94,22 @@ class HGTLayer(nn.Module):
             q_linears[ntype] = nn.Linear(in_dim, out_dim)
             v_linears[ntype] = nn.Linear(in_dim, out_dim)
             a_linears[ntype] = nn.Linear(in_dim, out_dim)
-            if use_norm:
-                norms[ntype] = nn.LayerNorm(out_dim)
+            if self.use_norm:
+                if norm == BUILDIN_GNN_BATCH_NORM:
+                    norms[ntype] = nn.BatchNorm1d(out_dim)
+                elif norm == BUILDIN_GNN_LAYER_NORM:
+                    norms[ntype] = nn.LayerNorm(out_dim)
             skip[ntype] = nn.Parameter(torch.ones(1))
 
-
-        self.k_linears = nn.ModuleDict(k_linears)
-        self.q_linears = nn.ModuleDict(q_linears)
-        self.v_linears = nn.ModuleDict(v_linears)
-        self.a_linears = nn.ModuleDict(a_linears)
-        if use_norm:
-            self.norms = nn.ModuleDict(norms)
+        self.k_linears = nn.ParameterDict(k_linears)
+        self.q_linears = nn.ParameterDict(q_linears)
+        self.v_linears = nn.ParameterDict(v_linears)
+        self.a_linears = nn.ParameterDict(a_linears)
+        if self.use_norm:
+            self.norms = nn.ParameterDict(norms)
         self.skip = nn.ParameterDict(skip)
 
-        # Define edge type parameters
+        # Edge type parameters
         relation_pri = {}
         relation_att = {}
         relation_msg = {}
@@ -116,7 +130,7 @@ class HGTLayer(nn.Module):
         self.ngnn_mlp = NGNNMLP(out_dim, out_dim,
                                 num_ffn_layers_in_gnn, fnn_activation, dropout)
 
-        # Define dropout
+        # Dropout
         self.drop = nn.Dropout(dropout)
 
     def forward(self, g, h):
@@ -207,7 +221,8 @@ class HGTLayer(nn.Module):
                     new_h[k] = self.norms[k](trans_out)
                 else:
                     new_h[k] = trans_out
-
+                if self.activation:
+                    new_h[k] = self.activation(new_h[k])
                 if self.num_ffn_layers_in_gnn > 0:
                     new_h[k] = self.ngnn_mlp(new_h[k])
 
@@ -230,8 +245,8 @@ class HGTEncoder(GraphConvEncoder):
         Number of heads
     dropout: float
         Dropout, default is 0.2
-    use_norm: boolean
-        If use layer normalization or not, default is False
+    norm : str, optional
+        Normalization Method. Default: None
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
     """
@@ -242,7 +257,7 @@ class HGTEncoder(GraphConvEncoder):
                  num_hidden_layers,
                  num_heads,
                  dropout=0.2,
-                 use_norm=False,
+                 norm=BUILDIN_GNN_LAYER_NORM,
                  num_ffn_layers_in_gnn=0):
         super(HGTEncoder, self).__init__(hid_dim, out_dim, num_hidden_layers)
 
@@ -255,7 +270,7 @@ class HGTEncoder(GraphConvEncoder):
                                         g.canonical_etypes,
                                         num_heads,
                                         dropout,
-                                        use_norm,
+                                        norm,
                                         num_ffn_layers_in_gnn,
                                         fnn_activation=F.relu))
         # h2o
@@ -265,7 +280,7 @@ class HGTEncoder(GraphConvEncoder):
                                     g.canonical_etypes,
                                     num_heads,
                                     dropout,
-                                    use_norm))
+                                    norm))
 
     def forward(self, blocks, h):
         """Forward computation
