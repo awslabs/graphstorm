@@ -57,7 +57,7 @@ class GSEdgeDecoder(GSLayer):
         """
 
     @abc.abstractmethod
-    def predict(self, g, h, e_h):
+    def predict(self, g, h, e_h=None):
         """predict function for this decoder
 
         Parameters
@@ -75,7 +75,7 @@ class GSEdgeDecoder(GSLayer):
         """
 
     @abc.abstractmethod
-    def predict_proba(self, g, h, e_h):
+    def predict_proba(self, g, h, e_h=None):
         """predict function for this decoder
 
         Parameters
