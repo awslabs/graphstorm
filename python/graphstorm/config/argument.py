@@ -255,6 +255,8 @@ class GSConfig:
             _ = self.lm_train_nodes
             _ = self.lm_tune_lr
             _ = self.lr
+            _ = self.max_grad_norm
+            _ = self.grad_norm_type
             _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
@@ -611,6 +613,28 @@ class GSConfig:
         assert self._model_encoder_type in BUILTIN_ENCODER, \
             f"Model encoder type should be in {BUILTIN_ENCODER}"
         return self._model_encoder_type
+
+    @property
+    def max_grad_norm(self):
+        """ maximum L2 norm of gradients, used for gradient clip
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_max_grad_norm"):
+            max_grad_norm = float(self._max_grad_norm)
+            assert max_grad_norm > 0
+            return self._max_grad_norm
+        return None
+
+    @property
+    def grad_norm_type(self):
+        """ type of the used p-norm, used for gradient clip
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_grad_norm_type"):
+            grad_norm_type = self._grad_norm_type
+            assert grad_norm_type > 0 or grad_norm_type == 'inf'
+            return self._grad_norm_type
+        return 2
 
     @property
     def input_activate(self):
@@ -1872,6 +1896,10 @@ def _add_hyperparam_args(parser):
             help="Mini-batch size. Must be larger than 0")
     group.add_argument("--sparse-optimizer-lr", type=float, default=argparse.SUPPRESS,
             help="sparse optimizer learning rate")
+    group.add_argument("--max-grad-norm", type=float, default=argparse.SUPPRESS,
+            help="maximum L2 norm of gradients")
+    group.add_argument("--grad-norm-type", type=float, default=argparse.SUPPRESS,
+            help="norm type for gradient clips")
     group.add_argument(
             "--use-node-embeddings",
             type=lambda x: (str(x).lower() in ['true', '1']),
