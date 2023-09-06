@@ -138,9 +138,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 if data.pos_graph_feat_field is not None:
                     input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                         for etype in pos_graph.canonical_etypes}
-                    pos_graph_feats = self._data.get_edge_feats(input_edges,
-                                                                self.pos_graph_feat_field,
-                                                                device)
+                    pos_graph_feats = data.get_edge_feats(input_edges,
+                                                          data.pos_graph_feat_field,
+                                                          device)
                 else:
                     pos_graph_feats = None
                 rt_profiler.record('train_node_feats')
