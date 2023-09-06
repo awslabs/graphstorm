@@ -36,7 +36,8 @@ from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
-from .config import BUILTIN_TASK_LINK_PREDICTION
+from .config import (BUILTIN_TASK_LINK_PREDICTION,
+                     LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
 from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -337,6 +338,7 @@ class GSConfig:
             _ = self.num_negative_edges
             _ = self.eval_negative_sampler
             _ = self.num_negative_edges_eval
+            _ = self.model_select_etype
 
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
@@ -1640,6 +1642,20 @@ class GSConfig:
             return None
 
     @property
+    def report_eval_per_type(self):
+        """ Whether report evaluation metrics per node type or edge type.
+            If True, report evaluation results for each node type/edge type."
+            If False, report an average result.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_report_eval_per_type"):
+            assert self._report_eval_per_type in [True, False], \
+                "report_eval_per_type must be True or False"
+            return self._report_eval_per_type
+
+        return False
+
+    @property
     def eval_metric(self):
         """ Evaluation metric used during evaluation
 
@@ -1730,6 +1746,22 @@ class GSConfig:
             assert False, "Unknow task type"
 
         return eval_metric
+
+    @property
+    def model_select_etype(self):
+        """ Canonical etype used for selecting the best model
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_model_select_etype"):
+            etype = self._model_select_etype.split(",")
+            assert len(etype) == 3, \
+                "If you want to select model based on eval value of " \
+                "a specific etype, the model_select_etype must be a " \
+                "canonical etype in the format of src,rel,dst"
+            return tuple(etype)
+
+        # Per edge type lp evaluation is disabled.
+        return LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
     @property
     def num_ffn_layers_in_input(self):
@@ -2092,6 +2124,13 @@ def _add_link_prediction_args(parser):
             "The corresponding feature name is <feat_name>"
             "2)'--lp-edge-weight-for-loss query,adds,asin:weight0 query,clicks,asin:weight1 ..."
             "Different edge types have different weight fields.")
+    group.add_argument("--model-select-etype", type=str, default=argparse.SUPPRESS,
+            help="Canonical edge type used for selecting best model during "
+                 "link prediction training. It can be in following format:"
+                "1) '--model-select-etype ALL': Use the average of the evaluation "
+                "metrics of each edge type to select the best model"
+                "2) '--model-select-etype query,adds,item': Use the evaluation "
+                "metric of the edge type (query,adds,item) to select the best model")
 
     return parser
 
@@ -2102,6 +2141,10 @@ def _add_task_general_args(parser):
                 "the evaluation metric used. Supported metrics are accuracy,"
                 "precision_recall, or roc_auc multiple metrics"
                 "can be specified e.g. --eval-metric accuracy precision_recall")
+    group.add_argument('--report-eval-per-type', type=bool, default=argparse.SUPPRESS,
+            help="Whether report evaluation metrics per node type or edge type."
+                 "If True, report evaluation results for each node type/edge type."
+                 "If False, report an average evaluation result.")
     return parser
 
 def _add_inference_args(parser):
