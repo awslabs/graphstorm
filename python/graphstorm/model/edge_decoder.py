@@ -901,7 +901,7 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDistMultDecoder, self).__init__(etypes, h_dim, gamma)
 
-    # pylint: disable=arguments-differ
+    # pylint: disable=signature-differs
     def forward(self, g, h, e_h):
         """Forward function.
 
@@ -950,7 +950,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
 
-    # pylint: disable=arguments-differ
+    # pylint: disable=signature-differs
     def forward(self, g, h, e_h):
         """Forward function.
 
