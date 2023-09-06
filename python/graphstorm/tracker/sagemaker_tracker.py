@@ -17,6 +17,7 @@
 """
 
 import logging
+import numbers
 
 from .graphstorm_tracker import GSTaskTrackerAbc
 
@@ -59,8 +60,10 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
             if metric_value is not None:
                 if isinstance(metric_value, str):
                     logging.info("Step %d | %s: %s", step, metric_name, metric_value)
-                else:
+                elif isinstance(metric_value, numbers.Number):
                     logging.info("Step %d | %s: %.4f", step, metric_name, metric_value)
+                else:
+                    logging.info("Step %d | %s: %s", step, metric_name, str(metric_value))
 
     def log_train_metric(self, metric_name, metric_value, step, force_report=False):
         """ Log train metric
