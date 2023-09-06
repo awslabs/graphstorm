@@ -132,13 +132,19 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
     ) -> None:
-        """
+        """Process and encode all graph data.
+
         Extracts and encodes graph structure before writing to storage, then applies pre-processing
         steps to node/edge features and labels, and saves transformed output to partitioned files,
         one per node/edge type and feature.
 
-        As processing happens each step returns values that we use to update
-        the metadata dict that is eventually written to disk.
+        As processing happens, each step returns values that we use to update
+        a common metadata dict that we eventually write to disk.
+
+        Parameters
+        ----------
+        data_configs : Mapping[str, Sequence[StructureConfig]]
+            Dictionary of configuration for nodes and edges
         """
         # TODO: See if it's better to return some data structure
         # for the followup steps instead of just have side-effects
@@ -383,7 +389,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         Raises
         ------
         NotImplementedError
-            If an output format other than "csv" or "parquet" is provided.
+            If an output format other than "csv" or "parquet" is requested.
         """
         if self.filesystem_type == "s3":
             output_bucket = full_output_path.split("/")[2]
@@ -531,6 +537,15 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         The function modifies the state of the DistHeterogeneousGraphLoader object by
         populating the node_mapping_paths member field.
+
+        Parameters
+        ----------
+        edge_configs : Sequence[EdgeConfig]
+            A list of EdgeConfig objects that contain all edge types in the graph.
+        missing_node_types : Optional[Set[str]], optional
+            An optional set of node types that do not have corresponding node files,
+            by default None. We create mappings from the edges for the missing node
+            types.
         """
         # TODO: If it is possible to have multiple edge files for a single node type,
         # we should use self.node_mapping_paths here.
@@ -646,12 +661,25 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         return node_df_with_ids.orderBy(NODE_MAPPING_INT)
 
     def create_node_id_map_from_nodes_df(self, node_df: DataFrame, node_col: str) -> DataFrame:
-        """
-        Given a nodes DF will attach sequential node ids, order the DF by them,
+        """Given a nodes DF will attach sequential node ids, order the DF by them,
         and return a new DF with int id attached.
-        The mapping DF will have two columns, node_str_id
-        containing the original id, and node_int_id
+
+        The mapping DF will have two columns, `node_str_id`
+        containing the original id, and `node_int_id`
         that has the corresponding index.
+
+        Parameters
+        ----------
+        node_df : DataFrame
+            DataFrame that contains all the data for a node type
+        node_col : str
+            The column in the DataFrame that corresponds to the string ID of the nodes
+
+        Returns
+        -------
+        DataFrame
+            The input nodes DataFrame, with additional integer ids attached for each row, ordered
+            by the integer ids.
         """
         original_schema = node_df.schema
 
@@ -703,12 +731,23 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.node_mapping_paths[node_type] = path_list
 
     def process_node_data(self, node_configs: Sequence[NodeConfig]) -> Dict:
-        """
-        Given a list of node config objects will perform the processing steps for each feature,
+        """Given a list of node config objects will perform the processing steps for each feature,
         write the output to S3 and return the corresponding dict entry for the node_data key of
         the output metadata.json.
+
         As an additional side-effect the function populates the values of
-        self.node_chunk_counts for each edge type.
+        `self.node_chunk_counts` for each edge type.
+
+        Parameters
+        ----------
+        node_configs : Sequence[NodeConfig]
+            A list of `NodeConfig` objects that contain the information for each node type
+            to be processed.
+
+        Returns
+        -------
+        Dict
+            A dict entry for the node_data key of the output metadata.json.
         """
         node_data_dict = {}  # type: Dict[str, Dict]
         self.graph_info["nfeat_size"] = {}
@@ -944,10 +983,21 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         If `self.add_reverse_edges` is True, it it will also write the
         reverse edge type with the src and dst columns reversed.
 
-        :return: The original edge dataframe with ids converted to int, followed by two lists of the
-            files that were written by Spark, as S3 URIs. The first list contains the original
-            edge files, the second is the reversed edge files, will be empty
-            if `self.add_reverse_edges` is False.
+        Parameters
+        ----------
+        edge_df : DataFrame
+            A DataFrame of edges, with columns for the source and destination node
+            types.
+        edge_config : EdgeConfig
+            The edge configuration object.
+
+        Returns
+        -------
+        Tuple[DataFrame, Sequence[str], Sequence[str]]
+            A tuple containing the original edge dataframe with ids converted to int,
+            followed by two lists of the files that were written by Spark, as S3 URIs.
+            The first list contains the original edge files, the second is the reversed
+            edge files, will be empty if `self.add_reverse_edges` is False.
         """
         src_col = edge_config.src_col
         src_ntype = edge_config.src_ntype
@@ -959,8 +1009,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         rev_edge_type = (
             f"{edge_config.dst_ntype}:rev-{edge_config.get_relation_name()}:{edge_config.src_ntype}"
         )
-
-        incoming_edge_count = edge_df.count()
 
         src_node_id_mapping = (
             self.spark.read.parquet(
@@ -980,6 +1028,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         )
 
         if self.enable_assertions:
+            incoming_edge_count = edge_df.count()
             intermediate_edge_count = edge_df_with_int_src.count()
             if incoming_edge_count != intermediate_edge_count:
                 logging.fatal(
@@ -1071,8 +1120,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         return edges_df
 
     def process_edge_data(self, edge_configs: Sequence[EdgeConfig]) -> Tuple[Dict, Dict]:
-        """
-        Given a list of edge config objects will extract and write the edge structure data to S3,
+        """Given a list of edge config objects will extract and write the edge structure data to S3,
         perform the processing steps for each feature,
         and return a tuple with two dict entries for the metadata.json file,
         the first aimed for the "edge_data" key that describes the edge features,
@@ -1080,6 +1128,18 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         As an additional side-effect the function populates
         the values of self.edge_chunk_counts for each edge type.
+
+
+        Parameters
+        ----------
+        edge_configs : Sequence[EdgeConfig]
+            A list of `EdgeConfig` objects describing all the edge types in the graph.
+
+        Returns
+        -------
+        Tuple[Dict, Dict]
+            A tuple of two dicts, the first containing the values for the "edge_data"
+            key and the second the values of the "edges" key in the output metadata.json.
         """
         # iterates over entries of the edge section in the export config
         edge_data_dict = {}
@@ -1180,8 +1240,24 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
     def _process_edge_features(
         self, feature_configs: Sequence[FeatureConfig], edges_df: DataFrame, edge_type: str
     ) -> Tuple[Dict, Dict]:
-        """
-        Process edge features.
+        """Process edge features.
+
+        Parameters
+        ----------
+        feature_configs : Sequence[FeatureConfig]
+            A list of feature configurations for the current edge type.
+        edges_df : DataFrame
+            The edges DataFrame
+        edge_type : str
+            The name of the edge type
+
+        Returns
+        -------
+        Tuple[Dict, Dict]
+            A tuple with two dicts: the first are the metadata dicts
+            for the edge features, the second a dict of feature sizes
+            for each feature, which tells us the column size of the
+            encoded features.
         """
         edge_feature_metadata_dicts = {}
         etype_feat_sizes = {}  # type: Dict[str, int]
