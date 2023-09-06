@@ -268,19 +268,21 @@ class HGTEncoder(GraphConvEncoder):
                                         hid_dim,
                                         g.ntypes,
                                         g.canonical_etypes,
-                                        num_heads,
-                                        dropout,
-                                        norm,
-                                        num_ffn_layers_in_gnn,
+                                        activation=F.relu,
+                                        num_heads=num_heads,
+                                        dropout=dropout,
+                                        norm=norm,
+                                        num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
                                         fnn_activation=F.relu))
         # h2o
         self.layers.append(HGTLayer(hid_dim,
                                     out_dim,
                                     g.ntypes,
                                     g.canonical_etypes,
-                                    num_heads,
-                                    dropout,
-                                    norm))
+                                    num_heads=num_heads,
+                                    activation=F.relu,
+                                    dropout=dropout,
+                                    norm=norm))
 
     def forward(self, blocks, h):
         """Forward computation
