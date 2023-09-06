@@ -15,6 +15,7 @@ REMOTE=$3
 # VAR2="chmod +x ./lint_check.sh && ./lint_check.sh"
 
 git clone https://github.com/awslabs/graphstorm.git
+ls
 
 cd graphstorm
 
