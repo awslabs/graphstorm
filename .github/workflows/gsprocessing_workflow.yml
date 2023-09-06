@@ -7,12 +7,12 @@ on:
     branches:
       - main
       - ci_dev
-    path:
+    paths:
       - '.github/workflow_scripts/gsprocessing.sh'
       - 'graphstorm-processing/*'
     workflow_dispatch:
   pull_request_target:
-    path:
+    paths:
       - '.github/workflow_scripts/gsprocessing.sh'
       - 'graphstorm-processing/*'
 
