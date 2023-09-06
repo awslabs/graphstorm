@@ -437,7 +437,7 @@ def create_hgt_edge_model(g, num_ffn_layers):
                              num_hidden_layers=1,
                              num_heads=2,
                              dropout=0.0,
-                             use_norm=False,
+                             norm='layer',
                              num_ffn_layers_in_gnn=0)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
