@@ -507,8 +507,6 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
 class LinkPredictLearnableDecoder(GSLayer):
     """ Abstract class for Link prediction decoder with trainable parameters
     """
-    def __init__(self):
-        super(LinkPredictLearnableDecoder, self).__init__()
 
     # pylint: disable=arguments-differ
     @abc.abstractmethod
@@ -903,6 +901,7 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDistMultDecoder, self).__init__(etypes, h_dim, gamma)
 
+    # pylint: disable=arguments-differ
     def forward(self, g, h, e_h):
         """Forward function.
 
@@ -951,7 +950,8 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
 
-    def forward(self, g, h, e_h): # pylint: disable=arguments-differ
+    # pylint: disable=arguments-differ
+    def forward(self, g, h, e_h):
         """Forward function.
 
         This computes the dot product score on every edge type.
