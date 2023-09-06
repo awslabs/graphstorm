@@ -477,7 +477,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
         return out
 
-    # pylint: disable=arguments-differ
+    # pylint: disable=signature-differs
     def forward(self, g, h, e_h):
         out = self._compute_logits(g, h, e_h)
 
@@ -485,7 +485,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             out = self.regression_head(out)
         return out
 
-    # pylint: disable=arguments-differ
+    # pylint: disable=signature-differs
     def predict(self, g, h, e_h):
         out = self._compute_logits(g, h, e_h)
 
@@ -497,7 +497,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             out = out.argmax(dim=1)
         return out
 
-    # pylint: disable=arguments-differ
+    # pylint: disable=signature-differs
     def predict_proba(self, g, h, e_h):
         out = self._compute_logits(g, h, e_h)
 
