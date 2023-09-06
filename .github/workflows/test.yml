@@ -27,10 +27,11 @@ env:
   COMMAND-E2E-CPU-TEST: chmod +x ./e2e_cpu_check.sh && ./e2e_cpu_check.sh
   COMMAND-E2E: chmod +x ./e2e_check.sh && ./e2e_check.sh
   COMMAND-E2E-MGPU: chmod +x ./e2e_mgpu_check.sh && ./e2e_mgpu_check.sh
+  COMMAND-GSProcessing: chmod +x ./gsprocessing.sh && ./gsprocessing.sh
 
 jobs:
 
-  lint_check:
+  gsprocessing:
     if: ${{ github.event.label.name != 'draft' }}
     runs-on: ubuntu-latest
     steps:
@@ -56,8 +57,8 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-LINT }}" \
+        python3 ./submitJob.py --job-type CI-GSProcessing-CHECK --name Graphstorm-LintTest-Push-'${{ github.ref }}' \
+                               --command "${{ env.COMMAND-GSProcessing }}" \
                                --remote https://github.com/'${{ github.repository }}' \
                                --source-ref '${{ github.ref }}' \
                                --wait
@@ -66,8 +67,8 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-LINT }}" \
+        python3 ./submitJob.py --job-type CI-GSProcessing-CHECK --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-GSProcessing }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait
