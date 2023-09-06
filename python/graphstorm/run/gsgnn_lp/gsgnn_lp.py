@@ -22,7 +22,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
-from graphstorm.dataloading import GSgnnEdgeTrainData
+from graphstorm.dataloading import GSgnnLPTrainData
 from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
 from graphstorm.dataloading import GSgnnLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnLPLocalUniformNegDataLoader
@@ -60,12 +60,12 @@ def main(config_args):
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)
-    node_feat_field = config.node_feat_name
-    train_data = GSgnnEdgeTrainData(config.graph_name,
-                                    config.part_config,
-                                    train_etypes=config.train_etype,
-                                    eval_etypes=config.eval_etype,
-                                    node_feat_field=node_feat_field)
+    train_data = GSgnnLPTrainData(config.graph_name,
+                                  config.part_config,
+                                  train_etypes=config.train_etype,
+                                  eval_etypes=config.eval_etype,
+                                  node_feat_field=config.node_feat_name,
+                                  pos_graph_feat_field=config.lp_edge_weight_for_loss)
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)
@@ -118,8 +118,7 @@ def main(config_args):
                                 config.batch_size, config.num_negative_edges, device,
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
-                                exclude_training_targets=config.exclude_training_targets,
-                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss)
+                                exclude_training_targets=config.exclude_training_targets)
 
     # TODO(zhengda) let's use full-graph inference for now.
     if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
