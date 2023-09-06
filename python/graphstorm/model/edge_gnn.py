@@ -128,7 +128,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         assert len(labels) == 1, "We only support prediction on one edge type for now."
         target_etype = list(labels.keys())[0]
 
-        logits = self.decoder(target_edges, encode_embs)
+        logits = self.decoder(target_edges, encode_embs, target_edge_feats)
         pred_loss = self.loss_func(logits, labels[target_etype])
 
         # add regularization loss to all parameters to avoid the unused parameter errors
@@ -150,8 +150,8 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats)
         if return_proba:
-            return self.decoder.predict_proba(target_edges, encode_embs)
-        return self.decoder.predict(target_edges, encode_embs)
+            return self.decoder.predict_proba(target_edges, encode_embs, target_edge_feats)
+        return self.decoder.predict(target_edges, encode_embs, target_edge_feats)
 
 def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
