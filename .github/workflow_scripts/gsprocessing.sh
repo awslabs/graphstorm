@@ -1,1 +1,1 @@
-pytest /usr/lib/spark/graphstormg/graphstorm-processing/.
+pytest /usr/lib/spark/graphstorm/graphstorm-processing/.
