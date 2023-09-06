@@ -34,7 +34,7 @@ class GSEdgeDecoder(GSLayer):
     """ The abstract class of a GraphStorm edge decoder
     """
     @abc.abstractmethod
-    def forward(self, g, h, e_h):
+    def forward(self, g, h, e_h=None):
         """Forward function.
 
         Compute logits for each pair ``(ufeat[i], ifeat[i])``. The target
@@ -150,7 +150,8 @@ class DenseBiDecoder(GSEdgeDecoder):
             if parameter.dim() > 1:
                 nn.init.xavier_uniform_(parameter)
 
-    def forward(self, g, h, _):
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -166,7 +167,8 @@ class DenseBiDecoder(GSEdgeDecoder):
 
         return out
 
-    def predict(self, g, h, _):
+    # pylint: disable=unused-argument
+    def predict(self, g, h, e_h=None):
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -182,7 +184,8 @@ class DenseBiDecoder(GSEdgeDecoder):
                 out = out.argmax(dim=1)
         return out
 
-    def predict_proba(self, g, h, _):
+    # pylint: disable=unused-argument
+    def predict_proba(self, g, h, e_h=None):
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -308,14 +311,16 @@ class MLPEdgeDecoder(GSEdgeDecoder):
             out = th.matmul(h, self.decoder)
         return out
 
-    def forward(self, g, h, _):
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
         out = self._compute_logits(g, h)
 
         if self.regression:
             out = self.regression_head(out)
         return out
 
-    def predict(self, g, h, _):
+    # pylint: disable=unused-argument
+    def predict(self, g, h, e_h=None):
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -326,7 +331,8 @@ class MLPEdgeDecoder(GSEdgeDecoder):
             out = out.argmax(dim=1)
         return out
 
-    def predict_proba(self, g, h, _):
+    # pylint: disable=unused-argument
+    def predict_proba(self, g, h, e_h=None):
         out = self._compute_logits(g, h)
 
         if self.regression:
