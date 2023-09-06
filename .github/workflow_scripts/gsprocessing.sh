@@ -1,1 +1,1 @@
-sh -c pytest ./code/tests/
+pytest /usr/lib/spark/graphstorm/graphstorm-processing/.
