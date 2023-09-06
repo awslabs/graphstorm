@@ -34,15 +34,17 @@ from graphstorm.utils import setup_device
 
 def gen_embedding_with_nid_mapping(num_embs):
     emb = th.rand((num_embs, 12))
-    nid_mapping = th.randperm(num_embs)
+    ori_nid_mapping = th.randperm(num_embs)
+    _, nid_mapping = th.sort(ori_nid_mapping)
     emb = LazyDistTensor(emb, th.arange(num_embs))
-    return emb, nid_mapping
+    return emb, ori_nid_mapping, nid_mapping
 
 def gen_predict_with_nid_mapping(num_embs):
     pred = th.rand((num_embs, 12)) * 10
     pred = pred.long()
-    nid_mapping = th.randperm(num_embs)
-    return pred, nid_mapping
+    ori_nid_mapping = th.randperm(num_embs)
+    _, nid_mapping = th.sort(ori_nid_mapping)
+    return pred, ori_nid_mapping, nid_mapping
 
 def helper_save_embedding(tmpdirname):
     random_emb = th.rand((103, 12))
@@ -197,8 +199,8 @@ def test_shuffle_predict(num_embs, backend):
 
     # node_mapping is tensor
     with tempfile.TemporaryDirectory() as tmpdirname:
-        pred, nid_mapping = gen_predict_with_nid_mapping(num_embs)
-        save_maps(tmpdirname, "node_mapping", nid_mapping)
+        pred, ori_nid_mapping, nid_mapping = gen_predict_with_nid_mapping(num_embs)
+        save_maps(tmpdirname, "node_mapping", ori_nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         conn1, conn2 = mp.Pipe()
@@ -229,9 +231,10 @@ def test_shuffle_predict(num_embs, backend):
 
      # node mapping is a dict
     with tempfile.TemporaryDirectory() as tmpdirname:
-        pred, nid_mapping = gen_predict_with_nid_mapping(num_embs)
+        pred, ori_nid_mapping, nid_mapping = gen_predict_with_nid_mapping(num_embs)
         nid_mapping = {"node": nid_mapping}
-        save_maps(tmpdirname, "node_mapping", nid_mapping)
+        ori_nid_mapping = {"node": ori_nid_mapping}
+        save_maps(tmpdirname, "node_mapping", ori_nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         conn1, conn2 = mp.Pipe()
@@ -269,8 +272,8 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
 
     # single embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
-        emb, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
-        save_maps(tmpdirname, "node_mapping", nid_mapping)
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
+        save_maps(tmpdirname, "node_mapping", ori_nid_mapping)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_dist_save_embeddings,
@@ -295,18 +298,22 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
     # multiple embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
         embs = {}
+        ori_nid_mappings = {}
         nid_mappings = {}
-        emb, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
         embs['n0'] = emb
+        ori_nid_mappings['n0'] = ori_nid_mapping
         nid_mappings['n0'] = nid_mapping
-        emb, nid_mapping = gen_embedding_with_nid_mapping(num_embs*2)
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs*2)
         embs['n1'] = emb
+        ori_nid_mappings['n1'] = ori_nid_mapping
         nid_mappings['n1'] = nid_mapping
-        emb, nid_mapping = gen_embedding_with_nid_mapping(num_embs*3)
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs*3)
         embs['n2'] = emb
+        ori_nid_mappings['n2'] = ori_nid_mapping
         nid_mappings['n2'] = nid_mapping
 
-        save_maps(tmpdirname, "node_mapping", nid_mappings)
+        save_maps(tmpdirname, "node_mapping", ori_nid_mappings)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_dist_save_embeddings,
