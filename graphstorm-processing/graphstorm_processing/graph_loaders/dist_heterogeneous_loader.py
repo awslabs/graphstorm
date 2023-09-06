@@ -46,8 +46,10 @@ from ..data_transformations.dist_feature_transformer import DistFeatureTransform
 from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates
 from ..data_transformations import s3_utils
 from .heterogeneous_graphloader import HeterogeneousGraphLoader
-from . import schema_utils
-from .row_count_utils import ParquetRowCounter
+
+# TODO: Remove the pylint disable once we add the rest of the code
+from . import schema_utils  # pylint: disable=no-name-in-module
+from .row_count_utils import ParquetRowCounter  # pylint: disable=no-name-in-module
 
 FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
