@@ -483,6 +483,7 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
     """ Abstract class for Link prediction decoder without trainable parameters
     """
 
+    # pylint: disable=arguments-differ
     @abc.abstractmethod
     def forward(self, g, h, e_h=None):
         """Forward function.
@@ -509,6 +510,7 @@ class LinkPredictLearnableDecoder(GSLayer):
     def __init__(self):
         super(LinkPredictLearnableDecoder, self).__init__()
 
+    # pylint: disable=arguments-differ
     @abc.abstractmethod
     def forward(self, g, h, e_h=None):
         """Forward function.
@@ -535,7 +537,8 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
     def __init__(self, in_dim):
         self._in_dim = in_dim
 
-    def forward(self, g, h, e_h):    # pylint: disable=arguments-differ
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
         with g.local_scope():
             scores = []
 
@@ -724,7 +727,8 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         """
         return self._w_relation.weight, self.etype2rid
 
-    def forward(self, g, h, e_h):
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
         with g.local_scope():
             scores=[]
 
