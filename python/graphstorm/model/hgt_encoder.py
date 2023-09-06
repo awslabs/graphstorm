@@ -75,7 +75,7 @@ class HGTLayer(nn.Module):
         self.d_k = out_dim // num_heads
         self.sqrt_dk = math.sqrt(self.d_k)
         self.activation = activation
-        
+
         # normalization
         if norm in BUILTIN_GNN_NORM:
             self.use_norm = True
