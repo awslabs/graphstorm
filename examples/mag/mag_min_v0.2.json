@@ -30,7 +30,14 @@
                                        "feature_col":  "year",
                                        "feature_name": "year"
                                }
-                       ]
+                       ],
+		       "labels":	[
+				{
+					"label_col":	"venue",
+					"task_type":	"classification",
+					"split_pct":   [0.8, 0.1, 0.1]
+				}
+			]
                 },
 		{
 			"node_id_col":  "id",
@@ -71,13 +78,6 @@
 					"feature_name": "order"
 				}
 			]
-		},
-		{
-			"source_id_col":    "venue",
-			"dest_id_col":      "paper",
-			"relation":         ["venue", "publish", "paper"],
-			"format":           {"name": "parquet"},
-			"files":        "/home/ubuntu/workspace/data/oagv2.1/mag/mag_paper2venue_0.parquet"
 		},
 		{
 			"source_id_col":    "paper",
