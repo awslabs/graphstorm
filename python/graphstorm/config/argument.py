@@ -1186,7 +1186,7 @@ class GSConfig:
 
             Used by node classification and edge classification
         """
-        if isinstance(self.num_classes, dict):
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
             if hasattr(self, "_multilabel"):
                 assert isinstance(self._multilabel, dict)
                 for ntype in self.num_classes:
@@ -1207,7 +1207,7 @@ class GSConfig:
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
-        if isinstance(self.num_classes, dict):
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
             if hasattr(self, "_multilabel_weights"):
                 ntype_weights = {}
                 for ntype in self.num_classes:
@@ -1269,7 +1269,7 @@ class GSConfig:
 
             Customer should provide the weight in following format 0.1,0.2,0.3,0.1
         """
-        if isinstance(self.num_classes, dict):
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
             if hasattr(self, "_imbalance_class_weights"):
                 assert isinstance(self._imbalance_class_weights, dict)
                 ntype_weights = {}
@@ -1333,7 +1333,7 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_target_ntype"):
-            assert instance(self._eval_target_ntype, str), \
+            assert isinstance(self._eval_target_ntype, str), \
                 "Now we only support single ntype evaluation"
             return self._eval_target_ntype
         else:
