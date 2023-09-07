@@ -113,7 +113,7 @@ class GSgnnEdgeDataLoader():
         Whether we will exclude all edges of the target edge type in message passing.
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
-    construct_feat_fanout : int or dict of int
+    construct_feat_fanout : int
         The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
@@ -263,7 +263,7 @@ class GSgnnLinkPredictionDataLoader():
         in computing link prediction loss
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
-    construct_feat_fanout : int or dict of int
+    construct_feat_fanout : int
         The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
@@ -806,7 +806,7 @@ class GSgnnNodeDataLoader():
         Whether or not for training.
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
-    construct_feat_fanout : int or dict of int
+    construct_feat_fanout : int
         The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
