@@ -1012,6 +1012,11 @@ class GSConfig:
         """ The fanout for constructing node features
         """
         if hasattr(self, "_construct_feat_fanout"):
+            assert isinstance(self._construct_feat_fanout, int), \
+                    "The fanout for feature construction should be integers."
+            assert self._construct_feat_fanout > 0 or self._construct_feat_fanout == -1, \
+                    "The fanout for feature construction should be positive or -1 " + \
+                    "if we use all neighbors to construct node features."
             return self._construct_feat_fanout
         else:
             return 5

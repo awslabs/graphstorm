@@ -25,7 +25,7 @@ from .gnn_encoder_base import GraphConvEncoder, dist_inference_one_layer
 
 def construct_node_feat(g, rel_names, input_gnn, get_input_embeds, batch_size,
                         edge_mask=None, device="cpu", task_tracker=None):
-    """ Construct node features with the input layer.
+    """ Construct node features with the input layer in the full-graph inference.
 
     Parameters
     ----------

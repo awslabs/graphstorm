@@ -49,7 +49,9 @@ class _ReconstructedNeighborSampler():
         The fanout for the additional layer.
     """
     def __init__(self, dataset, constructed_embed_ntypes, fanout):
-        assert fanout > 0, "Constructing features requires to sample neighbors."
+        assert fanout > 0 or fanout == -1, \
+                "Constructing features requires to sample neighbors or -1 " + \
+                "if we use all neighbors."
         self._g = dataset.g
         etypes = self._g.canonical_etypes
         self._subg_etypes = []
