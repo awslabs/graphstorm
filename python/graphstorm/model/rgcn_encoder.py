@@ -154,13 +154,24 @@ class RelGraphConvLayer(nn.Module):
 
         if g.is_block:
             inputs_src = inputs
-            if self.self_loop:
-                inputs_dst = {k: v[:g.number_of_dst_nodes(k)] for k, v in inputs.items()}
-            else:
-                # If we use RGCN for constructing node features, the destination nodes
-                # may not in the input features.
-                inputs_dst = {k: th.zeros((g.num_dst_nodes(k), self.in_feat),
-                                          dtype=th.float32, device=g.device) for k in g.dsttypes}
+            # DGL's message passing module requires to access the destination node embeddings.
+            inputs_dst = {}
+            for k in g.dsttypes:
+                # If the destination node type exists in the input embeddings,
+                # we can get from the input node embeddings directly because
+                # the input nodes of DGL's block also contain the destination nodes
+                if k in inputs:
+                    inputs_dst[k] = inputs[k][:g.number_of_dst_nodes(k)]
+                else:
+                    # If the destination node type doesn't exist (this may happen if
+                    # we use RGCN to construct node features), we should create a zero
+                    # tensor. This tensor won't be used for computing embeddings.
+                    # We need this just to fulfill the requirements of DGL message passing
+                    # modules.
+                    assert not self.self_loop, \
+                            f"We cannot allow self-loop if node {k} doesn't have input features."
+                    inputs_dst[k] = th.zeros((g.num_dst_nodes(k), self.in_feat),
+                                             dtype=th.float32, device=g.device)
         else:
             inputs_src = inputs_dst = inputs
 
