@@ -17,7 +17,6 @@ on:
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing_workflow.yml'
 
-
 permissions:
   id-token: write
   pull-requests: write
