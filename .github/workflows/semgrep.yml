@@ -38,7 +38,7 @@ jobs:
       # Period (.) to run scan in the current directory to avoid blocking findings in the future use --exclude=+BLOCKING
       - name: Run Scan - 1 (Default Ruleset)
         run: semgrep --config=p/default .
-
+        
       - name: Run Scan - 2 (Ruleset for Python)
         run: semgrep --config=p/python .
 
@@ -47,4 +47,3 @@ jobs:
 
       - name: Run Scan - 4 (Ruleset CWE TOP 25)
         run: semgrep --config=p/cwe-top-25 .
-        
