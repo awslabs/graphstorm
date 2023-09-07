@@ -389,3 +389,39 @@ echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed feature, 
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 128 --reverse-edge-types-map user,rating,rating-rev,movie --node-feat-name movie:title user:feat --backend nccl
 
 error_and_exit $?
+
+echo "**************dataset: Movielens, two training edges with per etype evaluation result***********"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_2etype_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 1024 --exclude-training-targets false --train-etype user,rating,movie user,rating2,movie --eval-etype user,rating,movie user,rating2,movie --report-eval-per-type True --node-feat-name movie:title user:feat --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+cnt=$(grep "Test mrr: {('user', 'rating', 'movie'):" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "Should have Test mrr: {('user', 'rating', 'movie'):"
+    exit -1
+fi
+rm /tmp/train_log.txt
+
+echo "**************dataset: Movielens, two training edges with per etype evaluation result***********"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_2etype_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 1024 --exclude-training-targets false --train-etype user,rating,movie user,rating2,movie --eval-etype user,rating,movie user,rating2,movie --model-select-etype user,rating2,movie --report-eval-per-type True --node-feat-name movie:title user:feat --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+cnt=$(grep "Test mrr: {('user', 'rating', 'movie'):" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "Should have Test mrr: {('user', 'rating', 'movie')"
+    exit -1
+fi
+
+cnt=$(grep "('user', 'rating2', 'movie'):" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "Should have ('user', 'rating2', 'movie') in validation and test"
+    exit -1
+fi
+rm /tmp/train_log.txt
+
+echo "**************dataset: Movielens, input encoder with Bert, inference: full-graph, negative_sampler: joint, decoder: Dot, save model"
+python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lm_lp.py --cf ml_lm_lp.yaml  --lp-decoder-type dot_product --model-encoder-type mlp --report-eval-per-type True --num-epochs 1
