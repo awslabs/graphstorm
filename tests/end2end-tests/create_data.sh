@@ -59,6 +59,14 @@ rm -Rf movielen_no_edata_100k_train_val_1p_4t
 cp -R movielen_100k_lp_train_val_1p_4t movielen_no_edata_100k_train_val_1p_4t
 python3 /$GS_HOME/tests/end2end-tests/data_gen/remove_mask.py --dataset movielen_no_edata_100k_train_val_1p_4t --remove_node_mask 0
 
+# movielens link prediction with two edge types
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_2etype_lp.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lp_2etype_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
 # movielens edge regression - used in both single and multi gpu tests
 python3 -m graphstorm.gconstruct.construct_graph \
 	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_er.json \
