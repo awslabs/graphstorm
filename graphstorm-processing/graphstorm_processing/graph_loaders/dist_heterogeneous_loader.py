@@ -13,12 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import json
+import logging
+import numbers
+import os
 from collections import Counter, defaultdict
 from time import perf_counter
 from typing import Any, Dict, Mapping, Optional, Sequence, Set, Tuple
-import json
-import logging
-import os
 
 from pyspark import RDD
 from pyspark.sql import Row, SparkSession, DataFrame, functions as F
@@ -44,7 +45,7 @@ from ..config.label_config_base import LabelConfig, EdgeLabelConfig
 from ..config.feature_config_base import FeatureConfig
 from ..data_transformations.dist_feature_transformer import DistFeatureTransformer
 from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates
-from ..data_transformations import s3_utils
+from ..data_transformations import s3_utils, spark_utils
 from .heterogeneous_graphloader import HeterogeneousGraphLoader
 
 # TODO: Remove the pylint disable once we add the rest of the code
@@ -95,6 +96,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         num_output_files: Optional[int] = None,
         add_reverse_edges=True,
         enable_assertions=False,
+        graph_name: Optional[str] = None,
     ):
         super().__init__(local_input_path, local_output_path, data_configs)
 
@@ -109,8 +111,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.add_reverse_edges = add_reverse_edges
         # Remove trailing slash in s3 paths
         if self.filesystem_type == "s3":
-            self.input_prefix = input_prefix[:-1] if input_prefix[-1] == "/" else input_prefix
-            self.output_prefix = output_prefix[:-1] if output_prefix[-1] == "/" else output_prefix
+            self.input_prefix = s3_utils.s3_remove_trailing(input_prefix)
+            self.output_prefix = s3_utils.s3_remove_trailing(output_prefix)
         else:
             # TODO: Any checks for local paths?
             self.input_prefix = input_prefix
@@ -128,6 +130,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.enable_assertions = enable_assertions
         self.column_substitutions = {}  # type: Dict[str, str]
         self.graph_info = {}  # type: Dict[str, Any]
+        self.graph_name = graph_name
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
@@ -189,7 +192,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         metadata_dict["edges"] = edges_dict
         # We use the data location as the graph name, can also take from user?
         # TODO: Fix this, take from config?
-        metadata_dict["graph_name"] = self.input_prefix.split("/")[-1]
+        metadata_dict["graph_name"] = (
+            self.graph_name if self.graph_name else self.input_prefix.split("/")[-1]
+        )
 
         # Ensure output dict has the correct order of keys
         for edge_type in metadata_dict["edge_type"]:
@@ -272,6 +277,25 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
     def _initialize_metadata_dict(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
     ) -> Dict:
+        """Initializes the metadata dict that will be created as output.
+
+        This dict is required downstream by the graph partitioning task,
+        see https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
+        for details.
+
+        Parameters
+        ----------
+        data_configs : Mapping[str, Sequence[StructureConfig]]
+            A mapping that needs to include an "edges" key,
+            and maps to a sequence of `StructureConfig` objects
+            describing all the edge types in the graph.
+
+        Returns
+        -------
+        Dict
+            A dict initialized with necessary keys and values that
+            will later be further populated during graph processing.
+        """
         metadata_dict = {}
         edge_configs = data_configs["edges"]  # type: Sequence[EdgeConfig]
 
@@ -347,7 +371,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 for pchar in problematic_chars:
                     new_column = new_column.replace(pchar, "_")
 
-                input_df = input_df.withColumnRenamed(column, new_column)
+                input_df, new_column = spark_utils.safe_rename_column(input_df, column, new_column)
                 self.column_substitutions[column] = new_column
 
         return input_df
@@ -417,6 +441,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 row_vals = list(row_dict.values())
                 if len(row_vals) > 1:
                     # In case there's more than one column
+                    for d in row_vals:
+                        # TODO: Maybe replace with inner separator
+                        assert d != ",", "CSV column val contains comma"
                     return ",".join(str(d) for d in row_vals)
                 else:
                     # Single column, but could be a multi-valued vector
@@ -429,13 +456,17 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             raise NotImplementedError(f"Unsupported output format: {out_format}")
 
         # Partition metadata requires full (relative) paths to files,
-        # cannot just return the common prefix
+        # cannot just return the common prefix.
+        # So we first get the full paths, then the common prefix,
+        # then strip the common prefix from the full paths,
+        # to leave paths relative to where the metadata will be written.
         if self.filesystem_type == "s3":
             object_key_list = s3_utils.list_s3_objects(output_bucket, prefix_with_format)
         else:
             object_key_list = [
                 os.path.join(prefix_with_format, f) for f in os.listdir(prefix_with_format)
             ]
+
         assert (
             object_key_list
         ), f"No files found written under: {output_bucket}/{prefix_with_format}"
@@ -444,7 +475,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         filtered_key_list = []
         if self.filesystem_type == "s3":
             # Get the S3 key prefix without the bucket
-            common_prefix = self.output_prefix.split("/", 3)[3]
+            common_prefix = self.output_prefix.split("/", maxsplit=3)[3]
         else:
             common_prefix = self.output_prefix
 
@@ -544,7 +575,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             A list of EdgeConfig objects that contain all edge types in the graph.
         missing_node_types : Optional[Set[str]], optional
             An optional set of node types that do not have corresponding node files,
-            by default None. We create mappings from the edges for the missing node
+            by default None. We create mappings from the edges for those missing node
             types.
         """
         # TODO: If it is possible to have multiple edge files for a single node type,
@@ -587,9 +618,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                         )
         # Write back each mapping and populate self.node_mapping_paths
         for ntype, mapping_df in node_type_to_mapping_df.items():
-            # TODO: This check is probably redundant
-            if ntype in missing_node_types:
-                self._write_nodeid_mapping_and_update_state(mapping_df, ntype)
+            assert ntype in missing_node_types
+            self._write_nodeid_mapping_and_update_state(mapping_df, ntype)
 
     def _create_initial_mapping_from_edges(self, edges_df: DataFrame, node_col: str) -> DataFrame:
         assert isinstance(node_col, str), f"{node_col=} not of str type, got {type(node_col)=}"
@@ -627,8 +657,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         """
         join_col = NODE_MAPPING_STR
         index_col = NODE_MAPPING_INT
-        incoming_node_ids = (
-            edges_df.select(node_col).distinct().withColumnRenamed(node_col, join_col)
+        incoming_node_ids, join_col = spark_utils.safe_rename_column(
+            edges_df.select(node_col).distinct().dropna(), node_col, join_col
         )
 
         # TODO: When is it possible that we might get a null node str id value?
@@ -758,7 +788,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             files = node_config.files
             file_paths = [f"{self.input_prefix}/{f}" for f in files]
 
-            separator = node_config.separator
             node_type = node_config.ntype
             node_col = node_config.node_col
 
@@ -766,11 +795,14 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             # TODO: Maybe we use same enforced type for Parquet and CSV
             # to ensure consistent behavior downstream?
             if node_config.format == "csv":
+                separator = node_config.separator
                 node_file_schema = schema_utils.parse_node_file_schema(node_config)
                 nodes_df_untyped = self.spark.read.csv(path=file_paths, sep=separator, header=True)
                 nodes_df_untyped = nodes_df_untyped.select(node_file_schema.fieldNames())
                 # Select only the columns referenced in the config
                 # and cast each column to the correct type
+                # TODO: It's possible that columns have different types from the
+                # expected type in the config. We need to handle conversions when needed.
                 nodes_df = nodes_df_untyped.select(
                     *(
                         F.col(col_name).cast(col_field.dataType).alias(col_name)
@@ -802,6 +834,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 node_df_with_ids = mapping_df.join(
                     nodes_df, mapping_df[NODE_MAPPING_STR] == nodes_df[node_col], "left"
                 )
+                if self.enable_assertions:
+                    nodes_df_count = nodes_df.count()
+                    mapping_df_count = mapping_df.count()
+                    assert nodes_df_count == mapping_df_count, (
+                        f"Nodes df count ({nodes_df_count}) does not match "
+                        f"mapping df count ({mapping_df_count})"
+                    )
                 nodes_df = node_df_with_ids.withColumnRenamed(node_col, NODE_MAPPING_STR).orderBy(
                     NODE_MAPPING_INT
                 )
@@ -1120,14 +1159,12 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         return edges_df
 
     def process_edge_data(self, edge_configs: Sequence[EdgeConfig]) -> Tuple[Dict, Dict]:
-        """Given a list of edge config objects will extract and write the edge structure data to S3,
-        perform the processing steps for each feature,
-        and return a tuple with two dict entries for the metadata.json file,
-        the first aimed for the "edge_data" key that describes the edge features,
+        """Given a list of edge config objects will extract and write the edge structure
+        data to S3 or local storage, perform the processing steps for each feature,
+        and return a tuple with two dict entries for the metadata.json file.
+        The first element is aimed for the "edge_data" key that describes the edge features,
         and the second being the "edges" key that describes the edge structures.
 
-        As an additional side-effect the function populates
-        the values of self.edge_chunk_counts for each edge type.
 
 
         Parameters
@@ -1296,7 +1333,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
                 feat_val = single_feature_df.take(1)[0].asDict()[feat_name]
 
-                if isinstance(feat_val, (int, float)):
+                if isinstance(feat_val, numbers.Number):
                     efeat_size = 1
                 else:
                     efeat_size = len(feat_val)
@@ -1346,8 +1383,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 self.graph_info["task_type"] = (
                     "edge_class" if label_conf.task_type == "classification" else "edge_regression"
                 )
-                self.graph_info["is_multilabel"] = "True" if label_conf.multilabel else "False"
                 if label_conf.task_type == "classification":
+                    self.graph_info["is_multilabel"] = "True" if label_conf.multilabel else "False"
                     self.graph_info["label_map"] = edge_label_loader.label_map
 
                 logging.info(
@@ -1502,7 +1539,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         # If the user did not provide a split rate we use a default
         split_metadata = {}
         if split_rates is None:
-            split_rates = SplitRates(train_rate=0.9, val_rate=0.05, test_rate=0.05)
+            split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
         else:
             if sum(split_rates.tolist()) != 1.0:
                 raise RuntimeError(f"Provided split rates  do not sum to 1: {split_rates}")

@@ -333,16 +333,27 @@ def test_write_edge_structure_no_reverse_edges(
 
 
 def test_create_all_mapppings_from_edges(
-    data_configs_with_label, dghl_loader: DistHeterogeneousGraphLoader
+    spark: SparkSession, data_configs_with_label, dghl_loader: DistHeterogeneousGraphLoader
 ):
     """Test creating all node mappings only from edge files"""
     edge_configs = data_configs_with_label["edges"]
 
     missing_node_types = dghl_loader._get_missing_node_types(edge_configs, [])
+    assert missing_node_types == {"user", "director", "genre", "movie"}
     dghl_loader.create_node_id_maps_from_edges(edge_configs, missing_node_types)
 
+    expected_node_counts = {
+        "user": 5,
+        "director": 3,
+        "genre": 2,
+        "movie": 4,
+    }
+
     assert len(dghl_loader.node_mapping_paths) == 4
-    # TODO: Check mapping contents?
+    for node_type, mapping_files in dghl_loader.node_mapping_paths.items():
+        files_with_prefix = [os.path.join(dghl_loader.output_path, x) for x in mapping_files]
+        mapping_count = spark.read.parquet(*files_with_prefix).count()
+        assert mapping_count == expected_node_counts[node_type]
 
 
 def test_create_some_mapppings_from_edges(
@@ -452,7 +463,8 @@ def ensure_masks_are_correct(
     assert train_mask_df.count() == test_mask_df.count() == val_mask_df.count() == NUM_DATAPOINTS
 
     # Ensure the total number of 1's sums to the number of expected datapoints
-    assert sum_counts == expected_data_points
+    if sum(requested_rates) == 1.0:
+        assert sum_counts == expected_data_points
 
     # TODO: Can we tighten tolerance without causing inadvertent test failures?
     # Approximately check split ratio requested vs. actual +/- 0.1
