@@ -2,12 +2,14 @@
 """
 import os
 import logging
-import boto3 # pylint: disable=import-error
+from time import strftime, gmtime
 
+import boto3 # pylint: disable=import-error
 from sagemaker.pytorch.estimator import PyTorch
 import sagemaker
 
-from common_parser import get_common_parser, parse_estimator_kwargs # pylint: disable=wrong-import-order
+from common_parser import ( # pylint: disable=wrong-import-order
+    get_common_parser, parse_estimator_kwargs)
 
 INSTANCE_TYPE = "ml.m5.12xlarge"
 
@@ -23,7 +25,9 @@ def run_job(input_args, image):
     image: str
         ECR image uri
     """
-    sm_task_name = input_args.task_name if input_args.task_name else "" # SageMaker task name
+    timestamp = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+    # SageMaker base job name
+    sm_task_name = input_args.task_name if input_args.task_name else timestamp
     role = input_args.role # SageMaker ARN role
     instance_type = input_args.instance_type # SageMaker instance type
     instance_count = input_args.instance_count # Number of infernece instances
