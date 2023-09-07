@@ -33,7 +33,70 @@ from .utils import trim_data, modify_fanout_for_target_etype
 ################ Minibatch DataLoader (Edge Prediction) #######################
 EP_DECODER_EDGE_FEAT = "ep_edge_feat"
 
-class GSgnnEdgeDataLoader():
+class GSgnnEdgeDataLoaderBase():
+    """ The base dataloader class for edge tasks.
+
+    Parameters
+    ----------
+    dataset : GSgnnEdgeData
+        The dataset for the edge task.
+    target_idx : Tensor or dict of Tensors
+        The target edge IDs.
+    fanout : list or dict of lists
+        The fanout for each GNN layer.
+    """
+    def __init__(self, dataset, target_idx, fanout):
+        self._data = dataset
+        self._target_eidx = target_idx
+        self._fanout = fanout
+
+    def __iter__(self):
+        """ Returns an iterator object
+        """
+
+    def __next__(self):
+        """ Return a mini-batch data for the edge task.
+
+        A mini-batch comprises three objects: the input node IDs,
+        the target edges and the subgraph blocks for message passing.
+
+        Returns
+        -------
+        dict of Tensors : the input node IDs of the mini-batch.
+        DGLGraph : the target edges.
+        list of DGLGraph : the subgraph blocks for message passing.
+        """
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+
+        Returns
+        GSgnnEdgeData : The dataset of the dataloader.
+        """
+        return self._data
+
+    @property
+    def target_eidx(self):
+        """ Target edge idx for prediction
+
+        Returns
+        -------
+        dict of Tensors : the target edge IDs.
+        """
+        return self._target_eidx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+
+        Returns
+        -------
+        list or a dict of list : the fanouts for each GNN layer.
+        """
+        return self._fanout
+
+class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The minibatch dataloader for edge prediction
 
     Argument
@@ -62,10 +125,8 @@ class GSgnnEdgeDataLoader():
                  remove_target_edge_type=True,
                  exclude_training_targets=False,
                  decoder_edge_feat=None):
-        self._data = dataset
+        super().__init__(dataset, target_idx, fanout)
         self._device = device
-        self._fanout = fanout
-        self._target_eidx = target_idx
         self._decoder_edge_feat = decoder_edge_feat
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
@@ -160,7 +221,36 @@ BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 
 LP_DECODER_EDGE_WEIGHT = "lp_edge_weight"
 
-class GSgnnLinkPredictionDataLoader():
+class GSgnnLinkPredictionDataLoaderBase():
+    def __init__(self, ):
+
+    def __iter__(self):
+        """
+        """
+
+    def __next__(self):
+        """
+        Returns
+        -------
+        Tensor or dict of Tensors : the input nodes of a mini-batch.
+        DGLGraph : positive edges.
+        DGLGraph : negative edges.
+        list of DGLGraph : subgraph blocks for message passing.
+        """
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+        """
+        return self._data
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+        """
+        return self._fanout
+
+class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     """ Link prediction minibatch dataloader
 
     The negative edges are sampled uniformly.
@@ -196,8 +286,7 @@ class GSgnnLinkPredictionDataLoader():
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
                  edge_mask_for_gnn_embeddings='train_mask', lp_edge_weight_for_loss=None):
-        self._data = dataset
-        self._fanout = fanout
+        super().__init__(dataset, target_idx, fanout)
         self._lp_edge_weight_for_loss = lp_edge_weight_for_loss
         self._device = device
         for etype in target_idx:
@@ -271,18 +360,6 @@ class GSgnnLinkPredictionDataLoader():
             for etype, feat in edge_weight_feats.items():
                 pos_graph.edges[etype].data[LP_DECODER_EDGE_WEIGHT] = feat
         return (input_nodes, pos_graph, neg_graph, blocks)
-
-    @property
-    def data(self):
-        """ The dataset of this dataloader.
-        """
-        return self._data
-
-    @property
-    def fanout(self):
-        """ The fan out of each GNN layers
-        """
-        return self._fanout
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
