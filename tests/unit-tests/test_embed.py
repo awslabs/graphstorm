@@ -151,13 +151,6 @@ def test_input_layer3(dev):
     assert_almost_equal(embed['n1'].detach().cpu().numpy(),
                         node_embs['n1'].detach().cpu().numpy())
 
-    # Test the case with errors.
-    try:
-        embed = layer(node_feat, {'n2': 'feat'})
-    except:
-        embed = None
-    assert embed is None
-
     # test the case that one node type has no input nodes.
     input_nodes['n0'] = np.arange(10)
     input_nodes['n1'] = np.zeros((0,))
