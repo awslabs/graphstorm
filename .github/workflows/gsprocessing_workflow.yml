@@ -10,11 +10,13 @@ on:
     paths:
       - '.github/workflow_scripts/gsprocessing.sh'
       - 'graphstorm-processing/*'
+      - '.github/workflows/gsprocessing_workflow.yml'
     workflow_dispatch:
   pull_request_target:
     paths:
       - '.github/workflow_scripts/gsprocessing.sh'
       - 'graphstorm-processing/*'
+      - '.github/workflows/gsprocessing_workflow.yml'
 
 permissions:
   id-token: write
