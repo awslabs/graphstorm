@@ -91,8 +91,8 @@ class _ReconstructedNeighborSampler():
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
 
-    Argument
-    --------
+    Parameters
+    ------------
     dataset: GSgnnEdgeData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
@@ -703,8 +703,8 @@ class GSgnnLinkPredictionTestDataLoader():
 
     The negative edges are sampled uniformly.
 
-    Argument
-    --------
+    Paramters
+    ------------
     dataset: GSgnnEdgeData
         The GraphStorm edge dataset
     target_idx : dict of Tensors

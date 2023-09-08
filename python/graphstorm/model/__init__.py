@@ -28,8 +28,8 @@ from .edge_gnn import edge_mini_batch_gnn_predict, edge_mini_batch_predict
 from .lp_gnn import GSgnnLinkPredictionModel, GSgnnLinkPredictionModelBase
 
 from .rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
-from .rgat_encoder import RelationalGATEncoder
-from .sage_encoder import SAGEEncoder
+from .rgat_encoder import RelationalGATEncoder, RelationalAttLayer
+from .sage_encoder import SAGEEncoder, SAGEConv
 
 from .node_decoder import EntityClassifier, EntityRegression
 from .edge_decoder import (DenseBiDecoder,
