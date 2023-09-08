@@ -8,13 +8,13 @@ on:
       - main
       - ci_dev
     paths:
-      - '.github/workflow_scripts/gsprocessing.sh'
+      - '.github/workflow_scripts/gsprocessing-pytest.sh'
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing_workflow.yml'
     workflow_dispatch:
   pull_request_target:
     paths:
-      - '.github/workflow_scripts/gsprocessing.sh'
+      - '.github/workflow_scripts/gsprocessing-pytest.sh'
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing_workflow.yml'
 
@@ -30,7 +30,7 @@ defaults:
 # All test scripts split in individual .sh files and moved to .github/workflow scripts
 env:
   COMMAND-LINT: chmod +x ./lint_check.sh && ./lint_check.sh
-  COMMAND-GSProcessing: chmod +x ./gsprocessing.sh && ./gsprocessing.sh
+  COMMAND-GSProcessing: chmod +x ./gsprocessing-pytest.sh && ./gsprocessing-pytest.sh
 
 jobs:
   lint_check:
