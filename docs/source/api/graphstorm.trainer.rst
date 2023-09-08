@@ -1,7 +1,7 @@
 .. _apitrainer:
 
 graphstorm.trainer
-=================
+=====================
 
 .. currentmodule:: graphstorm.trainer
 

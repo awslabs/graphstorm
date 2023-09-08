@@ -1,9 +1,9 @@
 .. _apigraphstorm:
 
-.. currentmodule:: graphstorm
+.. currentmodule:: graphstorm.gsf
 
 graphstorm
-==========
+============
 
     The ``graphstorm`` package contains a set of functions for environment setup.
 
