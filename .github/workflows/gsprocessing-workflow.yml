@@ -29,8 +29,8 @@ defaults:
 
 # All test scripts split in individual .sh files and moved to .github/workflow scripts
 env:
-  COMMAND-LINT: chmod +x ./lint_check.sh && ./lint_check.sh
-  COMMAND-GSProcessing: chmod +x ./gsprocessing-pytest.sh && ./gsprocessing-pytest.sh
+  COMMAND-LINT: bash lint_check.sh
+  COMMAND-GSProcessing-Pytest: bash gsprocessing-pytest.sh
 
 jobs:
   lint_check:
@@ -52,7 +52,6 @@ jobs:
       shell: bash
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
         pip3 install boto3
     - name: Submit Job (for Push)
       if: ${{ github.event_name == 'push' }}
@@ -95,7 +94,6 @@ jobs:
       shell: bash
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
         pip3 install boto3
     - name: Submit Job (for Push)
       if: ${{ github.event_name == 'push' }}
@@ -103,7 +101,7 @@ jobs:
       run: |
         echo "Start submitting job - Push"  
         python3 ./submitJob.py --job-type CI-GSProcessing-CHECK --name Graphstorm-GSProcessing-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-GSProcessing }}" \
+                               --command "${{ env.COMMAND-GSProcessing-Pytest }}" \
                                --remote https://github.com/'${{ github.repository }}' \
                                --source-ref '${{ github.ref }}' \
                                --wait
@@ -113,7 +111,7 @@ jobs:
       run: |
         echo "Start submitting job - Pull Request"
         python3 ./submitJob.py --job-type CI-GSProcessing-CHECK --name Graphstorm-GSProcessing-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-GSProcessing }}" \
+                               --command "${{ env.COMMAND-GSProcessing-Pytest }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait
