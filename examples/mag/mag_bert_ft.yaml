@@ -16,28 +16,28 @@ lm_model:
         - fos
 gsf:
   basic:
-    backend: gloo
+    backend: nccl
     verbose: false
     save_perf_results_path: null
   lm:
-    lm_train_nodes: 160
+    lm_train_nodes: 128
     lm_infer_batch_size: 32
     freeze_lm_encoder_epochs: 0
   gnn:
-    model_encoder_type: mlp
+    model_encoder_type: lm
     hidden_size: 128
     use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
-    save_model_path: null
+    save_model_path: mag_bert_model/
     save_embed_path: null
   hyperparam:
     dropout: 0.
     lr: 0.001
     lm_tune_lr: 0.00003
     num_epochs: 3
-    batch_size: 160
+    batch_size: 128
     eval_batch_size: 1024
     bert_infer_bs: 128
     wd_l2norm: 0
