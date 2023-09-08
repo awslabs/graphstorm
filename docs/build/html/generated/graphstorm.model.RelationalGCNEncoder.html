@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="RelGraphConvLayer" href="graphstorm.model.RelGraphConvLayer.html" /><link rel="prev" title="graphstorm.model" href="../api/graphstorm.model.html" />
 
     <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
         <title>RelationalGCNEncoder - GraphStorm 0.1.2 documentation</title>
@@ -178,9 +178,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">RelationalGCNEncoder</a></li>
 <li class="toctree-l2"><a class="reference internal" href="graphstorm.model.RelGraphConvLayer.html">RelGraphConvLayer</a></li>
 </ul>
 </li>
@@ -224,44 +225,7 @@
 <dt class="sig sig-object py" id="graphstorm.model.RelationalGCNEncoder">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">graphstorm.model.</span></span><span class="sig-name descname"><span class="pre">RelationalGCNEncoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">g</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_bases</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_hidden_layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_self_loop</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_layer_act</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_ffn_layers_in_gnn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.RelationalGCNEncoder" title="Permalink to this definition">#</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">GraphConvEncoder</span></code></p>
-<p>Heterogenous graph transformer (HGT) layer from <a class="reference external" href="https://arxiv.org/abs/2003.01332">Heterogeneous Graph Transformer</a>.</p>
-<p>Given a graph <span class="math notranslate nohighlight">\(G(V, E)\)</span> and input node features <span class="math notranslate nohighlight">\(H^{(l-1)}\)</span>,
-it computes the new node features as follows:</p>
-<p>Compute a multi-head attention score for each edge <span class="math notranslate nohighlight">\((s, e, t)\)</span> in the graph:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\begin{split}Attention(s, e, t) = \text{Softmax}\left(||_{i\in[1,h]}ATT-head^i(s, e, t)\right) \\
-ATT-head^i(s, e, t) = \left(K^i(s)W^{ATT}_{\phi(e)}Q^i(t)^{\top}\right)\cdot
-  \frac{\mu_{(\tau(s),\phi(e),\tau(t)}}{\sqrt{d}} \\
-K^i(s) = \text{K-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) \\
-Q^i(t) = \text{Q-Linear}^i_{\tau(t)}(H^{(l-1)}[t]) \\\end{split}\]</div>
-</div>
-<p>Compute the message to send on each edge <span class="math notranslate nohighlight">\((s, e, t)\)</span>:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\begin{split}Message(s, e, t) = ||_{i\in[1, h]} MSG-head^i(s, e, t) \\
-MSG-head^i(s, e, t) = \text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s])W^{MSG}_{\phi(e)} \\\end{split}\]</div>
-</div>
-<p>Send messages to target nodes <span class="math notranslate nohighlight">\(t\)</span> and aggregate:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\tilde{H}^{(l)}[t] = \sum_{\forall s\in \mathcal{N}(t)}\left( Attention(s,e,t)
-\cdot Message(s,e,t)\right)\]</div>
-</div>
-<p>Compute new node features:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[H^{(l)}[t]=\text{A-Linear}_{\tau(t)}(\sigma(\tilde(H)^{(l)}[t])) + H^{(l-1)}[t]\]</div>
-</div>
-<section id="note">
-<h2>Note:<a class="headerlink" href="#note" title="Permalink to this heading">#</a></h2>
-<ul class="simple">
-<li><p>Different from DGL’s HGTConv, this implementation is based on heterogeneous graph. Other 
-hyperparameters’ default values are same as the DGL’s HGTConv setting.</p></li>
-<li><p>The cross-relation aggregation function of this implementation is <cite>mean</cite>, which was chosen
-by the authors of the HGT paper in their contribution to DGL.</p></li>
-</ul>
-</section>
+<p>Relational graph conv encoder.</p>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this heading">#</a></h2>
 <dl class="simple">
@@ -311,8 +275,26 @@ by the authors of the HGT paper in their contribution to DGL.</p></li>
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="graphstorm.model.RelGraphConvLayer.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">RelGraphConvLayer</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="../api/graphstorm.model.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">graphstorm.model</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -363,6 +345,5 @@ by the authors of the HGT paper in their contribution to DGL.</p></li>
     <script src="../_static/doctools.js"></script>
     <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/scripts/furo.js"></script>
-    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>

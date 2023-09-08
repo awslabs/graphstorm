@@ -12,4 +12,5 @@ Base Class
     :nosignatures:
     :template: classtemplate.rst
 
+    RelationalGCNEncoder
     RelGraphConvLayer
