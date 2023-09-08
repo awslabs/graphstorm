@@ -15,7 +15,6 @@
 
     RGCN layer implementation.
 """
-import warnings
 
 import torch as th
 from torch import nn
@@ -37,7 +36,7 @@ class RelGraphConvLayer(nn.Module):
         Output feature size.
     rel_names : list[str]
         Relation names.
-    num_bases : int, optional
+    num_bases : int
         Number of bases. If is none, use number of relations. Default: None.
     weight : bool, optional
         True if a linear layer is applied after message passing. Default: True
@@ -53,6 +52,8 @@ class RelGraphConvLayer(nn.Module):
         Number of layers of ngnn between gnn layers
     ffn_actication: torch.nn.functional
         Activation Method for ngnn
+    norm : str, optional
+        Normalization Method. Default: None
     """
     def __init__(self,
                  in_feat,
@@ -66,7 +67,8 @@ class RelGraphConvLayer(nn.Module):
                  self_loop=False,
                  dropout=0.0,
                  num_ffn_layers_in_gnn=0,
-                 ffn_activation=F.relu):
+                 ffn_activation=F.relu,
+                 norm=None):
         super(RelGraphConvLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -90,6 +92,24 @@ class RelGraphConvLayer(nn.Module):
             else:
                 self.weight = nn.Parameter(th.Tensor(len(self.rel_names), in_feat, out_feat))
                 nn.init.xavier_uniform_(self.weight, gain=nn.init.calculate_gain('relu'))
+
+        # get the node types
+        ntypes = set()
+        for rel in rel_names:
+            ntypes.add(rel[0])
+            ntypes.add(rel[2])
+
+        # normalization
+        self.norm = None
+        if activation is None and norm is not None:
+            raise ValueError("Cannot set gnn norm layer when activation layer is None")
+        if norm == "batch":
+            self.norm = nn.ParameterDict({ntype:nn.BatchNorm1d(out_feat) for ntype in ntypes})
+        elif norm == "layer":
+            self.norm = nn.ParameterDict({ntype:nn.LayerNorm(out_feat) for ntype in ntypes})
+        else:
+            # by default we don't apply any normalization
+            self.norm = None
 
         # bias
         if bias:
@@ -134,17 +154,36 @@ class RelGraphConvLayer(nn.Module):
 
         if g.is_block:
             inputs_src = inputs
-            inputs_dst = {k: v[:g.number_of_dst_nodes(k)] for k, v in inputs.items()}
+            # DGL's message passing module requires to access the destination node embeddings.
+            inputs_dst = {}
+            for k in g.dsttypes:
+                # If the destination node type exists in the input embeddings,
+                # we can get from the input node embeddings directly because
+                # the input nodes of DGL's block also contain the destination nodes
+                if k in inputs:
+                    inputs_dst[k] = inputs[k][:g.number_of_dst_nodes(k)]
+                else:
+                    # If the destination node type doesn't exist (this may happen if
+                    # we use RGCN to construct node features), we should create a zero
+                    # tensor. This tensor won't be used for computing embeddings.
+                    # We need this just to fulfill the requirements of DGL message passing
+                    # modules.
+                    assert not self.self_loop, \
+                            f"We cannot allow self-loop if node {k} doesn't have input features."
+                    inputs_dst[k] = th.zeros((g.num_dst_nodes(k), self.in_feat),
+                                             dtype=th.float32, device=g.device)
         else:
             inputs_src = inputs_dst = inputs
 
-        hs = self.conv(g, inputs_src, mod_kwargs=wdict)
+        hs = self.conv(g, (inputs_src, inputs_dst), mod_kwargs=wdict)
 
         def _apply(ntype, h):
             if self.self_loop:
                 h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
                 h = h + self.h_bias
+            if self.norm:
+                h = self.norm[ntype](h)
             if self.activation:
                 h = self.activation(h)
             if self.num_ffn_layers_in_gnn > 0:
@@ -154,11 +193,7 @@ class RelGraphConvLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    warnings.warn("Warning. Graph convolution returned empty "
-                        f"dictionary, for node with type: {str(k)}")
-                    for _, in_v in inputs_src.items():
-                        device = in_v.device
-                    hs[k] = th.zeros((g.number_of_dst_nodes(k), self.out_feat), device=device)
+                    hs[k] = inputs[k][0:g.number_of_dst_nodes(k)]
                     # TODO the above might fail if the device is a different GPU
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
@@ -168,6 +203,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
 
     Parameters
     ----------
+    g : DistGraph
+        The distributed graph object.
     h_dim : int
         Hidden dimension
     out_dim : int
@@ -184,6 +221,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
         Activation for the last layer. Default None
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
+    norm : str, optional
+        Normalization Method. Default: None
     """
     def __init__(self,
                  g,
@@ -193,7 +232,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
                  dropout=0,
                  use_self_loop=True,
                  last_layer_act=False,
-                 num_ffn_layers_in_gnn=0):
+                 num_ffn_layers_in_gnn=0,
+                 norm=None):
         super(RelationalGCNEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
         if num_bases < 0 or num_bases > len(g.canonical_etypes):
             self.num_bases = len(g.canonical_etypes)
@@ -206,12 +246,12 @@ class RelationalGCNEncoder(GraphConvEncoder):
                 h_dim, h_dim, g.canonical_etypes,
                 self.num_bases, activation=F.relu, self_loop=use_self_loop,
                 dropout=dropout, num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
-                ffn_activation=F.relu))
+                ffn_activation=F.relu, norm=norm))
         # h2o
         self.layers.append(RelGraphConvLayer(
             h_dim, out_dim, g.canonical_etypes,
             self.num_bases, activation=F.relu if last_layer_act else None,
-            self_loop=use_self_loop))
+            self_loop=use_self_loop, norm=norm if last_layer_act else None))
 
     # TODO(zhengda) refactor this to support edge features.
     def forward(self, blocks, h):

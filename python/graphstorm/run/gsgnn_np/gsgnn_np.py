@@ -17,6 +17,7 @@
 """
 
 import os
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -87,10 +88,6 @@ def main(config_args):
     if trainer.rank == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True)
-    val_dataloader = None
-    test_dataloader = None
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
         unlabeled_idxs = train_data.get_unlabeled_idxs()
@@ -100,18 +97,26 @@ def main(config_args):
                                                 device=device, train_task=True)
     else:
         dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                         batch_size=config.batch_size, device=device,
-                                         train_task=True)
+                                         batch_size=config.batch_size,
+                                         device=device, train_task=True,
+                                         construct_feat_ntype=config.construct_feat_ntype,
+                                         construct_feat_fanout=config.construct_feat_fanout)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
+    val_dataloader = None
+    test_dataloader = None
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
-                                             device=device, train_task=False)
+                                             device=device, train_task=False,
+                                             construct_feat_ntype=config.construct_feat_ntype,
+                                             construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
-                                              device=device, train_task=False)
+                                              device=device, train_task=False,
+                                              construct_feat_ntype=config.construct_feat_ntype,
+                                              construct_feat_fanout=config.construct_feat_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -130,7 +135,9 @@ def main(config_args):
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path,
-                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
+                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs,
+                max_grad_norm=config.max_grad_norm,
+                grad_norm_type=config.grad_norm_type)
 
     if config.save_embed_path is not None:
         model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=False)
@@ -158,5 +165,4 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     args = arg_parser.parse_args()
-    print(args)
     main(args)
