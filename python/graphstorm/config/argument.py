@@ -704,7 +704,7 @@ class GSConfig:
 
             fanout = self._fanout.split(",")
             return self._check_fanout(fanout, "Train")
-        return 0
+        return [-1] * self.num_layers
 
     @property
     def eval_fanout(self):
@@ -783,7 +783,7 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_restore_model_layers"):
             assert self.restore_model_path is not None, \
-                "restore-model-path must be provided"
+                "restore-model-path must be provided if restore-model-layers is specified."
             model_layers = self._restore_model_layers.split(',')
             for layer in model_layers:
                 assert layer in GRAPHSTORM_MODEL_ALL_LAYERS, \
