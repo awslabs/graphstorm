@@ -10,12 +10,12 @@ on:
     paths-ignore:
       - '.github/workflow_scripts/gsprocessing-pytest.sh'
       - 'graphstorm-processing/*'
-      - '.github/workflows/gsprocessing_workflow.yml'
+      - '.github/workflows/gsprocessing-workflow.yml'
   pull_request_target:
     paths-ignore:
       - '.github/workflow_scripts/gsprocessing-pytest.sh'
       - 'graphstorm-processing/*'
-      - '.github/workflows/gsprocessing_workflow.yml'
+      - '.github/workflows/gsprocessing-workflow.yml'
 
 permissions:
   id-token: write
