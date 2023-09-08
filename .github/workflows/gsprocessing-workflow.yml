@@ -29,11 +29,11 @@ defaults:
 
 # All test scripts split in individual .sh files and moved to .github/workflow scripts
 env:
-  COMMAND-LINT: bash lint_check.sh
-  COMMAND-GSProcessing-Pytest: bash gsprocessing-pytest.sh
+  COMMAND-LINT: bash gsprocessing_lint.sh
+  COMMAND-GSProcessing-Pytest: bash gsprocessing_pytest.sh
 
 jobs:
-  lint_check:
+  gsp_lint:
     if: ${{ github.event.label.name != 'draft' }}
     runs-on: ubuntu-latest
     steps:
@@ -76,7 +76,7 @@ jobs:
 
   gsprocessing:
     if: ${{ github.event.label.name != 'draft' }}
-    needs: lint_check
+    needs: gsp_lint
     runs-on: ubuntu-latest
     steps:
     - name: Configure AWS Credentials
@@ -115,4 +115,3 @@ jobs:
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait
-  
