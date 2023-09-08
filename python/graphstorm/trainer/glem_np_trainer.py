@@ -56,8 +56,9 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             save_model_path=None,
             save_model_frequency=-1,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0
-            ):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None,
+            grad_norm_type=2.0):
         """ The fit function for node prediction.
 
         Parameters
@@ -83,6 +84,12 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             Freeze the input layer for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
+        grad_norm_type: float
+            Norm type for the gradient clip
+            Default: 2.0
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -130,7 +137,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                     device, rt_profiler,
                                     epoch, total_steps, use_mini_batch_infer,
-                                    save_model_path, save_model_frequency, no_pl)
+                                    save_model_path, save_model_frequency, no_pl, max_grad_norm,
+                                    grad_norm_type)
                 stage_finish_time = time.time()
                 if self.rank == 0:
                     logging.info("Epoch %d: %s takes %.2f seconds",
@@ -161,7 +169,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                        epoch, total_steps,
                        use_mini_batch_infer=True,
                        save_model_path=None,
-                       save_model_frequency=-1, no_pl=False):
+                       save_model_frequency=-1, no_pl=False,
+                       max_grad_norm=None, grad_norm_type=2.0):
         """Fit model for one epoch
         """
         def _prepare_batch(input_nodes, seeds, blocks, is_labeled=True):
@@ -208,6 +217,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             self.optimizer.step()
             profiler.record('train_step')
 
+            if max_grad_norm is not None:
+                th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
             self.log_metric("Train loss", loss.item(), total_steps)
 
             if i % 20 == 0 and self.rank == 0:
