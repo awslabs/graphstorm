@@ -29,7 +29,7 @@ defaults:
 
 # All test scripts split in individual .sh files and moved to .github/workflow scripts
 env:
-  COMMAND-LINT: bash lint_check.sh
+  COMMAND-LINT: bash gsprocessing_lint.sh
   COMMAND-GSProcessing-Pytest: bash gsprocessing_pytest.sh
 
 jobs:
