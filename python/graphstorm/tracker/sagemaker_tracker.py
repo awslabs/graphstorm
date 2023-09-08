@@ -17,7 +17,6 @@
 """
 import numbers
 import logging
-import numbers
 
 from .graphstorm_tracker import GSTaskTrackerAbc
 
