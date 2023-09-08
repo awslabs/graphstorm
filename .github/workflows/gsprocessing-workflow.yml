@@ -8,13 +8,15 @@ on:
       - main
       - ci_dev
     paths:
-      - '.github/workflow_scripts/gsprocessing-pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing-workflow.yml'
     workflow_dispatch:
   pull_request_target:
     paths:
-      - '.github/workflow_scripts/gsprocessing-pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing-workflow.yml'
 

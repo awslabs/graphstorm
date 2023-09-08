@@ -8,12 +8,14 @@ on:
       - main
       - ci_dev
     paths-ignore:
-      - '.github/workflow_scripts/gsprocessing-pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing-workflow.yml'
   pull_request_target:
     paths-ignore:
-      - '.github/workflow_scripts/gsprocessing-pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing-workflow.yml'
 
