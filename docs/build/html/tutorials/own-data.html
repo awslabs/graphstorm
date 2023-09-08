@@ -1,226 +1,53 @@
+
+
 <!doctype html>
-<html class="no-js" lang="en">
-  <head><meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="GraphStorm Configurations" href="../configuration/index.html" /><link rel="prev" title="Standalone Mode Quick Start Tutorial" href="quick-start.html" />
 
-    <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
-        <title>Use Your Own Data Tutorial - GraphStorm 0.2 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Use Your Own Data Tutorial &#8212; GraphStorm 0.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/bizstyle.css" />
     
-    
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/bizstyle.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="GraphStorm Configurations" href="../configuration/index.html" />
+    <link rel="prev" title="Standalone Mode Quick Start Tutorial" href="quick-start.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../configuration/index.html" title="GraphStorm Configurations"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="quick-start.html" title="Standalone Mode Quick Start Tutorial"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Use Your Own Data Tutorial</a></li> 
+      </ul>
+    </div>  
 
-
-<style>
-  body {
-    --color-code-background: #f8f8f8;
-  --color-code-foreground: black;
-  
-  }
-  @media not print {
-    body[data-theme="dark"] {
-      --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-    }
-    @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) {
-        --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-      }
-    }
-  }
-</style></head>
-  <body>
-    
-    <script>
-      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
-    </script>
-    
-
-<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
-  <symbol id="svg-toc" viewBox="0 0 24 24">
-    <title>Contents</title>
-    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
-      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
-    </svg>
-  </symbol>
-  <symbol id="svg-menu" viewBox="0 0 24 24">
-    <title>Menu</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
-      <line x1="3" y1="12" x2="21" y2="12"></line>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
-  </symbol>
-  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
-    <title>Expand</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
-      <polyline points="9 18 15 12 9 6"></polyline>
-    </svg>
-  </symbol>
-  <symbol id="svg-sun" viewBox="0 0 24 24">
-    <title>Light mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
-      <circle cx="12" cy="12" r="5"></circle>
-      <line x1="12" y1="1" x2="12" y2="3"></line>
-      <line x1="12" y1="21" x2="12" y2="23"></line>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-      <line x1="1" y1="12" x2="3" y2="12"></line>
-      <line x1="21" y1="12" x2="23" y2="12"></line>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-    </svg>
-  </symbol>
-  <symbol id="svg-moon" viewBox="0 0 24 24">
-    <title>Dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
-      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
-    </svg>
-  </symbol>
-  <symbol id="svg-sun-half" viewBox="0 0 24 24">
-    <title>Auto light/dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
-      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M13 12h5" />
-      <path d="M13 15h4" />
-      <path d="M13 18h1" />
-      <path d="M13 9h4" />
-      <path d="M13 6h1" />
-    </svg>
-  </symbol>
-</svg>
-
-<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
-<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
-<label class="overlay sidebar-overlay" for="__navigation">
-  <div class="visually-hidden">Hide navigation sidebar</div>
-</label>
-<label class="overlay toc-overlay" for="__toc">
-  <div class="visually-hidden">Hide table of contents sidebar</div>
-</label>
-
-
-
-<div class="page">
-  <header class="mobile-header">
-    <div class="header-left">
-      <label class="nav-overlay-icon" for="__navigation">
-        <div class="visually-hidden">Toggle site navigation sidebar</div>
-        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
-      </label>
-    </div>
-    <div class="header-center">
-      <a href="../index.html"><div class="brand">GraphStorm 0.2 documentation</div></a>
-    </div>
-    <div class="header-right">
-      <div class="theme-toggle-container theme-toggle-header">
-        <button class="theme-toggle">
-          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
-          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
-          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
-          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
-        </button>
-      </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
-        <div class="visually-hidden">Toggle table of contents sidebar</div>
-        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
-      </label>
-    </div>
-  </header>
-  <aside class="sidebar-drawer">
-    <div class="sidebar-container">
-      
-      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
-  
-  
-  <span class="sidebar-brand-text">GraphStorm 0.2 documentation</span>
-  
-</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
-  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
-  <input type="hidden" name="check_keywords" value="yes">
-  <input type="hidden" name="area" value="default">
-</form>
-<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Use Your Own Data Tutorial</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-partition.html">Graph Partition</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-run.html">Training and Inference</a></li>
-</ul>
-</li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Scale to Giant Graphs</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../scale/sagemaker.html">Use GraphStorm on SageMaker</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/own-models.html">Use Your Own Models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html">Use Text as Node Features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.model.RelationalGCNEncoder.html">RelationalGCNEncoder</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.model.RelGraphConvLayer.html">RelGraphConvLayer</a></li>
-</ul>
-</li>
-</ul>
-
-</div>
-</div>
-
-      </div>
-      
-    </div>
-  </aside>
-  <div class="main">
-    <div class="content">
-      <div class="article-container">
-        <a href="#" class="back-to-top muted-link">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
-          </svg>
-          <span>Back to top</span>
-        </a>
-        <div class="content-icon-container">
-          
-<div class="theme-toggle-container theme-toggle-content">
-            <button class="theme-toggle">
-              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
-              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
-              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
-              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
-            </button>
-          </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
-            <div class="visually-hidden">Toggle table of contents sidebar</div>
-            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
-          </label>
-        </div>
-        <article role="main">
-          <section id="use-your-own-data-tutorial">
-<span id="use-own-data"></span><h1>Use Your Own Data Tutorial<a class="headerlink" href="#use-your-own-data-tutorial" title="Permalink to this heading">#</a></h1>
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="use-your-own-data-tutorial">
+<span id="use-own-data"></span><h1>Use Your Own Data Tutorial<a class="headerlink" href="#use-your-own-data-tutorial" title="Permalink to this heading">¶</a></h1>
 <p>It is easy for users to prepare their own graph data and leverage GraphStorm’s built-in GNN models, e.g., RGCN and RGAT, to perform GML tasks.  It takes three steps to use your own graph data in GraphStorm:</p>
 <ul class="simple">
 <li><p>Step 1: Prepare your own graph data in the required format.</p></li>
@@ -236,14 +63,14 @@
 </ul>
 </div>
 <section id="step-1-prepare-your-own-graph-data">
-<h2>Step 1: Prepare Your Own Graph Data<a class="headerlink" href="#step-1-prepare-your-own-graph-data" title="Permalink to this heading">#</a></h2>
+<h2>Step 1: Prepare Your Own Graph Data<a class="headerlink" href="#step-1-prepare-your-own-graph-data" title="Permalink to this heading">¶</a></h2>
 <p>There are two options to prepare your own graph data for using GraphStorm:</p>
 <ul class="simple">
 <li><p>Prepare your graph in the required raw data format, and use GraphStorm’s construction tools to automatically generate the input files. <strong>This is the preferred method</strong>.</p></li>
 <li><p>Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm’s partition tools to generate the input files. This option is for experienced DGL users.</p></li>
 </ul>
 <section id="option-1-required-raw-data-format">
-<span id="option-1"></span><h3>Option 1: Required raw data format<a class="headerlink" href="#option-1-required-raw-data-format" title="Permalink to this heading">#</a></h3>
+<span id="option-1"></span><h3>Option 1: Required raw data format<a class="headerlink" href="#option-1-required-raw-data-format" title="Permalink to this heading">¶</a></h3>
 <p>GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The detailed information about the raw data format can be found in the <a class="reference internal" href="../configuration/configuration-gconstruction.html#configurations-gconstruction"><span class="std std-ref">Graph Construction Configurations</span></a>.</p>
 <p>In general, the graph construction tool needs three sets of files as inputs.</p>
 <ul class="simple">
@@ -277,7 +104,7 @@ config.json
 </pre></div>
 </div>
 <section id="the-input-configuration-json">
-<span id="input-config"></span><h4>The input configuration JSON<a class="headerlink" href="#the-input-configuration-json" title="Permalink to this heading">#</a></h4>
+<span id="input-config"></span><h4>The input configuration JSON<a class="headerlink" href="#the-input-configuration-json" title="Permalink to this heading">¶</a></h4>
 <p>GraphStorm’s graph construction tool relies on the configuration JSON to provide graph information. Explanations of the format of the configuration JSON contents could be found in the <a class="reference internal" href="../configuration/configuration-gconstruction.html#gconstruction-json"><span class="std std-ref">GraphStorm Graph Configuration JSON</span></a>. Below show the contents of the examplary ACM <cite>config.json</cite> file.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;nodes&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -442,7 +269,7 @@ config.json
 </figure>
 </section>
 <section id="customized-label-split">
-<h4>Customized label split<a class="headerlink" href="#customized-label-split" title="Permalink to this heading">#</a></h4>
+<h4>Customized label split<a class="headerlink" href="#customized-label-split" title="Permalink to this heading">¶</a></h4>
 <p>If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file like the below example.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
@@ -466,7 +293,7 @@ config.json
 </div>
 </section>
 <section id="input-raw-node-edge-data-files">
-<span id="raw-data-files"></span><h4>Input raw node/edge data files<a class="headerlink" href="#input-raw-node-edge-data-files" title="Permalink to this heading">#</a></h4>
+<span id="raw-data-files"></span><h4>Input raw node/edge data files<a class="headerlink" href="#input-raw-node-edge-data-files" title="Permalink to this heading">¶</a></h4>
 <p>The raw node and edge data files are both in a parquet format, whose contents are demonstrated as the diagram below.</p>
 <figure class="align-center">
 <img alt="../_images/ACM_raw_parquet.png" src="../_images/ACM_raw_parquet.png" />
@@ -482,7 +309,7 @@ config.json
 </div>
 </section>
 <section id="outputs-of-graph-construction">
-<span id="output-graph-construction"></span><h4>Outputs of graph construction<a class="headerlink" href="#outputs-of-graph-construction" title="Permalink to this heading">#</a></h4>
+<span id="output-graph-construction"></span><h4>Outputs of graph construction<a class="headerlink" href="#outputs-of-graph-construction" title="Permalink to this heading">¶</a></h4>
 <p>The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be saved under the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder as followings:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/tmp/acm_nc
 acm.json
@@ -505,10 +332,10 @@ edge_mapping.pt
 </section>
 </section>
 <section id="option-2-required-dgl-graph">
-<span id="option-2"></span><h3>Option 2: Required DGL graph<a class="headerlink" href="#option-2-required-dgl-graph" title="Permalink to this heading">#</a></h3>
+<span id="option-2"></span><h3>Option 2: Required DGL graph<a class="headerlink" href="#option-2-required-dgl-graph" title="Permalink to this heading">¶</a></h3>
 <p>For some users who are already familiar with <a class="reference external" href="https://www.dgl.ai/">DGL</a>, they can convert their graph data into the required DGL graph format. And then use GraphStorm’s partition tools to create the inputs of GraphStorm’s launch scripts.</p>
 <section id="required-dgl-graph-format">
-<h4>Required DGL graph format<a class="headerlink" href="#required-dgl-graph-format" title="Permalink to this heading">#</a></h4>
+<h4>Required DGL graph format<a class="headerlink" href="#required-dgl-graph-format" title="Permalink to this heading">¶</a></h4>
 <ul class="simple">
 <li><p>a <a class="reference external" href="https://docs.dgl.ai/generated/dgl.heterograph.html#dgl.heterograph">dgl.heterograph</a>.</p></li>
 <li><dl class="simple">
@@ -543,7 +370,7 @@ edge_mapping.pt
 <p>Once this DGL graph is constructed, you can use DGL’s <a class="reference external" href="https://docs.dgl.ai/generated/dgl.save_graphs.html?highlight=save_graphs#dgl.save_graphs">save_graphs()</a> function to save it into a local file. The file name must follow GraphStorm convention: <code class="docutils literal notranslate"><span class="pre">&lt;datasetname&gt;.dgl</span></code>. You can give your graph dataset a name, e.g., <code class="docutils literal notranslate"><span class="pre">acm</span></code> or <code class="docutils literal notranslate"><span class="pre">ogbn_mag</span></code>.</p>
 </section>
 <section id="the-acm-graph-data-example">
-<h4>The ACM graph data example<a class="headerlink" href="#the-acm-graph-data-example" title="Permalink to this heading">#</a></h4>
+<h4>The ACM graph data example<a class="headerlink" href="#the-acm-graph-data-example" title="Permalink to this heading">¶</a></h4>
 <p>For the ACM data, the following command can create a DGL graph as the input for GraphStorm’s partition tools.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/examples/acm_data.py<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--output-type<span class="w"> </span>dgl<span class="w"> </span><span class="se">\</span>
@@ -559,7 +386,7 @@ edge_mapping.pt
 </figure>
 </section>
 <section id="partition-the-dgl-acm-graph-for-node-classification">
-<h4>Partition the DGL ACM graph for node classification<a class="headerlink" href="#partition-the-dgl-acm-graph-for-node-classification" title="Permalink to this heading">#</a></h4>
+<h4>Partition the DGL ACM graph for node classification<a class="headerlink" href="#partition-the-dgl-acm-graph-for-node-classification" title="Permalink to this heading">¶</a></h4>
 <p>GraphStorm provides two graph partition tools, the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py">partition_graph.py</a> for node/edge prediction graph partition, and the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py">partition_graph_lp.py</a> for the link prediction graph partition.</p>
 <p>The below command partition the DGL ACM graph, the <code class="docutils literal notranslate"><span class="pre">acm.dgl</span></code> in the <code class="docutils literal notranslate"><span class="pre">/tmp/acm_dgl</span></code> folder, into one partition, and save the partitioned data to <code class="docutils literal notranslate"><span class="pre">/tmp/acm_nc/</span></code> folder.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/graphstorm/tools/partition_graph.py<span class="w"> </span><span class="se">\</span>
@@ -577,7 +404,7 @@ edge_mapping.pt
 </section>
 </section>
 <section id="step-2-modify-the-yaml-configuration-file-to-include-your-own-data-s-information">
-<h2>Step 2: Modify the YAML configuration file to include your own data’s information<a class="headerlink" href="#step-2-modify-the-yaml-configuration-file-to-include-your-own-data-s-information" title="Permalink to this heading">#</a></h2>
+<h2>Step 2: Modify the YAML configuration file to include your own data’s information<a class="headerlink" href="#step-2-modify-the-yaml-configuration-file-to-include-your-own-data-s-information" title="Permalink to this heading">¶</a></h2>
 <p>It is common that users will copy and reuse GraphStorm’s built-in scripts and yaml files to run training/inference on their own graph data, but forget to change the contents of yaml files to match their own data. Below are some parameters that users need to double check and make changes accordingly.</p>
 <ul class="simple">
 <li><p><strong>node_feat_name</strong>: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will ignore any features the nodes might have, hence only using learnable embeddings as their features.</p></li>
@@ -603,7 +430,7 @@ edge_mapping.pt
 <p>Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the YAML files. For example, in an edge-related task, you should provide a canonical edge type, e.g. <strong>user,write,paper</strong> (no white spaces in this string), for edge types, rather than the edge name only, e.g. the <strong>write</strong>.</p>
 <p>For more detailed information of these parameters, please refer to the <a class="reference internal" href="../configuration/configuration-run.html#configurations-run"><span class="std std-ref">GraphStorm Training and Inference Configurations</span></a> page.</p>
 <section id="an-example-acm-yaml-file-for-node-classification">
-<h3>An example ACM  YAML file for node classification<a class="headerlink" href="#an-example-acm-yaml-file-for-node-classification" title="Permalink to this heading">#</a></h3>
+<h3>An example ACM  YAML file for node classification<a class="headerlink" href="#an-example-acm-yaml-file-for-node-classification" title="Permalink to this heading">¶</a></h3>
 <p>Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm’s built-in RGCN model for node classification on the <code class="docutils literal notranslate"><span class="pre">paper</span></code> nodes. The YAML file can also be found at the <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml">/graphstorm/examples/use_your_own_data/acm_nc.yaml</a>.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nn">---</span>
 <span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
@@ -647,7 +474,7 @@ edge_mapping.pt
 </section>
 </section>
 <section id="step-3-launch-training-script-on-your-own-graphs">
-<span id="launch-training-oyog"></span><h2>Step 3: Launch training script on your own graphs<a class="headerlink" href="#step-3-launch-training-script-on-your-own-graphs" title="Permalink to this heading">#</a></h2>
+<span id="launch-training-oyog"></span><h2>Step 3: Launch training script on your own graphs<a class="headerlink" href="#step-3-launch-training-script-on-your-own-graphs" title="Permalink to this heading">¶</a></h2>
 <p>With the partitioned data and configuration YAML file available, it is easy to use GraphStorm’s training scripts to launch the training job.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -690,61 +517,16 @@ edge_mapping.pt
 </section>
 </section>
 
-        </article>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
       </div>
-      <footer>
-        
-        <div class="related-pages">
-          <a class="next-page" href="../configuration/index.html">
-              <div class="page-info">
-                <div class="context">
-                  <span>Next</span>
-                </div>
-                <div class="title">GraphStorm Configurations</div>
-              </div>
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-            </a>
-          <a class="prev-page" href="quick-start.html">
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-              <div class="page-info">
-                <div class="context">
-                  <span>Previous</span>
-                </div>
-                
-                <div class="title">Standalone Mode Quick Start Tutorial</div>
-                
-              </div>
-            </a>
-        </div>
-        <div class="bottom-of-page">
-          <div class="left-details">
-            <div class="copyright">
-                Copyright &#169; 2023, AGML team
-            </div>
-            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
-            
-            <a href="https://github.com/pradyunsg/furo">Furo</a>
-            
-          </div>
-          <div class="right-details">
-            
-          </div>
-        </div>
-        
-      </footer>
-    </div>
-    <aside class="toc-drawer">
-      
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
 <li><a class="reference internal" href="#">Use Your Own Data Tutorial</a><ul>
 <li><a class="reference internal" href="#step-1-prepare-your-own-graph-data">Step 1: Prepare Your Own Graph Data</a><ul>
 <li><a class="reference internal" href="#option-1-required-raw-data-format">Option 1: Required raw data format</a><ul>
@@ -771,16 +553,57 @@ edge_mapping.pt
 </li>
 </ul>
 
-          </div>
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="quick-start.html"
+                          title="previous chapter">Standalone Mode Quick Start Tutorial</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="../configuration/index.html"
+                          title="next chapter">GraphStorm Configurations</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/tutorials/own-data.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
         </div>
       </div>
-      
-      
-    </aside>
-  </div>
-</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/sphinx_highlight.js"></script>
-    <script src="../_static/scripts/furo.js"></script>
-    </body>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../configuration/index.html" title="GraphStorm Configurations"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="quick-start.html" title="Standalone Mode Quick Start Tutorial"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Use Your Own Data Tutorial</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2023, AGML team.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.3.
+    </div>
+  </body>
 </html>

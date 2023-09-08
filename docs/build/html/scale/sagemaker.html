@@ -1,229 +1,56 @@
+
+
 <!doctype html>
-<html class="no-js" lang="en">
-  <head><meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use Your Own Models" href="../advanced/own-models.html" /><link rel="prev" title="Use GraphStorm in a Distributed Cluster" href="distributed.html" />
 
-    <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
-        <title>Use GraphStorm on SageMaker - GraphStorm 0.2 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Use GraphStorm on SageMaker &#8212; GraphStorm 0.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/bizstyle.css" />
     
-    
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/bizstyle.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Use Your Own Models" href="../advanced/own-models.html" />
+    <link rel="prev" title="Use GraphStorm in a Distributed Cluster" href="distributed.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../advanced/own-models.html" title="Use Your Own Models"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="distributed.html" title="Use GraphStorm in a Distributed Cluster"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Use GraphStorm on SageMaker</a></li> 
+      </ul>
+    </div>  
 
-
-<style>
-  body {
-    --color-code-background: #f8f8f8;
-  --color-code-foreground: black;
-  
-  }
-  @media not print {
-    body[data-theme="dark"] {
-      --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-    }
-    @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) {
-        --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-      }
-    }
-  }
-</style></head>
-  <body>
-    
-    <script>
-      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
-    </script>
-    
-
-<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
-  <symbol id="svg-toc" viewBox="0 0 24 24">
-    <title>Contents</title>
-    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
-      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
-    </svg>
-  </symbol>
-  <symbol id="svg-menu" viewBox="0 0 24 24">
-    <title>Menu</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
-      <line x1="3" y1="12" x2="21" y2="12"></line>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
-  </symbol>
-  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
-    <title>Expand</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
-      <polyline points="9 18 15 12 9 6"></polyline>
-    </svg>
-  </symbol>
-  <symbol id="svg-sun" viewBox="0 0 24 24">
-    <title>Light mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
-      <circle cx="12" cy="12" r="5"></circle>
-      <line x1="12" y1="1" x2="12" y2="3"></line>
-      <line x1="12" y1="21" x2="12" y2="23"></line>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-      <line x1="1" y1="12" x2="3" y2="12"></line>
-      <line x1="21" y1="12" x2="23" y2="12"></line>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-    </svg>
-  </symbol>
-  <symbol id="svg-moon" viewBox="0 0 24 24">
-    <title>Dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
-      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
-    </svg>
-  </symbol>
-  <symbol id="svg-sun-half" viewBox="0 0 24 24">
-    <title>Auto light/dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
-      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M13 12h5" />
-      <path d="M13 15h4" />
-      <path d="M13 18h1" />
-      <path d="M13 9h4" />
-      <path d="M13 6h1" />
-    </svg>
-  </symbol>
-</svg>
-
-<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
-<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
-<label class="overlay sidebar-overlay" for="__navigation">
-  <div class="visually-hidden">Hide navigation sidebar</div>
-</label>
-<label class="overlay toc-overlay" for="__toc">
-  <div class="visually-hidden">Hide table of contents sidebar</div>
-</label>
-
-
-
-<div class="page">
-  <header class="mobile-header">
-    <div class="header-left">
-      <label class="nav-overlay-icon" for="__navigation">
-        <div class="visually-hidden">Toggle site navigation sidebar</div>
-        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
-      </label>
-    </div>
-    <div class="header-center">
-      <a href="../index.html"><div class="brand">GraphStorm 0.2 documentation</div></a>
-    </div>
-    <div class="header-right">
-      <div class="theme-toggle-container theme-toggle-header">
-        <button class="theme-toggle">
-          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
-          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
-          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
-          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
-        </button>
-      </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
-        <div class="visually-hidden">Toggle table of contents sidebar</div>
-        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
-      </label>
-    </div>
-  </header>
-  <aside class="sidebar-drawer">
-    <div class="sidebar-container">
-      
-      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
-  
-  
-  <span class="sidebar-brand-text">GraphStorm 0.2 documentation</span>
-  
-</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
-  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
-  <input type="hidden" name="check_keywords" value="yes">
-  <input type="hidden" name="area" value="default">
-</form>
-<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-partition.html">Graph Partition</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-run.html">Training and Inference</a></li>
-</ul>
-</li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Scale to Giant Graphs</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Use GraphStorm on SageMaker</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/own-models.html">Use Your Own Models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html">Use Text as Node Features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.model.RelationalGCNEncoder.html">RelationalGCNEncoder</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.model.RelGraphConvLayer.html">RelGraphConvLayer</a></li>
-</ul>
-</li>
-</ul>
-
-</div>
-</div>
-
-      </div>
-      
-    </div>
-  </aside>
-  <div class="main">
-    <div class="content">
-      <div class="article-container">
-        <a href="#" class="back-to-top muted-link">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
-          </svg>
-          <span>Back to top</span>
-        </a>
-        <div class="content-icon-container">
-          
-<div class="theme-toggle-container theme-toggle-content">
-            <button class="theme-toggle">
-              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
-              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
-              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
-              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
-            </button>
-          </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
-            <div class="visually-hidden">Toggle table of contents sidebar</div>
-            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
-          </label>
-        </div>
-        <article role="main">
-          <section id="use-graphstorm-on-sagemaker">
-<span id="distributed-sagemaker"></span><h1>Use GraphStorm on SageMaker<a class="headerlink" href="#use-graphstorm-on-sagemaker" title="Permalink to this heading">#</a></h1>
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="use-graphstorm-on-sagemaker">
+<span id="distributed-sagemaker"></span><h1>Use GraphStorm on SageMaker<a class="headerlink" href="#use-graphstorm-on-sagemaker" title="Permalink to this heading">¶</a></h1>
 <p>GraphStorm can run on Amazon Sagemaker to leverage SageMaker’s ML DevOps capabilities.</p>
 <section id="prerequisites">
-<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">#</a></h2>
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">¶</a></h2>
 <p>In order to use GraphStorm on Amazon SageMaker, users need to have AWS access to the following AWS services.</p>
 <ul class="simple">
 <li><p><strong>SageMaker service</strong>. Please refer to <a class="reference external" href="https://aws.amazon.com/pm/sagemaker/">Amazon SageMaker service</a> for how to get access to Amazon SageMaker.</p></li>
@@ -234,10 +61,10 @@
 </ul>
 </section>
 <section id="setup-graphstorm-sagemaker-docker-image">
-<h2>Setup GraphStorm SageMaker Docker Image<a class="headerlink" href="#setup-graphstorm-sagemaker-docker-image" title="Permalink to this heading">#</a></h2>
+<h2>Setup GraphStorm SageMaker Docker Image<a class="headerlink" href="#setup-graphstorm-sagemaker-docker-image" title="Permalink to this heading">¶</a></h2>
 <p>GraphStorm uses SageMaker’s <strong>BYOC</strong> (Bring Your Own Container) mode. Therefore, before launching GraphStorm on SageMaker, there are two steps required to setup a GraphStorm SageMaker Docker image.</p>
 <section id="step-1-build-a-sagemaker-compatible-docker-image">
-<span id="build-sagemaker-docker"></span><h3>Step 1: Build a SageMaker-compatible Docker image<a class="headerlink" href="#step-1-build-a-sagemaker-compatible-docker-image" title="Permalink to this heading">#</a></h3>
+<span id="build-sagemaker-docker"></span><h3>Step 1: Build a SageMaker-compatible Docker image<a class="headerlink" href="#step-1-build-a-sagemaker-compatible-docker-image" title="Permalink to this heading">¶</a></h3>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <ul class="simple">
@@ -277,7 +104,7 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 </div>
 </section>
 <section id="step-2-upload-docker-images-to-amazon-ecr-repository">
-<span id="upload-sagemaker-docker"></span><h3>Step 2: Upload Docker Images to Amazon ECR Repository<a class="headerlink" href="#step-2-upload-docker-images-to-amazon-ecr-repository" title="Permalink to this heading">#</a></h3>
+<span id="upload-sagemaker-docker"></span><h3>Step 2: Upload Docker Images to Amazon ECR Repository<a class="headerlink" href="#step-2-upload-docker-images-to-amazon-ecr-repository" title="Permalink to this heading">¶</a></h3>
 <p>Because SageMaker relies on Amazon ECR to access customers’ own Docker images, users need to upload Docker images built in the Step 1 to their own ECR repository.</p>
 <p>The following command will authenticate the user account to access to user’s ECR repository via AWS CLI.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>ecr<span class="w"> </span>get-login-password<span class="w"> </span>--region<span class="w"> </span>&lt;REGION&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>login<span class="w"> </span>--username<span class="w"> </span>AWS<span class="w"> </span>--password-stdin<span class="w"> </span>&lt;AWS_ACCOUNT_ID&gt;.dkr.ecr.&lt;REGION&gt;.amazonaws.com
@@ -293,14 +120,14 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 </section>
 </section>
 <section id="run-graphstorm-on-sagemaker">
-<h2>Run GraphStorm on SageMaker<a class="headerlink" href="#run-graphstorm-on-sagemaker" title="Permalink to this heading">#</a></h2>
+<h2>Run GraphStorm on SageMaker<a class="headerlink" href="#run-graphstorm-on-sagemaker" title="Permalink to this heading">¶</a></h2>
 <p>There are two ways to run GraphStorm on SageMaker.</p>
 <ul class="simple">
 <li><p><strong>Run with Amazon SageMaker service</strong>. In this way, users will use GraphStorm’s tools to submit SageMaker API calls, which request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls on a properly configured machine without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production environment.</p></li>
 <li><p><strong>Run with Docker Compose in a local environment</strong>. In this way, users do not call the SageMaker service, but use Docker Compose to run SageMaker locally in a Linux instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.</p></li>
 </ul>
 <section id="run-graphstorm-with-amazon-sagemaker-service">
-<h3>Run GraphStorm with Amazon SageMaker service<a class="headerlink" href="#run-graphstorm-with-amazon-sagemaker-service" title="Permalink to this heading">#</a></h3>
+<h3>Run GraphStorm with Amazon SageMaker service<a class="headerlink" href="#run-graphstorm-with-amazon-sagemaker-service" title="Permalink to this heading">¶</a></h3>
 <p>To run GraphStorm with the Amazon SageMaker service, users should set up an instance with the SageMaker library installed and GraphStorm’s SageMaker tools copied.</p>
 <ol class="arabic simple">
 <li><p>Use the below command to install SageMaker.</p></li>
@@ -315,7 +142,7 @@ bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_sagemaker.sh
 </pre></div>
 </div>
 <section id="prepare-graph-data">
-<h4>Prepare graph data<a class="headerlink" href="#prepare-graph-data" title="Permalink to this heading">#</a></h4>
+<h4>Prepare graph data<a class="headerlink" href="#prepare-graph-data" title="Permalink to this heading">¶</a></h4>
 <p>Unlike GraphStorm’s <a class="reference internal" href="../tutorials/quick-start.html#quick-start-standalone"><span class="std std-ref">Standalone mode</span></a> and <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">the Distributed mode</span></a>, which rely on local disk or shared file system to store the partitioned graph, SageMaker utilizes Amazon S3 as the shared data storage for distributing partitioned graphs and the configuration YAML file.</p>
 <p>This tutorial uses the same three-partition OGB-MAG graph and the Link Prediction task as those introduced in the <a class="reference internal" href="distributed.html#partition-a-graph"><span class="std std-ref">Partition a Graph</span></a> section of the <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">Use GraphStorm in a Distributed Cluster</span></a> tutorial. After generating the partitioned OGB-MAG graphs, use the following commands to upload them and the configuration YAML file to an S3 bucket.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>aws<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>--recursive<span class="w"> </span>/data/ogbn_mag_lp_3p<span class="w"> </span>s3://&lt;PATH_TO_DATA&gt;/ogbn_mag_lp_3p
@@ -325,7 +152,7 @@ aws<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>/
 <p>Please replace <cite>&lt;PATH_TO_DATA&gt;</cite> and <cite>&lt;PATH_TO_TRAINING_CONFIG&gt;</cite> with your own S3 bucket URI.</p>
 </section>
 <section id="launch-training">
-<h4>Launch training<a class="headerlink" href="#launch-training" title="Permalink to this heading">#</a></h4>
+<h4>Launch training<a class="headerlink" href="#launch-training" title="Permalink to this heading">¶</a></h4>
 <p>Launching GraphStorm training on SageMaker is similar as launching in the <a class="reference internal" href="../tutorials/quick-start.html#quick-start-standalone"><span class="std std-ref">Standalone mode</span></a> and <a class="reference internal" href="distributed.html#distributed-cluster"><span class="std std-ref">the Distributed mode</span></a>, except for three diffences:</p>
 <ul class="simple">
 <li><p>The launch commands are located in the <code class="docutils literal notranslate"><span class="pre">graphstorm/sagemaker</span></code> folder, and</p></li>
@@ -362,7 +189,7 @@ python3<span class="w"> </span>launch/launch_train.py<span class="w"> </span><sp
 </div>
 </section>
 <section id="launch-inference">
-<h4>Launch inference<a class="headerlink" href="#launch-inference" title="Permalink to this heading">#</a></h4>
+<h4>Launch inference<a class="headerlink" href="#launch-inference" title="Permalink to this heading">¶</a></h4>
 <p>Users can use the following command to launch a GraphStorm Link Prediction inference job on the OGB-MAG graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>launch/launch_infer.py<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--image-url<span class="w"> </span>&lt;AMAZON_ECR_IMAGE_URI&gt;<span class="w"> </span><span class="se">\</span>
@@ -397,7 +224,7 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </section>
 </section>
 <section id="run-graphstorm-sagemaker-with-docker-compose">
-<h3>Run GraphStorm SageMaker with Docker Compose<a class="headerlink" href="#run-graphstorm-sagemaker-with-docker-compose" title="Permalink to this heading">#</a></h3>
+<h3>Run GraphStorm SageMaker with Docker Compose<a class="headerlink" href="#run-graphstorm-sagemaker-with-docker-compose" title="Permalink to this heading">¶</a></h3>
 <p>This section describes how to launch Docker compose jobs that emulate a SageMaker training execution environment. This can be used to develop and test GraphStorm model training and inference on SageMaker locally.</p>
 <p>If users have never worked with Docker compose before the official description provides a great intro:</p>
 <div class="admonition hint">
@@ -406,7 +233,7 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </div>
 <p>We will use this capability to launch multiple worker instances locally, that will be configured to “look like” a SageMaker training instance and communicate over a virtual network created by Docker Compose. This way our test environment will be as close to a real SageMaker distributed job as we can get, without needing to launch SageMaker jobs, or launch and configure multiple EC2 instances when developing features.</p>
 <section id="get-started">
-<h4>Get Started<a class="headerlink" href="#get-started" title="Permalink to this heading">#</a></h4>
+<h4>Get Started<a class="headerlink" href="#get-started" title="Permalink to this heading">¶</a></h4>
 <p>To run GraphStorm SageMaker with Docker Compose, we need to set up a local Linux instance with the following contents.</p>
 <ol class="arabic simple">
 <li><p>Use the below command to install SageMaker.</p></li>
@@ -432,7 +259,7 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </ol>
 </section>
 <section id="generate-a-docker-compose-file">
-<h4>Generate a Docker Compose file<a class="headerlink" href="#generate-a-docker-compose-file" title="Permalink to this heading">#</a></h4>
+<h4>Generate a Docker Compose file<a class="headerlink" href="#generate-a-docker-compose-file" title="Permalink to this heading">¶</a></h4>
 <p>A Docker Compose file is a YAML file that tells Docker which containers to spin up and how to configure them. To launch the services with a Docker Compose file, we can use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">-f</span> <span class="pre">docker-compose.yaml</span> <span class="pre">up</span></code>. This will launch the container and execute its entry point.</p>
 <p>To emulate a SageMaker distributed execution environment based on the previously built Docker image (suppose the docker image is named <code class="docutils literal notranslate"><span class="pre">graphstorm:sm</span></code>), you would need a Docker Compose file that resembles the following:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.7&#39;</span>
@@ -495,7 +322,7 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </ul>
 </section>
 <section id="run-graphstorm-on-docker-compose-for-training">
-<h4>Run GraphStorm on Docker Compose for Training<a class="headerlink" href="#run-graphstorm-on-docker-compose-for-training" title="Permalink to this heading">#</a></h4>
+<h4>Run GraphStorm on Docker Compose for Training<a class="headerlink" href="#run-graphstorm-on-docker-compose-for-training" title="Permalink to this heading">¶</a></h4>
 <p>First, use the following command to generate a Compose YAML file for the Link Prediction training on OGB-MAG graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>generate_sagemaker_docker_compose.py<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--aws-access-key<span class="w"> </span><span class="s">&lt;&lt;AWS_ACCESS_KEY&gt;&gt; \</span>
@@ -531,7 +358,7 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </div>
 </section>
 <section id="run-graphstorm-on-docker-compose-for-inference">
-<h4>Run GraphStorm on Docker Compose for Inference<a class="headerlink" href="#run-graphstorm-on-docker-compose-for-inference" title="Permalink to this heading">#</a></h4>
+<h4>Run GraphStorm on Docker Compose for Inference<a class="headerlink" href="#run-graphstorm-on-docker-compose-for-inference" title="Permalink to this heading">¶</a></h4>
 <p>The <code class="docutils literal notranslate"><span class="pre">generate_sagemaker_docker_compose.py</span></code> can build Compose file for the inference task with the same arguments as for training, and in addition, but add a new argument, <code class="docutils literal notranslate"><span class="pre">--inference</span></code>. The below command create the Compose file for the Link Prediction inference on OGB-MAG graph.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>generate_sagemaker_docker_compose.py<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--aws-access-key<span class="w"> </span><span class="s">&lt;&lt;AWS_ACCESS_KEY&gt;&gt; \</span>
@@ -558,7 +385,7 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </div>
 </section>
 <section id="clean-up">
-<h4>Clean Up<a class="headerlink" href="#clean-up" title="Permalink to this heading">#</a></h4>
+<h4>Clean Up<a class="headerlink" href="#clean-up" title="Permalink to this heading">¶</a></h4>
 <p>To save computing resources, users can run the below command to clean up the Docker Compose environment.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose-file<span class="w"> </span>down
 </pre></div>
@@ -568,61 +395,16 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </section>
 </section>
 
-        </article>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
       </div>
-      <footer>
-        
-        <div class="related-pages">
-          <a class="next-page" href="../advanced/own-models.html">
-              <div class="page-info">
-                <div class="context">
-                  <span>Next</span>
-                </div>
-                <div class="title">Use Your Own Models</div>
-              </div>
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-            </a>
-          <a class="prev-page" href="distributed.html">
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-              <div class="page-info">
-                <div class="context">
-                  <span>Previous</span>
-                </div>
-                
-                <div class="title">Use GraphStorm in a Distributed Cluster</div>
-                
-              </div>
-            </a>
-        </div>
-        <div class="bottom-of-page">
-          <div class="left-details">
-            <div class="copyright">
-                Copyright &#169; 2023, AGML team
-            </div>
-            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
-            
-            <a href="https://github.com/pradyunsg/furo">Furo</a>
-            
-          </div>
-          <div class="right-details">
-            
-          </div>
-        </div>
-        
-      </footer>
-    </div>
-    <aside class="toc-drawer">
-      
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
 <li><a class="reference internal" href="#">Use GraphStorm on SageMaker</a><ul>
 <li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
 <li><a class="reference internal" href="#setup-graphstorm-sagemaker-docker-image">Setup GraphStorm SageMaker Docker Image</a><ul>
@@ -651,16 +433,57 @@ aws<span class="w"> </span>s3<span class="w"> </span>ls<span class="w"> </span>s
 </li>
 </ul>
 
-          </div>
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="distributed.html"
+                          title="previous chapter">Use GraphStorm in a Distributed Cluster</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="../advanced/own-models.html"
+                          title="next chapter">Use Your Own Models</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/scale/sagemaker.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
         </div>
       </div>
-      
-      
-    </aside>
-  </div>
-</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/sphinx_highlight.js"></script>
-    <script src="../_static/scripts/furo.js"></script>
-    </body>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../advanced/own-models.html" title="Use Your Own Models"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="distributed.html" title="Use GraphStorm in a Distributed Cluster"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Use GraphStorm on SageMaker</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2023, AGML team.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.3.
+    </div>
+  </body>
 </html>
