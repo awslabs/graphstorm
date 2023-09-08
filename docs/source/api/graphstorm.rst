@@ -1,13 +1,16 @@
 .. _apigraphstorm:
 
+.. currentmodule:: graphstorm
+
 graphstorm
 ==========
 
-Base Class
+    The ``graphstorm`` package contains a set of functions for environment setup.
+
+Functions
 ------------------
 
 .. autosummary::
-    :toctree: ../../generated/
-    :nosignatures:
-    :template: classtemplate.rst
+    :toctree: ../generated/
 
+    initialize

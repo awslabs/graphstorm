@@ -5,7 +5,18 @@ graphstorm.model
 
 .. currentmodule:: graphstorm.model
 
-Base Class
+Input
+-------------------
+.. autosummary::
+    :toctree: ../generated/
+    :nosignatures:
+    :template: classtemplate.rst
+
+    GSNodeEncoderInputLayer
+    GSLMNodeEncoderInputLayer
+    GSPureLMNodeInputLayer
+
+Encoder
 -------------------
 .. autosummary::
     :toctree: ../generated/
@@ -14,3 +25,6 @@ Base Class
 
     RelationalGCNEncoder
     RelGraphConvLayer
+
+    RelationalGATEncoder
+    SAGEEncoder
