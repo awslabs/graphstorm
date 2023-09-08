@@ -1,53 +1,108 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
-
-<!doctype html>
-
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-
-    <title>Use Text as Node Features &#8212; GraphStorm 0.2 documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/bizstyle.css" />
-    
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/sphinx_highlight.js"></script>
-    <script src="../_static/bizstyle.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Use Text as Node Features &mdash; GraphStorm 0.2 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="GraphStorm Advanced Usages" href="advanced-usages.html" />
-    <link rel="prev" title="Use Your Own Models" href="own-models.html" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <!--[if lt IE 9]>
-    <script src="_static/css3-mediaqueries.js"></script>
-    <![endif]-->
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="advanced-usages.html" title="GraphStorm Advanced Usages"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="own-models.html" title="Use Your Own Models"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Use Text as Node Features</a></li> 
-      </ul>
-    </div>  
+    <link rel="prev" title="Use Your Own Models" href="own-models.html" /> 
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GraphStorm
+          </a>
+              <div class="version">
+                0.2
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Scale to Giant Graphs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scale/sagemaker.html">Use GraphStorm on SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="own-models.html">Use Your Own Models</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Use Text as Node Features</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prepare-raw-data">Prepare Raw Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#construct-graph">Construct Graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#graphstorm-language-model-configuration">GraphStorm Language Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#launch-graphstorm-trainig-without-fine-tuning-bert-models">Launch GraphStorm Trainig without Fine-tuning BERT Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#launch-graphstorm-trainig-for-both-bert-and-gnn-models">Launch GraphStorm Trainig for both BERT and GNN Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#only-use-bert-models">Only Use BERT Models</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="advanced-usages.html">GraphStorm Advanced Usages</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GraphStorm</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Use Text as Node Features</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/advanced/language-models.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <section id="use-text-as-node-features">
-<span id="language-models"></span><h1>Use Text as Node Features<a class="headerlink" href="#use-text-as-node-features" title="Permalink to this heading">¶</a></h1>
+<span id="language-models"></span><h1>Use Text as Node Features<a class="headerlink" href="#use-text-as-node-features" title="Permalink to this heading"></a></h1>
 <p>Many real world graphs have text contents as nodes’ features, e.g., the title and description of a product, and the questions and comments from users. To leverage these text contents, GraphStorm supports language models (LMs), i.e., HuggingFace BERT models, to embed text contents and use these embeddings in Graph models’ training and inference.</p>
 <p>There are two modes of using LMs in GraphStorm:</p>
 <ul class="simple">
@@ -67,7 +122,7 @@
 <p>If you <a class="reference internal" href="../install/env-setup.html#setup-pip"><span class="std std-ref">set up the GraphStorm environment with pip Packages</span></a>, please replace all occurrences of “2222” in the argument <code class="docutils literal notranslate"><span class="pre">--ssh-port</span></code> with <strong>22</strong>, and clone GraphStorm toolkits.</p>
 </div>
 <section id="prepare-raw-data">
-<h2>Prepare Raw Data<a class="headerlink" href="#prepare-raw-data" title="Permalink to this heading">¶</a></h2>
+<h2>Prepare Raw Data<a class="headerlink" href="#prepare-raw-data" title="Permalink to this heading"></a></h2>
 <p>This tutorial will use the same ACM data as the <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">Use Your Own Data</span></a> tutorial to demonstrate how to prepare text as node features.</p>
 <p>First go the <code class="docutils literal notranslate"><span class="pre">/graphstorm/examples/</span></code> folder.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/graphstorm/examples
@@ -109,7 +164,7 @@
 </div>
 </section>
 <section id="construct-graph">
-<h2>Construct Graph<a class="headerlink" href="#construct-graph" title="Permalink to this heading">¶</a></h2>
+<h2>Construct Graph<a class="headerlink" href="#construct-graph" title="Permalink to this heading"></a></h2>
 <p>Then we use the graph construction tool to process the ACM raw data with the following command for GraphStorm model training.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.gconstruct.construct_graph<span class="w"> </span><span class="se">\</span>
 <span class="w">           </span>--conf-file<span class="w"> </span>/tmp/acm_raw/config.json<span class="w"> </span><span class="se">\</span>
@@ -121,7 +176,7 @@
 <p>Outcomes of this command are also same as the <a class="reference internal" href="../tutorials/own-data.html#output-graph-construction"><span class="std std-ref">Outputs of Graph Construction</span></a>. But users may notice that the <code class="docutils literal notranslate"><span class="pre">paper</span></code>, <code class="docutils literal notranslate"><span class="pre">author</span></code>, and <code class="docutils literal notranslate"><span class="pre">subject</span></code> nodes all have three additional features, named <code class="docutils literal notranslate"><span class="pre">input_ids</span></code>,``attention_mask``, and <code class="docutils literal notranslate"><span class="pre">token_type_ids</span></code>, which are generated by the BERT tokenizer.</p>
 </section>
 <section id="graphstorm-language-model-configuration">
-<h2>GraphStorm Language Model Configuration<a class="headerlink" href="#graphstorm-language-model-configuration" title="Permalink to this heading">¶</a></h2>
+<h2>GraphStorm Language Model Configuration<a class="headerlink" href="#graphstorm-language-model-configuration" title="Permalink to this heading"></a></h2>
 <p>Users can set up language model in GraphStorm’s configuration YAML file. Below is an example of such configuration for the ACM data. The full configuration YAML file, <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_lm_nc.yaml">acm_lm_nc.yaml</a>, is located under GraphStorm’s <code class="docutils literal notranslate"><span class="pre">examples/use_your_own_data</span></code> folder.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">lm_model</span><span class="p">:</span>
 <span class="nt">node_lm_models</span><span class="p">:</span>
@@ -139,7 +194,7 @@
 <p>The <code class="docutils literal notranslate"><span class="pre">node_type</span></code> field lists the types of nodes that have tokenized text features. In this ACM example, all three types of nodes have tokenized text features, which are all list in the configuration YAML file.</p>
 </section>
 <section id="launch-graphstorm-trainig-without-fine-tuning-bert-models">
-<h2>Launch GraphStorm Trainig without Fine-tuning BERT Models<a class="headerlink" href="#launch-graphstorm-trainig-without-fine-tuning-bert-models" title="Permalink to this heading">¶</a></h2>
+<h2>Launch GraphStorm Trainig without Fine-tuning BERT Models<a class="headerlink" href="#launch-graphstorm-trainig-without-fine-tuning-bert-models" title="Permalink to this heading"></a></h2>
 <p>With the above GraphStorm configuration YAML file, we can launch GraphStorm model training with the same commands as in the <a class="reference internal" href="../tutorials/own-data.html#launch-training-oyog"><span class="std std-ref">Step 3: Launch training script on your own graphs</span></a>.</p>
 <p>First, we create the <code class="docutils literal notranslate"><span class="pre">ip_list.txt</span></code> file for the standalone mode.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>touch<span class="w"> </span>/tmp/ip_list.txt
@@ -163,7 +218,7 @@
 <p>In the training process, GraphStorm will first use the specified BERT model to compute the text embeddings in the specified node types. And then the text embeddings and other node features are concatenated together as the input node feature for GNN models training.</p>
 </section>
 <section id="launch-graphstorm-trainig-for-both-bert-and-gnn-models">
-<h2>Launch GraphStorm Trainig for both BERT and GNN Models<a class="headerlink" href="#launch-graphstorm-trainig-for-both-bert-and-gnn-models" title="Permalink to this heading">¶</a></h2>
+<h2>Launch GraphStorm Trainig for both BERT and GNN Models<a class="headerlink" href="#launch-graphstorm-trainig-for-both-bert-and-gnn-models" title="Permalink to this heading"></a></h2>
 <p>To co-train BERT and GNN models, we need to add one more argument, <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code>, to either the launch command or the configuration YAML file. Below command sets this argument to the launch command.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
 <span class="w">        </span>--workspace<span class="w"> </span>/tmp<span class="w"> </span><span class="se">\</span>
@@ -186,7 +241,7 @@
 </div>
 </section>
 <section id="only-use-bert-models">
-<h2>Only Use BERT Models<a class="headerlink" href="#only-use-bert-models" title="Permalink to this heading">¶</a></h2>
+<h2>Only Use BERT Models<a class="headerlink" href="#only-use-bert-models" title="Permalink to this heading"></a></h2>
 <p>GraphStorm also allows users to only use BERT models to perform graph tasks. We can add another argument, <code class="docutils literal notranslate"><span class="pre">--lm-encoder-only</span></code>, to control whether only use BERT models or not.</p>
 <p>If users want to fine tune the BERT model only, just add the <code class="docutils literal notranslate"><span class="pre">--lm-train-nodes</span></code> argument as the command below:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_node_classification<span class="w"> </span><span class="se">\</span>
@@ -212,77 +267,34 @@
 </section>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="../index.html">Table of Contents</a></h3>
-    <ul>
-<li><a class="reference internal" href="#">Use Text as Node Features</a><ul>
-<li><a class="reference internal" href="#prepare-raw-data">Prepare Raw Data</a></li>
-<li><a class="reference internal" href="#construct-graph">Construct Graph</a></li>
-<li><a class="reference internal" href="#graphstorm-language-model-configuration">GraphStorm Language Model Configuration</a></li>
-<li><a class="reference internal" href="#launch-graphstorm-trainig-without-fine-tuning-bert-models">Launch GraphStorm Trainig without Fine-tuning BERT Models</a></li>
-<li><a class="reference internal" href="#launch-graphstorm-trainig-for-both-bert-and-gnn-models">Launch GraphStorm Trainig for both BERT and GNN Models</a></li>
-<li><a class="reference internal" href="#only-use-bert-models">Only Use BERT Models</a></li>
-</ul>
-</li>
-</ul>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="own-models.html" class="btn btn-neutral float-left" title="Use Your Own Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="advanced-usages.html" class="btn btn-neutral float-right" title="GraphStorm Advanced Usages" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, AGML team.</p>
   </div>
-  <div>
-    <h4>Previous topic</h4>
-    <p class="topless"><a href="own-models.html"
-                          title="previous chapter">Use Your Own Models</a></p>
-  </div>
-  <div>
-    <h4>Next topic</h4>
-    <p class="topless"><a href="advanced-usages.html"
-                          title="next chapter">GraphStorm Advanced Usages</a></p>
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="../_sources/advanced/language-models.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>document.getElementById('searchbox').style.display = "block"</script>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="advanced-usages.html" title="GraphStorm Advanced Usages"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="own-models.html" title="Use Your Own Models"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Use Text as Node Features</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2023, AGML team.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.3.
-    </div>
-  </body>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>

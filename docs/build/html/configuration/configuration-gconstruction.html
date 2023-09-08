@@ -1,56 +1,120 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
-
-<!doctype html>
-
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-
-    <title>Graph Construction &#8212; GraphStorm 0.2 documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/bizstyle.css" />
-    
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/sphinx_highlight.js"></script>
-    <script src="../_static/bizstyle.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graph Construction &mdash; GraphStorm 0.2 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Graph Partition" href="configuration-partition.html" />
-    <link rel="prev" title="GraphStorm Configurations" href="index.html" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <!--[if lt IE 9]>
-    <script src="_static/css3-mediaqueries.js"></script>
-    <![endif]-->
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="configuration-partition.html" title="Graph Partition"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="index.html" title="GraphStorm Configurations"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">GraphStorm Configurations</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Graph Construction</a></li> 
-      </ul>
-    </div>  
+    <link rel="prev" title="GraphStorm Configurations" href="index.html" /> 
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GraphStorm
+          </a>
+              <div class="version">
+                0.2
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">GraphStorm Configurations</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Graph Construction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#construct-graph-py-arguments">construct_graph.py arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration-json-explanations">Configuration JSON Explanations</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#nodes"><code class="docutils literal notranslate"><span class="pre">nodes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#edges"><code class="docutils literal notranslate"><span class="pre">edges</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#input-formats">Input formats</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#feature-transformation">Feature transformation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#output">Output</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#an-example">An example</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-partition.html">Graph Partition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-run.html">Training and Inference</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Scale to Giant Graphs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scale/sagemaker.html">Use GraphStorm on SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/own-models.html">Use Your Own Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html">Use Text as Node Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GraphStorm</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">GraphStorm Configurations</a></li>
+      <li class="breadcrumb-item active">Graph Construction</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/configuration/configuration-gconstruction.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <section id="graph-construction">
-<span id="configurations-gconstruction"></span><h1>Graph Construction<a class="headerlink" href="#graph-construction" title="Permalink to this heading">¶</a></h1>
+<span id="configurations-gconstruction"></span><h1>Graph Construction<a class="headerlink" href="#graph-construction" title="Permalink to this heading"></a></h1>
 <section id="construct-graph-py-arguments">
-<h2><a class="reference external" href="https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py">construct_graph.py</a> arguments<a class="headerlink" href="#construct-graph-py-arguments" title="Permalink to this heading">¶</a></h2>
+<h2><a class="reference external" href="https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py">construct_graph.py</a> arguments<a class="headerlink" href="#construct-graph-py-arguments" title="Permalink to this heading"></a></h2>
 <ul class="simple">
 <li><p><strong>--conf-file</strong>: (<strong>Required</strong>) the path of the configuration JSON file.</p></li>
 <li><p><strong>--num-processes</strong>: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.</p></li>
@@ -68,10 +132,10 @@
 </ul>
 </section>
 <section id="configuration-json-explanations">
-<span id="gconstruction-json"></span><h2>Configuration JSON Explanations<a class="headerlink" href="#configuration-json-explanations" title="Permalink to this heading">¶</a></h2>
+<span id="gconstruction-json"></span><h2>Configuration JSON Explanations<a class="headerlink" href="#configuration-json-explanations" title="Permalink to this heading"></a></h2>
 <p>The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: <code class="docutils literal notranslate"><span class="pre">nodes</span></code> and <code class="docutils literal notranslate"><span class="pre">edges</span></code>.</p>
 <section id="nodes">
-<h3><code class="docutils literal notranslate"><span class="pre">nodes</span></code><a class="headerlink" href="#nodes" title="Permalink to this heading">¶</a></h3>
+<h3><code class="docutils literal notranslate"><span class="pre">nodes</span></code><a class="headerlink" href="#nodes" title="Permalink to this heading"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">nodes</span></code> contains a list of node types and the information of a node type is stored in a dictionary. A node dictionary contains multiple fields and most fields are optional.</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">node_type</span></code>: (<strong>Required</strong>) specifies the node type. Think this as a name given to one type of nodes, e.g. <cite>author</cite> and <cite>paper</cite>.</p></li>
@@ -83,7 +147,7 @@
 </ul>
 </section>
 <section id="edges">
-<h3><code class="docutils literal notranslate"><span class="pre">edges</span></code><a class="headerlink" href="#edges" title="Permalink to this heading">¶</a></h3>
+<h3><code class="docutils literal notranslate"><span class="pre">edges</span></code><a class="headerlink" href="#edges" title="Permalink to this heading"></a></h3>
 <p>Similarly, <code class="docutils literal notranslate"><span class="pre">edges</span></code> contains a list of edge types and the information of an edge type is stored in a dictionary. An edge dictionary also contains the same fields of <code class="docutils literal notranslate"><span class="pre">files</span></code>, <code class="docutils literal notranslate"><span class="pre">format</span></code>, <code class="docutils literal notranslate"><span class="pre">features</span></code> and <code class="docutils literal notranslate"><span class="pre">labels</span></code> as <code class="docutils literal notranslate"><span class="pre">nodes</span></code>. In addition, it contains the following fields:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">source_id_col</span></code>: (<strong>Required</strong>) specifies the column name of the source node IDs.</p></li>
@@ -105,14 +169,14 @@
 </ul>
 </section>
 <section id="input-formats">
-<span id="input-format"></span><h3>Input formats<a class="headerlink" href="#input-formats" title="Permalink to this heading">¶</a></h3>
+<span id="input-format"></span><h3>Input formats<a class="headerlink" href="#input-formats" title="Permalink to this heading"></a></h3>
 <p>Currently, the graph construction pipeline supports three input formats: <code class="docutils literal notranslate"><span class="pre">Parquet</span></code>, <code class="docutils literal notranslate"><span class="pre">HDF5</span></code>, and <code class="docutils literal notranslate"><span class="pre">JSON</span></code>.</p>
 <p>For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.</p>
 <p>The HDF5 format is similar as the parquet format, but have larger capacity. Therefore suggest to use HDF5 format if users’ data is large.</p>
 <p>For JSON format, each line of the JSON file is a JSON object. The JSON object can only have one level. The value of each field can only be primitive values, such as integers, strings and floating points, or a list of integers or floating points.</p>
 </section>
 <section id="feature-transformation">
-<span id="feat-transform"></span><h3>Feature transformation<a class="headerlink" href="#feature-transformation" title="Permalink to this heading">¶</a></h3>
+<span id="feat-transform"></span><h3>Feature transformation<a class="headerlink" href="#feature-transformation" title="Permalink to this heading"></a></h3>
 <p>Currently, the graph construction pipeline supports the following feature transformation:</p>
 <ul class="simple">
 <li><p><strong>HuggingFace tokenizer transformation</strong> tokenizes text strings with a HuggingFace tokenizer. The <code class="docutils literal notranslate"><span class="pre">name</span></code> field in the feature transformation dictionary is <code class="docutils literal notranslate"><span class="pre">tokenize_hf</span></code>. The dict should contain two additional fields. <code class="docutils literal notranslate"><span class="pre">bert_model</span></code> specifies the LM model used for tokenization. Users can choose any <a class="reference external" href="https://huggingface.co/models">HuggingFace LM models</a> from one of the following types: <code class="docutils literal notranslate"><span class="pre">&quot;bert&quot;,</span> <span class="pre">&quot;roberta&quot;,</span> <span class="pre">&quot;albert&quot;,</span> <span class="pre">&quot;camembert&quot;,</span> <span class="pre">&quot;ernie&quot;,</span> <span class="pre">&quot;ibert&quot;,</span> <span class="pre">&quot;luke&quot;,</span> <span class="pre">&quot;mega&quot;,</span> <span class="pre">&quot;mpnet&quot;,</span> <span class="pre">&quot;nezha&quot;,</span> <span class="pre">&quot;qdqbert&quot;,&quot;roc_bert&quot;</span></code>. <code class="docutils literal notranslate"><span class="pre">max_seq_length</span></code> specifies the maximal sequence length.</p></li>
@@ -123,7 +187,7 @@
 </ul>
 </section>
 <section id="output">
-<span id="output-format"></span><h3>Output<a class="headerlink" href="#output" title="Permalink to this heading">¶</a></h3>
+<span id="output-format"></span><h3>Output<a class="headerlink" href="#output" title="Permalink to this heading"></a></h3>
 <p>Currently, the graph construction pipeline outputs two output formats: <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code> and <code class="docutils literal notranslate"><span class="pre">DGL</span></code>. If select <code class="docutils literal notranslate"><span class="pre">DGL</span></code>, the output is a file, named <cite>&lt;graph_name&gt;.dgl</cite> under the folder specified by the <strong>--output-dir</strong> argument, where <cite>&lt;graph_name&gt;</cite> is the value of argument <strong>--graph-name</strong>. If select <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>, the output is a JSON file, named <cite>&lt;graph_name&gt;.json</cite>, and a set of <cite>part*</cite> folders under the folder specified by the <strong>--output-dir</strong> argument, where the <cite>*</cite> is the number specified by the <strong>--num-parts</strong> argument.</p>
 <p>By Specifying the output_format as <code class="docutils literal notranslate"><span class="pre">DGL</span></code>, the output will be an <a class="reference external" href="https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html">DGLGraph</a>. By Specifying the output_format as <code class="docutils literal notranslate"><span class="pre">DistDGL</span></code>, the output will be a partitioned graph named <a class="reference external" href="https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api">DistDGL graph</a>. It contains the partitioned graph, a JSON config describing the meta-information of the partitioned graph, and the mappings for the edges and nodes after partition, <code class="docutils literal notranslate"><span class="pre">node_mapping.pt</span></code> and <code class="docutils literal notranslate"><span class="pre">edge_mapping.pt</span></code>, which maps each node and edge in the partitoined graph into the original node and edge id space. The node ID mapping is stored as a dictionary of 1D tensors whose key is the node type and value is a 1D tensor mapping between shuffled node IDs and the original node IDs. The edge ID mapping is stored as a dictionary of 1D tensors whose key is the edge type and value is a 1D tensor mapping between shuffled edge IDs and the original edge IDs.</p>
 <div class="admonition note">
@@ -132,7 +196,7 @@
 </div>
 </section>
 <section id="an-example">
-<h3>An example<a class="headerlink" href="#an-example" title="Permalink to this heading">¶</a></h3>
+<h3>An example<a class="headerlink" href="#an-example" title="Permalink to this heading"></a></h3>
 <p>Below shows an example that contains one node type and an edge type. For a real example, please refer to the <a class="reference internal" href="../tutorials/own-data.html#input-config"><span class="std std-ref">input JSON file</span></a> used in the <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">Use Your Own Graphs Tutorial</span></a>.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">{</span>
 <span class="nt">    nodes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span>
@@ -182,82 +246,34 @@
 </section>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="../index.html">Table of Contents</a></h3>
-    <ul>
-<li><a class="reference internal" href="#">Graph Construction</a><ul>
-<li><a class="reference internal" href="#construct-graph-py-arguments">construct_graph.py arguments</a></li>
-<li><a class="reference internal" href="#configuration-json-explanations">Configuration JSON Explanations</a><ul>
-<li><a class="reference internal" href="#nodes"><code class="docutils literal notranslate"><span class="pre">nodes</span></code></a></li>
-<li><a class="reference internal" href="#edges"><code class="docutils literal notranslate"><span class="pre">edges</span></code></a></li>
-<li><a class="reference internal" href="#input-formats">Input formats</a></li>
-<li><a class="reference internal" href="#feature-transformation">Feature transformation</a></li>
-<li><a class="reference internal" href="#output">Output</a></li>
-<li><a class="reference internal" href="#an-example">An example</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="GraphStorm Configurations" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="configuration-partition.html" class="btn btn-neutral float-right" title="Graph Partition" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, AGML team.</p>
   </div>
-  <div>
-    <h4>Previous topic</h4>
-    <p class="topless"><a href="index.html"
-                          title="previous chapter">GraphStorm Configurations</a></p>
-  </div>
-  <div>
-    <h4>Next topic</h4>
-    <p class="topless"><a href="configuration-partition.html"
-                          title="next chapter">Graph Partition</a></p>
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="../_sources/configuration/configuration-gconstruction.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>document.getElementById('searchbox').style.display = "block"</script>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="configuration-partition.html" title="Graph Partition"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="index.html" title="GraphStorm Configurations"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="index.html" >GraphStorm Configurations</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Graph Construction</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2023, AGML team.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.3.
-    </div>
-  </body>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>

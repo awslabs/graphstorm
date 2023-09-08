@@ -1,57 +1,132 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
-
-<!doctype html>
-
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-
-    <title>Training and Inference &#8212; GraphStorm 0.2 documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/bizstyle.css" />
-    
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/sphinx_highlight.js"></script>
-    <script src="../_static/bizstyle.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Training and Inference &mdash; GraphStorm 0.2 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Use GraphStorm in a Distributed Cluster" href="../scale/distributed.html" />
-    <link rel="prev" title="Graph Partition" href="configuration-partition.html" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <!--[if lt IE 9]>
-    <script src="_static/css3-mediaqueries.js"></script>
-    <![endif]-->
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="../scale/distributed.html" title="Use GraphStorm in a Distributed Cluster"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="configuration-partition.html" title="Graph Partition"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">GraphStorm Configurations</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Training and Inference</a></li> 
-      </ul>
-    </div>  
+    <link rel="prev" title="Graph Partition" href="configuration-partition.html" /> 
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GraphStorm
+          </a>
+              <div class="version">
+                0.2
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">GraphStorm Configurations</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="configuration-gconstruction.html">Graph Construction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-partition.html">Graph Partition</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Training and Inference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#launch-arguments">Launch Arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#environment-configurations">Environment Configurations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#model-configurations">Model Configurations</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#built-in-model-specific-configurations">Built-in Model Specific Configurations</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#model-save-restore-configurations">Model Save/Restore Configurations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#model-training-hyper-parameters-configurations">Model Training Hyper-parameters Configurations</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#early-stop-configurations">Early stop configurations</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#model-evaluation-configurations">Model Evaluation Configurations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#language-model-specific-configurations">Language Model Specific Configurations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#task-specific-configurations">Task Specific Configurations</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#general-configurations">General Configurations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#classification-and-regression-task">Classification and Regression Task</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#node-classification-regression-specific">Node Classification/Regression Specific</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#edge-classification-regression-specific">Edge Classification/Regression Specific</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#link-prediction-task">Link Prediction Task</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Scale to Giant Graphs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scale/sagemaker.html">Use GraphStorm on SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/own-models.html">Use Your Own Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html">Use Text as Node Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GraphStorm</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">GraphStorm Configurations</a></li>
+      <li class="breadcrumb-item active">Training and Inference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/configuration/configuration-run.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <section id="training-and-inference">
-<span id="configurations-run"></span><h1>Training and Inference<a class="headerlink" href="#training-and-inference" title="Permalink to this heading">¶</a></h1>
+<span id="configurations-run"></span><h1>Training and Inference<a class="headerlink" href="#training-and-inference" title="Permalink to this heading"></a></h1>
 <p>GraphStorm provides dozens of configurable parameters for users to control their training and inference tasks. This document provides detailed description of each configurable parameter. You can use YAML config file to define these parameters or you can use command line arguments to define and update these parameters. Specifically, GraphStorm parses yaml config file first. Then it parses arguments to overwrite parameters defined in the yaml file or add new parameters.</p>
 <section id="launch-arguments">
-<h2>Launch Arguments<a class="headerlink" href="#launch-arguments" title="Permalink to this heading">¶</a></h2>
+<h2>Launch Arguments<a class="headerlink" href="#launch-arguments" title="Permalink to this heading"></a></h2>
 <p>GraphStorm’s <a class="reference external" href="https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/run/launch.py">graphstorm.run.launch</a> command has a set of parameters to control the launch behavior of training and inference.</p>
 <ul>
 <li><p><strong>workspace</strong>: the folder where launch command assume all artifacts were saved. If the other parameters’ file paths are relative paths, launch command will consider these files in the workspace.</p></li>
@@ -81,7 +156,7 @@
 </div>
 </section>
 <section id="environment-configurations">
-<h2>Environment Configurations<a class="headerlink" href="#environment-configurations" title="Permalink to this heading">¶</a></h2>
+<h2>Environment Configurations<a class="headerlink" href="#environment-configurations" title="Permalink to this heading"></a></h2>
 <ul class="simple">
 <li><dl class="simple">
 <dt><strong>backend</strong>: (<strong>Required</strong>) PyTorch distributed backend, the suggested backend is gloo. Support backends include gloo and nccl</dt><dd><ul>
@@ -104,7 +179,7 @@
 </ul>
 </section>
 <section id="model-configurations">
-<h2>Model Configurations<a class="headerlink" href="#model-configurations" title="Permalink to this heading">¶</a></h2>
+<h2>Model Configurations<a class="headerlink" href="#model-configurations" title="Permalink to this heading"></a></h2>
 <p>GraphStorm provides a set of parameters to config the GNN model structure (input layer, gnn layer, decoder layer, etc)</p>
 <ul>
 <li><dl class="simple">
@@ -161,9 +236,9 @@
 </li>
 </ul>
 <section id="built-in-model-specific-configurations">
-<h3>Built-in Model Specific Configurations<a class="headerlink" href="#built-in-model-specific-configurations" title="Permalink to this heading">¶</a></h3>
+<h3>Built-in Model Specific Configurations<a class="headerlink" href="#built-in-model-specific-configurations" title="Permalink to this heading"></a></h3>
 <section id="rgcn">
-<h4>RGCN<a class="headerlink" href="#rgcn" title="Permalink to this heading">¶</a></h4>
+<h4>RGCN<a class="headerlink" href="#rgcn" title="Permalink to this heading"></a></h4>
 <ul class="simple">
 <li><dl class="simple">
 <dt><strong>num_bases</strong>: Number of filter weight matrices. num_bases is used to reduce the overall parameters of a RGCN model. It allows weight metrics of different relation types to share parameters. Note: the number of relation types of the graph used in training must be divisible by num_bases. By default, num_bases is set to -1, which means weight metrics do not share parameters.</dt><dd><ul>
@@ -177,7 +252,7 @@
 </ul>
 </section>
 <section id="rgat">
-<h4>RGAT<a class="headerlink" href="#rgat" title="Permalink to this heading">¶</a></h4>
+<h4>RGAT<a class="headerlink" href="#rgat" title="Permalink to this heading"></a></h4>
 <ul class="simple">
 <li><dl class="simple">
 <dt><strong>num_heads</strong>: Number of attention heads.</dt><dd><ul>
@@ -193,7 +268,7 @@
 </section>
 </section>
 <section id="model-save-restore-configurations">
-<h2>Model Save/Restore Configurations<a class="headerlink" href="#model-save-restore-configurations" title="Permalink to this heading">¶</a></h2>
+<h2>Model Save/Restore Configurations<a class="headerlink" href="#model-save-restore-configurations" title="Permalink to this heading"></a></h2>
 <p>GraphStorm provides a set of parameters to control how and where to save and restore models.</p>
 <ul class="simple">
 <li><dl class="simple">
@@ -289,7 +364,7 @@
 </ul>
 </section>
 <section id="model-training-hyper-parameters-configurations">
-<h2>Model Training Hyper-parameters Configurations<a class="headerlink" href="#model-training-hyper-parameters-configurations" title="Permalink to this heading">¶</a></h2>
+<h2>Model Training Hyper-parameters Configurations<a class="headerlink" href="#model-training-hyper-parameters-configurations" title="Permalink to this heading"></a></h2>
 <p>GraphStorm provides a set of parameters to control training hyper-parameters.</p>
 <ul class="simple">
 <li><dl class="simple">
@@ -438,7 +513,7 @@
 </li>
 </ul>
 <section id="early-stop-configurations">
-<h3>Early stop configurations<a class="headerlink" href="#early-stop-configurations" title="Permalink to this heading">¶</a></h3>
+<h3>Early stop configurations<a class="headerlink" href="#early-stop-configurations" title="Permalink to this heading"></a></h3>
 <p>GraphStorm provides a set of parameters to control early stop of training. By default, GraphStorm finishes training after num_epochs. One can use early stop to exit model training earlier.</p>
 <p>Every time evaluation is triggered, GraphStorm checks early stop criteria. For the rounds within early_stop_burnin_rounds evaluation calls, GraphStorm will not use early stop. After early_stop_burnin_rounds, GraphStorm decides if stop early based on the <strong>early_stop_strategy</strong>. There are two strategies: 1) <strong>consecutive_increase</strong>, early stop is triggered if the current validation score is lower than the average of the last <strong>early_stop_rounds</strong> validation scores and 2) <strong>average_increase</strong>, early stop is triggered if for the last <strong>early_stop_rounds</strong> consecutive steps, the validation scores are <cite>decreasing</cite>.</p>
 <ul class="simple">
@@ -482,7 +557,7 @@
 </section>
 </section>
 <section id="model-evaluation-configurations">
-<h2>Model Evaluation Configurations<a class="headerlink" href="#model-evaluation-configurations" title="Permalink to this heading">¶</a></h2>
+<h2>Model Evaluation Configurations<a class="headerlink" href="#model-evaluation-configurations" title="Permalink to this heading"></a></h2>
 <p>GraphStorm provides a set of parameters to control model evaluation.</p>
 <ul class="simple">
 <li><dl class="simple">
@@ -533,7 +608,7 @@
 </ul>
 </section>
 <section id="language-model-specific-configurations">
-<h2>Language Model Specific Configurations<a class="headerlink" href="#language-model-specific-configurations" title="Permalink to this heading">¶</a></h2>
+<h2>Language Model Specific Configurations<a class="headerlink" href="#language-model-specific-configurations" title="Permalink to this heading"></a></h2>
 <p>GraphStorm supports co-training language models with GNN. GraphStorm provides a set of parameters to control language model fine-tuning.</p>
 <ul class="simple">
 <li><dl class="simple">
@@ -575,10 +650,10 @@
 </ul>
 </section>
 <section id="task-specific-configurations">
-<h2>Task Specific Configurations<a class="headerlink" href="#task-specific-configurations" title="Permalink to this heading">¶</a></h2>
+<h2>Task Specific Configurations<a class="headerlink" href="#task-specific-configurations" title="Permalink to this heading"></a></h2>
 <p>GraphStorm supports node classification, node regression, edge classification, edge regression and link prediction tasks. It provides rich task related configurations.</p>
 <section id="general-configurations">
-<h3>General Configurations<a class="headerlink" href="#general-configurations" title="Permalink to this heading">¶</a></h3>
+<h3>General Configurations<a class="headerlink" href="#general-configurations" title="Permalink to this heading"></a></h3>
 <ul>
 <li><dl class="simple">
 <dt><strong>task_type</strong>: (<strong>Required</strong>) Supported task type includes node_classification, node_regression, edge_classification, edge_regression, and link_prediction.</dt><dd><ul class="simple">
@@ -616,7 +691,7 @@
 </ul>
 </section>
 <section id="classification-and-regression-task">
-<h3>Classification and Regression Task<a class="headerlink" href="#classification-and-regression-task" title="Permalink to this heading">¶</a></h3>
+<h3>Classification and Regression Task<a class="headerlink" href="#classification-and-regression-task" title="Permalink to this heading"></a></h3>
 <ul class="simple">
 <li><dl class="simple">
 <dt><strong>label_field</strong>: (<strong>Required</strong>) The field name of labelled data in the graph data. For node classification tasks, GraphStorm use <code class="docutils literal notranslate"><span class="pre">graph.nodes[target_ntype].data[label_field]</span></code> to access node labels. For edge classification tasks, GraphStorm use <code class="docutils literal notranslate"><span class="pre">graph.edges[target_etype].data[label_field]</span></code> to access edge labels.</dt><dd><ul>
@@ -675,7 +750,7 @@
 </ul>
 </section>
 <section id="node-classification-regression-specific">
-<h3>Node Classification/Regression Specific<a class="headerlink" href="#node-classification-regression-specific" title="Permalink to this heading">¶</a></h3>
+<h3>Node Classification/Regression Specific<a class="headerlink" href="#node-classification-regression-specific" title="Permalink to this heading"></a></h3>
 <ul class="simple">
 <li><dl class="simple">
 <dt><strong>target_ntype</strong>: (<strong>Required</strong>) The node type for prediction.</dt><dd><ul>
@@ -689,7 +764,7 @@
 </ul>
 </section>
 <section id="edge-classification-regression-specific">
-<h3>Edge Classification/Regression Specific<a class="headerlink" href="#edge-classification-regression-specific" title="Permalink to this heading">¶</a></h3>
+<h3>Edge Classification/Regression Specific<a class="headerlink" href="#edge-classification-regression-specific" title="Permalink to this heading"></a></h3>
 <ul>
 <li><dl>
 <dt><strong>target_etype</strong>: (<strong>Required</strong>) The list of canonical edge types that will be added as a training target in edge classification/regression tasks, for example <code class="docutils literal notranslate"><span class="pre">--train-etype</span> <span class="pre">query,clicks,asin</span></code> or <code class="docutils literal notranslate"><span class="pre">--train-etype</span> <span class="pre">query,clicks,asin</span> <span class="pre">query,search,asin</span></code>. A canonical edge type should be formatted as <cite>src_node_type,relation_type,dst_node_type</cite>. Currently, GraphStorm only supports single task edge classification/regression, i.e., it only accepts one canonical edge type.</dt><dd><ul>
@@ -774,7 +849,7 @@
 </ul>
 </section>
 <section id="link-prediction-task">
-<h3>Link Prediction Task<a class="headerlink" href="#link-prediction-task" title="Permalink to this heading">¶</a></h3>
+<h3>Link Prediction Task<a class="headerlink" href="#link-prediction-task" title="Permalink to this heading"></a></h3>
 <ul>
 <li><dl>
 <dt><strong>train_etype</strong>: The list of canonical edge type that will be added as training target with the target edge type(s). If not provided, all edge types will be used as training target. A canonical edge type should be formatted as <cite>src_node_type,relation_type,dst_node_type</cite>.</dt><dd><ul>
@@ -913,97 +988,34 @@
 </section>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="../index.html">Table of Contents</a></h3>
-    <ul>
-<li><a class="reference internal" href="#">Training and Inference</a><ul>
-<li><a class="reference internal" href="#launch-arguments">Launch Arguments</a></li>
-<li><a class="reference internal" href="#environment-configurations">Environment Configurations</a></li>
-<li><a class="reference internal" href="#model-configurations">Model Configurations</a><ul>
-<li><a class="reference internal" href="#built-in-model-specific-configurations">Built-in Model Specific Configurations</a><ul>
-<li><a class="reference internal" href="#rgcn">RGCN</a></li>
-<li><a class="reference internal" href="#rgat">RGAT</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#model-save-restore-configurations">Model Save/Restore Configurations</a></li>
-<li><a class="reference internal" href="#model-training-hyper-parameters-configurations">Model Training Hyper-parameters Configurations</a><ul>
-<li><a class="reference internal" href="#early-stop-configurations">Early stop configurations</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#model-evaluation-configurations">Model Evaluation Configurations</a></li>
-<li><a class="reference internal" href="#language-model-specific-configurations">Language Model Specific Configurations</a></li>
-<li><a class="reference internal" href="#task-specific-configurations">Task Specific Configurations</a><ul>
-<li><a class="reference internal" href="#general-configurations">General Configurations</a></li>
-<li><a class="reference internal" href="#classification-and-regression-task">Classification and Regression Task</a></li>
-<li><a class="reference internal" href="#node-classification-regression-specific">Node Classification/Regression Specific</a></li>
-<li><a class="reference internal" href="#edge-classification-regression-specific">Edge Classification/Regression Specific</a></li>
-<li><a class="reference internal" href="#link-prediction-task">Link Prediction Task</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="configuration-partition.html" class="btn btn-neutral float-left" title="Graph Partition" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../scale/distributed.html" class="btn btn-neutral float-right" title="Use GraphStorm in a Distributed Cluster" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, AGML team.</p>
   </div>
-  <div>
-    <h4>Previous topic</h4>
-    <p class="topless"><a href="configuration-partition.html"
-                          title="previous chapter">Graph Partition</a></p>
-  </div>
-  <div>
-    <h4>Next topic</h4>
-    <p class="topless"><a href="../scale/distributed.html"
-                          title="next chapter">Use GraphStorm in a Distributed Cluster</a></p>
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="../_sources/configuration/configuration-run.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>document.getElementById('searchbox').style.display = "block"</script>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="../scale/distributed.html" title="Use GraphStorm in a Distributed Cluster"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="configuration-partition.html" title="Graph Partition"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../index.html">GraphStorm 0.2 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="index.html" >GraphStorm Configurations</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Training and Inference</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2023, AGML team.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.3.
-    </div>
-  </body>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>
