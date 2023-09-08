@@ -3,5 +3,11 @@
 graphstorm
 ==========
 
-.. currentmodule:: graphstorm
-.. automodule:: graphstorm
+Base Class
+------------------
+
+.. autosummary::
+    :toctree: ../../generated/
+    :nosignatures:
+    :template: classtemplate.rst
+

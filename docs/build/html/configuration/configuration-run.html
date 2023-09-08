@@ -177,10 +177,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html">Use Text as Node Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.model.RelationalGCNEncoder.html">RelationalGCNEncoder</a></li>
+</ul>
+</li>
 </ul>
 
 </div>
@@ -436,17 +439,15 @@
 </dd>
 </dl>
 </li>
-<li><p><strong>restore_model_layers</strong>: Specify which GraphStorm neural network layers to load. This argument is useful when a user wants to pre-train a GraphStorm model using link prediction and fine-tune the same model on a node or edge classification/regression task.</p></li>
-</ul>
-<dl class="simple">
-<dt>Currently, three neural network layers are supported, i.e., <code class="docutils literal notranslate"><span class="pre">embed</span></code> (input layer), <code class="docutils literal notranslate"><span class="pre">gnn</span></code> and <code class="docutils literal notranslate"><span class="pre">decoder</span></code>. A user can select one or more layers to load.</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt><strong>restore_model_layers</strong>: Specify which GraphStorm neural network layers to load. This argument is useful when a user wants to pre-train a GraphStorm model using link prediction and fine-tune the same model on a node or edge classification/regression task. Currently, three neural network layers are supported, i.e., <code class="docutils literal notranslate"><span class="pre">embed</span></code> (input layer), <code class="docutils literal notranslate"><span class="pre">gnn</span></code> and <code class="docutils literal notranslate"><span class="pre">decoder</span></code>. A user can select one or more layers to load.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">restore_model_path:</span> <span class="pre">embed</span></code></p></li>
 <li><p>Argument: <code class="docutils literal notranslate"><span class="pre">--restore-model-layers</span> <span class="pre">embed,gnn</span></code></p></li>
 <li><p>Default value: Load all neural network layers</p></li>
 </ul>
 </dd>
 </dl>
-<ul class="simple">
+</li>
 <li><dl class="simple">
 <dt><strong>restore_optimizer_path</strong>: A path storing optimizer status corresponding to GraphML model parameters. This is used when a user wants to fine-tune a model from a pre-trained one.</dt><dd><ul>
 <li><p>Yaml: <code class="docutils literal notranslate"><span class="pre">restore_optimizer_path:</span> <span class="pre">/model/checkpoint/optimizer</span></code></p></li>

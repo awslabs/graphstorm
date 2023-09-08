@@ -4,4 +4,12 @@ graphstorm.model
 =================
 
 .. currentmodule:: graphstorm.model
-.. automodule:: graphstorm.model
+
+Base Class
+-------------------
+.. autosummary::
+    :toctree: ../generated/
+    :nosignatures:
+    :template: classtemplate.rst
+
+    RelationalGCNEncoder
