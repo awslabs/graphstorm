@@ -30,48 +30,7 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class HGTLayer(nn.Module):
-    r"""Heterogenous graph transformer (HGT) layer from `Heterogeneous Graph Transformer
-    <https://arxiv.org/abs/2003.01332>`__.
-    
-    Given a graph :math:`G(V, E)` and input node features :math:`H^{(l-1)}`,
-    it computes the new node features as follows:
-
-    Compute a multi-head attention score for each edge :math:`(s, e, t)` in the graph:
-
-    .. math::
-
-      Attention(s, e, t) = \text{Softmax}\left(||_{i\in[1,h]}ATT-head^i(s, e, t)\right) \\
-      ATT-head^i(s, e, t) = \left(K^i(s)W^{ATT}_{\phi(e)}Q^i(t)^{\top}\right)\cdot
-        \frac{\mu_{(\tau(s),\phi(e),\tau(t)}}{\sqrt{d}} \\
-      K^i(s) = \text{K-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) \\
-      Q^i(t) = \text{Q-Linear}^i_{\tau(t)}(H^{(l-1)}[t]) \\
-
-    Compute the message to send on each edge :math:`(s, e, t)`:
-
-    .. math::
-
-      Message(s, e, t) = ||_{i\in[1, h]} MSG-head^i(s, e, t) \\
-      MSG-head^i(s, e, t) = \text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s])W^{MSG}_{\phi(e)} \\
-
-    Send messages to target nodes :math:`t` and aggregate:
-
-    .. math::
-
-      \tilde{H}^{(l)}[t] = \sum_{\forall s\in \mathcal{N}(t)}\left( Attention(s,e,t)
-      \cdot Message(s,e,t)\right)
-
-    Compute new node features:
-
-    .. math::
-
-      H^{(l)}[t]=\text{A-Linear}_{\tau(t)}(\sigma(\tilde(H)^{(l)}[t])) + H^{(l-1)}[t]
-
-    Note:
-    -----
-    * Different from DGL's HGTConv, this implementation is based on heterogeneous graph. Other 
-      hyperparameters' default values are same as the DGL's HGTConv setting.
-
-    * 
+    r"""Heterogenous graph transformer (HGT) layer 
 
     Parameters
     ----------
@@ -268,7 +227,49 @@ class HGTLayer(nn.Module):
 
 
 class HGTEncoder(GraphConvEncoder):
-    r"""Heterogenous graph transformer (HGT) encoder
+    r"""Heterogenous graph transformer (HGT) encoder from `Heterogeneous Graph Transformer
+    <https://arxiv.org/abs/2003.01332>`__.
+    
+    Given a graph :math:`G(V, E)` and input node features :math:`H^{(l-1)}` in the :math:`l-1`
+    layer, it computes the new node features in the :math:`l` layer as follows:
+
+    Compute a multi-head attention score for each edge :math:`(s, e, t)` in the graph:
+
+    .. math::
+
+      Attention(s, e, t) = \text{Softmax}\left(||_{i\in[1,h]}ATT-head^i(s, e, t)\right) \\
+      ATT-head^i(s, e, t) = \left(K^i(s)W^{ATT}_{\phi(e)}Q^i(t)^{\top}\right)\cdot
+        \frac{\mu_{(\tau(s),\phi(e),\tau(t)}}{\sqrt{d}} \\
+      K^i(s) = \text{K-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) \\
+      Q^i(t) = \text{Q-Linear}^i_{\tau(t)}(H^{(l-1)}[t]) \\
+
+    Compute the message to send on each edge :math:`(s, e, t)`:
+
+    .. math::
+
+      Message(s, e, t) = ||_{i\in[1, h]} MSG-head^i(s, e, t) \\
+      MSG-head^i(s, e, t) = \text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s])W^{MSG}_{\phi(e)} \\
+
+    Send messages to target nodes :math:`t` and aggregate:
+
+    .. math::
+
+      \tilde{H}^{(l)}[t] = \sum_{\forall s\in \mathcal{N}(t)}\left( Attention(s,e,t)
+      \cdot Message(s,e,t)\right)
+
+    Compute new node features:
+
+    .. math::
+
+      H^{(l)}[t]=\text{A-Linear}_{\tau(t)}(\sigma(\tilde(H)^{(l)}[t])) + H^{(l-1)}[t]
+
+    Note:
+    -----
+    * Different from DGL's HGTConv, this implementation is based on heterogeneous graph. Other 
+      hyperparameters' default values are same as the DGL's HGTConv setting.
+
+    * The cross-relation aggregation function of this implementation is `mean`, which was chosen
+      by the authors of the HGT paper in their contribution to DGL.
 
     Parameters
     g : DGLHeteroGraph
