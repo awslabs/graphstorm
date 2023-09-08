@@ -17,10 +17,13 @@ sys.path.insert(0, os.path.abspath("../../python"))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import graphstorm
+
 project = 'GraphStorm'
 copyright = '2023, AGML team'
 author = 'AGML team'
-release = '0.1.2'
+version = graphstorm.__version__
+release = graphstorm.__version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
