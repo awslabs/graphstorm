@@ -22,8 +22,9 @@ import torch as th
 
 from .eval_func import ClassificationMetrics, RegressionMetrics, LinkPredictionMetrics
 from .utils import broadcast_data
-from ..config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
-from ..config.config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
+from ..config.config import (EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
+                             EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
+                             LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
 from ..utils import get_rank, get_world_size, barrier
 from .utils import gen_mrr_score
 
@@ -768,7 +769,7 @@ class GSgnnLPEvaluator():
 
 
 class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
-    """ The class for user defined evaluator.
+    """ The class for link prediction evaluation using Mrr metric.
 
     Parameters
     ----------
@@ -892,3 +893,156 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
                 val_score = {"mrr": "N/A"} # Dummy
 
         return val_score, test_score
+
+
+class GSgnnPerEtypeMrrLPEvaluator(GSgnnMrrLPEvaluator):
+    """ The class for link prediction evaluation using Mrr metric and
+        return a Per etype mrr score.
+
+    Parameters
+    ----------
+    eval_frequency: int
+        The frequency (# of iterations) of doing evaluation.
+    data: GSgnnEdgeData
+        The processed dataset
+    num_negative_edges_eval: int
+        Number of negative edges sampled for each positive edge in evalation.
+    lp_decoder_type: str
+        Link prediction decoder type.
+    major_etype: tuple
+        Canonical etype used for selecting the best model. If None, use the general mrr.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
+    early_stop_strategy: str
+        The early stop strategy. GraphStorm supports two strategies:
+        1) consecutive_increase and 2) average_increase.
+    """
+    def __init__(self, eval_frequency, data,
+                 num_negative_edges_eval, lp_decoder_type,
+                 major_etype = LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
+                 early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
+        self.major_etype = major_etype
+        super(GSgnnPerEtypeMrrLPEvaluator, self).__init__(eval_frequency,
+            data, num_negative_edges_eval, lp_decoder_type,
+            use_early_stop, early_stop_burnin_rounds,
+            early_stop_rounds, early_stop_strategy)
+
+
+    def compute_score(self, rankings, train=False): # pylint:disable=unused-argument
+        """ Compute evaluation score
+
+            Parameters
+            ----------
+            rankings: dict of tensors
+                Rankings of positive scores in format of {etype: ranking}
+            train: bool
+                TODO: Reversed for future use cases when we want to use different
+                way to generate scores for train (more efficient but less accurate)
+                and test.
+
+            Returns
+            -------
+            Evaluation metric values: dict
+        """
+        # We calculate global mrr, etype is ignored.
+        # User can develop its own per etype MRR evaluator
+        metrics = {}
+        for etype, rank in rankings.items():
+            metrics[etype] = gen_mrr_score(rank)
+
+        # When world size == 1, we do not need the barrier
+        if get_world_size() > 1:
+            barrier()
+            for _, metric in metrics.items():
+                for _, metric_val in metric.items():
+                    th.distributed.all_reduce(metric_val)
+
+        return_metrics = {}
+        for etype, metric in metrics.items():
+            for metric_key, metric_val in metric.items():
+                return_metric = metric_val / get_world_size()
+                if metric_key not in return_metrics:
+                    return_metrics[metric_key] = {}
+                return_metrics[metric_key][etype] = return_metric.item()
+        return return_metrics
+
+    def _get_major_score(self, score):
+        """ Get the score for save best model(s) and early stop
+        """
+        if isinstance(self.major_etype, str) and \
+            self.major_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL:
+            major_score = sum(score.values()) / len(score)
+        else:
+            major_score = score[self.major_etype]
+        return major_score
+
+    def evaluate(self, val_scores, test_scores, total_iters):
+        """ GSgnnLinkPredictionModel.fit() will call this function to do user defined evalution.
+
+        Parameters
+        ----------
+        val_scores: dict of tensors
+            Rankings of positive scores of validation edges for each edge type.
+        test_scores: dict of tensors
+            Rankings of positive scores of test edges for each edge type..
+        total_iters: int
+            The current interation number.
+
+        Returns
+        -----------
+        val_mrr: float
+            Validation mrr
+        test_mrr: float
+            Test mrr
+        """
+        with th.no_grad():
+            if test_scores is not None:
+                test_score = self.compute_score(test_scores)
+            else:
+                test_score = {"mrr": "N/A"} # Dummy
+
+            if val_scores is not None:
+                val_score = self.compute_score(val_scores)
+
+                if get_rank() == 0:
+                    for metric in self.metric:
+                        # be careful whether > or < it might change per metric.
+                        major_val_score = self._get_major_score(val_score[metric])
+                        major_test_score = self._get_major_score(test_score[metric])
+                        if self.metrics_obj.metric_comparator[metric](
+                            self._best_val_score[metric], major_val_score):
+                            self._best_val_score[metric] = major_val_score
+                            self._best_test_score[metric] = major_test_score
+                            self._best_iter[metric] = total_iters
+            else:
+                val_score = {"mrr": "N/A"} # Dummy
+
+        return val_score, test_score
+
+    def get_val_score_rank(self, val_score):
+        """
+        Get the rank of the given validation score by comparing its values to the existing value
+        list.
+
+        Parameters
+        ----------
+        val_score: dict
+            A dictionary whose key is the metric and the value is a score from evaluator's
+            validation computation.
+        """
+        val_score = list(val_score.values())[0]
+        val_score = self._get_major_score(val_score)
+
+        rank = get_val_score_rank(val_score,
+                                  self._val_perf_rank_list,
+                                  self.get_metric_comparator())
+        # after compare, append the score into existing list
+        self._val_perf_rank_list.append(val_score)
+        return rank

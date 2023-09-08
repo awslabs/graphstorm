@@ -1,15 +1,15 @@
 """ Launch SageMaker training task
 """
 import os
-import json
 import logging
-import boto3 # pylint: disable=import-error
+from time import strftime, gmtime
 
+import boto3 # pylint: disable=import-error
 from sagemaker.pytorch.estimator import PyTorch
-from sagemaker.s3 import S3Downloader
 import sagemaker
 
-from common_parser import get_common_parser, parse_estimator_kwargs
+from common_parser import ( # pylint: disable=wrong-import-order
+    get_common_parser, parse_estimator_kwargs)
 
 INSTANCE_TYPE = "ml.m5.12xlarge"
 
@@ -25,7 +25,9 @@ def run_job(input_args, image):
     image: str
         ECR image uri
     """
-    sm_task_name = input_args.task_name # SageMaker task name
+    timestamp = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+    # SageMaker base job name
+    sm_task_name = input_args.task_name if input_args.task_name else timestamp
     role = input_args.role # SageMaker ARN role
     instance_type = input_args.instance_type # SageMaker instance type
     instance_count = input_args.instance_count # Number of infernece instances
@@ -42,22 +44,6 @@ def run_job(input_args, image):
 
     sagemaker_session = sagemaker.Session(boto3.Session(region_name=region))
 
-    container_image_uri = image
-    graph_data_s3_no_trailing = graph_data_s3[:-1] if graph_data_s3.endswith('/') else graph_data_s3
-
-    metadata_s3_path = f"{graph_data_s3_no_trailing}/{metadata_filename}"
-    metadata_local_path = os.path.join("/tmp", metadata_filename)
-
-    if os.path.exists(metadata_local_path):
-        os.remove(metadata_local_path)
-
-    print(f"Downloading metadata file from {metadata_s3_path} into {metadata_local_path}")
-    S3Downloader.download(metadata_s3_path, "/tmp/")
-    with open(metadata_local_path, 'r') as meta_file: # pylint: disable=unspecified-encoding
-        metadata_dict = json.load(meta_file)
-        graph_name = metadata_dict["graph_name"]
-
-    print(f"Graph name during launch: {graph_name}")
     skip_partitioning_str = "true" if input_args.skip_partitioning else "false"
     params = {"graph-data-s3": graph_data_s3,
               "metadata-filename": metadata_filename,
@@ -78,21 +64,21 @@ def run_job(input_args, image):
         debugger_hook_config=False,
         entry_point=os.path.basename(entry_point),
         source_dir=os.path.dirname(entry_point),
-        image_uri=container_image_uri,
+        image_uri=image,
         role=role,
         instance_count=instance_count,
         instance_type=instance_type,
         py_version="py3",
         hyperparameters=params,
         sagemaker_session=sagemaker_session,
-        base_job_name=f"gs-partition-{graph_name}",
+        base_job_name=f"gs-partition-{sm_task_name}",
         tags=[{"Key":"GraphStorm", "Value":"beta"},
               {"Key":"GraphStorm_Task", "Value":"Partition"}],
         container_log_level=logging.getLevelName(input_args.log_level),
         **estimator_kwargs
     )
 
-    est.fit(job_name=sm_task_name, wait=not input_args.async_execution)
+    est.fit(wait=not input_args.async_execution)
 
 def get_partition_parser():
     """
