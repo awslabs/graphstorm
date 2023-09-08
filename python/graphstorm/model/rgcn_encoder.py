@@ -15,7 +15,6 @@
 
     RGCN layer implementation.
 """
-import logging
 
 import torch as th
 from torch import nn
@@ -37,7 +36,7 @@ class RelGraphConvLayer(nn.Module):
         Output feature size.
     rel_names : list[str]
         Relation names.
-    num_bases : int, optional
+    num_bases : int
         Number of bases. If is none, use number of relations. Default: None.
     weight : bool, optional
         True if a linear layer is applied after message passing. Default: True
@@ -155,11 +154,28 @@ class RelGraphConvLayer(nn.Module):
 
         if g.is_block:
             inputs_src = inputs
-            inputs_dst = {k: v[:g.number_of_dst_nodes(k)] for k, v in inputs.items()}
+            # DGL's message passing module requires to access the destination node embeddings.
+            inputs_dst = {}
+            for k in g.dsttypes:
+                # If the destination node type exists in the input embeddings,
+                # we can get from the input node embeddings directly because
+                # the input nodes of DGL's block also contain the destination nodes
+                if k in inputs:
+                    inputs_dst[k] = inputs[k][:g.number_of_dst_nodes(k)]
+                else:
+                    # If the destination node type doesn't exist (this may happen if
+                    # we use RGCN to construct node features), we should create a zero
+                    # tensor. This tensor won't be used for computing embeddings.
+                    # We need this just to fulfill the requirements of DGL message passing
+                    # modules.
+                    assert not self.self_loop, \
+                            f"We cannot allow self-loop if node {k} doesn't have input features."
+                    inputs_dst[k] = th.zeros((g.num_dst_nodes(k), self.in_feat),
+                                             dtype=th.float32, device=g.device)
         else:
             inputs_src = inputs_dst = inputs
 
-        hs = self.conv(g, inputs_src, mod_kwargs=wdict)
+        hs = self.conv(g, (inputs_src, inputs_dst), mod_kwargs=wdict)
 
         def _apply(ntype, h):
             if self.self_loop:
@@ -177,10 +193,7 @@ class RelGraphConvLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    logging.warning("Graph convolution returns empty dict for node of %s.", k)
-                    for _, in_v in inputs_src.items():
-                        device = in_v.device
-                    hs[k] = th.zeros((g.number_of_dst_nodes(k), self.out_feat), device=device)
+                    hs[k] = inputs[k][0:g.number_of_dst_nodes(k)]
                     # TODO the above might fail if the device is a different GPU
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
@@ -190,6 +203,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
 
     Parameters
     ----------
+    g : DistGraph
+        The distributed graph object.
     h_dim : int
         Hidden dimension
     out_dim : int

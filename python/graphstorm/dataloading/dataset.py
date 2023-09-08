@@ -158,6 +158,25 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
+    def has_node_feats(self, ntype):
+        """ Test if the specified node type has features.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        bool : whether the node type has features.
+        """
+        if isinstance(self.node_feat_field, str):
+            return True
+        elif self.node_feat_field is None:
+            return False
+        else:
+            return ntype in self.node_feat_field
+
     def get_node_feats(self, input_nodes, device='cpu'):
         """ Get the node features
 
@@ -608,7 +627,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         num_train = num_val = num_test = 0
         for ntype in self.train_ntypes:
             assert 'train_mask' in g.nodes[ntype].data, \
-                    "For training dataset, train_mask must be provided."
+                    f"For training dataset, train_mask must be provided on nodes of {ntype}."
 
             if 'trainer_id' in g.nodes[ntype].data:
                 node_trainer_ids = g.nodes[ntype].data['trainer_id']

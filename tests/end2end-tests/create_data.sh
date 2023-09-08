@@ -17,10 +17,12 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--add-reverse-edges
 
 # movielens node classification removing test mask
+rm -Rf /data/movielen_100k_train_notest_1p_4t
 cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_train_notest_1p_4t
 python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_train_notest_1p_4t --remove_node_mask true
 
 # movielens node classification inference
+rm -Rf /data/movielen_100k_infer_val_1p_4t
 cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_infer_val_1p_4t
 
 # movielens node classification with text features - used in multi-gpu test, 4 trainers
@@ -40,6 +42,7 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--add-reverse-edges
 
 # movielens link prediction removing test mask
+rm -Rf /data/movielen_100k_lp_train_no_test_1p_4t
 cp -R /data/movielen_100k_lp_train_val_1p_4t /data/movielen_100k_lp_train_no_test_1p_4t
 python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_lp_train_no_test_1p_4t --remove_node_mask false
 
@@ -56,6 +59,14 @@ rm -Rf movielen_no_edata_100k_train_val_1p_4t
 cp -R movielen_100k_lp_train_val_1p_4t movielen_no_edata_100k_train_val_1p_4t
 python3 /$GS_HOME/tests/end2end-tests/data_gen/remove_mask.py --dataset movielen_no_edata_100k_train_val_1p_4t --remove_node_mask 0
 
+# movielens link prediction with two edge types
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_2etype_lp.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lp_2etype_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
 # movielens edge regression - used in both single and multi gpu tests
 python3 -m graphstorm.gconstruct.construct_graph \
 	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_er.json \
@@ -65,22 +76,28 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--add-reverse-edges
 
 # movielens edge regression removing test mask
+rm -Rf /data/movielen_100k_er_no_test_1p_4t
 cp -R /data/movielen_100k_er_1p_4t /data/movielen_100k_er_no_test_1p_4t
 python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_er_no_test_1p_4t --remove_node_mask false
 
 #movielens edge regression - inference
+rm -Rf /data/movielen_100k_er_infer_1p_4t
 cp -R /data/movielen_100k_er_1p_4t /data/movielen_100k_er_infer_1p_4t
 
 # movielens edge classification - used in both single and multi-gpu tests
+rm -Rf /data/movielen_100k_ec_1p_4t
 cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_ec_1p_4t
 
+rm -Rf /data/movielen_100k_ec_no_test_1p_4t
 cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_ec_no_test_1p_4t
 python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_ec_no_test_1p_4t --remove_node_mask false
 
 # movielens edge classification - inference
+rm -Rf /data/movielen_100k_multi_label_ec_infer
 cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_multi_label_ec_infer
 
 # Create data for edge classification with text features
+rm -Rf /data/movielen_100k_ec_1p_4t_text
 cp -R /data/movielen_100k_text_train_val_1p_4t /data/movielen_100k_ec_1p_4t_text
 
 # movielens edge classification without data split - used in both single and multi-gpu tests

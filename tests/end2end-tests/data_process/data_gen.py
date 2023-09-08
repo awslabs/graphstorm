@@ -33,8 +33,15 @@ from graphstorm.gconstruct.file_io import write_data_hdf5, write_index_json
 # without labels, 4) features of different types, 5) node features
 # with different dimensions.
 # We create multiple edges in a similar way.
+def gen_rand_nid(max_nid, num_nodes):
+    node_ids = np.unique(np.random.randint(0, max_nid, num_nodes))
+    if len(node_ids) != num_nodes:
+        print(f"The length of generated node ids is {len(node_ids)}."
+              "But {num_nodes} is needed. Regenerate the node ids.")
+        return gen_rand_nid(max_nid, num_nodes)
+    return node_ids
 
-node_id1 = np.unique(np.random.randint(0, 1000000000, 10000))
+node_id1 = gen_rand_nid(1000000000, 10000)
 node_text = np.array([str(nid) for nid in node_id1])
 node_data1 = {
     'id': node_id1,
@@ -61,7 +68,7 @@ node_data2 = {
             + [str(i) for i in range(10)],
 }
 
-node_id3 = np.unique(np.random.randint(0, 1000000000, 5000))
+node_id3 = gen_rand_nid(1000000000, 5000)
 node_id3_str = np.array([str(nid) for nid in node_id3])
 node_data3 = {
     'id': node_id3_str,
@@ -69,7 +76,7 @@ node_data3 = {
     'data1': node_id3,
 }
 
-node_id4 = np.unique(np.random.randint(0, 1000000000, 5000))
+node_id4 = gen_rand_nid(1000000000, 5000)
 node_id4_str = np.array([str(nid) for nid in node_id3])
 node_data4 = {
     'id': node_id4_str,
