@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Graph Construction" href="configuration-gconstruction.html" /><link rel="prev" title="Use Your Own Data Tutorial" href="../tutorials/own-data.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="prev" title="graphstorm.model" href="../api/graphstorm.model.html" />
 
     <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
-        <title>GraphStorm Configurations - GraphStorm 0.1.2 documentation</title>
+        <title>RelGraphConvLayer - GraphStorm 0.1.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -134,7 +134,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <div class="visually-hidden">Toggle table of contents sidebar</div>
         <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
       </label>
@@ -155,14 +155,14 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
-<li class="toctree-l1 current has-children current-page"><a class="current reference internal" href="#">GraphStorm Configurations</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="configuration-gconstruction.html">Graph Construction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="configuration-partition.html">Graph Partition</a></li>
-<li class="toctree-l2"><a class="reference internal" href="configuration-run.html">Training and Inference</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-gconstruction.html">Graph Construction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-partition.html">Graph Partition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/configuration-run.html">Training and Inference</a></li>
 </ul>
 </li>
 </ul>
@@ -178,10 +178,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.model.RelGraphConvLayer.html">RelGraphConvLayer</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">RelGraphConvLayer</a></li>
 </ul>
 </li>
 </ul>
@@ -212,23 +212,83 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <div class="visually-hidden">Toggle table of contents sidebar</div>
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
         <article role="main">
-          <section id="graphstorm-configurations">
-<span id="configurations"></span><h1>GraphStorm Configurations<a class="headerlink" href="#graphstorm-configurations" title="Permalink to this heading">#</a></h1>
-<p>GraphStorm is designed for easy to use and requires less- or no-code operations for users to perform Graph Machine Learning (GML) tasks. In most cases, users only need to configure the parameters or arguments provided by GraphStorm to fulfill their GML tasks.</p>
-<p>These configurations and arguments include:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="configuration-gconstruction.html#configurations-gconstruction"><span class="std std-ref">GraphStorm graph construction configurations</span></a>.</p></li>
-<li><p><a class="reference internal" href="configuration-partition.html#configurations-partition"><span class="std std-ref">GraphStorm graph partition configurations</span></a>.</p></li>
-<li><p><a class="reference internal" href="configuration-run.html#configurations-run"><span class="std std-ref">GraphStorm training and inference configurations</span></a>.</p></li>
-</ul>
-<div class="toctree-wrapper compound">
+          <section id="relgraphconvlayer">
+<h1>RelGraphConvLayer<a class="headerlink" href="#relgraphconvlayer" title="Permalink to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="graphstorm.model.RelGraphConvLayer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">graphstorm.model.</span></span><span class="sig-name descname"><span class="pre">RelGraphConvLayer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_feat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_feat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rel_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_bases</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">self_loop=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout=0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_ffn_layers_in_gnn=0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ffn_activation=&lt;function</span> <span class="pre">relu&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm=None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.RelGraphConvLayer" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Heterogenous graph transformer (HGT) layer from <a class="reference external" href="https://arxiv.org/abs/2003.01332">Heterogeneous Graph Transformer</a>.</p>
+<p>Given a graph <span class="math notranslate nohighlight">\(G(V, E)\)</span> and input node features <span class="math notranslate nohighlight">\(H^{(l-1)}\)</span>,
+it computes the new node features as follows:</p>
+<p>Compute a multi-head attention score for each edge <span class="math notranslate nohighlight">\((s, e, t)\)</span> in the graph:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}Attention(s, e, t) = \text{Softmax}\left(||_{i\in[1,h]}ATT-head^i(s, e, t)\right) \\
+ATT-head^i(s, e, t) = \left(K^i(s)W^{ATT}_{\phi(e)}Q^i(t)^{\top}\right)\cdot
+  \frac{\mu_{(\tau(s),\phi(e),\tau(t)}}{\sqrt{d}} \\
+K^i(s) = \text{K-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) \\
+Q^i(t) = \text{Q-Linear}^i_{\tau(t)}(H^{(l-1)}[t]) \\\end{split}\]</div>
 </div>
+<section id="parameters">
+<h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this heading">#</a></h2>
+<dl class="simple">
+<dt>in_feat<span class="classifier">int</span></dt><dd><p>Input feature size.</p>
+</dd>
+<dt>out_feat<span class="classifier">int</span></dt><dd><p>Output feature size.</p>
+</dd>
+<dt>rel_names<span class="classifier">list[str]</span></dt><dd><p>Relation names.</p>
+</dd>
+<dt>num_bases<span class="classifier">int</span></dt><dd><p>Number of bases. If is none, use number of relations. Default: None.</p>
+</dd>
+<dt>weight<span class="classifier">bool, optional</span></dt><dd><p>True if a linear layer is applied after message passing. Default: True</p>
+</dd>
+<dt>bias<span class="classifier">bool, optional</span></dt><dd><p>True if bias is added. Default: True</p>
+</dd>
+<dt>activation<span class="classifier">callable, optional</span></dt><dd><p>Activation function. Default: None</p>
+</dd>
+<dt>self_loop<span class="classifier">bool, optional</span></dt><dd><p>True to include self loop message. Default: False</p>
+</dd>
+<dt>dropout<span class="classifier">float, optional</span></dt><dd><p>Dropout rate. Default: 0.0</p>
+</dd>
+<dt>num_ffn_layers_in_gnn: int, optional</dt><dd><p>Number of layers of ngnn between gnn layers</p>
+</dd>
+<dt>ffn_actication: torch.nn.functional</dt><dd><p>Activation Method for ngnn</p>
+</dd>
+<dt>norm<span class="classifier">str, optional</span></dt><dd><p>Normalization Method. Default: None</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.model.RelGraphConvLayer.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">g</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.RelGraphConvLayer.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Forward computation</p>
+<section id="id1">
+<h3>Parameters<a class="headerlink" href="#id1" title="Permalink to this heading">#</a></h3>
+<dl class="simple">
+<dt>g<span class="classifier">DGLHeteroGraph</span></dt><dd><p>Input graph.</p>
+</dd>
+<dt>inputs<span class="classifier">dict[str, torch.Tensor]</span></dt><dd><p>Node feature for each node type.</p>
+</dd>
+</dl>
+</section>
+<section id="returns">
+<h3>Returns<a class="headerlink" href="#returns" title="Permalink to this heading">#</a></h3>
+<dl class="simple">
+<dt>dict[str, torch.Tensor]</dt><dd><p>New node features for each node type.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</section>
+</dd></dl>
+
 </section>
 
         </article>
@@ -236,23 +296,15 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="configuration-gconstruction.html">
-              <div class="page-info">
-                <div class="context">
-                  <span>Next</span>
-                </div>
-                <div class="title">Graph Construction</div>
-              </div>
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-            </a>
-          <a class="prev-page" href="../tutorials/own-data.html">
+          
+          <a class="prev-page" href="../api/graphstorm.model.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Use Your Own Data Tutorial</div>
+                <div class="title">graphstorm.model</div>
                 
               </div>
             </a>
@@ -274,8 +326,30 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">RelGraphConvLayer</a><ul>
+<li><a class="reference internal" href="#graphstorm.model.RelGraphConvLayer"><code class="docutils literal notranslate"><span class="pre">RelGraphConvLayer</span></code></a><ul>
+<li><a class="reference internal" href="#graphstorm.model.RelGraphConvLayer.forward"><code class="docutils literal notranslate"><span class="pre">RelGraphConvLayer.forward()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
@@ -284,5 +358,6 @@
     <script src="../_static/doctools.js"></script>
     <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/scripts/furo.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>
