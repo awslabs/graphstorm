@@ -76,13 +76,16 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelGraphConvLayer.html">RelGraphConvLayer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelationalGATEncoder.html">RelationalGATEncoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelationalAttLayer.html">RelationalAttLayer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="graphstorm.model.SAGEEncoder.html">SAGEEncoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.SAGEConv.html">SAGEConv</a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.inferer.html">graphstorm.inferer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.evaluator.html">graphstorm.evaluator</a></li>
 </ul>
 
         </div>
@@ -141,6 +144,23 @@
 <dt>norm<span class="classifier">str, optional</span></dt><dd><p>Normalization Method. Default: None</p>
 </dd>
 </dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.model.RelationalGCNEncoder.eval">
+<span class="sig-name descname"><span class="pre">eval</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">T</span></span></span><a class="headerlink" href="#graphstorm.model.RelationalGCNEncoder.eval" title="Permalink to this definition"></a></dt>
+<dd><p>Sets the module in evaluation mode.</p>
+<p>This has any effect only on certain modules. See documentations of
+particular modules for details of their behaviors in training/evaluation
+mode, if they are affected, e.g. <code class="xref py py-class docutils literal notranslate"><span class="pre">Dropout</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">BatchNorm</span></code>,
+etc.</p>
+<p>This is equivalent with <code class="xref py py-meth docutils literal notranslate"><span class="pre">self.train(False)</span></code>.</p>
+<p>See <span class="xref std std-ref">locally-disable-grad-doc</span> for a comparison between
+<cite>.eval()</cite> and several similar mechanisms that may be confused with it.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Module: self</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="graphstorm.model.RelationalGCNEncoder.forward">
 <span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">blocks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.RelationalGCNEncoder.forward" title="Permalink to this definition"></a></dt>

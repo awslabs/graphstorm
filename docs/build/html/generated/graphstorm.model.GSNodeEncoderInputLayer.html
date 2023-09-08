@@ -82,6 +82,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.inferer.html">graphstorm.inferer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.evaluator.html">graphstorm.evaluator</a></li>
 </ul>
 
         </div>
@@ -145,6 +146,23 @@ available.</p>
 </dd>
 </dl>
 <dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.model.GSNodeEncoderInputLayer.eval">
+<span class="sig-name descname"><span class="pre">eval</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">T</span></span></span><a class="headerlink" href="#graphstorm.model.GSNodeEncoderInputLayer.eval" title="Permalink to this definition"></a></dt>
+<dd><p>Sets the module in evaluation mode.</p>
+<p>This has any effect only on certain modules. See documentations of
+particular modules for details of their behaviors in training/evaluation
+mode, if they are affected, e.g. <code class="xref py py-class docutils literal notranslate"><span class="pre">Dropout</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">BatchNorm</span></code>,
+etc.</p>
+<p>This is equivalent with <code class="xref py py-meth docutils literal notranslate"><span class="pre">self.train(False)</span></code>.</p>
+<p>See <span class="xref std std-ref">locally-disable-grad-doc</span> for a comparison between
+<cite>.eval()</cite> and several similar mechanisms that may be confused with it.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Module: self</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="graphstorm.model.GSNodeEncoderInputLayer.forward">
 <span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_feats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_nodes</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.GSNodeEncoderInputLayer.forward" title="Permalink to this definition"></a></dt>
 <dd><p>Forward computation</p>
@@ -160,6 +178,35 @@ available.</p>
 <section id="returns">
 <h3>Returns<a class="headerlink" href="#returns" title="Permalink to this heading"></a></h3>
 <p>a dict of Tensor: the node embeddings.</p>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.model.GSNodeEncoderInputLayer.get_general_dense_parameters">
+<span class="sig-name descname"><span class="pre">get_general_dense_parameters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.GSNodeEncoderInputLayer.get_general_dense_parameters" title="Permalink to this definition"></a></dt>
+<dd><p>Get dense layers’ parameters.</p>
+<section id="id2">
+<h3>Returns<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h3>
+<p>list of Tensors: the dense parameters</p>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.model.GSNodeEncoderInputLayer.get_lm_dense_parameters">
+<span class="sig-name descname"><span class="pre">get_lm_dense_parameters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.GSNodeEncoderInputLayer.get_lm_dense_parameters" title="Permalink to this definition"></a></dt>
+<dd><p>Get the language model related parameters
+Returns
+——-
+list of Tensors: the language model parameters.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.model.GSNodeEncoderInputLayer.get_sparse_params">
+<span class="sig-name descname"><span class="pre">get_sparse_params</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.GSNodeEncoderInputLayer.get_sparse_params" title="Permalink to this definition"></a></dt>
+<dd><p>get the sparse parameters.</p>
+<section id="id3">
+<h3>Returns<a class="headerlink" href="#id3" title="Permalink to this heading"></a></h3>
+<p>list of Tensors: the sparse embeddings.</p>
 </section>
 </dd></dl>
 

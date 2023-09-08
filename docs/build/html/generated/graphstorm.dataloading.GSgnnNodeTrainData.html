@@ -68,7 +68,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../api/graphstorm.dataloading.html">graphstorm.dataloading</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">GSgnnNodeTrainData</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#graphstorm.dataloading.GSgnnNodeTrainData"><code class="docutils literal notranslate"><span class="pre">GSgnnNodeTrainData</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#graphstorm.dataloading.GSgnnNodeTrainData"><code class="docutils literal notranslate"><span class="pre">GSgnnNodeTrainData</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.dataloading.GSgnnNodeTrainData.get_edge_feats"><code class="docutils literal notranslate"><span class="pre">GSgnnNodeTrainData.get_edge_feats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.dataloading.GSgnnNodeTrainData.get_labels"><code class="docutils literal notranslate"><span class="pre">GSgnnNodeTrainData.get_labels()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.dataloading.GSgnnNodeTrainData.get_node_feats"><code class="docutils literal notranslate"><span class="pre">GSgnnNodeTrainData.get_node_feats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.dataloading.GSgnnNodeTrainData.prepare_data"><code class="docutils literal notranslate"><span class="pre">GSgnnNodeTrainData.prepare_data()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="graphstorm.dataloading.GSgnnNodeInferData.html">GSgnnNodeInferData</a></li>
@@ -82,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.inferer.html">graphstorm.inferer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.evaluator.html">graphstorm.evaluator</a></li>
 </ul>
 
         </div>
@@ -136,6 +143,75 @@ different feature names.</p>
 different feature names.</p>
 </dd>
 </dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.dataloading.GSgnnNodeTrainData.get_edge_feats">
+<span class="sig-name descname"><span class="pre">get_edge_feats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_edges</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_feat_field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cpu'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.dataloading.GSgnnNodeTrainData.get_edge_feats" title="Permalink to this definition"></a></dt>
+<dd><p>Get the node features</p>
+<section id="id1">
+<h3>Parameters<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h3>
+<dl class="simple">
+<dt>input_edges<span class="classifier">Tensor or dict of Tensors</span></dt><dd><p>The input edge IDs</p>
+</dd>
+<dt>edge_feat_field: str or dict of [str ..]</dt><dd><p>The edge data fields that stores the edge features to retrieve</p>
+</dd>
+<dt>device<span class="classifier">Pytorch device</span></dt><dd><p>The device where the returned edge features are stored.</p>
+</dd>
+</dl>
+</section>
+<section id="returns">
+<h3>Returns<a class="headerlink" href="#returns" title="Permalink to this heading"></a></h3>
+<p>dict of Tensors : The returned edge features.</p>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.dataloading.GSgnnNodeTrainData.get_labels">
+<span class="sig-name descname"><span class="pre">get_labels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cpu'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.dataloading.GSgnnNodeTrainData.get_labels" title="Permalink to this definition"></a></dt>
+<dd><p>Get the node labels</p>
+<section id="id2">
+<h3>Parameters<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h3>
+<dl class="simple">
+<dt>nids<span class="classifier">Tensor or dict of Tensors</span></dt><dd><p>The seed nodes</p>
+</dd>
+<dt>device<span class="classifier">Pytorch device</span></dt><dd><p>The device where the returned node labels are stored.</p>
+</dd>
+</dl>
+</section>
+<section id="id3">
+<h3>Returns<a class="headerlink" href="#id3" title="Permalink to this heading"></a></h3>
+<p>dict of Tensors : the returned node labels.</p>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.dataloading.GSgnnNodeTrainData.get_node_feats">
+<span class="sig-name descname"><span class="pre">get_node_feats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_nodes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cpu'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.dataloading.GSgnnNodeTrainData.get_node_feats" title="Permalink to this definition"></a></dt>
+<dd><p>Get the node features</p>
+<section id="id4">
+<h3>Parameters<a class="headerlink" href="#id4" title="Permalink to this heading"></a></h3>
+<dl class="simple">
+<dt>input_nodes<span class="classifier">Tensor or dict of Tensors</span></dt><dd><p>The input node IDs</p>
+</dd>
+<dt>device<span class="classifier">Pytorch device</span></dt><dd><p>The device where the returned node features are stored.</p>
+</dd>
+</dl>
+</section>
+<section id="id5">
+<h3>Returns<a class="headerlink" href="#id5" title="Permalink to this heading"></a></h3>
+<p>dict of Tensors : The returned node features.</p>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.dataloading.GSgnnNodeTrainData.prepare_data">
+<span class="sig-name descname"><span class="pre">prepare_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">g</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.dataloading.GSgnnNodeTrainData.prepare_data" title="Permalink to this definition"></a></dt>
+<dd><p>Prepare the dataset.</p>
+<section id="arguement">
+<h3>Arguement<a class="headerlink" href="#arguement" title="Permalink to this heading"></a></h3>
+<p>g: Dist DGLGraph</p>
+</section>
+</dd></dl>
+
 </section>
 </dd></dl>
 

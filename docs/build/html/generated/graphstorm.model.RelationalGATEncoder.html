@@ -19,7 +19,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="SAGEEncoder" href="graphstorm.model.SAGEEncoder.html" />
+    <link rel="next" title="RelationalAttLayer" href="graphstorm.model.RelationalAttLayer.html" />
     <link rel="prev" title="RelGraphConvLayer" href="graphstorm.model.RelGraphConvLayer.html" /> 
 </head>
 
@@ -76,13 +76,16 @@
 <li class="toctree-l4"><a class="reference internal" href="#graphstorm.model.RelationalGATEncoder"><code class="docutils literal notranslate"><span class="pre">RelationalGATEncoder</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelationalAttLayer.html">RelationalAttLayer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="graphstorm.model.SAGEEncoder.html">SAGEEncoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.SAGEConv.html">SAGEConv</a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.inferer.html">graphstorm.inferer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.evaluator.html">graphstorm.evaluator</a></li>
 </ul>
 
         </div>
@@ -143,6 +146,23 @@ g : DGLHeteroGraph</p>
 </dd>
 </dl>
 <dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.model.RelationalGATEncoder.eval">
+<span class="sig-name descname"><span class="pre">eval</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">T</span></span></span><a class="headerlink" href="#graphstorm.model.RelationalGATEncoder.eval" title="Permalink to this definition"></a></dt>
+<dd><p>Sets the module in evaluation mode.</p>
+<p>This has any effect only on certain modules. See documentations of
+particular modules for details of their behaviors in training/evaluation
+mode, if they are affected, e.g. <code class="xref py py-class docutils literal notranslate"><span class="pre">Dropout</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">BatchNorm</span></code>,
+etc.</p>
+<p>This is equivalent with <code class="xref py py-meth docutils literal notranslate"><span class="pre">self.train(False)</span></code>.</p>
+<p>See <span class="xref std std-ref">locally-disable-grad-doc</span> for a comparison between
+<cite>.eval()</cite> and several similar mechanisms that may be confused with it.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Module: self</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="graphstorm.model.RelationalGATEncoder.forward">
 <span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">blocks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.RelationalGATEncoder.forward" title="Permalink to this definition"></a></dt>
 <dd><p>Forward computation</p>
@@ -166,7 +186,7 @@ g : DGLHeteroGraph</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="graphstorm.model.RelGraphConvLayer.html" class="btn btn-neutral float-left" title="RelGraphConvLayer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="graphstorm.model.SAGEEncoder.html" class="btn btn-neutral float-right" title="SAGEEncoder" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="graphstorm.model.RelationalAttLayer.html" class="btn btn-neutral float-right" title="RelationalAttLayer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

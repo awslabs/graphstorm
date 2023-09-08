@@ -25,6 +25,7 @@ Encoder
 
     RelationalGCNEncoder
     RelGraphConvLayer
-
     RelationalGATEncoder
+    RelationalAttLayer
     SAGEEncoder
+    SAGEConv

@@ -70,7 +70,14 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../api/graphstorm.trainer.html">graphstorm.trainer</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">GSgnnTrainer</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#graphstorm.trainer.GSgnnTrainer"><code class="docutils literal notranslate"><span class="pre">GSgnnTrainer</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#graphstorm.trainer.GSgnnTrainer"><code class="docutils literal notranslate"><span class="pre">GSgnnTrainer</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.trainer.GSgnnTrainer.get_best_model_path"><code class="docutils literal notranslate"><span class="pre">GSgnnTrainer.get_best_model_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.trainer.GSgnnTrainer.remove_saved_model"><code class="docutils literal notranslate"><span class="pre">GSgnnTrainer.remove_saved_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.trainer.GSgnnTrainer.restore_model"><code class="docutils literal notranslate"><span class="pre">GSgnnTrainer.restore_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.trainer.GSgnnTrainer.save_model"><code class="docutils literal notranslate"><span class="pre">GSgnnTrainer.save_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.trainer.GSgnnTrainer.save_topk_models"><code class="docutils literal notranslate"><span class="pre">GSgnnTrainer.save_topk_models()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="graphstorm.trainer.GSgnnLinkPredictionTrainer.html">GSgnnLinkPredictionTrainer</a></li>
@@ -80,6 +87,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.inferer.html">graphstorm.inferer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.evaluator.html">graphstorm.evaluator</a></li>
 </ul>
 
         </div>
@@ -124,6 +132,80 @@
 <dt>topk_model_to_save<span class="classifier">int</span></dt><dd><p>The top K model to save.</p>
 </dd>
 </dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.trainer.GSgnnTrainer.get_best_model_path">
+<span class="sig-name descname"><span class="pre">get_best_model_path</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.trainer.GSgnnTrainer.get_best_model_path" title="Permalink to this definition"></a></dt>
+<dd><p>Return the path of the best model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.trainer.GSgnnTrainer.remove_saved_model">
+<span class="sig-name descname"><span class="pre">remove_saved_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_model_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.trainer.GSgnnTrainer.remove_saved_model" title="Permalink to this definition"></a></dt>
+<dd><dl class="simple">
+<dt>remove previously saved model, which may not be the best K performed or other reasons.</dt><dd><p>This function will remove the entire folder.</p>
+</dd>
+</dl>
+<section id="id1">
+<h3>Parameters<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h3>
+<dl class="simple">
+<dt>epoch: int</dt><dd><p>The number of training epoch.</p>
+</dd>
+<dt>i: int</dt><dd><p>The number of iteration in a training epoch.</p>
+</dd>
+<dt>save_model_path<span class="classifier">str</span></dt><dd><p>The path where the model is saved.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.trainer.GSgnnTrainer.restore_model">
+<span class="sig-name descname"><span class="pre">restore_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_layer_to_load</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.trainer.GSgnnTrainer.restore_model" title="Permalink to this definition"></a></dt>
+<dd><p>Restore a GNN model and the optimizer.</p>
+<section id="id2">
+<h3>Parameters<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h3>
+<dl class="simple">
+<dt>model_path<span class="classifier">str</span></dt><dd><p>The path where the model and the optimizer state has been saved.</p>
+</dd>
+<dt>model_layer_to_load: list of str</dt><dd><p>list of model layers to load. Supported layers include
+‘gnn’, ‘embed’, ‘decoder’</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.trainer.GSgnnTrainer.save_model">
+<span class="sig-name descname"><span class="pre">save_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_model_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.trainer.GSgnnTrainer.save_model" title="Permalink to this definition"></a></dt>
+<dd><p>Save the model for a certain iteration in an epoch.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphstorm.trainer.GSgnnTrainer.save_topk_models">
+<span class="sig-name descname"><span class="pre">save_topk_models</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_score</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_model_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.trainer.GSgnnTrainer.save_topk_models" title="Permalink to this definition"></a></dt>
+<dd><dl class="simple">
+<dt>Based on the given val_score, decided if save the current model trained in the i_th</dt><dd><p>iteration and the epoch_th epoch.</p>
+</dd>
+</dl>
+<section id="id3">
+<h3>Parameters<a class="headerlink" href="#id3" title="Permalink to this heading"></a></h3>
+<dl class="simple">
+<dt>model<span class="classifier">pytorch model</span></dt><dd><p>The GNN model.</p>
+</dd>
+<dt>epoch: int</dt><dd><p>The number of training epoch.</p>
+</dd>
+<dt>i: int</dt><dd><p>The number of iteration in a training epoch.</p>
+</dd>
+<dt>val_score: dict or None</dt><dd><p>A dictionary contains scores from evaluator’s validation function. It could be None
+that means there is either no evluator or not do validation. In that case, just set
+the score rank as 1st to save all models or the last k models.</p>
+</dd>
+<dt>save_model_path<span class="classifier">str</span></dt><dd><p>The path where the model is saved.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
 </section>
 </dd></dl>
 

@@ -9,7 +9,7 @@ graphstorm.evaluator
     :nosignatures:
     :template: classtemplate.rst
 
-
+    GSgnnInstanceEvaluator
     GSgnnLPEvaluator
     GSgnnMrrLPEvaluator
     GSgnnPerEtypeMrrLPEvaluator
