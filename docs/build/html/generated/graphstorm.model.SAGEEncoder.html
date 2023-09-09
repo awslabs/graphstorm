@@ -68,8 +68,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.dataloading.html">graphstorm.dataloading</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../api/graphstorm.model.html#input">Input</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="../api/graphstorm.model.html#encoder">Encoder</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api/graphstorm.model.html#model-input-layers">Model input layers</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api/graphstorm.model.html#model-encoders-and-layers">Model encoders and layers</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelationalGCNEncoder.html">RelationalGCNEncoder</a></li>
 <li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelGraphConvLayer.html">RelGraphConvLayer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelationalGATEncoder.html">RelationalGATEncoder</a></li>
@@ -86,6 +86,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.inferer.html">graphstorm.inferer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.evaluator.html">graphstorm.evaluator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.customized.html">customized model APIs</a></li>
 </ul>
 
         </div>
@@ -119,7 +120,7 @@
 <dt class="sig sig-object py" id="graphstorm.model.SAGEEncoder">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">graphstorm.model.</span></span><span class="sig-name descname"><span class="pre">SAGEEncoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_hidden_layers=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout=0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aggregator_type='mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation=&lt;function</span> <span class="pre">relu&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_ffn_layers_in_gnn=0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm=None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.SAGEEncoder" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">GraphConvEncoder</span></code></p>
-<p>Sage Conv Layer</p>
+<p>GraphSage Conv Encoder</p>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this heading"></a></h2>
 <dl class="simple">

@@ -68,13 +68,13 @@
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.html">graphstorm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.dataloading.html">graphstorm.dataloading</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">graphstorm.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#input">Input</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#model-input-layers">Model input layers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSNodeEncoderInputLayer.html">GSNodeEncoderInputLayer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSLMNodeEncoderInputLayer.html">GSLMNodeEncoderInputLayer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSPureLMNodeInputLayer.html">GSPureLMNodeInputLayer</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#encoder">Encoder</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#model-encoders-and-layers">Model encoders and layers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.RelationalGCNEncoder.html">RelationalGCNEncoder</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.RelGraphConvLayer.html">RelGraphConvLayer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.RelationalGATEncoder.html">RelationalGATEncoder</a></li>
@@ -88,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.trainer.html">graphstorm.trainer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.inferer.html">graphstorm.inferer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.evaluator.html">graphstorm.evaluator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="graphstorm.customized.html">customized model APIs</a></li>
 </ul>
 
         </div>
@@ -116,8 +117,18 @@
              
   <section id="graphstorm-model">
 <span id="apimodel"></span><h1>graphstorm.model<a class="headerlink" href="#graphstorm-model" title="Permalink to this heading"></a></h1>
-<section id="input">
-<h2>Input<a class="headerlink" href="#input" title="Permalink to this heading"></a></h2>
+<blockquote>
+<div><p>A GraphStorm model normally contains three components:</p>
+<ul class="simple">
+<li><p>Input layer: a set of modules to convert input data for different use cases,
+e.g., embedding texture features.</p></li>
+<li><p>Encoder: a set of Graph Neural Network modules</p></li>
+<li><p>Decoder: a set of modules to convert results from encoders for different tasks,
+e.g., classification, regression, or link prediction.</p></li>
+</ul>
+</div></blockquote>
+<section id="model-input-layers">
+<h2>Model input layers<a class="headerlink" href="#model-input-layers" title="Permalink to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.model.GSNodeEncoderInputLayer.html#graphstorm.model.GSNodeEncoderInputLayer" title="graphstorm.model.GSNodeEncoderInputLayer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSNodeEncoderInputLayer</span></code></a></p></td>
@@ -132,8 +143,8 @@
 </tbody>
 </table>
 </section>
-<section id="encoder">
-<h2>Encoder<a class="headerlink" href="#encoder" title="Permalink to this heading"></a></h2>
+<section id="model-encoders-and-layers">
+<h2>Model encoders and layers<a class="headerlink" href="#model-encoders-and-layers" title="Permalink to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.model.RelationalGCNEncoder.html#graphstorm.model.RelationalGCNEncoder" title="graphstorm.model.RelationalGCNEncoder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RelationalGCNEncoder</span></code></a></p></td>
@@ -149,10 +160,10 @@
 <td><p>Relational graph attention layer.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.model.SAGEEncoder.html#graphstorm.model.SAGEEncoder" title="graphstorm.model.SAGEEncoder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SAGEEncoder</span></code></a></p></td>
-<td><p>Sage Conv Layer</p></td>
+<td><p>GraphSage Conv Encoder</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.model.SAGEConv.html#graphstorm.model.SAGEConv" title="graphstorm.model.SAGEConv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SAGEConv</span></code></a></p></td>
-<td><p>Sage Convolutional layer.</p></td>
+<td><p>GraphSage Convolutional layer.</p></td>
 </tr>
 </tbody>
 </table>

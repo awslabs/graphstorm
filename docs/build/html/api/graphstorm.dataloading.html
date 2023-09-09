@@ -20,7 +20,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="GSgnnNodeTrainData" href="../generated/graphstorm.dataloading.GSgnnNodeTrainData.html" />
-    <link rel="prev" title="graphstorm.gsf.initialize" href="../generated/graphstorm.gsf.initialize.html" /> 
+    <link rel="prev" title="graphstorm.utils.get_world_size" href="../generated/graphstorm.utils.get_world_size.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -67,13 +67,19 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.html">graphstorm</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">graphstorm.dataloading</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnNodeTrainData.html">GSgnnNodeTrainData</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnNodeInferData.html">GSgnnNodeInferData</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnEdgeTrainData.html">GSgnnEdgeTrainData</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnEdgeInferData.html">GSgnnEdgeInferData</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnNodeDataLoader.html">GSgnnNodeDataLoader</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnEdgeDataLoader.html">GSgnnEdgeDataLoader</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnLinkPredictionDataLoader.html">GSgnnLinkPredictionDataLoader</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#datasets">DataSets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnNodeTrainData.html">GSgnnNodeTrainData</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnNodeInferData.html">GSgnnNodeInferData</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnEdgeTrainData.html">GSgnnEdgeTrainData</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnEdgeInferData.html">GSgnnEdgeInferData</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#dataloaders">Dataloaders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnNodeDataLoader.html">GSgnnNodeDataLoader</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnEdgeDataLoader.html">GSgnnEdgeDataLoader</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnLinkPredictionDataLoader.html">GSgnnLinkPredictionDataLoader</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.model.html">graphstorm.model</a></li>
@@ -108,6 +114,12 @@
              
   <section id="graphstorm-dataloading">
 <span id="apidataloading"></span><h1>graphstorm.dataloading<a class="headerlink" href="#graphstorm-dataloading" title="Permalink to this heading"></a></h1>
+<blockquote>
+<div><p>GraphStorm dataloading module includes a set of graph datasets and dataloaders for different
+graph machine learning tasks.</p>
+</div></blockquote>
+<section id="datasets">
+<h2>DataSets<a class="headerlink" href="#datasets" title="Permalink to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnNodeTrainData.html#graphstorm.dataloading.GSgnnNodeTrainData" title="graphstorm.dataloading.GSgnnNodeTrainData"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnNodeTrainData</span></code></a></p></td>
@@ -122,6 +134,13 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnEdgeInferData.html#graphstorm.dataloading.GSgnnEdgeInferData" title="graphstorm.dataloading.GSgnnEdgeInferData"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnEdgeInferData</span></code></a></p></td>
 <td><p>Edge prediction inference data</p></td>
 </tr>
+</tbody>
+</table>
+</section>
+<section id="dataloaders">
+<h2>Dataloaders<a class="headerlink" href="#dataloaders" title="Permalink to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.dataloading.GSgnnNodeDataLoader.html#graphstorm.dataloading.GSgnnNodeDataLoader" title="graphstorm.dataloading.GSgnnNodeDataLoader"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnNodeDataLoader</span></code></a></p></td>
 <td><p>Minibatch dataloader for node tasks</p></td>
 </tr>
@@ -134,12 +153,13 @@
 </tbody>
 </table>
 </section>
+</section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="../generated/graphstorm.gsf.initialize.html" class="btn btn-neutral float-left" title="graphstorm.gsf.initialize" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../generated/graphstorm.utils.get_world_size.html" class="btn btn-neutral float-left" title="graphstorm.utils.get_world_size" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="../generated/graphstorm.dataloading.GSgnnNodeTrainData.html" class="btn btn-neutral float-right" title="GSgnnNodeTrainData" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

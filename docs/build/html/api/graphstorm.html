@@ -66,10 +66,10 @@
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">graphstorm</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#functions">Functions</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.gsf.initialize.html">graphstorm.gsf.initialize</a></li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.gsf.initialize.html">graphstorm.gsf.initialize</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.gsf.get_feat_size.html">graphstorm.gsf.get_feat_size</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.utils.get_rank.html">graphstorm.utils.get_rank</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.utils.get_world_size.html">graphstorm.utils.get_world_size</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.dataloading.html">graphstorm.dataloading</a></li>
@@ -106,18 +106,27 @@
   <section id="graphstorm">
 <span id="apigraphstorm"></span><h1>graphstorm<a class="headerlink" href="#graphstorm" title="Permalink to this heading"></a></h1>
 <blockquote>
-<div><p>The <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code> package contains a set of functions for environment setup.</p>
+<div><p>The <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code> package contains a set of functions for environment setup.
+Users can directly use the following code to use these functions.
+&gt;&gt;&gt; import graphstorm as gs
+&gt;&gt;&gt; gs.initialize()</p>
 </div></blockquote>
-<section id="functions">
-<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.gsf.initialize.html#graphstorm.gsf.initialize" title="graphstorm.gsf.initialize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">initialize</span></code></a>(ip_config, backend)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.gsf.initialize.html#graphstorm.gsf.initialize" title="graphstorm.gsf.initialize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gsf.initialize</span></code></a>(ip_config, backend)</p></td>
 <td><p>Initialize distributed inference context</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.gsf.get_feat_size.html#graphstorm.gsf.get_feat_size" title="graphstorm.gsf.get_feat_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gsf.get_feat_size</span></code></a>(g, node_feat_names)</p></td>
+<td><p>Get the feature's size on each node type in the input graph.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.utils.get_rank.html#graphstorm.utils.get_rank" title="graphstorm.utils.get_rank"><code class="xref py py-obj docutils literal notranslate"><span class="pre">utils.get_rank</span></code></a>()</p></td>
+<td><p>Get rank of a process</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.utils.get_world_size.html#graphstorm.utils.get_world_size" title="graphstorm.utils.get_world_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">utils.get_world_size</span></code></a>()</p></td>
+<td><p>Get the world size.</p></td>
 </tr>
 </tbody>
 </table>
-</section>
 </section>
 
 

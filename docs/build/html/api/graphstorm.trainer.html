@@ -69,11 +69,20 @@
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.dataloading.html">graphstorm.dataloading</a></li>
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.model.html">graphstorm.model</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">graphstorm.trainer</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnTrainer.html">GSgnnTrainer</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnLinkPredictionTrainer.html">GSgnnLinkPredictionTrainer</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnNodePredictionTrainer.html">GSgnnNodePredictionTrainer</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnEdgePredictionTrainer.html">GSgnnEdgePredictionTrainer</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/graphstorm.trainer.GLEMNodePredictionTrainer.html">GLEMNodePredictionTrainer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#base-class">Base class</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnTrainer.html">GSgnnTrainer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#task-classes">Task classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnLinkPredictionTrainer.html">GSgnnLinkPredictionTrainer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnNodePredictionTrainer.html">GSgnnNodePredictionTrainer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnEdgePredictionTrainer.html">GSgnnEdgePredictionTrainer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#method-classes">Method classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.trainer.GLEMNodePredictionTrainer.html">GLEMNodePredictionTrainer</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="graphstorm.inferer.html">graphstorm.inferer</a></li>
@@ -106,25 +115,48 @@
              
   <section id="graphstorm-trainer">
 <span id="apitrainer"></span><h1>graphstorm.trainer<a class="headerlink" href="#graphstorm-trainer" title="Permalink to this heading"></a></h1>
+<blockquote>
+<div><p>GraphStorm trainers assemble the distributed trainging pipeline for different tasks or
+different training methods.</p>
+<p>If possible, users should always use these trainers to avoid handling the distributed
+processing and tasks.</p>
+</div></blockquote>
+<section id="base-class">
+<h2>Base class<a class="headerlink" href="#base-class" title="Permalink to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnTrainer.html#graphstorm.trainer.GSgnnTrainer" title="graphstorm.trainer.GSgnnTrainer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnTrainer</span></code></a></p></td>
 <td><p>Generic GSgnn trainer.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnLinkPredictionTrainer.html#graphstorm.trainer.GSgnnLinkPredictionTrainer" title="graphstorm.trainer.GSgnnLinkPredictionTrainer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnLinkPredictionTrainer</span></code></a></p></td>
+</tbody>
+</table>
+</section>
+<section id="task-classes">
+<h2>Task classes<a class="headerlink" href="#task-classes" title="Permalink to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnLinkPredictionTrainer.html#graphstorm.trainer.GSgnnLinkPredictionTrainer" title="graphstorm.trainer.GSgnnLinkPredictionTrainer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnLinkPredictionTrainer</span></code></a></p></td>
 <td><p>Link prediction trainer.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnNodePredictionTrainer.html#graphstorm.trainer.GSgnnNodePredictionTrainer" title="graphstorm.trainer.GSgnnNodePredictionTrainer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnNodePredictionTrainer</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnNodePredictionTrainer.html#graphstorm.trainer.GSgnnNodePredictionTrainer" title="graphstorm.trainer.GSgnnNodePredictionTrainer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnNodePredictionTrainer</span></code></a></p></td>
 <td><p>A trainer for node prediction</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnEdgePredictionTrainer.html#graphstorm.trainer.GSgnnEdgePredictionTrainer" title="graphstorm.trainer.GSgnnEdgePredictionTrainer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnEdgePredictionTrainer</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.trainer.GSgnnEdgePredictionTrainer.html#graphstorm.trainer.GSgnnEdgePredictionTrainer" title="graphstorm.trainer.GSgnnEdgePredictionTrainer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GSgnnEdgePredictionTrainer</span></code></a></p></td>
 <td><p>Edge prediction trainer.</p></td>
 </tr>
+</tbody>
+</table>
+</section>
+<section id="method-classes">
+<h2>Method classes<a class="headerlink" href="#method-classes" title="Permalink to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.trainer.GLEMNodePredictionTrainer.html#graphstorm.trainer.GLEMNodePredictionTrainer" title="graphstorm.trainer.GLEMNodePredictionTrainer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GLEMNodePredictionTrainer</span></code></a></p></td>
 <td><p>A trainer for node prediction</p></td>
 </tr>
 </tbody>
 </table>
+</section>
 </section>
 
 
