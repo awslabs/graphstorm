@@ -19,7 +19,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="GSgnnNodeModelBase" href="../generated/graphstorm.model.GSgnnNodeModelBase.html" />
+    <link rel="next" title="GSgnnModelBase" href="../generated/graphstorm.model.GSgnnModelBase.html" />
     <link rel="prev" title="GSgnnRegressionEvaluator" href="../generated/graphstorm.eval.GSgnnRegressionEvaluator.html" /> 
 </head>
 
@@ -74,8 +74,10 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">customized model APIs</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#dataloaders">Dataloaders</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#models">Models</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSgnnNodeModelBase.html">GSgnnNodeModelBase</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSgnnModelBase.html">GSgnnModelBase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSgnnNodeModelBase.html">GSgnnNodeModelBase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSgnnEdgeModelBase.html">GSgnnEdgeModelBase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSgnnLinkPredictionModelBase.html">GSgnnLinkPredictionModelBase</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSgnnNodeModelInterface.html">GSgnnNodeModelInterface</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSgnnEdgeModelInterface.html">GSgnnEdgeModelInterface</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.model.GSgnnLinkPredictionModelInterface.html">GSgnnLinkPredictionModelInterface</a></li>
@@ -83,6 +85,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#evaluators">Evaluators</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.eval.GSgnnInstanceEvaluator.html">GSgnnInstanceEvaluator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/graphstorm.eval.GSgnnLPEvaluator.html">GSgnnLPEvaluator</a></li>
 </ul>
 </li>
 </ul>
@@ -114,9 +117,21 @@
            <div itemprop="articleBody">
              
   <section id="customized-model-apis">
-<span id="apidataloading"></span><h1>customized model APIs<a class="headerlink" href="#customized-model-apis" title="Permalink to this heading"></a></h1>
+<span id="apicustomized"></span><h1>customized model APIs<a class="headerlink" href="#customized-model-apis" title="Permalink to this heading"></a></h1>
 <blockquote>
-<div><p>GraphStorm .</p>
+<div><p>GraphStorm provides a set of APIs for users to integrate their own customized models with
+the framework of GraphStorm, so that users’ own models can leverage GraphStorm’s easy-to-use
+and distributed capabilities.</p>
+<p>For how to modify users’ own models, please refer to this <a class="reference internal" href="../advanced/own-models.html#use-own-models"><span class="std std-ref">Use Your Own Model Tutorial</span></a>.</p>
+<p>In general, there are three sets of APIs involved in programming customized models.</p>
+<ul class="simple">
+<li><p>Dataloaders: users need to extend GraphStorm’s abstract node or edge dataloader to implement
+their own graph samplers or mini_batch generators.</p></li>
+<li><p>Models: depending on specific GML tasks, users need to extend the corresponding ModelBase and
+ModelInterface, and then implement the required abstract functions.</p></li>
+<li><p>Evaluators: if necessary, users can also extend the two evaluator templates to implement their
+own performance evaluation method.</p></li>
+</ul>
 </div></blockquote>
 <section id="dataloaders">
 <h2>Dataloaders<a class="headerlink" href="#dataloaders" title="Permalink to this heading"></a></h2>
@@ -129,11 +144,17 @@
 <h2>Models<a class="headerlink" href="#models" title="Permalink to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.model.GSgnnNodeModelBase.html#graphstorm.model.GSgnnNodeModelBase" title="graphstorm.model.GSgnnNodeModelBase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model.GSgnnNodeModelBase</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.model.GSgnnModelBase.html#graphstorm.model.GSgnnModelBase" title="graphstorm.model.GSgnnModelBase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model.GSgnnModelBase</span></code></a></p></td>
+<td><p>GraphStorm GNN model base class</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.model.GSgnnNodeModelBase.html#graphstorm.model.GSgnnNodeModelBase" title="graphstorm.model.GSgnnNodeModelBase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model.GSgnnNodeModelBase</span></code></a></p></td>
 <td><p>The base class for node-prediction GNN</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.model.GSgnnModelBase.html#graphstorm.model.GSgnnModelBase" title="graphstorm.model.GSgnnModelBase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model.GSgnnModelBase</span></code></a></p></td>
-<td><p>GraphStorm GNN model base class</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.model.GSgnnEdgeModelBase.html#graphstorm.model.GSgnnEdgeModelBase" title="graphstorm.model.GSgnnEdgeModelBase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model.GSgnnEdgeModelBase</span></code></a></p></td>
+<td><p>The base class for edge-prediction GNN</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.model.GSgnnLinkPredictionModelBase.html#graphstorm.model.GSgnnLinkPredictionModelBase" title="graphstorm.model.GSgnnLinkPredictionModelBase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model.GSgnnLinkPredictionModelBase</span></code></a></p></td>
+<td><p>The base class for link-prediction GNN</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.model.GSgnnNodeModelInterface.html#graphstorm.model.GSgnnNodeModelInterface" title="graphstorm.model.GSgnnNodeModelInterface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model.GSgnnNodeModelInterface</span></code></a></p></td>
 <td><p>The interface for GraphStorm node prediction model.</p></td>
@@ -158,6 +179,9 @@ extend the <code class="docutils literal notranslate"><span class="pre">eval.GSg
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/graphstorm.eval.GSgnnInstanceEvaluator.html#graphstorm.eval.GSgnnInstanceEvaluator" title="graphstorm.eval.GSgnnInstanceEvaluator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval.GSgnnInstanceEvaluator</span></code></a></p></td>
 <td><p>Template class for user defined evaluator.</p></td>
 </tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/graphstorm.eval.GSgnnLPEvaluator.html#graphstorm.eval.GSgnnLPEvaluator" title="graphstorm.eval.GSgnnLPEvaluator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval.GSgnnLPEvaluator</span></code></a></p></td>
+<td><p>Template class for user defined evaluator.</p></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -168,7 +192,7 @@ extend the <code class="docutils literal notranslate"><span class="pre">eval.GSg
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="../generated/graphstorm.eval.GSgnnRegressionEvaluator.html" class="btn btn-neutral float-left" title="GSgnnRegressionEvaluator" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="../generated/graphstorm.model.GSgnnNodeModelBase.html" class="btn btn-neutral float-right" title="GSgnnNodeModelBase" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../generated/graphstorm.model.GSgnnModelBase.html" class="btn btn-neutral float-right" title="GSgnnModelBase" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
