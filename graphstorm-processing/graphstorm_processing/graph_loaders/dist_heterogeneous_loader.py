@@ -128,6 +128,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.label_properties: Dict[str, Counter] = defaultdict(Counter)
         self.timers = defaultdict(float)  # type: Dict
         self.enable_assertions = enable_assertions
+        # Column names that are valid in CSV can be invalid in Parquet
+        # we collect an column name substitutions we had to make
+        # here and later output as a JSON file.
         self.column_substitutions = {}  # type: Dict[str, str]
         self.graph_info = {}  # type: Dict[str, Any]
         self.graph_name = graph_name
@@ -660,9 +663,30 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         incoming_node_ids, join_col = spark_utils.safe_rename_column(
             edges_df.select(node_col).distinct().dropna(), node_col, join_col
         )
+        if self.enable_assertions:
+            null_counts = (
+                edges_df.select(node_col)
+                .select(
+                    F.count(
+                        F.when(
+                            F.col(node_col).contains("None")
+                            | F.col(node_col).contains("NULL")
+                            | (F.col(node_col) == "")
+                            | F.col(node_col).isNull()
+                            | F.isnan(node_col),
+                            node_col,
+                        )
+                    ).alias(node_col)
+                )
+                .collect()[0][0]
+            )
+            if null_counts > 0:
+                raise ValueError(
+                    f"Found {null_counts} null values in node column {node_col}"
+                    " while extracting node ids from incoming edges structure "
+                    f"with cols: {edges_df.columns}"
+                )
 
-        # TODO: When is it possible that we might get a null node str id value?
-        # Is it only in the case the actual row has null values?
         node_df_with_ids = incoming_node_ids.join(mapping_df, on=join_col, how="fullouter")
 
         # If we have new node ids we should re-index
