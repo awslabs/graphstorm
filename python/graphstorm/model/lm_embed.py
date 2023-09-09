@@ -42,8 +42,7 @@ def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batch
     lm_infer_batch_size: int
         Language model inference batch size
     """
-    for (lm_ntypes, lm_node_feats), lm_model \
-        in zip(lm_models_info, lm_models):
+    for (lm_ntypes, lm_node_feats), lm_model in zip(lm_models_info, lm_models):
         lm_model.eval()
         for ntype in lm_ntypes:
             if get_rank() == 0:
@@ -62,10 +61,12 @@ def update_bert_cache(g, lm_models_info, lm_models, lm_emb_cache, lm_infer_batch
                 th.ones((g.number_of_nodes(ntype),), dtype=th.bool),
                 partition_book=g.get_partition_book(),
                 ntype=ntype, force_even=False)
+            logging.debug("node %s, local infer set: %d, batch size: %d",
+                          ntype, len(infer_nodes), lm_infer_batch_size)
 
             node_list = th.split(infer_nodes, lm_infer_batch_size)
             input_ntypes = [ntype]
-            for _, input_nodes in enumerate(node_list):
+            for input_nodes in node_list:
                 input_lm_feats = {}
                 input_lm_feats[ntype] = {
                     fname: feat[input_nodes] \
