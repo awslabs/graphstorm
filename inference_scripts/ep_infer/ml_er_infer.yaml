@@ -19,7 +19,6 @@ gsf:
     save_embed_path: null
   hyperparam:
     batch_size: 64
-    bert_infer_bs: 128
     no_validation: false
   rgcn:
     num_bases: -1
