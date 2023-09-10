@@ -14,6 +14,7 @@
     limitations under the License.
 """
 from pathlib import Path
+import copy
 import os
 import yaml
 import tempfile
@@ -33,7 +34,7 @@ from graphstorm.config import GSConfig
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
-from graphstorm.model import GSLMNodeEncoderInputLayer
+from graphstorm.model import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
 from graphstorm.model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
@@ -57,10 +58,11 @@ from graphstorm.model.gnn import do_full_graph_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 from graphstorm.model.gnn_with_reconstruct import construct_node_feat, get_input_embeds_combined
+from graphstorm.model.utils import load_model, save_model
 
 from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_multi_target_ntypes
 from data_utils import generate_dummy_dist_graph_reconstruct
-from data_utils import create_lm_graph
+from data_utils import create_lm_graph, create_lm_graph2
 
 def is_int(a):
     if not th.is_floating_point(a) and not th.is_complex(a):
@@ -683,6 +685,28 @@ def create_mlp_node_model(g, lm_config):
     model.set_decoder(EntityClassifier(model.node_input_encoder.out_dims, 3, False))
     return model
 
+def create_lm_model(g, lm_config):
+    """ Create a GSgnnNodeModel with only an input encoder.
+
+    Parameters
+    ----------
+    g: dgl.DistGraph
+        Input graph.
+    lm_config:
+        Language model config
+
+    Return
+    ------
+    GSgnnNodeModel
+    """
+    model = GSgnnNodeModel(alpha_l2norm=0)
+
+    feat_size = get_feat_size(g, 'feat')
+
+    encoder = GSPureLMNodeInputLayer(g, lm_config, num_train=0)
+    model.set_node_input_encoder(encoder)
+    return model
+
 def test_mlp_node_prediction():
     """ Test node prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + Decoder
@@ -705,6 +729,67 @@ def test_mlp_node_prediction():
     model = create_mlp_node_model(g, lm_config)
     assert model.gnn_encoder is None
     check_mlp_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def rand_init_params(model):
+    for param in model.parameters():
+        param.data.random_()
+
+def test_lm_model_load_save():
+    """ Test if we can load and save LM+GNN model correctly.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data = create_lm_graph2(tmpdirname)
+        lm_config = data[0]
+        g = data[6]
+    # Test the case that two node types share the same BERT model.
+    model = create_lm_model(g, lm_config)
+    model2 = create_lm_model(g, lm_config)
+    for param in model2.parameters():
+        param.data[:] += 1
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        save_model(tmpdirname, embed_layer=model.node_input_encoder)
+        load_model(tmpdirname, embed_layer=model2.node_input_encoder)
+    params1 = {name: param for name, param in model.node_input_encoder.named_parameters()}
+    params2 = {name: param for name, param in model2.node_input_encoder.named_parameters()}
+    for key in params1:
+        assert np.all(params1[key].data.numpy() == params2[key].data.numpy())
+
+    # Test the case that two node types have different BERT models.
+    lm_config = [copy.deepcopy(lm_config[0]), copy.deepcopy(lm_config[0])]
+    lm_config[0]["node_types"] = ["n0"]
+    lm_config[1]["node_types"] = ["n1"]
+
+    lm_config2 = copy.deepcopy(lm_config)
+    lm_config2[0]["node_types"] = ["n1"]
+    lm_config2[1]["node_types"] = ["n0"]
+
+    # Create models and make sure the two BERT models have different parameters.
+    model = create_lm_model(g, lm_config)
+    for i, ntype in enumerate(model.node_input_encoder._lm_models.ntypes):
+        for param in model.node_input_encoder._lm_models.get_lm_model(ntype).parameters():
+            param.data[:] += i
+    model2 = create_lm_model(g, lm_config2)
+    for i, ntype in enumerate(model2.node_input_encoder._lm_models.ntypes):
+        for param in model2.node_input_encoder._lm_models.get_lm_model(ntype).parameters():
+            param.data[:] += i + 2
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        save_model(tmpdirname, embed_layer=model.node_input_encoder)
+        load_model(tmpdirname, embed_layer=model2.node_input_encoder)
+    for ntype in model.node_input_encoder._lm_models.ntypes:
+        params1 = model.node_input_encoder._lm_models.get_lm_model(ntype)
+        params1 = {name: param for name, param in params1.named_parameters()}
+        params2 = model2.node_input_encoder._lm_models.get_lm_model(ntype)
+        params2 = {name: param for name, param in params2.named_parameters()}
+        for key in params1:
+            assert np.all(params1[key].data.numpy() == params2[key].data.numpy())
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1104,6 +1189,7 @@ def test_link_prediction_weight():
     dgl.distributed.kvstore.close_kvstore()
 
 if __name__ == '__main__':
+    test_lm_model_load_save()
     test_rgcn_node_prediction_with_reconstruct()
     test_rgcn_edge_prediction(2)
     test_rgcn_node_prediction(None)
