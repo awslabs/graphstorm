@@ -732,10 +732,6 @@ def test_mlp_node_prediction():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def rand_init_params(model):
-    for param in model.parameters():
-        param.data.random_()
-
 def test_lm_model_load_save():
     """ Test if we can load and save LM+GNN model correctly.
     """
