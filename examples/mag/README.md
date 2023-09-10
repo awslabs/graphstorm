@@ -44,3 +44,49 @@ python3 -m graphstorm.run.gs_link_prediction \
 			--save-model-path ~/mag_model \
 			--node-feat-name fos:feat paper:feat 
 ```
+
+```
+export TOKENIZERS_PARALLELISM=false
+
+python3 -m graphstorm.gconstruct.construct_graph \
+			--output-dir mag_min_1parts \
+			--graph-name mag \
+			--num-parts 1 \
+			--skip-nonexist-edges \
+			--conf-file mag_min_v0.2.json
+
+python3 -m graphstorm.gconstruct.construct_graph \
+			--num-processes 16 \
+			--output-dir mag_4parts \
+			--graph-name mag \
+			--num-parts 4 \
+			--skip-nonexist-edges \
+			--ext-mem-workspace /mnt/raid0/tmp_oag \
+			--ext-mem-feat-size 16 \
+			--conf-file mag_v0.2.json
+```
+
+Fine-tune the BERT model.
+
+```
+python3 -m graphstorm.run.gs_link_prediction \
+			--num-trainers 8 \
+			--num-servers 1 \
+			--num-samplers 0 \
+			--part-config mag_min_1parts/mag.json \
+			--ip-config ip_list_1p.txt \
+			--cf mag_bert_ft.yaml
+```
+
+Train the GNN model.
+
+```
+python3 -m graphstorm.run.gs_node_classification \
+            --num-trainers 8 \
+            --num-servers 4 \
+            --num-samplers 0 \
+            --part-config mag_min_4parts/mag.json \
+            --ip-config ip_list_4p.txt \
+            --cf mag_gnn_nc.yaml \
+            --restore-model-path mag_bert_model/epoch-0/
+```
