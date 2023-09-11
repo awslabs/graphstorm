@@ -315,11 +315,14 @@ class GSgnnLinkPredictionDataLoader():
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
-        if isinstance(target_idxs, dict):
-            for etype in target_idxs:
-                target_idxs[etype] = trim_data(target_idxs[etype], device)
-        else:
-            target_idxs = trim_data(target_idxs, device)
+        if train_task:
+            if isinstance(target_idxs, dict):
+                for etype in target_idxs:
+                    target_idxs[etype] = trim_data(target_idxs[etype], device)
+            else:
+                target_idxs = trim_data(target_idxs, device)
+        # for validation and test, there is no need to trim data
+
         exclude = 'reverse_types' if exclude_training_targets else None
         reverse_etypes = reverse_edge_types_map if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
@@ -421,11 +424,14 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
-        if isinstance(target_idxs, dict):
-            for etype in target_idxs:
-                target_idxs[etype] = trim_data(target_idxs[etype], device)
-        else:
-            target_idxs = trim_data(target_idxs, device)
+        if train_task:
+            if isinstance(target_idxs, dict):
+                for etype in target_idxs:
+                    target_idxs[etype] = trim_data(target_idxs[etype], device)
+            else:
+                target_idxs = trim_data(target_idxs, device)
+        # for validation and test, there is no need to trim data
+
         exclude = 'reverse_types' if exclude_training_targets else None
         reverse_etypes = reverse_edge_types_map if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
@@ -648,11 +654,14 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
-        if isinstance(target_idxs, dict):
-            for etype in target_idxs:
-                target_idxs[etype] = trim_data(target_idxs[etype], device)
-        else:
-            target_idxs = trim_data(target_idxs, device)
+        if train_task:
+            if isinstance(target_idxs, dict):
+                for etype in target_idxs:
+                    target_idxs[etype] = trim_data(target_idxs[etype], device)
+            else:
+                target_idxs = trim_data(target_idxs, device)
+        # for validation and test, there is no need to trim data
+
         exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = AllEtypeDistEdgeDataLoader(g,
                                             target_idxs,
@@ -831,8 +840,11 @@ class GSgnnNodeDataLoader():
                                                    device)
 
     def _prepare_dataloader(self, g, target_idx, fanout, batch_size, train_task, device):
-        for ntype in target_idx:
-            target_idx[ntype] = trim_data(target_idx[ntype], device)
+        if train_task:
+            for ntype in target_idx:
+                target_idx[ntype] = trim_data(target_idx[ntype], device)
+        # for validation and test, there is no need to trim data
+
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         loader = dgl.dataloading.DistNodeDataLoader(g, target_idx, sampler,
             batch_size=batch_size, shuffle=train_task, num_workers=0)
