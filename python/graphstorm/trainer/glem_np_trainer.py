@@ -17,6 +17,7 @@
 """
 
 import time
+import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -25,7 +26,7 @@ from ..model.node_glem import GLEM
 from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
-from ..utils import sys_tracker, rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem
 from ..utils import barrier
 from ..dataloading import GSgnnNodeSemiSupDataLoader
 
@@ -55,8 +56,9 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             save_model_path=None,
             save_model_frequency=-1,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0
-            ):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None,
+            grad_norm_type=2.0):
         """ The fit function for node prediction.
 
         Parameters
@@ -82,6 +84,12 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             Freeze the input layer for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
+        grad_norm_type: float
+            Norm type for the gradient clip
+            Default: 2.0
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -129,11 +137,12 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                     device, rt_profiler,
                                     epoch, total_steps, use_mini_batch_infer,
-                                    save_model_path, save_model_frequency, no_pl)
+                                    save_model_path, save_model_frequency, no_pl, max_grad_norm,
+                                    grad_norm_type)
                 stage_finish_time = time.time()
                 if self.rank == 0:
-                    print("Epoch {}, {} takes {:.2f} seconds".format(
-                        epoch, part_to_train, stage_finish_time-stage_start_time))
+                    logging.info("Epoch %d: %s takes %.2f seconds",
+                                 epoch, part_to_train, stage_finish_time-stage_start_time)
                 use_gnn = not use_gnn
 
             # early_stop, exit training
@@ -144,7 +153,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             dur.append(epoch_time)
 
         rt_profiler.save_profile()
-        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        print_mem(device)
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
@@ -160,7 +169,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                        epoch, total_steps,
                        use_mini_batch_infer=True,
                        save_model_path=None,
-                       save_model_frequency=-1, no_pl=False):
+                       save_model_frequency=-1, no_pl=False,
+                       max_grad_norm=None, grad_norm_type=2.0):
         """Fit model for one epoch
         """
         def _prepare_batch(input_nodes, seeds, blocks, is_labeled=True):
@@ -207,12 +217,14 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             self.optimizer.step()
             profiler.record('train_step')
 
+            if max_grad_norm is not None:
+                th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
             self.log_metric("Train loss", loss.item(), total_steps)
 
             if i % 20 == 0 and self.rank == 0:
                 rt_profiler.print_stats()
-                print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
-                        format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
+                logging.info("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f",
+                             self.rank, epoch, i,  loss.item(), time.time() - batch_tic)
 
             val_score = None
             if self.evaluator is not None and \

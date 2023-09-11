@@ -20,6 +20,7 @@ import os
 import sys
 import argparse
 import math
+import logging
 
 import yaml
 import torch as th
@@ -35,7 +36,8 @@ from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
-from .config import BUILTIN_TASK_LINK_PREDICTION
+from .config import (BUILTIN_TASK_LINK_PREDICTION,
+                     LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
 from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -50,7 +52,7 @@ from .config import SUPPORTED_LP_DECODER
 from .config import GRAPHSTORM_MODEL_ALL_LAYERS
 
 from .utils import get_graph_name
-from ..utils import TORCH_MAJOR_VER
+from ..utils import TORCH_MAJOR_VER, get_log_level
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -122,18 +124,27 @@ class GSConfig:
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
-
         self.set_attributes(configuration)
-
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
+
+        # We need to config the logging at very beginning. Otherwise, logging will not work.
+        if self.logging_file is None:
+            logging.basicConfig(level=self.logging_level)
+        else:
+            logging.basicConfig(filename=self.logging_file, level=self.logging_level)
+        logging.debug(str(configuration))
+        cmd_args_dict = cmd_args.__dict__
+        # Print overriden arguments.
+        for arg_key in cmd_args_dict:
+            if arg_key not in ["yaml_config_file", "local_rank"]:
+                logging.debug("Overriding Argument: %s", arg_key)
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
-        print(configuration)
         if 'lm_model' in configuration:
             # has language model configuration
             # lm_model:
@@ -203,7 +214,6 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
-                print(f"Overriding Argument: {arg_key}")
 
     def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.
@@ -246,6 +256,8 @@ class GSConfig:
             _ = self.lm_train_nodes
             _ = self.lm_tune_lr
             _ = self.lr
+            _ = self.max_grad_norm
+            _ = self.grad_norm_type
             _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
@@ -277,6 +289,9 @@ class GSConfig:
         _ = self.decoder_type
         _ = self.num_decoder_basis
         # Encoder related
+        _ = self.construct_feat_ntype
+        _ = self.construct_feat_encoder
+        _ = self.construct_feat_fanout
         encoder_type = self.model_encoder_type
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
@@ -326,14 +341,15 @@ class GSConfig:
             _ = self.num_negative_edges
             _ = self.eval_negative_sampler
             _ = self.num_negative_edges_eval
+            _ = self.model_select_etype
 
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
         """
         for i, _ in enumerate(self.node_lm_configs):
             if self.node_lm_configs[i]["gradient_checkpoint"]:
-                print(f"WARNING: {reason} can not work with " \
-                        "gradient checkpoint. Turn gradient checkpoint to False")
+                logging.warning("%s can not work with gradient checkpoint. " \
+                        + "Turn gradient checkpoint to False", reason)
                 self.node_lm_configs[i]["gradient_checkpoint"] = False
 
     def handle_argument_conflicts(self):
@@ -458,6 +474,24 @@ class GSConfig:
             return self._verbose
 
         return False
+
+    @property
+    def logging_level(self):
+        """ Get the logging level.
+        """
+        if hasattr(self, "_logging_level"):
+            return get_log_level(self._logging_level)
+        else:
+            return logging.INFO
+
+    @property
+    def logging_file(self):
+        """ The file where logs are saved to.
+        """
+        if hasattr(self, "_logging_file"):
+            return self._logging_file
+        else:
+            return None
 
     ###################### language model support #########################
     # Bert related
@@ -584,6 +618,28 @@ class GSConfig:
         assert self._model_encoder_type in BUILTIN_ENCODER, \
             f"Model encoder type should be in {BUILTIN_ENCODER}"
         return self._model_encoder_type
+
+    @property
+    def max_grad_norm(self):
+        """ maximum L2 norm of gradients, used for gradient clip
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_max_grad_norm"):
+            max_grad_norm = float(self._max_grad_norm)
+            assert max_grad_norm > 0
+            return self._max_grad_norm
+        return None
+
+    @property
+    def grad_norm_type(self):
+        """ type of the used p-norm, used for gradient clip
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_grad_norm_type"):
+            grad_norm_type = self._grad_norm_type
+            assert grad_norm_type > 0 or grad_norm_type == 'inf'
+            return self._grad_norm_type
+        return 2
 
     @property
     def input_activate(self):
@@ -957,6 +1013,41 @@ class GSConfig:
         return False
 
     @property
+    def construct_feat_ntype(self):
+        """ The node types that require to construct node features.
+        """
+        if hasattr(self, "_construct_feat_ntype") \
+                and self._construct_feat_ntype is not None:
+            return self._construct_feat_ntype
+        else:
+            return []
+
+    @property
+    def construct_feat_encoder(self):
+        """ The encoder used for constructing node features.
+        """
+        if hasattr(self, "_construct_feat_encoder"):
+            assert self._construct_feat_encoder == "rgcn", \
+                    "Feature construction currently only support rgcn."
+            return self._construct_feat_encoder
+        else:
+            return "rgcn"
+
+    @property
+    def construct_feat_fanout(self):
+        """ The fanout for constructing node features
+        """
+        if hasattr(self, "_construct_feat_fanout"):
+            assert isinstance(self._construct_feat_fanout, int), \
+                    "The fanout for feature construction should be integers."
+            assert self._construct_feat_fanout > 0 or self._construct_feat_fanout == -1, \
+                    "The fanout for feature construction should be positive or -1 " + \
+                    "if we use all neighbors to construct node features."
+            return self._construct_feat_fanout
+        else:
+            return 5
+
+    @property
     def wd_l2norm(self):
         """ Weight decay
         """
@@ -1195,7 +1286,7 @@ class GSConfig:
 
             if self._return_proba is True and \
                 self.task_type in [BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_EDGE_REGRESSION]:
-                print("WARNING: node regression and edge regression tasks "
+                logging.warning("node regression and edge regression tasks "
                       "automatically ignore --return-proba flag. Regression "
                       "prediction results will be returned.")
             return self._return_proba
@@ -1310,10 +1401,10 @@ class GSConfig:
         assert len(self._target_etype) > 0, \
             "There must be at least one target etype."
         if len(self._target_etype) != 1:
-            print(f"WARNING: only {self._target_etype[0]} will be used."
-                "Currently, GraphStorm only supports single task edge "
-                "classification/regression. Please contact GraphStorm "
-                "dev team to support multi-task.")
+            logging.warning("only %s will be used." + \
+                "Currently, GraphStorm only supports single task edge " + \
+                "classification/regression. Please contact GraphStorm " + \
+                "dev team to support multi-task.", str(self._target_etype[0]))
 
         return [tuple(target_etype.split(',')) for target_etype in self._target_etype]
 
@@ -1589,6 +1680,20 @@ class GSConfig:
             return None
 
     @property
+    def report_eval_per_type(self):
+        """ Whether report evaluation metrics per node type or edge type.
+            If True, report evaluation results for each node type/edge type."
+            If False, report an average result.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_report_eval_per_type"):
+            assert self._report_eval_per_type in [True, False], \
+                "report_eval_per_type must be True or False"
+            return self._report_eval_per_type
+
+        return False
+
+    @property
     def eval_metric(self):
         """ Evaluation metric used during evaluation
 
@@ -1681,6 +1786,22 @@ class GSConfig:
         return eval_metric
 
     @property
+    def model_select_etype(self):
+        """ Canonical etype used for selecting the best model
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_model_select_etype"):
+            etype = self._model_select_etype.split(",")
+            assert len(etype) == 3, \
+                "If you want to select model based on eval value of " \
+                "a specific etype, the model_select_etype must be a " \
+                "canonical etype in the format of src,rel,dst"
+            return tuple(etype)
+
+        # Per edge type lp evaluation is disabled.
+        return LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+
+    @property
     def num_ffn_layers_in_input(self):
         """ Number of extra feedforward neural network layers in the input layer
         """
@@ -1724,6 +1845,12 @@ def _add_initialization_args(parser):
         default=argparse.SUPPRESS,
         help="Print more information.",
     )
+    group.add_argument('--logging-level', type=str, default="info",
+                       help="Change the logging level. " + \
+                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
+                               "The default value is 'info'.")
+    group.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
+                       help='The file where the logging is saved to.')
     return parser
 
 def _add_gsgnn_basic_args(parser):
@@ -1839,11 +1966,21 @@ def _add_hyperparam_args(parser):
             help="Mini-batch size. Must be larger than 0")
     group.add_argument("--sparse-optimizer-lr", type=float, default=argparse.SUPPRESS,
             help="sparse optimizer learning rate")
+    group.add_argument("--max-grad-norm", type=float, default=argparse.SUPPRESS,
+            help="maximum L2 norm of gradients")
+    group.add_argument("--grad-norm-type", type=float, default=argparse.SUPPRESS,
+            help="norm type for gradient clips")
     group.add_argument(
             "--use-node-embeddings",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
+    group.add_argument("--construct-feat-ntype", type=str, nargs="+",
+            help="The node types whose features are constructed from neighbors' features.")
+    group.add_argument("--construct-feat-encoder", type=str, default=argparse.SUPPRESS,
+            help="The encoder used for constructing node features.")
+    group.add_argument("--construct-feat-fanout", type=int, default=argparse.SUPPRESS,
+            help="The fanout used for constructing node features.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
@@ -2031,6 +2168,13 @@ def _add_link_prediction_args(parser):
             "The corresponding feature name is <feat_name>"
             "2)'--lp-edge-weight-for-loss query,adds,asin:weight0 query,clicks,asin:weight1 ..."
             "Different edge types have different weight fields.")
+    group.add_argument("--model-select-etype", type=str, default=argparse.SUPPRESS,
+            help="Canonical edge type used for selecting best model during "
+                 "link prediction training. It can be in following format:"
+                "1) '--model-select-etype ALL': Use the average of the evaluation "
+                "metrics of each edge type to select the best model"
+                "2) '--model-select-etype query,adds,item': Use the evaluation "
+                "metric of the edge type (query,adds,item) to select the best model")
 
     return parser
 
@@ -2041,6 +2185,10 @@ def _add_task_general_args(parser):
                 "the evaluation metric used. Supported metrics are accuracy,"
                 "precision_recall, or roc_auc multiple metrics"
                 "can be specified e.g. --eval-metric accuracy precision_recall")
+    group.add_argument('--report-eval-per-type', type=bool, default=argparse.SUPPRESS,
+            help="Whether report evaluation metrics per node type or edge type."
+                 "If True, report evaluation results for each node type/edge type."
+                 "If False, report an average evaluation result.")
     return parser
 
 def _add_inference_args(parser):

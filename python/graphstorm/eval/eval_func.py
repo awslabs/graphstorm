@@ -15,10 +15,10 @@
 
     Evaluation functions
 """
+import logging
 from enum import Enum
 from functools import partial
 import operator
-import warnings
 import numpy as np
 import torch as th
 from sklearn.metrics import roc_auc_score
@@ -204,7 +204,7 @@ def eval_roc_auc(logits,labels):
                                              predicted_labels[is_labeled, i]))
 
     if len(rocauc_list) == 0:
-        print('No positively labeled data available. Cannot compute ROC-AUC.')
+        logging.error('No positively labeled data available. Cannot compute ROC-AUC.')
         return 0
 
     return sum(rocauc_list) / len(rocauc_list)
@@ -289,7 +289,7 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
     try:
         auc_score = roc_auc_score(y_true, y_pred, sample_weight=weights, multi_class='ovr')
     except ValueError as e:
-        print("Failure found during evaluation of the auc metric returning -1", e)
+        logging.error("Failure found during evaluation of the auc metric returning -1: %s", str(e))
     return auc_score
 
 def comparator_per_class_roc_auc(best_report, current_report):
@@ -335,7 +335,7 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
         precision, recall = pr_curve[PRKeys.PRECISION], pr_curve[PRKeys.RECALL]
         auc_score = auc(recall, precision)
     except ValueError as e:
-        print("Failure found during evaluation of the auc metric returning -1", e)
+        logging.error("Failure found during evaluation of the auc metric returning -1: %s", str(e))
     return auc_score
 
 def compute_acc(pred, labels, multilabel):
@@ -371,9 +371,9 @@ def compute_rmse(pred, labels):
     assert pred.shape == labels.shape, \
         f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
     if pred.dtype != labels.dtype:
-        warnings.warn("prediction and labels have different data types: "
-                      f"{pred.dtype} vs. {labels.dtype}")
-        warnings.warn("casting pred to the same dtype as labels")
+        logging.warning("prediction and labels have different data types: %s vs. %s.",
+                        str(pred.dtype), str(labels.dtype))
+        logging.warning("casting pred to the same dtype as labels.")
         pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
 
     diff = pred.cpu() - labels.cpu()
@@ -389,9 +389,9 @@ def compute_mse(pred, labels):
     assert pred.shape == labels.shape, \
         f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
     if pred.dtype != labels.dtype:
-        warnings.warn("prediction and labels have different data types: "
-                      f"{pred.dtype} vs. {labels.dtype}")
-        warnings.warn("casting pred to the same dtype as labels")
+        logging.warning("prediction and labels have different data types: %s vs. %s.",
+                        str(pred.dtype), str(labels.dtype))
+        logging.warning("casting pred to the same dtype as labels.")
         pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
 
     diff = pred.cpu() - labels.cpu()
@@ -407,9 +407,9 @@ def compute_mae(pred, labels):
     assert pred.shape == labels.shape, \
         f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
     if pred.dtype != labels.dtype:
-        warnings.warn("prediction and labels have different data types: "
-                      f"{pred.dtype} vs. {labels.dtype}")
-        warnings.warn("casting pred to the same dtype as labels")
+        logging.warning("prediction and labels have different data types: %s vs. %s.",
+                        pred.dtype, labels.dtype)
+        logging.warning("casting pred to the same dtype as labels.")
         pred = pred.type(labels.dtype) # cast pred to the same dtype as labels.
 
     diff = th.abs(pred.cpu() - labels.cpu())

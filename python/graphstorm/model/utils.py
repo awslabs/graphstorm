@@ -19,6 +19,7 @@ import os
 import math
 import json
 import shutil
+import logging
 
 import torch as th
 from torch import nn
@@ -205,7 +206,7 @@ def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     if len(sparse_opts) > 0:
         # TODO(xiangsx) Further discussion of whether we need to save the state of
         #               sparse optimizer is needed.
-        print("WARNING: We do not export the state of sparse optimizer")
+        logging.warning("We do not export the state of sparse optimizer")
     os.makedirs(model_path, exist_ok=True)
     th.save(opt_states, os.path.join(model_path, 'optimizers.bin'))
 
@@ -351,8 +352,11 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
     if node_id_mapping_file is not None:
         if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
             # only host 0 will load node id mapping from disk
-            node_id_mapping = th.load(node_id_mapping_file) \
-                if local_rank == 0 else None
+            if local_rank == 0:
+                ori_node_id_mapping = th.load(node_id_mapping_file)
+                _, node_id_mapping = th.sort(ori_node_id_mapping)
+            else:
+                node_id_mapping = None
 
             nid_mapping = _exchange_node_id_mapping(
                 local_rank, world_size, device, node_id_mapping, len(embeddings))
@@ -366,7 +370,9 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
                 if local_rank == 0:
                     assert name in node_id_mappings, \
                         f"node id mapping for ntype {name} should exists"
-                    node_id_mapping = node_id_mappings[name]
+                    # new mapping back index
+                    ori_node_id_mapping = node_id_mappings[name]
+                    _, node_id_mapping = th.sort(ori_node_id_mapping)
                 else:
                     node_id_mapping = None
 
@@ -433,10 +439,16 @@ def shuffle_predict(predictions, id_mapping_file, pred_type,
         device : torch device
             Device used to do data shuffling.
     """
-    id_mapping = th.load(id_mapping_file) if local_rank == 0 else None
     # In most of cases, id_mapping is a dict for heterogeneous graph.
     # For homogeneous graph, it is just a tensor.
-    id_mapping = id_mapping[pred_type] if isinstance(id_mapping, dict) else id_mapping
+    if local_rank == 0:
+        id_mappings = th.load(id_mapping_file)
+        ori_id_mapping = id_mappings[pred_type] if isinstance(id_mappings, dict) else id_mappings
+        # new mapping back index
+        _, id_mapping = th.sort(ori_id_mapping)
+    else:
+        id_mapping = None
+
     local_id_mapping = _exchange_node_id_mapping(
                 local_rank, world_size, device, id_mapping,
                 len(predictions)).cpu() # predictions are stored in CPU
@@ -490,11 +502,11 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
         if isinstance(decoder, DistributedDataParallel) else decoder
 
     if th.__version__ < "1.13.0":
-        print("WARNING: torch.load() uses pickle module implicitly, " \
-              "which is known to be insecure. It is possible to construct " \
-              "malicious pickle data which will execute arbitrary code " \
-              "during unpickling. Only load data you trust or " \
-              "update torch to 1.13.0+")
+        logging.warning("torch.load() uses pickle module implicitly, " \
+                "which is known to be insecure. It is possible to construct " \
+                "malicious pickle data which will execute arbitrary code " \
+                "during unpickling. Only load data you trust or " \
+                "update torch to 1.13.0+")
         checkpoint = th.load(os.path.join(model_path, 'model.bin'), map_location='cpu')
     else:
         checkpoint = th.load(os.path.join(model_path, 'model.bin'),
@@ -565,11 +577,11 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
             num_embs = embed_layer.g.number_of_nodes(ntype)
             if th.__version__ < "1.13.0":
-                print("WARNING: torch.load() uses pickle module implicitly, " \
-                    "which is known to be insecure. It is possible to construct " \
-                    "malicious pickle data which will execute arbitrary code " \
-                    "during unpickling. Only load data you trust or " \
-                    "update torch to 1.13.0+")
+                logging.warning("torch.load() uses pickle module implicitly, " \
+                        "which is known to be insecure. It is possible to construct " \
+                        "malicious pickle data which will execute arbitrary code " \
+                        "during unpickling. Only load data you trust or " \
+                        "update torch to 1.13.0+")
                 load_sparse_emb(num_embs, os.path.join(model_path, ntype))
             else:
                 load_sparse_emb(num_embs, os.path.join(model_path, ntype))
@@ -589,10 +601,10 @@ def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
             Optimizer for sparse emb layer
     """
     if th.__version__ < "1.13.0":
-        print("WARNING: torch.load() uses pickle module implicitly, " \
-            "which is known to be insecure. It is possible to construct " \
-            "malicious pickle data which will execute arbitrary code " \
-            "during unpickling. Only load data you trust")
+        logging.warning("torch.load() uses pickle module implicitly, " \
+                "which is known to be insecure. It is possible to construct " \
+                "malicious pickle data which will execute arbitrary code " \
+                "during unpickling. Only load data you trust")
     checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
 
     assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
@@ -633,7 +645,7 @@ def remove_saved_models(model_path):
     try:
         shutil.rmtree(model_path)
     except OSError:
-        print(f'WARNING: Something wrong with deleting contents of {model_path}!')
+        logging.error('Something wrong with deleting contents of %s!', model_path)
         return -1
 
     return 0

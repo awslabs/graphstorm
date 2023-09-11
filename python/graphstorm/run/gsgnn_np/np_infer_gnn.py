@@ -42,6 +42,7 @@ def main(config_args):
     """
     config = GSConfig(config_args)
     config.verify_arguments(False)
+
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
 
@@ -73,7 +74,9 @@ def main(config_args):
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnNodeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size, device=device,
-                                     train_task=False)
+                                     train_task=False,
+                                     construct_feat_ntype=config.construct_feat_ntype,
+                                     construct_feat_fanout=config.construct_feat_fanout)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
@@ -94,5 +97,4 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     args = arg_parser.parse_args()
-    print(args)
     main(args)

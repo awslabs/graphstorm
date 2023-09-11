@@ -109,7 +109,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             # no GNN message passing
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats)
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
         target_ntypes = list(labels.keys())
         # compute loss for each node type and aggregate per node type loss
         pred_loss = 0
@@ -136,7 +136,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             # no GNN message passing in encoder
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats)
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
         target_ntypes = list(encode_embs.keys())
         # predict for each node type
         predicts = {}
