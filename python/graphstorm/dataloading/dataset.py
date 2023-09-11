@@ -18,6 +18,11 @@
 import abc
 import torch as th
 import dgl
+from torch.utils.data import Dataset
+from torchdata.datapipes.iter import FileLister
+import torcharrow.dtypes as dt
+import pandas as pd
+
 
 from ..utils import get_rank
 from ..utils import sys_tracker
@@ -743,3 +748,66 @@ class GSgnnNodeInferData(GSgnnNodeData):
         """ Set of nodes to do inference.
         """
         return self._infer_idxs
+
+class GSDistillData(Dataset):
+    def __init__(self, file_list, tokenizer, device):
+        super().__init__()
+        self.file_list = file_list
+        self.tokenizer = tokenizer
+        self.device = device
+        self.token_id_inputs, self.labels = self.get_inputs()
+
+    def get_inputs(self):
+        for i, file_name in enumerate(self.file_list):
+            if i == 0:
+                inputs = pd.read_parquet(file_name)
+            else:
+                inputs = pd.concat([inputs, pd.read_parquet(file_name)])
+
+        token_id_inputs = []
+        for i in range(len(inputs["textual_feats"])):
+            tokens = self.tokenizer.tokenize(inputs["textual_feats"][i])
+            tokens.insert(0, self.tokenizer.cls_token) # cls token for pooling
+            token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+            token_id_inputs.append(token_ids)
+        labels = inputs["embeddings"].to_numpy()
+
+        return token_id_inputs, labels
+
+    def __len__(self):
+        return len(self.token_id_inputs)
+
+    def __getitem__(self, index):
+        input_ids = th.tensor(self.token_id_inputs[index], dtype=th.int64, device="cpu")
+        labels = th.tensor(self.labels[index], dtype=th.float, device="cpu")
+
+        return {
+        "input_ids": input_ids,
+        "labels": labels,
+        }
+
+    def get_collate_fn(self):
+        '''get collate function
+        '''
+        def collate_fn(batch):
+            '''
+            Padds batch of variable length
+
+            note: it converts things ToTensor manually here since the ToTensor transform
+            assume it takes in images rather than arbitrary tensors.
+            '''
+            ## pad inputs
+            input_ids_list = [x["input_ids"] for x in batch]
+            pad_input_ids = th.nn.utils.rnn.pad_sequence(input_ids_list, 
+                batch_first=True, padding_value=self.tokenizer.pad_token_id)
+            ## compute mask
+            attention_mask = (pad_input_ids != self.tokenizer.pad_token_id).float()
+            labels = th.stack([x["labels"] for x in batch], 0)
+
+            return {
+                "input_ids": pad_input_ids,
+                "attention_mask": attention_mask,
+                "labels": labels,
+            }
+
+        return collate_fn

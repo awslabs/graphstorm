@@ -13,11 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Modules for inference
+    Modules for distillation
 """
 
-from .lp_infer import GSgnnLinkPredictionInfer
-from .np_infer import GSgnnNodePredictionInfer
-from .ep_infer import GSgnnEdgePredictionInfer
-
-from .utils import read_embed, read_nid
+from .distiller import GSdistiller

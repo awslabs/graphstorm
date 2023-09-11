@@ -18,6 +18,7 @@
 import math
 import inspect
 import torch as th
+from torch.utils.data import DataLoader
 
 import dgl
 from dgl.dataloading import DistDataLoader
@@ -27,8 +28,11 @@ from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 from .sampler import (LocalUniform,
                       JointUniform,
                       GlobalUniform,
-                      JointLocalUniform, FastMultiLayerNeighborSampler)
+                      JointLocalUniform, 
+                      FastMultiLayerNeighborSampler,
+                      DistributedFileSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
+from .dataset import GSDistillData
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
 EP_DECODER_EDGE_FEAT = "ep_edge_feat"
@@ -770,3 +774,236 @@ class GSgnnNodeDataLoader():
         """ The fan out of each GNN layers
         """
         return self._fanout
+
+####################### Distillation #############################
+
+class DataProvider:
+    r"""Data Provider. Combines a file sampler and a dataloader generator,
+    and streamingly provides an iterable over a dataset.
+    This class leverages zero-copy shared memory (e.g., /dev/shm) for reducing the costs of
+    serialization and deserialization. Make sure that the each data shard is not too large
+    so that #workers_per_node * #DataProvider * num_prefetches * data_shard_size < shm_size.
+    When the training/finetuning/evaluation is run on docker container, --shm-size=300g is needed.
+
+    Arguments:
+        dataloader_generator (_DataloaderGenerator): a dataloader generator
+           generates dataloader based on given file path.
+        dataset_path (str, optional): path to the data files.
+           Mutually exclusive with :attr:`files`.
+        files (List[str], optional): a list of files.
+           Mutually exclusive with :attr:`dataset_path`.
+        file_sampler (_Sampler, optional): defines the strategy to draw
+           datasets. Can be any ``Iterable`` with ``__len__``
+           implemented. If specified, :attr:`dataset_path`, :attr:`files`,
+           :attr:`shuffle`, :attr:`infinite`, :attr:`local_rank`,
+           and :attr:`mpu` must not be specified.
+        num_prefetches (int, optional): Number of files loaded
+           in advance by workers. ``1`` means there will be a total of
+           1 dataset prefetched. If ``0`` is specified then no prefetching will be done, even
+           if explicitly asked for (default: ``1``)
+        shuffle (bool, optional): set to ``True`` to have the files reshuffled
+           at every epoch (default: ``False``).
+        infinite (bool, optional): set to ``True`` to have the files sampled infinitely.
+           Can be used for training. (default: ``False``).
+        local_rank (int, optional): MPI local rank
+           When :attr:`local_rank` is not ``-1``,
+           Each worker fetches a partition of the data files based on its global rank.
+           (default: ``-1``).
+        mpu (m5_model_parallelism.mpu, optional): m5_model_parallelism mpu package.
+           Used for model parallel training.
+        start_random_state (dict, optional): a random state dict to initialise with, if provided.
+            This overrides the default random seed set in the config file for dataloader.
+        truncation (str, optional): shard truncation strategy to use
+            (default: ``None```)
+    """
+
+    def __init__(
+        self,
+        dataloader_generator,
+        dataset_path,
+        shuffle=False,
+        infinite=False,
+        local_rank=-1,
+        world_size=1,
+        truncation=None,
+        random_seed=0,
+        is_train=True,
+    ):
+        super().__init__()
+        self.dataset_future = []
+        
+        if dataset_path is not None:
+            if not isinstance(dataset_path, str):
+                raise TypeError(
+                    "dataset_path should be a str, but got "
+                    "dataset_path={}".format(dataset_path)
+                )
+            file_sampler = DistributedFileSampler(
+                dataset_path=dataset_path,
+                shuffle=shuffle,
+                infinite=infinite,
+                local_rank=local_rank,
+                world_size=world_size,
+                is_train=is_train,
+            )
+        else:
+            raise ValueError(
+                    "dataset_path needs to be specified"
+                )
+
+        # FIXME: add restoration of initial random state
+        self.file_sampler = file_sampler
+        self.file_sampler_iter = iter(self.file_sampler)
+
+        self.dataloader_generator = dataloader_generator
+
+        self.dataloader = None
+        self.data_file = None
+        self.random_state = None
+
+        if truncation and truncation != "min_all_ranks":
+            raise ValueError(f"Unsupported truncation strategy: {truncation}")
+        self.truncation = truncation
+
+        print (f"DataProvider - Initialization: num_files = {len(file_sampler)}")
+
+    def __del__(self):
+        for data_file, data_job in self.dataset_future:
+            if data_job:
+                path, sample_count, _ = data_job.result(timeout=None)
+                shutil.rmtree(path)
+
+    def get_shard_name(self):
+        return self.data_file
+
+    def get_random_state(self):
+        """
+        Get the random state at the point BEFORE getting the current shard.
+        This is used for dataloader state recovery.
+        If the shard is not fetched, or was released, it returns None
+
+        :return: random state dictionary
+        """
+        return self.random_state
+
+    def get_file_sampler(self):
+        """
+        Get the file sampler instance, used in saving data provider state.
+
+        :return: file sampler
+        """
+        return self.file_sampler
+
+    def get_shard(self):
+        dataloader = None
+        sample_count = 0
+        random_state = None
+
+        if len(self.dataset_future) == 0:
+            data_file = next(self.file_sampler_iter)
+            if data_file is not None:
+                # path, sample_count, random_state = self.dataloader_generator.generate(data_file)
+                dataloader, sample_count = self.dataloader_generator.generate(data_file)
+                # dataloader = load(path)
+        else:
+            data_file, data_job = self.dataset_future.pop(0)
+            if data_job is not None:
+                path, sample_count, random_state = data_job.result(timeout=None)
+                dataloader = load(path)
+
+        self.data_file = data_file
+        self.dataloader = dataloader
+
+        # TODO: add communication to align the dataloader batche nums
+        if self.truncation == "min_all_ranks":
+            # need to sync len even when no shards left to let other ranks know when to stop
+            sampler = MinLenSyncSampler(dataloader.sampler if dataloader else None)
+            if sampler.incomplete():
+                return None, 0
+            if dataloader is not None:
+                # overriding using super() since DataLoader does not allow it
+                # but it's OK since we haven't used it yet
+                super(DataLoader, dataloader).__setattr__("sampler", sampler)
+                batch_sampler = dataloader.batch_sampler
+                if not isinstance(batch_sampler, BatchSampler):
+                    raise ValueError("min_all_ranks truncation only supports BatchSampler instances")
+                super(BatchSampler, batch_sampler).__setattr__("sampler", sampler)
+
+        return dataloader, sample_count
+
+    def release_shard(self):
+        del self.dataloader
+        self.data_file = None
+        self.random_state = None
+
+    def prefetch_shard(self):
+        if self.pool is None:
+            return
+
+        data_job = None
+        data_file = next(self.file_sampler_iter, None)
+
+        if data_file is not None:
+            data_job = self.pool.submit(self.dataloader_generator.generate, data_file)
+
+        self.dataset_future.append((data_file, data_job))
+
+class DataloaderGenerator:
+    r"""Data Generator Interface. Generates pytorch dataloader based on the given file.
+
+    Arguments:
+        dataset_type (str, required): the name of Dataset class from m5_dataloaders.datasets
+            for processing the given files
+        dataset_config (dict, required): the arguments (excluding input_files) for initializing Dataset class.
+        batch_size (int, optional): how many samples per batch to load. (default: ``1``)
+        data_sampler (pytorch Sampler type, optional): defines the strategy to draw
+           samples from the dataset. Can be any ``Iterable`` class with ``__len__``
+           implemented and supports taking as input a pytorch Dataset object to the initializer.
+           If specified, :attr:`shuffle` must not be specified.
+        num_workers (int, optional): how many subprocesses to use for data
+           loading. ``0`` means that the data will be loaded in the main process.
+           (default: ``0``)
+        worker_init_fn (callable, optional): If not ``None``, this will be called on each
+           worker subprocess with the worker id (an int in ``[0, num_workers - 1]``) as
+           input, after seeding and before data loading. (default: ``None``)
+        shuffle (bool, optional): set to ``True`` to have the files reshuffled
+           at every epoch. (default: ``False``)
+        drop_incomplete_batches (bool, optional): If set to True, will drop the last batch from shard if it is
+            incomplete, i.e. less than the specified micro-batch size. Needed when training models
+            with batch norm to prevent batches having single data point. (default: ``False``)
+            Should be set to False during evaluation or inference to avoid losing data.
+        collate_fn (callable, optional): merges a list of samples to form a
+           mini-batch of Tensor(s).  Used when using batched loading from a
+           map-style dataset.
+    """
+
+    def __init__(
+        self,
+        tokenizer,
+        device,
+        batch_size=1,
+        shuffle=False,
+        drop_incomplete_batches=False,
+        collate_fn=None,
+    ):
+        self.batch_size = batch_size
+        self.tokenizer = tokenizer
+        self.device = device
+        self.collate_fn = collate_fn
+
+    def generate(self, input_files):
+        if not isinstance(input_files, (list, tuple)):
+            input_files = [input_files]
+
+        data = GSDistillData(input_files, self.tokenizer, self.device)
+
+        collate_fn = data.get_collate_fn() if self.collate_fn is None else self.collate_fn
+
+        dataloader = DataLoader(
+            data,
+            batch_size=self.batch_size,
+            collate_fn=collate_fn,
+            pin_memory=True,
+        )
+        # return serialize(dataloader), len(data), random_states
+        return dataloader, len(data)

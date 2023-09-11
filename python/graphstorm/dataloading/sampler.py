@@ -17,13 +17,16 @@
 """
 from collections.abc import Mapping
 import torch as th
+import torch.distributed as dist
 import numpy as np
+import os
 from dgl import backend as F
 from dgl import EID, NID
 from dgl.distributed import node_split
 from dgl.dataloading.negative_sampler import Uniform
 from dgl.dataloading import NeighborSampler
 from dgl.transforms import to_block
+import graphstorm as gs
 
 class LocalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes
@@ -389,3 +392,247 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
             blocks.insert(0, block)
 
         return seed_nodes, output_nodes, blocks
+
+class _FileSampler:
+    r"""File Sampler Interface.
+    Arguments:
+        dataset_path (str, optional): path to the data files.
+            Mutually exclusive with :attr:`files`.
+    """
+
+    def __init__(self, dataset_path=None):
+        self.dataset_path = None
+        self.files = None
+
+        if not dataset_path:
+            raise ValueError(
+                "Dataset_path={}, should be specified.".format(
+                    dataset_path
+                )
+            )
+        else:
+            if not isinstance(dataset_path, str):
+                raise TypeError(
+                    "dataset_path should be a str, but got " "dataset_path={}".format(dataset_path)
+                )
+
+            self.dataset_path = dataset_path
+            self.files = [
+                os.path.join(dataset_path, f)
+                for f in os.listdir(dataset_path)
+                if os.path.isfile(os.path.join(dataset_path, f))
+            ]
+            self.files = [f for f in self.files if os.path.getsize(f)>0]
+            self.files.sort()
+
+            if len(self.files)==0:
+                raise ValueError (
+                    "no non-empty files found at top directory {}.".format(dataset_path))
+
+        self.num_files = len(self.files)
+        print ("found {} files from {}".format(self.num_files, dataset_path))
+
+    def __len__(self):
+        return self.num_files
+
+    def __iter__(self):
+        raise NotImplementedError
+
+    def __next__(self):
+        raise NotImplementedError
+
+    def to_json_obj(self):
+        return {
+            "files": self.files,
+            "sampler_class": self.__class__.__name__,
+        }
+
+class SequentialFileSampler():
+    r"""Sequential File Sampler. Samples file sequentially.
+
+    Arguments:
+        dataset_path (str, optional): path to the data files.
+            Mutually exclusive with :attr:`files`.
+        files (List[str], optional): a list of files.
+            Mutually exclusive with :attr:`dataset_path`.
+        json_obj (dict, optional): a json object serialised from a Sampler object.
+            If this is provided, dataset_path and files should NOT be present and the sampler will be
+            reconstructed using the JSON state object and recovered to the previous state.
+    """
+
+    def __init__(self, file_indices=None, is_train=True):
+        self.file_indices = file_indices
+        self.num_local_files = len(self.file_indices)
+        self._indices = list(range(self.num_local_files))
+        self._index = -1
+        self.reset = True
+        self.is_train = is_train
+
+    def __iter__(self):
+        if self.reset:
+            self._index = -1
+        self.reset = True
+        return self
+
+    def __next__(self):
+        self._index += 1
+
+        if self._index >= self.num_local_files:
+            if self.is_train:
+                self._index = 0
+            else:
+                self._index = 0
+                return None
+
+        return self.file_indices[self._index]
+
+class RandomShuffleFileSampler():
+    r"""Random Shuffled File Sampler. Has files reshuffled for sampling.
+
+    Arguments:
+        dataset_path (str, optional): path to the data files.
+            Mutually exclusive with :attr:`files`.
+        files (List[str], optional): a list of files.
+            Mutually exclusive with :attr:`dataset_path`.
+        json_obj (dict, optional): a json object serialised from a Sampler object.
+            If this is provided, dataset_path and files should NOT be present and the sampler will be
+            reconstructed using the JSON state object and recovered to the previous state.
+    """
+
+    def __init__(self, file_indices=None):
+        self.file_indices = file_indices
+        self.num_local_files = len(self.file_indices)
+        self._indices = list(range(self.num_local_files))
+        self._index = -1
+        self.reset = True
+
+    def __iter__(self):
+        if self.reset:
+            self._index = -1
+            random.shuffle(self._indices)
+        self.reset = True
+        return self
+
+    def __next__(self):
+        self._index += 1
+
+        if self._index >= self.num_local_files:
+            # raise StopIteration
+            self._index = 0
+
+        return self.file_indices[self._indices[self._index]]
+
+class DistributedFileSampler(_FileSampler):
+    r"""Distributed File Sampler. Samples file from the data path.
+    Each rank only has access to a partition of all the data shards.
+
+    Arguments:
+        dataset_path (str, optional): path to the data files.
+            Mutually exclusive with :attr:`files`.
+        files (List[str], optional): a list of files.
+            Mutually exclusive with :attr:`dataset_path`.
+        shuffle (bool, optional): set to ``True`` to have the files reshuffled
+            at every epoch. Shuffling is performed on the files of the local partition.
+            (default: ``False``)
+        infinite (bool, optional): set to ``True`` to have the files sampled infinitely.
+            Can be used for training. (default: ``False``).
+        local_rank (int, optional): MPI local rank
+            When :attr:`local_rank` is not ``-1``,
+            Each worker fetches a partition of the data files based on its global rank.
+            (default: ``-1``).
+        mpu (m5_model_parallelism.mpu, optional): m5_model_parallelism mpu package.
+            Used for model parallel training.
+        json_obj (dict, optional): a json object serialised from a Sampler object.
+            If this is provided, dataset_path and files should NOT be present and the sampler will be
+            reconstructed using the JSON state object and recovered to the previous state.
+    """
+
+    def __init__(
+        self, 
+        dataset_path=None, 
+        shuffle=False, 
+        infinite=False, 
+        local_rank=-1, 
+        world_size=None, 
+        is_train=True,
+    ):
+        super().__init__(dataset_path)
+
+        # Initialize distributed ranks
+        if local_rank == -1:
+            self.global_rank = 0
+            self.dp_size = 1
+            self.dp_rank = self.global_rank
+        else:
+            self.global_rank = gs.get_rank()
+            self.dp_rank = local_rank
+            self.dp_size = world_size
+
+        if self.dp_size > self.num_files:
+            self.remainder = self.dp_size % self.num_files
+            self.part_start = 0
+            self.part_end = self.num_files
+            self.part_len = self.part_end
+        else:
+            part_len = self.num_files // self.dp_size
+            self.remainder = self.num_files % self.dp_size
+            self.part_start = part_len * self.dp_rank + min(self.dp_rank, self.remainder)
+            self.part_end = self.part_start + part_len + (self.dp_rank < self.remainder)
+            self.part_len = self.part_end - self.part_start
+
+        if not is_train:
+            self.part_len = self.num_files
+        file_indices = list(range(self.part_len))
+        if shuffle and is_train:
+            sampler = RandomShuffleFileSampler(file_indices=file_indices)
+        else:
+            sampler = SequentialFileSampler(file_indices=file_indices, is_train=is_train)
+        self.sampler = sampler
+        self.sampler_iter = iter(sampler)
+
+        self.infinite = infinite
+        self.shuffle = shuffle
+
+
+    def get_file(self, shard_index):
+        if dist.is_initialized() and self.dp_size > self.num_files:
+            file_index = (
+                (shard_index * self.dp_size) + self.dp_rank + (self.remainder * shard_index)
+            )
+            file_index = self.part_start + file_index % self.part_len
+        else:
+            file_index = self.part_start + shard_index % self.part_len
+        return self.files[file_index % self.num_files]
+
+    def __len__(self):
+        return self.part_len
+
+    def __iter__(self):
+        if not self.infinite:
+            return self
+        else:
+
+            def _infinite_sample_iter():
+                while True:
+                    try:
+                        shard_index = next(self.sampler_iter)
+                    except StopIteration:
+                        self.sampler_iter = iter(self.sampler)
+                        shard_index = next(self.sampler_iter)
+
+                    ret = self.get_file(shard_index)
+
+                    yield ret
+
+            return _infinite_sample_iter()
+
+    def __next__(self):
+        ret = None
+        shard_index = next(self.sampler_iter)
+
+        if shard_index is not None:
+            ret = self.get_file(shard_index)
+
+        return ret
+
+

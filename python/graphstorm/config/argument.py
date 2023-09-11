@@ -105,6 +105,7 @@ def get_argument_parser():
     parser = _add_edge_classification_args(parser)
     parser = _add_task_general_args(parser)
     parser = _add_lm_model_args(parser)
+    parser = _add_distill_args(parser)
     return parser
 
 # pylint: disable=no-member
@@ -668,6 +669,125 @@ class GSConfig:
         else:
             # By default use -1 as full neighbor
             return [-1] * self.num_layers
+
+    def _check_distill_feats(self, dt_feats):
+        # "query:query@query,asin:asin@item_name/brand"
+        # dt_feats = ["query:query@query", "asin:asin@item_name/brand"]
+        # output = {"query": {id_field: "query", "textual_field": ["query"]}, "asin": {id_field: "asin", "textual_field": ["item_name", "brand"]}}
+        try:
+            dt_feats_dict = {}
+            for val in dt_feats:
+                dt_feats_dict[val.split(":")[0]] = {"id_field": val.split(":")[1].split("@")[0], \
+                    "textual_field": val.split(":")[1].split("@")[1].split("/")}
+
+        except Exception:
+            assert False, f"{fot_name} distill_feats should either in format" \
+                "ntype1:ntype1_id_field@ntype1_textual_field1/ntype1_textual_field2,ntype2:...," \
+                "for example, a valid input can be 'query:query@query,asin:asin@item_name/brand'"
+
+        return dt_feats_dict
+
+    @property
+    def distill_feats(self):
+        """ distillation features
+        """
+        if hasattr(self, "_distill_feats"):
+            dt_feats = self._distill_feats.split(",")
+            return self._check_distill_feats(dt_feats)
+        return None
+
+    @property
+    def textual_path(self):
+        """ distillation textual data path
+        """
+        if hasattr(self, "_textual_path"):
+            return self._textual_path
+        return None
+
+    @property
+    def concat_field_name(self):
+        """ filed name for distillation
+        """
+        if hasattr(self, "_concat_field_name"):
+            return self._concat_field_name
+        return None
+
+    @property
+    def tsf_name(self):
+        """ HuggingFace Transformer-based model name for distillation
+        """
+        if hasattr(self, "_tsf_name"):
+            return self._tsf_name
+        return None
+
+    @property
+    def pre_trained_name(self):
+        """ Name of pre-trained HuggingFace model weights for distillation
+        """
+        if hasattr(self, "_pre_trained_name"):
+            return self._pre_trained_name
+        return None
+
+    @property
+    def distill_batch_size(self):
+        if hasattr(self, "_distill_batch_size"):
+            return self._distill_batch_size
+        return None
+
+    @property
+    def need_infer(self):
+        if hasattr(self, "_need_infer"):
+            return self._need_infer
+        return None
+
+    @property
+    def save_student_path(self):
+        if hasattr(self, "_save_student_path"):
+            return self._save_student_path
+        return None
+
+    @property
+    def distill_lr(self):
+        if hasattr(self, "_distill_lr"):
+            return self._distill_lr
+        return None
+
+    @property
+    def save_student_interval(self):
+        if hasattr(self, "_save_student_interval"):
+            return self._save_student_interval
+        return None
+
+    @property
+    def eval_student_interval(self):
+        if hasattr(self, "_eval_student_interval"):
+            return self._eval_student_interval
+        return None
+
+    @property
+    def chunk_size(self):
+        if hasattr(self, "_chunk_size"):
+            return self._chunk_size
+        return None
+
+    def _check_max_global_step(self, max_global_step):
+        max_global_step_dict = {}
+        try:
+            for node_step in max_global_step.split(","):
+                node_step_split = node_step.split(":")
+                max_global_step_dict[node_step_split[0]] = int(node_step_split[1])
+
+        except Exception:
+            assert False, f"{fot_name} max_global_step should in format" \
+                "ntype1:step1,ntype2:step2, ..." \
+                "for example, a valid input can be 'query:512@asin:512'"
+        return max_global_step_dict
+
+    @property
+    def max_global_step(self):
+        if hasattr(self, "_max_global_step"):
+            return self._check_max_global_step(self._max_global_step)
+        return None
 
     @property
     def hidden_size(self):
@@ -1993,6 +2113,36 @@ def _add_inference_args(parser):
     group = parser.add_argument_group(title="infer")
     group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
+    return parser
+
+def _add_distill_args(parser):
+    group = parser.add_argument_group(title="distill")
+    group.add_argument("--distill-feats", type=str, default=argparse.SUPPRESS,
+                       help="Where to save the node types and the features for GNN distillation.")
+    group.add_argument("--textual-path", type=str, default=argparse.SUPPRESS,
+                       help="Where to save the textual data for distillation.")
+    group.add_argument("--concat-field-name", type=bool, default=argparse.SUPPRESS,
+                       help="Whether to concat field name for textual data.")
+    group.add_argument("--tsf-name", type=str, default=argparse.SUPPRESS,
+                       help="HuggingFace model name for distillation")
+    group.add_argument("--pre-trained-name", type=str, default=argparse.SUPPRESS,
+                       help="Name for pre-trained HF model")
+    group.add_argument("--distill-batch-size", type=int, default=argparse.SUPPRESS,
+                       help="Batch size for distillation")
+    group.add_argument("--need-infer", type=bool, default=argparse.SUPPRESS,
+                       help="Whether to do the gnn inference")
+    group.add_argument("--save-student-path", type=str, default=argparse.SUPPRESS,
+                       help="Path for saving student model.")
+    group.add_argument("--distill-lr", type=float, default=argparse.SUPPRESS,
+                       help="Learning rate for distillation")
+    group.add_argument("--save-student-interval", type=int, default=argparse.SUPPRESS,
+                       help="Saving interval for student model")
+    group.add_argument("--eval-student-interval", type=int, default=argparse.SUPPRESS,
+                       help="Eval interval for student model")
+    group.add_argument("--chunk-size", type=int, default=argparse.SUPPRESS,
+                       help="Number of samples for each mapped textual data file")
+    group.add_argument("--max-global-step", type=str, default=argparse.SUPPRESS,
+                       help="The maximum of global step for each node type for distillation")
     return parser
 
 # Users can add their own udf parser

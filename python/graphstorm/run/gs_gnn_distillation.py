@@ -33,8 +33,8 @@ def main():
     check_input_arguments(args)
 
     lib_dir = os.path.abspath(os.path.dirname(__file__))
-    cmd = "gsgnn_dt/distill_infer_lm.py" if args.lm_encoder_only \
-            else "gsgnn_dt/distill_infer_gnn.py"
+    cmd = "gsgnn_dt/distill_lm.py" if args.lm_encoder_only \
+            else "gsgnn_dt/distill_gnn.py"
     cmd_path = os.path.join(lib_dir, cmd)
     exec_script_args = [cmd_path] + exec_script_args
 
