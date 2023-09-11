@@ -141,8 +141,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                     input_nodes, output_nodes, blocks = next(dataloader_iter)
                 else:
                     for ntype in g.ntypes:
-                        # TODO (IN): Using dummy index 1 as WholeGraph can't handle empty tensor
-                        input_nodes[ntype] = output_nodes[ntype] = th.tensor([1])
+                        input_nodes[ntype] = output_nodes[ntype] = th.empty((0,), dtype=g.idtype)
                     blocks = None
 
                 if iter_l % 100000 == 0 and get_rank() == 0:
