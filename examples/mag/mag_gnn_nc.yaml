@@ -47,7 +47,6 @@ gsf:
     restore_model_layers: embed
     num_bases: -1
     use_self_loop: true
-    lp_decoder_type: dot_product
     use_node_embeddings: false
   node_classification:
     target_ntype: "paper"

@@ -77,8 +77,7 @@ python3 -m graphstorm.run.gs_node_classification \
             --num-samplers 0 \
             --part-config mag_min_4parts/mag.json \
             --ip-config ip_list_4p.txt \
-            --cf mag_gnn_nc.yaml \
-            --restore-model-path mag_bert_model/epoch-0/
+            --cf mag_gnn_nc.yaml
 ```
 
 The accuracy is 17.4%.
@@ -110,6 +109,7 @@ python3 -m graphstorm.run.gs_link_prediction \
 			--part-config mag_min_4parts/mag.json \
 			--ip-config ip_list_4p.txt \
 			--cf mag_bert_ft.yaml
+			--save-model-path mag_bert_lp_model
 ```
 
 Train the GNN model.
@@ -137,3 +137,5 @@ python3 -m graphstorm.run.gs_node_classification \
             --cf mag_gnn_nc.yaml \
             --restore-model-path mag_bert_nc_model/epoch-9/
 ```
+
+The accuracy is 57.41%.
