@@ -21,6 +21,7 @@ import torch as th
 from torch.nn.parallel import DistributedDataParallel
 import os
 import json
+import pandas as pd
 
 from ..model.gnn import do_full_graph_inference
 from ..utils import sys_tracker
@@ -32,7 +33,7 @@ from ..dataloading import DataloaderGenerator, DataProvider
 class GSdistiller():
     """
     """
-    def __init__(self, model, data_provider, rank, config):
+    def __init__(self, model, rank, config):
         self._rank = rank
         self._model = model
         self._device = -1
@@ -42,7 +43,8 @@ class GSdistiller():
 
     def infer(self, data, loader,
             edge_mask_for_gnn_embeddings='train_mask',
-            node_id_mapping_file=None):
+            node_id_mapping_file=None
+    ):
         """ Do inference
 
         The inference can do two things:
@@ -79,6 +81,87 @@ class GSdistiller():
 
         return embs
 
+    def get_textual_file_names_per_worker(self, total_file_list, local_rank, world_size):
+        num_files = len(total_file_list)
+        part_len = num_files // world_size
+        remainder = num_files % world_size
+        part_start = part_len * local_rank + min(local_rank, remainder)
+        part_end = part_start + part_len + (local_rank < remainder)
+        part_len = part_end - part_start
+
+        if part_len == 0:
+            return []
+
+        local_file_list = []
+        for i in range(part_len):
+            local_file_list.append(total_file_list[part_start+i])
+        return local_file_list
+
+    def map_text_embeds(
+        self,
+        queue,
+        node_type,
+        file_name,
+        id_field,
+        textual_field_list,
+        disk_embeds,
+        id_map,
+        index,
+        total_num,
+        concat_field_name=False,
+        split="train",
+        chunk_size=10000,
+        part=0,
+        rank=0,
+    ): 
+        print ("Worker {}: Map {} textual features: {} of {}".format(self.rank, node_type, index, total_num))
+        assert len(queue["node_ids"]) < chunk_size, "Queue already greater than chunk size"
+
+        embed_offset = []
+
+        with open(file_name, "r") as reader:
+            for line in reader:
+                # TODO (HZ): add the option for reading from parquet data
+                json_data = json.loads(line)
+                text = ""
+                for i, f in enumerate(textual_field_list):
+                    if f in json_data and json_data[f] is not None and str(json_data[f]):
+                        if concat_field_name:
+                            text += f + ": "
+                        if not isinstance(json_data[f], str):
+                            print (f"Warning: {f} is not a string feature")
+                        field_value = str(json_data[f])
+                        if i != len(textual_field_list) - 1:
+                            text += field_value + " "
+                        else:
+                            text += field_value
+                if text == "":
+                    print (f"Warning: empty textual features for node {json_data[id_field]}, fill with node id")
+                    text = str(json_data[id_field])
+                queue["node_ids"].append(json_data[id_field])
+                queue["textual_feats"].append(text)
+                embed_offset.append(id_map[json_data[id_field]])
+
+                if len(queue["node_ids"]) == chunk_size:
+                    queue["embeddings"] = queue["embeddings"] + embed_offset
+                    textual_embed_pddf = pd.DataFrame({
+                        "ids": queue["node_ids"],
+                        "textual_feats": queue["textual_feats"], 
+                        "embeddings": disk_embeds[queue["embeddings"]].tolist()
+                    }).set_index("ids")
+                    outdir = os.path.join(os.path.dirname(os.path.dirname(file_name)), \
+                        node_type + "_distill_data", split)
+                    if not os.path.exists(outdir):
+                        os.makedirs(outdir, exist_ok=True)
+                    textual_embed_pddf.to_parquet(os.path.join(outdir, f"rank-{rank}-part-{part}.parquet"))
+                    for k in queue.keys():
+                        queue[k] = []
+                    embed_offset = []
+                    part += 1
+
+        queue["embeddings"] = queue["embeddings"] + embed_offset
+        return queue, part
+
     def distill(
         self, 
         node_type, 
@@ -109,7 +192,7 @@ class GSdistiller():
             world_size=th.distributed.get_world_size(),
             is_train=False,
         )
-        # TODO: add eval dataprovider
+
         optimizer = th.optim.Adam(self.student.parameters(), lr=distill_lr)
         self.student.to(self.device)
         student = DistributedDataParallel(self.student, device_ids=None if on_cpu else [self.device],
@@ -130,34 +213,9 @@ class GSdistiller():
             )
             is_first_iteration = False
 
-            # logger.info(f"Time for {index + 1}-th shard: {post - pre} seconds")
-
             index += 1
             if complete:
                 break
-
-
-            # complete, global_step, current_data_sample_count, overall_time = self.train_shard(
-            #     args=args, 
-            #     model=model, 
-            #     optimizer=optimizer, 
-            #     train_dataset_provider=dataset_provider, 
-            #     early_stopping=early_stopping, 
-            #     is_first_iteration=is_first_iteration,
-            #     global_step=global_step, 
-            #     current_data_sample_count=current_data_sample_count, 
-            #     last_global_step_from_restore=last_global_step_from_restore,
-            #     overall_time=overall_time,
-            #     sample_scheduler=sample_scheduler,
-            #     )
-            # is_first_iteration = False
-            # post = time.perf_counter()
-
-            # logger.info(f"Time for {index + 1}-th shard: {post - pre} seconds")
-
-            # index += 1
-            # if complete:
-            #     break
 
     def save_student_model(self, model, saved_path, global_step):
         th.distributed.barrier()

@@ -16,7 +16,6 @@ gsf:
     use_mini_batch_infer: true
   distill:
     distill_feats: "query:query@query,asin:asin@item_name/brand"
-    # distill_feats: "query:query@query_textual,asin:asin@asin_texutual"
     textual_path: "/fsx-CoreModeling/zhanhouy/home/m5gnn_dataset/distill_dev_data"
     concat_field_name: true
     tsf_name: DistilBertModel
