@@ -20,6 +20,7 @@ import tempfile
 import pytest
 from argparse import Namespace
 from types import MethodType
+from unittest.mock import patch
 
 import torch as th
 from torch import nn
@@ -994,27 +995,23 @@ def test_node_mini_batch_gnn_predict():
         target_nidx = {"n1": th.arange(data.g.number_of_nodes("n0"))}
         dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                         batch_size=10, device="cuda:0", train_task=False)
-        model = Dummy_GSNodeModel(return_dict=False)
-        pred, embs, labels = node_mini_batch_gnn_predict(model, dataloader, return_label=True)
-        assert isinstance(pred, dict)
-        assert isinstance(embs, dict)
-        assert isinstance(labels, dict)
 
-        assert "n1" in pred
-        assert pred["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # pred result is a dummy result
-        assert embs["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # embs result is a dummy result
-        assert labels["n1"].shape[0] == data.g.number_of_nodes("n1")
+        @patch.object(GSgnnNodeTrainData, 'get_labels')
+        def check_predict(mock_get_labels, return_dict):
+            model = Dummy_GSNodeModel(return_dict=return_dict)
+            mock_get_labels.side_effect = [{"n1": th.arange(10)}] * 10
 
-        model = Dummy_GSNodeModel(return_dict=True)
-        pred, embs, labels = node_mini_batch_gnn_predict(model, dataloader, return_label=True)
-        assert isinstance(pred, dict)
-        assert isinstance(embs, dict)
-        assert isinstance(labels, dict)
-        assert "n1" in pred
-        assert pred["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # pred result is a dummy result
-        assert embs["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # embs result is a dummy result
-        assert labels["n1"].shape[0] == data.g.number_of_nodes("n1")
+            pred, embs, labels = node_mini_batch_gnn_predict(model, dataloader, return_label=True)
+            assert isinstance(pred, dict)
+            assert isinstance(embs, dict)
+            assert isinstance(labels, dict)
 
+            assert "n1" in pred
+            assert pred["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # pred result is a dummy result
+            assert embs["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # embs result is a dummy result
+            assert labels["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10
+        check_predict(return_dict=True)
+        check_predict(return_dict=False)
 
 if __name__ == '__main__':
     test_node_mini_batch_gnn_predict()
