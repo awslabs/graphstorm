@@ -305,6 +305,10 @@ def test_categorize_transform():
     assert len(transform_conf["mapping"]) == 10
 
     # check backward compatible
+    transform_conf = {
+        "name": "to_categorical"
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
     info = [np.array([i for i in range(6)]),
             np.array([i for i in range(4, 10)])]
     transform.update_info(info)
