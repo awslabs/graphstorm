@@ -288,8 +288,8 @@ def test_categorize_transform():
     for i in range(10):
         assert str(i) in res["test"]
 
-    info = [ np.array([str(i) for i in range(6)]),
-            np.array([str(i) for i in range(4, 10)]) ]
+    info = [np.array([str(i) for i in range(6)]),
+            np.array([str(i) for i in range(4, 10)])]
     transform.update_info(info)
     feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
     feat[0] = int(feat[0])
@@ -302,6 +302,20 @@ def test_categorize_transform():
         feat[int(str_i)] = 0
         assert np.all(feat == 0)
     assert "mapping" in transform_conf
+    assert len(transform_conf["mapping"]) == 10
+
+    # check backward compatible
+    info = [np.array([i for i in range(6)]),
+            np.array([i for i in range(4, 10)])]
+    transform.update_info(info)
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
     assert len(transform_conf["mapping"]) == 10
 
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
