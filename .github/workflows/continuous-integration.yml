@@ -8,7 +8,6 @@ on:
       - main
       - ci_dev
   pull_request_target:
-    types: [labeled]
     
 
 permissions:
@@ -66,7 +65,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target'}}
+      if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
