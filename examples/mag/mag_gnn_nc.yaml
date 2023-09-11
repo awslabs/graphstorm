@@ -44,7 +44,6 @@ gsf:
     no_validation: false
     eval_frequency: 500
   rgcn:
-    restore_model_layers: embed
     num_bases: -1
     use_self_loop: true
     use_node_embeddings: false
