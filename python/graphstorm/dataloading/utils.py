@@ -115,8 +115,8 @@ def modify_fanout_for_target_etype(g, fanout, target_etypes):
 
 def flip_node_mask(dist_tensor):
     """ Flip the node mask (0->1; 1->0) and return a flipped mask.
-        This is equivalent to the `~` operator for boolean tensors. 
-        
+        This is equivalent to the `~` operator for boolean tensors.
+
         Parameters
         ----------
         dist_tensor: dgl.distributed.DistTensor
