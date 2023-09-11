@@ -136,7 +136,7 @@ python3 -m graphstorm.run.gs_node_classification \
             --part-config mag_min_4parts/mag.json \
             --ip-config ip_list_4p.txt \
             --cf mag_gnn_nc.yaml \
-            --batch-size 1024 \
+            --batch-size 128 \
             --restore-model-path mag_bert_nc_model/epoch-9/ \
             --restore-model-layers embed
 ```
