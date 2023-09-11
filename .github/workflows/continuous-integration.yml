@@ -31,7 +31,10 @@ env:
 jobs:
   
   lint_check:
-    if: ${{ github.event.label.name != 'draft'}}
+    if: ${{ github.event_name == 'push' ||
+      (github.event.label.name != 'draft'
+      && github.event_name == 'pull_request_target'
+      && contains(github.event.pull_request.labels.*.name, 'ready'))}}
     runs-on: ubuntu-latest
     steps:
     - name: Configure AWS Credentials
@@ -63,7 +66,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'ready')}}
+      if: ${{ github.event_name == 'pull_request_target'}}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
