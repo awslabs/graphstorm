@@ -59,6 +59,8 @@ def prepare_batch_input(g, input_nodes,
     Dict of tensors.
         If a node type has features, it will get node features.
     """
+    import pylibwholegraph.torch.embedding as wgemb
+
     feat = {}
     for ntype, nid in input_nodes.items():
         feat_name = None if feat_field is None else \
@@ -72,7 +74,8 @@ def prepare_batch_input(g, input_nodes,
                 data = g.nodes[ntype].data[fname]
                 if hasattr(data, 'subcolumn'):  # required by nvshemem
                     data = data.subcolumn(nid.to(dev)).data
-                elif hasattr(data, 'gather'):
+                elif hasattr(data, 'gather') and isinstance(data, wgemb.WholeMemoryEmbedding):
+
                     data = data.gather(nid.to(dev))
                 else:
                     data = data[nid].to(dev)
@@ -221,7 +224,6 @@ class GSgnnData():
 
             wgth.distributed_launch(Options, lambda: None)
             wmb.init(0)
-            th.set_num_threads(1)
             wgth.comm.set_world_info(rank, num_ranks, Options.local_rank, Options.local_size)
             self._wg_init = True
         global_comm = wgth.comm.get_global_communicator()
