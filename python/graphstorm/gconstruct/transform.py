@@ -379,7 +379,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
         feats = feats[feats != None] # pylint: disable=singleton-comparison
         if self._separator is None:
-            return {self.feat_name: np.unique(feats)}
+            return {self.feat_name: np.unique(feats.astype(str))}
         else:
             assert feats.dtype.type is np.str_, \
                     "We can only convert strings to multiple categorical values with separaters."
@@ -424,7 +424,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                encoding[i, self._val_dict[feat]] = 1
+                encoding[i, self._val_dict[str(feat)]] = 1
         else:
             for i, feat in enumerate(feats):
                 if feat is None:
