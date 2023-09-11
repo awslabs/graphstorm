@@ -89,7 +89,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
             # GNN message passing
-            encode_embs = self.compute_embed_step(blocks, node_feats)
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # TODO add w_relation in calculating the score. The current is only valid for
         # homogenous graph.

@@ -17,6 +17,7 @@
 """
 
 import abc
+import logging
 import time
 import torch as th
 import dgl
@@ -30,7 +31,6 @@ from .utils import create_sparse_embeds_path
 from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
-from .gnn_encoder_base import dist_inference
 from ..utils import get_rank, get_world_size, barrier
 from ..dataloading.dataset import prepare_batch_input
 
@@ -435,7 +435,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         # Restore the model weights from a checkpoint saved previously.
         if restore_model_path is not None:
-            print('load GNN model from ', restore_model_path)
+            logging.debug('load GNN model from %s', restore_model_path)
             # TODO(zhengda) we need to load edge_input_encoder.
             model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
                 if model_layer_to_load is None else model_layer_to_load
@@ -447,7 +447,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                 self.decoder \
                     if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
-            print('Load Sparse embedding from ', restore_model_path)
+            logging.debug('Load Sparse embedding from %s', restore_model_path)
             load_sparse_embeds(restore_model_path,
                                 self.node_input_encoder,
                                 get_rank(),
@@ -523,7 +523,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         return embs
 
-    def compute_embed_step(self, blocks, input_feats):
+    def compute_embed_step(self, blocks, input_feats, input_nodes):
         """ Compute the GNN embeddings on a mini-batch.
 
         This function is used for mini-batch inference.
@@ -534,6 +534,8 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             The message flow graphs for computing GNN embeddings.
         input_feats : dict of Tensors
             The input node features.
+        input_nodes : dict of Tensors
+            The input node IDs.
 
         Returns
         -------
@@ -541,8 +543,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         device = blocks[0].device
         if self.node_input_encoder is not None:
-            input_nodes = {ntype: blocks[0].srcnodes[ntype].data[dgl.NID].cpu() \
-                    for ntype in blocks[0].srctypes}
             embs = self.node_input_encoder(input_feats, input_nodes)
             embs = {name: emb.to(device) for name, emb in embs.items()}
         else:
@@ -582,8 +582,8 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                            get_rank(),
                            get_world_size())
         if get_rank() == 0:
-            print('successfully save the model to ' + model_path)
-            print('Time on save model {}'.format(time.time() - start_save_t))
+            logging.info('successfully save the model to %s', model_path)
+            logging.info('Time on save model: %.3f seconds', time.time() - start_save_t)
 
     @property
     def node_input_encoder(self):
@@ -673,9 +673,9 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             return {ntype: input_embeds[ntype][ids].to(device) \
                     for ntype, ids in input_nodes.items()}
-        embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
-                                    batch_size, fanout, edge_mask=edge_mask,
-                                    task_tracker=task_tracker)
+        embeddings = model.gnn_encoder.dist_inference(data.g, get_input_embeds,
+                                                      batch_size, fanout, edge_mask=edge_mask,
+                                                      task_tracker=task_tracker)
         model.train()
     else:
         model.eval()
@@ -687,10 +687,10 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
             feats = prepare_batch_input(data.g, input_nodes, dev=device,
                                         feat_field=data.node_feat_field)
             return model.node_input_encoder(feats, input_nodes)
-        embeddings = dist_inference(data.g, model.gnn_encoder, get_input_embeds,
-                                    batch_size, fanout, edge_mask=edge_mask,
-                                    task_tracker=task_tracker)
+        embeddings = model.gnn_encoder.dist_inference(data.g, get_input_embeds,
+                                                      batch_size, fanout, edge_mask=edge_mask,
+                                                      task_tracker=task_tracker)
         model.train()
     if get_rank() == 0:
-        print(f"computing GNN embeddings: {time.time() - t1:.4f} seconds")
+        logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)
     return embeddings

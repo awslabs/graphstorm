@@ -17,6 +17,7 @@
 """
 
 import os
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -44,10 +45,42 @@ from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
                                     FastGSgnnLPJointNegDataLoader,
                                     FastGSgnnLPLocalUniformNegDataLoader,
                                     FastGSgnnLPLocalJointNegDataLoader)
-from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device
+
+def get_evaluator(config, train_data):
+    """ Get evaluator according to config
+
+        Parameters
+        ----------
+        config: GSConfig
+            Configuration
+        train_data: GSgnnEdgeData
+            Training data
+    """
+    assert len(config.eval_metric) == 1, \
+        "GraphStorm doees not support computing multiple metrics at the same time."
+    if config.report_eval_per_type:
+        return GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+                                           train_data,
+                                           config.num_negative_edges_eval,
+                                           config.lp_decoder_type,
+                                           config.model_select_etype,
+                                           config.use_early_stop,
+                                           config.early_stop_burnin_rounds,
+                                           config.early_stop_rounds,
+                                           config.early_stop_strategy)
+    else:
+        return GSgnnMrrLPEvaluator(config.eval_frequency,
+                                   train_data,
+                                   config.num_negative_edges_eval,
+                                   config.lp_decoder_type,
+                                   config.use_early_stop,
+                                   config.early_stop_burnin_rounds,
+                                   config.early_stop_rounds,
+                                   config.early_stop_strategy)
 
 def main(config_args):
     """ main function
@@ -74,15 +107,9 @@ def main(config_args):
     trainer.setup_device(device=device)
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
-        trainer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.eval_frequency,
-                                train_data,
-                                config.num_negative_edges_eval,
-                                config.lp_decoder_type,
-                                config.use_early_stop,
-                                config.early_stop_burnin_rounds,
-                                config.early_stop_rounds,
-                                config.early_stop_strategy))
+        # Currently, we only support mrr
+        evaluator = get_evaluator(config, train_data)
+        trainer.setup_evaluator(evaluator)
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
@@ -118,7 +145,9 @@ def main(config_args):
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
                                 exclude_training_targets=config.exclude_training_targets,
-                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss)
+                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss,
+                                construct_feat_ntype=config.construct_feat_ntype,
+                                construct_feat_fanout=config.construct_feat_fanout)
 
     # TODO(zhengda) let's use full-graph inference for now.
     if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
@@ -155,7 +184,9 @@ def main(config_args):
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path,
-                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
+                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs,
+                max_grad_norm=config.max_grad_norm,
+                grad_norm_type=config.grad_norm_type)
 
     if config.save_embed_path is not None:
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
@@ -184,5 +215,4 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     args = arg_parser.parse_args()
-    print(args)
     main(args)

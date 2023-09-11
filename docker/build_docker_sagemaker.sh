@@ -44,7 +44,9 @@ DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}"
 echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
 
 if [ $IMAGE_TYPE = "gpu" ] || [ $IMAGE_TYPE = "cpu" ]; then
-    docker build --build-arg DEVICE=$IMAGE_TYPE -f $GSF_HOME"docker/sagemaker/Dockerfile.sm" . -t $DOCKER_FULLNAME
+    # User Buildkit to avoid pulling both CPU and GPU images
+    DOCKER_BUILDKIT=1 docker build --build-arg DEVICE=$IMAGE_TYPE \
+        -f $GSF_HOME"docker/sagemaker/Dockerfile.sm" . -t $DOCKER_FULLNAME
 else
     echo "Image type can only be \"gpu\" or \"cpu\", but get \""$IMAGE_TYPE"\""
     # remove the temporary code folder
