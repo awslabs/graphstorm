@@ -145,6 +145,7 @@ class GSgnnData():
         self._test_idxs = {}
 
         if use_wholegraph and is_distributed():
+            print('Allocate features with Wholegraph')
             self._wg_init = False
             num_parts = self._g.get_partition_book().num_partitions()
             for ntype in node_feat_field.keys():
@@ -236,7 +237,7 @@ class GSgnnData():
             0.0, # cache ratio
         )
         metadata_file = os.path.join(os.path.dirname(part_config), 'wholegraph/metadata.json')
-        with open(metadata_file) as f:
+        with open(metadata_file, encoding="utf8") as f:
             wg_metadata = json.load(f)
         node_feat_wm_embedding = wgth.create_embedding(
             feature_comm,

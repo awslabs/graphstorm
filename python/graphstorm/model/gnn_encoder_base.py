@@ -124,15 +124,34 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                             batch_size=batch_size,
                                                             shuffle=False,
                                                             drop_last=False)
+            # Calculate len of dataloader as DistNodeDataLoader does not have len() attribute
+            len_dataloader = len(list(dataloader))
+            barrier()
+            tensor = th.tensor([len_dataloader], device=device)
+            th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+            max_num_batch = tensor[0]
 
-            for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
+            dataloader_iter = iter(dataloader)
+
+            # To use WholeGraph for feature featching, Dataloaders from different
+            # trainers must iterate through the same number of iterations as WholeGraph
+            # does not support imbalanced batch numbers across processes/trainers
+            for iter_l in range(max_num_batch):
+                if iter_l < len_dataloader:
+                    input_nodes, output_nodes, blocks = next(dataloader_iter)
+                else:
+                    for ntype in g.ntypes:
+                        # TODO (IN): Using dummy index 1 as WholeGraph can't handle empty tensor
+                        input_nodes[ntype] = output_nodes[ntype] = th.tensor([1])
+                    blocks = None
+
                 if iter_l % 100000 == 0 and get_rank() == 0:
                     print(f"[Rank 0] dist_inference: Layer [{i}] " \
                           f"finishes [{iter_l}] iterations.")
 
                 if task_tracker is not None:
                     task_tracker.keep_alive(report_step=iter_l)
-                block = blocks[0].to(device)
+                block = blocks[0].to(device) if blocks is not None else None
                 if not isinstance(input_nodes, dict):
                     # This happens on a homogeneous graph.
                     assert len(g.ntypes) == 1
@@ -147,7 +166,7 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                     h = get_input_embeds(input_nodes)
                 else:
                     h = {k: x[k][input_nodes[k]].to(device) for k in input_nodes.keys()}
-                h = layer(block, h)
+                h = layer(block, h) if block is not None else {}
 
                 for k in h.keys():
                     # some ntypes might be in the tensor h but are not in the output nodes
