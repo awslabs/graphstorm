@@ -37,3 +37,5 @@ Model encoders and layers
     RelationalAttLayer
     SAGEEncoder
     SAGEConv
+    HGTEncoder
+    HGTLayer
