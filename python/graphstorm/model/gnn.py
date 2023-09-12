@@ -31,7 +31,7 @@ from .utils import create_sparse_embeds_path
 from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
-from .gnn_encoder_base import dist_inference, dist_minibatch_inference
+from .gnn_encoder_base import dist_minibatch_inference
 from ..utils import get_rank, get_world_size, barrier
 from ..dataloading.dataset import prepare_batch_input
 
