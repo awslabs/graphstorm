@@ -201,6 +201,9 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
         Get the node features.
     device : Pytorch device
         The device to run mini-batch computation.
+    task_tracker : GSTaskTrackerAbc
+        The task tracker.
+
     Returns
     -------
         dict of Tensors : the inferenced tensors.
