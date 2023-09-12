@@ -38,12 +38,12 @@ def get_evaluator(config):
         multilabel = config.multilabel[config.eval_target_ntype] \
             if isinstance(config.multilabel, dict) else config.multilabel
         return GSgnnAccEvaluator(config.eval_frequency,
-                                config.eval_metric,
-                                multilabel,
-                                config.use_early_stop,
-                                config.early_stop_burnin_rounds,
-                                config.early_stop_rounds,
-                                config.early_stop_strategy)
+                                 config.eval_metric,
+                                 multilabel,
+                                 config.use_early_stop,
+                                 config.early_stop_burnin_rounds,
+                                 config.early_stop_rounds,
+                                 config.early_stop_strategy)
     elif config.task_type == "node_regression":
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,
