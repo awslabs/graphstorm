@@ -471,7 +471,7 @@ class GSConfig:
         """
         path = os.path.dirname(self.part_config)
         wholegraph_dir = os.path.join(path, 'wholegraph')
-        return True if os.path.isdir(wholegraph_dir) else False
+        return bool(os.path.isdir(wholegraph_dir))
 
     @property
     def verbose(self):
