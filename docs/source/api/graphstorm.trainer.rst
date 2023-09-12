@@ -3,7 +3,7 @@
 graphstorm.trainer
 =====================
 
-    GraphStorm trainers assemble the distributed trainging pipeline for different tasks or
+    GraphStorm trainers assemble the distributed training pipeline for different tasks or
     different training methods.
 
     If possible, users should always use these trainers to avoid handling the distributed
