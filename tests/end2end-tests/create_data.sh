@@ -122,6 +122,14 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k-text \
 	--add-reverse-edges
 
+# movielens with labels on both user and movie nodes
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_multi_target_ntypes.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_multi_target_ntypes_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
 date
 
 echo 'Done'
