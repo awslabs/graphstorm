@@ -712,8 +712,8 @@ class GSgnnLinkPredictionTestDataLoader():
 
     The negative edges are sampled uniformly.
 
-    Paramters
-    ------------
+    Parameters
+    -----------
     dataset: GSgnnEdgeData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
