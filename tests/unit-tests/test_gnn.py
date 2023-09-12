@@ -20,6 +20,7 @@ import tempfile
 import pytest
 from argparse import Namespace
 from types import MethodType
+from unittest.mock import patch
 
 import torch as th
 from torch import nn
@@ -55,6 +56,7 @@ from graphstorm import get_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
 from graphstorm.model.gnn import do_full_graph_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
+from graphstorm.model.node_gnn import GSgnnNodeModelInterface
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 from graphstorm.model.gnn_with_reconstruct import construct_node_feat, get_input_embeds_combined
 
@@ -1103,7 +1105,63 @@ def test_link_prediction_weight():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+class Dummy_GSNodeModel(GSgnnNodeModelInterface):
+    def __init__(self, return_dict=False):
+        self._return_dict = return_dict
+
+    def eval(self):
+        pass
+
+    def train(self):
+        pass
+
+    @property
+    def device(self):
+        return "cpu"
+
+    def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
+        if self._return_dict:
+            return {"n1": th.arange(10)}, {"n1": th.rand((10,10))}
+        else:
+            return th.arange(10),  th.rand((10,10))
+
+def test_node_mini_batch_gnn_predict():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                   train_ntypes=['n1'], label_field='label',
+                                   node_feat_field='feat')
+        target_nidx = {"n1": th.arange(data.g.number_of_nodes("n0"))}
+        dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
+                                        batch_size=10, device="cuda:0", train_task=False)
+
+        @patch.object(GSgnnNodeTrainData, 'get_labels')
+        def check_predict(mock_get_labels, return_dict):
+            model = Dummy_GSNodeModel(return_dict=return_dict)
+            mock_get_labels.side_effect = [{"n1": th.arange(10)}] * 10
+
+            pred, embs, labels = node_mini_batch_gnn_predict(model, dataloader, return_label=True)
+            assert isinstance(pred, dict)
+            assert isinstance(embs, dict)
+            assert isinstance(labels, dict)
+
+            assert "n1" in pred
+            assert pred["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # pred result is a dummy result
+            assert embs["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # embs result is a dummy result
+            assert labels["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10
+        check_predict(return_dict=True)
+        check_predict(return_dict=False)
+
+    th.distributed.destroy_process_group()
+
 if __name__ == '__main__':
+    test_node_mini_batch_gnn_predict()
     test_rgcn_node_prediction_with_reconstruct()
     test_rgcn_edge_prediction(2)
     test_rgcn_node_prediction(None)
