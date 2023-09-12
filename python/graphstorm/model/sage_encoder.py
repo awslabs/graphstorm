@@ -24,7 +24,7 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class SAGEConv(nn.Module):
-    r"""Sage Convolutional layer.
+    r"""GraphSage Convolutional layer.
 
     Parameters
     ----------
@@ -110,7 +110,7 @@ class SAGEConv(nn.Module):
 
 
 class SAGEEncoder(GraphConvEncoder):
-    r""" Sage Conv Layer
+    r""" GraphSage Conv Encoder
 
     Parameters
     ----------
