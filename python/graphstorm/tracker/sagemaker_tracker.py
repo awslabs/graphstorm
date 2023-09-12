@@ -57,10 +57,12 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         """
         if force_report or self._do_report(step):
             if metric_value is not None:
-                if isinstance(metric_value, numbers.Number):
+                if isinstance(metric_value, str):
+                    logging.info("Step %d | %s: %s", step, metric_name, metric_value)
+                elif isinstance(metric_value, numbers.Number):
                     logging.info("Step %d | %s: %.4f", step, metric_name, metric_value)
                 else:
-                    logging.info("Step %d | %s: %s", step, metric_name, metric_value)
+                    logging.info("Step %d | %s: %s", step, metric_name, str(metric_value))
 
     def log_train_metric(self, metric_name, metric_value, step, force_report=False):
         """ Log train metric
