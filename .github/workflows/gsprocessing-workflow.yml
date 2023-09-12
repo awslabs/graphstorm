@@ -12,7 +12,6 @@ on:
       - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing-workflow.yml'
-    workflow_dispatch:
   pull_request_target:
     paths:
       - '.github/workflow_scripts/gsprocessing_pytest.sh'
@@ -69,7 +68,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request' }}
+      if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
@@ -111,7 +110,7 @@ jobs:
                                --source-ref '${{ github.ref }}' \
                                --wait
     - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request' }}
+      if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
