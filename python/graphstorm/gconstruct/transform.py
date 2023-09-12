@@ -351,6 +351,9 @@ class CategoricalTransform(TwoPhaseFeatTransform):
     def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
         self._val_dict = {}
         if transform_conf is not None and 'mapping' in transform_conf:
+            # We assume the keys of a categorical mapping are strings.
+            # But previously keys can be integers. So we convert them
+            # into strings.
             self._val_dict = \
                 {str(key): val for key, val in transform_conf['mapping'].items()}
             self._conf = transform_conf
