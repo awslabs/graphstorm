@@ -208,9 +208,10 @@ class GSgnnData():
         import pylibwholegraph.torch as wgth
         import pylibwholegraph.binding.wholememory_binding as wmb
 
+
         if not self._wg_init:
-            class Options:
-                """Set Wholegraph's environment variables """
+            class Options: # pylint: disable=missing-class-docstring
+                pass
             Options.launch_agent = 'pytorch'
             Options.launch_env_name_world_rank = 'RANK'
             Options.launch_env_name_world_size = 'WORLD_SIZE'

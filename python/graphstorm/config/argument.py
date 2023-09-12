@@ -450,13 +450,12 @@ class GSConfig:
 
     @property
     def use_wholegraph(self):
-        """ Whether to use wholegraph for feature transfer. Default is False.
+        """ Use wholegraph for feature transfer if 'wholegraph' folder exists
+            which stores the node features in wholegraph compatible format.
         """
-        if hasattr(self, "_use_wholegraph"):
-            assert self._use_wholegraph in [True, False]
-            return self._use_wholegraph
-
-        return False
+        path = os.path.dirname(self.part_config)
+        wholegraph_dir = os.path.join(path, 'wholegraph')
+        return True if os.path.isdir(wholegraph_dir) else False
 
     @property
     def verbose(self):
