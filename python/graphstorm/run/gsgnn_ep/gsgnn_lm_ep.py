@@ -120,7 +120,9 @@ def main(config_args):
                 save_model_path=save_model_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
-                save_perf_results_path=config.save_perf_results_path)
+                save_perf_results_path=config.save_perf_results_path,
+                max_grad_norm=config.max_grad_norm,
+                grad_norm_type=config.grad_norm_type)
 
     if config.save_embed_path is not None:
         model = gs.create_builtin_edge_model(train_data.g, config, train_task=False)
