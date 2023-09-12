@@ -27,7 +27,7 @@ Multiple Target Node Types Training
 
 When training on hetergenious graph, we often need to train a model by minimizing the objective function on more than one node type. GraphStorm provides supports to achieve this goal.
 
-- Train on multiple node types: The users can edit ``target_ntype`` in model config YAML file to achieve this goal. For example, by setting ``target_ntype`` as following, we can jointly optimize the objective function defined on "movie" and "user" node types.
+- Train on multiple node types: The users only need to edit the ``target_ntype`` in model config YAML file to minimize the objective function defined on mutiple target node types. For example, by setting ``target_ntype`` as following, we can jointly optimize the objective function defined on "movie" and "user" node types.
 
   .. code-block:: yaml
 
@@ -35,7 +35,9 @@ When training on hetergenious graph, we often need to train a model by minimizin
     -  movie
     -  user
 
-- Evaluate on single node type: During evaluation, the users can set a single node type for evaluation. For example, by setting ``eval_target_ntype:  movie``, we will only perform evaluation on "movie" node type. Our current implementation only support evaluating on a single node type.
+  During evuation, the users can set a single node type for evaluation. For example, by setting ``eval_target_ntype:  movie``, we will only perform evaluation on "movie" node type.
+
+- Evaluate on single node type: During evuation, the users can set a single node type for evaluation. For example, by setting ``eval_target_ntype:  movie``, we will only perform evaluation on "movie" node type. Our current implementation only support evaluating on a single node type.
 
 - Per target node type decoder: The users may also want to use a different decoder on each node type, where the output dimension for each decoder maybe different. We can achieve this by setting ``num_classes`` in model config YAML file. For example, by setting ``num_classes`` as following, GraphStorm will create a decoder with output dimension as 3 for movie node type, and a decoder with output dimension as 7 for user node type.
 
