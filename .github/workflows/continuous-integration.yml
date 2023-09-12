@@ -28,7 +28,7 @@ env:
   COMMAND-E2E-MGPU: chmod +x ./e2e_mgpu_check.sh && ./e2e_mgpu_check.sh
 
 jobs:
-  
+
   lint_check:
     if: ${{ github.event_name == 'push' ||
       (github.event.label.name != 'draft'
