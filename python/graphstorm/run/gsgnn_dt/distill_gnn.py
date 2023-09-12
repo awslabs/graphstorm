@@ -15,10 +15,8 @@
 
     Inference and training script for distillation tasks with GNN
 """
-import pandas as pd
-import json
+
 import random
-from multiprocessing import Pool
 import os
 import torch as th
 import numpy as np
@@ -45,6 +43,7 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
 
+    # get node types for distillation
     if not config.distill_feats:
         node_types = [
             re.match(r"(.*)_id_remap.parquet", nid_file.name).group(1)
@@ -54,6 +53,7 @@ def main(config_args):
         node_types = config.distill_feats.keys()
     print (f"node types: {node_types}\n")
 
+    # do gnn inference
     if config.need_infer:
         infer_data = GSgnnEdgeInferData(config.graph_name,
                                         config.part_config,
@@ -101,6 +101,8 @@ def main(config_args):
             sample_k = min(int(0.1 * len(file_list)), 32)
             if sample_k < 1:
                 sample_k = 1
+
+            # need to make sure the sample of files across trainers are same
             random.seed(42)
             eval_file_list = random.sample(file_list, sample_k)
             train_file_list = [x for x in file_list if x not in eval_file_list]
@@ -150,7 +152,7 @@ def main(config_args):
                     rank=gs.get_rank(),
                 )
     else:
-        # no need to pass GNN model of no GNN inference
+        # no need to pass GNN model if no GNN inference
         distiller = GSdistiller(None, gs.get_rank(), config)
         distiller.setup_device(device=device)
     th.distributed.barrier()
@@ -165,8 +167,6 @@ def main(config_args):
             config.distill_lr,
             saved_path=config.save_student_path,
         )
-
-
 
 def generate_parser():
     """ Generate an argument parser
