@@ -35,7 +35,9 @@ gsf:
     - movie
     - user
     label_field: label
-    multilabel: false
+    multilabel:
+      movie: false
+      user: false
     num_classes:
       movie: 19
       user: 11
