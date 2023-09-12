@@ -1291,8 +1291,10 @@ class GSConfig:
                 imbalance_class_weights = self._imbalance_class_weights
                 ntype_weights = {}
                 for ntype in num_classes:
-                    ntype_weights[ntype] = check_imbalance_class_weights(imbalance_class_weights[ntype],
-                                                                         num_classes[ntype])
+                    ntype_weights[ntype] = check_imbalance_class_weights(
+                        imbalance_class_weights[ntype],
+                        num_classes[ntype]
+                        )
                 return ntype_weights
             return {ntype: None for ntype in self.num_classes}
         else:
