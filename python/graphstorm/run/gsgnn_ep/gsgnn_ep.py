@@ -17,6 +17,7 @@
 """
 
 import os
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -88,7 +89,9 @@ def main(config_args):
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
                                      exclude_training_targets=config.exclude_training_targets,
-                                     decoder_edge_feat=config.decoder_edge_feat)
+                                     decoder_edge_feat=config.decoder_edge_feat,
+                                     construct_feat_ntype=config.construct_feat_ntype,
+                                     construct_feat_fanout=config.construct_feat_fanout)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
@@ -99,14 +102,18 @@ def main(config_args):
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
-            decoder_edge_feat=config.decoder_edge_feat)
+            decoder_edge_feat=config.decoder_edge_feat,
+            construct_feat_ntype=config.construct_feat_ntype,
+            construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
-            decoder_edge_feat=config.decoder_edge_feat)
+            decoder_edge_feat=config.decoder_edge_feat,
+            construct_feat_ntype=config.construct_feat_ntype,
+            construct_feat_fanout=config.construct_feat_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -125,7 +132,9 @@ def main(config_args):
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path,
-                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
+                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs,
+                max_grad_norm=config.max_grad_norm,
+                grad_norm_type=config.grad_norm_type)
 
     if config.save_embed_path is not None:
         model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=False)
@@ -161,5 +170,4 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     args = arg_parser.parse_args()
-    print(args)
     main(args)

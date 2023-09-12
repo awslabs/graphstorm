@@ -15,7 +15,10 @@
 
     Utils for data loading.
 """
+
 from copy import deepcopy
+import logging
+
 import torch as th
 import torch.distributed as dist
 
@@ -50,7 +53,7 @@ def trim_data(nids, device):
     nids_length = nids.shape[0]
     if min_num_nodes < nids_length:
         new_nids = nids[:min_num_nodes]
-        print(f"Pad nids from {nids_length} to {min_num_nodes}")
+        logging.debug("Pad nids from %d to %d", nids_length, min_num_nodes)
     else:
         new_nids = nids
     assert new_nids.shape[0] == min_num_nodes
@@ -105,15 +108,15 @@ def modify_fanout_for_target_etype(g, fanout, target_etypes):
             if etype not in target_etypes:
                 edge_fanout_dic[etype] = fan if not isinstance(fan, dict) else fan[etype]
             else:
-                print(f"Ignoring edges for etype {etype}")
+                logging.debug("Ignoring edges for etype %s", str(etype))
                 edge_fanout_dic[etype] = 0
         edge_fanout_lis.append(edge_fanout_dic)
     return edge_fanout_lis
 
 def flip_node_mask(dist_tensor):
     """ Flip the node mask (0->1; 1->0) and return a flipped mask.
-        This is equivalent to the `~` operator for boolean tensors. 
-        
+        This is equivalent to the `~` operator for boolean tensors.
+
         Parameters
         ----------
         dist_tensor: dgl.distributed.DistTensor

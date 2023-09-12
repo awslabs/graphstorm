@@ -15,6 +15,8 @@
 
     Embedding layer implementation
 """
+
+import logging
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -136,7 +138,6 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         """
         return None
 
-
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """The input encoder layer for all nodes in a heterogeneous graph.
 
@@ -159,10 +160,14 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     dropout : float
         The dropout parameter
     use_node_embeddings : bool
-        Whether we will use the node embeddings for individual nodes even when node features are
+        Whether we will use learnable embeddings for individual nodes even when node features are
         available.
+    force_no_embeddings : list of str
+        The list node types that are forced to not have learnable embeddings.
     num_ffn_layers_in_input: int, optional
         Number of layers of feedforward neural network for each node type in the input layers
+    ffn_activation : callable
+        The activation function for the feedforward neural networks.
     """
     def __init__(self,
                  g,
@@ -171,6 +176,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
+                 force_no_embeddings=None,
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
                  ):
@@ -178,6 +184,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
+        if force_no_embeddings is None:
+            force_no_embeddings = []
+
         self.activation = activation
 
         # NCCL backend is not supported for utilizing learnable embeddings on nodes. It has a
@@ -202,13 +211,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 feat_dim += feat_size[ntype]
             if feat_dim > 0:
                 if get_rank() == 0:
-                    print('Node {} has {} features.'.format(ntype, feat_dim))
+                    logging.debug('Node %s has %d features.', ntype, feat_dim)
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
                 nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain('relu'))
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
                     if get_rank() == 0:
-                        print('Use additional sparse embeddings on node {}'.format(ntype))
+                        logging.debug('Use additional sparse embeddings on node %s', ntype)
                     part_policy = g.get_node_partition_policy(ntype)
                     self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
                                                                self.embed_size,
@@ -220,10 +229,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     # nn.ParameterDict support this assignment operation if not None,
                     # so disable the pylint error
                     self.proj_matrix[ntype] = proj_matrix   # pylint: disable=unsupported-assignment-operation
-            else:
+            elif ntype not in force_no_embeddings:
                 part_policy = g.get_node_partition_policy(ntype)
                 if get_rank() == 0:
-                    print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')
+                    logging.debug('Use sparse embeddings on node %s:%d',
+                                  ntype, g.number_of_nodes(ntype))
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                 nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                 self.proj_matrix[ntype] = proj_matrix
@@ -258,6 +268,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
         embs = {}
         for ntype in input_nodes:
+            emb = None
             if ntype in input_feats:
                 assert ntype in self.input_projs, \
                         f"We need a projection for node type {ntype}"
@@ -269,7 +280,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
                     concat_emb=th.cat((emb, node_emb),dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
-            else: # nodes do not have input features
+            elif ntype in self.sparse_embeds: # nodes do not have input features
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
@@ -280,10 +291,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     continue
                 emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
                 emb = emb @ self.proj_matrix[ntype]
-            if self.activation is not None:
-                emb = self.activation(emb)
-                emb = self.dropout(emb)
-            embs[ntype] = emb
+            if emb is not None:
+                if self.activation is not None:
+                    emb = self.activation(emb)
+                    emb = self.dropout(emb)
+                embs[ntype] = emb
 
         def _apply(t, h):
             if self.num_ffn_layers_in_input > 0:
@@ -372,8 +384,6 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
                 emb = embed_layer(feat, {ntype: input_nodes})
                 input_emb[input_nodes] = emb[ntype].to('cpu')
             n_embs[ntype] = input_emb
-        if get_rank() == 0:
-            print("Extract node embeddings")
     if embed_layer is not None:
         embed_layer.train()
     barrier()
