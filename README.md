@@ -14,7 +14,7 @@ provide their own model implementations and use GraphStorm training pipeline to 
 
 ![GraphStorm architecture](https://github.com/awslabs/graphstorm/blob/main/tutorial/graphstorm_arch.jpg?raw=true)
 
-## Get Started
+## Get Started Tested
 ### Installation
 GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.13+, DGL 1.0 and transformers 4.3.0+.
 
@@ -112,4 +112,13 @@ Multiple samplers are not supported for PyTorch versions greater than 1.12. Plea
 ## License
 This project is licensed under the Apache-2.0 License.
 
+python3 -m graphstorm.run.gs_node_classification --workspace /workspace --num-trainers 8 --num-servers 1 --num-samplers 0 --part-config /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/ogbn-arxiv.json --ip-config  /ip_list.txt --ssh-port 2222 --cf /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/arxiv_nc_lm.yml --lm-train-nodes 36 --lm-encoder-only --batch-size 36 --lr 0.00001 --lm-tune-lr 0.00001 --dropout 0.1 --num-epochs 10
+
+python3 -m graphstorm.run.gs_node_classification --workspace /workspace --num-trainers 8 --num-servers 1 --num-samplers 0 --part-config /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/ogbn-arxiv.json --ip-config  /ip_list.txt --ssh-port 2222 --cf /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/arxiv_lm_bert.yaml --lm-encoder-only --batch-size 36 --lr 0.00001 --lm-tune-lr 0.00001 --dropout 0.1 --num-epochs 10 --wd-l2norm 0.01
+
+python3 -m graphstorm.run.gs_node_classification --workspace /workspace --num-trainers 8 --num-servers 1 --num-samplers 0 --part-config /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/ogbn-arxiv.json --ip-config  /ip_list.txt --ssh-port 2222 --cf /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/arxiv_nc_bert_large.yml --lm-encoder-only --batch-size 36 --lm-train-nodes 36 --lr 0.00001 --lm-tune-lr 0.00001 --dropout 0.1 --num-epochs 4
+
+python3 -m graphstorm.run.gs_node_classification --workspace /workspace --num-trainers 8 --num-servers 1 --num-samplers 0 --part-config /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/ogbn-arxiv.json --ip-config /ip_list.txt --ssh-port 2222 --cf /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/arxiv_lm_bert.yaml --lm-encoder-only --batch-size 1024 --lr 0.001 --lm-train-nodes 0 --num-epochs 100
+
+python3 -m graphstorm.run.gs_node_classification --workspace /workspace --num-trainers 8 --num-servers 1 --num-samplers 0 --part-config /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/ogbn-arxiv.json --ip-config  /ip_list.txt --ssh-port 2222 --cf /tmp/gsf-data/ogbn_arxiv_nc_train_val_1p_8t/arxiv_lm_bert.yaml --lm-encoder-only --batch-size 1024 --lr 0.001 --lm-tune-lr 0.00001 --dropout 0.1 --num-epochs 100
 
