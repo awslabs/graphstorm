@@ -108,7 +108,7 @@ python3 -m graphstorm.run.gs_link_prediction \
 			--num-samplers 0 \
 			--part-config mag_min_4parts/mag.json \
 			--ip-config ip_list_4p.txt \
-			--cf mag_bert_ft.yaml
+			--cf mag_bert_ft.yaml \
 			--save-model-path mag_bert_lp_model
 ```
 
