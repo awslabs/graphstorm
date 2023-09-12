@@ -1158,6 +1158,8 @@ def test_node_mini_batch_gnn_predict():
         check_predict(return_dict=True)
         check_predict(return_dict=False)
 
+    th.distributed.destroy_process_group()
+
 if __name__ == '__main__':
     test_node_mini_batch_gnn_predict()
     test_rgcn_node_prediction_with_reconstruct()
