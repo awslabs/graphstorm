@@ -1217,7 +1217,7 @@ class GSConfig:
                 weights = multilabel_weights.split(",")
                 weights = [float(w) for w in weights]
             except Exception: # pylint: disable=broad-except
-                raise RuntimeError("The weights should in following format 0.1,0.2,0.3,0.1,0.0")
+                raise RuntimeError("The weights should in following format 0.1,0.2,0.1,0.0")
             for w in weights:
                 assert w >= 0., "multilabel weights can not be negative values"
             assert len(weights) == num_classes, \
@@ -1277,7 +1277,7 @@ class GSConfig:
                 weights = imbalance_class_weights.split(",")
                 weights = [float(w) for w in weights]
             except Exception: # pylint: disable=broad-except
-                raise RuntimeError("The rescaling weights should in following format 0.1,0.2,0.3,0.1")
+                raise RuntimeError("The weights should in following format 0.1,0.2,0.3,0.1")
             for w in weights:
                 assert w > 0., "Each weight should be larger than 0."
             assert len(weights) == num_classes, \
