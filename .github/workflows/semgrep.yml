@@ -16,7 +16,7 @@ defaults:
 
 jobs:
   semgrep:
-
+    
     name: Scan
     runs-on: ubuntu-latest
     container:
@@ -38,10 +38,10 @@ jobs:
       # Period (.) to run scan in the current directory to avoid blocking findings in the future use --exclude=+BLOCKING
       - name: Run Scan - 1 (Default Ruleset)
         run: semgrep --config=p/default .
-        
+      
       - name: Run Scan - 2 (Ruleset for Python)
         run: semgrep --config=p/python .
-
+      
       - name: Run Scan - 3 (Ruleset for Dockerfile)
         run: semgrep --config=p/dockerfile .
 
