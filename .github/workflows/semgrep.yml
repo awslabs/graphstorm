@@ -47,3 +47,5 @@ jobs:
 
       - name: Run Scan - 4 (Ruleset CWE TOP 25)
         run: semgrep --config=p/cwe-top-25 .
+
+
