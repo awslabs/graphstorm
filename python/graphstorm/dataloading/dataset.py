@@ -688,7 +688,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
             assert unlabeled_idx is not None, "There is no training data."
             num_unlabeled += len(unlabeled_idx)
             unlabeled_idxs[ntype] = unlabeled_idx
-        logging.debug('part %d, unlabeled: %d', get_rank(), num_unlabeled)
+        logging.info('part %d, unlabeled: %d', get_rank(), num_unlabeled)
         return unlabeled_idxs
 
     @property
