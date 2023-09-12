@@ -16,8 +16,8 @@
     Builtin configs
 """
 
-BUILTIN_GNN_ENCODER = ["rgat", "rgcn", "sage"]
-BUILTIN_ENCODER = ["lm", "mlp"] + ["rgat", "rgcn", "sage"]
+BUILTIN_GNN_ENCODER = ["rgat", "rgcn", "sage", "hgt"]
+BUILTIN_ENCODER = ["lm", "mlp"] + ["rgat", "rgcn", "sage", "hgt"]
 SUPPORTED_BACKEND = ["gloo", "nccl"]
 
 GRAPHSTORM_MODEL_EMBED_LAYER = "embed"
@@ -41,6 +41,8 @@ BUILTIN_TASK_NODE_REGRESSION = "node_regression"
 BUILTIN_TASK_EDGE_CLASSIFICATION = "edge_classification"
 BUILTIN_TASK_EDGE_REGRESSION = "edge_regression"
 BUILTIN_TASK_LINK_PREDICTION = "link_prediction"
+
+LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL = "ALL"
 
 SUPPORTED_TASKS  = [BUILTIN_TASK_NODE_CLASSIFICATION, \
     BUILTIN_TASK_NODE_REGRESSION, \
