@@ -165,8 +165,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.log_metric("Train loss", loss.item(), total_steps)
                 if i % 20 == 0 and self.rank == 0:
                     rt_profiler.print_stats()
-                    logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
-                                 epoch, i, loss.item(), time.time() - batch_tic)
+                    #logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
+                    #             epoch, i, loss.item(), time.time() - batch_tic)
+                    print("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f" % (
+                        epoch, i, loss.item(), time.time() - batch_tic))
 
                 val_score = None
                 if self.evaluator is not None and \

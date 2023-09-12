@@ -58,9 +58,11 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         if force_report or self._do_report(step):
             if metric_value is not None:
                 if isinstance(metric_value, numbers.Number):
-                    logging.info("Step %d | %s: %.4f", step, metric_name, metric_value)
+                    #logging.info("Step %d | %s: %.4f", step, metric_name, metric_value)
+                    print("Step %d | %s: %.4f" % (step, metric_name, metric_value))
                 else:
-                    logging.info("Step %d | %s: %s", step, metric_name, metric_value)
+                    #logging.info("Step %d | %s: %s", step, metric_name, metric_value)
+                    print("Step %d | %s: %s" % (step, metric_name, metric_value))
 
     def log_train_metric(self, metric_name, metric_value, step, force_report=False):
         """ Log train metric
@@ -287,4 +289,5 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         self.log_best_valid(metric, best_val_score, total_steps, force_report=True)
         self.log_best_test(metric, best_test_score, total_steps, force_report=True)
         self.log_best_iter(metric, best_iter_num, total_steps, force_report=True)
-        logging.info(" Eval time: %.4f, Evaluation step: %d.", dur_eval, total_steps)
+        #logging.info(" Eval time: %.4f, Evaluation step: %d.", dur_eval, total_steps)
+        print(" Eval time: %.4f, Evaluation step: %d." % (dur_eval, total_steps))

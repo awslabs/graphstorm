@@ -162,8 +162,10 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
                 if i % 20 == 0 and self.rank == 0:
                     rt_profiler.print_stats()
-                    logging.info("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f",
-                                 self.rank, epoch, i,  loss.item(), time.time() - batch_tic)
+                    #logging.info("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f",
+                    #             self.rank, epoch, i,  loss.item(), time.time() - batch_tic)
+                    print("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f" % (
+                        self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
 
                 val_score = None
                 if self.evaluator is not None and \
