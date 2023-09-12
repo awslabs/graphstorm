@@ -145,7 +145,9 @@ def main(config_args):
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
                                 exclude_training_targets=config.exclude_training_targets,
-                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss)
+                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss,
+                                construct_feat_ntype=config.construct_feat_ntype,
+                                construct_feat_fanout=config.construct_feat_fanout)
 
     # TODO(zhengda) let's use full-graph inference for now.
     if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:

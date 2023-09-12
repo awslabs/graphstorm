@@ -289,6 +289,9 @@ class GSConfig:
         _ = self.decoder_type
         _ = self.num_decoder_basis
         # Encoder related
+        _ = self.construct_feat_ntype
+        _ = self.construct_feat_encoder
+        _ = self.construct_feat_fanout
         encoder_type = self.model_encoder_type
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
@@ -1010,6 +1013,41 @@ class GSConfig:
         return False
 
     @property
+    def construct_feat_ntype(self):
+        """ The node types that require to construct node features.
+        """
+        if hasattr(self, "_construct_feat_ntype") \
+                and self._construct_feat_ntype is not None:
+            return self._construct_feat_ntype
+        else:
+            return []
+
+    @property
+    def construct_feat_encoder(self):
+        """ The encoder used for constructing node features.
+        """
+        if hasattr(self, "_construct_feat_encoder"):
+            assert self._construct_feat_encoder == "rgcn", \
+                    "Feature construction currently only support rgcn."
+            return self._construct_feat_encoder
+        else:
+            return "rgcn"
+
+    @property
+    def construct_feat_fanout(self):
+        """ The fanout for constructing node features
+        """
+        if hasattr(self, "_construct_feat_fanout"):
+            assert isinstance(self._construct_feat_fanout, int), \
+                    "The fanout for feature construction should be integers."
+            assert self._construct_feat_fanout > 0 or self._construct_feat_fanout == -1, \
+                    "The fanout for feature construction should be positive or -1 " + \
+                    "if we use all neighbors to construct node features."
+            return self._construct_feat_fanout
+        else:
+            return 5
+
+    @property
     def wd_l2norm(self):
         """ Weight decay
         """
@@ -1152,7 +1190,7 @@ class GSConfig:
         # By default do not use num_bases
         return -1
 
-    ## RGAT only ##
+    ## RGAT and HGT only ##
     @property
     def num_heads(self):
         """ Number of attention heads
@@ -1937,6 +1975,12 @@ def _add_hyperparam_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
+    group.add_argument("--construct-feat-ntype", type=str, nargs="+",
+            help="The node types whose features are constructed from neighbors' features.")
+    group.add_argument("--construct-feat-encoder", type=str, default=argparse.SUPPRESS,
+            help="The encoder used for constructing node features.")
+    group.add_argument("--construct-feat-fanout", type=int, default=argparse.SUPPRESS,
+            help="The fanout used for constructing node features.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
