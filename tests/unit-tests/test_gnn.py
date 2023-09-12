@@ -1105,6 +1105,82 @@ def test_link_prediction_weight():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+class Dummy_GSEdgeDecoder(MLPEdgeDecoder):
+    def __init__(self, return_dict=False):
+        self._return_dict = return_dict
+
+    def predict(self, g, h):
+        if self._return_dict:
+            return {('n0', 'r1', 'n1'): th.arange(10)}
+        else:
+            return th.arange(10)
+
+    def predict_proba(self, g, h):
+        if self._return_dict:
+            return {('n0', 'r1', 'n1'): th.arange(10)}
+        else:
+            return th.arange(10)
+
+class Dummy_GSEdgeModel():
+    def __init__(self, return_dict=False):
+        self._return_dict = return_dict
+
+    def eval(self):
+        pass
+
+    def train(self):
+        pass
+
+    @property
+    def device(self):
+        return "cpu"
+
+    @property
+    def decoder(self):
+        return Dummy_GSEdgeDecoder(self._return_dict)
+
+def test_edge_mini_batch_gnn_predict():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        target_type = ("n0", "r1", "n1")
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label',
+                                     node_feat_field='feat')
+        g = ep_data
+        embs = {
+            "n0": th.rand((g.number_of_nodes("n0"), 10)),
+            "n1": th.rand((g.number_of_nodes("n1"), 10))
+        }
+        target_idx = {target_type: th.arange(g.number_of_edges("r1"))}
+
+        @patch.object(GSgnnNodeTrainData, 'get_labels')
+        def check_predict(mock_get_labels, return_dict):
+            mock_get_labels.side_effect = \
+                [{target_type: th.arange(10)}] * (ep_data.g.number_of_nodes(target_type) // 10)
+            model = Dummy_GSEdgeModel(return_dict)
+            dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[],
+                                             batch_size=10, device="cuda:0", train_task=False,
+                                             remove_target_edge_type=False)
+            pred, labels = edge_mini_batch_predict(model, embs, dataloader, return_label=True)
+            assert isinstance(pred, dict)
+            assert isinstance(labels, dict)
+
+            assert target_type in pred
+            assert pred[target_type].shape[0] == \
+                (ep_data.g.number_of_edges(target_type) // 10) * 10 # pred result is a dummy result
+            assert labels[target_type].shape[0] == \
+                (ep_data.g.number_of_nodes(target_type) // 10) * 10
+            for i in range(ep_data.g.number_of_nodes(target_type) // 10):
+                assert_equal(pred[target_type][i*10:(i+1)*10].numpy(),
+                             np.arange(10))
+
+
 if __name__ == '__main__':
     test_rgcn_node_prediction_with_reconstruct()
     test_rgcn_edge_prediction(2)
