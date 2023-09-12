@@ -44,6 +44,21 @@ def suppress_py4j_logging():
     logger.setLevel(logging.WARN)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def temp_output_root():
+    """Create a root temporary directory for output files.
+
+    Individual tests create per-test temporary directories
+    and output under this root directory.
+
+    Individual tests are responsible for deleting their output
+    under the directory, will raise an OSError if the directory
+    is not empty at the end of testing.
+    """
+    yield os.mkdir(os.path.join(_ROOT, "resources/test_output/"))
+    os.rmdir(os.path.join(_ROOT, "resources/test_output/"))
+
+
 @pytest.fixture(scope="session", name="spark")
 def spark_fixture():
     """Create the main SparkContext we use throughout the tests"""

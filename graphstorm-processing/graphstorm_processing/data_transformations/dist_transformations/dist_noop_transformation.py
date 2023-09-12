@@ -24,9 +24,19 @@ from .base_dist_transformation import DistributedTransformation
 
 
 class NoopTransformation(DistributedTransformation):
-    """
-    A no-op transformation that parses data as floats or lists of floats
+    """A no-op transformation that parses data as floats or lists of floats
     and forwards the result withouth any processing.
+
+    For CSV input that contains numerical array rows that use a separator character,
+    this transformation splits the values into a vector of floats, e.g. "1|2|3"
+    becomes a vector [1.0, 2.0, 3.0].
+
+    Parameters
+    ----------
+    cols : List[str]
+        The list of columns to parse as floats or lists of float
+    separator : Optional[str], optional
+        Optional separator to use to split the string, by default None
     """
 
     def __init__(self, cols: List[str], separator: Optional[str] = None) -> None:
