@@ -219,10 +219,11 @@ def test_lm_infer():
     nn.init.eye_(layer.input_projs['n0'])
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
-    layer.lm_models[0].lm_model.eval()
-    outputs = layer.lm_models[0].lm_model(input_ids,
-                                      attention_mask=attention_mask)
-    layer.lm_models[0].lm_model.train()
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model
+    lm_model.eval()
+    outputs = lm_model(input_ids, attention_mask=attention_mask)
+    lm_model.train()
     out_emb = outputs.pooler_output
     feat_size['n0'] += out_emb.shape[1]
     g.nodes['n0'].data['text'] = out_emb
@@ -258,10 +259,11 @@ def test_lm_embed(num_train):
     nn.init.eye_(layer.input_projs['n0'])
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
-    layer.lm_models[0].lm_model.eval()
-    outputs = layer.lm_models[0].lm_model(input_ids,
-                                      attention_mask=attention_mask)
-    layer.lm_models[0].lm_model.train()
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model
+    lm_model.eval()
+    outputs = lm_model(input_ids, attention_mask=attention_mask)
+    lm_model.train()
     out_emb = outputs.pooler_output
 
     assert len(embeds_with_lm) == len(g.ntypes)
@@ -302,10 +304,11 @@ def test_lm_embed(num_train):
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
 
-    layer.lm_models[0].lm_model.eval()
-    outputs = layer.lm_models[0].lm_model(input_ids,
-                                           attention_mask=attention_mask)
-    layer.lm_models[0].lm_model.train()
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model
+    lm_model.eval()
+    outputs = lm_model(input_ids, attention_mask=attention_mask)
+    lm_model.train()
     out_emb = outputs.pooler_output
 
     assert len(embeds_with_lm) == len(g.ntypes)
@@ -347,13 +350,11 @@ def test_pure_lm_embed(num_train):
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
 
-    layer.lm_models[0].lm_model.eval()
-    outputs0 = layer.lm_models[0].lm_model(input_ids0,
-                                           attention_mask=attention_mask0)
-
-    outputs1 = layer.lm_models[0].lm_model(input_ids1,
-                                           attention_mask=attention_mask1)
-    layer.lm_models[0].lm_model.train()
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model.eval()
+    outputs0 = lm_model(input_ids0, attention_mask=attention_mask0)
+    outputs1 = lm_model(input_ids1, attention_mask=attention_mask1)
+    lm_model.train()
     out_emb0 = outputs0.pooler_output
     out_emb1 = outputs1.pooler_output
 
@@ -414,7 +415,9 @@ def test_lm_embed_warmup(dev):
     def rand_init(m):
         if isinstance(m, th.nn.Embedding):
             th.nn.init.uniform(m.weight.data, b=10.)
-    layer.lm_models[0].lm_model.apply(rand_init)
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model
+    lm_model.apply(rand_init)
     # model has been freezed, still use bert cache.
     feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
     emb_1 = layer(feat, input_nodes)

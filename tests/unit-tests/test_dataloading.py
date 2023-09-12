@@ -19,6 +19,7 @@ import os
 import tempfile
 import shutil
 import numpy as np
+from unittest.mock import patch, MagicMock
 
 import torch as th
 import dgl
@@ -30,7 +31,8 @@ from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
+from graphstorm.dataloading import (GSgnnLinkPredictionDataLoader,
+                                   FastGSgnnLinkPredictionDataLoader)
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
@@ -39,6 +41,7 @@ from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.dataloading.dataset import (prepare_batch_input,
                                             prepare_batch_edge_input)
 from graphstorm.dataloading.utils import modify_fanout_for_target_etype
+from graphstorm.dataloading.utils import trim_data
 
 from numpy.testing import assert_equal
 
@@ -797,7 +800,105 @@ def test_modify_fanout_for_target_etype():
     assert new_fanout[1][('user', 'follows', 'topic')] == 2
     assert new_fanout[1][('user', 'plays', 'game')] == 1
 
+@pytest.mark.parametrize("dataloader", [GSgnnNodeDataLoader])
+def test_np_dataloader_trim_data(dataloader):
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n1'], label_field='label')
+
+        target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
+        @patch("graphstorm.dataloading.dataloading.trim_data")
+        def check_dataloader_trim(mock_trim_data):
+            mock_trim_data.side_effect = [
+                target_idx["n1"][:len(target_idx["n1"])-2],
+                target_idx["n1"][:len(target_idx["n1"])-2],
+            ]
+
+            loader = dataloader(np_data, dict(target_idx),
+                                [10], 10, 'cpu',
+                                train_task=True)
+            assert len(loader.dataloader.collator.nids) == 1
+            assert len(loader.dataloader.collator.nids["n1"]) == np_data.g.number_of_nodes('n1') - 2
+
+            loader = dataloader(np_data, dict(target_idx),
+                                [10], 10, 'cpu',
+                                train_task=False)
+            assert len(loader.dataloader.collator.nids) == 1
+            assert len(loader.dataloader.collator.nids["n1"]) == np_data.g.number_of_nodes('n1')
+
+        check_dataloader_trim()
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+
+@pytest.mark.parametrize("dataloader", [GSgnnAllEtypeLinkPredictionDataLoader,
+                                        GSgnnLinkPredictionDataLoader,
+                                        FastGSgnnLinkPredictionDataLoader])
+def test_edge_dataloader_trim_data(dataloader):
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    test_etypes = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=test_etypes, label_field='label')
+        g = lp_data.g
+
+        @patch("graphstorm.dataloading.dataloading.trim_data")
+        def check_dataloader_trim(mock_trim_data):
+            mock_trim_data.side_effect = [
+                lp_data.train_idxs[("n0", "r1", "n1")][:len(lp_data.train_idxs[("n0", "r1", "n1")])-1],
+                lp_data.train_idxs[("n0", "r0", "n1")][:len(lp_data.train_idxs[("n0", "r0", "n1")])-1],
+
+                lp_data.train_idxs[("n0", "r1", "n1")][:len(lp_data.train_idxs[("n0", "r1", "n1")])-1],
+                lp_data.train_idxs[("n0", "r0", "n1")][:len(lp_data.train_idxs[("n0", "r0", "n1")])-1],
+            ]
+
+            loader = dataloader(
+                lp_data,
+                fanout=[],
+                target_idx=dict(lp_data.train_idxs), # test train_idxs
+                batch_size=16,
+                num_negative_edges=4)
+
+            assert len(loader.dataloader.collator.eids) == len(lp_data.train_idxs)
+            for etype in lp_data.train_idxs.keys():
+                assert len(loader.dataloader.collator.eids[etype]) == len(lp_data.train_idxs[etype]) - 1
+
+            # test task, trim_data should not be called.
+            loader = dataloader(
+                lp_data,
+                target_idx=dict(lp_data.train_idxs), # use train edges as val or test edges
+                fanout=[],
+                batch_size=16,
+                num_negative_edges=4,
+                train_task=False)
+
+            assert len(loader.dataloader.collator.eids) == len(lp_data.train_idxs)
+            for etype in lp_data.train_idxs.keys():
+                assert len(loader.dataloader.collator.eids[etype]) == len(lp_data.train_idxs[etype])
+
+        check_dataloader_trim()
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+
 if __name__ == '__main__':
+    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
     test_GSgnnEdgeData_wo_test_mask()
     test_GSgnnNodeData_wo_test_mask()
     test_GSgnnEdgeData()
