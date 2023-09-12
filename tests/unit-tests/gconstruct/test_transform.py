@@ -304,7 +304,7 @@ def test_categorize_transform():
     assert "mapping" in transform_conf
     assert len(transform_conf["mapping"]) == 10
 
-    # check backward compatible
+    # check update_info
     transform_conf = {
         "name": "to_categorical"
     }
@@ -321,6 +321,23 @@ def test_categorize_transform():
         feat[int(str_i)] = 0
         assert np.all(feat == 0)
     assert len(transform_conf["mapping"]) == 10
+
+    # check backward compatible
+     # check update_info
+    transform_conf = {
+        "name": "to_categorical",
+        "mapping": {i: i for i in range(10)}
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    assert len(transform_conf["mapping"]) == 10
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
 
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_noop_transform(out_dtype):
