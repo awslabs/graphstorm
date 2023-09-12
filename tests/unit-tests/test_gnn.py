@@ -40,6 +40,7 @@ from graphstorm.model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmb
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.sage_encoder import SAGEEncoder
+from graphstorm.model.hgt_encoder import HGTEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            MLPEdgeDecoder,
                                            MLPEFeatEdgeDecoder,
@@ -133,6 +134,27 @@ def create_rgat_node_model(g, norm=None):
                                        dropout=0,
                                        use_self_loop=True,
                                        norm=norm)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+    return model
+
+def create_hgt_node_model(g):
+    model = GSgnnNodeModel(alpha_l2norm=0)
+    
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = HGTEncoder(g,
+                            hid_dim=4,
+                            out_dim=4,
+                            num_hidden_layers=1,
+                            num_heads=2,
+                            dropout=0.0,
+                            norm='layer',
+                            num_ffn_layers_in_gnn=0)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
@@ -449,6 +471,29 @@ def test_rgat_node_prediction(norm):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_hgt_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + HGTLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n1'], label_field='label',
+                                     node_feat_field='feat')
+    model=create_hgt_node_model(np_data.g)
+    check_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def test_rgat_node_prediction_multi_target_ntypes():
     """ Test edge prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + RGATLayer + Decoder
@@ -516,6 +561,28 @@ def create_rgcn_edge_model(g, num_ffn_layers):
                                      num_ffn_layers=num_ffn_layers))
     return model
 
+def create_hgt_edge_model(g, num_ffn_layers):
+    model = GSgnnEdgeModel(alpha_l2norm=0)
+    
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = HGTEncoder(g,
+                             hid_dim=4,
+                             out_dim=4,
+                             num_hidden_layers=1,
+                             num_heads=2,
+                             dropout=0.0,
+                             norm='layer',
+                             num_ffn_layers_in_gnn=0)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1"),
+                                     num_ffn_layers=num_ffn_layers))
+    return model
 
 def check_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
@@ -605,6 +672,30 @@ def test_rgcn_edge_prediction(num_ffn_layers):
                                      train_etypes=[('n0', 'r1', 'n1')], label_field='label',
                                      node_feat_field='feat')
     model = create_rgcn_edge_model(ep_data.g, num_ffn_layers=num_ffn_layers)
+    check_edge_prediction(model, ep_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_hgt_edge_prediction(num_ffn_layers):
+    """ Test edge prediction logic correctness with a edge prediction model
+        composed of InputLayerEncoder + HGTLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label',
+                                     node_feat_field='feat')
+    model = create_hgt_edge_model(ep_data.g, num_ffn_layers=num_ffn_layers)
     check_edge_prediction(model, ep_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1163,6 +1254,8 @@ def test_node_mini_batch_gnn_predict():
 if __name__ == '__main__':
     test_node_mini_batch_gnn_predict()
     test_rgcn_node_prediction_with_reconstruct()
+    test_hgt_edge_prediction()
+    test_hgt_node_prediction()
     test_rgcn_edge_prediction(2)
     test_rgcn_node_prediction(None)
     test_rgat_node_prediction(None)
