@@ -351,7 +351,11 @@ class CategoricalTransform(TwoPhaseFeatTransform):
     def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
         self._val_dict = {}
         if transform_conf is not None and 'mapping' in transform_conf:
-            self._val_dict = transform_conf['mapping']
+            # We assume the keys of a categorical mapping are strings.
+            # But previously keys can be integers. So we convert them
+            # into strings.
+            self._val_dict = \
+                {str(key): val for key, val in transform_conf['mapping'].items()}
             self._conf = transform_conf
         else:
             self._conf = transform_conf
@@ -379,7 +383,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
         feats = feats[feats != None] # pylint: disable=singleton-comparison
         if self._separator is None:
-            return {self.feat_name: np.unique(feats)}
+            return {self.feat_name: np.unique(feats.astype(str))}
         else:
             assert feats.dtype.type is np.str_, \
                     "We can only convert strings to multiple categorical values with separaters."
@@ -402,7 +406,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             assert len(info) == 0
             return
 
-        self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        self._val_dict = {str(key): i for i, key in enumerate(np.unique(np.concatenate(info)))}
         # We need to save the mapping in the config object.
         if self._conf is not None:
             self._conf['mapping'] = self._val_dict
@@ -424,7 +428,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                encoding[i, self._val_dict[feat]] = 1
+                encoding[i, self._val_dict[str(feat)]] = 1
         else:
             for i, feat in enumerate(feats):
                 if feat is None:

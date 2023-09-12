@@ -30,7 +30,10 @@ env:
 jobs:
 
   lint_check:
-    if: ${{ github.event.label.name != 'draft' }}
+    if: ${{ github.event_name == 'push' ||
+      (github.event.label.name != 'draft'
+      && github.event_name == 'pull_request_target'
+      && contains(github.event.pull_request.labels.*.name, 'ready'))}}
     runs-on: ubuntu-latest
     steps:
     - name: Configure AWS Credentials
