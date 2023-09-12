@@ -20,7 +20,7 @@ import abc
 import json
 import torch as th
 import dgl
-from dgl.distributed import role
+from dgl.distributed import role, DistTensor
 
 from ..utils import get_rank, get_world_size, is_distributed
 from ..utils import sys_tracker
@@ -59,7 +59,6 @@ def prepare_batch_input(g, input_nodes,
     Dict of tensors.
         If a node type has features, it will get node features.
     """
-    import pylibwholegraph.torch.embedding as wgemb
 
     feat = {}
     for ntype, nid in input_nodes.items():
@@ -72,10 +71,10 @@ def prepare_batch_input(g, input_nodes,
             feats = []
             for fname in feat_name:
                 data = g.nodes[ntype].data[fname]
-                if hasattr(data, 'subcolumn'):  # required by nvshemem
+                if hasattr(data, 'subcolumn'):  # nvshemem
                     data = data.subcolumn(nid.to(dev)).data
-                elif hasattr(data, 'gather') and isinstance(data, wgemb.WholeMemoryEmbedding):
-
+                elif hasattr(data, 'gather') and not isinstance(data, DistTensor) and \
+                    not th.is_tensor(data): # data is in WholeMemoryEmbedding format
                     data = data.gather(nid.to(dev))
                 else:
                     data = data[nid].to(dev)

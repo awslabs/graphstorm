@@ -591,9 +591,6 @@ def test_GSgnnLinkPredictionJointTestDataLoader(batch_size, num_negative_edges):
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
-import sys
-@pytest.mark.skipif('pylibwholegraph' not in sys.modules,
-                    reason="requires the wholegraph library")
 def test_prepare_input():
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
