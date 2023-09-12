@@ -111,8 +111,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.add_reverse_edges = add_reverse_edges
         # Remove trailing slash in s3 paths
         if self.filesystem_type == "s3":
-            self.input_prefix = s3_utils.s3_remove_trailing(input_prefix)
-            self.output_prefix = s3_utils.s3_remove_trailing(output_prefix)
+            self.input_prefix = s3_utils.s3_path_remove_trailing(input_prefix)
+            self.output_prefix = s3_utils.s3_path_remove_trailing(output_prefix)
         else:
             # TODO: Any checks for local paths?
             self.input_prefix = input_prefix
@@ -893,7 +893,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 )
                 node_type_metadata_dicts.update(node_type_label_metadata)
                 self.graph_info["ntype_label"].append(node_type)
-                self.graph_info["ntype_label_property"].append(node_config.label_configs[0].cols[0])
+                self.graph_info["ntype_label_property"].append(
+                    node_config.label_configs[0].label_column
+                )
                 self.timers["_process_node_labels"] += perf_counter() - process_node_labels_start
 
             if node_type_metadata_dicts:
@@ -1003,7 +1005,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             self.graph_info["label_map"] = node_label_loader.label_map
 
             label_output_path = (
-                f"{self.output_prefix}/node_data/{node_type}-label-{label_conf.cols[0]}"
+                f"{self.output_prefix}/node_data/{node_type}-label-{label_conf.label_column}"
             )
 
             path_list = self._write_df(transformed_label, label_output_path)
@@ -1012,11 +1014,12 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
                 "data": path_list,
             }
-            node_type_label_metadata[label_conf.cols[0]] = label_metadata_dict
+            node_type_label_metadata[label_conf.label_column] = label_metadata_dict
 
             self._update_label_properties(node_type, nodes_df, label_conf)
 
             split_masks_output_prefix = f"{self.output_prefix}/node_data/{node_type}"
+
             logging.info("Creating train/test/val split for node type %s...", node_type)
             if label_conf.split_rate:
                 split_rates = SplitRates(
@@ -1027,7 +1030,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             else:
                 split_rates = None
             label_split_dicts = self._create_split_files_from_rates(
-                nodes_df, label_conf.cols[0], split_rates, split_masks_output_prefix
+                nodes_df, label_conf.label_column, split_rates, split_masks_output_prefix
             )
             node_type_label_metadata.update(label_split_dicts)
 
@@ -1413,7 +1416,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
                 logging.info(
                     "Processing edge label(s) '%s' for edge type '%s'...",
-                    label_conf.cols[0],
+                    label_conf.label_column,
                     edge_type,
                 )
                 transformed_label = edge_label_loader.process_label(edges_df)
@@ -1428,7 +1431,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
                     "data": path_list,
                 }
-                label_metadata_dicts[label_conf.cols[0]] = label_metadata_dict
+                label_metadata_dicts[label_conf.label_column] = label_metadata_dict
 
                 self._update_label_properties(edge_type, edges_df, label_conf)
             else:
@@ -1449,7 +1452,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             else:
                 split_rates = None
             label_split_dicts = self._create_split_files_from_rates(
-                edges_df, label_conf.cols[0], split_rates, split_masks_output_prefix
+                edges_df, label_conf.label_column, split_rates, split_masks_output_prefix
             )
             label_metadata_dicts.update(label_split_dicts)
             # TODO: Support custom_split_filenames
@@ -1480,7 +1483,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         RuntimeError
             In case an invalid task type name is specified in the label config.
         """
-        label_col = label_config.cols[0]
+        label_col = label_config.label_column
         if not node_or_edge_type in self.label_properties:
             self.label_properties[node_or_edge_type] = Counter()
         # TODO: Something wrong with the assignment here? Investigate
