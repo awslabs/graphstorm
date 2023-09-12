@@ -6,3 +6,4 @@
 * [Prateek M Desai](https://github.com/prateekdesai04) from AWS
 * [Israt Nisa](https://github.com/isratnisa) from AWS
 * [Vasileios Ioannidis](https://github.com/bioannidis) from AWS
+* [Houyu Zhang](https://github.com/HouyuZhang1007) from Amazon Search M5

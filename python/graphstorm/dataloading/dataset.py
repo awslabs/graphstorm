@@ -21,8 +21,6 @@ import logging
 import torch as th
 import dgl
 from torch.utils.data import Dataset
-from torchdata.datapipes.iter import FileLister
-import torcharrow.dtypes as dt
 import pandas as pd
 
 
@@ -794,6 +792,17 @@ class GSgnnNodeInferData(GSgnnNodeData):
         return self._infer_idxs
 
 class GSDistillData(Dataset):
+    """ Dataset for distillation
+
+    Parameters
+    ----------
+    file_list : list of str
+        List of input files.
+    tokenizer : transformers.AutoTokenizer
+        HuggingFace Tokenizer.
+    device : str
+        Device name.
+    """
     def __init__(self, file_list, tokenizer, device):
         super().__init__()
         self.file_list = file_list
@@ -802,6 +811,7 @@ class GSDistillData(Dataset):
         self.token_id_inputs, self.labels = self.get_inputs()
 
     def get_inputs(self):
+        """ Tokenize textual data."""
         for i, file_name in enumerate(self.file_list):
             if i == 0:
                 inputs = pd.read_parquet(file_name)
@@ -834,11 +844,7 @@ class GSDistillData(Dataset):
         '''get collate function
         '''
         def collate_fn(batch):
-            '''
-            Padds batch of variable length
-
-            note: it converts things ToTensor manually here since the ToTensor transform
-            assume it takes in images rather than arbitrary tensors.
+            ''' Pad tensors in a batch to the same length.
             '''
             ## pad inputs
             input_ids_list = [x["input_ids"] for x in batch]

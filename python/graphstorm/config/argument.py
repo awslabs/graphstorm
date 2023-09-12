@@ -749,9 +749,8 @@ class GSConfig:
             return [-1] * self.num_layers
 
     def _check_distill_feats(self, dt_feats):
-        # "query:query@query,asin:asin@item_name/brand"
-        # dt_feats = ["query:query@query", "asin:asin@item_name/brand"]
-        # output = {"query": {id_field: "query", "textual_field": ["query"]}, "asin": {id_field: "asin", "textual_field": ["item_name", "brand"]}}
+        """ Parse features for distillation.
+        """
         try:
             dt_feats_dict = {}
             for val in dt_feats:
@@ -808,47 +807,63 @@ class GSConfig:
 
     @property
     def distill_batch_size(self):
+        """ Batch size for distillation.
+        """
         if hasattr(self, "_distill_batch_size"):
             return self._distill_batch_size
         return None
 
     @property
     def need_infer(self):
+        """ Whether to run GNN inference for distillation.
+        """
         if hasattr(self, "_need_infer"):
             return self._need_infer
         return None
 
     @property
     def save_student_path(self):
+        """ Saved model path for distillation.
+        """
         if hasattr(self, "_save_student_path"):
             return self._save_student_path
         return None
 
     @property
     def distill_lr(self):
+        """ Learning rate for distillation.
+        """
         if hasattr(self, "_distill_lr"):
             return self._distill_lr
         return None
 
     @property
     def save_student_interval(self):
+        """ Model checkpoint interval for distillation.
+        """
         if hasattr(self, "_save_student_interval"):
             return self._save_student_interval
         return None
 
     @property
     def eval_student_interval(self):
+        """ Validation interval for distillation.
+        """
         if hasattr(self, "_eval_student_interval"):
             return self._eval_student_interval
         return None
 
     @property
     def chunk_size(self):
+        """ Size of each file for distillation data.
+        """
         if hasattr(self, "_chunk_size"):
             return self._chunk_size
         return None
 
     def _check_max_global_step(self, max_global_step):
+        """ Parse maximum global size for distillation for each node type.
+        """
         max_global_step_dict = {}
         try:
             for node_step in max_global_step.split(","):
@@ -863,6 +878,8 @@ class GSConfig:
 
     @property
     def max_global_step(self):
+        """ Maximum global size for distillation.
+        """
         if hasattr(self, "_max_global_step"):
             return self._check_max_global_step(self._max_global_step)
         return None

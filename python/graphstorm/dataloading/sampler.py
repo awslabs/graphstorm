@@ -395,9 +395,12 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
 
 class _FileSampler:
     r"""File Sampler Interface.
-    Arguments:
-        dataset_path (str, optional): path to the data files.
-            Mutually exclusive with :attr:`files`.
+
+    Parameters:
+    ---------
+    dataset_path : str
+        Path to the data files.
+        Mutually exclusive with :attr:`files`.
     """
 
     def __init__(self, dataset_path=None):
@@ -450,14 +453,12 @@ class _FileSampler:
 class SequentialFileSampler():
     r"""Sequential File Sampler. Samples file sequentially.
 
-    Arguments:
-        dataset_path (str, optional): path to the data files.
-            Mutually exclusive with :attr:`files`.
-        files (List[str], optional): a list of files.
-            Mutually exclusive with :attr:`dataset_path`.
-        json_obj (dict, optional): a json object serialised from a Sampler object.
-            If this is provided, dataset_path and files should NOT be present and the sampler will be
-            reconstructed using the JSON state object and recovered to the previous state.
+    Parameters:
+    ----------
+    file_indices : list of int
+        File indices for a local trainer
+    is_train : bool
+        Set to ``True`` if it's training set.
     """
 
     def __init__(self, file_indices=None, is_train=True):
@@ -475,28 +476,26 @@ class SequentialFileSampler():
         return self
 
     def __next__(self):
+        """ Get index for next file"""
         self._index += 1
 
         if self._index >= self.num_local_files:
             if self.is_train:
                 self._index = 0
             else:
+                # non-infinite sampler if it's for evaluation.
                 self._index = 0
                 return None
 
         return self.file_indices[self._index]
 
 class RandomShuffleFileSampler():
-    r"""Random Shuffled File Sampler. Has files reshuffled for sampling.
+    r"""Random File Sampler. Has files reshuffled for sampling.
 
-    Arguments:
-        dataset_path (str, optional): path to the data files.
-            Mutually exclusive with :attr:`files`.
-        files (List[str], optional): a list of files.
-            Mutually exclusive with :attr:`dataset_path`.
-        json_obj (dict, optional): a json object serialised from a Sampler object.
-            If this is provided, dataset_path and files should NOT be present and the sampler will be
-            reconstructed using the JSON state object and recovered to the previous state.
+    Parameters:
+    ----------
+    file_indices : list of int
+        File indices for a local trainer
     """
 
     def __init__(self, file_indices=None):
@@ -509,15 +508,17 @@ class RandomShuffleFileSampler():
     def __iter__(self):
         if self.reset:
             self._index = -1
+            # shuffle the file indices
             random.shuffle(self._indices)
         self.reset = True
         return self
 
     def __next__(self):
+        """ Get index for next file"""
         self._index += 1
 
         if self._index >= self.num_local_files:
-            # raise StopIteration
+            # make it infinite sampler
             self._index = 0
 
         return self.file_indices[self._indices[self._index]]
@@ -526,25 +527,22 @@ class DistributedFileSampler(_FileSampler):
     r"""Distributed File Sampler. Samples file from the data path.
     Each rank only has access to a partition of all the data shards.
 
-    Arguments:
-        dataset_path (str, optional): path to the data files.
-            Mutually exclusive with :attr:`files`.
-        files (List[str], optional): a list of files.
-            Mutually exclusive with :attr:`dataset_path`.
-        shuffle (bool, optional): set to ``True`` to have the files reshuffled
-            at every epoch. Shuffling is performed on the files of the local partition.
-            (default: ``False``)
-        infinite (bool, optional): set to ``True`` to have the files sampled infinitely.
-            Can be used for training. (default: ``False``).
-        local_rank (int, optional): MPI local rank
-            When :attr:`local_rank` is not ``-1``,
-            Each worker fetches a partition of the data files based on its global rank.
-            (default: ``-1``).
-        mpu (m5_model_parallelism.mpu, optional): m5_model_parallelism mpu package.
-            Used for model parallel training.
-        json_obj (dict, optional): a json object serialised from a Sampler object.
-            If this is provided, dataset_path and files should NOT be present and the sampler will be
-            reconstructed using the JSON state object and recovered to the previous state.
+    Parameters:
+    ---------
+    dataset_path : str
+        path to the data files.
+        Mutually exclusive with :attr:`files`.
+    shuffle : bool
+        Set to ``True`` to have the files reshuffled
+        at every epoch. Shuffling is performed on the files of the local partition.
+    infinite : bool
+        Set to ``True`` to have the files sampled infinitely.
+    local_rank : int
+        Local rank ID.
+    world_size : int
+        Number of all trainers.
+    is_train : bool
+        Set to ``True`` if it's training set.
     """
 
     def __init__(
@@ -595,6 +593,7 @@ class DistributedFileSampler(_FileSampler):
 
 
     def get_file(self, shard_index):
+        """ Get the file name with corresponding index"""
         if dist.is_initialized() and self.dp_size > self.num_files:
             file_index = (
                 (shard_index * self.dp_size) + self.dp_rank + (self.remainder * shard_index)
@@ -627,6 +626,7 @@ class DistributedFileSampler(_FileSampler):
             return _infinite_sample_iter()
 
     def __next__(self):
+        """ Get the file name for next file from sampler"""
         ret = None
         shard_index = next(self.sampler_iter)
 

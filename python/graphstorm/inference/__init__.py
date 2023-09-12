@@ -20,4 +20,4 @@ from .lp_infer import GSgnnLinkPredictionInfer
 from .np_infer import GSgnnNodePredictionInfer
 from .ep_infer import GSgnnEdgePredictionInfer
 
-from .utils import read_embed, read_nid
+from .utils import read_nid

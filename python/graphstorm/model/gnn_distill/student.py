@@ -25,15 +25,30 @@ SUPPORTED_MODEL = {
 }
 
 PRETRAINED_MODEL = [
-"pre_trained_name",
+"distilbert-base-uncased",
 ]
 
-# TODO: move this into a lm-distilled folder
 class GSDistilledModel(nn.Module):
-    """ GraphStorm GNN distilled model class
+    """ GraphStorm GNN distilled model class.
+    User specified Transformer-based model 
+    and a projection matrix will be initialized.
+
+    Parameters
+    ----------
+    transformer_name : str
+        Model name for Transformer-based student model.
+    node_type : str
+        Node type.
+    gnn_embed_dim : int
+        Dimension of GNN embeddings.
+    pre_trained_name : str
+        Name of pre-trained model.
     """
-    def __init__(self, transformer_name, node_type, gnn_embed_dim, pre_trained_name=None):
+    def __init__(self, transformer_name, node_type, 
+        gnn_embed_dim, pre_trained_name=None):
         super(GSDistilledModel, self).__init__()
+
+        # TODO (HZ): need to test other HF models.
         if transformer_name not in SUPPORTED_MODEL:
             raise ValueError(f'Model class {transformer_name} is not supported.')
         if pre_trained_name is not None and pre_trained_name not in PRETRAINED_MODEL:
@@ -58,15 +73,31 @@ class GSDistilledModel(nn.Module):
         self.proj = nn.Parameter(th.Tensor(self.tsf_embed_dim, gnn_embed_dim))
         nn.init.xavier_uniform_(self.proj)
 
-        # loss
+        # TODO (HZ): support more distance-based loss 
         self.loss = nn.MSELoss()
 
 
     def forward(self, inputs, attention_mask, labels):
+        """ Forward function for student model.
+
+        Parameters
+        ----------
+        inputs : dict
+            A batch from dataloader.
+        attention_mask : torch.tensor
+            Masks for self attention.
+        labels : torch.tensor
+            GNN embeddings.
+        
+        Returns
+        -------
+        torch.tensor : MSE loss for the batch
+        """
         tsf_outputs = self.transformers(inputs, attention_mask=attention_mask)
         h = tsf_outputs.last_hidden_state
         # get pooled h
         h = h[:, 0]
+        # project to the same dimension
         h = th.matmul(h, self.proj)
         loss = self.loss(h, labels)
         return loss

@@ -24,8 +24,8 @@ import graphstorm as gs
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.inference import GSgnnLinkPredictionInfer, read_nid, read_embed
-from graphstorm.distiller import GSdistiller
+from graphstorm.inference import GSgnnLinkPredictionInfer
+from graphstorm.distiller import GSdistiller, read_nid
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
@@ -59,6 +59,10 @@ def main(config_args):
                                         config.part_config,
                                         eval_etypes=config.eval_etype,
                                         node_feat_field=config.node_feat_name)
+
+        # TODO (HZ): test gnn checkpoints from ep and np model
+        # ep or np gnn checkpoint should also work
+        # since we do inference only, we load lp gnn model by default
         model = gs.create_builtin_lp_gnn_model(infer_data.g, config, train_task=False)
         model.restore_model(config.restore_model_path)
         distiller = GSdistiller(model, gs.get_rank(), config)
@@ -156,6 +160,8 @@ def main(config_args):
         distiller = GSdistiller(None, gs.get_rank(), config)
         distiller.setup_device(device=device)
     th.distributed.barrier()
+
+    # start distilling the model
     for node_type in node_types:
         distiller.distill(
             node_type, 

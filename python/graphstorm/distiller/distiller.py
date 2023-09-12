@@ -16,7 +16,6 @@
     Distill wrapper.
 """
 
-# from .graphstorm_infer import GSInfer
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 import os
@@ -27,11 +26,20 @@ from ..model.gnn import do_full_graph_inference
 from ..utils import sys_tracker
 from .utils import remap_embeddings
 
-from ..model import GSDistilledModel
+from ..model.gnn_distill import GSDistilledModel
 from ..dataloading import DataloaderGenerator, DataProvider
 
 class GSdistiller():
-    """
+    """ GNN distiller.
+
+    Parameters
+    ----------
+    model : GSgnnLinkPredictionModelBase
+        The GNN model for GNN embeddings inference.
+    rank : int
+        The rank.
+    config : GSConfig
+        Configs for GNN distillation
     """
     def __init__(self, model, rank, config):
         self._rank = rank
@@ -81,7 +89,29 @@ class GSdistiller():
 
         return embs
 
-    def get_textual_file_names_per_worker(self, total_file_list, local_rank, world_size):
+    def get_textual_file_names_per_worker(
+        self, 
+        total_file_list, 
+        local_rank, 
+        world_size,
+    ):
+        """ Distribute textual files for embedding mapping.
+        Each worker gets a list of file names, so that embedding mapping
+        can be conducted in distributed way.
+
+        Parameters
+        ----------
+        total_file_list: list of str
+            List of all file names.
+        local_rank : int
+            rank for the local worker.
+        world_size : int
+            Number of workers.
+
+        Returns
+        -------
+        list : list for the file names for the local worker.
+        """
         num_files = len(total_file_list)
         part_len = num_files // world_size
         remainder = num_files % world_size
@@ -114,6 +144,52 @@ class GSdistiller():
         part=0,
         rank=0,
     ): 
+        """ Map textual features with embeddings for each file.
+        Embeddings are read from HDF5Array on disk,
+        so no embeddings copy for each worker. A queue is maintained
+        for each worker to store the samples. Joined files will be written
+        to disk when queue size hits the chunk size. This is to make sure
+        the same batch numbers during training of distillation.
+
+        Parameters
+        ----------
+        queue: dict
+            Store joined samples to be written to disk.
+        node_type : str
+            node type.
+        file_name : str
+            Name of the textual file.
+        id_field : str
+            Name of string ID field in textual data.
+        textual_field_list : list of str
+            List of textual field name to be considered.
+        disk_embeds : HDF5Array
+            Offset to embeddings map.
+        id_map : dict
+            String ID to offset map.
+        index : int
+            Index of current textual file
+        total_num : int
+            Number of local textual files
+        concat_field_name : bool
+            Whether to concat field name with textual features.
+        split : str
+            Split of current textual file.
+        chunk_size : int
+            Chunk size for the output joined file when writing to disk.
+        part : int
+            Partition index of the output joined file.
+        rank : int
+            Local rank.
+
+
+        Returns
+        -------
+        queue: dict
+            Store joined samples to be written to disk.
+        part : int
+            Partition index of the output joined file.
+        """
         print ("Worker {}: Map {} textual features: {} of {}".format(self.rank, node_type, index, total_num))
         assert len(queue["node_ids"]) < chunk_size, "Queue already greater than chunk size"
 
@@ -142,6 +218,7 @@ class GSdistiller():
                 queue["textual_feats"].append(text)
                 embed_offset.append(id_map[json_data[id_field]])
 
+                # writing the joined data to disk when hits the chunk size
                 if len(queue["node_ids"]) == chunk_size:
                     queue["embeddings"] = queue["embeddings"] + embed_offset
                     textual_embed_pddf = pd.DataFrame({
@@ -173,6 +250,29 @@ class GSdistiller():
         saved_path, 
         on_cpu=False,
     ):
+        """ Distill function.
+        Each worker initializes student model, data provider,
+        and start training.
+
+        Parameters
+        ----------
+        node_type: str
+            node type.
+        tsf_name : str
+            Model name for Transformer-based student model.
+        gnn_embed_dim : int
+            Size of GNN embeddings.
+        data_dir : str
+            Directory for distillation data.
+        batch_size : int
+            Batch size for distillation.
+        distill_lr : float
+            Learning rate for distillation.
+        saved_path : str
+            Path to save the model.
+        on_cpu : bool
+            Whether the distillation will be conducted on cpu.
+        """
         self.student = GSDistilledModel(tsf_name, node_type, gnn_embed_dim, pre_trained_name=self.config.pre_trained_name)
         dataloader_generator = DataloaderGenerator(tokenizer=self.student.tokenizer, 
             device=self.device, 
@@ -193,6 +293,7 @@ class GSdistiller():
             is_train=False,
         )
 
+        # TODO (HZ): add flexibility to specify different optimizers
         optimizer = th.optim.Adam(self.student.parameters(), lr=distill_lr)
         self.student.to(self.device)
         student = DistributedDataParallel(self.student, device_ids=None if on_cpu else [self.device],
@@ -218,6 +319,17 @@ class GSdistiller():
                 break
 
     def save_student_model(self, model, saved_path, global_step):
+        """ Save student model
+
+        Parameters
+        ----------
+        model : GSDistilledModel
+            Distilled student model.
+        saved_path : str
+            Path to save the model.
+        global_step : int
+            Global step of the model checkpoint.
+        """
         th.distributed.barrier()
         if self.rank == 0:
             os.makedirs(os.path.join(saved_path, model.module.node_type, f"checkpoint-{global_step}"), exist_ok=True)
@@ -228,7 +340,6 @@ class GSdistiller():
                 """
                 Serializes this instance to a Python dictionary.
                 """
-
                 json_string = json.dumps(
                     config.__dict__,
                     default=lambda o: getattr(o, "__dict__", str(o)),
@@ -241,11 +352,25 @@ class GSdistiller():
             config_dict = to_dict(self.config)
             with open(config_file_loc, "w", encoding="utf-8") as of:
                 json.dump(config_dict, of, indent=2, sort_keys=True)
+            # TODO (HZ): need to test if the saved model can be successfully loaded
             th.save(model.state_dict(), model_file_loc)
 
         return True
 
     def to_device(self, inputs, device='cuda'):
+        """ Move the mini batch to corresponding device.
+
+        Parameters
+        ----------
+        inputs: dict of tensor
+            A batch from dataloader.
+        device : str
+            Name for the local device.
+
+        Returns
+        -------
+        dict of tensor : A batch on the specified device.
+        """
         if inputs is None:
             return None
         elif isinstance(inputs, th.Tensor):
@@ -263,6 +388,18 @@ class GSdistiller():
         return outputs
 
     def eval(self, model, eval_dataset_provider, global_step):
+        """ Evaluate student model on validation set.
+        The metric are mean square error (MSE).
+
+        Parameters
+        ----------
+        model : GSDistilledModel
+            Distilled student model.
+        eval_dataset_provider : DataProvider
+            Data provider for validation data.
+        global_step : int
+            Global step of the model checkpoint.
+        """
         model.eval()
         index = 0
         batch_index = 0
@@ -286,7 +423,6 @@ class GSdistiller():
         print (f"Eval MSE at step {global_step}: {mean_total_loss}")
         model.train()
         eval_dataset_provider.release_shard()
-        return True
 
     def train_shard(
         self, 
@@ -299,22 +435,29 @@ class GSdistiller():
     ):
         """
         Train using one shard from train_dataset_provider.
-        Input:
-            args: User args object obtained via parse_args.
-            model: Deepspeed model to be trained.
-            optimizer: Optimizer to train the deepspeed model.
-            train_dataset_provider: Dataset provider to train the model.
-            early_stopping: EarlyStopping object to be used.
-            is_first_iteration: True/False. Will load offset value and rewind when set to True
-                which is used when loading a checkpoint.
-        Output:
-            Returns True if stopping criteria was met else False.
+        Parameters
+        ----------
+        global_step : int
+            Global step of the model checkpoint.
+        model : GSDistilledModel
+            Distilled student model.
+        optimizer : torch optimizer
+            optimizer for distillation.
+        train_dataset_provider : DataProvider
+            Data provider for training data.
+        eval_dataset_provider : DataProvider
+            Data provider for validation data.
+        saved_path : str
+            Path to save the model.
+    
+        Returns
+        -------
+        bool : whether to stop distillation.
+        int : Global step of the model checkpoint.
         """
         dataset_iterator, _ = train_dataset_provider.get_shard()
-        # TODO (HZ): to support prefetch
-
+        # TODO (HZ): support prefetch to speed up the training
         model.train()
-
         shard_loss = 0
         complete = False
 
@@ -351,11 +494,11 @@ class GSdistiller():
                 if global_step == self.config.max_global_step[model.module.node_type]:
                     complete = True
                     break
-
                 global_step += 1
             except StopIteration:
                 continue
 
+        # release the memory
         train_dataset_provider.release_shard()
 
         return complete, global_step
@@ -385,41 +528,11 @@ class GSdistiller():
             self.evaluator.setup_task_tracker(task_tracker)
         self._task_tracker = task_tracker
 
-    def setup_evaluator(self, evaluator):
-        """ Set the evaluator
+    @property
+    def task_tracker(self):
+        """ Get the task tracker associated with the inference.
         """
-        if self.task_tracker is not None:
-            evaluator.setup_task_tracker(self.task_tracker)
-        self._evaluator = evaluator
-
-    def log_print_metrics(self, val_score, test_score, dur_eval, total_steps, train_score=None):
-        """
-        This function prints and logs all the metrics for evaluation
-
-        Parameters
-        ----------
-        train_score: dict
-            Training score
-        val_score: dict
-            Validation score
-        test_score: dict
-            Test score
-        dur_eval:
-            Total evaluation time
-        total_steps: int
-            The corresponding step/iteration
-        """
-        if self.task_tracker is None:
-            return
-
-        best_val_score = self.evaluator.best_val_score
-        best_test_score = self.evaluator.best_test_score
-        best_iter_num = self.evaluator.best_iter_num
-        self.task_tracker.log_iter_metrics(self.evaluator.metric,
-                train_score=train_score, val_score=val_score,
-                test_score=test_score, best_val_score=best_val_score,
-                best_test_score=best_test_score, best_iter_num=best_iter_num,
-                eval_time=dur_eval, total_steps=total_steps)
+        return self._task_tracker
 
     @property
     def rank(self):
@@ -432,18 +545,6 @@ class GSdistiller():
         """ Get the config for the distillation.
         """
         return self._config
-
-    @property
-    def evaluator(self):
-        """ Get the evaluator associated with the inference.
-        """
-        return self._evaluator
-
-    @property
-    def task_tracker(self):
-        """ Get the task tracker associated with the inference.
-        """
-        return self._task_tracker
 
     @property
     def device(self):

@@ -13,8 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Modules for distillation
+    Package initialization. Import necessary classes.
 """
-
-from .distiller import GSdistiller
-from .utils import read_nid
+from .student import GSDistilledModel
