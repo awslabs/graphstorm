@@ -31,7 +31,7 @@ from .lp_gnn import (GSgnnLinkPredictionModel,
 from .rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .rgat_encoder import RelationalGATEncoder, RelationalAttLayer
 from .sage_encoder import SAGEEncoder, SAGEConv
-from .hgt_encoder import HGTEncoder, HTGLayer
+from .hgt_encoder import HGTEncoder, HGTLayer
 
 from .node_decoder import EntityClassifier, EntityRegression
 from .edge_decoder import (DenseBiDecoder,
