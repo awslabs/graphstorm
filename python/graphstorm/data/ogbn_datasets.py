@@ -49,9 +49,9 @@ class OGBTextFeatDataset(GSgnnTextDataset):
     max_sequence_length : int
         The maximum supported sequence length
     retain_original_features : Boolean
-        Whether to use the original features or the bert generated ones
-    bert_model_name : String
-        The bert model used for tokenization
+        Whether to use the original features or the lm generated ones
+    lm_model_name : String
+        The lm model used for tokenization
     is_homo: Boolean
         If we want to generate a homogeneous graph.
     """
@@ -60,7 +60,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
                  reverse_edge=True, self_loop=False,
                  max_sequence_length=512,
                  retain_original_features=True,
-                 bert_model_name='bert-base-uncased',
+                 lm_model_name='bert-base-uncased',
                  is_homo=False):
         """
 
@@ -89,7 +89,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
         elif dataset == "ogbn-papers100M":
             self._num_classes = 172
         self.retain_original_features = retain_original_features
-        self.bert_model_name=bert_model_name
+        self.lm_model_name=lm_model_name
         super(OGBTextFeatDataset, self).__init__(self._name,
                                                  url=self._url,
                                                  raw_dir=raw_dir,
@@ -149,7 +149,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
             # the overhead is not nigligiable.
             self._raw_text_feat = {self.node_type:text_feats_list}
             text_feat = self.tokenize_text(self.max_sequence_length,
-                                           bert_model_name=self.bert_model_name)
+                                           lm_model_name=self.lm_model_name)
 
         splitted_idx = data.get_idx_split()
         train_idx = splitted_idx["train"]

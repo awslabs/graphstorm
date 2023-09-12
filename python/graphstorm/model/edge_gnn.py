@@ -21,6 +21,8 @@ import dgl
 
 from .gnn import GSgnnModel, GSgnnModelBase
 
+from ..utils import barrier
+
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
 
@@ -113,7 +115,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
             # no GNN message passing
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats)
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
         # TODO(zhengda) we only support prediction on one edge type now
         assert len(labels) == 1, "We only support prediction on one edge type for now."
         target_etype = list(labels.keys())[0]
@@ -137,7 +139,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
             # no GNN message passing in encoder
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats)
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
         if return_proba:
             return self.decoder.predict_proba(batch_graph, encode_embs)
         return self.decoder.predict(batch_graph, encode_embs)
@@ -258,7 +260,7 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
                 labels_list.append(labels[etype])
         # can't use torch.stack here becasue the size of last tensor is different
         preds = th.cat(preds_list)
-    th.distributed.barrier()
+    barrier()
 
     model.train()
     if return_label:

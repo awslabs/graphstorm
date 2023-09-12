@@ -22,7 +22,7 @@ from .dataloading import GSgnnLPLocalJointNegDataLoader
 from .dataloading import GSgnnAllEtypeLPJointNegDataLoader
 from .dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from .dataloading import GSgnnEdgeDataLoader
-from .dataloading import GSgnnNodeDataLoader
+from .dataloading import GSgnnNodeDataLoader, GSgnnNodeSemiSupDataLoader
 from .dataloading import GSgnnLinkPredictionTestDataLoader
 from .dataloading import GSgnnLinkPredictionJointTestDataLoader
 from .dataloading import (FastGSgnnLinkPredictionDataLoader,

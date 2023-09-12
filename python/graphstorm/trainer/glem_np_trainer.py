@@ -17,6 +17,7 @@
 """
 
 import time
+import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -25,8 +26,9 @@ from ..model.node_glem import GLEM
 from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem
+from ..utils import barrier
+from ..dataloading import GSgnnNodeSemiSupDataLoader
 
 class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
     """ A trainer for node prediction
@@ -45,6 +47,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GLEM), \
                 "The input model is not a GLEM node model. Please implement GLEM."
         self.early_stop = False # used when early stop is True
+        self.num_pretrain_epochs = model.num_pretrain_epochs
 
     def fit(self, train_loader, num_epochs,
             val_loader=None,
@@ -53,8 +56,9 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             save_model_path=None,
             save_model_frequency=-1,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0
-            ):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None,
+            grad_norm_type=2.0):
         """ The fit function for node prediction.
 
         Parameters
@@ -80,6 +84,12 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             Freeze the input layer for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
+        grad_norm_type: float
+            Norm type for the gradient clip
+            Default: 2.0
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -117,7 +127,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 self._model.lm.unfreeze_input_encoder()
                 no_pl = False
 
-            use_gnn = not self._model.em_order_gnn_first
+            use_gnn = self._model.em_order_gnn_first
             # `use_gnn`` determines which part to train, if `em_order_gnn_first`
             # 1st round: train GNN, fix LM; 2nd round: train LM fix gnn
             for _ in range(2):
@@ -127,11 +137,12 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                     device, rt_profiler,
                                     epoch, total_steps, use_mini_batch_infer,
-                                    save_model_path, save_model_frequency, no_pl)
+                                    save_model_path, save_model_frequency, no_pl, max_grad_norm,
+                                    grad_norm_type)
                 stage_finish_time = time.time()
                 if self.rank == 0:
-                    print("Epoch {}, {} takes {:.2f} seconds".format(
-                        epoch, part_to_train, stage_finish_time-stage_start_time))
+                    logging.info("Epoch %d: %s takes %.2f seconds",
+                                 epoch, part_to_train, stage_finish_time-stage_start_time)
                 use_gnn = not use_gnn
 
             # early_stop, exit training
@@ -142,7 +153,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             dur.append(epoch_time)
 
         rt_profiler.save_profile()
-        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        print_mem(device)
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
@@ -158,28 +169,46 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                        epoch, total_steps,
                        use_mini_batch_infer=True,
                        save_model_path=None,
-                       save_model_frequency=-1, no_pl=False):
+                       save_model_frequency=-1, no_pl=False,
+                       max_grad_norm=None, grad_norm_type=2.0):
         """Fit model for one epoch
         """
-        profiler.start_record()
-        for i, (input_nodes, seeds, blocks) in enumerate(train_loader):
-            profiler.record('train_sample')
-            total_steps += 1
-            batch_tic = time.time()
-
+        def _prepare_batch(input_nodes, seeds, blocks, is_labeled=True):
+            """Prepare a batch of graph data from the data loader, by retrieving features,
+            moving blocks to device, and get labels if `is_labeled` is True.
+            """
             if not isinstance(input_nodes, dict):
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
-            input_feats = data.get_node_feats(input_nodes, device)
-            lbl = data.get_labels(seeds, device)
-            profiler.record('train_node_feats')
 
+            input_feats = data.get_node_feats(input_nodes, device)
+            profiler.record('train_node_feats')
+            lbl = None
+            if is_labeled:
+                lbl = data.get_labels(seeds, device)
             blocks = [block.to(device) for block in blocks]
-            for _, feats in input_feats.items():
-                num_input_nodes += feats.shape[0]
             profiler.record('train_graph2GPU')
+            return input_nodes, input_feats, blocks, lbl
+
+        profiler.start_record()
+        for i, batch in enumerate(train_loader):
+            if isinstance(train_loader, GSgnnNodeSemiSupDataLoader):
+                # semi-supervised setting
+                input_nodes, input_feats, blocks, lbl = _prepare_batch(*batch[0])
+                input_nodes_u, input_feats_u, blocks_u, _ = _prepare_batch(
+                    *batch[1], is_labeled=False)
+            else:
+                # supervised setting, no unlabeled data
+                input_nodes, input_feats, blocks, lbl = _prepare_batch(*batch)
+                input_nodes_u = input_feats_u = blocks_u = None
+            profiler.record('train_sample')
+            total_steps += 1
+            batch_tic = time.time()
             # Run forward function to compute loss:
-            loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn, no_pl=no_pl)
+            loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn,
+                         no_pl=no_pl or (epoch < self.num_pretrain_epochs),
+                         blocks_u=blocks_u, node_feats_u=input_feats_u, edge_feats_u=None,
+                         input_nodes_u=input_nodes_u)
             profiler.record('train_forward')
 
             self.optimizer.zero_grad()
@@ -188,12 +217,14 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             self.optimizer.step()
             profiler.record('train_step')
 
+            if max_grad_norm is not None:
+                th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
             self.log_metric("Train loss", loss.item(), total_steps)
 
             if i % 20 == 0 and self.rank == 0:
                 rt_profiler.print_stats()
-                print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
-                        format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
+                logging.info("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f",
+                             self.rank, epoch, i,  loss.item(), time.time() - batch_tic)
 
             val_score = None
             if self.evaluator is not None and \
@@ -221,7 +252,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 break
 
         # end of an epoch
-        th.distributed.barrier()
+        barrier()
 
         val_score = None
         if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):

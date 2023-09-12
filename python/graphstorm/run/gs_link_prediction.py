@@ -44,8 +44,8 @@ def main():
 
     if "coo" not in args.graph_format:
         args.graph_format = f"{args.graph_format},coo"
-        print(f"Automatically add COO format to graph formats for link prediction. \
-              New graph_format is {args.graph_format}")
+        logging.debug("Automatically add COO format to graph formats for link prediction. " + \
+                "New graph_format is %s", args.graph_format)
     submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":

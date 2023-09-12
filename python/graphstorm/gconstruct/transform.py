@@ -27,8 +27,8 @@ import numpy as np
 import torch as th
 
 from scipy.special import erfinv # pylint: disable=no-name-in-module
-from transformers import BertTokenizer
-from transformers import BertModel, BertConfig
+from transformers import AutoTokenizer
+from transformers import AutoModel, AutoConfig
 
 from .file_io import read_index_json
 from .utils import ExtMemArrayWrapper
@@ -351,7 +351,11 @@ class CategoricalTransform(TwoPhaseFeatTransform):
     def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
         self._val_dict = {}
         if transform_conf is not None and 'mapping' in transform_conf:
-            self._val_dict = transform_conf['mapping']
+            # We assume the keys of a categorical mapping are strings.
+            # But previously keys can be integers. So we convert them
+            # into strings.
+            self._val_dict = \
+                {str(key): val for key, val in transform_conf['mapping'].items()}
             self._conf = transform_conf
         else:
             self._conf = transform_conf
@@ -379,7 +383,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
         feats = feats[feats != None] # pylint: disable=singleton-comparison
         if self._separator is None:
-            return {self.feat_name: np.unique(feats)}
+            return {self.feat_name: np.unique(feats.astype(str))}
         else:
             assert feats.dtype.type is np.str_, \
                     "We can only convert strings to multiple categorical values with separaters."
@@ -402,7 +406,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             assert len(info) == 0
             return
 
-        self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        self._val_dict = {str(key): i for i, key in enumerate(np.unique(np.concatenate(info)))}
         # We need to save the mapping in the config object.
         if self._conf is not None:
             self._conf['mapping'] = self._val_dict
@@ -424,7 +428,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                encoding[i, self._val_dict[feat]] = 1
+                encoding[i, self._val_dict[str(feat)]] = 1
         else:
             for i, feat in enumerate(feats):
                 if feat is None:
@@ -636,13 +640,13 @@ class Tokenizer(FeatTransform):
     feat_name : str
         The prefix of the tokenized data
     bert_model : str
-        The name of the BERT model.
+        The name of the lm model. We keep the parameter name for backward compatibilities
     max_seq_length : int
         The maximal length of the tokenization results.
     """
     def __init__(self, col_name, feat_name, bert_model, max_seq_length):
         super(Tokenizer, self).__init__(col_name, feat_name)
-        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
+        self.tokenizer = AutoTokenizer.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
     def call(self, feats):
@@ -669,7 +673,8 @@ class Tokenizer(FeatTransform):
             # The masks are small integers. We can use int4 or int8 to store them.
             # This can signficantly reduce memory consumption.
             att_masks.append(t['attention_mask'].to(th.int8))
-            type_ids.append(t['token_type_ids'].to(th.int8))
+            # Some tokenizer doesn't produce `token_type_ids`, replace w. zeros
+            type_ids.append(t.get('token_type_ids', th.zeros_like(t['input_ids'])).to(th.int8))
         token_id_name = 'input_ids'
         atten_mask_name = 'attention_mask'
         token_type_id_name = 'token_type_ids'
@@ -678,9 +683,9 @@ class Tokenizer(FeatTransform):
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
 
 class Text2BERT(FeatTransform):
-    """ Compute BERT embeddings.
+    """ Compute LM embeddings.
 
-    It computes BERT embeddings.
+    It computes LM embeddings.
 
     Parameters
     ----------
@@ -691,7 +696,7 @@ class Text2BERT(FeatTransform):
     tokenizer : Tokenizer
         A tokenizer
     model_name : str
-        The BERT model name.
+        The LM model name.
     infer_batch_size : int
         The inference batch size.
     out_dtype:
@@ -709,10 +714,10 @@ class Text2BERT(FeatTransform):
         self.infer_batch_size = infer_batch_size
 
     def _init(self):
-        """ Initialize the BERT model.
+        """ Initialize the LM model.
 
-        We should delay the BERT model initialization because we need to
-        initialize the BERT model in the worker process instead of creating it
+        We should delay the LM model initialization because we need to
+        initialize the LM model in the worker process instead of creating it
         in the master process and passing it to the worker process.
         """
         if th.cuda.is_available():
@@ -723,18 +728,17 @@ class Text2BERT(FeatTransform):
             self.device = "cpu"
 
         if self.lm_model is None:
-            config = BertConfig.from_pretrained(self.model_name)
-            lm_model = BertModel.from_pretrained(self.model_name,
-                                                 config=config)
+            config = AutoConfig.from_pretrained(self.model_name)
+            lm_model = AutoModel.from_pretrained(self.model_name, config)
             lm_model.eval()
 
-            # We use the local GPU to compute BERT embeddings.
+            # We use the local GPU to compute LM embeddings.
             if self.device is not None:
                 lm_model = lm_model.to(self.device)
             self.lm_model = lm_model
 
     def call(self, feats):
-        """ Compute BERT embeddings of the strings..
+        """ Compute LM embeddings of the strings..
 
         Parameters
         ----------
@@ -743,7 +747,7 @@ class Text2BERT(FeatTransform):
 
         Returns
         -------
-        dict: BERT embeddings.
+        dict: LM embeddings.
         """
         self._init()
         strs = feats

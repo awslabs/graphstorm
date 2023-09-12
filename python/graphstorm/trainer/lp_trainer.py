@@ -17,6 +17,7 @@
 """
 import time
 import resource
+import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -25,8 +26,8 @@ from ..model.lp_gnn import lp_mini_batch_predict
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem
+from ..utils import barrier, is_distributed
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Link prediction trainer.
@@ -56,7 +57,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             save_model_frequency=None,
             save_perf_results_path=None,
             edge_mask_for_gnn_embeddings='train_mask',
-            freeze_input_layer_epochs=0):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None,
+            grad_norm_type=2.0):
         """ The fit function for link prediction.
 
         Parameters
@@ -86,6 +89,12 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             Freeze input layer model for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
+        grad_norm_type: float
+            Norm type for the gradient clip
+            Default: 2.0
         """
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
@@ -93,10 +102,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
         on_cpu = self.device == th.device('cpu')
-        model = DistributedDataParallel(self._model, device_ids=None if on_cpu else [self.device],
-                                        output_device=None if on_cpu else self.device,
-                                        find_unused_parameters=True,
-                                        static_graph=static_graph)
+        if is_distributed():
+            model = DistributedDataParallel(self._model,
+                                            device_ids=None if on_cpu else [self.device],
+                                            output_device=None if on_cpu else self.device,
+                                            find_unused_parameters=True,
+                                            static_graph=static_graph)
+        else:
+            model = self._model
         device = model.device
         data = train_loader.data
 
@@ -147,17 +160,19 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.optimizer.step()
                 rt_profiler.record('train_step')
 
+                if max_grad_norm is not None:
+                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
                 if i % 20 == 0 and self.rank == 0:
                     rt_profiler.print_stats()
-                    print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
-                            format(epoch, i, loss.item(), time.time() - batch_tic))
+                    logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
+                                 epoch, i, loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(model.module, data,
-                                          val_loader, test_loader, total_steps,
+                    val_score = self.eval(model.module if is_distributed() else model,
+                                          data, val_loader, test_loader, total_steps,
                                           edge_mask_for_gnn_embeddings)
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -184,15 +199,15 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
             # ------- end of an epoch -------
 
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - epoch_start
             if self.rank == 0:
-                print("Epoch {} take {}".format(epoch, epoch_time))
+                logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, data,
-                                      val_loader, test_loader, total_steps,
+                val_score = self.eval(model.module if is_distributed() else model,
+                                      data, val_loader, test_loader, total_steps,
                                       edge_mask_for_gnn_embeddings)
 
                 if self.evaluator.do_early_stop(val_score):
@@ -204,20 +219,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
             rt_profiler.print_stats()
-
-            th.distributed.barrier()
+            barrier()
 
             # early_stop, exit training
             if early_stop is True:
                 break
 
         rt_profiler.save_profile()
-        if th.cuda.is_available():
-            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
-                                                         1024 / 1024))
-        else:
-            print("Peak RAM Mem alloc: {:.4f} MB".format(
-                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
+        print_mem(device)
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,
                        'best_val_mrr':self.evaluator.best_val_score,

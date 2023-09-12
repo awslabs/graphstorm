@@ -15,6 +15,7 @@
 
     GraphStorm trainer for edge prediction
 """
+import logging
 import time
 import resource
 import dgl
@@ -26,8 +27,8 @@ from ..model.edge_gnn import GSgnnEdgeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem
+from ..utils import barrier, is_distributed, get_backend
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
@@ -53,7 +54,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             save_model_path=None,
             save_model_frequency=None,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None,
+            grad_norm_type=2.0):
         """ The fit function for edge prediction.
 
         Parameters
@@ -79,6 +82,12 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             Freeze input layer model for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
+        grad_norm_type: float
+            Norm type for the gradient clip
+            Default: 2.0
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -91,10 +100,14 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
         on_cpu = self.device == th.device('cpu')
-        model = DistributedDataParallel(self._model, device_ids=None if on_cpu else [self.device],
-                                        output_device=None if on_cpu else self.device,
-                                        find_unused_parameters=True,
-                                        static_graph=static_graph)
+        if is_distributed():
+            model = DistributedDataParallel(self._model,
+                                            device_ids=None if on_cpu else [self.device],
+                                            output_device=None if on_cpu else self.device,
+                                            find_unused_parameters=True,
+                                            static_graph=static_graph)
+        else:
+            model = self._model
         device = model.device
         data = train_loader.data
 
@@ -148,19 +161,22 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 self.optimizer.step()
                 rt_profiler.record('train_step')
 
+                if max_grad_norm is not None:
+                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
 
                 if i % 20 == 0 and self.rank == 0:
                     rt_profiler.print_stats()
                     # Print task specific info.
-                    print(
-                        "Part {} | Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
-                        format(self.rank, epoch, i, loss.item(), time.time() - batch_tic))
+                    logging.info(
+                            "Part %d | Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
+                            self.rank, epoch, i, loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(model.module, val_loader, test_loader,
+                    val_score = self.eval(model.module if is_distributed() else model,
+                                          val_loader, test_loader,
                                           use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
@@ -188,14 +204,15 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
             # ------- end of an epoch -------
 
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - epoch_start
             if self.rank == 0:
-                print("Epoch {} take {}".format(epoch, epoch_time))
+                logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, val_loader, test_loader, use_mini_batch_infer,
+                val_score = self.eval(model.module if is_distributed() else model,
+                                      val_loader, test_loader, use_mini_batch_infer,
                                       total_steps, return_proba=False)
 
                 if self.evaluator.do_early_stop(val_score):
@@ -206,20 +223,14 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             # depends on the setting of top k. To show this is after epoch save, set the iteration
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
-
-            th.distributed.barrier()
+            barrier()
 
             # early_stop, exit training
             if early_stop is True:
                 break
 
         rt_profiler.save_profile()
-        if th.cuda.is_available():
-            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
-                                                         1024 / 1024))
-        else:
-            print("Peak RAM Mem alloc: {:.4f} MB".format(
-                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
+        print_mem(device)
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
@@ -291,6 +302,19 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 test_pred = None
                 test_label = None
             sys_tracker.check("after_test_score")
+
+        # We need to have val and label (test and test label) data in GPU
+        # when backend is nccl, as we need to use nccl.all_reduce to exchange
+        # data between GPUs
+        val_pred = val_pred.to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_pred
+        val_label = val_label.to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_label
+        if test_pred is not None:
+            test_pred = test_pred.to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_pred
+            test_label = test_label.to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_label
 
         model.train()
         sys_tracker.check('predict')

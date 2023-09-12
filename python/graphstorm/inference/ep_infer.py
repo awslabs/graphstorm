@@ -16,7 +16,6 @@
     Infer wrapper for edge classification and regression.
 """
 import time
-import torch as th
 from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInfer
@@ -26,7 +25,7 @@ from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict
 
-from ..utils import sys_tracker
+from ..utils import sys_tracker, get_world_size, barrier
 
 class GSgnnEdgePredictionInfer(GSInfer):
     """ Edge classification/regression infer.
@@ -72,8 +71,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
         do_eval = self.evaluator is not None
         if do_eval:
             assert loader.data.labels is not None, \
-                "A label field must be provided for edge classification or regression " \
-                "when evaluation is required."
+                "A label field must be provided for edge classification " \
+                "or regression inference when evaluation is required."
 
         sys_tracker.check('start inferencing')
         self._model.eval()
@@ -102,9 +101,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
-
         device = self.device
-
         if save_embed_path is not None:
             target_ntypes = set()
             for etype in infer_data.eval_etypes:
@@ -114,10 +111,10 @@ class GSgnnEdgePredictionInfer(GSInfer):
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
             save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                th.distributed.get_world_size(),
+                get_world_size(),
                 device=device,
                 node_id_mapping_file=node_id_mapping_file)
-        th.distributed.barrier()
+        barrier()
         sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
@@ -136,7 +133,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                 pred_data[loader.target_eidx[etype]] = pred.cpu()
 
                 pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, self.rank,
-                    th.distributed.get_world_size(), device=device)
+                    get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)
-        th.distributed.barrier()
+        barrier()
         sys_tracker.check('save predictions')
