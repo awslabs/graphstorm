@@ -78,7 +78,7 @@ GraphStorm's graph construction tool relies on the configuration JSON to provide
 .. code-block:: json
 
     {
-        "version": "gconstruct-0.1",
+        "version": "gconstruct-v0.1",
         "nodes": [
             {
                 "node_type": "author",

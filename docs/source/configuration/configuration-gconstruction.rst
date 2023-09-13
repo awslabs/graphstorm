@@ -29,7 +29,7 @@ The JSON file that describes the graph data defines where to get node data and e
 
 ``version``
 ...........
-``version`` marks the version of the configuration file schema, allowing its identification to be self-contained for downstream applications. The current (and expected) version is ``gconstruct-0.1``.
+``version`` marks the version of the configuration file schema, allowing its identification to be self-contained for downstream applications. The current (and expected) version is ``gconstruct-v0.1``.
 
 ``nodes``
 ...........
@@ -108,7 +108,7 @@ Below shows an example that contains one node type and an edge type. For a real 
 .. code-block:: json
 
     {
-        "version": "gconstruct-0.1",
+        "version": "gconstruct-v0.1",
         "nodes": [
             {
                 "node_id_col":  "paper_id",

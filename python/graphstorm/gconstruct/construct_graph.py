@@ -552,7 +552,7 @@ def verify_confs(confs):
     if "version" not in confs:
         # TODO: Make a requirement with v1.0 launch
         logging.warning(
-            "The config file does not have a 'version' entry. Assuming gconstruct-0.1")
+            "The config file does not have a 'version' entry. Assuming gconstruct-v0.1")
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
     etypes = [conf['relation'] for conf in confs["edges"]]
     for etype in etypes:
