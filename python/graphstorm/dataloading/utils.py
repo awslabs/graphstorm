@@ -17,7 +17,7 @@
 """
 
 import logging
-
+import dgl
 import torch as th
 import torch.distributed as dist
 
@@ -125,8 +125,10 @@ def flip_node_mask(dist_tensor, indices):
 
         Returns
         -------
-        flipped mask: torch.Tensor
+        flipped mask: dgl.distributed.DistTensor
     """
-    flipped_dist_tensor = th.ones(dist_tensor.shape, dtype=dist_tensor.dtype)
+    flipped_dist_tensor = dgl.distributed.DistTensor(
+        dist_tensor.shape, dist_tensor.dtype,
+        init_func=lambda shape, dtype: th.ones(shape, dtype=dtype))
     flipped_dist_tensor[indices] = 1 - dist_tensor[indices]
     return flipped_dist_tensor
