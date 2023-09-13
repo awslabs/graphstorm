@@ -9,6 +9,7 @@ on:
       - ci_dev
   pull_request_target:
     types: [ labeled ]
+    haha
     
 
 permissions:
