@@ -14,7 +14,7 @@ provide their own model implementations and use GraphStorm training pipeline to 
 
 ![GraphStorm architecture](https://github.com/awslabs/graphstorm/blob/main/tutorial/graphstorm_arch.jpg?raw=true)
 
-## Get Started
+## Get Started Test
 ### Installation
 GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.13+, DGL 1.0 and transformers 4.3.0+.
 
