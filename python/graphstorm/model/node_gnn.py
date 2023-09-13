@@ -186,13 +186,31 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
+    len_loader = len(list(loader))
+    barrier()
+    tensor = th.tensor([len_loader], device=device)
+    th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+    max_num_batch = tensor[0]
+
+    dataloader_iter = iter(loader)
+
     with th.no_grad():
-        for input_nodes, seeds, blocks in loader:
+        # To use WholeGraph for feature featching, dataloaders from different
+        # trainers must iterate through the same number of iterations as WholeGraph
+        # does not support imbalanced batch numbers across processes/trainers
+        # TODO (IN): Fix dataloader to have the same number of minibatches
+        for iter_l in range(max_num_batch):
+            if iter_l < len_dataloader:
+                input_nodes, output_nodes, blocks = next(dataloader_iter)
+            else:
+                for ntype in g.ntypes:
+                    input_nodes[ntype] = output_nodes[ntype] = th.empty((0,), dtype=g.idtype)
+                blocks = None
             if not isinstance(input_nodes, dict):
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
-            blocks = [block.to(device) for block in blocks]
+            blocks = [block.to(device) for block in blocks] if blocks is not None else None
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
             label = data.get_labels(seeds)
             if return_label:
