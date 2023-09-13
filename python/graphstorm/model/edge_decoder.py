@@ -73,6 +73,10 @@ class DenseBiDecoder(GSLayer):
         self.combine_basis = nn.Linear(self._num_basis, basis_out, bias=False)
         self.reset_parameters()
         self.regression = regression
+        # TODO support multi target etypes
+        # In the future we can accept both tuple and list of tuple
+        assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
+            "Target etype must be a tuple of a canonical etype."
         self.target_etype = target_etype
         if regression:
             self.regression_head = nn.Linear(basis_out, 1, bias=True)
@@ -225,11 +229,15 @@ class MLPEdgeDecoder(GSLayer):
         self.h_dim = h_dim
         self.multilabel = multilabel
         self.out_dim = h_dim if regression else out_dim
-        self.target_etype = target_etype
         self.regression = regression
         self.dropout = dropout
         self.num_hidden_layers = num_hidden_layers
         self.num_ffn_layers = num_ffn_layers
+        # TODO support multi target etypes
+        # In the future we can accept both tuple and list of tuple
+        assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
+            "Target etype must be a tuple of a canonical etype."
+        self.target_etype = target_etype
 
         self._init_model()
 
