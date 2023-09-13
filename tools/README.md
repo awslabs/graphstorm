@@ -84,7 +84,7 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --is-homo     
 ```
 
-## Convert node features from distDGL format WholeGraph format
+## Convert node features from distDGL format to WholeGraph format
 
 Use the `convert_feat_to_wholegraph.py` script with `--dataset-path` pointing to the distDGL folder of partitions and `--feat-names` to the features you want to convert (e.g. '`paper/feat,author/feat,institution/feat`')
 ```
