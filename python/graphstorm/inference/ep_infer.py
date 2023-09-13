@@ -23,7 +23,7 @@ from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
-from ..model.edge_gnn import edge_mini_batch_predict
+from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
 from ..utils import sys_tracker, get_world_size, barrier
 
@@ -76,11 +76,18 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
         sys_tracker.check('start inferencing')
         self._model.eval()
-        embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
-                                       task_tracker=self.task_tracker)
-        sys_tracker.check('compute embeddings')
-        res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
-                                      return_label=do_eval)
+
+        if use_mini_batch_infer:
+            res = edge_mini_batch_gnn_predict(self._model,
+                                              loader,
+                                              return_proba,
+                                              return_label=do_eval)
+        else:
+            embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
+                                        task_tracker=self.task_tracker)
+            sys_tracker.check('compute embeddings')
+            res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
+                                        return_label=do_eval)
         pred = res[0]
         label = res[1] if do_eval else None
         sys_tracker.check('compute prediction')
@@ -90,6 +97,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
         # TODO support multiple etypes
         assert len(infer_data.eval_etypes) == 1, \
             "GraphStorm only support single target edge type for training and inference"
+        pred = pred[infer_data.eval_etypes[0]]
+        label = label[infer_data.eval_etypes[0]] if label is not None else None
 
         # do evaluation first
         if do_eval:
