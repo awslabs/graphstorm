@@ -1350,7 +1350,8 @@ class GSConfig:
 
         if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
             if hasattr(self, "_imbalance_class_weights"):
-                assert isinstance(self._imbalance_class_weights, dict)
+                assert isinstance(self._imbalance_class_weights, dict), \
+                    print('The imbalance_class_weights should be dictionary')
                 num_classes = self.num_classes
                 imbalance_class_weights = self._imbalance_class_weights
                 ntype_weights = {}
