@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import abc
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional
 
 
 class LabelConfig(abc.ABC):
@@ -24,32 +24,29 @@ class LabelConfig(abc.ABC):
         self._config = config_dict
 
         if "column" in config_dict:
-            cols = config_dict["column"]
+            self._label_column = config_dict["column"]
         else:
-            cols = [""]
+            self._label_column = ""
             assert config_dict["type"] == "link_prediction"
-        if isinstance(cols, list) is False:
-            cols = [cols]
-        self._cols: List[str] = cols
         self._task_type: str = config_dict["type"]
         self._split: Dict[str, float] = config_dict["split_rate"]
         self._separator: str = config_dict["separator"] if "separator" in config_dict else None
         self._multilabel = self._separator is not None
 
     def _sanity_check(self):
-        assert self._cols is not None and self._cols != "", (
-            "The header names of the column storing the "
-            "target label property value should be provided."
-        )
-        assert isinstance(self._cols, list)
+        if self._label_column == "":
+            assert self._task_type == "link_prediction", (
+                "When no label column is specified, the task type must be link_prediction, "
+                f"got {self._task_type}"
+            )
         assert isinstance(self._task_type, str)
         assert isinstance(self._split, dict)
         assert isinstance(self._separator, str) if self._multilabel else self._separator is None
 
     @property
-    def cols(self) -> Sequence[str]:
-        """The columns this label configuration concerns."""
-        return self._cols
+    def label_column(self) -> str:
+        """The name of the column storing the target label property value."""
+        return self._label_column
 
     @property
     def task_type(self) -> str:
