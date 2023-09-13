@@ -465,15 +465,6 @@ class GSConfig:
             else None
 
     @property
-    def use_wholegraph(self):
-        """ Use wholegraph for feature transfer if 'wholegraph' folder exists
-            which stores the node features in wholegraph compatible format.
-        """
-        path = os.path.dirname(self.part_config)
-        wholegraph_dir = os.path.join(path, 'wholegraph')
-        return bool(os.path.isdir(wholegraph_dir))
-
-    @property
     def verbose(self):
         """ verbose for print out more information.Default is False
         """
