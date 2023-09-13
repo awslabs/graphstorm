@@ -3,9 +3,6 @@ cd ../../
 
 set -ex
 
-echo "hello"
-python3 -m pip install --upgrade prospector pip
-FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation
+pip install pylint==2.17.5
 
 pylint --rcfile=./tests/lint/pylintrc ./graphstorm-processing/graphstorm_processing/
-
