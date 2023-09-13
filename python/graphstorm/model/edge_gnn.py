@@ -193,7 +193,9 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                                  return_proba)
 
             # TODO expand code for multiple edge types
-            assert len(target_edge_graph.etypes) == 1
+            assert len(target_edge_graph.etypes) == 1, \
+                "GraphStorm does not support multi-task training on " \
+                "different edge types now."
             target_etype = target_edge_graph.canonical_etypes[0]
 
             if return_label:
