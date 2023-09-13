@@ -97,8 +97,7 @@ def main(config_args):
                                     config.part_config,
                                     train_etypes=config.train_etype,
                                     eval_etypes=config.eval_etype,
-                                    node_feat_field=node_feat_field,
-                                    use_wholegraph=config.use_wholegraph)
+                                    node_feat_field=node_feat_field)
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
                                          topk_model_to_save=config.topk_model_to_save)

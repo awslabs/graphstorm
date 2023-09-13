@@ -317,8 +317,8 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     """
     def __init__(self, graph_name, part_config, label_field=None,
                  node_feat_field=None, edge_feat_field=None):
-        super(GSgnnEdgeData, self).__init__(graph_name, part_config, node_feat_field,
-                                            edge_feat_field)
+        super(GSgnnEdgeData, self).__init__(graph_name, part_config,
+                                            node_feat_field, edge_feat_field)
 
         self._label_field = label_field
         if label_field is not None:
@@ -393,8 +393,8 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         The field of the edge features. It's a dict if different edge types have
         different feature names.
     """
-    def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None, label_field=None,
-                 node_feat_field=None, edge_feat_field=None):
+    def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
+                 label_field=None, node_feat_field=None, edge_feat_field=None):
         if train_etypes is not None:
             assert isinstance(train_etypes, (tuple, list)), \
                     "The prediction etypes for training has to be a tuple or a list of tuples."
@@ -596,8 +596,8 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
     """
     def __init__(self, graph_name, part_config, label_field=None,
                  node_feat_field=None, edge_feat_field=None):
-        super(GSgnnNodeData, self).__init__(graph_name, part_config, node_feat_field,
-                                            edge_feat_field)
+        super(GSgnnNodeData, self).__init__(graph_name, part_config,
+                                            node_feat_field, edge_feat_field)
         self._label_field = label_field
         if label_field is not None:
             self._labels = {}
