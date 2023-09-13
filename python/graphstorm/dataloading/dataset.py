@@ -227,6 +227,7 @@ class GSgnnData():
             optimizer=None,
             cache_policy=cache_policy,
         )
+        # TODO(IN): Add multiple features
         feat_path = os.path.join(os.path.dirname(part_config), 'wholegraph', ntype + '~feat')
         node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
                                                                        part_count=num_parts)
