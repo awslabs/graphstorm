@@ -17,6 +17,8 @@
 """
 __version__ = "0.2"
 
+from . import gsf
+from . import utils
 from .utils import get_rank, get_world_size
 from .gsf import initialize, get_feat_size
 from .gsf import create_builtin_node_gnn_model

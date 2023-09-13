@@ -541,7 +541,7 @@ def test_insert_link_prediction_labels(no_label_data_configs: Dict[str, Sequence
     for edge_config in modified_edge_configs:
         assert edge_config.label_configs
         assert edge_config.label_configs[0].task_type == "link_prediction"
-        assert edge_config.label_configs[0].cols[0] == ""
+        assert edge_config.label_configs[0].label_column == ""
 
 
 def test_create_split_files_from_rates_empty_col(
