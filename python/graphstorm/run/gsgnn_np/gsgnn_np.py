@@ -88,10 +88,6 @@ def main(config_args):
     if trainer.rank == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True)
-    val_dataloader = None
-    test_dataloader = None
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
         unlabeled_idxs = train_data.get_unlabeled_idxs()
@@ -101,18 +97,26 @@ def main(config_args):
                                                 device=device, train_task=True)
     else:
         dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                         batch_size=config.batch_size, device=device,
-                                         train_task=True)
+                                         batch_size=config.batch_size,
+                                         device=device, train_task=True,
+                                         construct_feat_ntype=config.construct_feat_ntype,
+                                         construct_feat_fanout=config.construct_feat_fanout)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
+    val_dataloader = None
+    test_dataloader = None
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
-                                             device=device, train_task=False)
+                                             device=device, train_task=False,
+                                             construct_feat_ntype=config.construct_feat_ntype,
+                                             construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
-                                              device=device, train_task=False)
+                                              device=device, train_task=False,
+                                              construct_feat_ntype=config.construct_feat_ntype,
+                                              construct_feat_fanout=config.construct_feat_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

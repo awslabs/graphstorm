@@ -89,7 +89,9 @@ def main(config_args):
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
                                      exclude_training_targets=config.exclude_training_targets,
-                                     decoder_edge_feat=config.decoder_edge_feat)
+                                     decoder_edge_feat=config.decoder_edge_feat,
+                                     construct_feat_ntype=config.construct_feat_ntype,
+                                     construct_feat_fanout=config.construct_feat_fanout)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
@@ -100,14 +102,18 @@ def main(config_args):
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
-            decoder_edge_feat=config.decoder_edge_feat)
+            decoder_edge_feat=config.decoder_edge_feat,
+            construct_feat_ntype=config.construct_feat_ntype,
+            construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
-            decoder_edge_feat=config.decoder_edge_feat)
+            decoder_edge_feat=config.decoder_edge_feat,
+            construct_feat_ntype=config.construct_feat_ntype,
+            construct_feat_fanout=config.construct_feat_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

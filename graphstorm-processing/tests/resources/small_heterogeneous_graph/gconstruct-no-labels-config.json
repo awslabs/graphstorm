@@ -1,0 +1,54 @@
+{
+    "edges" : [
+      {
+        "files": ["edges/movie-included_in-genre.csv"],
+        "format": {
+            "name": "csv",
+            "separator" : ","
+        },
+        "source_id_col" : "~from",
+        "dest_id_col" : "~to",
+        "relation": ["movie", "included_in", "genre"]
+      },
+      {
+        "files": "edges/user-rated-movie.csv",
+        "format": {
+            "name": "csv",
+            "separator" : ","
+        },
+        "source_id_col" : "~from",
+        "dest_id_col" : "~to",
+        "relation": ["user", "rated", "movie"]
+      },
+      {
+        "files": "edges/director-directed-movie.csv",
+        "format": {
+            "name": "csv",
+            "separator" : ","
+        },
+        "source_id_col" : "~from",
+        "dest_id_col" : "~to",
+        "relation": ["director", "directed", "movie"]
+      }
+    ],
+    "nodes" : [
+      {
+        "node_id_col":  "~id",
+        "node_type":    "genre",
+        "format":       {"name": "csv", "separator": ","},
+        "files":        ["nodes/genre.csv"]
+      },
+      {
+        "node_id_col":  "~id",
+        "node_type":    "movies",
+        "format":       {"name": "csv", "separator": ","},
+        "files":        ["nodes/movie.csv"]
+      },
+      {
+        "node_id_col":  "~id",
+        "node_type":    "user",
+        "format":       {"name": "csv", "separator": ","},
+        "files":        ["nodes/user.csv"]
+      }
+    ]
+}

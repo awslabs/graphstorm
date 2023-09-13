@@ -33,11 +33,66 @@ from .utils import trim_data, modify_fanout_for_target_etype
 ################ Minibatch DataLoader (Edge Prediction) #######################
 EP_DECODER_EDGE_FEAT = "ep_edge_feat"
 
+class _ReconstructedNeighborSampler():
+    """ This samples an additional hop for a mini-batch.
+
+    The additional hop is used to compute the features of the nodes in the input layer.
+    Users can specify which input nodes requires to construct node features.
+
+    Parameters
+    ----------
+    dataset: GSgnnData
+        The GraphStorm dataset
+    constructed_embed_ntypes : a list of strings.
+        The node type in the input layer that requires to construct node features.
+    fanout : int
+        The fanout for the additional layer.
+    """
+    def __init__(self, dataset, constructed_embed_ntypes, fanout):
+        assert fanout > 0 or fanout == -1, \
+                "Constructing features requires to sample neighbors or -1 " + \
+                "if we use all neighbors."
+        self._g = dataset.g
+        etypes = self._g.canonical_etypes
+        self._subg_etypes = []
+        target_ntypes = set()
+        for dst_ntype in constructed_embed_ntypes:
+            for etype in etypes:
+                if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
+                    self._subg_etypes.append(etype)
+                    target_ntypes.add(dst_ntype)
+        remain_ntypes = set(constructed_embed_ntypes) - target_ntypes
+        # We need to make sure all node types that require feature construction
+        # can be constructed.
+        assert len(remain_ntypes) == 0, \
+                f"The features of some node types cannot be constructed: {remain_ntypes}"
+        self._fanout = {}
+        for etype in etypes:
+            self._fanout[etype] = fanout if etype in self._subg_etypes else 0
+        assert len(self._subg_etypes) > 0, "The sampled edge types is empty."
+
+    def sample(self, seeds):
+        """ Sample an additional hop for the input block.
+
+        Parameters
+        ----------
+        seeds : dict of Tensors
+            The seed nodes for the input layer.
+
+        Returns
+        -------
+        DGLBlock : an additional hop for computing the features of the input nodes.
+        """
+        subg = self._g.sample_neighbors(seeds, self._fanout)
+        block = dgl.to_block(subg, seeds)
+        input_nodes = {ntype: block.srcnodes[ntype].data[dgl.NID] for ntype in block.srctypes}
+        return block, input_nodes
+
 class GSgnnEdgeDataLoader():
     """ The minibatch dataloader for edge prediction
 
-    Argument
-    --------
+    Parameters
+    ------------
     dataset: GSgnnEdgeData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
@@ -56,12 +111,18 @@ class GSgnnEdgeDataLoader():
         Whether to exclude training edges during neighbor sampling
     remove_target_edge_type: bool
         Whether we will exclude all edges of the target edge type in message passing.
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int
+        The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
                  exclude_training_targets=False,
-                 decoder_edge_feat=None):
+                 decoder_edge_feat=None,
+                 construct_feat_ntype=None,
+                 construct_feat_fanout=5):
         self._data = dataset
         self._device = device
         self._fanout = fanout
@@ -84,6 +145,11 @@ class GSgnnEdgeDataLoader():
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
+        self._construct_feat_sampler = \
+                _ReconstructedNeighborSampler(dataset, construct_feat_ntype,
+                        construct_feat_fanout) if len(construct_feat_ntype) > 0 else None
         self.dataloader = self._prepare_dataloader(dataset.g,
                                                    target_idx,
                                                    edge_fanout_lis,
@@ -116,6 +182,9 @@ class GSgnnEdgeDataLoader():
 
     def __next__(self):
         input_nodes, batch_graph, blocks = self.dataloader.__next__()
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
+            blocks.insert(0, block)
         if self._decoder_edge_feat is not None:
             input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
                            for etype in batch_graph.canonical_etypes}
@@ -192,10 +261,15 @@ class GSgnnLinkPredictionDataLoader():
     lp_edge_weight_for_loss: str or dict of [str]
         The edge data fields that stores the edge weights used
         in computing link prediction loss
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int
+        The fanout required to construct node features.
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
-                 edge_mask_for_gnn_embeddings='train_mask', lp_edge_weight_for_loss=None):
+                 edge_mask_for_gnn_embeddings='train_mask', lp_edge_weight_for_loss=None,
+                 construct_feat_ntype=None, construct_feat_fanout=5):
         self._data = dataset
         self._fanout = fanout
         self._lp_edge_weight_for_loss = lp_edge_weight_for_loss
@@ -204,6 +278,11 @@ class GSgnnLinkPredictionDataLoader():
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
 
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
+        self._construct_feat_sampler = \
+                _ReconstructedNeighborSampler(dataset, construct_feat_ntype,
+                        construct_feat_fanout) if len(construct_feat_ntype) > 0 else None
         self.dataloader = self._prepare_dataloader(dataset.g, target_idx, fanout,
                 num_negative_edges, batch_size, device,
                 train_task=train_task,
@@ -236,11 +315,14 @@ class GSgnnLinkPredictionDataLoader():
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
-        if isinstance(target_idxs, dict):
-            for etype in target_idxs:
-                target_idxs[etype] = trim_data(target_idxs[etype], device)
-        else:
-            target_idxs = trim_data(target_idxs, device)
+        if train_task:
+            if isinstance(target_idxs, dict):
+                for etype in target_idxs:
+                    target_idxs[etype] = trim_data(target_idxs[etype], device)
+            else:
+                target_idxs = trim_data(target_idxs, device)
+        # for validation and test, there is no need to trim data
+
         exclude = 'reverse_types' if exclude_training_targets else None
         reverse_etypes = reverse_edge_types_map if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
@@ -261,6 +343,9 @@ class GSgnnLinkPredictionDataLoader():
 
     def __next__(self):
         input_nodes, pos_graph, neg_graph, blocks = self.dataloader.__next__()
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
+            blocks.insert(0, block)
         if self._lp_edge_weight_for_loss is not None:
             input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                 for etype in pos_graph.canonical_etypes}
@@ -339,11 +424,14 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
-        if isinstance(target_idxs, dict):
-            for etype in target_idxs:
-                target_idxs[etype] = trim_data(target_idxs[etype], device)
-        else:
-            target_idxs = trim_data(target_idxs, device)
+        if train_task:
+            if isinstance(target_idxs, dict):
+                for etype in target_idxs:
+                    target_idxs[etype] = trim_data(target_idxs[etype], device)
+            else:
+                target_idxs = trim_data(target_idxs, device)
+        # for validation and test, there is no need to trim data
+
         exclude = 'reverse_types' if exclude_training_targets else None
         reverse_etypes = reverse_edge_types_map if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
@@ -566,11 +654,14 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
 
         # edge loader
-        if isinstance(target_idxs, dict):
-            for etype in target_idxs:
-                target_idxs[etype] = trim_data(target_idxs[etype], device)
-        else:
-            target_idxs = trim_data(target_idxs, device)
+        if train_task:
+            if isinstance(target_idxs, dict):
+                for etype in target_idxs:
+                    target_idxs[etype] = trim_data(target_idxs[etype], device)
+            else:
+                target_idxs = trim_data(target_idxs, device)
+        # for validation and test, there is no need to trim data
+
         exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = AllEtypeDistEdgeDataLoader(g,
                                             target_idxs,
@@ -621,8 +712,8 @@ class GSgnnLinkPredictionTestDataLoader():
 
     The negative edges are sampled uniformly.
 
-    Argument
-    --------
+    Parameters
+    -----------
     dataset: GSgnnEdgeData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
@@ -722,11 +813,21 @@ class GSgnnNodeDataLoader():
         the device trainer is running on.
     train_task : bool
         Whether or not for training.
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int
+        The fanout required to construct node features.
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True):
+    def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
+                 construct_feat_ntype=None, construct_feat_fanout=5):
         self._data = dataset
         self._fanout = fanout
         self._target_nidx  = target_idx
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
+        self._construct_feat_sampler = \
+                _ReconstructedNeighborSampler(dataset, construct_feat_ntype,
+                        construct_feat_fanout) if len(construct_feat_ntype) > 0 else None
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -739,8 +840,11 @@ class GSgnnNodeDataLoader():
                                                    device)
 
     def _prepare_dataloader(self, g, target_idx, fanout, batch_size, train_task, device):
-        for ntype in target_idx:
-            target_idx[ntype] = trim_data(target_idx[ntype], device)
+        if train_task:
+            for ntype in target_idx:
+                target_idx[ntype] = trim_data(target_idx[ntype], device)
+        # for validation and test, there is no need to trim data
+
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         loader = dgl.dataloading.DistNodeDataLoader(g, target_idx, sampler,
             batch_size=batch_size, shuffle=train_task, num_workers=0)
@@ -748,10 +852,15 @@ class GSgnnNodeDataLoader():
         return loader
 
     def __iter__(self):
-        return self.dataloader.__iter__()
+        self.dataloader = iter(self.dataloader)
+        return self
 
     def __next__(self):
-        return self.dataloader.__next__()
+        input_nodes, seeds, blocks = self.dataloader.__next__()
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
+            blocks.insert(0, block)
+        return input_nodes, seeds, blocks
 
     @property
     def data(self):

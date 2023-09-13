@@ -272,6 +272,73 @@ def test_categorize_transform():
         feat[idx] = 0
         assert np.all(feat == 0)
 
+    # Test the case when the input ids are mixture of int and strings
+    # This may happen when loading csv files.
+    transform_conf = {
+        "name": "to_categorical"
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
+    str_ids[0] = None
+    str_ids[-1] = None # allow None data
+    str_ids = str_ids + [i for i in range(10)] # mix strings with ints
+    res = transform.pre_process(np.array(str_ids))
+    assert "test" in res
+    assert len(res["test"]) == 10
+    for i in range(10):
+        assert str(i) in res["test"]
+
+    info = [np.array([str(i) for i in range(6)]),
+            np.array([str(i) for i in range(4, 10)])]
+    transform.update_info(info)
+    feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
+    feat[0] = int(feat[0])
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
+    assert "mapping" in transform_conf
+    assert len(transform_conf["mapping"]) == 10
+
+    # check update_info
+    transform_conf = {
+        "name": "to_categorical"
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    info = [np.array([i for i in range(6)]),
+            np.array([i for i in range(4, 10)])]
+    transform.update_info(info)
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
+    assert len(transform_conf["mapping"]) == 10
+
+    # check backward compatible
+     # check update_info
+    transform_conf = {
+        "name": "to_categorical",
+        "mapping": {i: i for i in range(10)}
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    assert len(transform_conf["mapping"]) == 10
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
+
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_noop_transform(out_dtype):
     transform = Noop("test", "test", out_dtype=out_dtype)

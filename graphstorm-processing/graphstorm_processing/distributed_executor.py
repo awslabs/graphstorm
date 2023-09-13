@@ -100,6 +100,7 @@ class ExecutorConfig:
     config_filename: str
     filesystem_type: str
     add_reverse_edges: bool
+    graph_name: str
 
 
 @dataclasses.dataclass
@@ -112,6 +113,7 @@ class GSProcessingArguments:
     num_output_files: int
     add_reverse_edges: bool
     log_level: str
+    graph_name: str
 
 
 class DistributedExecutor:
@@ -137,6 +139,7 @@ class DistributedExecutor:
         self.filesystem_type = executor_config.filesystem_type
         self.sm_execution = executor_config.sm_execution
         self.add_reverse_edges = executor_config.add_reverse_edges
+        self.graph_name = executor_config.graph_name
 
         # Ensure we have write access to the output path
         if self.filesystem_type == "local":
@@ -198,6 +201,7 @@ class DistributedExecutor:
             num_output_files=self.num_output_files,
             add_reverse_edges=self.add_reverse_edges,
             enable_assertions=False,
+            graph_name=self.graph_name,
         )
         loader.load()
 
@@ -259,7 +263,13 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="When set to True, will create reverse edges for every edge type.",
     )
-
+    parser.add_argument(
+        "--graph-name",
+        type=str,
+        help="Name for the graph being processed.",
+        required=False,
+        default=None,
+    )
     parser.add_argument(
         "--log-level",
         type=str,
@@ -340,6 +350,7 @@ def main():
         sm_execution=is_sagemaker_execution,
         filesystem_type=filesystem_type,
         add_reverse_edges=gsprocessing_args.add_reverse_edges,
+        graph_name=gsprocessing_args.graph_name,
     )
 
     dist_executor = DistributedExecutor(executor_configuration)

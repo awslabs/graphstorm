@@ -37,6 +37,16 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 
 error_and_exit $?
 
+echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT & construct, BERT nodes: movie, inference: mini-batch"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title --construct-feat-ntype user
+
+error_and_exit $?
+
+echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT & construct, BERT nodes: movie, inference: full-graph"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title --construct-feat-ntype user --use-mini-batch-infer false
+
+error_and_exit $?
+
 echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, remove activation and dropout in the input layer"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --input-activate none
 
@@ -151,6 +161,19 @@ error_and_exit $?
 
 echo "**************dataset: MovieLens, RGAT layer: 2, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --model-encoder-type rgat --fanout '5,10' --num-layers 2 --use-mini-batch-infer false
+
+error_and_exit $?
+
+
+echo "**************dataset: MovieLens, HGT layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --model-encoder-type hgt
+
+error_and_exit $?
+
+echo "**************dataset: MovieLens, HGT layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --model-encoder-type hgt --use-mini-batch-infer false
+
+error_and_exit $?
 
 error_and_exit $?
 
