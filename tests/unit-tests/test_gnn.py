@@ -142,7 +142,7 @@ def create_rgat_node_model(g, norm=None):
 
 def create_hgt_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
-    
+
     feat_size = get_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
@@ -565,7 +565,7 @@ def create_rgcn_edge_model(g, num_ffn_layers):
 
 def create_hgt_edge_model(g, num_ffn_layers):
     model = GSgnnEdgeModel(alpha_l2norm=0)
-    
+
     feat_size = get_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
@@ -608,17 +608,18 @@ def check_edge_prediction(model, data):
                                       batch_size=10, device="cuda:0", train_task=False,
                                       remove_target_edge_type=False)
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
-    assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
-    assert_equal(labels1.numpy(), labels2.numpy())
+    assert_almost_equal(pred1[("n0", "r1", "n1")][0:len(pred1[("n0", "r1", "n1")])].numpy(),
+                        pred2[("n0", "r1", "n1")][0:len(pred2[("n0", "r1", "n1")])].numpy(), decimal=5)
+    assert_equal(labels1[("n0", "r1", "n1")].numpy(), labels2[("n0", "r1", "n1")].numpy())
 
     # Test the return_proba argument.
     pred3, labels3 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
-    assert(th.is_floating_point(pred3))
-    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    assert(th.is_floating_point(pred3[("n0", "r1", "n1")]))
+    assert pred3[("n0", "r1", "n1")].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
     pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
-    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
-    assert(is_int(pred4))
-    assert(th.equal(pred3.argmax(dim=1), pred4))
+    assert(pred4[("n0", "r1", "n1")].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4[("n0", "r1", "n1")]))
+    assert(th.equal(pred3[("n0", "r1", "n1")].argmax(dim=1), pred4[("n0", "r1", "n1")]))
 
 def check_mlp_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
@@ -642,17 +643,18 @@ def check_mlp_edge_prediction(model, data):
                                       batch_size=10, device="cuda:0", train_task=False,
                                       remove_target_edge_type=False)
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
-    assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
-    assert_equal(labels1.numpy(), labels2.numpy())
+    assert_almost_equal(pred1[("n0", "r1", "n1")][0:len(pred1[("n0", "r1", "n1")])].numpy(),
+                        pred2[("n0", "r1", "n1")][0:len(pred2[("n0", "r1", "n1")])].numpy(), decimal=5)
+    assert_equal(labels1[("n0", "r1", "n1")].numpy(), labels2[("n0", "r1", "n1")].numpy())
 
     # Test the return_proba argument.
     pred3, labels3 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
-    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
-    assert(th.is_floating_point(pred3))
+    assert pred3[("n0", "r1", "n1")].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+    assert(th.is_floating_point(pred3[("n0", "r1", "n1")]))
     pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
-    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
-    assert(is_int(pred4))
-    assert(th.equal(pred3.argmax(dim=1), pred4))
+    assert(pred4[("n0", "r1", "n1")].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4[("n0", "r1", "n1")]))
+    assert(th.equal(pred3[("n0", "r1", "n1")].argmax(dim=1), pred4[("n0", "r1", "n1")]))
 
 @pytest.mark.parametrize("num_ffn_layers", [0, 2])
 def test_rgcn_edge_prediction(num_ffn_layers):
@@ -1277,6 +1279,76 @@ def test_link_prediction_weight():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+class Dummy_GSEdgeDecoder(MLPEdgeDecoder):
+    def __init__(self):
+        pass
+
+    def predict(self, g, h):
+        return th.arange(10)
+
+    def predict_proba(self, g, h):
+        return th.arange(10)
+
+class Dummy_GSEdgeModel():
+    def eval(self):
+        pass
+
+    def train(self):
+        pass
+
+    @property
+    def device(self):
+        return "cpu"
+
+    @property
+    def decoder(self):
+        return Dummy_GSEdgeDecoder()
+
+def test_edge_mini_batch_gnn_predict():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        target_type = ("n0", "r1", "n1")
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy',
+                                     part_config=part_config,
+                                     train_etypes=[target_type], label_field='label',
+                                     node_feat_field='feat')
+        g = ep_data.g
+        embs = {
+            "n0": th.rand((g.number_of_nodes("n0"), 10)),
+            "n1": th.rand((g.number_of_nodes("n1"), 10))
+        }
+        target_idx = {target_type: th.arange(g.number_of_edges("r1"))}
+
+        @patch.object(GSgnnEdgeTrainData, 'get_labels')
+        def check_predict(mock_get_labels):
+            mock_get_labels.side_effect = \
+                [{target_type: th.arange(10)}] * (ep_data.g.number_of_edges(target_type) // 10)
+            model = Dummy_GSEdgeModel()
+            dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[],
+                                             batch_size=10, device="cuda:0", train_task=False,
+                                             remove_target_edge_type=False)
+            pred, labels = edge_mini_batch_predict(model, embs, dataloader, return_label=True)
+            assert isinstance(pred, dict)
+            assert isinstance(labels, dict)
+
+            assert target_type in pred
+            assert pred[target_type].shape[0] == \
+                (ep_data.g.number_of_edges(target_type) // 10) * 10 # pred result is a dummy result
+            assert labels[target_type].shape[0] == \
+                (ep_data.g.number_of_edges(target_type) // 10) * 10
+            for i in range(ep_data.g.number_of_edges(target_type) // 10):
+                assert_equal(pred[target_type][i*10:(i+1)*10].numpy(),
+                             np.arange(10))
+                assert_equal(labels[target_type][i*10:(i+1)*10].numpy(),
+                             np.arange(10))
+        check_predict()
+    th.distributed.destroy_process_group()
+
 class Dummy_GSNodeModel(GSgnnNodeModelInterface):
     def __init__(self, return_dict=False):
         self._return_dict = return_dict
@@ -1327,6 +1399,12 @@ def test_node_mini_batch_gnn_predict():
             assert pred["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # pred result is a dummy result
             assert embs["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10 # embs result is a dummy result
             assert labels["n1"].shape[0] == (data.g.number_of_nodes("n1") // 10) * 10
+            for i in range(data.g.number_of_nodes("n1") // 10):
+                assert_equal(pred["n1"][i*10:(i+1)*10].numpy(),
+                             np.arange(10))
+                assert_equal(labels["n1"][i*10:(i+1)*10].numpy(),
+                             np.arange(10))
+
         check_predict(return_dict=True)
         check_predict(return_dict=False)
 
@@ -1335,6 +1413,7 @@ def test_node_mini_batch_gnn_predict():
 if __name__ == '__main__':
     test_lm_model_load_save()
     test_node_mini_batch_gnn_predict()
+    test_edge_mini_batch_gnn_predict()
     test_rgcn_node_prediction_with_reconstruct()
     test_hgt_edge_prediction()
     test_hgt_node_prediction()

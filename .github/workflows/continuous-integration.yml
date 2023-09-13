@@ -13,11 +13,12 @@ on:
       - 'graphstorm-processing/*'
       - '.github/workflows/gsprocessing-workflow.yml'
   pull_request_target:
+    types: [ labeled ]
     paths-ignore:
       - '.github/workflow_scripts/gsprocessing_pytest.sh'
       - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/*'
-      - '.github/workflows/gsprocessing-workflow.yml'
+      - '.github/workflows/gsprocessing-workflow.yml'    
 
 permissions:
   id-token: write

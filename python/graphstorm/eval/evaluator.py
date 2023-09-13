@@ -332,7 +332,7 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
     Parameters
     ----------
     eval_frequency: int
-        The frequency (# of iterations) of doing evaluation.
+        The frequency (number of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
     use_early_stop: bool
@@ -445,7 +445,7 @@ class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
     Parameters
     ----------
     eval_frequency: int
-        The frequency (# of iterations) of doing evaluation.
+        The frequency (number of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
     multilabel: bool
@@ -565,7 +565,7 @@ class GSgnnLPEvaluator():
     Parameters
     ----------
     eval_frequency: int
-        The frequency (# of iterations) of doing evaluation.
+        The frequency (number of iterations) of doing evaluation.
     eval_metric: list of string
         Evaluation metric used during evaluation.
     use_early_stop: bool
