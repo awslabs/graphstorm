@@ -19,6 +19,7 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from .utils import append_to_dict
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -184,13 +185,6 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     embs = {}
     labels = {}
     model.eval()
-
-    def append_to_dict(from_dict, to_dict):
-        for k, v in from_dict.items():
-            if k in to_dict:
-                to_dict[k].append(v.cpu())
-            else:
-                to_dict[k] = [v.cpu()]
 
     with th.no_grad():
         for input_nodes, seeds, blocks in loader:
