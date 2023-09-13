@@ -16,13 +16,15 @@
     GSF utility functions.
 """
 
+import os
 import logging
 import numpy as np
 import dgl
 import torch as th
 import torch.nn.functional as F
+from dgl.distributed import role
 
-from .utils import sys_tracker, get_rank
+from .utils import sys_tracker, get_rank, get_world_size
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
@@ -54,7 +56,29 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
 
-def initialize(ip_config, backend):
+def init_wholegraph():
+    """ Initialize Wholegraph"""
+    import pylibwholegraph.torch as wgth
+    import pylibwholegraph.binding.wholememory_binding as wmb
+
+    class Options: # pylint: disable=missing-class-docstring
+        pass
+    Options.launch_agent = 'pytorch'
+    Options.launch_env_name_world_rank = 'RANK'
+    Options.launch_env_name_world_size = 'WORLD_SIZE'
+    Options.launch_env_name_local_rank = 'LOCAL_RANK'
+    Options.launch_env_name_local_size = 'LOCAL_WORLD_SIZE'
+    Options.launch_env_name_master_addr = 'MASTER_ADDR'
+    Options.launch_env_name_master_port = 'MASTER_PORT'
+    Options.local_rank = get_rank() % role.get_num_trainers()
+    Options.local_size = role.get_num_trainers()
+
+    wgth.distributed_launch(Options, lambda: None)
+    wmb.init(0)
+    wgth.comm.set_world_info(get_rank(), get_world_size(), Options.local_rank,
+                             Options.local_size)
+
+def initialize(ip_config, backend, part_config=None):
     """ Initialize distributed inference context
 
     Parameters
@@ -70,6 +94,9 @@ def initialize(ip_config, backend):
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
     if ip_config is not None:
         th.distributed.init_process_group(backend=backend)
+        # Use wholegraph for feature fetching if 'wholegraph' folder exists
+        if os.path.isdir(os.path.join(os.path.dirname(part_config), 'wholegraph')):
+            init_wholegraph()
     sys_tracker.check("load DistDGL")
 
 def get_feat_size(g, node_feat_names):

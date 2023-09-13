@@ -22,7 +22,7 @@ import logging
 
 import torch as th
 import dgl
-from dgl.distributed import role, DistTensor
+from dgl.distributed import DistTensor
 
 from ..utils import get_rank, get_world_size, is_distributed
 from ..utils import sys_tracker
@@ -134,11 +134,9 @@ class GSgnnData():
     edge_feat_field : str or dict of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
-    use_wholegraph: bool
-        Whether to use wholegraph for feature transfer.
     """
 
-    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field, use_wholegraph):
+    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field):
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
 
         self._node_feat_field = node_feat_field
@@ -148,16 +146,17 @@ class GSgnnData():
         self._val_idxs = {}
         self._test_idxs = {}
 
+        # Use wholegraph for feature transfer if `wholegraph` dir exists
+        use_wholegraph = bool(os.path.isdir(os.path.join(os.path.dirname(part_config), \
+            'wholegraph')))
         if use_wholegraph and is_distributed():
             print('Allocate features with Wholegraph')
-            self._wg_init = False
             num_parts = self._g.get_partition_book().num_partitions()
             for ntype in node_feat_field.keys():
                 assert ntype in self._g.ntypes, \
                         f"Cannot load features of node type '{ntype}' as graph has" \
                         f" no such node type."
-                part = self.load_wg_feat(part_config, num_parts, ntype,
-                                         get_rank(), get_world_size())
+                part = self.load_wg_feat(part_config, num_parts, ntype)
                 if len(self._g.ntypes) == 1:
                     self._g._ndata_store['feat'] = part
                 else:
@@ -191,7 +190,7 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
-    def load_wg_feat(self, part_config, num_parts, ntype, rank, num_ranks):
+    def load_wg_feat(self, part_config, num_parts, ntype):
         """Load features from wholegraph memory
 
         Parameters
@@ -202,34 +201,10 @@ class GSgnnData():
             The number of partitions of the dataset
         ntype: str
             The type of node for which to fetch features.
-        rank: int
-            The rank of the process
-        num_ranks: int
-            The total number of ranks (world size)
         """
         import pylibwholegraph.torch as wgth
-        import pylibwholegraph.binding.wholememory_binding as wmb
 
-
-        if not self._wg_init:
-            class Options: # pylint: disable=missing-class-docstring
-                pass
-            Options.launch_agent = 'pytorch'
-            Options.launch_env_name_world_rank = 'RANK'
-            Options.launch_env_name_world_size = 'WORLD_SIZE'
-            Options.launch_env_name_local_rank = 'LOCAL_RANK'
-            Options.launch_env_name_local_size = 'LOCAL_WORLD_SIZE'
-            Options.launch_env_name_master_addr = 'MASTER_ADDR'
-            Options.launch_env_name_master_port = 'MASTER_PORT'
-            Options.local_rank = rank % role.get_num_trainers()
-            Options.local_size = role.get_num_trainers()
-
-            wgth.distributed_launch(Options, lambda: None)
-            wmb.init(0)
-            wgth.comm.set_world_info(rank, num_ranks, Options.local_rank, Options.local_size)
-            self._wg_init = True
         global_comm = wgth.comm.get_global_communicator()
-
         feature_comm = global_comm
         embedding_wholememory_type = 'distributed'
         embedding_wholememory_location = 'cpu'
@@ -339,13 +314,11 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     edge_feat_field : str or dict of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
-    use_wholegraph: bool
-        Whether to use wholegraph for feature transfer.
     """
     def __init__(self, graph_name, part_config, label_field=None,
-                 node_feat_field=None, edge_feat_field=None, use_wholegraph=False):
+                 node_feat_field=None, edge_feat_field=None):
         super(GSgnnEdgeData, self).__init__(graph_name, part_config, node_feat_field,
-                                            edge_feat_field, use_wholegraph)
+                                            edge_feat_field)
 
         self._label_field = label_field
         if label_field is not None:
@@ -419,11 +392,9 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
     edge_feat_field : str or dict of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
-    use_wholegraph: bool
-        Whether to use wholegraph for feature transfer.
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None, label_field=None,
-                 node_feat_field=None, edge_feat_field=None, use_wholegraph=False):
+                 node_feat_field=None, edge_feat_field=None):
         if train_etypes is not None:
             assert isinstance(train_etypes, (tuple, list)), \
                     "The prediction etypes for training has to be a tuple or a list of tuples."
@@ -443,7 +414,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
             self._eval_etypes = train_etypes
 
         super(GSgnnEdgeTrainData, self).__init__(graph_name, part_config, label_field,
-                                                 node_feat_field, edge_feat_field, use_wholegraph)
+                                                 node_feat_field, edge_feat_field)
 
     def prepare_data(self, g):
         """
@@ -626,7 +597,7 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
     def __init__(self, graph_name, part_config, label_field=None,
                  node_feat_field=None, edge_feat_field=None):
         super(GSgnnNodeData, self).__init__(graph_name, part_config, node_feat_field,
-                                            edge_feat_field, use_wholegraph=None)
+                                            edge_feat_field)
         self._label_field = label_field
         if label_field is not None:
             self._labels = {}
