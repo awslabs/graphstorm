@@ -19,7 +19,7 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
-from .utils import append_to_dict
+from .utils import append_to_dict, barrier
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
