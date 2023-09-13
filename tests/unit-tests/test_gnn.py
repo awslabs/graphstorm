@@ -56,7 +56,7 @@ from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_mo
 from graphstorm import create_builtin_lp_gnn_model
 from graphstorm import get_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
-from graphstorm.model.gnn import do_full_graph_inference
+from graphstorm.model.gnn import do_full_graph_inference, do_mini_batch_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.node_gnn import GSgnnNodeModelInterface
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
@@ -1296,17 +1296,22 @@ def test_mini_batch_full_graph_inference(num_ffn_layers):
                                   node_feat_field='feat')
     model = create_rgcn_edge_model(data.g, num_ffn_layers=num_ffn_layers)
 
-    embs_layer = do_full_graph_inference(model, data, fanout=[-1, -1], minibatch=False)
-    embs_mini_batch = do_full_graph_inference(model, data, fanout=[-1, -1], minibatch=True)
+    embs_layer = do_full_graph_inference(model, data, fanout=[-1, -1])
+    embs_mini_batch = do_mini_batch_inference(model, data, fanout=[-1, -1])
     for ntype in data.g.ntypes:
         assert_almost_equal(embs_layer[ntype][0:data.g.num_nodes(ntype)].numpy(),
                             embs_mini_batch[ntype][0:data.g.num_nodes(ntype)].numpy())
 
-    embs_layer = do_full_graph_inference(model, data, minibatch=False)
-    embs_mini_batch = do_full_graph_inference(model, data, minibatch=True)
+    embs_layer = do_full_graph_inference(model, data)
+    embs_mini_batch = do_mini_batch_inference(model, data)
     for ntype in data.g.ntypes:
         assert_almost_equal(embs_layer[ntype][0:data.g.num_nodes(ntype)].numpy(),
                             embs_mini_batch[ntype][0:data.g.num_nodes(ntype)].numpy())
+
+    embs_mini_batch = do_mini_batch_inference(model, data, ["n0"])
+    assert len(embs_mini_batch) == 1
+    assert_almost_equal(embs_layer["n0"][0:data.g.num_nodes("n0")].numpy(),
+                            embs_mini_batch["n0"][0:data.g.num_nodes("n0")].numpy())
 
 
     th.distributed.destroy_process_group()

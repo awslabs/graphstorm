@@ -21,7 +21,7 @@ from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
-from ..model.gnn import do_full_graph_inference
+from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
 from ..utils import sys_tracker, get_world_size, barrier
@@ -71,10 +71,14 @@ class GSgnnLinkPredictionInfer(GSInfer):
         """
         sys_tracker.check('start inferencing')
         self._model.eval()
-        embs = do_full_graph_inference(self._model, data, fanout=loader.fanout,
-                                       edge_mask=edge_mask_for_gnn_embeddings,
-                                       task_tracker=self.task_tracker,
-                                       minibatch=use_mini_batch_infer)
+        if use_mini_batch_infer:
+            embs = do_mini_batch_inference(self._model, data, fanout=loader.fanout,
+                                           edge_mask=edge_mask_for_gnn_embeddings,
+                                           task_tracker=self.task_tracker)
+        else:
+            embs = do_full_graph_inference(self._model, data, fanout=loader.fanout,
+                                           edge_mask=edge_mask_for_gnn_embeddings,
+                                           task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         device = self.device
         if save_embed_path is not None:

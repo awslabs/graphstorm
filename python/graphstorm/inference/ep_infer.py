@@ -22,7 +22,7 @@ from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
-from ..model.gnn import do_full_graph_inference
+from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.edge_gnn import edge_mini_batch_predict
 
 from ..utils import sys_tracker, get_world_size, barrier
@@ -76,9 +76,12 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
         sys_tracker.check('start inferencing')
         self._model.eval()
-        embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
-                                       task_tracker=self.task_tracker,
-                                       minibatch=use_mini_batch_infer)
+        if use_mini_batch_infer:
+            embs = do_mini_batch_inference(self._model, loader.data, fanout=loader.fanout,
+                                       task_tracker=self.task_tracker)
+        else:
+            embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
+                                       task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
                                       return_label=do_eval)

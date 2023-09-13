@@ -622,8 +622,34 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         return self._loss_fn
 
-def do_mini_batch_inference(model, data, batch_size=1024, fanout=None, edge_mask=None,
-                            task_tracker=None, infer_ntype=None):
+def do_mini_batch_inference(model, data, batch_size=1024,
+                            fanout=None, edge_mask=None, infer_ntypes=None,
+                            task_tracker=None):
+    """ Do mini batch inference
+
+    It may use some of the edges indicated by `edge_mask` to compute GNN embeddings.
+
+    Parameters
+    ----------
+    model: torch model
+        GNN model
+    data : GSgnnData
+        The GraphStorm dataset
+    batch_size : int
+        The batch size for inferencing a GNN layer
+    fanout: list of int
+        The fanout for computing the GNN embeddings in a GNN layer.
+    edge_mask : str
+        The edge mask that indicates what edges are used to compute GNN embeddings.
+    infer_ntypes: list of str
+        Node types that need to compute node embeddings.
+    task_tracker: GSTaskTrackerAbc
+        Task tracker
+
+    Returns
+    -------
+    dict of th.Tensor : node embeddings.
+    """
     t1 = time.time() # pylint: disable=invalid-name
     # full graph evaluation
     barrier()
@@ -633,7 +659,8 @@ def do_mini_batch_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                    batch_size,
                                                    model.node_input_encoder,
                                                    task_tracker=task_tracker,
-                                                   feat_field=data.node_feat_field)
+                                                   feat_field=data.node_feat_field,
+                                                   target_ntypes=infer_ntypes,)
     elif model.node_input_encoder.require_cache_embed():
         # If the input encoder has heavy computation, we should compute
         # the embeddings and cache them.
@@ -654,6 +681,7 @@ def do_mini_batch_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                 model.gnn_encoder,
                                                 get_input_embeds,
                                                 batch_size, fanout, edge_mask=edge_mask,
+                                                target_ntypes=infer_ntypes,
                                                 task_tracker=task_tracker)
     else:
         model.eval()
@@ -669,6 +697,7 @@ def do_mini_batch_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                 model.gnn_encoder,
                                                 get_input_embeds,
                                                 batch_size, fanout, edge_mask=edge_mask,
+                                                target_ntypes=infer_ntypes,
                                                 task_tracker=task_tracker)
     model.train()
     if get_rank() == 0:

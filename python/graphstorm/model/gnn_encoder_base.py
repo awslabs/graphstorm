@@ -106,7 +106,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
 
 
 def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
-                             edge_mask=None, task_tracker=None):
+                             edge_mask=None, target_ntypes=None, task_tracker=None):
     """Distributed inference of final representation over all node types
        using mini-batch inference.
 
@@ -134,10 +134,11 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
     device = gnn_encoder.device
     fanout = [-1] * gnn_encoder.num_layers \
         if fanout is None or len(fanout) == 0 else fanout
+    target_ntypes = g.ntypes if target_ntypes is None else target_ntypes
     with th.no_grad():
         infer_nodes = {}
         out_embs = {}
-        for ntype in g.ntypes:
+        for ntype in target_ntypes:
             h_dim = gnn_encoder.out_dims
             # Create dist tensor to store the output embeddings
             out_embs[ntype] = DistTensor((g.number_of_nodes(ntype), h_dim),
