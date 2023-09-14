@@ -1309,7 +1309,7 @@ def test_mini_batch_full_graph_inference(num_ffn_layers):
         assert_almost_equal(embs_layer[ntype][0:data.g.num_nodes(ntype)].numpy(),
                             embs_mini_batch[ntype][0:data.g.num_nodes(ntype)].numpy())
 
-    embs_mini_batch = do_mini_batch_inference(model, data, ["n0"])
+    embs_mini_batch = do_mini_batch_inference(model, data, infer_ntypes=["n0"])
     assert len(embs_mini_batch) == 1
     assert_almost_equal(embs_layer["n0"][0:data.g.num_nodes("n0")].numpy(),
                             embs_mini_batch["n0"][0:data.g.num_nodes("n0")].numpy())
