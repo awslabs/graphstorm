@@ -8,6 +8,7 @@ on:
       - main
       - ci_dev
   pull_request_target:
+    types: [ labeled, opened, reopened, synchronize, ready_for_review ]
     
 
 permissions:
