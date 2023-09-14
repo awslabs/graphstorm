@@ -280,12 +280,12 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         if use_mini_batch_infer:
             emb = do_mini_batch_inference(model, data, fanout=val_loader.fanout,
-                                      edge_mask=edge_mask_for_gnn_embeddings,
-                                      task_tracker=self.task_tracker)
+                                          edge_mask=edge_mask_for_gnn_embeddings,
+                                          task_tracker=self.task_tracker)
         else:
             emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
-                                      edge_mask=edge_mask_for_gnn_embeddings,
-                                      task_tracker=self.task_tracker)
+                                          edge_mask=edge_mask_for_gnn_embeddings,
+                                          task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
             if val_loader is not None else None

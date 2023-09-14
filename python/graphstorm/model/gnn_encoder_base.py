@@ -116,8 +116,8 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
         The distributed graph.
     gnn_encoder : GraphConvEncoder
         The GNN encoder on the graph.
-    node_feats : dict of Tensors
-        The node features of the graph.
+    get_input_embeds : func
+        A function used ot get input embeddings.
     batch_size : int
         The batch size for the GNN inference.
     fanout : list of int
@@ -126,6 +126,10 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
         The edge mask indicates which edges are used to compute GNN embeddings.
         task_tracker : GSTaskTrackerAbc
         The task tracker.
+    target_ntypes: list of str
+        Node types that need to compute node embeddings.
+    task_tracker: GSTaskTrackerAbc
+        Task tracker
 
     Returns
     -------
@@ -159,8 +163,8 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
 
         for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
             if iter_l % 100000 == 0 and get_rank() == 0:
-                print(f"[Rank 0] dist inference: " \
-                        f"finishes [{iter_l}] iterations.")
+                logging.INFO("[Rank 0] dist inference: " \
+                        "finishes %d iterations.", iter_l)
             if task_tracker is not None:
                 task_tracker.keep_alive(report_step=iter_l)
 

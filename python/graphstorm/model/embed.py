@@ -353,7 +353,7 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
     embed_layer.eval()
 
     n_embs = {}
-    target_ntypes == g.ntypes if target_ntypes is None else target_ntypes
+    target_ntypes = g.ntypes if target_ntypes is None else target_ntypes
     th.cuda.empty_cache()
     with th.no_grad():
         for ntype in target_ntypes:

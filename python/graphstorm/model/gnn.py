@@ -651,7 +651,6 @@ def do_mini_batch_inference(model, data, batch_size=1024,
     dict of th.Tensor : node embeddings.
     """
     t1 = time.time() # pylint: disable=invalid-name
-    # full graph evaluation
     barrier()
     if model.gnn_encoder is None:
         # Only graph aware but not GNN models
@@ -660,7 +659,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                                                    model.node_input_encoder,
                                                    task_tracker=task_tracker,
                                                    feat_field=data.node_feat_field,
-                                                   target_ntypes=infer_ntypes,)
+                                                   target_ntypes=infer_ntypes)
     elif model.node_input_encoder.require_cache_embed():
         # If the input encoder has heavy computation, we should compute
         # the embeddings and cache them.
@@ -680,7 +679,8 @@ def do_mini_batch_inference(model, data, batch_size=1024,
         embeddings = dist_minibatch_inference(data.g,
                                                 model.gnn_encoder,
                                                 get_input_embeds,
-                                                batch_size, fanout, edge_mask=edge_mask,
+                                                batch_size, fanout,
+                                                edge_mask=edge_mask,
                                                 target_ntypes=infer_ntypes,
                                                 task_tracker=task_tracker)
     else:
@@ -696,7 +696,8 @@ def do_mini_batch_inference(model, data, batch_size=1024,
         embeddings = dist_minibatch_inference(data.g,
                                                 model.gnn_encoder,
                                                 get_input_embeds,
-                                                batch_size, fanout, edge_mask=edge_mask,
+                                                batch_size, fanout,
+                                                edge_mask=edge_mask,
                                                 target_ntypes=infer_ntypes,
                                                 task_tracker=task_tracker)
     model.train()

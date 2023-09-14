@@ -788,8 +788,18 @@ class GSConfig:
                 "Use mini batch inference flag must be True or False"
             return self._use_mini_batch_infer
 
-        # By default, use mini batch inference, which requires less memory
-        return True
+        if self.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+            # For Link prediction inference, using mini-batch
+            # inference is much less efficient than full-graph
+            # inference in most cases.
+            # So we set it to False by default
+            return False
+        else:
+            # By default, for node classification/regression and
+            # edge classification/regression tasks,
+            # using mini batch inference reduces memory cost
+            # So we set it to True by default
+            return True
 
     @property
     def gnn_norm(self):
