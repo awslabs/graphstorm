@@ -123,7 +123,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
             # no GNN message passing
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats)
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
         # TODO(zhengda) we only support prediction on one edge type now
         assert len(labels) == 1, "We only support prediction on one edge type for now."
         target_etype = list(labels.keys())[0]
@@ -148,7 +148,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
             # no GNN message passing in encoder
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats)
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
         if return_proba:
             return self.decoder.predict_proba(target_edges, encode_embs, target_edge_feats)
         return self.decoder.predict(target_edges, encode_embs, target_edge_feats)
@@ -203,7 +203,9 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                                  return_proba)
 
             # TODO expand code for multiple edge types
-            assert len(target_edge_graph.etypes) == 1
+            assert len(target_edge_graph.etypes) == 1, \
+                "GraphStorm does not support multi-task training on " \
+                "different edge types now."
             target_etype = target_edge_graph.canonical_etypes[0]
 
             if return_label:
