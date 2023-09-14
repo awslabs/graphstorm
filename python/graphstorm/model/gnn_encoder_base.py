@@ -163,7 +163,7 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
 
         for iter_l, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
             if iter_l % 100000 == 0 and get_rank() == 0:
-                logging.INFO("[Rank 0] dist inference: " \
+                logging.info("[Rank 0] dist inference: " \
                         "finishes %d iterations.", iter_l)
             if task_tracker is not None:
                 task_tracker.keep_alive(report_step=iter_l)
