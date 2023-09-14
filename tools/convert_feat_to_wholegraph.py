@@ -44,7 +44,7 @@ def main(folder):
 
     num_parts = len(node_feats_data)
     metadata = {}
-    masks = ["train_mask", "test_mask", "val_mask", "labels"]
+    masks = ["train_mask", "test_mask", "val_mask"]
 
     for feat in list(node_feats_data[0].keys()):
         if feat.split('/')[1] not in masks:
