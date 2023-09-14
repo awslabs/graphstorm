@@ -20,6 +20,7 @@ import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
 from .utils import append_to_dict, barrier
+from ..utils import is_distributed
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -186,11 +187,12 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
-    len_loader = len(list(loader))
+    len_loader = max_num_batch = len(list(loader))
     barrier()
     tensor = th.tensor([len_loader], device=device)
-    th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
-    max_num_batch = tensor[0]
+    if is_distributed():
+        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = tensor[0]
 
     dataloader_iter = iter(loader)
 

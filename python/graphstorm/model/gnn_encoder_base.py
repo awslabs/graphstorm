@@ -25,7 +25,7 @@ from torch import nn
 from dgl.distributed import DistTensor, node_split
 from .gs_layer import GSLayer
 
-from ..utils import get_rank, barrier
+from ..utils import get_rank, barrier, is_distributed
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -131,11 +131,12 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
     -------
     dict of Tensors : the inferenced tensors.
     """
-    len_dataloader = len(list(dataloader))
+    len_dataloader = max_num_batch = len(list(dataloader))
     barrier()
     tensor = th.tensor([len_dataloader], device=device)
-    th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
-    max_num_batch = tensor[0]
+    if is_distributed():
+        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = tensor[0]
 
     dataloader_iter = iter(dataloader)
     y = {}
