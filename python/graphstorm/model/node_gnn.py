@@ -19,6 +19,7 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from .utils import append_to_dict
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -71,9 +72,11 @@ class GSgnnNodeModelInterface:
 
         Returns
         -------
-        Tensor : GNN prediction results. Return all the results when return_proba is true
+        Tensor or dict of Tensor:
+            GNN prediction results. Return all the results when return_proba is true
             otherwise return the maximum result.
-        Tensor : the GNN embeddings.
+        Tensor or dict of Tensor:
+            The GNN embeddings.
         """
 
 class GSgnnNodeModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
@@ -163,10 +166,11 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
 
     Returns
     -------
-    Tensor : GNN prediction results. Return all the results when return_proba is true
+    dict of Tensor :
+        GNN prediction results. Return all the results when return_proba is true
         otherwise return the maximum result.
-    Tensor : GNN embeddings.
-    Tensor : labels if return_labels is True
+    dict of Tensor : GNN embeddings.
+    dict of Tensor : labels if return_labels is True
     """
     device = model.device
     data = loader.data
@@ -182,13 +186,6 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
-    def append_to_dict(from_dict, to_dict):
-        for k, v in from_dict.items():
-            if k in to_dict:
-                to_dict[k].append(v.cpu())
-            else:
-                to_dict[k] = [v.cpu()]
-
     with th.no_grad():
         for input_nodes, seeds, blocks in loader:
             if not isinstance(input_nodes, dict):
@@ -200,13 +197,22 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             label = data.get_labels(seeds)
             if return_label:
                 append_to_dict(label, labels)
+
+            # pred can be a Tensor or a dict of Tensor
+            # emb can be a Tensor or a dict of Tensor
             if isinstance(pred, dict):
                 append_to_dict(pred, preds)
+            else:
+                assert len(seeds) == 1, \
+                    f"Expect prediction results of multiple node types {label.keys()}" \
+                    f"But only get results of one node type"
+                ntype = list(seeds.keys())[0]
+                append_to_dict({ntype: pred}, preds)
+
+            if isinstance(emb, dict):
                 append_to_dict(emb, embs)
             else: # in case model (e.g., llm encoder) only output a tensor without ntype
-                assert len(label) == 1
-                ntype = list(label.keys())[0]
-                append_to_dict({ntype: pred}, preds)
+                ntype = list(seeds.keys())[0]
                 append_to_dict({ntype: emb}, embs)
 
     model.train()
@@ -239,8 +245,10 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
 
     Returns
     -------
-    Tensor : GNN prediction results.
-    Tensor : labels if return_labels is True
+    dict of Tensor :
+        Prediction results.
+    dict of Tensor :
+        Labels if return_labels is True
     """
     device = model.device
     data = loader.data

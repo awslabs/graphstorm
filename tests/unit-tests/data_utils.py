@@ -450,7 +450,7 @@ def create_lm_graph(tmpdirname):
 
 def create_lm_graph2(tmpdirname):
     """ Create a graph with textual feaures
-        Both n0 and n1 have textual features.
+        Both n0 and n1 have textual features and use the same BERT model.
     """
     bert_model_name = "bert-base-uncased"
     max_seq_length = 8
