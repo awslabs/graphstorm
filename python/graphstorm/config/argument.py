@@ -1190,7 +1190,7 @@ class GSConfig:
         # By default do not use num_bases
         return -1
 
-    ## RGAT only ##
+    ## RGAT and HGT only ##
     @property
     def num_heads(self):
         """ Number of attention heads

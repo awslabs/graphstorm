@@ -119,7 +119,9 @@ class LMModels(nn.Module):
                 assert ntype not in self._lm_node_feats, \
                         f"More than one BERT model runs on Node {ntype}."
                 self._lm_node_feats[ntype] = feats
-            key = str(lm_ntypes)
+            # We should sort the node type list before converting it to the key.
+            lm_ntypes.sort()
+            key = ','.join(lm_ntypes)
             self._lm_models[key] = lm_model
             for ntype in lm_ntypes:
                 self._lm_map[ntype] = key

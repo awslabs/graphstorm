@@ -25,7 +25,11 @@ Graph Construction
 Configuration JSON Explanations
 ---------------------------------
 
-The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: ``nodes`` and ``edges``.
+The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains three fields: ``version``, ``nodes`` and ``edges``.
+
+``version``
+...........
+``version`` marks the version of the configuration file schema, allowing its identification to be self-contained for downstream applications. The current (and expected) version is ``gconstruct-v0.1``.
 
 ``nodes``
 ...........
@@ -101,10 +105,11 @@ An example
 ............
 Below shows an example that contains one node type and an edge type. For a real example, please refer to the :ref:`input JSON file <input-config>` used in the :ref:`Use Your Own Graphs Tutorial <use-own-data>`.
 
-.. code-block:: yaml
+.. code-block:: json
 
     {
-        nodes: [
+        "version": "gconstruct-v0.1",
+        "nodes": [
             {
                 "node_id_col":  "paper_id",
                 "node_type":    "paper",
@@ -128,7 +133,7 @@ Below shows an example that contains one node type and an edge type. For a real 
                 ],
             }
         ],
-        edges: [
+        "edges": [
             {
                 "source_id_col":    "src_paper_id",
                 "dest_id_col":      "dest_paper_id",

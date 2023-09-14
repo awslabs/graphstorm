@@ -1,4 +1,5 @@
 {
+    "version": "gconstruct-v0.1",
     "nodes": [
         {
             "node_id_col":  "id",
