@@ -93,8 +93,8 @@ python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --feat-name
 
 The script will create a new folder '`wholegraph`' under '`ogbn-mag240m-2p`' containing the WholeGraph input files and will trim the distDGL file `node_feat.dgl` in each partition and save a backup `node_feat.dgl.bak`.
 
-The features in those files can be loaded in memory via the WholeGraph API by mentioning the folder path and feature prefix (`<node_type>~<feat_name>`).
-Below is an standalone example showing how to load the data:
+The features in those files can be loaded in memory via the WholeGraph API by giving the folder path and feature prefix (`<node_type>~<feat_name>`).
+Below is an example showing how to load the data:
 ```python
 import json
 import os

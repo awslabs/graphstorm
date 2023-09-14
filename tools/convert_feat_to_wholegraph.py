@@ -49,12 +49,9 @@ def main(folder):
     for feat in list(node_feats_data[0].keys()):
         if feat.split('/')[1] not in masks:
             print(f"Processing '{feat}' features...")
-            if feat not in node_feats_data[0]:
-                raise RuntimeError(f"Error: Unknown feature '{feat}'. Files contain " +
-                                   "the following features: {node_feats_data[0].keys()}.")
             whole_feat_tensor = torch.concat(tuple(t[feat] for t in node_feats_data), dim=0)
             metadata[feat] = {'shape': list(whole_feat_tensor.shape),
-                           'dtype': str(whole_feat_tensor.dtype)}
+                              'dtype': str(whole_feat_tensor.dtype)}
 
             # Round up the integer division to match WholeGraph partitioning scheme
             subpart_size = -(whole_feat_tensor.shape[0] // -num_parts)
@@ -99,6 +96,5 @@ def main(folder):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset-path', action='store', type=str, required=True)
-    # parser.add_argument('--feat-names', action='store', type=str, required=True)
     args = parser.parse_args()
     main(args.dataset_path)
