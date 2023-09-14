@@ -200,11 +200,11 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         # does not support imbalanced batch numbers across processes/trainers
         # TODO (IN): Fix dataloader to have the same number of minibatches
         for iter_l in range(max_num_batch):
-            if iter_l < len_dataloader:
-                input_nodes, output_nodes, blocks = next(dataloader_iter)
+            if iter_l < len_loader:
+                input_nodes, seeds, blocks = next(dataloader_iter)
             else:
                 for ntype in g.ntypes:
-                    input_nodes[ntype] = output_nodes[ntype] = th.empty((0,), dtype=g.idtype)
+                    input_nodes[ntype] = seeds[ntype] = th.empty((0,), dtype=g.idtype)
                 blocks = None
             if not isinstance(input_nodes, dict):
                 assert len(g.ntypes) == 1

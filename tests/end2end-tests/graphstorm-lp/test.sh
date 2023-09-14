@@ -27,8 +27,8 @@ echo "Test GraphStorm link prediction"
 
 date
 
-echo "**************standalone"
-python3 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --cf $GS_HOME/training_scripts/gsgnn_lp/ml_lp.yaml
+# echo "**************standalone"
+# python3 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --cf $GS_HOME/training_scripts/gsgnn_lp/ml_lp.yaml
 
 error_and_exit $?
 

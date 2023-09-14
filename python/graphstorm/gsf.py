@@ -95,7 +95,8 @@ def initialize(ip_config, backend, part_config=None):
     if ip_config is not None:
         th.distributed.init_process_group(backend=backend)
         # Use wholegraph for feature fetching if 'wholegraph' folder exists
-        if os.path.isdir(os.path.join(os.path.dirname(part_config), 'wholegraph')):
+        if part_config is not None and os.path.isdir(os.path.join( \
+            os.path.dirname(part_config), 'wholegraph')):
             init_wholegraph()
     sys_tracker.check("load DistDGL")
 
