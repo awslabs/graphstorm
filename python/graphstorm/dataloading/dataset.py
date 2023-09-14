@@ -138,7 +138,6 @@ class GSgnnData():
 
     def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field):
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
-
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
 
@@ -150,7 +149,7 @@ class GSgnnData():
         use_wholegraph = bool(os.path.isdir(os.path.join(os.path.dirname(part_config), \
             'wholegraph')))
         if use_wholegraph and is_distributed():
-            print('Allocate features with Wholegraph')
+            logging.info("Allocate features with Wholegraph")
             num_parts = self._g.get_partition_book().num_partitions()
             for ntype in node_feat_field.keys():
                 assert ntype in self._g.ntypes, \
