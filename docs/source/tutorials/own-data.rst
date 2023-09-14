@@ -10,7 +10,7 @@ It is easy for users to prepare their own graph data and leverage GraphStorm's b
 
 .. warning::
 
-    - All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment. 
+    - All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment.
 
     - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
 
@@ -41,20 +41,20 @@ First go the ``/graphstorm/examples/`` folder.
 
 .. code-block:: bash
 
-    cd /graphstorm/examples 
+    cd /graphstorm/examples
 
 Then run the command to create the ACM data with the required raw format.
 
 .. code-block:: bash
-    
-    python3 /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw 
+
+    python3 /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw
 
 Once succeeded, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder, as shown below:
 
 .. _acm-raw-data-output:
 
 .. code-block:: bash
-    
+
     /tmp/acm_raw
     config.json
     |- edges
@@ -78,6 +78,7 @@ GraphStorm's graph construction tool relies on the configuration JSON to provide
 .. code-block:: json
 
     {
+        "version": "gconstruct-v0.1",
         "nodes": [
             {
                 "node_type": "author",
@@ -296,18 +297,18 @@ The above command reads in the JSON file, and matchs its contents with the node 
 .. code-block:: bash
 
     /tmp/acm_nc
-    acm.json 
+    acm.json
     node_mapping.pt
-    edge_mapping.pt 
+    edge_mapping.pt
     |- part0
         edge_feat.dgl
         graph.dgl
-        node_feat.dgl 
+        node_feat.dgl
 
 Because the above command specifies the ``--num-parts`` to be ``1``, there is only one partition created, which is saved in the ``part0`` folder. These files become the inputs of GraphStorm's launch scripts.
 
-.. note:: 
-    
+.. note::
+
     - Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large dataset.
     - The two mapping files, ``node_mapping.pt`` and ``edge_mapping.pt``, are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the constructed graph. They are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
 
@@ -331,10 +332,10 @@ Required DGL graph format
     - For training nodes, the setting is like ``g.nodes['predictnodetypename'].data['train_mask']=trainingnodeindexetensor``.
     - For validation nodes, the setting is like ``g.nodes['predictnodetypename'].data['val_mask']=validationnodeindexetensor``. Make sure you use 'val_mask' as the feature name because the GSF uses this name by default.
     - For validation nodes, the setting is like ``g.nodes['predictnodetypename'].data['test_mask']=testnodeindexetensor``.
-    - Similar to nodes splits, you can use the same feature names, ``train_mask``, ``val_mask``, and ``test_mask``, to assign the edge index tensors. 
+    - Similar to nodes splits, you can use the same feature names, ``train_mask``, ``val_mask``, and ``test_mask``, to assign the edge index tensors.
     - The index tensor is either a boolean tensor, or an integer tensor including only 0s and 1s.
 
-Once this DGL graph is constructed, you can use DGL's `save_graphs() <https://docs.dgl.ai/generated/dgl.save_graphs.html?highlight=save_graphs#dgl.save_graphs>`_ function to save it into a local file. The file name must follow GraphStorm convention: ``<datasetname>.dgl``. You can give your graph dataset a name, e.g., ``acm`` or ``ogbn_mag``. 
+Once this DGL graph is constructed, you can use DGL's `save_graphs() <https://docs.dgl.ai/generated/dgl.save_graphs.html?highlight=save_graphs#dgl.save_graphs>`_ function to save it into a local file. The file name must follow GraphStorm convention: ``<datasetname>.dgl``. You can give your graph dataset a name, e.g., ``acm`` or ``ogbn_mag``.
 
 The ACM graph data example
 `````````````````````````````
@@ -344,7 +345,7 @@ For the ACM data, the following command can create a DGL graph as the input for 
 
     python3 /graphstorm/examples/acm_data.py \
             --output-type dgl \
-            --output-path /tmp/acm_dgl 
+            --output-path /tmp/acm_dgl
 
 The below image show how the built DGL ACM data looks like.
 
@@ -398,7 +399,7 @@ For `Link Prediction` tasks:
 - **train_etype**: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put ``None`` as the value, all edge types will be used for training, this might not commonly used in practice for most `Link Prediction` related tasks.
 - **eval_etype**: it is highly recommended that you set this value to be the same as the value of ``train_etype``, so that the evaluation metric can truly demonstrate the performance of models.
 
-Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the YAML files. For example, in an edge-related task, you should provide a canonical edge type, e.g. **user,write,paper** (no white spaces in this string), for edge types, rather than the edge name only, e.g. the **write**. 
+Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the YAML files. For example, in an edge-related task, you should provide a canonical edge type, e.g. **user,write,paper** (no white spaces in this string), for edge types, rather than the edge name only, e.g. the **write**.
 
 For more detailed information of these parameters, please refer to the :ref:`GraphStorm Training and Inference Configurations <configurations-run>` page.
 
@@ -452,7 +453,7 @@ You can copy this file to the ``/tmp`` folder within the GraphStorm container fo
 Step 3: Launch training script on your own graphs
 ---------------------------------------------------
 
-With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training scripts to launch the training job. 
+With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training scripts to launch the training job.
 
 .. Note:: We assume an `ip_list.txt` file has been created in the ``/tmp/`` folder. Users can use the following commands to create this file.
 
