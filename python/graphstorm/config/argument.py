@@ -1295,9 +1295,12 @@ class GSConfig:
                 multilabel_weights = self._multilabel_weights
                 ntype_weights = {}
                 for ntype in num_classes:
-                    ntype_weights[ntype] = check_multilabel_weights(multilabel[ntype],
-                                                                    multilabel_weights[ntype],
-                                                                    num_classes[ntype])
+                    if ntype in multilabel_weights:
+                        ntype_weights[ntype] = check_multilabel_weights(multilabel[ntype],
+                                                                        multilabel_weights[ntype],
+                                                                        num_classes[ntype])
+                    else:
+                        ntype_weights[ntype] = None
                 return ntype_weights
             return {ntype: None for ntype in self.num_classes}
         else:
@@ -1356,10 +1359,13 @@ class GSConfig:
                 imbalance_class_weights = self._imbalance_class_weights
                 ntype_weights = {}
                 for ntype in num_classes:
-                    ntype_weights[ntype] = check_imbalance_class_weights(
-                        imbalance_class_weights[ntype],
-                        num_classes[ntype]
-                        )
+                    if ntype in imbalance_class_weights:
+                        ntype_weights[ntype] = check_imbalance_class_weights(
+                            imbalance_class_weights[ntype],
+                            num_classes[ntype]
+                            )
+                    else:
+                        ntype_weights[ntype] = None
                 return ntype_weights
             return {ntype: None for ntype in self.num_classes}
         else:
@@ -1405,6 +1411,7 @@ class GSConfig:
                 return self.target_ntype
             elif isinstance(self.target_ntype, list):
                 # (wlcong) Now only support single ntype evaluation
+                logging.warning("Now only support single ntype evaluation")
                 return self.target_ntype[0]
             else:
                 return None
