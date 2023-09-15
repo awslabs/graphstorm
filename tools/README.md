@@ -56,7 +56,7 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
                                              --num-parts 2 \
                                              --output /tmp/ogbn_arxiv_nc_2p
-                                             --bert-name "allenai/scibert_scivocab_uncased"
+                                             --lm-model-name "allenai/scibert_scivocab_uncased"
 ```
 
 Below command can download the OGBN mag data, process it into DGL graph, and finally split it into two partition. The partitioned graph is save at the /tmp/ogbn_mag_lp_2p folder.
