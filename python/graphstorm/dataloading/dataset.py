@@ -73,9 +73,7 @@ def prepare_batch_input(g, input_nodes,
             feats = []
             for fname in feat_name:
                 data = g.nodes[ntype].data[fname]
-                if hasattr(data, 'subcolumn'):  # nvshemem
-                    data = data.subcolumn(nid.to(dev)).data
-                elif hasattr(data, 'gather') and not isinstance(data, DistTensor) and \
+                if hasattr(data, 'gather') and not isinstance(data, DistTensor) and \
                     not th.is_tensor(data): # data is in WholeMemoryEmbedding format
                     data = data.gather(nid.to(dev))
                 else:
@@ -146,23 +144,26 @@ class GSgnnData():
         self._test_idxs = {}
 
         # Use wholegraph for feature transfer if `wholegraph` dir exists
-        use_wholegraph = bool(os.path.isdir(os.path.join(os.path.dirname(part_config), \
+        self._use_wholegraph = bool(os.path.isdir(os.path.join(os.path.dirname(part_config), \
             'wholegraph')))
-        if use_wholegraph and is_distributed():
+        if self._use_wholegraph and is_distributed():
             logging.info("Allocate features with Wholegraph")
             num_parts = self._g.get_partition_book().num_partitions()
+
+            # load node feature from wholegraph memory
             for ntype in node_feat_field.keys():
                 assert ntype in self._g.ntypes, \
                         f"Cannot load features of node type '{ntype}' as graph has" \
                         f" no such node type."
                 data = {}
-                names = node_feat_field[ntype]
-                for name in names:
+                feat_names = node_feat_field[ntype]
+                for name in feat_names:
                     data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
                 if len(self._g.ntypes) == 1:
                     self._g._ndata_store.update(data)
                 else:
                     self._g._ndata_store[ntype].update(data)
+
         self.prepare_data(self._g)
         sys_tracker.check('construct training data')
 
@@ -604,6 +605,23 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         self._label_field = label_field
         if label_field is not None:
             self._labels = {}
+
+            # Use wholegraph to load node labels
+            if self._use_wholegraph and is_distributed():
+                logging.info("Allocate node labels with Wholegraph")
+                num_parts = self._g.get_partition_book().num_partitions()
+
+                for ntype in self._g.ntypes:
+                    data = {}
+                    label_names = label_field[ntype] if isinstance(label_field, dict) \
+                        else label_field
+                    for name in label_names:
+                        data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
+                    if len(self._g.ntypes) == 1:
+                        self._g._ndata_store.update(data)
+                    else:
+                        self._g._ndata_store[ntype].update(data)
+
             for ntype in self._g.ntypes:
                 if label_field in self._g.nodes[ntype].data:
                     self._labels[ntype] = self._g.nodes[ntype].data[label_field]
@@ -629,7 +647,13 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         labels = {}
         for ntype, nid in nids.items():
             assert ntype in self._labels
-            labels[ntype] = self._labels[ntype][nid].to(device)
+            data = self._labels[ntype]
+            if hasattr(data, 'gather') and not isinstance(data, DistTensor) and \
+                not th.is_tensor(data): # data is in WholeMemoryEmbedding format
+                data = data.gather(nid.to(device))
+            else:
+                data = data[nid].to(device)
+            labels[ntype] = data #self._labels[ntype][nid].to(device)
         return labels
 
     @property
