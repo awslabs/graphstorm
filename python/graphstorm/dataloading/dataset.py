@@ -25,7 +25,7 @@ import dgl
 from dgl.distributed import DistTensor
 
 from ..utils import get_rank, get_world_size, is_distributed
-from ..utils import sys_tracker
+from ..utils import sys_tracker, use_wholegraph
 from .utils import dist_sum, flip_node_mask
 
 def split_full_edge_list(g, etype, rank):
@@ -61,7 +61,6 @@ def prepare_batch_input(g, input_nodes,
     Dict of tensors.
         If a node type has features, it will get node features.
     """
-
     feat = {}
     for ntype, nid in input_nodes.items():
         feat_name = None if feat_field is None else \
@@ -116,7 +115,6 @@ def prepare_batch_edge_input(g, input_edges,
                 for fname in feat_name], dim=-1)
     return feat
 
-
 class GSgnnData():
     """ The GraphStorm data
 
@@ -143,10 +141,8 @@ class GSgnnData():
         self._val_idxs = {}
         self._test_idxs = {}
 
-        # Use wholegraph for feature transfer if `wholegraph` dir exists
-        self._use_wholegraph = bool(os.path.isdir(os.path.join(os.path.dirname(part_config), \
-            'wholegraph')))
-        if self._use_wholegraph and is_distributed():
+        # Use wholegraph for feature transfer
+        if is_distributed() and use_wholegraph(part_config):
             logging.info("Allocate features with Wholegraph")
             num_parts = self._g.get_partition_book().num_partitions()
 
@@ -192,12 +188,12 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
-    def load_wg_feat(self, part_config, num_parts, ntype, name):
+    def load_wg_feat(self, part_config_path, num_parts, ntype, name):
         """Load features from wholegraph memory
 
         Parameters
         ----------
-        part_config : str
+        part_config_path : str
             The path of the partition configuration file.
         num_parts : int
             The number of partitions of the dataset
@@ -219,7 +215,8 @@ class GSgnnData():
             "readonly", # access type
             0.0, # cache ratio
         )
-        metadata_file = os.path.join(os.path.dirname(part_config), 'wholegraph/metadata.json')
+        metadata_file = os.path.join(os.path.dirname(part_config_path),
+                                     'wholegraph/metadata.json')
         with open(metadata_file, encoding="utf8") as f:
             wg_metadata = json.load(f)
         node_feat_wm_embedding = wgth.create_embedding(
@@ -231,7 +228,8 @@ class GSgnnData():
             optimizer=None,
             cache_policy=cache_policy,
         )
-        feat_path = os.path.join(os.path.dirname(part_config), 'wholegraph', ntype + '~' + name)
+        feat_path = os.path.join(os.path.dirname(part_config_path), 'wholegraph', \
+                                                 ntype + '~' + name)
         node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
                                                                        part_count=num_parts)
         return node_feat_wm_embedding
@@ -607,7 +605,7 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
             self._labels = {}
 
             # Use wholegraph to load node labels
-            if self._use_wholegraph and is_distributed():
+            if is_distributed() and use_wholegraph(part_config):
                 logging.info("Allocate node labels with Wholegraph")
                 num_parts = self._g.get_partition_book().num_partitions()
 
@@ -649,11 +647,11 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
             assert ntype in self._labels
             data = self._labels[ntype]
             if hasattr(data, 'gather') and not isinstance(data, DistTensor) and \
-                not th.is_tensor(data): # data is in WholeMemoryEmbedding format
+                not th.is_tensor(data): # WholeMemoryEmbedding format
                 data = data.gather(nid.to(device))
             else:
                 data = data[nid].to(device)
-            labels[ntype] = data #self._labels[ntype][nid].to(device)
+            labels[ntype] = data
         return labels
 
     @property

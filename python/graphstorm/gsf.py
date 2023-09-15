@@ -24,7 +24,7 @@ import torch as th
 import torch.nn.functional as F
 from dgl.distributed import role
 
-from .utils import sys_tracker, get_rank, get_world_size
+from .utils import sys_tracker, get_rank, get_world_size, use_wholegraph
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
@@ -94,9 +94,8 @@ def initialize(ip_config, backend, part_config=None):
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
     if ip_config is not None:
         th.distributed.init_process_group(backend=backend)
-        # Use wholegraph for feature fetching if 'wholegraph' folder exists
-        if part_config is not None and os.path.isdir(os.path.join( \
-            os.path.dirname(part_config), 'wholegraph')):
+        # Use wholegraph for feature and label fetching
+        if use_wholegraph(part_config):
             init_wholegraph()
     sys_tracker.check("load DistDGL")
 
