@@ -348,10 +348,17 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if encoder is None:
             self._gnn_encoder = None
             if self.node_input_encoder is not None and self.decoder is not None:
-                assert self.node_input_encoder.out_dims == self.decoder.in_dims, \
-                    'When GNN encoder is not used, the output dimensions of ' \
-                    'the node input encoder should match the input dimension of' \
-                    'the decoder.'
+                if isinstance(self.decoder, nn.ModuleDict):
+                    for ntype in self.decoder:
+                        assert self.node_input_encoder.out_dims == self.decoder[ntype].in_dims, \
+                            'When GNN encoder is not used, the output dimensions of ' \
+                            'the node input encoder should match the input dimension of' \
+                            'the decoder.'
+                else:
+                    assert self.node_input_encoder.out_dims == self.decoder.in_dims, \
+                        'When GNN encoder is not used, the output dimensions of ' \
+                        'the node input encoder should match the input dimension of' \
+                        'the decoder.'
             return
 
         assert isinstance(encoder, GSLayerBase), \
@@ -361,38 +368,67 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                     'The output dimensions of the node input encoder should ' \
                     + 'match the input dimension of the GNN encoder.'
         if self.decoder is not None:
-            assert encoder.out_dims == self.decoder.in_dims, \
-                    'The output dimensions of the GNN encoder should ' \
-                    + 'match the input dimension of the decoder.'
+            if isinstance(self.decoder, nn.ModuleDict):
+                for ntype in self.decoder:
+                    assert encoder.out_dims == self.decoder[ntype].in_dims, \
+                        'The output dimensions of the GNN encoder should ' \
+                        + 'match the input dimension of the decoder.'
+            else:
+                assert encoder.out_dims == self.decoder.in_dims, \
+                        'The output dimensions of the GNN encoder should ' \
+                        + 'match the input dimension of the decoder.'
         self._gnn_encoder = encoder
 
-    def set_decoder(self, decoder):
+    def set_decoder(self, decoders):
         """set the decoder layer.
 
         Parameters
         ----------
-        decoder : GSLayer
-            The decoder.
+        decoders : GSLayer or dict[str, GSLayer]
+            The decoder or dictionary of GSLayer.
         """
-        assert isinstance(decoder, GSLayerBase), \
-                'The decoder should be the class of GSLayerBase.'
-        if self.gnn_encoder is not None:
-            assert self.gnn_encoder.out_dims == decoder.in_dims, \
-                    'The output dimensions of the GNN encoder should ' \
-                    + 'match the input dimension of the decoder.'
-        self._decoder = decoder
+        if isinstance(decoders, dict):
+            self._decoder = nn.ModuleDict()
+            for name, decoder in decoders.items():
+                assert isinstance(
+                    decoder, GSLayerBase
+                ), "The decoder should be the class of GSLayerBase."
+                if self.gnn_encoder is not None:
+                    assert self.gnn_encoder.out_dims == decoder.in_dims, (
+                        "The output dimensions of the GNN encoder should "
+                        + "match the input dimension of the decoder."
+                    )
+                self._decoder[name] = decoder
+        else:
+            decoder=decoders
+            assert isinstance(decoder, GSLayerBase), \
+                    'The decoder should be the class of GSLayerBase.'
+            if self.gnn_encoder is not None:
+                assert self.gnn_encoder.out_dims == decoder.in_dims, \
+                        'The output dimensions of the GNN encoder should ' \
+                        + 'match the input dimension of the decoder.'
+            self._decoder = decoder
 
-    def set_loss_func(self, loss_fn):
+    def set_loss_func(self, loss_fns):
         """set the loss function.
 
         Parameters
         ----------
-        loss_fn : Pytorch nn.Module
-            The loss function.
+        loss_fns : Pytorch nn.Module or dist[str, Pytorch nn.Module]
+            The loss function or dictionary of Pytorch nn.Module.
         """
-        assert isinstance(loss_fn, nn.Module), \
-                'The loss function should be the class of nn.Module.'
-        self._loss_fn = loss_fn
+        if isinstance(loss_fns, dict):
+            self._loss_fn = nn.ModuleDict()
+            for name, loss_fn in loss_fns.items():
+                assert isinstance(
+                    loss_fn, nn.Module
+                ), "The loss function should be the class of nn.Module."
+                self._loss_fn[name] = loss_fn
+        else:
+            loss_fn = loss_fns
+            assert isinstance(loss_fn, nn.Module), \
+                    'The loss function should be the class of nn.Module.'
+            self._loss_fn = loss_fn
 
     def prepare_input_encoder(self, train_data):
         """ Preparing input layer for training or inference.
