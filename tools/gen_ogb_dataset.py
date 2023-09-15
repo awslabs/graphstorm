@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument("--savepath", type=str, default=None)
     parser.add_argument("--edge-pct", type=float, default=1)
     parser.add_argument("--dataset",type=str,default="ogbn-arxiv")
-    parser.add_argument('--bert-model-name',type=str,default="bert-base-uncased")
+    parser.add_argument('--lm-model-name',type=str,default="bert-base-uncased")
     parser.add_argument("--max-sequence-length", type=int, default=512)
     parser.add_argument("--retain-original-features",
                         type=lambda x: (str(x).lower() in ['true', '1']), default=True)
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     dataset = OGBTextFeatDataset(args.filepath,
                                  args.dataset,
                                  edge_pct=args.edge_pct,
-                                 bert_model_name=args.bert_model_name,
+                                 lm_model_name=args.lm_model_name,
                                  max_sequence_length=args.max_sequence_length,
                                  retain_original_features=args.retain_original_features,
                                  is_homo=args.is_homo)
