@@ -47,7 +47,7 @@ class ParquetRowCounter:
         self.filesystem_type = filesystem_type
         self.metadata_dict = metadata_dict
         if self.filesystem_type == "s3":
-            output_bucket = self.output_prefix.split("/")[2]
+            output_bucket, _ = s3_utils.extract_bucket_and_key(output_prefix)
             bucket_region = s3_utils.get_bucket_region(output_bucket)
             # Increase default retries because we are likely to run into
             # throttling errors
@@ -73,18 +73,18 @@ class ParquetRowCounter:
             The modified data dict, now including a 'row_counts' key for each data file entry,
             and two new top-level keys, 'num_nodes_per_type' and 'num_edges_per_type'.
         """
-        all_edges_counts = self._add_counts_for_structure(
+        all_edges_counts = self._add_counts_for_graph_structure(
             top_level_key="edges", edge_or_node_type_key="edge_type"
         )
         self._add_counts_for_features(top_level_key="edge_data", edge_or_node_type_key="edge_type")
 
-        all_node_mapping_counts = self._add_counts_for_structure(
+        all_node_mapping_counts = self._add_counts_for_graph_structure(
             top_level_key="node_id_mappings", edge_or_node_type_key="node_type"
         )
         self._add_counts_for_features(top_level_key="node_data", edge_or_node_type_key="node_type")
 
         logging.info("Verifying features and structure row counts match...")
-        all_edge_counts_match = self.verify_features_and_structure_match(
+        all_edge_counts_match = self.verify_features_and_graph_structure_match(
             metadata_dict["edge_data"], metadata_dict["edges"]
         )
         all_node_data_counts_match = self.verify_all_features_match(metadata_dict["node_data"])
@@ -124,9 +124,9 @@ class ParquetRowCounter:
             The number of rows in the Parquet file.
         """
         if self.filesystem_type == "s3":
-            file_s3_uri = f"{self.output_prefix}/{relative_parquet_file_path}"
-            file_bucket = file_s3_uri.split("/")[2]
-            file_key = file_s3_uri.split("/", 3)[3]
+            file_bucket, file_key = s3_utils.extract_bucket_and_key(
+                self.output_prefix, relative_parquet_file_path
+            )
             # TODO: Sometimes we get:
             # OSError AWS Error UNKNOWN (HTTP status 503) during
             # HeadObject operation: No response body.
@@ -159,6 +159,7 @@ class ParquetRowCounter:
         # TODO: Despite parallel call this can still be slow for thousands of files.
         # See if we can skip or at least do fully async
         cpu_count = os.cpu_count() if os.cpu_count() else 4
+        # Assertion to indicate to mypy that cpu_count is not None
         assert cpu_count
         row_counts_per_file = Parallel(n_jobs=min(16, cpu_count), backend="threading")(
             delayed(self.get_row_count_for_parquet_file)(parquet_path)
@@ -167,11 +168,11 @@ class ParquetRowCounter:
 
         return row_counts_per_file
 
-    def _add_counts_for_structure(
+    def _add_counts_for_graph_structure(
         self, top_level_key: str, edge_or_node_type_key: str
     ) -> List[Sequence[int]]:
-        """Returns a nested list of counts for each structure, either for edges structure
-        or node mappings. Modifies `self.metadata_dict` in place.
+        """Returns a nested list of counts for each structure of the graph,
+        either for edges structure or node mappings. Modifies `self.metadata_dict` in place.
 
         Parameters
         ----------
@@ -216,7 +217,7 @@ class ParquetRowCounter:
         top_level_key : str
             The top level key that refers to the features we'll be getting
             counts for, can be "edge_data" to get counts for edge features,
-            or "node_type" to get counts for node features.
+            or "node_data" to get counts for node features.
         edge_or_node_type_key : str
             The secondary key we use to iterate over structure types,
             can be 'edge_type' or 'node_type'.
@@ -256,12 +257,19 @@ class ParquetRowCounter:
                     feature_name,
                 )
                 feature_row_counts = self.get_row_counts_for_parquet_files(relative_file_list)
+                logging.debug(
+                    "Row counts for %s, type: %s, feature: %s, %s",
+                    top_level_key,
+                    type_name,
+                    feature_name,
+                    feature_row_counts,
+                )
                 feature_data_dict["row_counts"] = feature_row_counts
                 features_per_type_counts.append(feature_row_counts)
             all_feature_counts.append(features_per_type_counts)
 
     @staticmethod
-    def verify_features_and_structure_match(
+    def verify_features_and_graph_structure_match(
         data_meta: Dict[str, Dict], structure_meta: Dict[str, Dict]
     ) -> bool:
         """Verifies that the row counts of structure and feature files match.
@@ -278,7 +286,7 @@ class ParquetRowCounter:
         data_meta : Dict[str, Dict]
             A metadata entry for feature files.
         structure_meta : Dict[str, Dict]
-            A metadata entry for structure files.
+            A metadata entry for graph structure files.
 
         Returns
         -------

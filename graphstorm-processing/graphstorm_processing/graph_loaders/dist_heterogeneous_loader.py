@@ -419,8 +419,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             If an output format other than "csv" or "parquet" is requested.
         """
         if self.filesystem_type == "s3":
-            output_bucket = full_output_path.split("/")[2]
-            output_prefix = full_output_path.split("/", 3)[3]
+            output_bucket, output_prefix = s3_utils.extract_bucket_and_key(full_output_path)
         else:
             output_bucket = ""
             output_prefix = full_output_path
