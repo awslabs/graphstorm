@@ -62,7 +62,7 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
 )
 from graphstorm_processing.config.config_parser import create_config_objects
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
-from graphstorm_processing.data_transformations import spark_utils
+from graphstorm_processing.data_transformations import spark_utils, s3_utils
 
 
 @dataclasses.dataclass
@@ -152,8 +152,7 @@ class DistributedExecutor:
         else:
             # Ensure we can read and write files from/to the S3 prefix
             s3 = boto3.resource("s3")
-            bucket_name = self.output_prefix.split("/")[2]
-            prefix = self.output_prefix.split("/", 3)[3]
+            bucket_name, prefix = s3_utils.extract_bucket_and_key(self.output_prefix)
             head_bucket_response = s3.meta.client.head_bucket(Bucket=bucket_name)
             assert head_bucket_response["ResponseMetadata"]["HTTPStatusCode"] == 200
             bucket_resouce = s3.Bucket(bucket_name)
@@ -208,8 +207,7 @@ class DistributedExecutor:
         # This is used to upload the output JSON files to S3 on local runs,
         # since we can't rely on SageMaker to do it
         if not self.sm_execution and self.filesystem_type == "s3":
-            bucket = self.output_prefix.split("/")[2]
-            s3_prefix = self.output_prefix.split("/", 3)[3]
+            bucket, s3_prefix = s3_utils.extract_bucket_and_key(self.output_prefix)
             s3 = boto3.resource("s3")
 
             output_files = os.listdir(loader.output_path)
@@ -317,8 +315,9 @@ def main():
             local_config_path = gsprocessing_args.input_prefix
         else:
             tempdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-            input_bucket = gsprocessing_args.input_prefix.split("/")[2]
-            input_s3_prefix = gsprocessing_args.input_prefix.split("/", 3)[3]
+            input_bucket, input_s3_prefix = s3_utils.extract_bucket_and_key(
+                gsprocessing_args.input_prefix
+            )
             s3 = boto3.client("s3")
             s3.download_file(
                 input_bucket,
@@ -365,8 +364,9 @@ def main():
     # uploaded to S3 at the end of the job. For local execution with S3 data, we
     # need to upload all output files manually.
     if not is_sagemaker_execution and filesystem_type == "s3":
-        output_bucket = gsprocessing_args.output_prefix.split("/")[2]
-        output_s3_prefix = gsprocessing_args.output_prefix.split("/", 3)[3]
+        output_bucket, output_s3_prefix = s3_utils.extract_bucket_and_key(
+            gsprocessing_args.output_prefix
+        )
         s3 = boto3.resource("s3")
         s3.meta.client.upload_file(
             os.path.join(local_output_path, "launch_arguments.json"),
