@@ -155,12 +155,14 @@ class GSgnnData():
                 assert ntype in self._g.ntypes, \
                         f"Cannot load features of node type '{ntype}' as graph has" \
                         f" no such node type."
-                part = self.load_wg_feat(part_config, num_parts, ntype)
+                data = {}
+                names = node_feat_field[ntype]
+                for name in names:
+                    data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
                 if len(self._g.ntypes) == 1:
-                    self._g._ndata_store['feat'] = part
+                    self._g._ndata_store.update(data)
                 else:
-                    self._g._ndata_store[ntype]['feat'] = part
-
+                    self._g._ndata_store[ntype].update(data)
         self.prepare_data(self._g)
         sys_tracker.check('construct training data')
 
@@ -189,7 +191,7 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
-    def load_wg_feat(self, part_config, num_parts, ntype):
+    def load_wg_feat(self, part_config, num_parts, ntype, name):
         """Load features from wholegraph memory
 
         Parameters
@@ -199,7 +201,9 @@ class GSgnnData():
         num_parts : int
             The number of partitions of the dataset
         ntype: str
-            The type of node for which to fetch features.
+            The type of node for which to fetch features or labels for.
+        name: str
+            The name of the features or labels to load
         """
         import pylibwholegraph.torch as wgth
 
@@ -221,13 +225,12 @@ class GSgnnData():
             feature_comm,
             embedding_wholememory_type,
             embedding_wholememory_location,
-            getattr(th, wg_metadata[ntype + '/feat']['dtype'].split('.')[1]),
-            wg_metadata[ntype + '/feat']['shape'],
+            getattr(th, wg_metadata[ntype + '/' + name]['dtype'].split('.')[1]),
+            wg_metadata[ntype + '/' + name]['shape'],
             optimizer=None,
             cache_policy=cache_policy,
         )
-        # TODO(IN): Add multiple features
-        feat_path = os.path.join(os.path.dirname(part_config), 'wholegraph', ntype + '~feat')
+        feat_path = os.path.join(os.path.dirname(part_config), 'wholegraph', ntype + '~' + name)
         node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
                                                                        part_count=num_parts)
         return node_feat_wm_embedding
