@@ -16,7 +16,7 @@ Available options:
 -h, --help      Print this help and exit
 -x, --verbose   Print script debug info (set -x)
 -t, --target    Docker image target, must be one of 'prod' or 'test'. Default is 'prod'.
--p, --path      Path to graphstorm-processing directory, default is the current directory.
+-p, --path      Path to graphstorm-processing directory, default is one level above this script.
 -i, --image     Docker image name, default is 'graphstorm-processing'.
 -v, --version   Docker version tag, default is the library's current version (`poetry version --short`)
 -b, --build     Docker build directory, default is '/tmp/`

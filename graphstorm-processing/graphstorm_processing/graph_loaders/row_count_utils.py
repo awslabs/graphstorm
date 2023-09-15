@@ -87,12 +87,12 @@ class ParquetRowCounter:
         all_edge_counts_match = self.verify_features_and_structure_match(
             metadata_dict["edge_data"], metadata_dict["edges"]
         )
-        all_feature_data_counts_match = self.verify_all_features_match(metadata_dict["node_data"])
+        all_node_data_counts_match = self.verify_all_features_match(metadata_dict["node_data"])
         all_edge_data_counts_match = self.verify_all_features_match(metadata_dict["edge_data"])
 
         if (
             not all_edge_counts_match
-            or not all_feature_data_counts_match
+            or not all_node_data_counts_match
             or not all_edge_data_counts_match
         ):
             # TODO: Should we create a file as indication
@@ -109,7 +109,7 @@ class ParquetRowCounter:
 
         return metadata_dict
 
-    def get_rows_for_parquet_file(self, relative_parquet_file_path: str) -> int:
+    def get_row_count_for_parquet_file(self, relative_parquet_file_path: str) -> int:
         """Returns the number of rows for the parquet file in the provided
         relative file path or S3 key.
 
@@ -140,7 +140,7 @@ class ParquetRowCounter:
 
         return nrows
 
-    def get_rows_for_parquet_files(self, parquet_file_paths: Sequence[str]) -> Sequence[int]:
+    def get_row_counts_for_parquet_files(self, parquet_file_paths: Sequence[str]) -> Sequence[int]:
         """Returns a list of the number of rows in each parquet file in the passed-in
         list of relative S3 keys or filepaths.
 
@@ -161,7 +161,7 @@ class ParquetRowCounter:
         cpu_count = os.cpu_count() if os.cpu_count() else 4
         assert cpu_count
         row_counts_per_file = Parallel(n_jobs=min(16, cpu_count), backend="threading")(
-            delayed(self.get_rows_for_parquet_file)(parquet_path)
+            delayed(self.get_row_count_for_parquet_file)(parquet_path)
             for parquet_path in parquet_file_paths
         )
 
@@ -170,37 +170,69 @@ class ParquetRowCounter:
     def _add_counts_for_structure(
         self, top_level_key: str, edge_or_node_type_key: str
     ) -> List[Sequence[int]]:
-        """
-        Returns a nested list of counts for each structure, either for edges structure
-        or node mappings. Modifies metadata_dict in place.
+        """Returns a nested list of counts for each structure, either for edges structure
+        or node mappings. Modifies `self.metadata_dict` in place.
+
+        Parameters
+        ----------
+        top_level_key : str
+            The top level key that refers to the structure we'll be getting
+            counts for, can be "edges" to get counts for edges structure,
+            or "node_id_mappings" to get counts for node mappings.
+        edge_or_node_type_key : str
+            The secondary key we use to iterate over structure types,
+            can be 'edge_type' or 'node_type'.
+
+        Returns
+        -------
+        List[Sequence[int]]
+            A nested list of counts, the outer list is per type, and each
+            inner list is a row count.
         """
         # We use the order of types in edge_type and node_type to create the counts
-        assert top_level_key in {"edges", "node_id_mappings"}
-        assert edge_or_node_type_key in {"edge_type", "node_type"}
+        assert top_level_key in {"edges", "node_id_mappings"}, (
+            "top_level_key needs to be one of 'edges', 'node_id_mappings' " f"got {top_level_key}"
+        )
+        assert edge_or_node_type_key in {"edge_type", "node_type"}, (
+            "edge_or_node_type_key needs to be one of 'edge_type', 'node_type' "
+            f"got {edge_or_node_type_key}"
+        )
         all_entries_counts = []  # type: List[Sequence[int]]
         for type_value in self.metadata_dict[edge_or_node_type_key]:
             logging.info("Getting counts for %s, %s", top_level_key, type_value)
             relative_file_list = self.metadata_dict[top_level_key][type_value]["data"]
-            type_row_counts = self.get_rows_for_parquet_files(relative_file_list)
+            type_row_counts = self.get_row_counts_for_parquet_files(relative_file_list)
             self.metadata_dict[top_level_key][type_value]["row_counts"] = type_row_counts
             all_entries_counts.append(type_row_counts)
 
         return all_entries_counts
 
-    def _add_counts_for_features(
-        self, top_level_key: str, edge_or_node_type_key: str
-    ) -> List[List[Sequence[int]]]:
-        """
-        Returns a nested list of counts for each structure, either for
-        edges structure or node mappings. Modifies metadata_dict in place.
+    def _add_counts_for_features(self, top_level_key: str, edge_or_node_type_key: str) -> None:
+        """Returns a nested list of counts for each feature, either for edges features
+        or node features. Modifies `self.metadata_dict` in place.
+
+        Parameters
+        ----------
+        top_level_key : str
+            The top level key that refers to the features we'll be getting
+            counts for, can be "edge_data" to get counts for edge features,
+            or "node_type" to get counts for node features.
+        edge_or_node_type_key : str
+            The secondary key we use to iterate over structure types,
+            can be 'edge_type' or 'node_type'.
         """
         # We use the order of types in edge_type and node_type to create the counts
-        assert top_level_key in {"edge_data", "node_data"}
-        assert edge_or_node_type_key in {"edge_type", "node_type"}
+        assert top_level_key in {"edge_data", "node_data"}, (
+            "top_level_key needs to be one of 'edge_data', 'node_data' " f"got {top_level_key}"
+        )
+        assert edge_or_node_type_key in {"edge_type", "node_type"}, (
+            "edge_or_node_type_key needs to be one of 'edge_type', 'node_type' "
+            f"got {edge_or_node_type_key}"
+        )
         all_feature_counts = []  # type: List[List[Sequence[int]]]
         for type_name in self.metadata_dict[edge_or_node_type_key]:
             # We don't list features for reverse edges
-            type_is_edge = len(type_name.split(":")) == 3
+            type_is_edge = edge_or_node_type_key == "edge_type"
             if type_is_edge and type_name.split(":")[1].startswith("rev"):
                 continue
             features_per_type_counts = []  # type: List[Sequence[int]]
@@ -223,12 +255,10 @@ class ParquetRowCounter:
                     type_name,
                     feature_name,
                 )
-                feature_row_counts = self.get_rows_for_parquet_files(relative_file_list)
+                feature_row_counts = self.get_row_counts_for_parquet_files(relative_file_list)
                 feature_data_dict["row_counts"] = feature_row_counts
                 features_per_type_counts.append(feature_row_counts)
             all_feature_counts.append(features_per_type_counts)
-
-        return all_feature_counts
 
     @staticmethod
     def verify_features_and_structure_match(

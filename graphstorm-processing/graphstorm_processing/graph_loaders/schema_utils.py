@@ -45,11 +45,10 @@ def parse_edge_file_schema(edge_config: EdgeConfig) -> StructType:
     StructType
         A Spark StructType describing the typed schema for the edge files.
     """
-    # TODO: Will need to add support for relation types
+    # TODO: Will need to add support for relation types when we support relation col
     edge_fields_list = [
         StructField(edge_config.src_col, StringType(), False),
         StructField(edge_config.dst_col, StringType(), False),
-        # StructField(relation_type, StringType(), False),
     ]
 
     if edge_config.feature_configs:
@@ -94,10 +93,6 @@ def determine_spark_feature_type(feature_type: str) -> Type[DataType]:
     """
     # TODO: Replace with pattern matching after moving to Python 3.10?
     if feature_type in [
-        "category",
-        "datetime",
-        "multi_category",
-        "multi_numerical",
         "no-op",
     ] or feature_type.startswith("text"):
         return StringType
