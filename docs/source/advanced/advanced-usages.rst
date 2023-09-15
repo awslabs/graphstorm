@@ -25,7 +25,7 @@ With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localun
 Multiple Target Node Types Training
 ===================================
 
-When training on hetergenious graph, we often need to train a model by minimizing the objective function on more than one node type. GraphStorm provides supports to achieve this goal.
+When training on a hetergenious graph, we often need to train a model by minimizing the objective function on more than one node type. GraphStorm provides supports to achieve this goal.
 
 - Train on multiple node types: The users only need to edit the ``target_ntype`` in model config YAML file to minimize the objective function defined on mutiple target node types. For example, by setting ``target_ntype`` as following, we can jointly optimize the objective function defined on "movie" and "user" node types.
 
