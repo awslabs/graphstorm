@@ -192,14 +192,31 @@ def create_builtin_node_model(g, config, train_task):
     set_encoder(model, g, config, train_task)
 
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
-        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims \
-                                            if model.gnn_encoder is not None \
-                                            else model.node_input_encoder.out_dims,
-                                           config.num_classes,
-                                           config.multilabel))
-        model.set_loss_func(ClassifyLossFunc(config.multilabel,
+        if not isinstance(config.num_classes, dict):
+            model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims,
+                                               config.num_classes,
+                                               config.multilabel))
+            model.set_loss_func(ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
                                              config.imbalance_class_weights))
+        else:
+            decoder = {}
+            loss_func = {}
+            for ntype in config.target_ntype:
+                decoder[ntype] = EntityClassifier(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims,
+                                               config.num_classes[ntype],
+                                               config.multilabel[ntype])
+                loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
+                                                config.multilabel_weights[ntype],
+                                                config.imbalance_class_weights[ntype])
+
+            model.set_decoder(decoder)
+            model.set_loss_func(loss_func)
+
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         model.set_decoder(EntityRegression(model.gnn_encoder.out_dims \
                                             if model.gnn_encoder is not None \

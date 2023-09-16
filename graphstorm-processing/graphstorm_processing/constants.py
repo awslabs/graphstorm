@@ -15,8 +15,8 @@ limitations under the License.
 """
 ################### Categorical Limits #######################
 MAX_CATEGORIES_PER_FEATURE = 100
-RARE_CATEGORY = "OTHER"
-MISSING_CATEGORY = "UNKNOWN"
+RARE_CATEGORY = "GSP_CONSTANT_OTHER"
+MISSING_CATEGORY = "GSP_CONSTANT_UNKNOWN"
 SINGLE_CATEGORY_COL = "SINGLE_CATEGORY"
 
 ################ Multi-numerical Limits #####################

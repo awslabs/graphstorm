@@ -605,7 +605,7 @@ def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
                 "which is known to be insecure. It is possible to construct " \
                 "malicious pickle data which will execute arbitrary code " \
                 "during unpickling. Only load data you trust")
-    checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
+    checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'), map_location='cpu')
 
     assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
     assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
@@ -844,3 +844,19 @@ def create_sparse_embeds_path(model_path, embed_layer):
             #     - owner' group can read, write;
             #     - others can read, write, and execute.
             os.chmod(emb_path, 0o767)
+
+def append_to_dict(from_dict, to_dict):
+    """ Append content of from_dict to to_dict
+
+        Parameters
+        ----------
+        from_dict: dict of Tensor
+            Dict of tensor to be added to to_dict
+        to_dict: dict of Tensor
+            Target dict of tensor
+    """
+    for k, v in from_dict.items():
+        if k in to_dict:
+            to_dict[k].append(v.cpu())
+        else:
+            to_dict[k] = [v.cpu()]
