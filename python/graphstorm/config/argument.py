@@ -752,45 +752,12 @@ class GSConfig:
             # By default use -1 as full neighbor
             return [-1] * self.num_layers
 
-    def _check_distill_feats(self, dt_feats):
-        """ Parse features for distillation.
-        """
-        try:
-            dt_feats_dict = {}
-            for val in dt_feats:
-                dt_feats_dict[val.split(":")[0]] = {"id_field": val.split(":")[1].split("@")[0], \
-                    "textual_field": val.split(":")[1].split("@")[1].split("/")}
-
-        except Exception:
-            assert False, f"{fot_name} distill_feats should either in format" \
-                "ntype1:ntype1_id_field@ntype1_textual_field1/ntype1_textual_field2,ntype2:...," \
-                "for example, a valid input can be 'query:query@query,asin:asin@item_name/brand'"
-
-        return dt_feats_dict
-
-    @property
-    def distill_feats(self):
-        """ distillation features
-        """
-        if hasattr(self, "_distill_feats"):
-            dt_feats = self._distill_feats.split(",")
-            return self._check_distill_feats(dt_feats)
-        return None
-
     @property
     def textual_data_path(self):
         """ distillation textual data path
         """
         if hasattr(self, "_textual_data_path"):
             return self._textual_data_path
-        return None
-
-    @property
-    def concat_field_name(self):
-        """ filed name for distillation
-        """
-        if hasattr(self, "_concat_field_name"):
-            return self._concat_field_name
         return None
 
     @property
