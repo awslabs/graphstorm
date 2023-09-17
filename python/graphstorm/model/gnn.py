@@ -742,7 +742,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
     return embeddings
 
 def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask=None,
-                            task_tracker=None, minibatch=False):
+                            task_tracker=None):
     """ Do fullgraph inference
 
     It may use some of the edges indicated by `edge_mask` to compute GNN embeddings.
