@@ -124,8 +124,8 @@ class GSConfig:
     def __init__(self, cmd_args):
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
-        configuration = self.load_yaml_config(cmd_args.yaml_config_file)
-        self.set_attributes(configuration)
+        self.configuration = self.load_yaml_config(cmd_args.yaml_config_file)
+        self.set_attributes(self.configuration)
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
@@ -135,7 +135,7 @@ class GSConfig:
             logging.basicConfig(level=self.logging_level)
         else:
             logging.basicConfig(filename=self.logging_file, level=self.logging_level)
-        logging.debug(str(configuration))
+        logging.debug(str(self.configuration))
         cmd_args_dict = cmd_args.__dict__
         # Print overriden arguments.
         for arg_key in cmd_args_dict:
@@ -614,11 +614,14 @@ class GSConfig:
         """ Which graph encoder to use, it can be GNN or language model only
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_model_encoder_type"), \
-            "Model encoder type should be provided"
-        assert self._model_encoder_type in BUILTIN_ENCODER, \
-            f"Model encoder type should be in {BUILTIN_ENCODER}"
-        return self._model_encoder_type
+        if "distill" not in self.configuration["gsf"]:
+            assert hasattr(self, "_model_encoder_type"), \
+                "Model encoder type should be provided"
+            assert self._model_encoder_type in BUILTIN_ENCODER, \
+                f"Model encoder type should be in {BUILTIN_ENCODER}"
+            return self._model_encoder_type
+        else:
+            return None
 
     @property
     def max_grad_norm(self):
@@ -774,11 +777,11 @@ class GSConfig:
         return None
 
     @property
-    def textual_path(self):
+    def textual_data_path(self):
         """ distillation textual data path
         """
-        if hasattr(self, "_textual_path"):
-            return self._textual_path
+        if hasattr(self, "_textual_data_path"):
+            return self._textual_data_path
         return None
 
     @property
@@ -790,11 +793,11 @@ class GSConfig:
         return None
 
     @property
-    def tsf_name(self):
+    def lm_name(self):
         """ HuggingFace Transformer-based model name for distillation
         """
-        if hasattr(self, "_tsf_name"):
-            return self._tsf_name
+        if hasattr(self, "_lm_name"):
+            return self._lm_name
         return None
 
     @property
@@ -806,97 +809,47 @@ class GSConfig:
         return None
 
     @property
-    def distill_batch_size(self):
-        """ Batch size for distillation.
-        """
-        if hasattr(self, "_distill_batch_size"):
-            return self._distill_batch_size
-        return None
-
-    @property
-    def need_infer(self):
-        """ Whether to run GNN inference for distillation.
-        """
-        if hasattr(self, "_need_infer"):
-            return self._need_infer
-        return None
-
-    @property
-    def save_student_path(self):
-        """ Saved model path for distillation.
-        """
-        if hasattr(self, "_save_student_path"):
-            return self._save_student_path
-        return None
-
-    @property
-    def distill_lr(self):
-        """ Learning rate for distillation.
-        """
-        if hasattr(self, "_distill_lr"):
-            return self._distill_lr
-        return None
-
-    @property
-    def save_student_interval(self):
-        """ Model checkpoint interval for distillation.
-        """
-        if hasattr(self, "_save_student_interval"):
-            return self._save_student_interval
-        return None
-
-    @property
-    def eval_student_interval(self):
-        """ Validation interval for distillation.
-        """
-        if hasattr(self, "_eval_student_interval"):
-            return self._eval_student_interval
-        return None
-
-    @property
-    def chunk_size(self):
-        """ Size of each file for distillation data.
-        """
-        if hasattr(self, "_chunk_size"):
-            return self._chunk_size
-        return None
-
-    def _check_max_global_step(self, max_global_step):
-        """ Parse maximum global size for distillation for each node type.
-        """
-        max_global_step_dict = {}
-        try:
-            for node_step in max_global_step.split(","):
-                node_step_split = node_step.split(":")
-                max_global_step_dict[node_step_split[0]] = int(node_step_split[1])
-
-        except Exception:
-            assert False, f"{fot_name} max_global_step should in format" \
-                "ntype1:step1,ntype2:step2, ..." \
-                "for example, a valid input can be 'query:512@asin:512'"
-        return max_global_step_dict
-
-    @property
     def max_global_step(self):
         """ Maximum global size for distillation.
         """
+        # only needed by distillation
+        if "distill" not in self.configuration["gsf"]:
+            return None
         if hasattr(self, "_max_global_step"):
-            return self._check_max_global_step(self._max_global_step)
-        return None
+            return self._max_global_step
+        else:
+            # default max global steps
+            return 10000
+
+    @property
+    def max_seq_len(self):
+        """ Maximum sequence length for distillation.
+        """
+        # only needed by distillation
+        if "distill" not in self.configuration["gsf"]:
+            return None
+        if hasattr(self, "_max_seq_len"):
+            return self._max_seq_len
+        else:
+            # default max global steps
+            return 1024
 
     @property
     def hidden_size(self):
         """ Hidden embedding size
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_hidden_size"), \
-            "hidden_size must be provided when pretrain a embedding layer, " \
-            "or train a GNN model"
-        assert isinstance(self._hidden_size, int), \
-            "Hidden embedding size must be an integer"
-        assert self._hidden_size > 0, \
-            "Hidden embedding size must be larger than 0"
-        return self._hidden_size
+        if "distill" not in self.configuration["gsf"]:
+            assert hasattr(self, "_hidden_size"), \
+                "hidden_size must be provided when pretrain a embedding layer, " \
+                "or train a GNN model"
+            assert isinstance(self._hidden_size, int), \
+                "Hidden embedding size must be an integer"
+            assert self._hidden_size > 0, \
+                "Hidden embedding size must be larger than 0"
+            return self._hidden_size
+        else:
+            return None
 
     @property
     def num_layers(self):
@@ -2169,6 +2122,10 @@ def _add_lm_model_args(parser):
     group.add_argument("--freeze-lm-encoder-epochs", type=int, default=argparse.SUPPRESS,
             help="Before fine-tuning LM model, how many epochs we will take "
                  "to warmup a GNN model")
+    group.add_argument("--max-global-step", type=int, default=argparse.SUPPRESS,
+                       help="The maximum of global step for each node type for distillation")
+    group.add_argument("--max-seq-len", type=int, default=argparse.SUPPRESS,
+                       help="The maximum of sequence length for distillation")
     return parser
 
 def _add_rgat_args(parser):
@@ -2336,32 +2293,12 @@ def _add_inference_args(parser):
 
 def _add_distill_args(parser):
     group = parser.add_argument_group(title="distill")
-    group.add_argument("--distill-feats", type=str, default=argparse.SUPPRESS,
-                       help="Where to save the node types and the features for GNN distillation.")
-    group.add_argument("--textual-path", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--textual-data-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the textual data for distillation.")
-    group.add_argument("--concat-field-name", type=bool, default=argparse.SUPPRESS,
-                       help="Whether to concat field name for textual data.")
-    group.add_argument("--tsf-name", type=str, default=argparse.SUPPRESS,
+    group.add_argument("--lm-name", type=str, default=argparse.SUPPRESS,
                        help="HuggingFace model name for distillation")
     group.add_argument("--pre-trained-name", type=str, default=argparse.SUPPRESS,
                        help="Name for pre-trained HF model")
-    group.add_argument("--distill-batch-size", type=int, default=argparse.SUPPRESS,
-                       help="Batch size for distillation")
-    group.add_argument("--need-infer", type=bool, default=argparse.SUPPRESS,
-                       help="Whether to do the gnn inference")
-    group.add_argument("--save-student-path", type=str, default=argparse.SUPPRESS,
-                       help="Path for saving student model.")
-    group.add_argument("--distill-lr", type=float, default=argparse.SUPPRESS,
-                       help="Learning rate for distillation")
-    group.add_argument("--save-student-interval", type=int, default=argparse.SUPPRESS,
-                       help="Saving interval for student model")
-    group.add_argument("--eval-student-interval", type=int, default=argparse.SUPPRESS,
-                       help="Eval interval for student model")
-    group.add_argument("--chunk-size", type=int, default=argparse.SUPPRESS,
-                       help="Number of samples for each mapped textual data file")
-    group.add_argument("--max-global-step", type=str, default=argparse.SUPPRESS,
-                       help="The maximum of global step for each node type for distillation")
     return parser
 
 # Users can add their own udf parser

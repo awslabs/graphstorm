@@ -43,5 +43,3 @@ from .edge_decoder import (DenseBiDecoder,
                            LinkPredictWeightedDistMultDecoder)
 
 from .loss_func import ClassifyLossFunc, RegressionLossFunc, LinkPredictLossFunc
-
-from .student import GSDistilledModel

@@ -800,13 +800,17 @@ class GSDistillData(Dataset):
         List of input files.
     tokenizer : transformers.AutoTokenizer
         HuggingFace Tokenizer.
+    max_seq_len : int
+        Maximum sequence length.
     device : str
         Device name.
+
     """
-    def __init__(self, file_list, tokenizer, device):
+    def __init__(self, file_list, tokenizer, max_seq_len, device):
         super().__init__()
         self.file_list = file_list
         self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
         self.device = device
         self.token_id_inputs, self.labels = self.get_inputs()
 
@@ -823,6 +827,7 @@ class GSDistillData(Dataset):
             tokens = self.tokenizer.tokenize(inputs["textual_feats"][i])
             tokens.insert(0, self.tokenizer.cls_token) # cls token for pooling
             token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+            token_ids = token_ids[0:min(len(token_ids), self.max_seq_len)]
             token_id_inputs.append(token_ids)
         labels = inputs["embeddings"].to_numpy()
 
@@ -836,8 +841,8 @@ class GSDistillData(Dataset):
         labels = th.tensor(self.labels[index], dtype=th.float, device="cpu")
 
         return {
-        "input_ids": input_ids,
-        "labels": labels,
+            "input_ids": input_ids,
+            "labels": labels,
         }
 
     def get_collate_fn(self):

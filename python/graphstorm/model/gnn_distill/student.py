@@ -37,15 +37,12 @@ class GSDistilledModel(nn.Module):
     ----------
     transformer_name : str
         Model name for Transformer-based student model.
-    node_type : str
-        Node type.
     gnn_embed_dim : int
         Dimension of GNN embeddings.
     pre_trained_name : str
         Name of pre-trained model.
     """
-    def __init__(self, transformer_name, node_type, 
-        gnn_embed_dim, pre_trained_name=None):
+    def __init__(self, transformer_name, pre_trained_name=None):
         super(GSDistilledModel, self).__init__()
 
         # TODO (HZ): need to test other HF models.
@@ -54,12 +51,10 @@ class GSDistilledModel(nn.Module):
         if pre_trained_name is not None and pre_trained_name not in PRETRAINED_MODEL:
             raise ValueError(f'Pre-trained model {pre_trained_name} is not supported.')
 
-        self.node_type = node_type
-
         # initiate Transformer-based model
         configuration = SUPPORTED_MODEL[transformer_name][0]()
         self.transformers = SUPPORTED_MODEL[transformer_name][1](configuration)
-        self.tsf_embed_dim = SUPPORTED_MODEL[transformer_name][2]
+        self.lm_embed_dim = SUPPORTED_MODEL[transformer_name][2]
 
         # load pre-trained parameters if any
         if pre_trained_name is not None:
@@ -69,13 +64,14 @@ class GSDistilledModel(nn.Module):
             # default tokenizer
             self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
 
-        # initiate embedding project layer
-        self.proj = nn.Parameter(th.Tensor(self.tsf_embed_dim, gnn_embed_dim))
-        nn.init.xavier_uniform_(self.proj)
 
         # TODO (HZ): support more distance-based loss 
         self.loss = nn.MSELoss()
 
+    def init_proj_layer(self, gnn_embed_dim):
+        """ initiate embedding project layer."""
+        self.proj = nn.Parameter(th.Tensor(self.lm_embed_dim, gnn_embed_dim))
+        nn.init.xavier_uniform_(self.proj)
 
     def forward(self, inputs, attention_mask, labels):
         """ Forward function for student model.
