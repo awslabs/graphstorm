@@ -77,30 +77,30 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return self._layers
 
     def dist_inference(self, g, get_input_embeds, batch_size, fanout,
-                        edge_mask=None, task_tracker=None):
-            """Distributed inference of final representation over all node types.
-            Parameters
-            ----------
-            g : DistGraph
-                The distributed graph.
-            gnn_encoder : GraphConvEncoder
-                The GNN encoder on the graph.
-            get_input_embeds : callable
-                Get the node features of the input nodes.
-            batch_size : int
-                The batch size for the GNN inference.
-            fanout : list of int
-                The fanout for computing the GNN embeddings in a GNN layer.
-            edge_mask : str
-                The edge mask indicates which edges are used to compute GNN embeddings.
-            task_tracker : GSTaskTrackerAbc
-                The task tracker.
-            Returns
-            -------
-            dict of Tensor : the final GNN embeddings of all nodes.
-            """
-            return dist_inference(g, self, get_input_embeds, batch_size, fanout,
-                                edge_mask=edge_mask, task_tracker=task_tracker)
+                       edge_mask=None, task_tracker=None):
+        """Distributed inference of final representation over all node types.
+        Parameters
+        ----------
+        g : DistGraph
+            The distributed graph.
+        gnn_encoder : GraphConvEncoder
+            The GNN encoder on the graph.
+        get_input_embeds : callable
+            Get the node features of the input nodes.
+        batch_size : int
+            The batch size for the GNN inference.
+        fanout : list of int
+            The fanout for computing the GNN embeddings in a GNN layer.
+        edge_mask : str
+            The edge mask indicates which edges are used to compute GNN embeddings.
+        task_tracker : GSTaskTrackerAbc
+            The task tracker.
+        Returns
+        -------
+        dict of Tensor : the final GNN embeddings of all nodes.
+        """
+        return dist_inference(g, self, get_input_embeds, batch_size, fanout,
+                            edge_mask=edge_mask, task_tracker=task_tracker)
 
 def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                              edge_mask=None, target_ntypes=None, task_tracker=None):
