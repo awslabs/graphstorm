@@ -36,7 +36,6 @@ class GSdistiller():
     def __init__(self, rank):
         self._rank = rank
         self._device = -1
-        self._task_tracker = None
 
     def distill(
         self, 
