@@ -152,7 +152,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_graph2GPU')
 
                 # TODO(zhengda) we don't support edge features for now.
-                loss = model(blocks, batch_graph, input_feats, None, lbl, input_nodes)
+                loss = model(blocks, batch_graph, input_feats, None, None, lbl, input_nodes)
                 rt_profiler.record('train_forward')
 
                 self.optimizer.zero_grad()
@@ -303,18 +303,22 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 test_label = None
             sys_tracker.check("after_test_score")
 
+        # TODO: we only support edge prediction on one edge type for evaluation now
+        assert len(val_label) == 1, "We only support prediction on one edge type for now."
+        etype = list(val_label.keys())[0]
+
         # We need to have val and label (test and test label) data in GPU
         # when backend is nccl, as we need to use nccl.all_reduce to exchange
         # data between GPUs
-        val_pred = val_pred.to(self.device) \
-            if is_distributed() and get_backend() == "nccl" else val_pred
-        val_label = val_label.to(self.device) \
-            if is_distributed() and get_backend() == "nccl" else val_label
+        val_pred = val_pred[etype].to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_pred[etype]
+        val_label = val_label[etype].to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_label[etype]
         if test_pred is not None:
-            test_pred = test_pred.to(self.device) \
-                if is_distributed() and get_backend() == "nccl" else test_pred
-            test_label = test_label.to(self.device) \
-                if is_distributed() and get_backend() == "nccl" else test_label
+            test_pred = test_pred[etype].to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_pred[etype]
+            test_label = test_label[etype].to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_label[etype]
 
         model.train()
         sys_tracker.check('predict')
@@ -324,7 +328,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         if self.rank == 0:
             self.log_print_metrics(val_score=val_score,
-                                test_score=test_score,
-                                dur_eval=time.time() - test_start,
-                                total_steps=total_steps)
+                                   test_score=test_score,
+                                   dur_eval=time.time() - test_start,
+                                   total_steps=total_steps)
         return val_score

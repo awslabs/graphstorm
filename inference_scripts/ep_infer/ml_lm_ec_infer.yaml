@@ -30,7 +30,6 @@ gsf:
     save_model_path: null
     save_embed_path: null
   hyperparam:
-    bert_infer_bs: 128
     no_validation: false
   edge_classification:
     target_etype:

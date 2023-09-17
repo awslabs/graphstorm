@@ -250,6 +250,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             The dataloader for validation data
         test_loader : GSNodeDataLoader
             The dataloader for test data.
+        use_mini_batch_infer: bool
+            Whether do mini-batch inference
         total_steps: int
             Total number of iterations.
         return_proba: bool

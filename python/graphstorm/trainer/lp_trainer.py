@@ -23,7 +23,10 @@ from torch.nn.parallel import DistributedDataParallel
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
-from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
+from ..model.gnn import (do_full_graph_inference,
+                         do_mini_batch_inference,
+                         GSgnnModelBase,
+                         GSgnnModel)
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem
@@ -151,7 +154,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
-                             input_feats, None, input_nodes)
+                             node_feats=input_feats,
+                             edge_feats=None,
+                             input_nodes=input_nodes)
                 rt_profiler.record('train_forward')
 
                 self.optimizer.zero_grad()
@@ -243,8 +248,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, data, val_loader, test_loader, total_steps,
-             edge_mask_for_gnn_embeddings):
+    def eval(self, model, data, val_loader, test_loader,
+             total_steps, edge_mask_for_gnn_embeddings,
+             use_mini_batch_infer=False):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -261,6 +267,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             Total number of iterations.
         edge_mask_for_gnn_embeddings : str
             The mask that indicates the edges used for computing GNN embeddings.
+        use_mini_batch_infer: bool
+            Whether do mini-batch inference when computing node embeddings
 
         Returns
         -------
@@ -270,9 +278,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         sys_tracker.check('before prediction')
         model.eval()
 
-        emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
-                                      edge_mask=edge_mask_for_gnn_embeddings,
-                                      task_tracker=self.task_tracker)
+        if use_mini_batch_infer:
+            emb = do_mini_batch_inference(model, data, fanout=val_loader.fanout,
+                                          edge_mask=edge_mask_for_gnn_embeddings,
+                                          task_tracker=self.task_tracker)
+        else:
+            emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
+                                          edge_mask=edge_mask_for_gnn_embeddings,
+                                          task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
             if val_loader is not None else None

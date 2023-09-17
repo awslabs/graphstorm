@@ -89,3 +89,8 @@ write_data_parquet(movie_data, '/data/ml-100k/movie.parquet')
 edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
 edge_data = {'src_id': edges[0], 'dst_id': edges[1], 'rate': edges[2]}
 write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
+
+# generate synthetic user data with label
+user_labels = np.random.randint(11, size=feat.shape[0])
+user_data = {'id': user['id'].values, 'feat': feat, 'occupation': user['occupation'], 'label': user_labels}
+write_data_parquet(user_data, '/data/ml-100k/users_with_synthetic_labels.parquet')
