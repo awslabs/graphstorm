@@ -1249,9 +1249,9 @@ class GSConfig:
             "Must provide the number possible labels through num_classes"
         if isinstance(self._num_classes, dict):
             for num_classes in self._num_classes.values():
-                assert num_classes > 1
+                assert num_classes > 0
         else:
-            assert self._num_classes > 1
+            assert self._num_classes > 0
         return self._num_classes
 
     @property
