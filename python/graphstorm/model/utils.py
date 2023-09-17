@@ -125,8 +125,68 @@ def _get_sparse_emb_range(num_embs, local_rank, world_size):
         end = num_embs if local_rank + 1 == world_size else end
     return start, end
 
+def save_sparse_emb(model_path, sparse_emb, ntype,
+                    local_rank, world_size):
+    """ Save sparse emb `sparse_emb` into `model_path`
+
+        Sparse embeddings are stored as:
+            $model_path/$ntype/sparse_emb_0.pt
+            $model_path/$ntype/sparse_emb_1.pt
+            ...
+
+        Example:
+        --------
+
+        Save sparse embeddings of an input embed_layer by calling ``save_sparse_emb``
+        iterating all the sparse embeddings of the embed_layer
+
+        .. code::
+            # embed_layer is the input embed_layer
+            embed_layer = embed_layer.module \
+                if isinstance(embed_layer, DistributedDataParallel) \
+                else embed_layer
+
+            for ntype, sparse_emb in embed_layer.sparse_embeds.items():
+                save_sparse_emb(model_path, sparse_emb,
+                                ntype, local_rank, world_size)
+
+        Parameters
+        ----------
+        model_path: str
+            The path of the model is saved.
+        sparse_emb: dgl.distributed.DistEmbedding
+            A Distributed node embedding.
+        ntype: str
+            The node type the embedding belongs to.
+        local_rank : int
+            Local rank
+        world_size : int
+            World size in a distributed env.
+    """
+    num_embs = sparse_emb.num_embeddings
+    start, end = _get_sparse_emb_range(num_embs, local_rank, world_size)
+    # collect sparse_emb in a iterative way
+    embs = []
+    batch_size = 10240
+    # TODO: dgl.distributed.DistEmbedding should provide emb.shape
+
+    idxs = th.split(th.arange(start=start, end=end), batch_size, dim=0)
+    for idx in idxs:
+        # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
+        embs.append(sparse_emb._tensor[idx])
+
+    embs = th.cat(embs, dim=0)
+    # In distributed mode where uses an NFS folder, directly call this makedirs method to
+    # create spare embedding path will cause folder permission error that prevents
+    # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
+    # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
+    emb_path = os.path.join(model_path, ntype)
+    os.makedirs(emb_path, exist_ok=True)
+    emb_file_path = os.path.join(emb_path, f'sparse_emb_{local_rank}.pt')
+    th.save(embs, emb_file_path)
+
 def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
-    """ save sparse embeddings if any
+    """ save sparse embeddings if embed_layer has any
 
         Sparse embeddings are stored as:
         $model_path/ntype0/sparse_emb_0.pt
@@ -156,27 +216,8 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
     if len(embed_layer.sparse_embeds) > 0:
         assert local_rank < world_size
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
-            num_embs = embed_layer.g.number_of_nodes(ntype)
-            start, end = _get_sparse_emb_range(num_embs, local_rank, world_size)
-            # collect sparse_emb in a iterative way
-            embs = []
-            batch_size = 10240
-            # TODO: dgl.distributed.DistEmbedding should provide emb.shape
-
-            idxs = th.split(th.arange(start=start, end=end), batch_size, dim=0)
-            for idx in idxs:
-                # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-                embs.append(sparse_emb._tensor[idx])
-
-            embs = th.cat(embs, dim=0)
-            # In distributed mode where uses an NFS folder, directly call this makedirs method to
-            # create spare embedding path will cause folder permission error that prevents
-            # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
-            # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
-            emb_path = os.path.join(model_path, ntype)
-            os.makedirs(emb_path, exist_ok=True)
-            emb_file_path = os.path.join(emb_path, f'sparse_emb_{local_rank}.pt')
-            th.save(embs, emb_file_path)
+            save_sparse_emb(model_path, sparse_emb,
+                            ntype, local_rank, world_size)
 
 def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Save the states of the optimizers.
@@ -811,6 +852,54 @@ class TopKList():
 
         return insert_success, return_val
 
+def create_sparse_emb_path(model_path, ntype):
+    """ Create sparse embedding save path by the rank 0
+
+         The folders are like:
+            $model_path/ntype0/
+            $model_path/ntype1/
+            ...
+
+        Example:
+        --------
+
+        Creat paths on a shared file system for saving sparse embeddings of
+        an input embed_layer by calling ``create_sparse_emb_path``
+        for each sparse embedding of the embed_layer
+
+        .. code::
+            # Only rank 0 will create the path.
+            if get_rank() !=0:
+                barrier()
+                return
+
+            # rank 0 is going to create the path
+            # embed_layer is the input embed_layer
+            embed_layer = embed_layer.module \
+                if isinstance(embed_layer, DistributedDataParallel) else embed_layer
+
+            if len(embed_layer.sparse_embeds) > 0:
+                for ntype, _ in embed_layer.sparse_embeds.items():
+                    create_sparse_emb_path(model_path, ntype)
+            barrier()
+            return
+
+        Parameters
+        ----------
+        model_path: str
+            The path of the model is saved.
+        ntype: str
+            The node type the sparse embedding belongs to.
+    """
+    emb_path = os.path.join(model_path, ntype)
+    os.makedirs(emb_path, exist_ok=True)
+    # [04/16]: Assume this method is called by rank 0 who can perform chmod
+    assert get_rank() == 0, "Only can the rank 0 process can change folders mode."
+    # mode 767 means rwx-rw-rwx:
+    #     - owner of the folder can read, write, and execute;
+    #     - owner' group can read, write;
+    #     - others can read, write, and execute.
+    os.chmod(emb_path, 0o767)
 
 def create_sparse_embeds_path(model_path, embed_layer):
     """ create sparse embeddings save path by the rank 0
@@ -835,15 +924,7 @@ def create_sparse_embeds_path(model_path, embed_layer):
 
     if len(embed_layer.sparse_embeds) > 0:
         for ntype, _ in embed_layer.sparse_embeds.items():
-            emb_path = os.path.join(model_path, ntype)
-            os.makedirs(emb_path, exist_ok=True)
-            # [04/16]: Assume this method is called by rank 0 who can perform chmod
-            assert get_rank() == 0, "Only can the rank 0 process can change folders mode."
-            # mode 767 means rwx-rw-rwx:
-            #     - owner of the folder can read, write, and execute;
-            #     - owner' group can read, write;
-            #     - others can read, write, and execute.
-            os.chmod(emb_path, 0o767)
+            create_sparse_emb_path(model_path, ntype)
 
 def append_to_dict(from_dict, to_dict):
     """ Append content of from_dict to to_dict

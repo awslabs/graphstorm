@@ -139,11 +139,89 @@ class GSgnnModelBase(nn.Module):
     """
 
     @abc.abstractmethod
-    def restore_model(self, restore_model_path, model_layer_to_load):
+    def restore_dense_model(self, restore_model_path, model_layer_to_load):
+        """ Restore dense models, e.g., GNN, decoder, etc
+
+
+
+        Pseudo-code:
+
+        .. code::
+
+        Parameters
+        ----------
+        restore_model_path : str
+            The path where we can restore the model.
+        model_layer_to_load: list of str
+            list of model layers to load.
+        """
+
+    @abc.abstractmethod
+    def restore_sparse_model(self, restore_model_path, local_rank, world_size):
+        """ Restore sparse models, e.g., learnable node embeddings
+
+        Pseudo-code:
+
+        .. code::
+
+        Parameters
+        ----------
+        restore_model_path : str
+            The path where we can restore the model.
+        """
+
+    @abc.abstractmethod
+    def save_dense_model(self, model_path):
+        """Save the dense models.
+
+        Pseudo-code:
+
+        .. code::
+
+        Parameters
+        ----------
+        model_path : str
+            The path where all model parameters and optimizer states are saved.
+        """
+
+    @abc.abstractmethod
+    def save_sparse_model(self, model_path, local_rank, world_size):
+        """Save sparse models, e.g., learnable node embeddings
+
+
+
+        .. code::
+            from graphstorm.model.util import create_sparse_emb_path
+
+            if local_rank == 0:
+                for ntype, sparse_emb in sparse_embeds.items():
+                    create_sparse_emb_path(model_path, ntype)
+            # make sure rank 0 creates the folder and change permission first
+            barrier()
+
+        .. code::
+            from graphstorm.model.utils import save_sparse_embeds
+
+            for ntype, sparse_emb in sparse_embeds.items():
+                save_sparse_emb(model_path, sparse_emb, ntype,
+                                local_rank world_size)
+
+
+        Parameters
+        ----------
+        model_path : str
+            The path where all model parameters and optimizer states are saved.
+        """
+
+
+    def restore_model(self, restore_model_path, model_layer_to_load=None):
         """Load saving checkpoints of a GNN model.
 
         A user who implement this method should load the parameters of the GNN model.
         This method does not need to load the optimizer state.
+
+        Examples
+        --------
 
         Parameters
         ----------
@@ -153,18 +231,56 @@ class GSgnnModelBase(nn.Module):
             list of model layers to load. Supported layers include
             'gnn', 'embed', 'decoder'
         """
+        start_load_t = time.time()
+        # Restore the model weights from a checkpoint saved previously.
+        if restore_model_path is not None:
+            logging.debug('load GNN model from %s', restore_model_path)
+            # TODO(zhengda) we need to load edge_input_encoder.
+            model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
+                if model_layer_to_load is None else model_layer_to_load
+            self.restore_dense_model(restore_model_path, model_layer_to_load)
 
-    @abc.abstractmethod
+            logging.debug('Load Sparse embedding from %s', restore_model_path)
+            self.restore_sparse_model(restore_model_path,
+                                      get_rank(),
+                                      get_world_size())
+
+        # We need to make sure that the sparse embedding is completely loaded
+        # before all processes use the model.
+        barrier()
+
+        if get_rank() == 0:
+            logging.info('successfully load the model from %s', restore_model_path)
+            logging.info('Time on load model: %.3f seconds', time.time() - start_load_t)
+
     def save_model(self, model_path):
         ''' Save the GNN model.
 
         When saving a GNN model, we need to save the dense parameters and sparse parameters.
+
+        Examples
+        --------
 
         Parameters
         ----------
         model_path : str
             The path where all model parameters and optimizer states are saved.
         '''
+        start_save_t = time.time()
+        # Only rank 0 save dense model parameters
+        # We assume the model is written into a shared filesystem accessable
+        # to all trainers.
+        if get_rank() == 0:
+            self.save_dense_model()
+
+        self.save_sparse_model(model_path, get_rank(), get_world_size())
+        # Make sure each process finishes embedding saving.
+        barrier()
+
+        if get_rank() == 0:
+            logging.info('successfully save the model to %s', model_path)
+            logging.info('Time on save model: %.3f seconds', time.time() - start_save_t)
+
 
     @abc.abstractmethod
     def create_optimizer(self):
@@ -457,40 +573,22 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if self._edge_input_encoder is not None:
             self._edge_input_encoder.unfreeze()
 
-    def restore_model(self, restore_model_path,
-                      model_layer_to_load=None):
-        """load saving checkpoints for GNN models.
+    def restore_dense_model(self, restore_model_path, model_layer_to_load):
+        # load dense models for gnn_encoder, node_input_encoder and decoder
+        load_gsgnn_model(restore_model_path,
+                         self.gnn_encoder \
+                            if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,
+                         self.node_input_encoder \
+                            if GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load else None,
+                         self.decoder \
+                            if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
-        Parameters
-        ----------
-        restore_model_path : str
-            The path where we can restore the model.
-        model_layer_to_load: list of str
-            list of model layers to load. Supported layers include
-            'gnn', 'embed', 'decoder'
-        """
-        # Restore the model weights from a checkpoint saved previously.
-        if restore_model_path is not None:
-            logging.debug('load GNN model from %s', restore_model_path)
-            # TODO(zhengda) we need to load edge_input_encoder.
-            model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
-                if model_layer_to_load is None else model_layer_to_load
-            load_gsgnn_model(restore_model_path,
-                self.gnn_encoder \
-                    if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,
-                self.node_input_encoder \
-                    if GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load else None,
-                self.decoder \
-                    if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
-
-            logging.debug('Load Sparse embedding from %s', restore_model_path)
-            load_sparse_embeds(restore_model_path,
-                                self.node_input_encoder,
-                                get_rank(),
-                                get_world_size())
-        # We need to make sure that the sparse embedding is completely loaded
-        # before all processes use the model.
-        barrier()
+    def restore_sparse_model(self, restore_model_path, rank, world_size):
+        # restore sparse embeddings for node_input_encoder.
+        load_sparse_embeds(restore_model_path,
+                           self.node_input_encoder,
+                           rank,
+                           world_size)
 
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
@@ -589,23 +687,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             gnn_embs = embs
         return gnn_embs
 
-    def save_model(self, model_path):
-        ''' Save the GNN model.
+    def save_dense_model(self, model_path):
+        save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder, self.decoder)
 
-        When saving a GNN model, we need to save the dense parameters and sparse parameters.
-
-        Parameters
-        ----------
-        model_path : str
-            The path where all model parameters and optimizer states are saved.
-        '''
-        start_save_t = time.time()
-        # Only rank 0 save dense model parameters
-        # We assume the model is written into a shared filesystem accessable
-        # to all trainers.
-        if get_rank() == 0:
-            save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder, self.decoder)
-
+    def save_sparse_model(self, model_path, rank, world_size):
         # Saving sparse embedding is done in a distributed way.
         if get_rank() == 0:
             # Need to create embedding path and chmod to 0o777 first
@@ -615,11 +700,8 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         save_sparse_embeds(model_path,
                            self.node_input_encoder,
-                           get_rank(),
-                           get_world_size())
-        if get_rank() == 0:
-            logging.info('successfully save the model to %s', model_path)
-            logging.info('Time on save model: %.3f seconds', time.time() - start_save_t)
+                           rank,
+                           world_size)
 
     @property
     def node_input_encoder(self):
