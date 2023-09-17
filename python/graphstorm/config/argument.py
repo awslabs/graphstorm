@@ -327,6 +327,7 @@ class GSConfig:
             _ = self.imbalance_class_weights
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             _ = self.target_ntype
+            _ = self.eval_target_ntype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
             _ = self.target_etype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
@@ -788,8 +789,18 @@ class GSConfig:
                 "Use mini batch inference flag must be True or False"
             return self._use_mini_batch_infer
 
-        # By default, use mini batch inference, which requires less memory
-        return True
+        if self.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+            # For Link prediction inference, using mini-batch
+            # inference is much less efficient than full-graph
+            # inference in most cases.
+            # So we set it to False by default
+            return False
+        else:
+            # By default, for node classification/regression and
+            # edge classification/regression tasks,
+            # using mini batch inference reduces memory cost
+            # So we set it to True by default
+            return True
 
     @property
     def gnn_norm(self):
@@ -1236,7 +1247,11 @@ class GSConfig:
         # pylint: disable=no-member
         assert hasattr(self, "_num_classes"), \
             "Must provide the number possible labels through num_classes"
-        assert self._num_classes > 1
+        if isinstance(self._num_classes, dict):
+            for num_classes in self._num_classes.values():
+                assert num_classes > 1
+        else:
+            assert self._num_classes > 1
         return self._num_classes
 
     @property
@@ -1245,11 +1260,21 @@ class GSConfig:
 
             Used by node classification and edge classification
         """
-        if hasattr(self, "_multilabel"):
-            assert self._multilabel in [True, False]
-            return self._multilabel
 
-        return False
+        def check_multilabel(multilabel):
+            assert multilabel in [True, False]
+            return multilabel
+
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
+            if hasattr(self, "_multilabel"):
+                num_classes, multilabel = self.num_classes, self._multilabel
+                assert isinstance(multilabel, dict)
+                return {ntype: check_multilabel(multilabel[ntype]) for ntype in num_classes}
+            return {ntype: False for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_multilabel"):
+                return check_multilabel(self._multilabel)
+            return False
 
     @property
     def multilabel_weights(self):
@@ -1259,21 +1284,42 @@ class GSConfig:
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
-        if hasattr(self, "_multilabel_weights"):
-            assert self.multilabel is True, "Must be a multi-label classification task."
+
+        def check_multilabel_weights(multilabel, multilabel_weights, num_classes):
+            assert multilabel is True, "Must be a multi-label classification task."
             try:
-                weights = self._multilabel_weights.split(",")
+                weights = multilabel_weights.split(",")
                 weights = [float(w) for w in weights]
             except Exception: # pylint: disable=broad-except
-                assert False, "The weights should in following format 0.1,0.2,0.3,0.1,0.0"
+                raise RuntimeError("The weights should in following format 0.1,0.2,0.1,0.0")
             for w in weights:
                 assert w >= 0., "multilabel weights can not be negative values"
-            assert len(weights) == self.num_classes, \
+            assert len(weights) == num_classes, \
                 "Each class must have an assigned weight"
-
             return th.tensor(weights)
 
-        return None
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
+            if hasattr(self, "_multilabel_weights"):
+                multilabel = self.multilabel
+                num_classes = self.num_classes
+                multilabel_weights = self._multilabel_weights
+                ntype_weights = {}
+                for ntype in num_classes:
+                    if ntype in multilabel_weights:
+                        ntype_weights[ntype] = check_multilabel_weights(multilabel[ntype],
+                                                                        multilabel_weights[ntype],
+                                                                        num_classes[ntype])
+                    else:
+                        ntype_weights[ntype] = None
+                return ntype_weights
+            return {ntype: None for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_multilabel_weights"):
+                return check_multilabel_weights(self.multilabel,
+                                                self._multilabel_weights,
+                                                self.num_classes)
+
+            return None
 
     @property
     def return_proba(self):
@@ -1302,21 +1348,41 @@ class GSConfig:
 
             Customer should provide the weight in following format 0.1,0.2,0.3,0.1
         """
-        if hasattr(self, "_imbalance_class_weights"):
+
+        def check_imbalance_class_weights(imbalance_class_weights, num_classes):
             try:
-                weights = self._imbalance_class_weights.split(",")
+                weights = imbalance_class_weights.split(",")
                 weights = [float(w) for w in weights]
             except Exception: # pylint: disable=broad-except
-                assert False, \
-                    "The rescaling weights should in following format 0.1,0.2,0.3,0.1"
+                raise RuntimeError("The weights should in following format 0.1,0.2,0.3,0.1")
             for w in weights:
                 assert w > 0., "Each weight should be larger than 0."
-            assert len(weights) == self.num_classes, \
+            assert len(weights) == num_classes, \
                 "Each class must have an assigned weight"
-
             return th.tensor(weights)
 
-        return None
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
+            if hasattr(self, "_imbalance_class_weights"):
+                assert isinstance(self._imbalance_class_weights, dict), \
+                    print('The imbalance_class_weights should be dictionary')
+                num_classes = self.num_classes
+                imbalance_class_weights = self._imbalance_class_weights
+                ntype_weights = {}
+                for ntype in num_classes:
+                    if ntype in imbalance_class_weights:
+                        ntype_weights[ntype] = check_imbalance_class_weights(
+                            imbalance_class_weights[ntype],
+                            num_classes[ntype]
+                            )
+                    else:
+                        ntype_weights[ntype] = None
+                return ntype_weights
+            return {ntype: None for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_imbalance_class_weights"):
+                return check_imbalance_class_weights(self._imbalance_class_weights,
+                                                     self.num_classes)
+            return None
 
     ###classification/regression inference related ####
     @property
@@ -1340,6 +1406,25 @@ class GSConfig:
         assert hasattr(self, "_target_ntype"), \
             "Must provide the target ntype through target_ntype"
         return self._target_ntype
+
+    @property
+    def eval_target_ntype(self):
+        """ The node type for evaluation prediction
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_eval_target_ntype"):
+            assert isinstance(self._eval_target_ntype, str), \
+                "Now we only support single ntype evaluation"
+            return self._eval_target_ntype
+        else:
+            if isinstance(self.target_ntype, str):
+                return self.target_ntype
+            elif isinstance(self.target_ntype, list):
+                # (wlcong) Now only support single ntype evaluation
+                logging.warning("Now only support single ntype evaluation")
+                return self.target_ntype[0]
+            else:
+                return None
 
     #### edge related task variables ####
     @property
@@ -1704,8 +1789,13 @@ class GSConfig:
         # Task is node classification
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, \
             BUILTIN_TASK_EDGE_CLASSIFICATION]:
-            assert self.num_classes > 1, \
-                "For node classification, num_classes must be provided"
+            if isinstance(self.num_classes, dict):
+                for num_classes in self.num_classes.values():
+                    assert num_classes > 1, \
+                        "For node classification, num_classes must be provided"
+            else:
+                assert self.num_classes > 1, \
+                    "For node classification, num_classes must be provided"
 
             # check evaluation metrics
             if hasattr(self, "_eval_metric"):

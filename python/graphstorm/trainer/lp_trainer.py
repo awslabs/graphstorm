@@ -24,7 +24,10 @@ import dgl
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
-from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
+from ..model.gnn import (do_full_graph_inference,
+                         do_mini_batch_inference,
+                         GSgnnModelBase,
+                         GSgnnModel)
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem
@@ -285,10 +288,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         sys_tracker.check('before prediction')
         model.eval()
 
-        emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
-                                      edge_mask=edge_mask_for_gnn_embeddings,
-                                      task_tracker=self.task_tracker,
-                                      minibatch=use_mini_batch_infer)
+        if use_mini_batch_infer:
+            emb = do_mini_batch_inference(model, data, fanout=val_loader.fanout,
+                                          edge_mask=edge_mask_for_gnn_embeddings,
+                                          task_tracker=self.task_tracker)
+        else:
+            emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
+                                          edge_mask=edge_mask_for_gnn_embeddings,
+                                          task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
             if val_loader is not None else None

@@ -605,7 +605,7 @@ def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
                 "which is known to be insecure. It is possible to construct " \
                 "malicious pickle data which will execute arbitrary code " \
                 "during unpickling. Only load data you trust")
-    checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
+    checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'), map_location='cpu')
 
     assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
     assert len(lm_opts) <= 1, "We can only support one language model optimizer now."

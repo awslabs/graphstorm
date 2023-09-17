@@ -56,7 +56,7 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
                                              --num-parts 2 \
                                              --output /tmp/ogbn_arxiv_nc_2p
-                                             --bert-name "allenai/scibert_scivocab_uncased"
+                                             --lm-model-name "allenai/scibert_scivocab_uncased"
 ```
 
 Below command can download the OGBN mag data, process it into DGL graph, and finally split it into two partition. The partitioned graph is save at the /tmp/ogbn_mag_lp_2p folder.
@@ -83,3 +83,51 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --output /tmp/ogbn_arxiv_nc_train_val_1p_4t  \
                                              --is-homo     
 ```
+
+## Convert node features from distDGL format to WholeGraph format
+
+Use the `convert_feat_to_wholegraph.py` script with `--dataset-path` pointing to the distDGL folder of partitions. It will convert all the node features and labels to WholeGraph compatible format.
+```
+python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p
+```
+
+The script will create a new folder '`wholegraph`' under '`ogbn-mag240m-2p`' containing the WholeGraph input files and will trim the distDGL file `node_feat.dgl` in each partition to remove the feature and label attributes, leaving only other attributes such as `train_mask`, `test_mask`, and `val_mask` intact. It also saves a backup `node_feat.dgl.bak`.
+
+The features in those files can be loaded in memory via the WholeGraph API by giving the folder path and feature prefix (`<node_type>~<feat_name>`).
+Below is an example showing how to load the data:
+```python
+import json
+import os
+import torch
+import pylibwholegraph.binding.wholememory_binding as wmb
+import pylibwholegraph.torch as wgth
+
+with open('ogbn-mag240m/wholegraph/metadata.json') as f:
+    metadata = json.load(f)
+
+torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
+wmb.init(0)
+torch.distributed.init_process_group('nccl')
+global_comm = wgth.comm.get_global_communicator()
+
+cache_policy = wgth.create_builtin_cache_policy(
+    "none", # cache type
+    "distributed",
+    "cpu",
+    "readonly", # access type
+    0.0, # cache ratio
+)
+
+paper_feat_wg = wgth.create_embedding(
+                    global_comm,
+                    'distributed',
+                    'cpu',
+                    getattr(torch, metadata['paper/feat']['dtype'].split('.')[1]),
+                    metadata['paper/feat']['shape'],
+                    optimizer=None,
+                    cache_policy=cache_policy,
+                )
+# 'part_count' is the number of partition files. For distDGL it will always be the number of machines.
+paper_feat_wg.get_embedding_tensor().from_file_prefix('ogbn-mag240m/wholegraph/paper~feat', part_count=4)
+```
+

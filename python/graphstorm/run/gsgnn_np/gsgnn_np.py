@@ -35,9 +35,11 @@ def get_evaluator(config):
     """ Get evaluator class
     """
     if config.task_type == "node_classification":
+        multilabel = config.multilabel[config.eval_target_ntype] \
+            if isinstance(config.multilabel, dict) else config.multilabel
         return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
-                                 config.multilabel,
+                                 multilabel,
                                  config.use_early_stop,
                                  config.early_stop_burnin_rounds,
                                  config.early_stop_rounds,
@@ -65,6 +67,7 @@ def main(config_args):
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.target_ntype,
+                                    eval_ntypes=config.eval_target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
