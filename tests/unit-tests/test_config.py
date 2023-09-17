@@ -1076,6 +1076,7 @@ def test_lp_info():
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["link_prediction"] = {}
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgat"
     }
@@ -1084,7 +1085,6 @@ def create_gnn_config(tmp_path, file_name):
         "fanout": "10,20,30",
         "num_layers": 3,
         "hidden_size": 128,
-        "use_mini_batch_infer": False
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1105,12 +1105,20 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["node_classification"] = {}
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "rgat"
+    }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,feat_name2", "ntype1:fname"],
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["edge_classification"] = {}
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "rgat"
+    }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
     }
@@ -1199,6 +1207,7 @@ def test_gnn_info():
         assert 'ntype1' in config.node_feat_name
         assert config.node_feat_name['ntype0'] == ["feat_name", "feat_name2"]
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test4.yaml'),
                          local_rank=0)
@@ -1210,6 +1219,7 @@ def test_gnn_info():
         assert "feat_name" in config.node_feat_name['ntype0']
         assert "fname" in config.node_feat_name['ntype0']
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test5.yaml'),
                          local_rank=0)
