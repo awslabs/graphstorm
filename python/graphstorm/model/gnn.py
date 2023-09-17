@@ -31,6 +31,7 @@ from .utils import create_sparse_embeds_path
 from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
+from .gnn_encoder_base import dist_minibatch_inference
 from ..utils import get_rank, get_world_size, barrier
 from ..dataloading.dataset import prepare_batch_input
 
@@ -348,10 +349,17 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if encoder is None:
             self._gnn_encoder = None
             if self.node_input_encoder is not None and self.decoder is not None:
-                assert self.node_input_encoder.out_dims == self.decoder.in_dims, \
-                    'When GNN encoder is not used, the output dimensions of ' \
-                    'the node input encoder should match the input dimension of' \
-                    'the decoder.'
+                if isinstance(self.decoder, nn.ModuleDict):
+                    for ntype in self.decoder:
+                        assert self.node_input_encoder.out_dims == self.decoder[ntype].in_dims, \
+                            'When GNN encoder is not used, the output dimensions of ' \
+                            'the node input encoder should match the input dimension of' \
+                            'the decoder.'
+                else:
+                    assert self.node_input_encoder.out_dims == self.decoder.in_dims, \
+                        'When GNN encoder is not used, the output dimensions of ' \
+                        'the node input encoder should match the input dimension of' \
+                        'the decoder.'
             return
 
         assert isinstance(encoder, GSLayerBase), \
@@ -361,38 +369,67 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                     'The output dimensions of the node input encoder should ' \
                     + 'match the input dimension of the GNN encoder.'
         if self.decoder is not None:
-            assert encoder.out_dims == self.decoder.in_dims, \
-                    'The output dimensions of the GNN encoder should ' \
-                    + 'match the input dimension of the decoder.'
+            if isinstance(self.decoder, nn.ModuleDict):
+                for ntype in self.decoder:
+                    assert encoder.out_dims == self.decoder[ntype].in_dims, \
+                        'The output dimensions of the GNN encoder should ' \
+                        + 'match the input dimension of the decoder.'
+            else:
+                assert encoder.out_dims == self.decoder.in_dims, \
+                        'The output dimensions of the GNN encoder should ' \
+                        + 'match the input dimension of the decoder.'
         self._gnn_encoder = encoder
 
-    def set_decoder(self, decoder):
+    def set_decoder(self, decoders):
         """set the decoder layer.
 
         Parameters
         ----------
-        decoder : GSLayer
-            The decoder.
+        decoders : GSLayer or dict[str, GSLayer]
+            The decoder or dictionary of GSLayer.
         """
-        assert isinstance(decoder, GSLayerBase), \
-                'The decoder should be the class of GSLayerBase.'
-        if self.gnn_encoder is not None:
-            assert self.gnn_encoder.out_dims == decoder.in_dims, \
-                    'The output dimensions of the GNN encoder should ' \
-                    + 'match the input dimension of the decoder.'
-        self._decoder = decoder
+        if isinstance(decoders, dict):
+            self._decoder = nn.ModuleDict()
+            for name, decoder in decoders.items():
+                assert isinstance(
+                    decoder, GSLayerBase
+                ), "The decoder should be the class of GSLayerBase."
+                if self.gnn_encoder is not None:
+                    assert self.gnn_encoder.out_dims == decoder.in_dims, (
+                        "The output dimensions of the GNN encoder should "
+                        + "match the input dimension of the decoder."
+                    )
+                self._decoder[name] = decoder
+        else:
+            decoder=decoders
+            assert isinstance(decoder, GSLayerBase), \
+                    'The decoder should be the class of GSLayerBase.'
+            if self.gnn_encoder is not None:
+                assert self.gnn_encoder.out_dims == decoder.in_dims, \
+                        'The output dimensions of the GNN encoder should ' \
+                        + 'match the input dimension of the decoder.'
+            self._decoder = decoder
 
-    def set_loss_func(self, loss_fn):
+    def set_loss_func(self, loss_fns):
         """set the loss function.
 
         Parameters
         ----------
-        loss_fn : Pytorch nn.Module
-            The loss function.
+        loss_fns : Pytorch nn.Module or dist[str, Pytorch nn.Module]
+            The loss function or dictionary of Pytorch nn.Module.
         """
-        assert isinstance(loss_fn, nn.Module), \
-                'The loss function should be the class of nn.Module.'
-        self._loss_fn = loss_fn
+        if isinstance(loss_fns, dict):
+            self._loss_fn = nn.ModuleDict()
+            for name, loss_fn in loss_fns.items():
+                assert isinstance(
+                    loss_fn, nn.Module
+                ), "The loss function should be the class of nn.Module."
+                self._loss_fn[name] = loss_fn
+        else:
+            loss_fn = loss_fns
+            assert isinstance(loss_fn, nn.Module), \
+                    'The loss function should be the class of nn.Module.'
+            self._loss_fn = loss_fn
 
     def prepare_input_encoder(self, train_data):
         """ Preparing input layer for training or inference.
@@ -621,6 +658,89 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         return self._loss_fn
 
+def do_mini_batch_inference(model, data, batch_size=1024,
+                            fanout=None, edge_mask=None, infer_ntypes=None,
+                            task_tracker=None):
+    """ Do mini batch inference
+
+    It may use some of the edges indicated by `edge_mask` to compute GNN embeddings.
+
+    Parameters
+    ----------
+    model: torch model
+        GNN model
+    data : GSgnnData
+        The GraphStorm dataset
+    batch_size : int
+        The batch size for inferencing a GNN layer
+    fanout: list of int
+        The fanout for computing the GNN embeddings in a GNN layer.
+    edge_mask : str
+        The edge mask that indicates what edges are used to compute GNN embeddings.
+    infer_ntypes: list of str
+        Node types that need to compute node embeddings.
+    task_tracker: GSTaskTrackerAbc
+        Task tracker
+
+    Returns
+    -------
+    dict of th.Tensor : node embeddings.
+    """
+    t1 = time.time() # pylint: disable=invalid-name
+    barrier()
+    if model.gnn_encoder is None:
+        # Only graph aware but not GNN models
+        embeddings = compute_node_input_embeddings(data.g,
+                                                   batch_size,
+                                                   model.node_input_encoder,
+                                                   task_tracker=task_tracker,
+                                                   feat_field=data.node_feat_field,
+                                                   target_ntypes=infer_ntypes)
+    elif model.node_input_encoder.require_cache_embed():
+        # If the input encoder has heavy computation, we should compute
+        # the embeddings and cache them.
+        input_embeds = compute_node_input_embeddings(data.g,
+                                                     batch_size,
+                                                     model.node_input_encoder,
+                                                     task_tracker=task_tracker,
+                                                     feat_field=data.node_feat_field)
+        model.eval()
+        device = model.gnn_encoder.device
+        def get_input_embeds(input_nodes):
+            if not isinstance(input_nodes, dict):
+                assert len(data.g.ntypes) == 1
+                input_nodes = {data.g.ntypes[0]: input_nodes}
+            return {ntype: input_embeds[ntype][ids].to(device) \
+                    for ntype, ids in input_nodes.items()}
+        embeddings = dist_minibatch_inference(data.g,
+                                                model.gnn_encoder,
+                                                get_input_embeds,
+                                                batch_size, fanout,
+                                                edge_mask=edge_mask,
+                                                target_ntypes=infer_ntypes,
+                                                task_tracker=task_tracker)
+    else:
+        model.eval()
+        device = model.gnn_encoder.device
+        def get_input_embeds(input_nodes):
+            if not isinstance(input_nodes, dict):
+                assert len(data.g.ntypes) == 1
+                input_nodes = {data.g.ntypes[0]: input_nodes}
+            feats = prepare_batch_input(data.g, input_nodes, dev=device,
+                                        feat_field=data.node_feat_field)
+            return model.node_input_encoder(feats, input_nodes)
+        embeddings = dist_minibatch_inference(data.g,
+                                                model.gnn_encoder,
+                                                get_input_embeds,
+                                                batch_size, fanout,
+                                                edge_mask=edge_mask,
+                                                target_ntypes=infer_ntypes,
+                                                task_tracker=task_tracker)
+    model.train()
+    if get_rank() == 0:
+        logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)
+    return embeddings
+
 def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask=None,
                             task_tracker=None):
     """ Do fullgraph inference
@@ -674,8 +794,8 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
             return {ntype: input_embeds[ntype][ids].to(device) \
                     for ntype, ids in input_nodes.items()}
         embeddings = model.gnn_encoder.dist_inference(data.g, get_input_embeds,
-                                                      batch_size, fanout, edge_mask=edge_mask,
-                                                      task_tracker=task_tracker)
+                                                    batch_size, fanout, edge_mask=edge_mask,
+                                                    task_tracker=task_tracker)
         model.train()
     else:
         model.eval()
@@ -687,9 +807,10 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
             feats = prepare_batch_input(data.g, input_nodes, dev=device,
                                         feat_field=data.node_feat_field)
             return model.node_input_encoder(feats, input_nodes)
+
         embeddings = model.gnn_encoder.dist_inference(data.g, get_input_embeds,
-                                                      batch_size, fanout, edge_mask=edge_mask,
-                                                      task_tracker=task_tracker)
+                                                    batch_size, fanout, edge_mask=edge_mask,
+                                                    task_tracker=task_tracker)
         model.train()
     if get_rank() == 0:
         logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)

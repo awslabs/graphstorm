@@ -27,7 +27,7 @@ class GSgnnLinkPredictionModelInterface:
     """
     @abc.abstractmethod
     def forward(self, blocks, pos_graph, neg_graph,
-        node_feats, edge_feats, input_nodes=None):
+        node_feats, edge_feats, pos_edge_feats=None, neg_edge_feats=None, input_nodes=None):
         """ The forward function for link prediction.
 
         This method is used for training. It takes a mini-batch, including
@@ -77,8 +77,10 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         super(GSgnnLinkPredictionModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
 
+    # pylint: disable=unused-argument
     def forward(self, blocks, pos_graph,
-        neg_graph, node_feats, _, input_nodes=None):
+        neg_graph, node_feats, edge_feats,
+        pos_edge_feats=None, neg_edge_feats=None, input_nodes=None):
         """ The forward function for link prediction.
 
         This model doesn't support edge features for now.

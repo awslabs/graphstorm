@@ -324,7 +324,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         return self.embed_size
 
 def compute_node_input_embeddings(g, batch_size, embed_layer,
-                                  task_tracker=None, feat_field='feat'):
+                                  task_tracker=None, feat_field='feat',
+                                  target_ntypes=None):
     """
     This function computes the input embeddings of all nodes in a distributed graph
     either from the node features or from the embedding layer.
@@ -341,6 +342,8 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
         The task tracker.
     feat_field : str or dict of str
         The fields that contain the node features.
+    target_ntypes: list of str
+        Node types that need to compute input embeddings.
 
     Returns
     -------
@@ -350,9 +353,10 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
     embed_layer.eval()
 
     n_embs = {}
+    target_ntypes = g.ntypes if target_ntypes is None else target_ntypes
     th.cuda.empty_cache()
     with th.no_grad():
-        for ntype in g.ntypes:
+        for ntype in target_ntypes:
             embed_size = embed_layer.out_dims
             # TODO(zhengda) we need to be careful about this. Here it creates a persistent
             # distributed tensor to store the node embeddings. This can potentially consume

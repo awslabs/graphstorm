@@ -432,7 +432,6 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         lm_tune_lr: 0.0001
         num_epochs: 200
         batch_size: 1024
-        bert_infer_bs: 128
         wd_l2norm: 0
         alpha_l2norm: 0.
     rgcn:
