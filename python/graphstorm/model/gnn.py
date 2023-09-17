@@ -761,10 +761,6 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
         The edge mask that indicates what edges are used to compute GNN embeddings.
     task_tracker: GSTaskTrackerAbc
         Task tracker
-    minibatch: bool
-        Whether do inference in a minibatch way. If false, GraphStorm will
-        compute node embeddings in a layer-by-layer fasion. If true, it
-        will compute node embeddings in a minibatch fasion.
 
     Returns
     -------

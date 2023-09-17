@@ -336,7 +336,12 @@ class GSgnnLinkPredictionDataLoader():
         return self
 
     def __next__(self):
-        return self.dataloader.__next__()
+        input_nodes, pos_graph, neg_graph, blocks = self.dataloader.__next__()
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
+            blocks.insert(0, block)
+
+        return (input_nodes, pos_graph, neg_graph, blocks)
 
     @property
     def data(self):
@@ -662,7 +667,12 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
         return self
 
     def __next__(self):
-        return self.dataloader.__next__()
+        input_nodes, pos_graph, neg_graph, blocks = self.dataloader.__next__()
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
+            blocks.insert(0, block)
+
+        return (input_nodes, pos_graph, neg_graph, blocks)
 
 class GSgnnAllEtypeLPJointNegDataLoader(GSgnnAllEtypeLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler.
