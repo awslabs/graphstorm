@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import logging
-from typing import List
+from typing import List, Optional
 
 import boto3
 from botocore.config import Config
@@ -76,3 +76,41 @@ def s3_path_remove_trailing(s3_path: str) -> str:
     if s3_path.endswith("/"):
         return s3_path[:-1]
     return s3_path
+
+
+def extract_bucket_and_key(
+    path_with_bucket: str, relative_path: Optional[str] = None
+) -> tuple[str, str]:
+    """Given an S3 path that includes a bucket, and a relative path,
+    extracts the bucket name and full key path.
+
+    Parameters
+    ----------
+    path_with_bucket : str
+        An S3 path that can include a bucket name and a key prefix, e.g.
+        's3://my-bucket/my/prefix/'.
+    relative_path : Optional[str], optional
+        An S3 key path that's relative to `path_with_bucket`, e.g.
+        'rest/of/path/to/key'. If not provided only `path_with_bucket`
+        will be split.
+
+    Returns
+    -------
+    str
+        A tuple whose first element is the bucket name and the second
+        the full path to the key.
+    """
+    if not path_with_bucket.startswith("s3://"):
+        path_with_bucket = f"s3://{path_with_bucket}"
+    if relative_path:
+        if relative_path.startswith("/"):
+            relative_path = relative_path[1:]
+        file_s3_uri = f"{path_with_bucket}/{relative_path}"
+    else:
+        file_s3_uri = path_with_bucket
+    # We split on '/' to get the bucket, as it's always the third split element in an S3 URI
+    file_bucket = file_s3_uri.split("/")[2]
+    # Similarly, by having maxsplit=3 we get the S3 key value as the fourth element
+    file_key = file_s3_uri.split("/", 3)[3]
+
+    return file_bucket, file_key
