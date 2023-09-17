@@ -21,17 +21,9 @@ import os
 import torch as th
 import numpy as np
 import graphstorm as gs
-from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.inference import GSgnnLinkPredictionInfer
-from graphstorm.distiller import GSdistiller, read_nid
-from graphstorm.eval import GSgnnMrrLPEvaluator
-from graphstorm.dataloading import GSgnnEdgeInferData
-from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.distiller import GSdistiller
 from graphstorm.utils import setup_device
 
 

@@ -20,11 +20,6 @@ import torch as th
 from torch.nn.parallel import DistributedDataParallel
 import os
 import json
-import pandas as pd
-
-from ..model.gnn import do_full_graph_inference
-from ..utils import sys_tracker
-from .utils import remap_embeddings
 
 from ..model.gnn_distill import GSDistilledModel
 from ..dataloading import DataloaderGenerator, DataManager
@@ -355,24 +350,6 @@ class GSdistiller():
             The device for distillation.
         """
         self._device = th.device(device)
-
-    def setup_task_tracker(self, task_tracker):
-        """ Set the task tracker.
-
-        Parameters
-        ----------
-        task_tracker : GSTaskTracker
-            The task tracker
-        """
-        if self.evaluator is not None:
-            self.evaluator.setup_task_tracker(task_tracker)
-        self._task_tracker = task_tracker
-
-    @property
-    def task_tracker(self):
-        """ Get the task tracker associated with the inference.
-        """
-        return self._task_tracker
 
     @property
     def rank(self):

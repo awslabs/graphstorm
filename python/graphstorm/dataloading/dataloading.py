@@ -979,7 +979,6 @@ class DataManager:
             raise ValueError(
                     "dataset_path needs to be specified"
                 )
-
         self.file_sampler = file_sampler
         self.file_sampler_iter = iter(self.file_sampler)
 
@@ -1087,7 +1086,6 @@ class DataloaderGenerator:
         # do all_reduce here:
         if is_train:
             data = self._data_len_sync(data)
-
 
         collate_fn = data.get_collate_fn() if self.collate_fn is None else self.collate_fn
 

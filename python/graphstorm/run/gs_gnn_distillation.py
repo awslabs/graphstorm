@@ -33,15 +33,9 @@ def main():
     check_input_arguments(args)
 
     lib_dir = os.path.abspath(os.path.dirname(__file__))
-    cmd = "gsgnn_dt/distill_lm.py" if args.lm_encoder_only \
-            else "gsgnn_dt/distill_gnn.py"
+    cmd = "gsgnn_dt/distill_gnn.py"
     cmd_path = os.path.join(lib_dir, cmd)
     exec_script_args = [cmd_path] + exec_script_args
-
-    if "coo" not in args.graph_format:
-        args.graph_format = f"{args.graph_format},coo"
-        print(f"Automatically add COO format to graph formats for link prediction. \
-              New graph_format is {args.graph_format}")
     submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":

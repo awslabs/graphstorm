@@ -456,7 +456,6 @@ class SequentialFileSampler():
     is_train : bool
         Set to ``True`` if it's training set.
     """
-
     def __init__(self, file_indices, is_train=True):
         self.file_indices = file_indices
         self.num_local_files = len(self.file_indices)
@@ -490,7 +489,6 @@ class RandomShuffleFileSampler():
     file_indices : list of int
         File indices for a local trainer
     """
-
     def __init__(self, file_indices):
         self.file_indices = file_indices
         self.num_local_files = len(self.file_indices)
@@ -533,7 +531,6 @@ class DistributedFileSampler(_FileSampler):
     is_train : bool
         Set to ``True`` if it's training set.
     """
-
     def __init__(
         self, 
         dataset_path=None, 

@@ -17,4 +17,3 @@
 """
 
 from .distiller import GSdistiller
-from .utils import read_nid

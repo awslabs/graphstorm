@@ -23,7 +23,6 @@ import dgl
 from torch.utils.data import Dataset
 import pandas as pd
 
-
 from ..utils import get_rank, get_world_size
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
