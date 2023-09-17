@@ -54,7 +54,7 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size):
                     dgl.distributed.DistTensor(
                         (g.number_of_nodes(ntype), hidden_size),
                         name="bert_emb",
-                        dtype=th.float32,
+                        dtype=th.float16,
                         part_policy=g.get_node_partition_policy(ntype),
                         persistent=True)
         input_emb = g.nodes[ntype].data['bert_emb']
@@ -73,7 +73,7 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size):
                     fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
             }
             text_embs = lm_model(input_ntypes, input_lm_feats)
-            input_emb[input_nodes] = text_embs[ntype].to('cpu')
+            input_emb[input_nodes] = text_embs[ntype].half().to('cpu')
         barrier()
         lm_emb_cache[ntype] = input_emb
         lm_model.train()
@@ -145,7 +145,7 @@ class LMModels(nn.Module):
             # Note: self.lm_emb_cache is initialized by calling warmup
             for ntype, idx in input_nodes.items():
                 if ntype in lm_emb_cache:
-                    lm_feats[ntype] = lm_emb_cache[ntype][idx].to(dev)
+                    lm_feats[ntype] = lm_emb_cache[ntype][idx].to(dev).float()
         else:
             # TODO: Release the bert cache properly
             #       This may need support from DistDGL
