@@ -1791,10 +1791,10 @@ class GSConfig:
             BUILTIN_TASK_EDGE_CLASSIFICATION]:
             if isinstance(self.num_classes, dict):
                 for num_classes in self.num_classes.values():
-                    assert num_classes > 1, \
+                    assert num_classes > 0, \
                         "For node classification, num_classes must be provided"
             else:
-                assert self.num_classes > 1, \
+                assert self.num_classes > 0, \
                     "For node classification, num_classes must be provided"
 
             # check evaluation metrics
