@@ -1257,7 +1257,6 @@ class GSConfig:
             # (1) evaluation code need to first recognize whether it is binary classification
             # (2) then evaluation code select the positive score column from the 2-d prediction.
             assert self._num_classes > 0
-
         return self._num_classes
 
     @property
