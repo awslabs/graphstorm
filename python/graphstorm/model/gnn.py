@@ -139,14 +139,36 @@ class GSgnnModelBase(nn.Module):
     """
 
     @abc.abstractmethod
-    def restore_dense_model(self, restore_model_path, model_layer_to_load):
+    def restore_dense_model(self, restore_model_path, model_layer_to_load=[]):
         """ Restore dense models, e.g., GNN, decoder, etc
 
+        All model parameters except for learnable node embeddings, i.e.,
+        dgl.distributed.DistEmbedding, are restored in this function.
+        This fuction should go though all the sub NN models and corresponding
+        parameters from ``restore_model_path.``
 
-
-        Pseudo-code:
+        Example:
+        --------
+        To load model parameters for a model with a node_input_encoder, a
+        GNN layer and a decoder:
 
         .. code::
+            # suppose we are going to load all layers.
+            input_encoder = self.input_encoder
+            gnn_model = self.gnn_model
+            decoder = self.decoder
+
+            checkpoint = th.load(os.path.join(model_path, 'model.bin'),
+                                 map_location='cpu',
+                                 weights_only=True)
+
+            assert 'gnn' in checkpoint
+            assert 'input_encoder' in checkpoint
+            assert 'decoder' in checkpoint
+
+            input_encoder.load_state_dict(checkpoint['input'], strict=False)
+            gnn_model.load_state_dict(checkpoint['gnn'])
+            decoder.load_state_dict(checkpoint['decoder'])
 
         Parameters
         ----------
@@ -160,7 +182,11 @@ class GSgnnModelBase(nn.Module):
     def restore_sparse_model(self, restore_model_path, local_rank, world_size):
         """ Restore sparse models, e.g., learnable node embeddings
 
-        Pseudo-code:
+        Learnable node embeddings are restored by this function
+
+        Example:
+        --------
+        To load model parameters for a node_input_encoder
 
         .. code::
 
@@ -174,9 +200,29 @@ class GSgnnModelBase(nn.Module):
     def save_dense_model(self, model_path):
         """Save the dense models.
 
-        Pseudo-code:
+        All model parameters except for learnable node embeddings, i.e.,
+        dgl.distributed.DistEmbedding, are saved by this function.
+        This fuction should go though all the sub NN models and corresponding
+        parameters and save them under model_path
+
+        Example:
+        --------
 
         .. code::
+            # This function is only called by rank 0
+            input_encoder = self.input_encoder
+            gnn_model = self.gnn_model
+            decoder = self.decoder
+
+            model_states = {}
+            model_states['gnn'] = gnn_model.state_dict()
+            model_states['input'] = input_encoder.state_dict()
+            model_states['decoder'] = decoder.state_dict()
+
+            os.makedirs(model_path, exist_ok=True)
+            # mode 767 means rwx-rw-rwx:
+            os.chmod(model_path, 0o767)
+            th.save(model_states, os.path.join(model_path, 'model.bin'))
 
         Parameters
         ----------
@@ -188,7 +234,17 @@ class GSgnnModelBase(nn.Module):
     def save_sparse_model(self, model_path, local_rank, world_size):
         """Save sparse models, e.g., learnable node embeddings
 
+        Learnable node embeddings are saved by this function. Saving learnable
+        node embeddings only works when 1) the training task is run on a single machine
+        or 2) the training task is running on a distributed environment with a
+        shared file system.
 
+        Example:
+        --------
+        The implementation of save_sparse_model usually includes two steps:
+
+        Step 1: Create a path to save the learnable node embeddings. Please note,
+        only rank 0 does step 1.
 
         .. code::
             from graphstorm.model.util import create_sparse_emb_path
@@ -199,13 +255,13 @@ class GSgnnModelBase(nn.Module):
             # make sure rank 0 creates the folder and change permission first
             barrier()
 
+        Step 2: Save learnable node embeddings.
         .. code::
             from graphstorm.model.utils import save_sparse_embeds
 
             for ntype, sparse_emb in sparse_embeds.items():
                 save_sparse_emb(model_path, sparse_emb, ntype,
                                 local_rank world_size)
-
 
         Parameters
         ----------
@@ -573,7 +629,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if self._edge_input_encoder is not None:
             self._edge_input_encoder.unfreeze()
 
-    def restore_dense_model(self, restore_model_path, model_layer_to_load):
+    def restore_dense_model(self, restore_model_path, model_layer_to_load=[]):
         # load dense models for gnn_encoder, node_input_encoder and decoder
         load_gsgnn_model(restore_model_path,
                          self.gnn_encoder \
