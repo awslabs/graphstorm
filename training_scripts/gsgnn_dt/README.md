@@ -1,4 +1,4 @@
-# GNN Distillation Tutorial
+# Tutorial: Use GraphStorm for GNN Distillation
 
 ## 0. Pipeline Overview
 GraphStorm supports to distill well-trained GNN models to user specified Transformer-based student model that can inference on any textual data, thus to 1) resolve the unseen node inference issue, and 2) remove the graph dependency for easy deployment . The distillation is conducted to minimize the embeddings between GNN checkpoint and student model. MSE is used to supervise the training.
@@ -82,7 +82,7 @@ gsf:
 
 ### 2.1. Transformer-based LM model
 
-In the case where only required inputs are specified, the student Transformer-based model would default to be [DistilBERT](https://huggingface.co/docs/transformers/model_doc/distilbert) from HuggingFace, with pre-trained weights from “[distilbert-base-uncased](https://huggingface.co/distilbert-base-uncased)”. The distillation would be trained by default hyper-parameters described in Appendix A. 
+In the case where only required inputs are specified, the student Transformer-based model would default to be [DistilBERT](https://huggingface.co/docs/transformers/model_doc/distilbert) from HuggingFace, with pre-trained weights from “[distilbert-base-uncased](https://huggingface.co/distilbert-base-uncased)”. The distillation would be trained by default hyper-parameters described in section 3.1. 
  
 Users can specify other LM model architectures by specifying the arguments:
 ```
@@ -97,27 +97,28 @@ gsf:
   ...
 ```
 
-For user who wants to specify other hyper-parameters, please refer to Appendix A. for more optional inputs.
+For user who wants to specify other hyper-parameters, please refer to section 3.1 for more optional inputs.
 
 
 ## 3. Output
 
-The distilled Transformer-based student model would be the only output. The checkpoint will be saved in ```<save_model_path>/checkpoint-<global_step>``` specified by the user. For each checkpoint folder, two files will be saved: ```config.yaml``` to save the configs for distillation, and ```pytorch_model.bin``` to save the model weights.
+The distilled Transformer-based student model would be the only output. The checkpoint will be saved in ```<save_model_path>/checkpoint-<global_step>``` specified by the user. For each checkpoint folder, the tokenizer, the project layer and the LM model will be saved respectively. Find the structure below:
+```
+<save_model_path>/checkpoint-<global_step>
+|- tokenizer
+    special_tokens_map.json
+    tokenizer_config.json
+    tokenizer.json
+    vocab.txt
+|- lm
+    config.json
+    pytorch_model.bin
+|- proj
+    pytorch_model.bin
+```
 
 ## Running Command
-```
-python3 -m graphstorm.run.gs_gnn_distillation \
-        --workspace /tmp/gsgnn_dt/ \
-        --num-trainers 2 \
-        --num-servers 2 \
-        --num-samplers 0 \
-        --ip-config /tmp/gsgnn_dt/ip_list.txt \
-        --ssh-port 2222 \
-        --cf /tmp/gsgnn_dt/config.yaml
-```
-
-## Appendix
-### A. Default and optional Hyper-parameters
+### 3.1. An exemplary YAML file
 ```
 ---
 version: 1.0
@@ -137,4 +138,15 @@ gsf:
     num_epochs: 3 # optional, default to be 3
     batch_size: 128 # optional, default to be 128
     eval_frequency: 1000 # optional, default to be 1000
+```
+### 3.2. Command
+```
+python3 -m graphstorm.run.gs_gnn_distillation \
+        --workspace /tmp/gsgnn_dt/ \
+        --num-trainers 2 \
+        --num-servers 2 \
+        --num-samplers 0 \
+        --ip-config /tmp/gsgnn_dt/ip_list.txt \
+        --ssh-port 2222 \
+        --cf /tmp/gsgnn_dt/config.yaml
 ```

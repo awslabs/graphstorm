@@ -82,7 +82,7 @@ class GSdistiller():
         on_cpu : bool
             Whether the distillation will be conducted on cpu.
         """
-        self.student = GSDistilledModel(lm_name, pre_trained_name=pre_trained_name)
+        self.student = GSDistilledModel(lm_name=lm_name, pre_trained_name=pre_trained_name)
         dataloader_generator = DataloaderGenerator(tokenizer=self.student.tokenizer, 
             max_seq_len = max_seq_len,
             device=self.device, 
@@ -109,7 +109,7 @@ class GSdistiller():
             raise RuntimeError("No validation data") 
         batch = next(iter(dataset_iterator))
         gnn_embed_dim = batch["labels"].shape[1]
-        self.student.init_proj_layer(gnn_embed_dim)
+        self.student.init_proj_layer(gnn_embed_dim=gnn_embed_dim)
 
         # TODO (HZ): add flexibility to specify different optimizers
         optimizer = th.optim.Adam(self.student.parameters(), lr=distill_lr)
@@ -153,29 +153,17 @@ class GSdistiller():
         """
         th.distributed.barrier()
         if self.rank == 0:
-            os.makedirs(os.path.join(saved_path, f"checkpoint-{global_step}"), exist_ok=True)
-            config_file_loc = os.path.join(saved_path, f"checkpoint-{global_step}", "config.yaml")
-            model_file_loc = os.path.join(saved_path, f"checkpoint-{global_step}", "pytorch_model.bin")
-            print (f"Saving checkpoint to {model_file_loc}")
+            checkpoint_path = os.path.join(saved_path, f"checkpoint-{global_step}")
+            proj_dir_loc = os.path.join(checkpoint_path, "proj")
+            tokenizer_dir_loc = os.path.join(checkpoint_path, "tokenizer")
+            lm_dir_loc = os.path.join(checkpoint_path, "lm")
+            os.makedirs(proj_dir_loc, exist_ok=True)
+            print (f"Saving checkpoint to {checkpoint_path}")
 
-            def to_dict(config):
-                """
-                Serializes this instance to a Python dictionary.
-                """
-                json_string = json.dumps(
-                    config.__dict__,
-                    default=lambda o: getattr(o, "__dict__", str(o)),
-                    indent=2,
-                    sort_keys=True,
-                )
-                output = json.loads(json_string)
-                return output
-
-            config_dict = to_dict(self)
-            with open(config_file_loc, "w", encoding="utf-8") as of:
-                json.dump(config_dict, of, indent=2, sort_keys=True)
             # TODO (HZ): need to test if the saved model can be successfully loaded
-            th.save(model.module.state_dict(), model_file_loc)
+            model.module.tokenizer.save_pretrained(tokenizer_dir_loc)
+            model.module.lm.save_pretrained(lm_dir_loc)
+            th.save(model.module.state_dict()["proj"], os.path.join(proj_dir_loc, "pytorch_model.bin"))
 
         return True
 

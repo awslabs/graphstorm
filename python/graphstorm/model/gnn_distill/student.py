@@ -15,13 +15,19 @@
 
     GNN student model class
 """
-
+import os
 import torch as th
 from torch import nn
-from transformers import DistilBertConfig, DistilBertModel, AutoTokenizer
+from transformers import (
+    AutoTokenizer,
+    AutoConfig,
+    AutoModel,
+    DistilBertConfig, 
+    DistilBertModel, 
+)
 
 SUPPORTED_MODEL = {
-"DistilBertModel": (DistilBertConfig, DistilBertModel, 768),
+"DistilBertModel": (DistilBertConfig, DistilBertModel),
 }
 
 PRETRAINED_MODEL = [
@@ -42,39 +48,58 @@ class GSDistilledModel(nn.Module):
     pre_trained_name : str
         Name of pre-trained model.
     """
-    def __init__(self, lm_name, pre_trained_name=None):
+    def __init__(self, lm_name=None, pre_trained_name=None, checkpoint_path=None):
         super(GSDistilledModel, self).__init__()
 
-        # TODO (HZ): need to test other HF models.
-        if lm_name not in SUPPORTED_MODEL:
-            raise ValueError(f'Model class {lm_name} is not supported.')
-        if pre_trained_name is not None and pre_trained_name not in PRETRAINED_MODEL:
-            raise ValueError(f'Pre-trained model {pre_trained_name} is not supported.')
+        if not checkpoint_path:
+            # TODO (HZ): need to test other HF models.
+            if lm_name not in SUPPORTED_MODEL:
+                raise ValueError(f'Model class {lm_name} is not supported.')
+            if pre_trained_name is not None and pre_trained_name not in PRETRAINED_MODEL:
+                raise ValueError(f'Pre-trained model {pre_trained_name} is not supported.')
 
-        self.lm_name = lm_name
+            # initiate Transformer-based model
+            self.lm_config = SUPPORTED_MODEL[lm_name][0]()
+            self.lm = SUPPORTED_MODEL[lm_name][1](self.lm_config)
 
-        # initiate Transformer-based model
-        self.lm_config = SUPPORTED_MODEL[lm_name][0]()
-        self.lm = SUPPORTED_MODEL[lm_name][1](self.lm_config)
-        self.lm_embed_dim = SUPPORTED_MODEL[lm_name][2]
-
-        # load pre-trained parameters if any
-        if pre_trained_name is not None:
-            self.tokenizer = AutoTokenizer.from_pretrained(pre_trained_name)
-            self.lm = self.lm.from_pretrained(pre_trained_name)
+            # load pre-trained parameters if any
+            if pre_trained_name is not None:
+                self.tokenizer = AutoTokenizer.from_pretrained(pre_trained_name)
+                self.lm = self.lm.from_pretrained(pre_trained_name)
+            else:
+                # default tokenizer
+                self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
         else:
-            # default tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-
+            self.load_from_gs_checkpoint(checkpoint_path)
 
         # TODO (HZ): support more distance-based loss 
         self.loss = nn.MSELoss()
 
-    def init_proj_layer(self, gnn_embed_dim):
+    def load_from_gs_checkpoint(self, checkpoint_path):
+        tokenizer_path = os.path.join(checkpoint_path, "tokenizer")
+        lm_path = os.path.join(checkpoint_path, "lm")
+        proj_path = os.path.join(checkpoint_path, "proj", "pytorch_model.bin")
+
+        # load tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+        # load lm model
+        self.lm_config = AutoConfig.from_pretrained(lm_path)
+        self.lm = AutoModel.from_pretrained(lm_path)
+        proj_weights = th.load(proj_path, "cpu")
+        self.init_proj_layer(weights=proj_weights)
+
+    def init_proj_layer(self, gnn_embed_dim=None, weights=None):
         """ initiate embedding project layer."""
-        self.gnn_embed_dim = gnn_embed_dim
-        self.proj = nn.Parameter(th.Tensor(self.lm_embed_dim, gnn_embed_dim))
-        nn.init.xavier_uniform_(self.proj)
+        assert gnn_embed_dim is not None or weights is not None, \
+            "Either gnn_embed_dim or weights needs to be provided."
+
+        if weights is not None:
+            self.proj = nn.Parameter(weights)
+        else:
+            self.proj = nn.Parameter(th.Tensor(self.lm_config.dim, gnn_embed_dim))
+            nn.init.xavier_uniform_(self.proj)
+            self.gnn_embed_dim = gnn_embed_dim
 
     def forward(self, inputs, attention_mask, labels):
         """ Forward function for student model.
