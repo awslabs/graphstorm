@@ -214,7 +214,6 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
         dict of Tensors : the inferenced tensors.
     """
     len_dataloader = max_num_batch = len(list(dataloader))
-    barrier()
     tensor = th.tensor([len_dataloader], device=device)
     if is_distributed():
         th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
@@ -226,7 +225,8 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
     # To use WholeGraph for feature featching, dataloaders from different
     # trainers must iterate through the same number of iterations as WholeGraph
     # does not support imbalanced batch numbers across processes/trainers
-    # TODO (IN): Fix dataloader to have same number of minibatches
+    # TODO (IN): Fix dataloader to have same number of minibatches. Also
+    # we don't need this fix when layer_id > 0
     for iter_l in range(max_num_batch):
         if iter_l < len_dataloader:
             input_nodes, output_nodes, blocks = next(dataloader_iter)

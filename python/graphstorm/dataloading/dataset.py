@@ -26,7 +26,7 @@ from dgl.distributed import DistTensor
 
 from ..utils import get_rank, get_world_size, is_distributed
 from ..utils import sys_tracker, use_wholegraph
-from .utils import dist_sum, flip_node_mask
+from .utils import dist_sum, flip_node_mask, is_wholegraph_embedding
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
@@ -72,8 +72,7 @@ def prepare_batch_input(g, input_nodes,
             feats = []
             for fname in feat_name:
                 data = g.nodes[ntype].data[fname]
-                if hasattr(data, 'gather') and not isinstance(data, DistTensor) and \
-                    not th.is_tensor(data): # data is in WholeMemoryEmbedding format
+                if hasattr(data, 'gather') and is_wholegraph_embedding(data):
                     data = data.gather(nid.to(dev))
                 else:
                     data = data[nid].to(dev)

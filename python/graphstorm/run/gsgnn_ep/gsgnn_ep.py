@@ -56,7 +56,9 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    # TODO(IN): Support edge classification/regression for wholegraph
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  use_wholegraph=False)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)

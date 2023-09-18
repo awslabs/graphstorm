@@ -130,3 +130,13 @@ def flip_node_mask(dist_tensor):
     for idx in range(dist_tensor.shape[0]):
         flipped_dist_tensor[idx] = 1 - dist_tensor[idx]
     return flipped_dist_tensor
+
+def is_wholegraph_embedding(data):
+    """ Check if the data is in WholeMemory emedding format which
+        is required to use wholegraph framework.
+    """
+    try:
+        import pylibwholegraph
+        return isinstance(data, pylibwholegraph.torch.WholeMemoryEmbedding)
+    except:
+        return False
