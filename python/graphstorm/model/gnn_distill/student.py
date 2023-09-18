@@ -35,31 +35,33 @@ class GSDistilledModel(nn.Module):
 
     Parameters
     ----------
-    transformer_name : str
+    lm_name : str
         Model name for Transformer-based student model.
     gnn_embed_dim : int
         Dimension of GNN embeddings.
     pre_trained_name : str
         Name of pre-trained model.
     """
-    def __init__(self, transformer_name, pre_trained_name=None):
+    def __init__(self, lm_name, pre_trained_name=None):
         super(GSDistilledModel, self).__init__()
 
         # TODO (HZ): need to test other HF models.
-        if transformer_name not in SUPPORTED_MODEL:
-            raise ValueError(f'Model class {transformer_name} is not supported.')
+        if lm_name not in SUPPORTED_MODEL:
+            raise ValueError(f'Model class {lm_name} is not supported.')
         if pre_trained_name is not None and pre_trained_name not in PRETRAINED_MODEL:
             raise ValueError(f'Pre-trained model {pre_trained_name} is not supported.')
 
+        self.lm_name = lm_name
+
         # initiate Transformer-based model
-        configuration = SUPPORTED_MODEL[transformer_name][0]()
-        self.transformers = SUPPORTED_MODEL[transformer_name][1](configuration)
-        self.lm_embed_dim = SUPPORTED_MODEL[transformer_name][2]
+        self.lm_config = SUPPORTED_MODEL[lm_name][0]()
+        self.lm = SUPPORTED_MODEL[lm_name][1](self.lm_config)
+        self.lm_embed_dim = SUPPORTED_MODEL[lm_name][2]
 
         # load pre-trained parameters if any
         if pre_trained_name is not None:
             self.tokenizer = AutoTokenizer.from_pretrained(pre_trained_name)
-            self.transformers = self.transformers.from_pretrained("distilbert-base-uncased")
+            self.lm = self.lm.from_pretrained(pre_trained_name)
         else:
             # default tokenizer
             self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
@@ -70,6 +72,7 @@ class GSDistilledModel(nn.Module):
 
     def init_proj_layer(self, gnn_embed_dim):
         """ initiate embedding project layer."""
+        self.gnn_embed_dim = gnn_embed_dim
         self.proj = nn.Parameter(th.Tensor(self.lm_embed_dim, gnn_embed_dim))
         nn.init.xavier_uniform_(self.proj)
 
@@ -89,7 +92,7 @@ class GSDistilledModel(nn.Module):
         -------
         torch.tensor : MSE loss for the batch
         """
-        tsf_outputs = self.transformers(inputs, attention_mask=attention_mask)
+        tsf_outputs = self.lm(inputs, attention_mask=attention_mask)
         h = tsf_outputs.last_hidden_state
         # get pooled h
         h = h[:, 0]
