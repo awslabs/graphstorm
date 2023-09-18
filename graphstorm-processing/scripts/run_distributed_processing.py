@@ -146,8 +146,7 @@ if __name__ == "__main__":
         if s3_input_prefix.endswith("/")
         else f"{s3_input_prefix}/{args.config_filename}"
     )
-    s3_input_bucket = s3_input_prefix.split("/")[2]
-    s3_input_key = s3_input_prefix.split("/", 3)[3]
+    s3_input_bucket, s3_input_key = s3_utils
 
     if not s3_output_prefix:
         s3_bucket = s3_input_prefix.split("/")[2]
