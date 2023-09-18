@@ -778,12 +778,12 @@ class GSConfig:
 
     @property
     def max_global_step(self):
-        """ Maximum global size for distillation.
+        """ Maximum global training steps for distillation.
         """
         # only needed by distillation
-        if "distill" not in self.configuration["gsf"]:
-            return None
         if hasattr(self, "_max_global_step"):
+            assert self._max_global_step > 0, 
+                "Maximum global steps should be greater than 0."
             return self._max_global_step
         else:
             # default max global steps
@@ -794,12 +794,12 @@ class GSConfig:
         """ Maximum sequence length for distillation.
         """
         # only needed by distillation
-        if "distill" not in self.configuration["gsf"]:
-            return None
         if hasattr(self, "_max_seq_len"):
+            assert self._max_seq_len > 0,
+                "Maximum sequence length for distillation should be greater than 0."
             return self._max_seq_len
         else:
-            # default max global steps
+            # default maximum sequence length
             return 1024
 
     @property
