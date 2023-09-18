@@ -937,6 +937,8 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
 
                 if e_h is not None and canonical_etype in e_h.keys():
                     weight = e_h[canonical_etype]
+                    assert th.is_tensor(weight), \
+                        "The edge weight for Link prediction must be a torch tensor."
                     weight = weight.flatten()
                 else:
                     # current etype does not has weight
