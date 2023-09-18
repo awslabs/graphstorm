@@ -1251,7 +1251,12 @@ class GSConfig:
             for num_classes in self._num_classes.values():
                 assert num_classes > 0
         else:
+            # We need assert num_classes>0 so that we can use num_classes=1 for binary classification
+            # We prefer num_classes=1 and binary-cross-entropy because sometime we need precision-recall
+            # as evaluation metric, where precision-recall is computed on the positive score.
+            # If we switch to num_classes=2 and cross-entropy, we also need changes in the evaluation part.
             assert self._num_classes > 0
+
         return self._num_classes
 
     @property
