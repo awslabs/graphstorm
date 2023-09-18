@@ -228,7 +228,9 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
-            blocks = [block.to(device) for block in blocks] if blocks is not None else None
+            if blocks is None:
+                continue
+            blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
             label = data.get_labels(seeds)
             if return_label:

@@ -204,7 +204,9 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
-            blocks = [block.to(device) for block in blocks] if blocks is not None else None
+            if blocks is None:
+                continue
+            blocks = [block.to(device) for block in blocks]
             target_edge_graph = target_edge_graph.to(device)
             pred = model.predict(blocks, target_edge_graph, input_feats,
                                  None, None, input_nodes,

@@ -138,5 +138,5 @@ def is_wholegraph_embedding(data):
     try:
         import pylibwholegraph
         return isinstance(data, pylibwholegraph.torch.WholeMemoryEmbedding)
-    except:
+    except: # pylint: disable=bare-except
         return False
