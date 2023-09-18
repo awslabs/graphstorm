@@ -175,7 +175,7 @@ class GSdistiller():
             with open(config_file_loc, "w", encoding="utf-8") as of:
                 json.dump(config_dict, of, indent=2, sort_keys=True)
             # TODO (HZ): need to test if the saved model can be successfully loaded
-            th.save(model.state_dict(), model_file_loc)
+            th.save(model.module.state_dict(), model_file_loc)
 
         return True
 
