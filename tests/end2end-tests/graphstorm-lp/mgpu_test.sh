@@ -190,6 +190,54 @@ then
     echo "Dot product inference does not output edge embedding"
     exit -1
 fi
+rm -fr /data/gsgnn_lp_ml_dot/infer-emb/
+
+echo "**************dataset: Movielens, do mini-batch inference on saved model, decoder: dot"
+python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_dot/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_dot/epoch-$best_epoch_dot/ --use-mini-batch-infer true --logging-file /tmp/log.txt
+
+error_and_exit $?
+
+cnt=$(grep "| Test mrr" /tmp/log.txt | wc -l)
+if test $cnt -ne 1
+then
+    echo "We do test, should have mrr"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test mrr" /tmp/log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test mrr"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation mrr" /tmp/log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation mrr"
+    exit -1
+fi
+
+cnt=$(grep "Validation mrr" /tmp/log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Validation mrr"
+    exit -1
+fi
+
+cnt=$(grep "Best Iteration" /tmp/log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Iteration"
+    exit -1
+fi
+
+rm /tmp/log.txt
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_dot/emb/ --infer_embout /data/gsgnn_lp_ml_dot/infer-emb/ --link_prediction
+
+error_and_exit $?
+rm -fr /data/gsgnn_lp_ml_dot/infer-emb/
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: DistMult"
 python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_distmult/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult/epoch-$best_epoch_distmult/ --lp-decoder-type distmult --no-validation False --train-etype user,rating,movie movie,rating-rev,user

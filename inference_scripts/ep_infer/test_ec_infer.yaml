@@ -23,7 +23,6 @@ gsf:
     save_embed_path: /data/gsgnn_ec/infer-emb/
     save_prediction_path: /data/gsgnn_ec/prediction/
   hyperparam:
-    bert_infer_bs: 128
     no_validation: false
   rgcn:
     num_bases: -1
