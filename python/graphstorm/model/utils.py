@@ -136,7 +136,6 @@ def save_sparse_emb(model_path, sparse_emb, ntype,
 
         Example:
         --------
-
         Save sparse embeddings of an input embed_layer by calling ``save_sparse_emb``
         iterating all the sparse embeddings of the embed_layer
 
@@ -560,6 +559,65 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     if 'decoder' in checkpoint and decoder is not None:
         decoder.load_state_dict(checkpoint['decoder'])
 
+def load_sparse_emb(target_sparse_emb, ntype_emb_path, local_rank, world_size):
+    """load sparse embeddings from ntype_emb_path
+
+        Sparse embeddings are stored as:
+            $model_path/ntype0/sparse_emb_0.pt
+                               ...
+                               sparse_emb_N.pt
+            $model_path/ntype1/sparse_emb_0.pt
+                               ...
+                               sparse_emb_N.pt
+            ...
+
+        Example:
+        --------
+        Load sparse embeddings of an input embed_layer by calling ``load_sparse_emb``
+        iterating all the sparse embeddings of the embed_layer
+
+        .. code::
+            # embed_layer is the input embed_layer
+            # model_path is where the sparse embeddings are stored.
+            for ntype, sparse_emb in embed_layer.sparse_embeds.items():
+                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
+
+        Parameters
+        ----------
+        target_sparse_emb: dgl.distributed.DistEmbedding
+            A Distributed node embedding object where the laoded spare embeddings are stored.
+        ntype_emb_path: str
+            The path where the node embedding are stored (To be loaded).
+        local_rank : int
+            Local rank
+        world_size : int
+            World size in a distributed env.
+
+    """
+    num_files = len(os.listdir(ntype_emb_path))
+    num_embs = target_sparse_emb.num_embeddings
+    # Suppose a sparse embedding is trained and saved using N trainers (GPUs).
+    # We are going to use K trainers/infers to load it.
+    # The code handles the following cases:
+    # 1. N == K
+    # 2. N > K, some trainers/infers need to load more than one files
+    # 3. N < K, some trainers/infers do not need to load any files
+    for i in range(math.ceil(num_files/world_size)):
+        file_idx = i * world_size + local_rank
+        if file_idx < num_files:
+            emb = th.load(os.path.join(ntype_emb_path, f'sparse_emb_{file_idx}.pt'))
+
+            # Get the target idx range for sparse_emb_{local_rank}.pt
+            start, end = _get_sparse_emb_range(num_embs,
+                                                local_rank=file_idx,
+                                                world_size=num_files)
+            # write sparse_emb back in an iterative way
+            batch_size = 10240
+            idxs = th.split(th.arange(end - start), batch_size, dim=0)
+            for idx in idxs:
+                # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
+                target_sparse_emb._tensor[start+idx] = emb[idx]
+
 def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
     """load sparse embeddings if any
 
@@ -591,41 +649,17 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
     if len(embed_layer.sparse_embeds) > 0:
         assert local_rank >= 0
         assert world_size > 0
-        def load_sparse_emb(num_embs, ntype_path):
-            num_files = len(os.listdir(ntype_path))
-            # Suppose a sparse embedding is trained and saved using N trainers (GPUs).
-            # We are going to use K trainers/infers to load it.
-            # The code handles the following cases:
-            # 1. N == K
-            # 2. N > K, some trainers/infers need to load more than one files
-            # 3. N < K, some trainers/infers do not need to load any files
-            for i in range(math.ceil(num_files/world_size)):
-                file_idx = i * world_size + local_rank
-                if file_idx < num_files:
-                    emb = th.load(os.path.join(ntype_path, f'sparse_emb_{file_idx}.pt'))
-
-                    # Get the target idx range for sparse_emb_{local_rank}.pt
-                    start, end = _get_sparse_emb_range(num_embs,
-                                                       local_rank=file_idx,
-                                                       world_size=num_files)
-                    # write sparse_emb back in an iterative way
-                    batch_size = 10240
-                    idxs = th.split(th.arange(end - start), batch_size, dim=0)
-                    for idx in idxs:
-                        # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-                        sparse_emb._tensor[start+idx] = emb[idx]
 
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
-            num_embs = embed_layer.g.number_of_nodes(ntype)
             if th.__version__ < "1.13.0":
                 logging.warning("torch.load() uses pickle module implicitly, " \
                         "which is known to be insecure. It is possible to construct " \
                         "malicious pickle data which will execute arbitrary code " \
                         "during unpickling. Only load data you trust or " \
                         "update torch to 1.13.0+")
-                load_sparse_emb(num_embs, os.path.join(model_path, ntype))
+                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
             else:
-                load_sparse_emb(num_embs, os.path.join(model_path, ntype))
+                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
 
 def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.

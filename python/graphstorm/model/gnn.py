@@ -189,6 +189,10 @@ class GSgnnModelBase(nn.Module):
         To load model parameters for a node_input_encoder
 
         .. code::
+            from graphstorm.model.utils import save_sparse_emb
+
+            for ntype, sparse_emb in sparse_embeds.items():
+                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
 
         Parameters
         ----------
