@@ -22,6 +22,7 @@ import numpy as np
 import dgl
 import torch as th
 import torch.nn.functional as F
+from dataclasses import dataclass
 from dgl.distributed import role
 
 from .utils import sys_tracker, get_rank, get_world_size, use_wholegraph
@@ -61,6 +62,7 @@ def init_wholegraph():
     import pylibwholegraph.torch as wgth
     import pylibwholegraph.binding.wholememory_binding as wmb
 
+    @dataclass
     class Options: # pylint: disable=missing-class-docstring
         pass
     Options.launch_agent = 'pytorch'
@@ -78,7 +80,7 @@ def init_wholegraph():
     wgth.comm.set_world_info(get_rank(), get_world_size(), Options.local_rank,
                              Options.local_size)
 
-def initialize(ip_config, backend, part_config=None):
+def initialize(ip_config, backend, use_wholegraph=False):
     """ Initialize distributed inference context
 
     Parameters
@@ -87,6 +89,8 @@ def initialize(ip_config, backend, part_config=None):
         File path of ip_config file
     backend: str
         Torch distributed backend
+    use_wholegraph: bool
+        Whether to use wholegraph for feature transfer
     """
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
@@ -95,7 +99,7 @@ def initialize(ip_config, backend, part_config=None):
     if ip_config is not None:
         th.distributed.init_process_group(backend=backend)
         # Use wholegraph for feature and label fetching
-        if use_wholegraph(part_config):
+        if use_wholegraph:
             init_wholegraph()
     sys_tracker.check("load DistDGL")
 

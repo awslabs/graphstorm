@@ -22,7 +22,7 @@ import dgl
 from .gnn import GSgnnModel, GSgnnModelBase
 from .utils import append_to_dict
 
-from ..utils import barrier
+from ..utils import barrier, is_distributed
 
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
@@ -180,13 +180,32 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
+    len_loader = max_num_batch = len(list(loader))
+    barrier()
+    tensor = th.tensor([len_loader], device=device)
+    if is_distributed():
+        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = tensor[0]
+
+    dataloader_iter = iter(loader)
+
     with th.no_grad():
-        for input_nodes, target_edge_graph, blocks in loader:
+        # To use WholeGraph for feature featching, dataloaders from different
+        # trainers must iterate through the same number of iterations as WholeGraph
+        # does not support imbalanced batch numbers across processes/trainers
+        # TODO (IN): Fix dataloader to have the same number of minibatches
+        for iter_l in range(max_num_batch):
+            if iter_l < len_loader:
+                input_nodes, target_edge_graph, blocks = next(dataloader_iter)
+            else:
+                for ntype in g.ntypes:
+                    input_nodes[ntype] = target_edge_graph[ntype] = th.empty((0,), dtype=g.idtype)
+                blocks = None
             if not isinstance(input_nodes, dict):
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
-            blocks = [block.to(device) for block in blocks]
+            blocks = [block.to(device) for block in blocks] if blocks is not None else None
             target_edge_graph = target_edge_graph.to(device)
             pred = model.predict(blocks, target_edge_graph, input_feats,
                                  None, None, input_nodes,
