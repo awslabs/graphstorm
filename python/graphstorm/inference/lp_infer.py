@@ -82,10 +82,25 @@ class GSgnnLinkPredictionInfer(GSInfer):
         sys_tracker.check('compute embeddings')
         device = self.device
         if save_embed_path is not None:
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
+            if saved_distributed:
+                save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+                    get_world_size(),
+                    device=device,
+                    node_id_mapping_file=node_id_mapping_file)
+            else:
+                # remap gnn embeddings without writing to disk
+                embs = remap_embeddings(embs, self.rank, 
+                    get_world_size(),
+                    device=device,
+                    node_id_mapping_file=node_id_mapping_file)
+                if self.rank == 0:
+                    sys_tracker.check(f"Writing GNN embeddings to {os.path.join(save_embed_path, 'embed_map.hdf5')}")
+                    embed_dict = {}
+                    for node_type in node_types:
+                        embed_dict[node_type] = np.array(gnn_embeds[node_type][0:len(gnn_embeds[node_type])])
+                    # save to disk so that it can read from disk
+                    write_data_hdf5(embed_dict, os.path.join(save_embed_path, "embed_map.hdf5"))
+
         barrier()
         sys_tracker.check('save embeddings')
 
