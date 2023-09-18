@@ -782,7 +782,7 @@ class GSConfig:
         """
         # only needed by distillation
         if hasattr(self, "_max_global_step"):
-            assert self._max_global_step > 0, 
+            assert self._max_global_step > 0, \
                 "Maximum global steps should be greater than 0."
             return self._max_global_step
         else:
@@ -795,7 +795,7 @@ class GSConfig:
         """
         # only needed by distillation
         if hasattr(self, "_max_seq_len"):
-            assert self._max_seq_len > 0,
+            assert self._max_seq_len > 0, \
                 "Maximum sequence length for distillation should be greater than 0."
             return self._max_seq_len
         else:
