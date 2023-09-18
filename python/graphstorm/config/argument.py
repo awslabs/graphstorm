@@ -1251,12 +1251,11 @@ class GSConfig:
             for num_classes in self._num_classes.values():
                 assert num_classes > 0
         else:
-            # We need assert num_classes>0 so that we can use num_classes=1 for binary classification
-            # We prefer num_classes=1 and binary-cross-entropy because sometime we need precision-recall
-            # as evaluation metric, where precision-recall is computed on the positive score.
-            # If we switch to num_classes=2 and cross-entropy, we also need changes in the evaluation part,
-            # and make the new evaluation code to first recognize whether it is binary classification
-            # then only select the positive score column.
+            # We need num_classes=1 for binary classification because when we use precision-recall
+            # as evaluation metric, this precision-recall is computed on the positive score.
+            # If we switch to num_classes=2, we also need changes in the evaluation part:
+            # (1) evaluation code need to first recognize whether it is binary classification
+            # (2) then evaluation code select the positive score column from the 2-d prediction.
             assert self._num_classes > 0
 
         return self._num_classes
