@@ -54,8 +54,7 @@ def main(config_args):
                                     decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
-    # TODO(zhengda) we should use a different way to get rank.
-    infer = GSgnnEdgePredictionInfer(model, gs.get_rank())
+    infer = GSgnnEdgePredictionInfer(model)
     infer.setup_device(device=device)
     if not config.no_validation:
         evaluator = get_evaluator(config)
@@ -70,7 +69,7 @@ def main(config_args):
             "you should not define test_mask as its edge feature. " \
             "GraphStorm will do inference on the whole edge set. "
         target_idxs = infer_data.infer_idxs
-    tracker = gs.create_builtin_task_tracker(config, infer.rank)
+    tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=fanout,
