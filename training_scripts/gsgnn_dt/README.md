@@ -1,7 +1,7 @@
 # Tutorial: Use GraphStorm for GNN Distillation
 
 ## 0. Pipeline Overview
-GraphStorm supports to distill well-trained GNN models to user specified Transformer-based student model that can inference on any textual data, thus to 1) resolve the unseen node inference issue, and 2) remove the graph dependency for easy deployment . The distillation is conducted to minimize the embeddings between GNN checkpoint and student model. MSE is used to supervise the training.
+GraphStorm supports to distill well-trained GNN models to a user specified Transformer-based student model that can inference on any textual data, thus to 1) resolve the unseen node inference issue, and 2) remove the graph dependency for easy deployment . The distillation is conducted to minimize the distance between the embeddings from a GNN checkpoint and the embeddings conducted by a student lm model. MSE loss is used to supervise the training.
 
 To utilize the pipeline, user will need to input a textual dataset, where each sample corresponds to a GNN embeddings from teacher GNN model. The output of the pipeline will be the distilled Transformer-based student model that were trained to learn relational knowledge from GNN teacher model.
 
@@ -144,7 +144,6 @@ gsf:
 python3 -m graphstorm.run.gs_gnn_distillation \
         --workspace /tmp/gsgnn_dt/ \
         --num-trainers 2 \
-        --num-servers 2 \
         --num-samplers 0 \
         --ip-config /tmp/gsgnn_dt/ip_list.txt \
         --ssh-port 2222 \

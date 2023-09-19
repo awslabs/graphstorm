@@ -20,9 +20,11 @@ import torch as th
 from torch.nn.parallel import DistributedDataParallel
 import os
 import json
+import logging
 
 import graphstorm as gs
 from .utils import to_device
+from ..utils import barrier
 from ..model.gnn_distill import GSDistilledModel
 from ..dataloading import DataloaderGenerator, DataManager
 
@@ -42,7 +44,7 @@ class GSdistiller():
         self.rank = gs.get_rank()
         self._device = -1
 
-    def distill(
+    def fit(
         self, 
         lm_name, 
         pre_trained_name,
@@ -122,9 +124,10 @@ class GSdistiller():
 
         index = 0
         distill_step = 0
-        while True:
-            th.distributed.barrier()
-            print (f"Train {index + 1}-th shard by trainer {self.rank}")
+        complete=False
+        while complete is False:
+            barrier()
+            logging.info(f"Train {index + 1}-th shard by trainer {self.rank}")
             complete, distill_step = self.train_shard(
                 distill_step=distill_step,
                 model=student, 
@@ -136,11 +139,7 @@ class GSdistiller():
                 eval_frequency=eval_frequency,
                 max_distill_step=max_distill_step,
             )
-            is_first_iteration = False
-
             index += 1
-            if complete:
-                break
 
     def save_student_model(self, model, saved_path, distill_step):
         """ Save student model
@@ -154,16 +153,15 @@ class GSdistiller():
         distill_step : int
             Distill step of the model checkpoint.
         """
-        th.distributed.barrier()
+        barrier()
         if self.rank == 0:
             checkpoint_path = os.path.join(saved_path, f"checkpoint-{distill_step}")
             proj_dir_loc = os.path.join(checkpoint_path, "proj")
             tokenizer_dir_loc = os.path.join(checkpoint_path, "tokenizer")
             lm_dir_loc = os.path.join(checkpoint_path, "lm")
             os.makedirs(proj_dir_loc, exist_ok=True)
-            print (f"Saving checkpoint to {checkpoint_path}")
+            logging.info(f"Saving checkpoint to {checkpoint_path}")
 
-            # TODO (HZ): need to test if the saved model can be successfully loaded
             model.module.tokenizer.save_pretrained(tokenizer_dir_loc)
             model.module.lm.save_pretrained(lm_dir_loc)
             th.save(model.module.state_dict()["proj"], os.path.join(proj_dir_loc, "pytorch_model.bin"))
@@ -186,24 +184,24 @@ class GSdistiller():
         model.eval()
         index = 0
         batch_index = 0
-        total_loss = 0
+        total_mse = 0
         while True:
             dataset_iterator = eval_dataset_provider.get_iterator()
             if dataset_iterator is None:
                 break
-            print (f"Eval {index + 1}-th shard by trainer {self.rank}")
+            logging.info(f"Eval {index + 1}-th shard by trainer {self.rank}")
             with th.no_grad():
                 for _, batch in enumerate(dataset_iterator):
                     batch = to_device(batch, self.device)  # Move to device
-                    loss = model.module(batch["input_ids"],
+                    mse = model.module(batch["input_ids"],
                         batch["attention_mask"],
                         batch["labels"])
-                    total_loss += loss.item()
+                    total_mse += mse.item()
                     batch_index += 1
             index += 1
 
-        mean_total_loss = total_loss / batch_index
-        print (f"Eval MSE at step {distill_step}: {mean_total_loss}")
+        mean_total_mse = total_mse / batch_index
+        logging.info(f"Eval MSE at step {distill_step}: {mean_total_mse}")
         model.train()
         eval_dataset_provider.release_iterator()
 
@@ -271,7 +269,7 @@ class GSdistiller():
                 optimizer.step()
                 mean_shard_loss = shard_loss / (batch_num + 1)
                 if distill_step % 20 == 0:
-                    print (
+                    logging.info(
                         f"Loss for shard {train_dataset_provider.get_iterator_name()}"
                         f" at step {distill_step} = {mean_shard_loss}"
                         f" from trainer {self.rank}"
@@ -281,11 +279,11 @@ class GSdistiller():
                     self.save_student_model(model, saved_path, distill_step)
 
                 if distill_step % eval_frequency == 0 and distill_step != 0:
-                    th.distributed.barrier()
+                    barrier()
                     # TODO (HZ): implement distributed evaluation by communicating with all trainers
                     if self.rank == 0:
                         self.eval(model, eval_dataset_provider, distill_step)
-                    th.distributed.barrier()
+                    barrier()
 
                 if distill_step == max_distill_step:
                     complete = True
@@ -301,9 +299,7 @@ class GSdistiller():
 
     def setup_device(self, device):
         """ Set up the device for the distillation.
-
-        The CUDA device is set up based on the local rank.
-
+        The device is set up based on the local rank.
         Parameters
         ----------
         device :

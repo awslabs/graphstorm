@@ -16,6 +16,7 @@
     GNN student model class
 """
 import os
+import logging
 import torch as th
 from torch import nn
 from transformers import (
@@ -32,6 +33,7 @@ SUPPORTED_MODEL = {
 
 PRETRAINED_MODEL = [
 "distilbert-base-uncased",
+"distilbert-base-cased",
 ]
 
 class GSDistilledModel(nn.Module):
@@ -43,10 +45,10 @@ class GSDistilledModel(nn.Module):
     ----------
     lm_name : str
         Model name for Transformer-based student model.
-    gnn_embed_dim : int
-        Dimension of GNN embeddings.
     pre_trained_name : str
         Name of pre-trained model.
+    checkpoint_path : str
+        Path of model checkpoint.
     """
     def __init__(self, lm_name=None, pre_trained_name=None, checkpoint_path=None):
         super(GSDistilledModel, self).__init__()
@@ -68,6 +70,8 @@ class GSDistilledModel(nn.Module):
                 self.lm = self.lm.from_pretrained(pre_trained_name)
             else:
                 # default tokenizer
+                logging.info(f"Warning: No pretrained name specified. Default to use "\
+                    "distilbert-base-uncased Tokenizer.")
                 self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
         else:
             self.load_from_gs_checkpoint(checkpoint_path)
@@ -76,6 +80,13 @@ class GSDistilledModel(nn.Module):
         self.loss = nn.MSELoss()
 
     def load_from_gs_checkpoint(self, checkpoint_path):
+        """ Load student moddel from checkpoint_path.
+
+        Parameters
+        ----------
+        checkpoint_path : str
+            Path for student checkpoint.
+        """
         tokenizer_path = os.path.join(checkpoint_path, "tokenizer")
         lm_path = os.path.join(checkpoint_path, "lm")
         proj_path = os.path.join(checkpoint_path, "proj", "pytorch_model.bin")
@@ -90,7 +101,14 @@ class GSDistilledModel(nn.Module):
         self.init_proj_layer(weights=proj_weights)
 
     def init_proj_layer(self, gnn_embed_dim=None, weights=None):
-        """ initiate embedding project layer."""
+        """ initiate embedding project layer.
+        Parameters
+        ----------
+        gnn_embed_dim : int
+            Dimension of GNN embeddings.
+        weights : torch.tensor
+            Weights for projection matrix.
+        """
         assert gnn_embed_dim is not None or weights is not None, \
             "Either gnn_embed_dim or weights needs to be provided."
 

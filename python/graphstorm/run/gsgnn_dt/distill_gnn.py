@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Inference and training script for distillation tasks with GNN
+    Training script for distillation tasks with GNN
 """
 
 import random
@@ -24,23 +24,21 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.distiller import GSdistiller
-from graphstorm.utils import setup_device
+from graphstorm.utils import setup_device, barrier
 
 
 def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-    config.verify_arguments(False)
+    config.verify_arguments(True)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
-
-
     distiller = GSdistiller()
     distiller.setup_device(device=device)
-    th.distributed.barrier()
+    barrier()
 
-    distiller.distill(
+    distiller.fit(
         config.lm_name,
         config.pre_trained_name,
         config.textual_data_path,
