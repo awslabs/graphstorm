@@ -79,7 +79,6 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     def dist_inference(self, g, get_input_embeds, batch_size, fanout,
                        edge_mask=None, task_tracker=None):
         """Distributed inference of final representation over all node types.
-
         Parameters
         ----------
         g : DistGraph
@@ -96,14 +95,12 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
             The edge mask indicates which edges are used to compute GNN embeddings.
         task_tracker : GSTaskTrackerAbc
             The task tracker.
-
         Returns
         -------
         dict of Tensor : the final GNN embeddings of all nodes.
         """
         return dist_inference(g, self, get_input_embeds, batch_size, fanout,
-                              edge_mask=edge_mask, task_tracker=task_tracker)
-
+                            edge_mask=edge_mask, task_tracker=task_tracker)
 
 def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                              edge_mask=None, target_ntypes=None, task_tracker=None):

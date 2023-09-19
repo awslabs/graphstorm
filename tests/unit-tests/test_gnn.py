@@ -1322,10 +1322,10 @@ class Dummy_GSEdgeDecoder(MLPEdgeDecoder):
     def __init__(self):
         pass
 
-    def predict(self, g, h):
+    def predict(self, g, h, eh):
         return th.arange(10)
 
-    def predict_proba(self, g, h):
+    def predict_proba(self, g, h, eh):
         return th.arange(10)
 
 class Dummy_GSEdgeModel():

@@ -113,10 +113,10 @@ class GSgnnData():
         The graph name
     part_config : str
         The path of the partition configuration file.
-    node_feat_field: str or dict of str
+    node_feat_field: str or dict of list of str
         Fields to extract node features. It's a dict if different node types have
         different feature names.
-    edge_feat_field : str or dict of str
+    edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
     """
@@ -234,19 +234,23 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         The path of the partition configuration file.
     label_field : str
         The field for storing labels
-    node_feat_field: str or dict of str
+    node_feat_field: str or dict of list of str
         Fields to extract node features. It's a dict if different node types have
         different feature names.
-    edge_feat_field : str or dict of str
+    edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
     """
     def __init__(self, graph_name, part_config, label_field=None,
-                 node_feat_field=None, edge_feat_field=None):
+                 node_feat_field=None, edge_feat_field=None,
+                 decoder_edge_feat=None):
         super(GSgnnEdgeData, self).__init__(graph_name, part_config,
                                             node_feat_field, edge_feat_field)
 
         self._label_field = label_field
+        self._decoder_edge_feat = decoder_edge_feat
         if label_field is not None:
             self._labels = {}
             for etype in self._g.canonical_etypes:
@@ -283,6 +287,11 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         return self._labels
 
     @property
+    def decoder_edge_feat(self):
+        """edge features used by decoder"""
+        return self._decoder_edge_feat
+
+    @property
     def train_idxs(self):
         """train set's indexes"""
         return self._train_idxs
@@ -312,15 +321,18 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         Target edge types for evaluation
     label_field : str
         The field for storing labels
-    node_feat_field: str or dict of str
+    node_feat_field: str or dict of list of str
         Fields to extract node features. It's a dict if different node types have
         different feature names.
-    edge_feat_field : str or dict of str
+    edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
-                 label_field=None, node_feat_field=None, edge_feat_field=None):
+                 label_field=None, node_feat_field=None, edge_feat_field=None,
+                 decoder_edge_feat=None):
         if train_etypes is not None:
             assert isinstance(train_etypes, (tuple, list)), \
                     "The prediction etypes for training has to be a tuple or a list of tuples."
@@ -340,7 +352,8 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
             self._eval_etypes = train_etypes
 
         super(GSgnnEdgeTrainData, self).__init__(graph_name, part_config, label_field,
-                                                 node_feat_field, edge_feat_field)
+                                                 node_feat_field, edge_feat_field,
+                                                 decoder_edge_feat)
 
     def prepare_data(self, g):
         """
@@ -416,6 +429,44 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         """edge type for evaluation"""
         return self._eval_etypes
 
+class GSgnnLPTrainData(GSgnnEdgeTrainData):
+    """ Link prediction training data
+
+    Parameters
+    ----------
+    graph_name : str
+        The graph name
+    part_config : str
+        The path of the partition configuration file.
+    train_etypes : tuple of str or list of tuples
+        Target edge types for training
+    eval_etypes : tuple of str or list of tuples
+        Target edge types for evaluation
+    label_field : str
+        The field for storing labels
+    node_feat_field: str or dict of list of str
+        Fields to extract node features. It's a dict if different node types have
+        different feature names.
+    edge_feat_field : str or dict of list of str
+        The field of the edge features. It's a dict if different edge types have
+        different feature names.
+    pos_graph_feat_field: str or dist of str
+        The field of the edge features used by positive graph in link prediction.
+    """
+    def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
+                 label_field=None, node_feat_field=None,
+                 edge_feat_field=None, pos_graph_feat_field=None):
+        super(GSgnnLPTrainData, self).__init__(graph_name, part_config,
+                                               train_etypes, eval_etypes, label_field,
+                                               node_feat_field, edge_feat_field)
+        self._pos_graph_feat_field = pos_graph_feat_field
+
+    @property
+    def pos_graph_feat_field(self):
+        """ Get edge feature fields of positive graphs
+        """
+        return self._pos_graph_feat_field
+
 class GSgnnEdgeInferData(GSgnnEdgeData):
     """ Edge prediction inference data
 
@@ -429,15 +480,18 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         Target edge types for evaluation
     label_field : str
         The field for storing labels
-    node_feat_field: str or dict of str
+    node_feat_field: str or dict of list of str
         Fields to extract node features. It's a dict if different node types have
         different feature names.
-    edge_feat_field : str or dict of str
+    edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
     """
     def __init__(self, graph_name, part_config, eval_etypes,
-                 label_field=None, node_feat_field=None, edge_feat_field=None):
+                 label_field=None, node_feat_field=None, edge_feat_field=None,
+                 decoder_edge_feat=None):
         if eval_etypes is not None:
             assert isinstance(eval_etypes, (tuple, list)), \
                     "The prediction etypes for evaluation has to be a tuple or a list of tuples."
@@ -448,7 +502,8 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
             self._eval_etypes = None # Test on all edge types
 
         super(GSgnnEdgeInferData, self).__init__(graph_name, part_config, label_field,
-                                                 node_feat_field, edge_feat_field)
+                                                 node_feat_field, edge_feat_field,
+                                                 decoder_edge_feat)
 
     def prepare_data(self, g):
         """ Prepare the testing edge set if any
@@ -513,10 +568,10 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         The path of the partition configuration file.
     label_field : str
         The field for storing labels
-    node_feat_field: str or dict of str
+    node_feat_field: str or dict of list of str
         Fields to extract node features. It's a dict if different node types have
         different feature names.
-    edge_feat_field : str or dict of str
+    edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
     """
@@ -590,10 +645,10 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         Target node types for evaluation
     label_field : str
         The field for storing labels
-    node_feat_field: str or dict of str
+    node_feat_field: str or dict of list of str
         Fields to extract node features. It's a dict if different node types have
         different feature names.
-    edge_feat_field : str or dict of str
+    edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
     """
@@ -714,10 +769,10 @@ class GSgnnNodeInferData(GSgnnNodeData):
         Target node types
     label_field : str
         The field for storing labels
-    node_feat_field: str or dict of str
+    node_feat_field: str or dict of list of str
         Fields to extract node features. It's a dict if different node types have
         different feature names.
-    edge_feat_field : str or dict of str
+    edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
     """

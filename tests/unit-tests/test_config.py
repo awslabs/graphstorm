@@ -821,7 +821,7 @@ def create_edge_class_config(tmp_path, file_name):
         "target_etype": "query,match,asin",
         "reverse_edge_types_map": "query,match,rev-match,asin",
         "multilabel": "error",
-        "num_classes": 1,
+        "num_classes": 0,
         "num_decoder_basis": 1,
         "remove_target_edge_type": "error",
         "decoder_edge_feat": ["query,no-match,asin:feat0,feat1"]
