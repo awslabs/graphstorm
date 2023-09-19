@@ -24,7 +24,7 @@ from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
-from ..utils import sys_tracker, get_world_size, barrier
+from ..utils import sys_tracker, get_world_size, get_rank, barrier
 
 class GSgnnLinkPredictionInfer(GSInfer):
     """ Link prediction infer.
@@ -36,8 +36,6 @@ class GSgnnLinkPredictionInfer(GSInfer):
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     """
 
     # TODO(zhengda) We only support full-graph inference for now.
@@ -82,9 +80,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
         sys_tracker.check('compute embeddings')
         device = self.device
         if save_embed_path is not None:
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                get_world_size(),
-                device=device,
+            save_gsgnn_embeddings(save_embed_path, embs, device=device,
                 node_id_mapping_file=node_id_mapping_file)
         barrier()
         sys_tracker.check('save embeddings')
@@ -94,7 +90,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
             test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
             val_mrr, test_mrr = self.evaluator.evaluate(None, test_rankings, 0)
             sys_tracker.check('run evaluation')
-            if self.rank == 0:
+            if get_rank() == 0:
                 self.log_print_metrics(val_score=val_mrr,
                                        test_score=test_mrr,
                                        dur_eval=time.time() - test_start,
@@ -102,7 +98,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
 
         barrier()
         # save relation embedding if any
-        if self.rank == 0:
+        if get_rank() == 0:
             decoder = self._model.decoder
             if isinstance(decoder, LinkPredictDistMultDecoder):
                 if save_embed_path is not None:

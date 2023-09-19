@@ -27,7 +27,7 @@ from ..model.edge_gnn import GSgnnEdgeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker, rt_profiler, print_mem
+from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed, get_backend
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
@@ -37,13 +37,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     ----------
     model : GSgnnEdgeModelBase
         The GNN model for edge prediction.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save):
-        super(GSgnnEdgePredictionTrainer, self).__init__(model, rank, topk_model_to_save)
+    def __init__(self, model, topk_model_to_save):
+        super(GSgnnEdgePredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnEdgeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
 
@@ -165,12 +163,12 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
 
-                if i % 20 == 0 and self.rank == 0:
+                if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
                     # Print task specific info.
                     logging.info(
                             "Part %d | Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
-                            self.rank, epoch, i, loss.item(), time.time() - batch_tic)
+                            get_rank(), epoch, i, loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -206,7 +204,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
             barrier()
             epoch_time = time.time() - epoch_start
-            if self.rank == 0:
+            if get_rank() == 0:
                 logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
@@ -231,7 +229,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         rt_profiler.save_profile()
         print_mem(device)
-        if self.rank == 0 and self.evaluator is not None:
+        if get_rank() == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
@@ -326,7 +324,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                                                         val_label, test_label, total_steps)
         sys_tracker.check('evaluate')
 
-        if self.rank == 0:
+        if get_rank() == 0:
             self.log_print_metrics(val_score=val_score,
                                    test_score=test_score,
                                    dur_eval=time.time() - test_start,

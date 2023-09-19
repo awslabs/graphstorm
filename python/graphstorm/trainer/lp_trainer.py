@@ -29,7 +29,7 @@ from ..model.gnn import (do_full_graph_inference,
                          GSgnnModel)
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker, rt_profiler, print_mem
+from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
@@ -41,13 +41,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     ----------
     model : GSgnnLinkPredictionModelBase
         The GNN model for link prediction.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save):
-        super(GSgnnLinkPredictionTrainer, self).__init__(model, rank, topk_model_to_save)
+    def __init__(self, model, topk_model_to_save):
+        super(GSgnnLinkPredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnLinkPredictionModelInterface) \
                 and isinstance(model, GSgnnModelBase), \
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
@@ -168,7 +166,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 if max_grad_norm is not None:
                     th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
-                if i % 20 == 0 and self.rank == 0:
+                if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
                     logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
                                  epoch, i, loss.item(), time.time() - batch_tic)
@@ -206,7 +204,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
             barrier()
             epoch_time = time.time() - epoch_start
-            if self.rank == 0:
+            if get_rank() == 0:
                 logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
@@ -232,7 +230,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         rt_profiler.save_profile()
         print_mem(device)
-        if self.rank == 0 and self.evaluator is not None:
+        if get_rank() == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,
                        'best_val_mrr':self.evaluator.best_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
@@ -300,7 +298,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         sys_tracker.check('evaluate validation/test')
         model.train()
 
-        if self.rank == 0:
+        if get_rank() == 0:
             self.log_print_metrics(val_score=val_score,
                                    test_score=test_score,
                                    dur_eval=time.time() - test_start,

@@ -27,8 +27,6 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         ----------
         config: GSConfig
             Configurations. Users can add their own configures in the yaml config file.
-        rank: int
-            Task rank
     """
 
     def _do_report(self, step):

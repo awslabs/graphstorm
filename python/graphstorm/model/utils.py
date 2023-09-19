@@ -27,7 +27,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
-from ..utils import get_rank, barrier
+from ..utils import get_rank, get_world_size, barrier
 from ..data.utils import alltoallv_cpu
 
 def sparse_emb_initializer(emb):
@@ -311,8 +311,7 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
         th.distributed.all_to_all(gather_list, data_tensors)
     return gather_list[0]
 
-def save_embeddings(model_path, embeddings, local_rank, world_size,
-    device=th.device('cpu'), node_id_mapping_file=None):
+def save_embeddings(model_path, embeddings, device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings in a distributed way
 
         Parameters
@@ -321,10 +320,6 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
             The path of the folder where the model is saved.
         embeddings : DistTensor
             Embeddings to save
-        local_rank : int
-            Local rank
-        world_size : int
-            World size in a distributed env.
         device: torch device
             Device used for all_to_allv data exchange. For gloo backend
             we store data in CPU, For nccl backend, we need to store
@@ -334,6 +329,8 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
             graph partition algorithm.
     """
     os.makedirs(model_path, exist_ok=True)
+    local_rank = get_rank()
+    world_size = get_world_size()
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
     if local_rank == 0:
         # mode 767 means rwx-rw-rwx:

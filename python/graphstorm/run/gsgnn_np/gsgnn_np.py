@@ -75,8 +75,7 @@ def main(config_args):
         trainer_class = GLEMNodePredictionTrainer
     elif config.training_method["name"] == "default":
         trainer_class = GSgnnNodePredictionTrainer
-    trainer = trainer_class(model, gs.get_rank(),
-                                        topk_model_to_save=config.topk_model_to_save)
+    trainer = trainer_class(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
@@ -87,8 +86,8 @@ def main(config_args):
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
-    tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     if config.use_pseudolabel:
@@ -153,9 +152,7 @@ def main(config_args):
         model.prepare_input_encoder(train_data)
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
-        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        gs.get_world_size(),
-                        device=device,
+        save_embeddings(config.save_embed_path, embeddings, device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():

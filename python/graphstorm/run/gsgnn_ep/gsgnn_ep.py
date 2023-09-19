@@ -67,8 +67,7 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
-    trainer = GSgnnEdgePredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+    trainer = GSgnnEdgePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
@@ -80,8 +79,8 @@ def main(config_args):
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
-    tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
@@ -155,9 +154,7 @@ def main(config_args):
 
         # The order of the ntypes must be sorted
         embs = {ntype: embeddings[ntype] for ntype in sorted(target_ntypes)}
-        save_embeddings(config.save_embed_path, embs, gs.get_rank(),
-                        gs.get_world_size(),
-                        device=device,
+        save_embeddings(config.save_embed_path, embs, device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():

@@ -592,6 +592,6 @@ def check_homo(g):
     return False
 
 
-def create_builtin_task_tracker(config, rank):
+def create_builtin_task_tracker(config):
     tracker_class = get_task_tracker_class(config.task_tracker)
-    return tracker_class(config, rank)
+    return tracker_class(config)
