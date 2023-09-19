@@ -203,6 +203,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             if not isinstance(input_nodes, dict):
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
+            assert len(list(input_nodes.keys())) == len(g.ntypes)
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue

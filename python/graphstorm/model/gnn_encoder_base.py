@@ -191,6 +191,8 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
                 # This happens on a homogeneous graph.
                 assert len(g.ntypes) == 1
                 output_nodes = {g.ntypes[0]: output_nodes}
+
+            assert len(list(input_nodes.keys())) == len(g.ntypes)
             h = get_input_embeds(input_nodes)
             if blocks is None:
                 continue
@@ -240,7 +242,6 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
 
     # WholeGraph does not support imbalanced batch numbers across processes/trainers
     # TODO (IN): Fix dataloader to have same number of minibatches.
-
     for iter_l in range(max_num_batch):
         if iter_l < len_dataloader:
             input_nodes, output_nodes, blocks = next(dataloader_iter)
@@ -269,6 +270,7 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
             # This happens on a homogeneous graph.
             assert len(g.ntypes) == 1
             output_nodes = {g.ntypes[0]: output_nodes}
+        assert len(list(input_nodes.keys())) == len(g.ntypes)
 
         h = get_input_embeds(input_nodes)
         h = layer(block, h) if block is not None else {}

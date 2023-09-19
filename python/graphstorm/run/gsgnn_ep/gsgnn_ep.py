@@ -55,6 +55,7 @@ def main(config_args):
     """
     config = GSConfig(config_args)
     config.verify_arguments(True)
+
     # TODO(IN): Support edge classification/regression for wholegraph
     if use_wholegraph(config.part_config):
         raise NotImplementedError("Wholegraph is not supported for edge prediction tasks")

@@ -22,7 +22,6 @@ import logging
 
 import torch as th
 import dgl
-from dgl.distributed import DistTensor
 
 from ..utils import get_rank, get_world_size, is_distributed
 from ..utils import sys_tracker, use_wholegraph
@@ -603,22 +602,9 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         self._label_field = label_field
         if label_field is not None:
             self._labels = {}
-
-            # Use wholegraph to load node labels
-            if is_distributed() and use_wholegraph(part_config):
-                logging.info("Allocate node labels with Wholegraph")
-                num_parts = self._g.get_partition_book().num_partitions()
-                assert isinstance(label_field, str)
-                for ntype in self._train_ntypes:
-                    data = {}
-                    data[label_field] = self.load_wg_feat(part_config, num_parts, ntype, label_field)
-                    if len(self._g.ntypes) == 1:
-                        self._g._ndata_store.update(data)
-                    else:
-                        self._g._ndata_store[ntype].update(data)
-
-            for ntype in self._train_ntypes:
-                self._labels[ntype] = self._g.nodes[ntype].data[label_field]
+            for ntype in self._g.ntypes:
+                if label_field in self._g.nodes[ntype].data:
+                    self._labels[ntype] = self._g.nodes[ntype].data[label_field]
         else:
             self._labels = None
 
@@ -641,13 +627,7 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         labels = {}
         for ntype, nid in nids.items():
             assert ntype in self._labels
-            data = self._labels[ntype]
-            # TODO (IN): Wholegraph not working
-            if hasattr(data, 'gather') and is_wholegraph_embedding(data):
-                data = data.gather(nid.to(device))
-            else:
-                data = data[nid].to(device)
-            labels[ntype] = data
+            labels[ntype] = self._labels[ntype][nid].to(device)
         return labels
 
     @property
