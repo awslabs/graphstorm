@@ -89,9 +89,14 @@ class ParquetRepartitioner:
     def read_dataset_from_relative_path(self, relative_path: str) -> ds.Dataset:
         """
         Read a parquet dataset from storage, prepending a common prefix to the relative path.
+
+        `relative_path` needs to not start with '/' or 's3://'.
         """
-        if relative_path.startswith("s3://"):
-            raise RuntimeError(f"Expected relative path, got URI of the form {relative_path}")
+        if relative_path.startswith("s3://") or relative_path.startswith("/"):
+            raise RuntimeError(
+                f"Expected relative path, got path in the form {relative_path}. "
+                "relative_path needs to not start with '/' or 's3://'."
+            )
         if Path(relative_path).suffix == ".parquet":
             logging.debug("Deriving dataset location from filepath %s", relative_path)
             dataset_relative_path = str(Path(relative_path).parent)
@@ -172,10 +177,7 @@ class ParquetRepartitioner:
         matches the one provided in desired_counts. We assume that the file counts between the
         input and output will remain the same.
 
-        The output is written to S3 and the `data_entry_dict` dictionary file is
-        modified in-place and returned.
-
-        The output is written to S3 and the `data_entry_dict` dictionary file is
+        The output is written to storage and the `data_entry_dict` dictionary file is
         modified in-place and returned.
 
         Parameters
@@ -291,7 +293,7 @@ class ParquetRepartitioner:
         If the existing file has more rows than the desired, we slice it and add the leftover
         rows to the remainder.
 
-        The output is written to S3 and the `data_entry_dict` dictionary file is
+        The output is written to storage and the `data_entry_dict` dictionary file is
         modified in-place and returned.
 
         Parameters
@@ -510,7 +512,7 @@ class ParquetRepartitioner:
         Parameters
         ----------
         file_list : List[str]
-            A list of relative file paths on S3 whose metadata we want to modify.
+            A list of relative file paths in storage (S3 or local) whose metadata we want to modify.
         """
 
         def modify_file(file_relative_path: str) -> None:
@@ -519,18 +521,21 @@ class ParquetRepartitioner:
             Parameters
             ----------
             file_relative_path : str
-                Relative S3 path, we add `self.input_prefix` to read from S3 and write back.
+                Relative S3 or local path, we prepend `self.input_prefix`
+                to read from storage and write back.
             """
-            file_metadata = pq.read_metadata(
-                f"{self.input_prefix}/{file_relative_path}", filesystem=self.pyarrow_fs
-            )
+            full_path = os.path.join(self.input_prefix, file_relative_path)
+            file_metadata = pq.read_metadata(full_path, filesystem=self.pyarrow_fs)
 
             if file_metadata.num_columns == 1:
-                table = self.read_parquet_from_relative_path(file_relative_path)
-                data_types = table.schema.types
+                table_schema = pq.read_schema(
+                    f"{self.input_prefix}/{file_relative_path}", filesystem=self.pyarrow_fs
+                )
+                data_types = table_schema.types
                 # If the column type is List, the file is a 2D array so we return
                 if isinstance(data_types[0], pyarrow.ListType):
                     return
+                table = self.read_parquet_from_relative_path(file_relative_path)
 
                 # If the column type is not List, the file is a 1D array so we modify the metadata
                 shape_metadata = {b"shape": f"({table.num_rows},)".encode("utf-8")}
@@ -548,10 +553,26 @@ class ParquetRepartitioner:
 def collect_frequencies_for_data_counts(data_meta: Dict) -> Dict[str, Counter]:
     """Gather the frequency of each row count list for each feature type in the provided data dict.
 
-    Returns a dict, with type name as keys and Counter objects as values.
-    Each Counter object has row count tuples as keys and their frequency as values.
+    Parameters
+    ----------
+    data_meta : Dict
+        A dictionary describing the data sources for multiple edge/node types.
+        See example for expected schema.
 
-    For example, if the provided data dict is:
+    Returns
+    -------
+    Dict[str, Counter]
+        A dict with type name as keys and Counter objects as values.
+        Each Counter object has row count tuples as keys and their frequency as values.
+
+    Raises
+    ------
+    KeyError
+        If the 'row_counts' key is missing from one of the data entries.
+
+    Example
+    -------
+    If the provided data dict is:
 
     {
         "type_name_1": {
@@ -563,7 +584,7 @@ def collect_frequencies_for_data_counts(data_meta: Dict) -> Dict[str, Counter]:
                 "row_counts": [1, 2, 3],
                 "data": ["path/to/file1", "path/to/file2", "path/to/file3"]
             }
-        }
+        },
         "type_name_2": {
             "feature_1": {
                 "row_counts": [2, 2, 2],
@@ -602,26 +623,42 @@ def collect_frequencies_for_data_counts(data_meta: Dict) -> Dict[str, Counter]:
 
 
 def verify_metadata(
-    edge_structure_meta: Dict,
+    edges_graph_structure_meta: Dict,
     edge_data_meta: Optional[Dict] = None,
     node_data_meta: Optional[Dict] = None,
 ) -> None:
     """Verify that the produced metadata is correct.
 
     All edges structure files (of the same type) should have matching row
-    counts will all their features. All node features should have matching row counts (per type).
+    counts will all their features.
+    All node features should have matching row counts (per type).
+
+    Parameters
+    ----------
+    edge_structure_meta : Dict
+        The metadata describing the graph's edges structure.
+    edge_data_meta : Optional[Dict], optional
+        The metadata describing the graph's edges data., by default None
+    node_data_meta : Optional[Dict], optional
+        The metadata describing the graph's node data, by default None
+
+    Raises
+    ------
+    RuntimeError
+        If there is a mismatch in the counts for at least one of the
+        edge types or node types.
     """
     edges_match = True
-    if edge_structure_meta and edge_data_meta:
+    if edges_graph_structure_meta and edge_data_meta:
         edges_match = ParquetRowCounter.verify_features_and_graph_structure_match(
-            edge_data_meta, edge_structure_meta
+            edge_data_meta, edges_graph_structure_meta
         )
         if not edges_match:
             logging.error(
                 "Edge feature/structure row count metadata did "
                 "not match with expected, check produced output: \nedge_structure_metadata: \n%s\n"
                 "edge_data_metadata: \n%s\n",
-                pprint.pformat(edge_structure_meta),
+                pprint.pformat(edges_graph_structure_meta),
                 pprint.pformat(edge_data_meta),
             )
     nodes_match = True
@@ -892,7 +929,11 @@ def main():
             if type_name in edge_types_with_labels:
                 # If the task is not link_prediction, we need to modify the label file's metadata
                 if task_type not in {"link_predict", "link_prediction"}:
-                    assert etype_label_property
+                    assert etype_label_property, (
+                        "When task is not link prediction, providing an 'etype_label_property' "
+                        f"is required. Got task {task_type}, but `metadata_dict['graph_info']"
+                        "['etype_label_property']` was empty."
+                    )
                     logging.info(
                         "Modifying metadata for label '%s' of edge type '%s'",
                         etype_label_property,
@@ -927,7 +968,7 @@ def main():
                         feature_idx + 1,
                         len(type_data_dict),
                     )
-                    feature_dict = repartitioner.repartition_parquet_files_in_memory(
+                    repartitioner.repartition_parquet_files_in_memory(
                         feature_dict, most_frequent_counts
                     )
                 else:

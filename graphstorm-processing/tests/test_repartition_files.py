@@ -17,7 +17,6 @@ import json
 import os
 import shutil
 import sys
-import tempfile
 from typing import Callable, List
 
 import pytest
@@ -42,7 +41,7 @@ def create_feature_table(col_name: str, num_rows: int, feature_start_val: int) -
     Parameters
     ----------
     col_name : str
-        The name of the column of the returned Tahle
+        The name of the column of the returned Table
     num_rows : int
         The number of rows the returned table will have.
     feature_start_val : int
@@ -51,7 +50,7 @@ def create_feature_table(col_name: str, num_rows: int, feature_start_val: int) -
     Returns
     -------
     pa.Table
-        _description_
+        A PyArrow Table with one column with increasing integer values.
     """
     feature: pa.Array = pa.array(range(feature_start_val, feature_start_val + num_rows))
 
@@ -153,16 +152,6 @@ def create_parquet_files_fixture():
 
     # Cleanup all temp files after the entire module has been tested
     shutil.rmtree(TEMP_DATA_PREFIX)
-
-
-@pytest.fixture(autouse=True)
-def tempdir():
-    """Create a temporary directory for the output"""
-    temp_dir = tempfile.mkdtemp(
-        prefix=os.path.join(_ROOT, "resources/test_output/"),
-    )
-    yield temp_dir
-    shutil.rmtree(temp_dir)
 
 
 # Test multiple desired row counts and both partition functions, in-memory and per-file

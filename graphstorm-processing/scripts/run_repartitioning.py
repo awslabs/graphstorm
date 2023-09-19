@@ -19,7 +19,7 @@ This script allows us to launch a SageMaker Processing job to
 repartition the data produced by the graph processing job.
 
 Usage:
-    run_repartitioning.py --input-prefix <s3--prefix> \\
+    run_repartitioning.py --s3-input-prefix <s3--prefix> \\
         --config-file metadata.json --image-uri <image-uri> --role <role>
 
 Script Parameters
@@ -142,11 +142,14 @@ def main():
             desired_volume_size,
             max_allowed_volume_size,
         )
-    required_volume_size_gb = max(min(desired_volume_size, max_allowed_volume_size), 30)
+    # Ensure we don't request volume larger than max available
+    capped_volume_size = min(desired_volume_size, max_allowed_volume_size)
+    # Ensure we request at least 30GB for volume
+    requested_volume_size_gb = max(capped_volume_size, 30)
     logging.info(
         "Total data size <= %d GB, assigning %d GB storage",
         input_total_size_in_gb,
-        required_volume_size_gb,
+        requested_volume_size_gb,
     )
 
     script_utils.check_if_instances_available(args.instance_type, instance_count=1, region=region)
@@ -158,7 +161,7 @@ def main():
         instance_count=1,
         image_uri=args.image_uri,
         sagemaker_session=sagemaker_session,
-        volume_size_in_gb=required_volume_size_gb,
+        volume_size_in_gb=requested_volume_size_gb,
         **processor_kwargs,
     )
 
