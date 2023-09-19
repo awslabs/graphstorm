@@ -42,7 +42,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    api/graphstorm.dataloading
    api/graphstorm.model
    api/graphstorm.trainer
-   api/graphstorm.inferer
+   api/graphstorm.inferrer
    api/graphstorm.evaluator
    api/graphstorm.customized
 

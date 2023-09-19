@@ -13,12 +13,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infererence framework.
+    Inference framework.
 """
 import torch as th
 
-class GSInfer():
-    """ Generic GSgnn infer.
+class GSInferrer():
+    """ Generic GSgnn Inferrer.
 
 
     Parameters
@@ -36,14 +36,14 @@ class GSInfer():
         self._task_tracker = None
 
     def setup_device(self, device):
-        """ Set up the device for the inference.
+        """ Set up the device for the inferrer.
 
         The CUDA device is set up based on the local rank.
 
         Parameters
         ----------
         device :
-            The device for inference.
+            The device for inferrer.
         """
         self._device = th.device(device)
         self._model = self._model.to(self.device)
@@ -98,24 +98,24 @@ class GSInfer():
 
     @property
     def evaluator(self):
-        """ Get the evaluator associated with the inference.
+        """ Get the evaluator associated with the inferrer.
         """
         return self._evaluator
 
     @property
     def task_tracker(self):
-        """ Get the task tracker associated with the inference.
+        """ Get the task tracker associated with the inferrer.
         """
         return self._task_tracker
 
     @property
     def device(self):
-        """ The device associated with the inference.
+        """ The device associated with the inferrer.
         """
         return self._device
 
     @property
     def rank(self):
-        """ Get the rank the inference.
+        """ Get the rank the inferrer.
         """
         return self._rank

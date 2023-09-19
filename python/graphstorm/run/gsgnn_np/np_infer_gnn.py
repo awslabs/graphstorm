@@ -19,7 +19,7 @@
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.inference import GSgnnNodePredictionInfer
+from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnNodeInferData, GSgnnNodeDataLoader
 from graphstorm.utils import setup_device
@@ -54,7 +54,7 @@ def main(config_args):
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
-    infer = GSgnnNodePredictionInfer(model, gs.get_rank())
+    infer = GSgnnNodePredictionInferrer(model, gs.get_rank())
     infer.setup_device(device=device)
     if not config.no_validation:
         evaluator = get_evaluator(config)

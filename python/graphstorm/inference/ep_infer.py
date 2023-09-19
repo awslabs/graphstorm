@@ -13,12 +13,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infer wrapper for edge classification and regression.
+    Inferrer wrapper for edge classification and regression.
 """
 import time
 from dgl.distributed import DistTensor
 
-from .graphstorm_infer import GSInfer
+from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
@@ -27,10 +27,10 @@ from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predic
 
 from ..utils import sys_tracker, get_world_size, barrier
 
-class GSgnnEdgePredictionInfer(GSInfer):
-    """ Edge classification/regression infer.
+class GSgnnEdgePredictionInferrer(GSInferrer):
+    """ Edge classification/regression inferrer.
 
-    This is a highlevel infer wrapper that can be used directly
+    This is a highlevel inferrer wrapper that can be used directly
     to do edge classification/regression model inference.
 
     Parameters
@@ -48,9 +48,10 @@ class GSgnnEdgePredictionInfer(GSInfer):
             return_proba=True):
         """ Do inference
 
-        The infer can do three things:
+        The inference can do three things:
         1. (Optional) Evaluate the model performance on a test set if given
         2. Generate node embeddings
+        3. Comput inference results for edges with target edge type.
 
         Parameters
         ----------

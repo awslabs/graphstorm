@@ -13,11 +13,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infer wrapper for link predicion.
+    Inferrer wrapper for link predicion.
 """
 import time
 
-from .graphstorm_infer import GSInfer
+from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
@@ -26,10 +26,10 @@ from ..model.lp_gnn import lp_mini_batch_predict
 
 from ..utils import sys_tracker, get_world_size, barrier
 
-class GSgnnLinkPredictionInfer(GSInfer):
-    """ Link prediction infer.
+class GSgnnLinkPredictionInferrer(GSInferrer):
+    """ Link prediction inferrer.
 
-    This is a highlevel infer wrapper that can be used directly
+    This is a highlevel inferrer wrapper that can be used directly
     to do link prediction model inference.
 
     Parameters

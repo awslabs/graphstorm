@@ -20,7 +20,7 @@
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.inference import GSgnnLinkPredictionInfer
+from graphstorm.inference import GSgnnLinkPredictionInferrer
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
@@ -45,7 +45,7 @@ def main(config_args):
     model = gs.create_builtin_lp_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
-    infer = GSgnnLinkPredictionInfer(model, gs.get_rank())
+    infer = GSgnnLinkPredictionInferrer(model, gs.get_rank())
     infer.setup_device(device=device)
     if not config.no_validation:
         infer.setup_evaluator(
