@@ -319,7 +319,7 @@ class ParquetRepartitioner:
         Returns
         -------
             A data format dictionary with the row
-            counts updated to match desired_counts.
+            count of each file updated to match desired_counts.
 
         Raises
         ------
