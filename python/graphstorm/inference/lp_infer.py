@@ -42,9 +42,9 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
 
     # TODO(zhengda) We only support full-graph inference for now.
     def infer(self, data, loader, save_embed_path,
-            edge_mask_for_gnn_embeddings='train_mask',
-            use_mini_batch_infer=False,
-            node_id_mapping_file=None):
+              edge_mask_for_gnn_embeddings='train_mask',
+              use_mini_batch_infer=False,
+              node_id_mapping_file=None):
         """ Do inference
 
         The inference can do two things:
@@ -83,9 +83,8 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         device = self.device
         if save_embed_path is not None:
             save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
+                                  get_world_size(), device=device,
+                                  node_id_mapping_file=node_id_mapping_file)
         barrier()
         sys_tracker.check('save embeddings')
 

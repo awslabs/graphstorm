@@ -124,10 +124,10 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             if use_mini_batch_infer:
                 g = loader.data.g
                 ntype_emb = DistTensor((g.num_nodes(ntype), embs[ntype].shape[1]),
-                    dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
-                    part_policy=g.get_node_partition_policy(ntype),
-                    # TODO: this makes the tensor persistent in memory.
-                    persistent=True)
+                                       dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
+                                       part_policy=g.get_node_partition_policy(ntype),
+                                       # TODO: this makes the tensor persistent in memory.
+                                       persistent=True)
                 # nodes that do prediction in mini-batch may be just a subset of the
                 # entire node set.
                 ntype_emb[loader.target_nidx[ntype]] = embs[ntype]
@@ -135,10 +135,9 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
 
-            save_gsgnn_embeddings(save_embed_path,
-                embeddings, self.rank, get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
+            save_gsgnn_embeddings(save_embed_path, embeddings, self.rank,
+                                  get_world_size(), device=device,
+                                  node_id_mapping_file=node_id_mapping_file)
             barrier()
             sys_tracker.check('save embeddings')
 
@@ -149,16 +148,15 @@ class GSgnnNodePredictionInferrer(GSInferrer):
 
                 pred_shape = list(pred.shape)
                 pred_shape[0] = g.num_nodes(ntype)
-                pred_data = DistTensor(pred_shape,
-                    dtype=pred.dtype, name=f'predict-{ntype}',
-                    part_policy=g.get_node_partition_policy(ntype),
-                    # TODO: this makes the tensor persistent in memory.
-                    persistent=True)
+                pred_data = DistTensor(pred_shape, dtype=pred.dtype, name=f'predict-{ntype}',
+                                       part_policy=g.get_node_partition_policy(ntype),
+                                       # TODO: this makes the tensor persistent in memory.
+                                       persistent=True)
                 # nodes that have predictions may be just a subset of the
                 # entire node set.
                 pred_data[loader.target_nidx[ntype]] = pred.cpu()
                 pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, self.rank,
-                    get_world_size(), device=device)
+                                       get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, self.rank)
         barrier()
         sys_tracker.check('save predictions')
