@@ -216,8 +216,6 @@ BUILTIN_FAST_LP_JOINT_NEG_SAMPLER = 'fast_joint'
 BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER = 'fast_localuniform'
 BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 
-LP_DECODER_EDGE_WEIGHT = "lp_edge_weight"
-
 class GSgnnLinkPredictionDataLoader():
     """ Link prediction minibatch dataloader
 
@@ -247,9 +245,6 @@ class GSgnnLinkPredictionDataLoader():
         The mask that indicates the edges used for computing GNN embeddings. By default,
         the dataloader uses the edges in the training graphs to compute GNN embeddings to
         avoid information leak for link prediction.
-    lp_edge_weight_for_loss: str or dict of [str]
-        The edge data fields that stores the edge weights used
-        in computing link prediction loss
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
@@ -257,11 +252,10 @@ class GSgnnLinkPredictionDataLoader():
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
-                 edge_mask_for_gnn_embeddings='train_mask', lp_edge_weight_for_loss=None,
+                 edge_mask_for_gnn_embeddings='train_mask',
                  construct_feat_ntype=None, construct_feat_fanout=5):
         self._data = dataset
         self._fanout = fanout
-        self._lp_edge_weight_for_loss = lp_edge_weight_for_loss
         self._device = device
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
@@ -335,15 +329,7 @@ class GSgnnLinkPredictionDataLoader():
         if self._construct_feat_sampler is not None and len(blocks) > 0:
             block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
             blocks.insert(0, block)
-        if self._lp_edge_weight_for_loss is not None:
-            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
-                for etype in pos_graph.canonical_etypes}
-            edge_weight_feats = self._data.get_edge_feats(input_edges,
-                                                          self._lp_edge_weight_for_loss,
-                                                          pos_graph.device)
-            # store edge feature into graph
-            for etype, feat in edge_weight_feats.items():
-                pos_graph.edges[etype].data[LP_DECODER_EDGE_WEIGHT] = feat
+
         return (input_nodes, pos_graph, neg_graph, blocks)
 
     @property
@@ -671,15 +657,10 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
 
     def __next__(self):
         input_nodes, pos_graph, neg_graph, blocks = self.dataloader.__next__()
-        if self._lp_edge_weight_for_loss is not None:
-            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
-                for etype in pos_graph.canonical_etypes}
-            edge_weight_feats = self._data.get_edge_feats(input_edges,
-                                                          self._lp_edge_weight_for_loss,
-                                                          pos_graph.device)
-            # store edge feature into graph
-            for etype, feat in edge_weight_feats.items():
-                pos_graph.edges[etype].data[LP_DECODER_EDGE_WEIGHT] = feat
+        if self._construct_feat_sampler is not None and len(blocks) > 0:
+            block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
+            blocks.insert(0, block)
+
         return (input_nodes, pos_graph, neg_graph, blocks)
 
 class GSgnnAllEtypeLPJointNegDataLoader(GSgnnAllEtypeLinkPredictionDataLoader):

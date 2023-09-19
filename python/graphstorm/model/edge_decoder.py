@@ -24,8 +24,8 @@ from ..utils import get_backend, is_distributed
 from .ngnn_mlp import NGNNMLP
 from .gs_layer import GSLayer, GSLayerNoParam
 from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                           BUILTIN_LP_JOINT_NEG_SAMPLER,
-                           LP_DECODER_EDGE_WEIGHT)
+                           BUILTIN_LP_JOINT_NEG_SAMPLER)
+
 from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score
 from ..eval.utils import calc_distmult_neg_head_score, calc_distmult_neg_tail_score
 
@@ -510,17 +510,64 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         return out
 
 ##################### Link Prediction Decoders #######################
-class LinkPredictDotDecoder(GSLayerNoParam):
+class LinkPredictNoParamDecoder(GSLayerNoParam):
+    """ Abstract class for Link prediction decoder without trainable parameters
+    """
+
+    # pylint: disable=arguments-differ
+    @abc.abstractmethod
+    def forward(self, g, h, e_h=None):
+        """Forward function.
+
+        This computes the edge score on every edge type.
+        Parameters
+        ----------
+        g : DGLGraph
+            The target edge graph
+        h : dict of Tensors
+            The dictionary containing the node embeddings
+        e_h : dict of tensors
+            The dictionary containing the edge features for g.
+
+        Returns
+        -------
+        th.Tensor
+            The prediction scores for all edges in the input graph.
+        """
+
+class LinkPredictLearnableDecoder(GSLayer):
+    """ Abstract class for Link prediction decoder with trainable parameters
+    """
+
+    # pylint: disable=arguments-differ
+    @abc.abstractmethod
+    def forward(self, g, h, e_h=None):
+        """Forward function.
+
+        This computes the edge score on every edge type.
+        Parameters
+        ----------
+        g : DGLGraph
+            The target edge graph
+        h : dict of Tensors
+            The dictionary containing the node embeddings
+        e_h : dict of tensors
+            The dictionary containing the edge features for g.
+
+        Returns
+        -------
+        th.Tensor
+            The prediction scores for all edges in the input graph.
+        """
+
+class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
     """ Link prediction decoder with the score function of dot product
     """
     def __init__(self, in_dim):
         self._in_dim = in_dim
 
-    def forward(self, g, h):    # pylint: disable=arguments-differ
-        """Forward function.
-
-        This computes the dot product score on every edge type.
-        """
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
         with g.local_scope():
             scores = []
 
@@ -666,7 +713,7 @@ class LinkPredictDotDecoder(GSLayerNoParam):
         """
         return 1
 
-class LinkPredictDistMultDecoder(GSLayer):
+class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
     """ Link prediction decoder with the score function of DistMult
 
     Parameters
@@ -709,22 +756,8 @@ class LinkPredictDistMultDecoder(GSLayer):
         """
         return self._w_relation.weight, self.etype2rid
 
-    def forward(self, g, h):
-        """Forward function.
-
-        This computes the DistMult score on every edge type.
-
-        Parameters
-        ----------
-        g : DGLGraph
-            a DGL graph for the edge prediction.
-        h : dict of Tensor
-            The node data for the input graph.
-
-        Returns
-        -------
-        Tensor : the prediction scores for all edges in the input graph.
-        """
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
         with g.local_scope():
             scores=[]
 
@@ -889,32 +922,6 @@ class LinkPredictDistMultDecoder(GSLayer):
         """
         return 1
 
-def _get_edge_weight(g, weight_field, etype):
-    """ Get the edge weight feature from g according to etype.
-        If the corresponding edge type does not have edge weight, set the weight to 1.
-
-        Parameters
-        ----------
-        g: DGLGraph
-            Graph.
-        weight_field: str
-            Edge weight feature field in a graph
-        etype: (str, str, str)
-            Canonical etype
-    """
-    # edge_weight_fields is a str
-    if weight_field in g.edges[etype].data:
-        eid = g.edges(form="eid", etype=etype)
-        weight = g.edges[etype].data[weight_field][eid]
-        weight = weight.flatten()
-        assert len(weight) == len(eid), \
-                "Edge weight must be a tensor of shape (num_edges,) " \
-            f"or (num_edges, 1). But get {g.edges[etype].data[weight_field].shape}"
-    else:
-        # current etype does not has weight
-        weight = th.ones((g.num_edges(etype),))
-    return weight
-
 class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
     """Link prediction decoder with the score function of DistMult
        with edge weight.
@@ -925,7 +932,8 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDistMultDecoder, self).__init__(etypes, h_dim, gamma)
 
-    def forward(self, g, h):
+    # pylint: disable=signature-differs
+    def forward(self, g, h, e_h):
         """Forward function.
 
         This computes the DistMult score on every edge type.
@@ -950,7 +958,17 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
                 rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
                 scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
 
-                weight = _get_edge_weight(g, LP_DECODER_EDGE_WEIGHT, canonical_etype)
+                if e_h is not None and canonical_etype in e_h.keys():
+                    weight = e_h[canonical_etype]
+                    assert th.is_tensor(weight), \
+                        "The edge weight for Link prediction must be a torch tensor." \
+                        "LinkPredictWeightedDistMultDecoder only accepts a single edge " \
+                        "feature as edge weight."
+                    weight = weight.flatten()
+                else:
+                    # current etype does not has weight
+                    weight = th.ones((g.num_edges(canonical_etype),))
+
                 weights.append(weight.to(scores_etype.device))
                 scores.append(scores_etype)
             scores = th.cat(scores)
@@ -967,7 +985,8 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDotDecoder, self).__init__(in_dim)
 
-    def forward(self, g, h): # pylint: disable=arguments-differ
+    # pylint: disable=signature-differs
+    def forward(self, g, h, e_h):
         """Forward function.
 
         This computes the dot product score on every edge type.
@@ -986,7 +1005,16 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
                 dest_emb = h[dest_type][v]
                 scores_etype = calc_dot_pos_score(src_emb, dest_emb)
 
-                weight = _get_edge_weight(g, LP_DECODER_EDGE_WEIGHT, canonical_etype)
+                if e_h is not None and canonical_etype in e_h.keys():
+                    weight = e_h[canonical_etype]
+                    assert th.is_tensor(weight), \
+                        "The edge weight for Link prediction must be a torch tensor." \
+                        "LinkPredictWeightedDotDecoder only accepts a single edge " \
+                        "feature as edge weight."
+                    weight = weight.flatten()
+                else:
+                    # current etype does not has weight
+                    weight = th.ones((g.num_edges(canonical_etype),))
                 weights.append(weight.to(scores_etype.device))
                 scores.append(scores_etype)
 
