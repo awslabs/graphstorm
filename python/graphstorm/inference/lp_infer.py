@@ -24,7 +24,7 @@ from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
-from ..utils import sys_tracker, get_rank, barrier
+from ..utils import sys_tracker, get_rank, get_world_size, barrier
 
 class GSgnnLinkPredictionInfer(GSInfer):
     """ Link prediction infer.
@@ -80,7 +80,9 @@ class GSgnnLinkPredictionInfer(GSInfer):
         sys_tracker.check('compute embeddings')
         device = self.device
         if save_embed_path is not None:
-            save_gsgnn_embeddings(save_embed_path, embs, device=device,
+            save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
+                get_world_size(),
+                device=device,
                 node_id_mapping_file=node_id_mapping_file)
         barrier()
         sys_tracker.check('save embeddings')

@@ -117,7 +117,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-            save_gsgnn_embeddings(save_embed_path, embs, device=device,
+            save_gsgnn_embeddings(save_embed_path, embs, device=device, get_rank(),
+                get_world_size(),
                 node_id_mapping_file=node_id_mapping_file)
         barrier()
         sys_tracker.check('save embeddings')

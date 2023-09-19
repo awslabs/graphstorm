@@ -154,7 +154,9 @@ def main(config_args):
 
         # The order of the ntypes must be sorted
         embs = {ntype: embeddings[ntype] for ntype in sorted(target_ntypes)}
-        save_embeddings(config.save_embed_path, embs, device=device,
+        save_embeddings(config.save_embed_path, embs, gs.get_rank(),
+                        gs.get_world_size(),
+                        device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():
