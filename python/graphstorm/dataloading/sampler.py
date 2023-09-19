@@ -393,7 +393,7 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
 
         return seed_nodes, output_nodes, blocks
 
-class _FileSampler:
+class FileSamplerInterface:
     r"""File Sampler Interface.
 
     Parameters:
@@ -510,7 +510,7 @@ class RandomShuffleFileSampler():
 
         return self.file_indices[self._indices[self._index]]
 
-class DistributedFileSampler(_FileSampler):
+class DistributedFileSampler(FileSamplerInterface):
     r"""Distributed File Sampler. Samples file from the data path.
     Each rank only has access to a partition of all the data shards.
 
@@ -552,7 +552,11 @@ class DistributedFileSampler(_FileSampler):
 
         # if num of workers is greater than num of files,
         # each worker will be assigned one file,
-        # and there can be files assigned by multiple workders.
+        # and there can be files assigned to multiple workers.
+        # e.g., for 8 workers indexed from 0-7, and 5 files indexed from 0-4
+        # the distribution will be file 0 -> worker 0, file 1 -> worker 1,
+        # file 2 -> worker 2, file 3 -> worker 3, file 4 -> worker 4, 
+        # file 0 -> worker 5, file 1 -> worker 6, file 2 -> worker 7
         if self.world_size > self.num_files:
             self.remainder = self.world_size % self.num_files
             self.part_start = 0

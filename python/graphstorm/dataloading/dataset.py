@@ -815,11 +815,8 @@ class GSDistillData(Dataset):
 
     def get_inputs(self):
         """ Tokenize textual data."""
-        for i, file_name in enumerate(self.file_list):
-            if i == 0:
-                inputs = pd.read_parquet(file_name)
-            else:
-                inputs = pd.concat([inputs, pd.read_parquet(file_name)])
+        inputs = [pd.read_parquet(file_name) for file_name in self.file_list]
+        inputs = pd.concat(inputs)
 
         token_id_inputs = []
         for i in range(len(inputs["textual_feats"])):
@@ -852,6 +849,7 @@ class GSDistillData(Dataset):
             '''
             ## pad inputs
             input_ids_list = [x["input_ids"] for x in batch]
+
             pad_input_ids = th.nn.utils.rnn.pad_sequence(input_ids_list, 
                 batch_first=True, padding_value=self.tokenizer.pad_token_id)
             ## compute mask

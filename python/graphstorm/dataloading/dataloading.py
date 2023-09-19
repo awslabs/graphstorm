@@ -933,19 +933,21 @@ class DataManager:
 
     Parameters:
     ----------
-        dataloader_generator : DataloaderGenerator: 
-            A dataloader generator
-            Generates dataloader based on given a file path.
-        dataset_path str : 
-            Path to the data files.
-        shuffle : bool
-            Set to ``True`` to have the files reshuffled at every epoch (default: ``False``).
-        infinite : bool
-            Set to ``True`` to have the files sampled infinitely (default: ``False``).
-        local_rank : int
-            Local rank for the trainer (default: ``-1``).
-        is_train : bool
-            Set to ``True`` if the provider is for training set (default: ``True``).
+    dataloader_generator : DataloaderGenerator: 
+        A dataloader generator
+        Generates dataloader based on given a file path.
+    dataset_path str : 
+        Path to the data files.
+    shuffle : bool
+        Set to ``True`` to have the files reshuffled at every epoch (default: ``False``).
+    infinite : bool
+        Set to ``True`` to have the files sampled infinitely (default: ``False``).
+    local_rank : int
+        Local rank for the trainer (default: ``-1``).
+    world_size : int
+        Number of all trainers.
+    is_train : bool
+        Set to ``True`` if the provider is for training set (default: ``True``).
     """
 
     def __init__(
@@ -958,32 +960,26 @@ class DataManager:
         world_size=1,
         is_train=True,
     ):
-        super().__init__()
         # TODO (HZ): implement prefetch to put files into a queue
         self.is_train = is_train
-        if dataset_path is not None:
-            if not isinstance(dataset_path, str):
-                raise TypeError(
-                    "dataset_path should be a str, but got "
-                    "dataset_path={}".format(dataset_path)
-                )
-            file_sampler = DistributedFileSampler(
-                dataset_path=dataset_path,
-                shuffle=shuffle,
-                infinite=infinite,
-                local_rank=local_rank,
-                world_size=world_size,
-                is_train=is_train,
+        assert dataset_path is not None, "dataset_path needs to be specified."
+        if not isinstance(dataset_path, str):
+            raise TypeError(
+                f"dataset_path should be a str, but got {type(dataset_path)} "
+                f"dataset_path={dataset_path}"
             )
-        else:
-            raise ValueError(
-                    "dataset_path needs to be specified"
-                )
+        file_sampler = DistributedFileSampler(
+            dataset_path=dataset_path,
+            shuffle=shuffle,
+            infinite=infinite,
+            local_rank=local_rank,
+            world_size=world_size,
+            is_train=is_train,
+        )
+
         self.file_sampler = file_sampler
         self.file_sampler_iter = iter(self.file_sampler)
-
         self.dataloader_generator = dataloader_generator
-
         self.dataloader = None
         self.data_file = None
 
@@ -995,26 +991,22 @@ class DataManager:
         return self.data_file
 
     def get_iterator(self):
-        """ Get dataloader iterator from a data file.
+        """ Get dataloader iterator for a data file.
         """
         dataloader = None
-
         data_file = next(self.file_sampler_iter)
 
         # TODO (HZ): implement a queue to store and pop the files by prefetch and get_iterator
-
         if data_file is not None:
             dataloader = self.dataloader_generator.generate(data_file, is_train=self.is_train)
-
         self.data_file = data_file
         self.dataloader = dataloader
-
         return dataloader
 
     def release_iterator(self):
         """ Release the dataloader iterator.
         """
-        del self.dataloader
+        self.dataloader = None
         self.data_file = None
 
     """
@@ -1059,10 +1051,9 @@ class DataloaderGenerator:
         min_size = th.tensor(len(data), dtype=th.int64, device=self.device)
         dist.all_reduce(min_size, op=dist.ReduceOp.MIN)
         min_size = min_size.item()
-        select_index = random.sample(list(range(len(data))), min_size)
+        select_index = th.randperm(len(data))[:min_size].tolist()
         data.token_id_inputs = [data.token_id_inputs[i] for i in select_index]
         data.labels = [data.labels[i] for i in select_index]
-
         return data
 
     def generate(self, input_files, is_train=True):
@@ -1088,7 +1079,6 @@ class DataloaderGenerator:
             data = self._data_len_sync(data)
 
         collate_fn = data.get_collate_fn() if self.collate_fn is None else self.collate_fn
-
         dataloader = DataLoader(
             data,
             batch_size=self.batch_size,

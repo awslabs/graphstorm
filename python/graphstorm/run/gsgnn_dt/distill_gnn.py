@@ -36,7 +36,7 @@ def main(config_args):
     device = setup_device(config.local_rank)
 
 
-    distiller = GSdistiller(gs.get_rank())
+    distiller = GSdistiller()
     distiller.setup_device(device=device)
     th.distributed.barrier()
 

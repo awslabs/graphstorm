@@ -21,11 +21,16 @@ from torch.nn.parallel import DistributedDataParallel
 import os
 import json
 
+import graphstorm as gs
+from .utils import to_device
 from ..model.gnn_distill import GSDistilledModel
 from ..dataloading import DataloaderGenerator, DataManager
 
 class GSdistiller():
     """ GNN distiller.
+    This class defines the running pipeline of distillation.
+    It first initiates DataManager and GSDistilledModel,
+    and then trains the student model and saves the checkpoint.
 
     Parameters
     ----------
@@ -33,8 +38,8 @@ class GSdistiller():
         The rank.
         Configs for GNN distillation
     """
-    def __init__(self, rank):
-        self._rank = rank
+    def __init__(self):
+        self.rank = gs.get_rank()
         self._device = -1
 
     def distill(
@@ -61,8 +66,6 @@ class GSdistiller():
             Model name for Transformer-based student model.
         pre_trained_name : str
             Name for pre-trained model weights.
-        gnn_embed_dim : int
-            Size of GNN embeddings.
         data_dir : str
             Directory for distillation data.
         batch_size : int
@@ -167,36 +170,6 @@ class GSdistiller():
 
         return True
 
-    def to_device(self, inputs, device='cuda'):
-        """ Move the mini batch to corresponding device.
-
-        Parameters
-        ----------
-        inputs: dict of tensor
-            A batch from dataloader.
-        device : str
-            Name for the local device.
-
-        Returns
-        -------
-        dict of tensor : A batch on the specified device.
-        """
-        if inputs is None:
-            return None
-        elif isinstance(inputs, th.Tensor):
-            return inputs.to(device)
-        elif isinstance(inputs, dict):
-            outputs = {}
-            for k, v in inputs.items():
-                outputs[k] = self.to_device(v, device=device)
-        elif isinstance(inputs, (list, tuple)):
-            outputs = []
-            for v in inputs:
-                outputs.append(self.to_device(v, device=device))
-        else:
-            raise NotImplementedError
-        return outputs
-
     def eval(self, model, eval_dataset_provider, global_step):
         """ Evaluate student model on validation set.
         The metric are mean square error (MSE).
@@ -220,8 +193,8 @@ class GSdistiller():
                 break
             print (f"Eval {index + 1}-th shard by trainer {self.rank}")
             with th.no_grad():
-                for batch_num, batch in enumerate(dataset_iterator):
-                    batch = self.to_device(batch, self.device)  # Move to device
+                for _, batch in enumerate(dataset_iterator):
+                    batch = to_device(batch, self.device)  # Move to device
                     loss = model.module(batch["input_ids"],
                         batch["attention_mask"],
                         batch["labels"])
@@ -286,7 +259,7 @@ class GSdistiller():
 
         for batch_num, batch in enumerate(dataset_iterator):
             try:
-                batch = self.to_device(batch, self.device)  # Move to device
+                batch = to_device(batch, self.device)  # Move to device
 
                 loss = model(batch["input_ids"],
                     batch["attention_mask"],
@@ -337,12 +310,6 @@ class GSdistiller():
             The device for distillation.
         """
         self._device = th.device(device)
-
-    @property
-    def rank(self):
-        """ Get the rank for the distillation.
-        """
-        return self._rank
 
     @property
     def device(self):
