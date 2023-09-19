@@ -20,6 +20,7 @@ import resource
 import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
+import dgl
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
@@ -143,6 +144,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
+                if data.pos_graph_feat_field is not None:
+                    input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                        for etype in pos_graph.canonical_etypes}
+                    pos_graph_feats = data.get_edge_feats(input_edges,
+                                                          data.pos_graph_feat_field,
+                                                          device)
+                else:
+                    pos_graph_feats = None
                 rt_profiler.record('train_node_feats')
 
                 pos_graph = pos_graph.to(device)
@@ -154,6 +163,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 loss = model(blocks, pos_graph, neg_graph,
                              node_feats=input_feats,
                              edge_feats=None,
+                             pos_edge_feats=pos_graph_feats,
                              input_nodes=input_nodes)
                 rt_profiler.record('train_forward')
 
