@@ -47,7 +47,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         """ Do inference
 
         The inference can do three things:
-        
+
         1. (Optional) Evaluate the model performance on a test set if given.
         2. Generate node embeddings.
         3. Comput inference results for edges with target edge type.

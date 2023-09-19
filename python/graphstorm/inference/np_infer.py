@@ -47,7 +47,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         """ Do inference
 
         The inference does three things:
-        
+
         1. (Optional) Evaluate the model performance on a test set if given.
         2. Generate node embeddings.
         3. Comput inference results for nodes with target node type.
@@ -135,8 +135,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             embeddings = {ntype: ntype_emb}
 
             save_gsgnn_embeddings(save_embed_path, embeddings,
-                get_rank(), get_world_size(), device=device,
-                node_id_mapping_file=node_id_mapping_file)
+                                  get_rank(), get_world_size(), device=device,
+                                  node_id_mapping_file=node_id_mapping_file)
             barrier()
             sys_tracker.check('save embeddings')
 

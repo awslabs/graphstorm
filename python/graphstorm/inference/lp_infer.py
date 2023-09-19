@@ -46,7 +46,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         """ Do inference
 
         The inference can do two things:
-        
+
         1. (Optional) Evaluate the model performance on a test set if given.
         2. Generate node embeddings.
 
