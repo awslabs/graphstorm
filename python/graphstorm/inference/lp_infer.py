@@ -24,7 +24,7 @@ from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
-from ..utils import sys_tracker, get_world_size, get_rank, barrier
+from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnLinkPredictionInfer(GSInfer):
     """ Link prediction infer.
