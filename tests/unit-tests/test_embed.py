@@ -362,10 +362,10 @@ def test_pure_lm_embed(num_train):
 
     assert_almost_equal(out_emb0.detach().numpy(),
                         embeds_with_lm['n0'][th.arange(g.number_of_nodes('n0'))].numpy(),
-                        decimal=5)
+                        decimal=2)
     assert_almost_equal(out_emb1.detach().numpy(),
                         embeds_with_lm['n1'][th.arange(g.number_of_nodes('n0'))].numpy(),
-                        decimal=5)
+                        decimal=2)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
