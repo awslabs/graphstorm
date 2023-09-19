@@ -55,10 +55,10 @@ def main(config_args):
     """
     config = GSConfig(config_args)
     config.verify_arguments(True)
-
     # TODO(IN): Support edge classification/regression for wholegraph
-    gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  use_wholegraph=False)
+    if use_wholegraph(config.part_config):
+        raise NotImplementedError("Wholegraph is not supported for edge prediction tasks")
+    gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)

@@ -218,12 +218,13 @@ class GSgnnData():
                                      'wholegraph/metadata.json')
         with open(metadata_file, encoding="utf8") as f:
             wg_metadata = json.load(f)
+        data_shape = wg_metadata[ntype + '/' + name]['shape']
         node_feat_wm_embedding = wgth.create_embedding(
             feature_comm,
             embedding_wholememory_type,
             embedding_wholememory_location,
             getattr(th, wg_metadata[ntype + '/' + name]['dtype'].split('.')[1]),
-            wg_metadata[ntype + '/' + name]['shape'],
+            [data_shape[0],1] if len(data_shape) == 1 else data_shape,
             optimizer=None,
             cache_policy=cache_policy,
         )
@@ -607,21 +608,17 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
             if is_distributed() and use_wholegraph(part_config):
                 logging.info("Allocate node labels with Wholegraph")
                 num_parts = self._g.get_partition_book().num_partitions()
-
-                for ntype in self._g.ntypes:
+                assert isinstance(label_field, str)
+                for ntype in self._train_ntypes:
                     data = {}
-                    label_names = label_field[ntype] if isinstance(label_field, dict) \
-                        else label_field
-                    for name in label_names:
-                        data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
+                    data[label_field] = self.load_wg_feat(part_config, num_parts, ntype, label_field)
                     if len(self._g.ntypes) == 1:
                         self._g._ndata_store.update(data)
                     else:
                         self._g._ndata_store[ntype].update(data)
 
-            for ntype in self._g.ntypes:
-                if label_field in self._g.nodes[ntype].data:
-                    self._labels[ntype] = self._g.nodes[ntype].data[label_field]
+            for ntype in self._train_ntypes:
+                self._labels[ntype] = self._g.nodes[ntype].data[label_field]
         else:
             self._labels = None
 
@@ -645,8 +642,8 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         for ntype, nid in nids.items():
             assert ntype in self._labels
             data = self._labels[ntype]
-            if hasattr(data, 'gather') and not isinstance(data, DistTensor) and \
-                not th.is_tensor(data): # WholeMemoryEmbedding format
+            # TODO (IN): Wholegraph not working
+            if hasattr(data, 'gather') and is_wholegraph_embedding(data):
                 data = data.gather(nid.to(device))
             else:
                 data = data[nid].to(device)
