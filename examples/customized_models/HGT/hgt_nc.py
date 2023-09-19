@@ -335,7 +335,7 @@ def main(args):
                                   config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.
-    tracker = GSSageMakerTaskTracker(config, gs.get_rank())
+    tracker = GSSageMakerTaskTracker(config)
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.
@@ -357,7 +357,7 @@ def main(args):
                                     label_field=config.label_field)
 
     # Create an inference for a node task.
-    infer = GSgnnNodePredictionInfer(model, gs.get_rank())
+    infer = GSgnnNodePredictionInfer(model)
     infer.setup_device(device=device)
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
