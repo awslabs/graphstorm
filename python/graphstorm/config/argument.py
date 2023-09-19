@@ -777,16 +777,16 @@ class GSConfig:
         return None
 
     @property
-    def max_global_step(self):
-        """ Maximum global training steps for distillation.
+    def max_distill_step(self):
+        """ Maximum training steps for distillation.
         """
         # only needed by distillation
-        if hasattr(self, "_max_global_step"):
-            assert self._max_global_step > 0, \
-                "Maximum global steps should be greater than 0."
-            return self._max_global_step
+        if hasattr(self, "_max_distill_step"):
+            assert self._max_distill_steps > 0, \
+                "Maximum training steps should be greater than 0."
+            return self._max_distill_step
         else:
-            # default max global steps
+            # default max training steps
             return 10000
 
     @property
@@ -2179,8 +2179,8 @@ def _add_lm_model_args(parser):
     group.add_argument("--freeze-lm-encoder-epochs", type=int, default=argparse.SUPPRESS,
             help="Before fine-tuning LM model, how many epochs we will take "
                  "to warmup a GNN model")
-    group.add_argument("--max-global-step", type=int, default=argparse.SUPPRESS,
-                       help="The maximum of global step for each node type for distillation")
+    group.add_argument("--max-distill-step", type=int, default=argparse.SUPPRESS,
+                       help="The maximum of training step for each node type for distillation")
     group.add_argument("--max-seq-len", type=int, default=argparse.SUPPRESS,
                        help="The maximum of sequence length for distillation")
     return parser

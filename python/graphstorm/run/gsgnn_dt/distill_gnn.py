@@ -50,7 +50,7 @@ def main(config_args):
         saved_path=config.save_model_path,
         save_model_frequency=config.save_model_frequency,
         eval_frequency=config.eval_frequency,
-        max_global_step=config.max_global_step,
+        max_distill_step=config.max_distill_step,
     )
 
 def generate_parser():

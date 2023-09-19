@@ -135,7 +135,7 @@ gsf:
     save_model_frequency: 1000 # optional, default to be 1000
   hyperparam:
     lm_tune_lr: 0.0001 # optional, default to be 0.0001
-    num_epochs: 3 # optional, default to be 3
+    max_distill_steps: 10000 # optional, default to be 10000
     batch_size: 128 # optional, default to be 128
     eval_frequency: 1000 # optional, default to be 1000
 ```

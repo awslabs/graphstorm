@@ -53,7 +53,7 @@ class GSdistiller():
         saved_path,
         save_model_frequency,
         eval_frequency,
-        max_global_step,
+        max_distill_step,
         on_cpu=False,
     ):
         """ Distill function.
@@ -80,7 +80,7 @@ class GSdistiller():
             Interval to save the model checkpoint.
         eval_frequency : int,
             Interval for evaluation.
-        max_global_step : int,
+        max_distill_step : int,
             Maximum steps for distillation training.
         on_cpu : bool
             Whether the distillation will be conducted on cpu.
@@ -121,12 +121,12 @@ class GSdistiller():
                                         output_device=None if on_cpu else self.device)
 
         index = 0
-        global_step = 0
+        distill_step = 0
         while True:
             th.distributed.barrier()
             print (f"Train {index + 1}-th shard by trainer {self.rank}")
-            complete, global_step = self.train_shard(
-                global_step=global_step,
+            complete, distill_step = self.train_shard(
+                distill_step=distill_step,
                 model=student, 
                 optimizer=optimizer, 
                 train_dataset_provider=train_data_provider, 
@@ -134,7 +134,7 @@ class GSdistiller():
                 saved_path=saved_path,
                 save_model_frequency=save_model_frequency,
                 eval_frequency=eval_frequency,
-                max_global_step=max_global_step,
+                max_distill_step=max_distill_step,
             )
             is_first_iteration = False
 
@@ -142,7 +142,7 @@ class GSdistiller():
             if complete:
                 break
 
-    def save_student_model(self, model, saved_path, global_step):
+    def save_student_model(self, model, saved_path, distill_step):
         """ Save student model
 
         Parameters
@@ -151,12 +151,12 @@ class GSdistiller():
             Distilled student model.
         saved_path : str
             Path to save the model.
-        global_step : int
-            Global step of the model checkpoint.
+        distill_step : int
+            Distill step of the model checkpoint.
         """
         th.distributed.barrier()
         if self.rank == 0:
-            checkpoint_path = os.path.join(saved_path, f"checkpoint-{global_step}")
+            checkpoint_path = os.path.join(saved_path, f"checkpoint-{distill_step}")
             proj_dir_loc = os.path.join(checkpoint_path, "proj")
             tokenizer_dir_loc = os.path.join(checkpoint_path, "tokenizer")
             lm_dir_loc = os.path.join(checkpoint_path, "lm")
@@ -170,7 +170,7 @@ class GSdistiller():
 
         return True
 
-    def eval(self, model, eval_dataset_provider, global_step):
+    def eval(self, model, eval_dataset_provider, distill_step):
         """ Evaluate student model on validation set.
         The metric are mean square error (MSE).
 
@@ -180,8 +180,8 @@ class GSdistiller():
             Distilled student model.
         eval_dataset_provider : DataProvider
             Data provider for validation data.
-        global_step : int
-            Global step of the model checkpoint.
+        distill_step : int
+            Distill step of the model checkpoint.
         """
         model.eval()
         index = 0
@@ -203,13 +203,13 @@ class GSdistiller():
             index += 1
 
         mean_total_loss = total_loss / batch_index
-        print (f"Eval MSE at step {global_step}: {mean_total_loss}")
+        print (f"Eval MSE at step {distill_step}: {mean_total_loss}")
         model.train()
         eval_dataset_provider.release_iterator()
 
     def train_shard(
         self, 
-        global_step, 
+        distill_step, 
         model, 
         optimizer, 
         train_dataset_provider, 
@@ -217,14 +217,14 @@ class GSdistiller():
         saved_path,
         save_model_frequency,
         eval_frequency,
-        max_global_step,
+        max_distill_step,
     ):
         """
         Train using one shard from train_dataset_provider.
         Parameters
         ----------
-        global_step : int
-            Global step of the model checkpoint.
+        distill_step : int
+            Distill step of the model checkpoint.
         model : GSDistilledModel
             Distilled student model.
         optimizer : torch optimizer
@@ -239,13 +239,13 @@ class GSdistiller():
             Interval to save the model checkpoint.
         eval_frequency : int,
             Interval for evaluation.
-        max_global_step : int,
+        max_distill_step : int,
             Maximum steps for distillation training.
     
         Returns
         -------
         bool : whether to stop distillation.
-        int : Global step of the model checkpoint.
+        int : Distill step of the model checkpoint.
         """
         dataset_iterator = train_dataset_provider.get_iterator()
         if not dataset_iterator:
@@ -270,34 +270,34 @@ class GSdistiller():
                 loss.backward()
                 optimizer.step()
                 mean_shard_loss = shard_loss / (batch_num + 1)
-                if global_step % 20 == 0:
+                if distill_step % 20 == 0:
                     print (
                         f"Loss for shard {train_dataset_provider.get_iterator_name()}"
-                        f" at step {global_step} = {mean_shard_loss}"
+                        f" at step {distill_step} = {mean_shard_loss}"
                         f" from trainer {self.rank}"
                     )
 
-                if global_step % save_model_frequency == 0 and global_step != 0:
-                    self.save_student_model(model, saved_path, global_step)
+                if distill_step % save_model_frequency == 0 and distill_step != 0:
+                    self.save_student_model(model, saved_path, distill_step)
 
-                if global_step % eval_frequency == 0 and global_step != 0:
+                if distill_step % eval_frequency == 0 and distill_step != 0:
                     th.distributed.barrier()
                     # TODO (HZ): implement distributed evaluation by communicating with all trainers
                     if self.rank == 0:
-                        self.eval(model, eval_dataset_provider, global_step)
+                        self.eval(model, eval_dataset_provider, distill_step)
                     th.distributed.barrier()
 
-                if global_step == max_global_step:
+                if distill_step == max_distill_step:
                     complete = True
                     break
-                global_step += 1
+                distill_step += 1
             except StopIteration:
                 continue
 
         # release the memory
         train_dataset_provider.release_iterator()
 
-        return complete, global_step
+        return complete, distill_step
 
     def setup_device(self, device):
         """ Set up the device for the distillation.
