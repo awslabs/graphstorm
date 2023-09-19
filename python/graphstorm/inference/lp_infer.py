@@ -29,13 +29,13 @@ from ..utils import sys_tracker, get_world_size, barrier
 class GSgnnLinkPredictionInferrer(GSInferrer):
     """ Link prediction inferrer.
 
-    This is a highlevel inferrer wrapper that can be used directly
+    This is a high-level inferrer wrapper that can be used directly
     to do link prediction model inference.
 
     Parameters
     ----------
     model : GSgnnNodeModel
-        The GNN model for node prediction.
+        The GNN model for link prediction.
     rank : int
         The rank.
     """
@@ -48,8 +48,9 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         """ Do inference
 
         The inference can do two things:
-        1. (Optional) Evaluate the model performance on a test set if given
-        2. Generate node embeddings
+        
+        1. (Optional) Evaluate the model performance on a test set if given.
+        2. Generate node embeddings.
 
         Parameters
         ----------

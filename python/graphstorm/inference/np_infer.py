@@ -31,7 +31,7 @@ from ..utils import sys_tracker, get_world_size, barrier
 class GSgnnNodePredictionInferrer(GSInferrer):
     """ Node classification/regression inferrer.
 
-    This is a highlevel inferrer wrapper that can be used directly
+    This is a high-level inferrer wrapper that can be used directly
     to do node classification/regression model inference.
 
     Parameters
@@ -49,8 +49,9 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         """ Do inference
 
         The inference does three things:
-        1. (Optional) Evaluate the model performance on a test set if given
-        2. Generate node embeddings
+        
+        1. (Optional) Evaluate the model performance on a test set if given.
+        2. Generate node embeddings.
         3. Comput inference results for nodes with target node type.
 
         Parameters

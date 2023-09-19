@@ -30,13 +30,13 @@ from ..utils import sys_tracker, get_world_size, barrier
 class GSgnnEdgePredictionInferrer(GSInferrer):
     """ Edge classification/regression inferrer.
 
-    This is a highlevel inferrer wrapper that can be used directly
+    This is a high-level inferrer wrapper that can be used directly
     to do edge classification/regression model inference.
 
     Parameters
     ----------
     model : GSgnnNodeModel
-        The GNN model for node prediction.
+        The GNN model for edge prediction.
     rank : int
         The rank.
     """
@@ -49,8 +49,9 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         """ Do inference
 
         The inference can do three things:
-        1. (Optional) Evaluate the model performance on a test set if given
-        2. Generate node embeddings
+        
+        1. (Optional) Evaluate the model performance on a test set if given.
+        2. Generate node embeddings.
         3. Comput inference results for edges with target edge type.
 
         Parameters

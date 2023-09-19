@@ -20,7 +20,6 @@ import torch as th
 class GSInferrer():
     """ Generic GSgnn Inferrer.
 
-
     Parameters
     ----------
     model : GSgnnNodeModel
