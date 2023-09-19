@@ -160,7 +160,7 @@ class DistributedExecutor:
             response = bucket_resouce.delete_objects(
                 Delete={"Objects": [{"Key": f"{prefix}/test_file.txt"}], "Quiet": True}
             )
-            assert "Deleted" in response
+            assert response["ResponseMetadata"]["HTTPStatusCode"] == 200
 
         graph_conf = os.path.join(self.local_config_path, self.config_filename)
         with open(graph_conf, "r", encoding="utf-8") as f:
