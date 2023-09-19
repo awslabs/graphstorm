@@ -51,7 +51,8 @@ def main(config_args):
                                     config.part_config,
                                     eval_etypes=config.target_etype,
                                     node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    label_field=config.label_field,
+                                    decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
@@ -66,8 +67,7 @@ def main(config_args):
     dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=[],
                                      batch_size=config.eval_batch_size,
                                      device=device, train_task=False,
-                                     remove_target_edge_type=False,
-                                     decoder_edge_feat=config.decoder_edge_feat)
+                                     remove_target_edge_type=False)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings

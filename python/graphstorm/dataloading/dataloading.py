@@ -31,7 +31,6 @@ from .sampler import (LocalUniform,
 from .utils import trim_data, modify_fanout_for_target_etype
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
-EP_DECODER_EDGE_FEAT = "ep_edge_feat"
 
 class _ReconstructedNeighborSampler():
     """ This samples an additional hop for a mini-batch.
@@ -120,14 +119,12 @@ class GSgnnEdgeDataLoader():
                  train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
                  exclude_training_targets=False,
-                 decoder_edge_feat=None,
                  construct_feat_ntype=None,
                  construct_feat_fanout=5):
         self._data = dataset
         self._device = device
         self._fanout = fanout
         self._target_eidx = target_idx
-        self._decoder_edge_feat = decoder_edge_feat
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -185,15 +182,7 @@ class GSgnnEdgeDataLoader():
         if self._construct_feat_sampler is not None and len(blocks) > 0:
             block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
             blocks.insert(0, block)
-        if self._decoder_edge_feat is not None:
-            input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
-                           for etype in batch_graph.canonical_etypes}
-            edge_feats = self._data.get_edge_feats(input_edges,
-                                                   self._decoder_edge_feat,
-                                                   batch_graph.device)
-            # store edge feature into graph
-            for etype, feat in edge_feats.items():
-                batch_graph.edges[etype].data[EP_DECODER_EDGE_FEAT] = feat.to(th.float32)
+
         return (input_nodes, batch_graph, blocks)
 
     @property
