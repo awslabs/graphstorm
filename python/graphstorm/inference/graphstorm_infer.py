@@ -24,12 +24,9 @@ class GSInferrer():
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     """
-    def __init__(self, model, rank):
+    def __init__(self, model):
         self._model = model
-        self._rank = rank
         self._device = -1
         self._evaluator = None
         self._task_tracker = None
@@ -116,9 +113,3 @@ class GSInferrer():
         """ The device associated with the inferrer.
         """
         return self._device
-
-    @property
-    def rank(self):
-        """ Get the rank the inferrer.
-        """
-        return self._rank

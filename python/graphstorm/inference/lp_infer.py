@@ -24,7 +24,7 @@ from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
-from ..utils import sys_tracker, get_world_size, barrier
+from ..utils import sys_tracker, get_rank, get_world_size, barrier
 
 class GSgnnLinkPredictionInferrer(GSInferrer):
     """ Link prediction inferrer.
@@ -35,9 +35,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
     Parameters
     ----------
     model : GSgnnNodeModel
-        The GNN model for link prediction.
-    rank : int
-        The rank.
+        The GNN model for node prediction.
     """
 
     # TODO(zhengda) We only support full-graph inference for now.
@@ -83,7 +81,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         sys_tracker.check('compute embeddings')
         device = self.device
         if save_embed_path is not None:
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+            save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
                                   get_world_size(), device=device,
                                   node_id_mapping_file=node_id_mapping_file)
         barrier()
@@ -94,7 +92,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
             test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
             val_mrr, test_mrr = self.evaluator.evaluate(None, test_rankings, 0)
             sys_tracker.check('run evaluation')
-            if self.rank == 0:
+            if get_rank() == 0:
                 self.log_print_metrics(val_score=val_mrr,
                                        test_score=test_mrr,
                                        dur_eval=time.time() - test_start,
@@ -102,7 +100,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
 
         barrier()
         # save relation embedding if any
-        if self.rank == 0:
+        if get_rank() == 0:
             decoder = self._model.decoder
             if isinstance(decoder, LinkPredictDistMultDecoder):
                 if save_embed_path is not None:

@@ -25,7 +25,7 @@ from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from ..utils import sys_tracker, get_world_size, barrier
+from ..utils import sys_tracker, get_world_size, get_rank, barrier
 
 class GSgnnEdgePredictionInferrer(GSInferrer):
     """ Edge classification/regression inferrer.
@@ -36,9 +36,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
     Parameters
     ----------
     model : GSgnnNodeModel
-        The GNN model for edge prediction.
-    rank : int
-        The rank.
+        The GNN model for node prediction.
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
@@ -107,7 +105,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
             test_start = time.time()
             val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
             sys_tracker.check('run evaluation')
-            if self.rank == 0:
+            if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
@@ -121,7 +119,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+            save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
                                   get_world_size(), device=device,
                                   node_id_mapping_file=node_id_mapping_file)
         barrier()
@@ -142,8 +140,8 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                 # entire edge set.
                 pred_data[loader.target_eidx[etype]] = pred.cpu()
 
-                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, self.rank,
+                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, get_rank(),
                                        get_world_size(), device=device)
-            save_prediction_results(pred, save_prediction_path, self.rank)
+            save_prediction_results(pred, save_prediction_path, get_rank())
         barrier()
         sys_tracker.check('save predictions')
