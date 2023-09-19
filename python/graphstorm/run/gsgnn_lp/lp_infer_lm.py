@@ -76,6 +76,7 @@ def main(config_args):
     infer.infer(infer_data, dataloader,
                 save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings=None, # LM infer does not use GNN
+                use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file)
 
 def generate_parser():

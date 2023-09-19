@@ -789,8 +789,18 @@ class GSConfig:
                 "Use mini batch inference flag must be True or False"
             return self._use_mini_batch_infer
 
-        # By default, use mini batch inference, which requires less memory
-        return True
+        if self.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+            # For Link prediction inference, using mini-batch
+            # inference is much less efficient than full-graph
+            # inference in most cases.
+            # So we set it to False by default
+            return False
+        else:
+            # By default, for node classification/regression and
+            # edge classification/regression tasks,
+            # using mini batch inference reduces memory cost
+            # So we set it to True by default
+            return True
 
     @property
     def gnn_norm(self):
@@ -1239,9 +1249,14 @@ class GSConfig:
             "Must provide the number possible labels through num_classes"
         if isinstance(self._num_classes, dict):
             for num_classes in self._num_classes.values():
-                assert num_classes > 1
+                assert num_classes > 0
         else:
-            assert self._num_classes > 1
+            # We need num_classes=1 for binary classification because when we use precision-recall
+            # as evaluation metric, this precision-recall is computed on the positive score.
+            # If we switch to num_classes=2, we also need changes in the evaluation part:
+            # (1) evaluation code need to first recognize whether it is binary classification
+            # (2) then evaluation code select the positive score column from the 2-d prediction.
+            assert self._num_classes > 0
         return self._num_classes
 
     @property
@@ -1781,10 +1796,10 @@ class GSConfig:
             BUILTIN_TASK_EDGE_CLASSIFICATION]:
             if isinstance(self.num_classes, dict):
                 for num_classes in self.num_classes.values():
-                    assert num_classes > 1, \
+                    assert num_classes > 0, \
                         "For node classification, num_classes must be provided"
             else:
-                assert self.num_classes > 1, \
+                assert self.num_classes > 0, \
                     "For node classification, num_classes must be provided"
 
             # check evaluation metrics
