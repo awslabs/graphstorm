@@ -24,13 +24,75 @@ from ..utils import get_backend, is_distributed
 from .ngnn_mlp import NGNNMLP
 from .gs_layer import GSLayer, GSLayerNoParam
 from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                           BUILTIN_LP_JOINT_NEG_SAMPLER,
-                           EP_DECODER_EDGE_FEAT)
+                           BUILTIN_LP_JOINT_NEG_SAMPLER)
+
 from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score
 from ..eval.utils import calc_distmult_neg_head_score, calc_distmult_neg_tail_score
 
 # TODO(zhengda) we need to split it into classifier and regression.
-class DenseBiDecoder(GSLayer):
+class GSEdgeDecoder(GSLayer):
+    """ The abstract class of a GraphStorm edge decoder
+    """
+    @abc.abstractmethod
+    def forward(self, g, h, e_h=None):
+        """Forward function.
+
+        Compute logits for each pair ``(ufeat[i], ifeat[i])``. The target
+        edges are stored in g.
+
+        Parameters
+        ----------
+        g : DGLGraph
+            The target edge graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+        e_h : dict of tensors
+            The dictionary containing the edge features for g.
+        Returns
+        -------
+        th.Tensor
+            Predicting scores for each edge in g.
+            Shape: (B, num_classes) for classification
+            Shape: (B, ) for regression
+        """
+
+    @abc.abstractmethod
+    def predict(self, g, h, e_h=None):
+        """predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+        e_h : dict of tensors
+            The dictionary containing the edge features for g.
+
+        Returns
+        -------
+        Tensor : the maximum score of each edge.
+        """
+
+    @abc.abstractmethod
+    def predict_proba(self, g, h, e_h=None):
+        """predict function for this decoder
+
+        Parameters
+        ----------
+        g : DGLBlock
+            The minibatch graph
+        h : dict of Tensors
+            The dictionary containing the embeddings
+        e_h : dict of tensors
+            The dictionary containing the edge features for g.
+
+        Returns
+        -------
+        Tensor : all the scores of each edge.
+        """
+
+class DenseBiDecoder(GSEdgeDecoder):
     r"""Dense bi-linear decoder.
     Dense implementation of the bi-linear decoder used in GCMC. Suitable when
     the graph can be efficiently represented by a pair of arrays (one for source
@@ -88,20 +150,8 @@ class DenseBiDecoder(GSLayer):
             if parameter.dim() > 1:
                 nn.init.xavier_uniform_(parameter)
 
-    def forward(self, g, h):
-        """Forward function.
-        Compute logits for each pair ``(ufeat[i], ifeat[i])``.
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-        Returns
-        -------
-        th.Tensor
-            Predicting scores for each user-movie edge. Shape: (B, num_classes)
-        """
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -117,20 +167,8 @@ class DenseBiDecoder(GSLayer):
 
         return out
 
-    def predict(self, g, h):
-        """predict function for this decoder
-
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-
-        Returns
-        -------
-        Tensor : the maximum score of each edge.
-        """
+    # pylint: disable=unused-argument
+    def predict(self, g, h, e_h=None):
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -146,20 +184,8 @@ class DenseBiDecoder(GSLayer):
                 out = out.argmax(dim=1)
         return out
 
-    def predict_proba(self, g, h):
-        """predict function for this decoder
-
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-
-        Returns
-        -------
-        Tensor : all the scores of each edge.
-        """
+    # pylint: disable=unused-argument
+    def predict_proba(self, g, h, e_h=None):
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -196,7 +222,7 @@ class DenseBiDecoder(GSLayer):
         return 1 if self.regression else self._num_classes
 
 
-class MLPEdgeDecoder(GSLayer):
+class MLPEdgeDecoder(GSEdgeDecoder):
     """ MLP based edge classificaiton/regression decoder
 
     Parameters
@@ -285,41 +311,16 @@ class MLPEdgeDecoder(GSLayer):
             out = th.matmul(h, self.decoder)
         return out
 
-    def forward(self, g, h):
-        """Forward function.
-
-        Compute logits for each pair ``(ufeat[i], ifeat[i])``.
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-        Returns
-        -------
-        th.Tensor
-            Predicting scores for each user-movie edge. Shape: (B, num_classes)
-        """
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
         out = self._compute_logits(g, h)
 
         if self.regression:
             out = self.regression_head(out)
         return out
 
-    def predict(self, g, h):
-        """Predict function for this decoder
-
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-
-        Returns
-        -------
-        Tensor : the scores of each edge.
-        """
+    # pylint: disable=unused-argument
+    def predict(self, g, h, e_h=None):
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -330,20 +331,8 @@ class MLPEdgeDecoder(GSLayer):
             out = out.argmax(dim=1)
         return out
 
-    def predict_proba(self, g, h):
-        """Predict function for this decoder
-
-        Parameters
-        ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-
-        Returns
-        -------
-        Tensor : the scores of each edge.
-        """
+    # pylint: disable=unused-argument
+    def predict_proba(self, g, h, e_h=None):
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -446,7 +435,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         if self.regression:
             self.regression_head = nn.Linear(self.out_dim, 1, bias=True)
 
-    def _compute_logits(self, g, h):
+    # pylint: disable=arguments-differ
+    def _compute_logits(self, g, h, e_h):
         """ Compute forword output
 
             Parameters
@@ -460,12 +450,13 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             th.Tensor
                 Output of forward
         """
+        assert e_h is not None, "edge feature is required"
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
             ufeat = h[src_type][u]
             ifeat = h[dest_type][v]
-            efeat = g.edges[self.target_etype].data[EP_DECODER_EDGE_FEAT]
+            efeat = e_h[self.target_etype]
 
             # [src_emb | dest_emb] @ W -> h_dim
             h = th.cat([ufeat, ifeat], dim=1)
@@ -484,6 +475,38 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             combine_h = self.relu(combine_h)
             out = th.matmul(combine_h, self.decoder)
 
+        return out
+
+    # pylint: disable=signature-differs
+    def forward(self, g, h, e_h):
+        out = self._compute_logits(g, h, e_h)
+
+        if self.regression:
+            out = self.regression_head(out)
+        return out
+
+    # pylint: disable=signature-differs
+    def predict(self, g, h, e_h):
+        out = self._compute_logits(g, h, e_h)
+
+        if self.regression:
+            out = self.regression_head(out)
+        elif self.multilabel:
+            out = (th.sigmoid(out) > .5).long()
+        else:  # not multilabel
+            out = out.argmax(dim=1)
+        return out
+
+    # pylint: disable=signature-differs
+    def predict_proba(self, g, h, e_h):
+        out = self._compute_logits(g, h, e_h)
+
+        if self.regression:
+            out = self.regression_head(out)
+        elif self.multilabel:
+            out = th.sigmoid(out)
+        else:
+            out = th.softmax(out, 1)
         return out
 
 ##################### Link Prediction Decoders #######################

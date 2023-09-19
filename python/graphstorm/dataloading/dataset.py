@@ -315,13 +315,17 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
     """
     def __init__(self, graph_name, part_config, label_field=None,
-                 node_feat_field=None, edge_feat_field=None):
+                 node_feat_field=None, edge_feat_field=None,
+                 decoder_edge_feat=None):
         super(GSgnnEdgeData, self).__init__(graph_name, part_config,
                                             node_feat_field, edge_feat_field)
 
         self._label_field = label_field
+        self._decoder_edge_feat = decoder_edge_feat
         if label_field is not None:
             self._labels = {}
             for etype in self._g.canonical_etypes:
@@ -356,6 +360,11 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     def labels(self):
         """Labels"""
         return self._labels
+
+    @property
+    def decoder_edge_feat(self):
+        """edge features used by decoder"""
+        return self._decoder_edge_feat
 
     @property
     def train_idxs(self):
@@ -393,9 +402,12 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
-                 label_field=None, node_feat_field=None, edge_feat_field=None):
+                 label_field=None, node_feat_field=None, edge_feat_field=None,
+                 decoder_edge_feat=None):
         if train_etypes is not None:
             assert isinstance(train_etypes, (tuple, list)), \
                     "The prediction etypes for training has to be a tuple or a list of tuples."
@@ -415,7 +427,8 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
             self._eval_etypes = train_etypes
 
         super(GSgnnEdgeTrainData, self).__init__(graph_name, part_config, label_field,
-                                                 node_feat_field, edge_feat_field)
+                                                 node_feat_field, edge_feat_field,
+                                                 decoder_edge_feat)
 
     def prepare_data(self, g):
         """
@@ -548,9 +561,12 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
     """
     def __init__(self, graph_name, part_config, eval_etypes,
-                 label_field=None, node_feat_field=None, edge_feat_field=None):
+                 label_field=None, node_feat_field=None, edge_feat_field=None,
+                 decoder_edge_feat=None):
         if eval_etypes is not None:
             assert isinstance(eval_etypes, (tuple, list)), \
                     "The prediction etypes for evaluation has to be a tuple or a list of tuples."
@@ -561,7 +577,8 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
             self._eval_etypes = None # Test on all edge types
 
         super(GSgnnEdgeInferData, self).__init__(graph_name, part_config, label_field,
-                                                 node_feat_field, edge_feat_field)
+                                                 node_feat_field, edge_feat_field,
+                                                 decoder_edge_feat)
 
     def prepare_data(self, g):
         """ Prepare the testing edge set if any
