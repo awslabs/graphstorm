@@ -29,7 +29,7 @@ from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
 from ..utils import get_rank, barrier
 
-def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size):
+def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=True):
     """ Update the lm_emb_cache using lanaguage models.
 
     Parameters
@@ -40,6 +40,8 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size):
         Language model embedding cache
     lm_infer_batch_size: int
         Language model inference batch size
+    use_fp16 : bool
+        Use float16 to store BERT embeddings.
     """
     for ntype in lm_models.ntypes:
         lm_model = lm_models.get_lm_model(ntype)
@@ -54,7 +56,7 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size):
                     dgl.distributed.DistTensor(
                         (g.number_of_nodes(ntype), hidden_size),
                         name="bert_emb",
-                        dtype=th.float32,
+                        dtype=th.float16 if use_fp16 else th.float32,
                         part_policy=g.get_node_partition_policy(ntype),
                         persistent=True)
         input_emb = g.nodes[ntype].data['bert_emb']
@@ -73,7 +75,10 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size):
                     fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
             }
             text_embs = lm_model(input_ntypes, input_lm_feats)
-            input_emb[input_nodes] = text_embs[ntype].to('cpu')
+            if use_fp16:
+                input_emb[input_nodes] = text_embs[ntype].half().to('cpu')
+            else:
+                input_emb[input_nodes] = text_embs[ntype].to('cpu')
         barrier()
         lm_emb_cache[ntype] = input_emb
         lm_model.train()
@@ -147,7 +152,7 @@ class LMModels(nn.Module):
             # Note: self.lm_emb_cache is initialized by calling warmup
             for ntype, idx in input_nodes.items():
                 if ntype in lm_emb_cache:
-                    lm_feats[ntype] = lm_emb_cache[ntype][idx].to(dev)
+                    lm_feats[ntype] = lm_emb_cache[ntype][idx].to(dev).float()
         else:
             # TODO: Release the bert cache properly
             #       This may need support from DistDGL
@@ -247,12 +252,15 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         Number of trainable texts
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static lm model
+    use_fp16 : bool
+        Use float16 to store BERT embeddings.
     """
     def __init__(self,
                  g,
                  node_lm_configs,
                  num_train=0,
-                 lm_infer_batch_size=16):
+                 lm_infer_batch_size=16,
+                 use_fp16=True):
         super(GSPureLMNodeInputLayer, self).__init__(g)
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
@@ -263,6 +271,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
 
         self.num_train = num_train
         self.lm_infer_batch_size = lm_infer_batch_size
+        self.use_fp16 = use_fp16
         self.use_cache = False
         self.lm_emb_cache = {}
 
@@ -300,6 +309,11 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
 
     def freeze(self, g):
         """ Generate Bert caching if needed
+
+        Parameters
+        ----------
+        g : DistGraph
+            The distributed graph object.
         """
         # The lm_emb_cache is used in following cases:
         # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
@@ -314,7 +328,8 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         update_bert_cache(g,
                           self._lm_models,
                           self.lm_emb_cache,
-                          self.lm_infer_batch_size)
+                          self.lm_infer_batch_size,
+                          use_fp16=self.use_fp16)
         self.use_cache = True
 
     def require_cache_embed(self):
@@ -386,6 +401,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     use_node_embeddings : bool
         Whether we will use the node embeddings for individual nodes even when node features are
         available.
+    use_fp16 : bool
+        Use float16 to store the BERT embeddings.
     """
     def __init__(self,
                  g,
@@ -396,7 +413,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                  lm_infer_batch_size=16,
                  activation=None,
                  dropout=0.0,
-                 use_node_embeddings=False):
+                 use_node_embeddings=False,
+                 use_fp16=True):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
 
@@ -414,6 +432,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                                   adjust_feat_size[ntype])
 
         self.num_train = num_train
+        self.use_fp16 = use_fp16
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_cache = False
         self.lm_emb_cache = {}
@@ -451,6 +470,11 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
     def freeze(self, g):
         """ Generate Bert caching if needed
+
+        Parameters
+        ----------
+        g : DistGraph
+            The distributed graph object.
         """
         # The lm_emb_cache is used in following cases:
         # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
@@ -465,7 +489,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         update_bert_cache(g,
                           self._lm_models,
                           self.lm_emb_cache,
-                          self.lm_infer_batch_size)
+                          self.lm_infer_batch_size,
+                          use_fp16=self.use_fp16)
         self.use_cache = True
 
     def unfreeze(self):
