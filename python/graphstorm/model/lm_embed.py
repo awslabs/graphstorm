@@ -329,7 +329,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                           self._lm_models,
                           self.lm_emb_cache,
                           self.lm_infer_batch_size,
-                          use_fp16=use_fp16)
+                          use_fp16=self.use_fp16)
         self.use_cache = True
 
     def require_cache_embed(self):
