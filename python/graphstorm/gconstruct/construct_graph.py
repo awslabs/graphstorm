@@ -378,9 +378,9 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
     for node_type in node_data:
         assert node_type in node_id_map, \
                 f"The input files do not contain node Ids for node type {node_type}."
-        for data in node_data[node_type].values():
+        for key, data in node_data[node_type].items():
             assert len(data) == len(node_id_map[node_type]), \
-                    f"Node data and node IDs for node type {node_type} does not match: " + \
+                    f"Node data {key} and node IDs for node type {node_type} does not match: " + \
                     f"{len(data)} vs. {len(node_id_map[node_type])}"
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data, label_stats)
@@ -621,7 +621,7 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
 def process_graph(args):
     """ Process the graph.
     """
-    logging.basicConfig(level=get_log_level(args.logging_level))
+    logging.basicConfig(level=get_log_level(args.logging_level), filename="info.log")
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
 

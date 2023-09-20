@@ -13,19 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Graphstorm package.
+    Dataloaders for graph aware LM training/inference
 """
-__version__ = "0.2"
 
-from . import gsf
-from . import utils
-from .utils import get_rank, get_world_size
-from .gsf import initialize, get_feat_size
-from .gsf import create_builtin_node_gnn_model
-from .gsf import create_builtin_edge_gnn_model
-from .gsf import create_builtin_task_tracker
-from .gsf import create_builtin_lp_gnn_model
-from .gsf import create_builtin_lp_model
-from .gsf import create_builtin_edge_model
-from .gsf import create_builtin_node_model
-from .gsf import create_builtin_hat_model
+from .graph_lm_dataloading import DFS_TRANSVERSE, BFS_TRANSVERSE
+from .graph_lm_dataloading import GSlmHatNodeDataLoader

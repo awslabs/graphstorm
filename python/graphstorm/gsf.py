@@ -52,6 +52,10 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
+from .model.graph_transformer import (HATForMaskedLM,
+                                      HATForClassification,
+                                      HATTokenizer,
+                                      HATConfig)
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config, backend):
@@ -68,7 +72,7 @@ def initialize(ip_config, backend):
     # This problem will be fixed in the future.
     dgl.distributed.initialize(ip_config, net_type='socket')
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
-    if ip_config is not None:
+    if ip_config is not None and not th.distributed.is_initialized():
         th.distributed.init_process_group(backend=backend)
     sys_tracker.check("load DistDGL")
 
@@ -578,6 +582,102 @@ def set_encoder(model, g, config, train_task):
                                       num_ffn_layers_in_gnn=config.num_ffn_layers_in_input)
         gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn, rel_names)
     model.set_gnn_encoder(gnn_encoder)
+
+def create_builtin_hat_mlm_model(model_args):
+    """ Create a HAT model
+
+    Parameters
+    ----------
+    model_args : ModelArguments
+        Model loading args
+
+    Returns
+    -------
+    HAT model
+    """
+    # Load pretrained model and tokenizer
+    config_kwargs = {
+        "cache_dir": model_args.cache_dir,
+        "revision": model_args.model_revision,
+        "use_auth_token": True if model_args.use_auth_token else None,
+    }
+
+    tokenizer_kwargs = {
+        "cache_dir": model_args.cache_dir,
+        "use_fast": model_args.use_fast_tokenizer,
+        "revision": model_args.model_revision,
+        "use_auth_token": True if model_args.use_auth_token else None,
+    }
+
+    config = HATConfig.from_pretrained(model_args.model_name_or_path, **config_kwargs)
+    tokenizer = HATTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
+    model = HATForMaskedLM.from_pretrained(
+        model_args.model_name_or_path,
+        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        config=config,
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        use_auth_token=True if model_args.use_auth_token else None,
+    )
+    model.resize_token_embeddings(len(tokenizer))
+    return model, tokenizer
+
+def create_builtin_hat_np_model(model_args):
+    """ Create a HAT model
+
+    Parameters
+    ----------
+    model_args : ModelArguments
+        Model loading args
+
+    Returns
+    -------
+    HAT model
+    """
+    # Load pretrained model and tokenizer
+    config_kwargs = {
+        "cache_dir": model_args.cache_dir,
+        "revision": model_args.model_revision,
+        "use_auth_token": True if model_args.use_auth_token else None,
+    }
+
+    tokenizer_kwargs = {
+        "cache_dir": model_args.cache_dir,
+        "use_fast": model_args.use_fast_tokenizer,
+        "revision": model_args.model_revision,
+        "use_auth_token": True if model_args.use_auth_token else None,
+    }
+
+    config = HATConfig.from_pretrained(model_args.model_name_or_path, **config_kwargs)
+    tokenizer = HATTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
+    if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
+        assert not isinstance(config.num_classes, dict)
+        decoder = EntityClassifier(config.hidden_size,
+                                   model_args.num_classes,
+                                   model_args.multilabel)
+        loss_func = ClassifyLossFunc(model_args.multilabel,
+                                     model_args.multilabel_weights,
+                                     model_args.imbalance_class_weights)
+    elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
+        decoder = EntityRegression(config.hidden_size)
+        loss_func = RegressionLossFunc()
+    else:
+        raise ValueError('unknown node task: {}'.format(config.task_type))
+
+    model = HATForClassification.from_pretrained(
+        model_args.model_name_or_path,
+        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        config=config,
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        use_auth_token=True if model_args.use_auth_token else None,
+    )
+    model.resize_token_embeddings(len(tokenizer))
+
+    model.set_decoder(decoder)
+    model.set_loss_func(loss_func)
+    return model, tokenizer
+
 
 def check_homo(g):
     """ Check if it is a valid homogeneous graph

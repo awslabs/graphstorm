@@ -1,0 +1,57 @@
+{
+    "architectures": [
+      "HATForMaskedLM"
+    ],
+    "attention_probs_dropout_prob": 0.1,
+    "bos_token_id": 1,
+    "do_sample": false,
+    "eos_token_id": 2,
+    "finetuning_task": null,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 256,
+    "id2label": {
+      "0": "LABEL_0",
+      "1": "LABEL_1"
+    },
+    "initializer_range": 0.02,
+    "intermediate_size": 512,
+    "is_decoder": false,
+    "label2id": {
+      "LABEL_0": 0,
+      "LABEL_1": 1
+    },
+    "layer_norm_eps": 1e-12,
+    "length_penalty": 1.0,
+    "max_sentence_length": 128,
+    "max_sentences": 64,
+    "model_max_length": 8192,
+    "max_position_embeddings": 128,
+    "model_type": "hierarchical-transformer",
+    "num_attention_heads": 8,
+    "num_beams": 1,
+    "num_hidden_layers": 6,
+    "encoder_layout": {
+      "0": {"sentence_encoder": true, "document_encoder":  false},
+      "1": {"sentence_encoder": true, "document_encoder":  false},
+      "2": {"sentence_encoder": true, "document_encoder":  true},
+      "3": {"sentence_encoder": true, "document_encoder":  false},
+      "4": {"sentence_encoder": true, "document_encoder":  false},
+      "5": {"sentence_encoder": true, "document_encoder":  true}},
+    "num_labels": 2,
+    "num_return_sequences": 1,
+    "output_attentions": false,
+    "output_hidden_states": false,
+    "output_past": true,
+    "pad_token_id": 0,
+    "pruned_heads": {},
+    "repetition_penalty": 1.0,
+    "temperature": 1.0,
+    "top_k": 50,
+    "top_p": 1.0,
+    "torchscript": false,
+    "type_vocab_size": 2,
+    "use_bfloat16": false,
+    "vocab_size": 50000,
+    "parameters": 136350720
+  }

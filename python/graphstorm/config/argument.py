@@ -26,7 +26,7 @@ import yaml
 import torch as th
 import torch.nn.functional as F
 
-from .config import BUILTIN_GNN_ENCODER
+from .config import BUILTIN_GNN_ENCODER, BUILTIN_GRAPH_TRANSFORMER_ENCODER
 from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
 from .config import BUILTIN_LP_LOSS_FUNCTION
@@ -145,6 +145,16 @@ class GSConfig:
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
+
+        if 'huggingface' in configuration:
+            # We are going to use huggingface trainer for LM model training
+            hf_config = configuration['huggingface']
+            if "hf_args_filename" in hf_config:
+                setattr(self, "_hf_args_filename", hf_config["hf_args_filename"])
+            if "hf_args" in hf_config:
+                setattr(self, "_hf_args", hf_config["hf_args"])
+            # ignore all other configs for huggingface, user should use either hf_args or hf_args_filename
+
         if 'lm_model' in configuration:
             # has language model configuration
             # lm_model:
@@ -251,32 +261,39 @@ class GSConfig:
 
         # Model training.
         if is_train:
-            _ = self.batch_size
             _ = self.fanout
-            _ = self.lm_train_nodes
-            _ = self.lm_tune_lr
-            _ = self.lr
-            _ = self.max_grad_norm
-            _ = self.grad_norm_type
-            _ = self.gnn_norm
-            _ = self.sparse_optimizer_lr
-            _ = self.num_epochs
-            _ = self.save_model_path
-            _ = self.save_model_frequency
-            _ = self.topk_model_to_save
-            _ = self.early_stop_burnin_rounds
-            _ = self.early_stop_rounds
-            _ = self.early_stop_strategy
-            _ = self.use_early_stop
-            _ = self.wd_l2norm
             _ = self.train_negative_sampler
             _ = self.train_etype
             _ = self.remove_target_edge_type
+
+            # graph transformer encoder will use huggingface config
+            # skip checking graphstorm train config
+            if encoder_type not in BUILTIN_GRAPH_TRANSFORMER_ENCODER:
+                _ = self.lm_train_nodes
+                _ = self.lm_tune_lr
+                _ = self.lr
+                _ = self.max_grad_norm
+                _ = self.grad_norm_type
+                _ = self.gnn_norm
+                _ = self.sparse_optimizer_lr
+                _ = self.num_epochs
+                _ = self.save_model_path
+                _ = self.save_model_frequency
+                _ = self.topk_model_to_save
+                _ = self.early_stop_burnin_rounds
+                _ = self.early_stop_rounds
+                _ = self.early_stop_strategy
+                _ = self.use_early_stop
+                _ = self.wd_l2norm
 
         # LM module
         if self.node_lm_configs:
             _ = self.lm_infer_batch_size
             _ = self.freeze_lm_encoder_epochs
+
+        # Huggingface related
+        _ = self.hf_args_filename
+        _ = self.hf_args
 
         # I/O related
         _ = self.restore_model_layers
@@ -288,12 +305,12 @@ class GSConfig:
         _ = self.dropout
         _ = self.decoder_type
         _ = self.num_decoder_basis
+
         # Encoder related
-        _ = self.construct_feat_ntype
-        _ = self.construct_feat_encoder
-        _ = self.construct_feat_fanout
         encoder_type = self.model_encoder_type
-        if encoder_type == "lm":
+        if encoder_type in BUILTIN_GRAPH_TRANSFORMER_ENCODER:
+            _ = self.num_layers
+        elif encoder_type == "lm":
             assert self.node_lm_configs is not None
         else:
             _ = self.input_activate
@@ -307,7 +324,6 @@ class GSConfig:
 
         _ = self.return_proba
         _ = self.alpha_l2norm
-
 
         # ngnn
         _ = self.num_ffn_layers_in_input
@@ -495,6 +511,30 @@ class GSConfig:
             return None
 
     ###################### language model support #########################
+    # Huggingface relate
+    @property
+    def hf_args_filename(self):
+        """ file storing huggingface args
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_hf_args_filename"):
+            assert os.path.isfile(self._hf_args_filename), \
+                f"Huggingface configuration file {self._hf_args_filename} does not exit"
+            return self._hf_args_filename
+
+        return None
+
+    @property
+    def hf_args(self):
+        """ list of huggingface args
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_hf_args"):
+            return self._hf_args.split(" ")
+
+        return None
+
+
     # Bert related
     @property
     def lm_tune_lr(self):
@@ -728,7 +768,7 @@ class GSConfig:
         """ training fanout
         """
         # pylint: disable=no-member
-        if self.model_encoder_type in BUILTIN_GNN_ENCODER:
+        if self.model_encoder_type in BUILTIN_GNN_ENCODER + BUILTIN_GRAPH_TRANSFORMER_ENCODER:
             assert hasattr(self, "_fanout"), \
                     "Training fanout must be provided"
 
@@ -767,7 +807,7 @@ class GSConfig:
         """ Number of GNN layers
         """
         # pylint: disable=no-member
-        if self.model_encoder_type in BUILTIN_GNN_ENCODER:
+        if self.model_encoder_type in BUILTIN_GNN_ENCODER + BUILTIN_GRAPH_TRANSFORMER_ENCODER:
             assert hasattr(self, "_num_layers"), \
                 "Number of GNN layers must be provided"
             assert isinstance(self._num_layers, int), \
@@ -2290,6 +2330,15 @@ def _add_inference_args(parser):
     group = parser.add_argument_group(title="infer")
     group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
+    return parser
+
+def _add_huggingface_args(parser):
+    group = parser.add_argument_group(title="infer")
+    group.add_argument("--hf-args-filename", type=str, default=argparse.SUPPRESS,
+                       help="Where the huggingface args configuration file is stored.")
+
+    group.add_argument("--hf-args", type=str, default=argparse.SUPPRESS,
+                       help="A string storing huggingface args")
     return parser
 
 # Users can add their own udf parser
