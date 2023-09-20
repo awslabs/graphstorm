@@ -94,7 +94,6 @@ class HGTLayer(nn.Module):
         If use layer normalization or not, default is True
     num_ffn_layers_in_gnn: int, optional
         Number of layers of ngnn between gnn layers
-
     """
     def __init__(self,
                  in_dim,
