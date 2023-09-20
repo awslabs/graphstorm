@@ -13,11 +13,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infer wrapper for link predicion.
+    Inferrer wrapper for link predicion.
 """
 import time
 
-from .graphstorm_infer import GSInfer
+from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
@@ -26,10 +26,10 @@ from ..model.lp_gnn import lp_mini_batch_predict
 
 from ..utils import sys_tracker, get_rank, get_world_size, barrier
 
-class GSgnnLinkPredictionInfer(GSInfer):
-    """ Link prediction infer.
+class GSgnnLinkPredictionInferrer(GSInferrer):
+    """ Link prediction inferrer.
 
-    This is a highlevel infer wrapper that can be used directly
+    This is a high-level inferrer wrapper that can be used directly
     to do link prediction model inference.
 
     Parameters
@@ -40,14 +40,15 @@ class GSgnnLinkPredictionInfer(GSInfer):
 
     # TODO(zhengda) We only support full-graph inference for now.
     def infer(self, data, loader, save_embed_path,
-            edge_mask_for_gnn_embeddings='train_mask',
-            use_mini_batch_infer=False,
-            node_id_mapping_file=None):
+              edge_mask_for_gnn_embeddings='train_mask',
+              use_mini_batch_infer=False,
+              node_id_mapping_file=None):
         """ Do inference
 
         The inference can do two things:
-        1. (Optional) Evaluate the model performance on a test set if given
-        2. Generate node embeddings
+
+        1. (Optional) Evaluate the model performance on a test set if given.
+        2. Generate node embeddings.
 
         Parameters
         ----------
@@ -81,9 +82,8 @@ class GSgnnLinkPredictionInfer(GSInfer):
         device = self.device
         if save_embed_path is not None:
             save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
-                get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
+                                  get_world_size(), device=device,
+                                  node_id_mapping_file=node_id_mapping_file)
         barrier()
         sys_tracker.check('save embeddings')
 

@@ -13,12 +13,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infer wrapper for edge classification and regression.
+    Inferrer wrapper for edge classification and regression.
 """
 import time
 from dgl.distributed import DistTensor
 
-from .graphstorm_infer import GSInfer
+from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
@@ -27,10 +27,10 @@ from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predic
 
 from ..utils import sys_tracker, get_world_size, get_rank, barrier
 
-class GSgnnEdgePredictionInfer(GSInfer):
-    """ Edge classification/regression infer.
+class GSgnnEdgePredictionInferrer(GSInferrer):
+    """ Edge classification/regression inferrer.
 
-    This is a highlevel infer wrapper that can be used directly
+    This is a high-level inferrer wrapper that can be used directly
     to do edge classification/regression model inference.
 
     Parameters
@@ -40,15 +40,17 @@ class GSgnnEdgePredictionInfer(GSInfer):
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
-            use_mini_batch_infer=False, # pylint: disable=unused-argument
-            node_id_mapping_file=None,
-            edge_id_mapping_file=None,
-            return_proba=True):
+              use_mini_batch_infer=False, # pylint: disable=unused-argument
+              node_id_mapping_file=None,
+              edge_id_mapping_file=None,
+              return_proba=True):
         """ Do inference
 
-        The infer can do three things:
-        1. (Optional) Evaluate the model performance on a test set if given
-        2. Generate node embeddings
+        The inference can do three things:
+
+        1. (Optional) Evaluate the model performance on a test set if given.
+        2. Generate node embeddings.
+        3. Comput inference results for edges with target edge type.
 
         Parameters
         ----------
@@ -82,10 +84,10 @@ class GSgnnEdgePredictionInfer(GSInfer):
                                               return_label=do_eval)
         else:
             embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
-                                        task_tracker=self.task_tracker)
+                                           task_tracker=self.task_tracker)
             sys_tracker.check('compute embeddings')
             res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
-                                        return_label=do_eval)
+                                          return_label=do_eval)
         pred = res[0]
         label = res[1] if do_eval else None
         sys_tracker.check('compute prediction')
@@ -118,9 +120,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
             save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
-                get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
+                                  get_world_size(), device=device,
+                                  node_id_mapping_file=node_id_mapping_file)
         barrier()
         sys_tracker.check('save embeddings')
 
@@ -130,17 +131,17 @@ class GSgnnEdgePredictionInfer(GSInfer):
                 etype = infer_data.eval_etypes[0]
                 pred_shape = list(pred.shape)
                 pred_shape[0] = g.num_edges(etype)
-                pred_data = DistTensor(pred_shape,
-                    dtype=pred.dtype, name='predict-'+'-'.join(etype),
-                    part_policy=g.get_edge_partition_policy(etype),
-                    # TODO: this makes the tensor persistent in memory.
-                    persistent=True)
+                pred_data = DistTensor(pred_shape, dtype=pred.dtype,
+                                       name='predict-'+'-'.join(etype),
+                                       part_policy=g.get_edge_partition_policy(etype),
+                                       # TODO: this makes the tensor persistent in memory.
+                                       persistent=True)
                 # edges that have predictions may be just a subset of the
                 # entire edge set.
                 pred_data[loader.target_eidx[etype]] = pred.cpu()
 
                 pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, get_rank(),
-                    get_world_size(), device=device)
+                                       get_world_size(), device=device)
             save_prediction_results(pred, save_prediction_path, get_rank())
         barrier()
         sys_tracker.check('save predictions')

@@ -19,7 +19,7 @@
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.inference import GSgnnEdgePredictionInfer
+from graphstorm.inference import GSgnnEdgePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
 from graphstorm.utils import setup_device
@@ -54,7 +54,8 @@ def main(config_args):
                                     decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
-    infer = GSgnnEdgePredictionInfer(model)
+    # TODO(zhengda) we should use a different way to get rank.
+    infer = GSgnnEdgePredictionInferrer(model)
     infer.setup_device(device=device)
     if not config.no_validation:
         evaluator = get_evaluator(config)
