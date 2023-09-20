@@ -189,24 +189,28 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     dataloader_iter = iter(loader)
 
     with th.no_grad():
-        # To use WholeGraph for feature featching, dataloaders from different
-        # trainers must iterate through the same number of iterations as WholeGraph
-        # does not support imbalanced batch numbers across processes/trainers
+        # WholeGraph does not support imbalanced batch numbers across processes/trainers
         # TODO (IN): Fix dataloader to have the same number of minibatches
         for iter_l in range(max_num_batch):
+            tmp_keys = []
             if iter_l < len_loader:
                 input_nodes, target_edge_graph, blocks = next(dataloader_iter)
+                if not isinstance(input_nodes, dict):
+                    assert len(g.ntypes) == 1
+                    input_nodes = {g.ntypes[0]: input_nodes}
+                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+                # All samples should contain all the ntypes for wholegraph compatibility
+                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
+                    for ntype in tmp_keys})
             else:
-                for ntype in g.ntypes:
-                    input_nodes[ntype] = target_edge_graph[ntype] = th.empty((0,), dtype=g.idtype)
+                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
                 blocks = None
-            if not isinstance(input_nodes, dict):
-                assert len(g.ntypes) == 1
-                input_nodes = {g.ntypes[0]: input_nodes}
-            assert len(list(input_nodes.keys())) == len(g.ntypes)
+
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue
+            for ntype in tmp_keys:
+                del input_nodes[ntype]
             if data.decoder_edge_feat is not None:
                 input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
                         for etype in target_edge_graph.canonical_etypes}

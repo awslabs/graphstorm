@@ -168,31 +168,35 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
         # WholeGraph does not support imbalanced batch numbers across processes/trainers
         # TODO (IN): Fix dataloader to have same number of minibatches.
         for iter_l in range(max_num_batch):
+            tmp_keys = []
             if iter_l < len_dataloader:
                 input_nodes, output_nodes, blocks = next(dataloader_iter)
+                if not isinstance(input_nodes, dict):
+                    # This happens on a homogeneous graph.
+                    assert len(g.ntypes) == 1
+                    input_nodes = {g.ntypes[0]: input_nodes}
+                if not isinstance(output_nodes, dict):
+                    # This happens on a homogeneous graph.
+                    assert len(g.ntypes) == 1
+                    output_nodes = {g.ntypes[0]: output_nodes}
+                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+                # All samples should contain all the ntypes for wholegraph compatibility
+                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
+                    for ntype in tmp_keys})
             else:
-                for ntype in g.ntypes:
-                    input_nodes[ntype] = output_nodes[ntype] = th.empty((0,), dtype=g.idtype)
+                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
                 blocks = None
             if iter_l % 100000 == 0 and get_rank() == 0:
                 logging.info("[Rank 0] dist inference: " \
                         "finishes %d iterations.", iter_l)
             if task_tracker is not None:
                 task_tracker.keep_alive(report_step=iter_l)
-            if not isinstance(input_nodes, dict):
-                # This happens on a homogeneous graph.
-                assert len(g.ntypes) == 1
-                input_nodes = {g.ntypes[0]: input_nodes}
 
-            if not isinstance(output_nodes, dict):
-                # This happens on a homogeneous graph.
-                assert len(g.ntypes) == 1
-                output_nodes = {g.ntypes[0]: output_nodes}
-
-            assert len(list(input_nodes.keys())) == len(g.ntypes)
             h = get_input_embeds(input_nodes)
             if blocks is None:
                 continue
+            for ntype in tmp_keys:
+                del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
             output = gnn_encoder(blocks, h)
 
@@ -240,37 +244,43 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
     # WholeGraph does not support imbalanced batch numbers across processes/trainers
     # TODO (IN): Fix dataloader to have same number of minibatches.
     for iter_l in range(max_num_batch):
+        tmp_keys = []
         if iter_l < len_dataloader:
             input_nodes, output_nodes, blocks = next(dataloader_iter)
+            if not isinstance(input_nodes, dict):
+                # This happens on a homogeneous graph.
+                assert len(g.ntypes) == 1
+                input_nodes = {g.ntypes[0]: input_nodes}
+            if not isinstance(output_nodes, dict):
+                # This happens on a homogeneous graph.
+                assert len(g.ntypes) == 1
+                output_nodes = {g.ntypes[0]: output_nodes}
+            tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+            # All samples should contain all the ntypes for wholegraph compatibility
+            input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
+                for ntype in tmp_keys})
         else:
             # Embeddings when layer_id > 0 depend on the output of layer 0, not on
             # node features anymore. Hence, we don't need to create dummy tensors for
-            # wholegraph compatibility. Also, ntypes of input nodes might conflict with ntypes
-            # ouput nodes.
+            # wholegraph compatibility. Also, ntypes of input nodes might conflict with
+            # the ntypes of ouput nodes.
             if int(layer_id) > 0:
                 continue
-            for ntype in g.ntypes:
-                input_nodes[ntype] = output_nodes[ntype] = th.empty((0,), dtype=g.idtype)
+            input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
             blocks = None
         if iter_l % 100000 == 0 and get_rank() == 0:
             logging.info("[Rank 0] dist_inference: finishes %d iterations.", iter_l)
 
         if task_tracker is not None:
             task_tracker.keep_alive(report_step=iter_l)
-        block = blocks[0].to(device) if blocks is not None else None
-        if not isinstance(input_nodes, dict):
-            # This happens on a homogeneous graph.
-            assert len(g.ntypes) == 1
-            input_nodes = {g.ntypes[0]: input_nodes}
-
-        if not isinstance(output_nodes, dict):
-            # This happens on a homogeneous graph.
-            assert len(g.ntypes) == 1
-            output_nodes = {g.ntypes[0]: output_nodes}
-        assert len(list(input_nodes.keys())) == len(g.ntypes)
 
         h = get_input_embeds(input_nodes)
-        h = layer(block, h) if block is not None else {}
+        if blocks is None:
+            continue
+        for ntype in tmp_keys:
+            del input_nodes[ntype]
+        block = blocks[0].to(device)
+        h = layer(block, h)
 
         # For the first iteration, we need to create output tensors.
         if iter_l == 0:
