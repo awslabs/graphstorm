@@ -94,6 +94,7 @@ class HGTLayer(nn.Module):
         If use layer normalization or not, default is True
     num_ffn_layers_in_gnn: int, optional
         Number of layers of ngnn between gnn layers
+
     """
     def __init__(self,
                  in_dim,
@@ -290,6 +291,40 @@ class HGTEncoder(GraphConvEncoder):
         Normalization Method. Default: None
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
+
+    Examples:
+    ----------
+    from graphstorm import get_feat_size
+    from graphstorm.model.hgt_encoder import HGTEncoder
+    from graphstorm.model.edge_decoder import MLPEdgeDecoder
+    from graphstorm.model import GSgnnEdgeModel, GSNodeEncoderInputLayer
+    from graphstorm.dataloading import GSgnnNodeTrainData
+    from graphstorm.model.gnn import do_full_graph_inference
+
+    model = GSgnnEdgeModel(alpha_l2norm=0)
+    np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n1'], label_field='label',
+                                     node_feat_field='feat')
+    feat_size = get_feat_size(np_data.g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = HGTEncoder(g,
+                             hid_dim=4,
+                             out_dim=4,
+                             num_hidden_layers=1,
+                             num_heads=2,
+                             dropout=0.0,
+                             norm='layer',
+                             num_ffn_layers_in_gnn=0)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1"),
+                                     num_ffn_layers=num_ffn_layers))
+
+    h = do_full_graph_inference(model, np_data)
     """
     def __init__(self,
                  g,

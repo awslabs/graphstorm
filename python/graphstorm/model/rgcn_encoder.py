@@ -26,7 +26,39 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class RelGraphConvLayer(nn.Module):
-    r"""Relational graph convolution layer.
+    r"""Relational graph convolution layer from `Modeling Relational Data
+    with Graph Convolutional Networks <https://arxiv.org/abs/1703.06103>`__.
+
+    A generic module for computing convolution on heterogeneous graphs.
+
+    The relational graph convolution layer applies GraphConv on the relation graphs,
+    which reads the features from source nodes and writes the updated ones to destination nodes.
+    If multiple relations have the same destination node types, their results are aggregated by the specified method.
+    If the relation graph has no edge, the corresponding module will not be called.
+
+    Mathematically for the GraphConv it is defined as follows:
+
+    .. math::
+      h_i^{(l+1)} = \sigma(b^{(l)} + \sum_{j\in\mathcal{N}(i)}\frac{1}{c_{ji}}h_j^{(l)}W^{(l)})
+
+    where :math:`\mathcal{N}(i)` is the set of neighbors of node :math:`i`,
+    :math:`c_{ji}` is the product of the square root of node degrees
+    (i.e.,  :math:`c_{ji} = \sqrt{|\mathcal{N}(j)|}\sqrt{|\mathcal{N}(i)|}`),
+    and :math:`\sigma` is an activation function.
+
+    If a weight tensor on each edge is provided, the weighted graph convolution is defined as:
+
+    .. math::
+      h_i^{(l+1)} = \sigma(b^{(l)} + \sum_{j\in\mathcal{N}(i)}\frac{e_{ji}}{c_{ji}}h_j^{(l)}W^{(l)})
+
+    where :math:`e_{ji}` is the scalar weight on the edge from node :math:`j` to node :math:`i`.
+    This is NOT equivalent to the weighted graph convolutional network formulation in the paper.
+
+    Note:
+    -----
+    * In the RelGraphConvLayer, the implementation select 'right' or the default option for the norm
+    to divide the aggregated messages by each node's in-degrees, which is equivalent to averaging
+    the received messages.
 
     Parameters
     ----------
@@ -201,6 +233,8 @@ class RelGraphConvLayer(nn.Module):
 class RelationalGCNEncoder(GraphConvEncoder):
     r""" Relational graph conv encoder.
 
+    Encoder component that includes layers of RelGraphConvLayer.
+
     Parameters
     ----------
     g : DistGraph
@@ -223,6 +257,36 @@ class RelationalGCNEncoder(GraphConvEncoder):
         Number of ngnn gnn layers between GNN layers
     norm : str, optional
         Normalization Method. Default: None
+
+    Examples:
+    ----------
+    from graphstorm import get_feat_size
+    from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
+    from graphstorm.model.node_decoder import EntityClassifier
+    from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+    from graphstorm.dataloading import GSgnnNodeTrainData
+    from graphstorm.model.gnn import do_full_graph_inference
+
+    model = GSgnnNodeModel(alpha_l2norm=0)
+    np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                 train_ntypes=['n1'], label_field='label',
+                                node_feat_field='feat')
+    feat_size = get_feat_size(np_data.g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = RelationalGCNEncoder(g, 4, 4,
+                                       num_heads=2,
+                                       num_hidden_layers=1,
+                                       dropout=0,
+                                       use_self_loop=True,
+                                       norm=norm)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+
+    h = do_full_graph_inference(model, np_data)
     """
     def __init__(self,
                  g,
@@ -263,6 +327,11 @@ class RelationalGCNEncoder(GraphConvEncoder):
             Sampled subgraph in DGL MFG
         h: dict[str, torch.Tensor]
             Input node feature for each node type.
+
+        Returns
+        ----------
+        h: dict[str, torch.Tensor]
+            Output node feature for each node type.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)
