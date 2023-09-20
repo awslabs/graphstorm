@@ -33,6 +33,8 @@ def setup_device(local_rank):
     """Setup computation device
     """
     if th.cuda.is_available():
+        assert local_rank < th.cuda.device_count(), \
+                f"local rank={local_rank} but there are {th.cuda.device_count()} GPUs."
         device = 'cuda:%d' % local_rank
         th.cuda.set_device(device)
     else:
