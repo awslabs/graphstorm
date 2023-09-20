@@ -27,7 +27,7 @@ from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem
-from ..utils import barrier
+from ..utils import barrier, get_rank
 from ..dataloading import GSgnnNodeSemiSupDataLoader
 
 class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
@@ -37,13 +37,11 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save=1):
-        super(GLEMNodePredictionTrainer, self).__init__(model, rank, topk_model_to_save)
+    def __init__(self, model, topk_model_to_save=1):
+        super(GLEMNodePredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GLEM), \
                 "The input model is not a GLEM node model. Please implement GLEM."
         self.early_stop = False # used when early stop is True
@@ -140,7 +138,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                                     save_model_path, save_model_frequency, no_pl, max_grad_norm,
                                     grad_norm_type)
                 stage_finish_time = time.time()
-                if self.rank == 0:
+                if get_rank() == 0:
                     logging.info("Epoch %d: %s takes %.2f seconds",
                                  epoch, part_to_train, stage_finish_time-stage_start_time)
                 use_gnn = not use_gnn
@@ -154,7 +152,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
 
         rt_profiler.save_profile()
         print_mem(device)
-        if self.rank == 0 and self.evaluator is not None:
+        if get_rank() == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
                        'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024}
@@ -221,10 +219,10 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
             self.log_metric("Train loss", loss.item(), total_steps)
 
-            if i % 20 == 0 and self.rank == 0:
+            if i % 20 == 0 and get_rank() == 0:
                 rt_profiler.print_stats()
                 logging.info("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f",
-                             self.rank, epoch, i,  loss.item(), time.time() - batch_tic)
+                             get_rank(), epoch, i,  loss.item(), time.time() - batch_tic)
 
             val_score = None
             if self.evaluator is not None and \

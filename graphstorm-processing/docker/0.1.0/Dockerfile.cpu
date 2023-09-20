@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:experimental
-FROM 153931337802.dkr.ecr.us-west-2.amazonaws.com/sagemaker-spark-processing:3.1-cpu-py39-v1.2 AS base
+FROM 153931337802.dkr.ecr.us-west-2.amazonaws.com/sagemaker-spark-processing:3.3-cpu-py39-v1.2 AS base
 
 # Python won’t try to write .pyc or .pyo files on the import of source modules
 # Force stdin, stdout and stderr to be totally unbuffered. Good for logging
@@ -12,9 +12,9 @@ ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/conda/lib"
 ENV PATH=/opt/conda/bin:$PATH
 
-# DistProcessing requirements
-RUN pipenv install pip==23.1.2 setuptools wheel spacy==3.6.0 pyspark==3.1.3 \
-    pyarrow==10.0.1 joblib==1.3.1 psutil==5.9.5 pandas==1.3.5 \
+# GSProcessing requirements
+RUN pipenv install pip==23.1.2 setuptools wheel spacy==3.6.0 pyspark==3.3.3 \
+    pyarrow==13.0.0 joblib==1.3.1 psutil==5.9.5 pandas==1.3.5 \
     boto3==1.28.2 botocore==1.31.2 protobuf==3.20.3 mock==5.1.0 \
     && rm -rf /root/.cache
 # Do a pipenv sync so our base libs are independent from our editable code, making them cacheable

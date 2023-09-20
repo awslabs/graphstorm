@@ -100,8 +100,7 @@ def main(config_args):
                                   node_feat_field=config.node_feat_name,
                                   pos_graph_feat_field=config.lp_edge_weight_for_loss)
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
-    trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+    trainer = GSgnnLinkPredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
@@ -114,8 +113,8 @@ def main(config_args):
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
-    tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 

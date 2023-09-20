@@ -13,37 +13,33 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infererence framework.
+    Inference framework.
 """
 import torch as th
 
-class GSInfer():
-    """ Generic GSgnn infer.
-
+class GSInferrer():
+    """ Generic GSgnn Inferrer.
 
     Parameters
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     """
-    def __init__(self, model, rank):
+    def __init__(self, model):
         self._model = model
-        self._rank = rank
         self._device = -1
         self._evaluator = None
         self._task_tracker = None
 
     def setup_device(self, device):
-        """ Set up the device for the inference.
+        """ Set up the device for the inferrer.
 
         The CUDA device is set up based on the local rank.
 
         Parameters
         ----------
         device :
-            The device for inference.
+            The device for inferrer.
         """
         self._device = th.device(device)
         self._model = self._model.to(self.device)
@@ -91,31 +87,29 @@ class GSInfer():
         best_test_score = self.evaluator.best_test_score
         best_iter_num = self.evaluator.best_iter_num
         self.task_tracker.log_iter_metrics(self.evaluator.metric,
-                train_score=train_score, val_score=val_score,
-                test_score=test_score, best_val_score=best_val_score,
-                best_test_score=best_test_score, best_iter_num=best_iter_num,
-                eval_time=dur_eval, total_steps=total_steps)
+                                           train_score=train_score,
+                                           val_score=val_score,
+                                           test_score=test_score,
+                                           best_val_score=best_val_score,
+                                           best_test_score=best_test_score,
+                                           best_iter_num=best_iter_num,
+                                           eval_time=dur_eval,
+                                           total_steps=total_steps)
 
     @property
     def evaluator(self):
-        """ Get the evaluator associated with the inference.
+        """ Get the evaluator associated with the inferrer.
         """
         return self._evaluator
 
     @property
     def task_tracker(self):
-        """ Get the task tracker associated with the inference.
+        """ Get the task tracker associated with the inferrer.
         """
         return self._task_tracker
 
     @property
     def device(self):
-        """ The device associated with the inference.
+        """ The device associated with the inferrer.
         """
         return self._device
-
-    @property
-    def rank(self):
-        """ Get the rank the inference.
-        """
-        return self._rank
