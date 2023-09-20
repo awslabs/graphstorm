@@ -934,7 +934,7 @@ class GSgnnNodeDataLoaderBase():
         -------
         dict of Tensors : the target edge IDs.
         """
-        return self._target_nidx
+        return self._target_idx
 
     @property
     def fanout(self):
