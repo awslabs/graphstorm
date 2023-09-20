@@ -13,12 +13,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infer wrapper for node classification and regression.
+    Inferrer wrapper for node classification and regression.
 """
 import time
 from dgl.distributed import DistTensor
 
-from .graphstorm_infer import GSInfer
+from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
@@ -26,20 +26,18 @@ from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
 
-from ..utils import sys_tracker, get_world_size, barrier
+from ..utils import sys_tracker, get_world_size, get_rank, barrier
 
-class GSgnnNodePredictionInfer(GSInfer):
-    """ Node classification/regression infer.
+class GSgnnNodePredictionInferrer(GSInferrer):
+    """ Node classification/regression inferrer.
 
-    This is a highlevel infer wrapper that can be used directly
+    This is a high-level inferrer wrapper that can be used directly
     to do node classification/regression model inference.
 
     Parameters
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
@@ -49,8 +47,9 @@ class GSgnnNodePredictionInfer(GSInfer):
         """ Do inference
 
         The inference does three things:
-        1. (Optional) Evaluate the model performance on a test set if given
-        2. Generate node embeddings
+
+        1. (Optional) Evaluate the model performance on a test set if given.
+        2. Generate node embeddings.
         3. Comput inference results for nodes with target node type.
 
         Parameters
@@ -114,7 +113,7 @@ class GSgnnNodePredictionInfer(GSInfer):
             test_start = time.time()
             val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
             sys_tracker.check('run evaluation')
-            if self.rank == 0:
+            if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
@@ -124,10 +123,10 @@ class GSgnnNodePredictionInfer(GSInfer):
             if use_mini_batch_infer:
                 g = loader.data.g
                 ntype_emb = DistTensor((g.num_nodes(ntype), embs[ntype].shape[1]),
-                    dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
-                    part_policy=g.get_node_partition_policy(ntype),
-                    # TODO: this makes the tensor persistent in memory.
-                    persistent=True)
+                                       dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
+                                       part_policy=g.get_node_partition_policy(ntype),
+                                       # TODO: this makes the tensor persistent in memory.
+                                       persistent=True)
                 # nodes that do prediction in mini-batch may be just a subset of the
                 # entire node set.
                 ntype_emb[loader.target_nidx[ntype]] = embs[ntype]
@@ -135,10 +134,9 @@ class GSgnnNodePredictionInfer(GSInfer):
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
 
-            save_gsgnn_embeddings(save_embed_path,
-                embeddings, self.rank, get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
+            save_gsgnn_embeddings(save_embed_path, embeddings,
+                                  get_rank(), get_world_size(), device=device,
+                                  node_id_mapping_file=node_id_mapping_file)
             barrier()
             sys_tracker.check('save embeddings')
 
@@ -149,16 +147,15 @@ class GSgnnNodePredictionInfer(GSInfer):
 
                 pred_shape = list(pred.shape)
                 pred_shape[0] = g.num_nodes(ntype)
-                pred_data = DistTensor(pred_shape,
-                    dtype=pred.dtype, name=f'predict-{ntype}',
-                    part_policy=g.get_node_partition_policy(ntype),
-                    # TODO: this makes the tensor persistent in memory.
-                    persistent=True)
+                pred_data = DistTensor(pred_shape, dtype=pred.dtype, name=f'predict-{ntype}',
+                                       part_policy=g.get_node_partition_policy(ntype),
+                                       # TODO: this makes the tensor persistent in memory.
+                                       persistent=True)
                 # nodes that have predictions may be just a subset of the
                 # entire node set.
                 pred_data[loader.target_nidx[ntype]] = pred.cpu()
-                pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, self.rank,
-                    get_world_size(), device=device)
-            save_prediction_results(pred, save_prediction_path, self.rank)
+                pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, get_rank(),
+                                       get_world_size(), device=device)
+            save_prediction_results(pred, save_prediction_path, get_rank())
         barrier()
         sys_tracker.check('save predictions')

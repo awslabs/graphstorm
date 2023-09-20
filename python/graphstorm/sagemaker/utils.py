@@ -333,7 +333,7 @@ def upload_model_artifacts(model_s3_path, model_path, sagemaker_session):
 def upload_embs(emb_s3_path, emb_path, sagemaker_session):
     """ Upload generated node embeddings into S3
 
-    As embeddding table is huge and each trainer/inferer only
+    As embeddding table is huge and each trainer/inferrer only
     stores part of the embedding, we need to upload them
     into S3.
 
