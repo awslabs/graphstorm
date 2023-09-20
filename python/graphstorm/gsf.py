@@ -16,10 +16,11 @@
     GSF utility functions.
 """
 
-
+import logging
 import numpy as np
 import dgl
 import torch as th
+import torch.nn.functional as F
 
 from .utils import sys_tracker, get_rank
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
@@ -30,8 +31,10 @@ from .config import BUILTIN_LP_DOT_DECODER
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
-from .model.rgcn_encoder import RelationalGCNEncoder
+from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
+from .model.hgt_encoder import HGTEncoder
+from .model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from .model.sage_encoder import SAGEEncoder
 from .model.node_gnn import GSgnnNodeModel
 from .model.node_glem import GLEM
@@ -120,6 +123,34 @@ def get_feat_size(g, node_feat_names):
                 feat_size[ntype] += fsize
     return feat_size
 
+def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
+    """ Get the relation types for reconstructing node features.
+
+    Parameters
+    ----------
+    g : DistGraph
+        The input graph.
+    reconstructed_embed_ntype : list of str
+        The node type that requires to reconstruct node features.
+    feat_size : dict of int
+        The feature size on each node type.
+
+    Returns
+    -------
+    list of tuples : the relation types for reconstructing node features.
+    """
+    etypes = g.canonical_etypes
+    reconstruct_etypes = []
+    for dst_ntype in reconstructed_embed_ntype:
+        if feat_size[dst_ntype] > 0:
+            logging.warning("Node %s already have features. " \
+                    + "No need to reconstruct their features.", dst_ntype)
+        for etype in etypes:
+            src_type = etype[0]
+            if etype[2] == dst_ntype and feat_size[src_type] > 0:
+                reconstruct_etypes.append(etype)
+    return reconstruct_etypes
+
 def create_builtin_node_gnn_model(g, config, train_task):
     """ Create a GNN model for node prediction.
 
@@ -161,14 +192,31 @@ def create_builtin_node_model(g, config, train_task):
     set_encoder(model, g, config, train_task)
 
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
-        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims \
-                                            if model.gnn_encoder is not None \
-                                            else model.node_input_encoder.out_dims,
-                                           config.num_classes,
-                                           config.multilabel))
-        model.set_loss_func(ClassifyLossFunc(config.multilabel,
+        if not isinstance(config.num_classes, dict):
+            model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims,
+                                               config.num_classes,
+                                               config.multilabel))
+            model.set_loss_func(ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
                                              config.imbalance_class_weights))
+        else:
+            decoder = {}
+            loss_func = {}
+            for ntype in config.target_ntype:
+                decoder[ntype] = EntityClassifier(model.gnn_encoder.out_dims \
+                                                if model.gnn_encoder is not None \
+                                                else model.node_input_encoder.out_dims,
+                                               config.num_classes[ntype],
+                                               config.multilabel[ntype])
+                loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
+                                                config.multilabel_weights[ntype],
+                                                config.imbalance_class_weights[ntype])
+
+            model.set_decoder(decoder)
+            model.set_loss_func(loss_func)
+
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         model.set_decoder(EntityRegression(model.gnn_encoder.out_dims \
                                             if model.gnn_encoder is not None \
@@ -381,8 +429,8 @@ def create_builtin_lp_model(g, config, train_task):
         # if the training set only contains one edge type or it is specified in the arguments,
         # we use dot product as the score function.
         if get_rank() == 0:
-            print('use dot product for single-etype task.')
-            print("Using inner product objective for supervision")
+            logging.debug('use dot product for single-etype task.')
+            logging.debug("Using inner product objective for supervision")
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
                                                 if model.gnn_encoder is not None \
@@ -394,7 +442,7 @@ def create_builtin_lp_model(g, config, train_task):
                                                     config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
-            print("Using distmult objective for supervision")
+            logging.debug("Using distmult objective for supervision")
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
                                                 model.gnn_encoder.out_dims \
@@ -435,6 +483,7 @@ def set_encoder(model, g, config, train_task):
     """
     # Set input layer
     feat_size = get_feat_size(g, config.node_feat_name)
+    reconstruct_feats = len(config.construct_feat_ntype) > 0
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:
         if model_encoder_type == "lm":
@@ -454,6 +503,7 @@ def set_encoder(model, g, config, train_task):
                                           dropout=config.dropout,
                                           activation=config.input_activate,
                                           use_node_embeddings=config.use_node_embeddings,
+                                          force_no_embeddings=config.construct_feat_ntype,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input)
     model.set_node_input_encoder(encoder)
 
@@ -486,6 +536,16 @@ def set_encoder(model, g, config, train_task):
                                            use_self_loop=config.use_self_loop,
                                            num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
                                            norm=config.gnn_norm)
+    elif model_encoder_type == "hgt":
+        # we need to set the num_layers -1 because there is an output layer that is hard coded.
+        gnn_encoder = HGTEncoder(g,
+                                 config.hidden_size,
+                                 config.hidden_size,
+                                 num_hidden_layers=config.num_layers -1,
+                                 num_heads=config.num_heads,
+                                 dropout=dropout,
+                                 norm=config.gnn_norm,
+                                 num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "sage":
         # we need to check if the graph is homogeneous
         assert check_homo(g) == True, 'The graph is not a homogeneous graph'
@@ -499,8 +559,25 @@ def set_encoder(model, g, config, train_task):
                                   norm=config.gnn_norm)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
-    model.set_gnn_encoder(gnn_encoder)
 
+    if reconstruct_feats:
+        rel_names = get_rel_names_for_reconstruct(g, config.construct_feat_ntype, feat_size)
+        dst_types = set([rel_name[2] for rel_name in rel_names])
+        for ntype in config.construct_feat_ntype:
+            assert ntype in dst_types, \
+                    f"We cannot reconstruct features of node {ntype} " \
+                    + "probably because their neighbors don't have features."
+        assert config.construct_feat_encoder == "rgcn", \
+                "We only support RGCN for reconstructing node features."
+        input_gnn = RelGraphConvLayer(config.hidden_size, config.hidden_size,
+                                      rel_names, len(rel_names),
+                                      self_loop=False, # We should disable self loop so that
+                                                       # the encoder doesn't use dest node
+                                                       # features.
+                                      activation=F.relu,
+                                      num_ffn_layers_in_gnn=config.num_ffn_layers_in_input)
+        gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn, rel_names)
+    model.set_gnn_encoder(gnn_encoder)
 
 def check_homo(g):
     """ Check if it is a valid homogeneous graph
@@ -515,6 +592,6 @@ def check_homo(g):
     return False
 
 
-def create_builtin_task_tracker(config, rank):
+def create_builtin_task_tracker(config):
     tracker_class = get_task_tracker_class(config.task_tracker)
-    return tracker_class(config, rank)
+    return tracker_class(config)

@@ -16,7 +16,6 @@ gsf:
   output:
     save_embed_path: /data/gsgnn_lp_ml/infer-emb/
   hyperparam:
-    bert_infer_bs: 128
     no_validation: false
   rgcn:
     num_bases: -1

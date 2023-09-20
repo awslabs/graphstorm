@@ -23,9 +23,9 @@ from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
-from ..model.edge_gnn import edge_mini_batch_predict
+from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from ..utils import sys_tracker, get_world_size, barrier
+from ..utils import sys_tracker, get_world_size, get_rank, barrier
 
 class GSgnnEdgePredictionInfer(GSInfer):
     """ Edge classification/regression infer.
@@ -37,8 +37,6 @@ class GSgnnEdgePredictionInfer(GSInfer):
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
@@ -76,11 +74,18 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
         sys_tracker.check('start inferencing')
         self._model.eval()
-        embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
-                                       task_tracker=self.task_tracker)
-        sys_tracker.check('compute embeddings')
-        res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
-                                      return_label=do_eval)
+
+        if use_mini_batch_infer:
+            res = edge_mini_batch_gnn_predict(self._model,
+                                              loader,
+                                              return_proba,
+                                              return_label=do_eval)
+        else:
+            embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
+                                        task_tracker=self.task_tracker)
+            sys_tracker.check('compute embeddings')
+            res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
+                                        return_label=do_eval)
         pred = res[0]
         label = res[1] if do_eval else None
         sys_tracker.check('compute prediction')
@@ -90,13 +95,15 @@ class GSgnnEdgePredictionInfer(GSInfer):
         # TODO support multiple etypes
         assert len(infer_data.eval_etypes) == 1, \
             "GraphStorm only support single target edge type for training and inference"
+        pred = pred[infer_data.eval_etypes[0]]
+        label = label[infer_data.eval_etypes[0]] if label is not None else None
 
         # do evaluation first
         if do_eval:
             test_start = time.time()
             val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
             sys_tracker.check('run evaluation')
-            if self.rank == 0:
+            if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
@@ -110,7 +117,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+            save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
                 get_world_size(),
                 device=device,
                 node_id_mapping_file=node_id_mapping_file)
@@ -132,8 +139,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
                 # entire edge set.
                 pred_data[loader.target_eidx[etype]] = pred.cpu()
 
-                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, self.rank,
+                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, get_rank(),
                     get_world_size(), device=device)
-            save_prediction_results(pred, save_prediction_path, self.rank)
+            save_prediction_results(pred, save_prediction_path, get_rank())
         barrier()
         sys_tracker.check('save predictions')

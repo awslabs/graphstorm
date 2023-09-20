@@ -30,7 +30,7 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
                           FastGSgnnLPJointNegDataLoader,
                           FastGSgnnLPLocalUniformNegDataLoader)
 
-from .dataset import GSgnnEdgeTrainData
+from .dataset import GSgnnEdgeTrainData, GSgnnLPTrainData
 from .dataset import GSgnnEdgeInferData
 from .dataset import GSgnnNodeTrainData
 from .dataset import GSgnnNodeInferData
@@ -45,6 +45,3 @@ from .dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
                           BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
                           BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
                           BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
-
-from .dataloading import (LP_DECODER_EDGE_WEIGHT,
-                          EP_DECODER_EDGE_FEAT)
