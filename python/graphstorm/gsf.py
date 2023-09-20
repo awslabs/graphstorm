@@ -186,7 +186,7 @@ def create_builtin_node_model(g, config, train_task):
     GSgnnModel : The GNN model.
     """
     if config.training_method["name"] == "glem":
-        model = GLEM(config.alpha_l2norm, **config.training_method["kwargs"])
+        model = GLEM(config.alpha_l2norm, config.target_ntype, **config.training_method["kwargs"])
     elif config.training_method["name"] == "default":
         model = GSgnnNodeModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)
