@@ -472,11 +472,11 @@ class SequentialFileSampler():
 
         if self._index >= self.num_local_files:
             if self.is_train:
-                self._index = 0
+                self._index = -1
             else:
                 # non-infinite sampler if it's for evaluation.
-                # set _index to 0 for next evaluation.
-                self._index = 0
+                # set _index to -1 for next evaluation.
+                self._index = -1
                 return None
 
         return self.file_indices[self._index]
@@ -506,7 +506,7 @@ class RandomShuffleFileSampler():
 
         if self._index >= self.num_local_files:
             # make it infinite sampler
-            self._index = 0
+            self._index = -1
 
         return self.file_indices[self._indices[self._index]]
 
@@ -550,24 +550,27 @@ class DistributedFileSampler(FileSamplerInterface):
             self.local_rank = local_rank
             self.world_size = world_size
 
-        # if num of workers is greater than num of files,
-        # each worker will be assigned one file,
-        # and there can be files assigned to multiple workers.
-        # e.g., for 8 workers indexed from 0-7, and 5 files indexed from 0-4
-        # the distribution will be file 0 -> worker 0, file 1 -> worker 1,
-        # file 2 -> worker 2, file 3 -> worker 3, file 4 -> worker 4, 
-        # file 0 -> worker 5, file 1 -> worker 6, file 2 -> worker 7
+        # Assign a slice window of file index to each worker.
+        # The slice window of each worker is specified
+        # by self.global_start and self.global_end
         if self.world_size > self.num_files:
+            # If num of workers is greater than num of files,
+            # the slice windows are same across all workers,
+            # which covers all files.
             self.remainder = self.world_size % self.num_files
-            self.part_start = 0
-            self.part_end = self.num_files
-            self.part_len = self.part_end
+            self.global_start = 0
+            self.global_end = self.num_files
+            self.part_len = self.global_end
         else:
+            # If num of workers is smaller than num of files,
+            # the slice windows are different for each worker.
+            # In the case where the files cannot be evenly distributed,
+            # the remainder will be assigned to one or multiple workers evenly.
             part_len = self.num_files // self.world_size
             self.remainder = self.num_files % self.world_size
-            self.part_start = part_len * self.local_rank + min(self.local_rank, self.remainder)
-            self.part_end = self.part_start + part_len + (self.local_rank < self.remainder)
-            self.part_len = self.part_end - self.part_start
+            self.global_start = part_len * self.local_rank + min(self.local_rank, self.remainder)
+            self.global_end = self.global_start + part_len + (self.local_rank < self.remainder)
+            self.part_len = self.global_end - self.global_start
 
         if not is_train:
             self.part_len = self.num_files
@@ -583,15 +586,74 @@ class DistributedFileSampler(FileSamplerInterface):
         self.shuffle = shuffle
 
 
-    def get_file(self, shard_index):
+    def get_file(self, offset):
         """ Get the file name with corresponding index"""
         if dist.is_initialized() and self.world_size > self.num_files:
+            # e.g, when self.world_size=8 and self.num_files=3:
+            # local_rank=0|offset|file_index % self.num_files
+            #             |0     |0 
+            #             |1     |1 
+            #             |2     |2 
+            #             |0     |0 
+            #             |1     |1 
+            #             |2     |2
+            #             ...    ...
+            # local_rank=1|offset|file_index % self.num_files
+            #             |0     |1 
+            #             |1     |2
+            #             |2     |0
+            #             |0     |1 
+            #             |1     |2 
+            #             |2     |0
+            #             ...    ...
+            # local_rank=2|offset|file_index % self.num_files
+            #             |0     |2 
+            #             |1     |0
+            #             |2     |1
+            #             |0     |2 
+            #             |1     |0 
+            #             |2     |1
+            #             ...    ...
+            # ...
+            # local_rank=7|offset|file_index % self.num_files
+            #             |0     |1 
+            #             |1     |2
+            #             |2     |0
+            #             |0     |1 
+            #             |1     |2 
+            #             |2     |0
+            #             ...    ...
             file_index = (
-                (shard_index * self.world_size) + self.local_rank + (self.remainder * shard_index)
+                (offset * self.world_size) + self.local_rank + (self.remainder * offset)
             )
-            file_index = self.part_start + file_index % self.part_len
+            file_index = self.global_start + file_index % self.part_len
         else:
-            file_index = self.part_start + shard_index % self.part_len
+            # e.g, when self.world_size=3 and self.num_files=7:
+            # local_rank=0|offset|file_index % self.num_files
+            #             |0     |0 
+            #             |1     |1 
+            #             |2     |2 
+            #             |0     |0 
+            #             |1     |1 
+            #             |2     |2
+            #             ...    ...
+            # local_rank=1|offset|file_index % self.num_files
+            #             |0     |3 
+            #             |1     |4
+            #             |0     |3
+            #             |1     |4 
+            #             |0     |3 
+            #             |1     |4
+            #             ...    ...
+            # local_rank=2|offset|file_index % self.num_files
+            #             |0     |5 
+            #             |1     |6
+            #             |0     |5
+            #             |1     |6 
+            #             |0     |5 
+            #             |1     |6
+            #             ...    ...
+            file_index = self.global_start + offset % self.part_len
         return self.files[file_index % self.num_files]
 
     def __len__(self):
@@ -604,12 +666,12 @@ class DistributedFileSampler(FileSamplerInterface):
             def _infinite_sample_iter():
                 while True:
                     try:
-                        shard_index = next(self.sampler_iter)
+                        offset = next(self.sampler_iter)
                     except StopIteration:
                         self.sampler_iter = iter(self.sampler)
-                        shard_index = next(self.sampler_iter)
+                        offset = next(self.sampler_iter)
 
-                    ret = self.get_file(shard_index)
+                    ret = self.get_file(offset)
 
                     yield ret
 
@@ -618,10 +680,10 @@ class DistributedFileSampler(FileSamplerInterface):
     def __next__(self):
         """ Get the file name for next file from sampler"""
         ret = None
-        shard_index = next(self.sampler_iter)
+        offset = next(self.sampler_iter)
 
-        if shard_index is not None:
-            ret = self.get_file(shard_index)
+        if offset is not None:
+            ret = self.get_file(offset)
 
         return ret
 
