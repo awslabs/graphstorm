@@ -882,7 +882,71 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
 
 ################ Minibatch DataLoader (Node classification) #######################
 
-class GSgnnNodeDataLoader():
+class GSgnnNodeDataLoaderBase():
+    """ The base dataloader class for node tasks.
+
+    Parameters
+    ----------
+    dataset : GSgnnNodeData
+        The dataset for the node task.
+    target_idx : Tensor or dict of Tensors
+        The target node IDs.
+    fanout : list or dict of lists
+        The fanout for each GNN layer.
+    """
+    def __init__(self, dataset, target_idx, fanout):
+        self._data = dataset
+        self._target_idx = target_idx
+        self._fanout = fanout
+
+    def __iter__(self):
+        """ Returns an iterator object
+        """
+
+    def __next__(self):
+        """ Return a mini-batch data for the node task.
+
+        A mini-batch comprises three objects: the input node IDs of the mini-batch,
+        the target nodes and the subgraph blocks for message passing.
+
+        Returns
+        -------
+        dict of Tensors : the input node IDs of the mini-batch.
+        dict of Tensors : the target node IDs.
+        list of DGLGraph : the subgraph blocks for message passing.
+        """
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+
+        Returns
+        -------
+        GSgnnNodeData : The dataset of the dataloader.
+        """
+        return self._data
+
+    @property
+    def target_nidx(self):
+        """ Target edge idx for prediction
+
+        Returns
+        -------
+        dict of Tensors : the target edge IDs.
+        """
+        return self._target_nidx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+
+        Returns
+        -------
+        list or a dict of list : the fanouts for each GNN layer.
+        """
+        return self._fanout
+
+class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
 
     Parameters
@@ -906,9 +970,7 @@ class GSgnnNodeDataLoader():
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
-        self._data = dataset
-        self._fanout = fanout
-        self._target_nidx  = target_idx
+        super().__init__(dataset, target_idx, fanout)
         if construct_feat_ntype is None:
             construct_feat_ntype = []
         self._construct_feat_sampler = \
@@ -947,24 +1009,6 @@ class GSgnnNodeDataLoader():
             block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
             blocks.insert(0, block)
         return input_nodes, seeds, blocks
-
-    @property
-    def data(self):
-        """ The dataset of this dataloader.
-        """
-        return self._data
-
-    @property
-    def target_nidx(self):
-        """ The target node ids for prediction.
-        """
-        return self._target_nidx
-
-    @property
-    def fanout(self):
-        """ The fan out of each GNN layers
-        """
-        return self._fanout
 
 class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     """ Semisupervised Minibatch dataloader for node tasks
