@@ -221,10 +221,9 @@ class RelationalGATEncoder(GraphConvEncoder):
     from graphstorm.dataloading import GSgnnNodeTrainData
     from graphstorm.model.gnn import do_full_graph_inference
 
+    np_data = GSgnnNodeTrainData(...)
+    
     model = GSgnnNodeModel(alpha_l2norm=0)
-    np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                 train_ntypes=['n1'], label_field='label',
-                                node_feat_field='feat')
     feat_size = get_feat_size(np_data.g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
