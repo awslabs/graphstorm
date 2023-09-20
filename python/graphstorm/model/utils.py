@@ -157,10 +157,11 @@ def save_sparse_emb(model_path, sparse_emb, ntype,
             A Distributed node embedding.
         ntype: str
             The node type the embedding belongs to.
-        local_rank : int
-            Local rank
+        local_rank: int
+            Local rank of the current process in a distributed environment.
         world_size : int
-            World size in a distributed env.
+            World size in a distributed environment. This tells the size of a
+            distributed cluster (How many processes in a cluster).
     """
     num_embs = sparse_emb.num_embeddings
     start, end = _get_sparse_emb_range(num_embs, local_rank, world_size)
@@ -588,10 +589,11 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path, local_rank, world_size):
             A Distributed node embedding object where the loaded spare embeddings are stored.
         ntype_emb_path: str
             The path where the node embedding are stored (To be loaded).
-        local_rank : int
-            Local rank
+        local_rank: int
+            Local rank of the current process in a distributed environment.
         world_size : int
-            World size in a distributed env.
+            World size in a distributed environment. This tells the size of a
+            distributed cluster (How many processes in a cluster).
 
     """
     num_files = len(os.listdir(ntype_emb_path))

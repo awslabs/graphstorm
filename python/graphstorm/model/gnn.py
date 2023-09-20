@@ -150,12 +150,12 @@ class GSgnnModelBase(nn.Module):
         parameters from ``restore_model_path``.
 
         In some cases, users can choose which sub NN model(s) to load by
-        conducting ``model_layer_to_load``. ``model_layer_to_load`` is
+        setting ``model_layer_to_load``. ``model_layer_to_load`` is
         designed to indicate the names of NN model(s) that should be restored.
 
         Example:
         --------
-        To load model parameters for a model with a node_input_encoder, a
+        To restore model parameters for a model with a node_input_encoder, a
         GNN layer and a decoder:
 
         .. code::
@@ -190,7 +190,7 @@ class GSgnnModelBase(nn.Module):
     def restore_sparse_model(self, restore_model_path, local_rank, world_size):
         """ Restore sparse models, e.g., learnable node embeddings
 
-        Learnable node embeddings are restored by this function
+        Learnable node embeddings are restored by this function.
 
         Example:
         --------
@@ -208,15 +208,15 @@ class GSgnnModelBase(nn.Module):
         restore_model_path : str
             The path where we can restore the model.
         local_rank: int
-            Local rank of the current process in a distributed env.
+            Local rank of the current process in a distributed environment.
         world_size : int
-            World size in a distributed env. This tells the size of a distributed cluster
+            World size in a distributed environment. This tells the size of a distributed cluster
             (How many processes in a cluster).
         """
 
     @abc.abstractmethod
     def save_dense_model(self, model_path):
-        """Save the dense models.
+        """Save dense models.
 
         All model parameters except for learnable node embeddings, i.e.,
         dgl.distributed.DistEmbedding, are saved by this function.
@@ -275,7 +275,7 @@ class GSgnnModelBase(nn.Module):
 
         Step 2: Save learnable node embeddings.
         .. code::
-            from graphstorm.model.utils import save_sparse_embeds
+            from graphstorm.model.utils import save_sparse_emb
 
             for ntype, sparse_emb in sparse_embeds.items():
                 save_sparse_emb(model_path, sparse_emb, ntype,
@@ -286,15 +286,15 @@ class GSgnnModelBase(nn.Module):
         model_path : str
             The path where all model parameters and optimizer states are saved.
         local_rank: int
-            Local rank of the current process in a distributed env.
+            Local rank of the current process in a distributed environment.
         world_size : int
-            World size in a distributed env. This tells the size of a distributed cluster
-            (How many processes in a cluster).
+            World size in a distributed environment. This tells the size of a
+            distributed cluster (How many processes in a cluster).
         """
 
 
     def restore_model(self, restore_model_path, model_layer_to_load=None):
-        """Load saved checkpoints of a GNN model.
+        """Restore saved checkpoints of a GNN model.
 
         A user who implement this method should load the parameters of the GNN model.
         This method does not need to load the optimizer state.
