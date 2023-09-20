@@ -50,9 +50,8 @@ def main(folder, feat_names):
     for feat in feats:
         print(f"Processing '{feat}' features...")
         if feat not in node_feats_data[0]:
-            print(f"Error: Unknown feature '{feat}'. Files contain the following features: " + \
-                  "{node_feats_data[0].keys()}.")
-            sys.exit(1)
+            raise RuntimeError(f"Error: Unknown feature '{feat}'. Files contain \
+                               the following features: {node_feats_data[0].keys()}.")
         whole_feat_tensor = torch.concat(tuple(t[feat] for t in node_feats_data), dim=0)
         metadata[feat] = {'shape': list(whole_feat_tensor.shape),
                           'dtype': str(whole_feat_tensor.dtype)}
