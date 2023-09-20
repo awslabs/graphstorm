@@ -7,6 +7,8 @@ To utilize the pipeline, user will need to input a textual dataset, where each s
 
 
 ## 1. Required Input
+Below we describe 4 required inputs that needs to be specified. For user who wants to know more about optional inputs and default hyper-parameters, please refer to section 3.1 for details.
+
 ### 1.1. Textual dataset
 
 Textual dataset is required to be provided by user, which will be encoded by student Transformer-based model during distillation. User need to specify a path of directory with two sub-directory for ```train``` split and ```val``` split. In each split, there should be multiple partitions of ```*.parquet file```. See below example:
@@ -45,7 +47,23 @@ gsf:
   ...
 
 ```
-### 1.2. Saved Model Path
+### 1.2. Transformer-based LM model
+User needs to specify the LM model architecture and the pre-trained weights with the same naming tradition from HuggingFace. For example, user can specify the LM model architecture by the name of "[DistilBERT](https://huggingface.co/docs/transformers/model_doc/distilbert)", with pre-trained weights of "[distilbert-base-uncased](https://huggingface.co/distilbert-base-uncased)".
+
+The model architecture and the pre-trained weights needs to be specified in the Yaml config under ```lm_models``` -> ```distill_lm_models section```. An example setup is shown below:
+ 
+```
+---
+version: 1.0
+lm_model:
+  distill_lm_models:
+    -
+      lm_type: <user_specified_model_architecture> # e.g., DistilBertModel
+      model_name: <user_specified_model_weights> # e.g., distilbert-base-uncased
+gsf:
+  ...
+```
+### 1.3. Saved Model Path
 
 The second required input is the path to save the distilled student model. This needs to be specified in Yaml config under ```output``` section. See example below
 ```
@@ -59,7 +77,7 @@ gsf:
   output:
     save_model_path: <user_specified_saved_model_path>
 ```
-### 1.3. IP List
+### 1.4. IP List
 
 User needs to specify IP list of machines for distributed training. This list is a ```*.txt``` file, where each IP saved in a row. For example, an IP list with two instances file like the following:
 ```
@@ -78,29 +96,7 @@ gsf:
   ...
 ```
 
-## 2. Key Optional Inputs
-
-### 2.1. Transformer-based LM model
-
-In the case where only required inputs are specified, the student Transformer-based model would default to be [DistilBERT](https://huggingface.co/docs/transformers/model_doc/distilbert) from HuggingFace, with pre-trained weights from “[distilbert-base-uncased](https://huggingface.co/distilbert-base-uncased)”. The distillation would be trained by default hyper-parameters described in section 3.1. 
- 
-Users can specify other LM model architectures by specifying the arguments:
-```
----
-version: 1.0
-gsf:
-  ...
-  distill:
-    ...
-    lm_name: <user_specified_lm_model> # optional, default to be DistilBertModel
-    ...
-  ...
-```
-
-For user who wants to specify other hyper-parameters, please refer to section 3.1 for more optional inputs.
-
-
-## 3. Output
+## 2. Output
 
 The distilled Transformer-based student model would be the only output. The checkpoint will be saved in ```<save_model_path>/checkpoint-<global_step>``` specified by the user. For each checkpoint folder, the tokenizer, the project layer and the LM model will be saved respectively. Find the structure below:
 ```
@@ -117,19 +113,22 @@ The distilled Transformer-based student model would be the only output. The chec
     pytorch_model.bin
 ```
 
-## Running Command
+## 3. Running Command
 ### 3.1. An exemplary YAML file
 ```
 ---
 version: 1.0
+lm_model:
+  distill_lm_models:
+    -
+      lm_type: <user_specified_model_architecture> # required input, e.g., DistilBertModel
+      model_name: <user_specified_model_weights> # required input, e.g., distilbert-base-uncased
 gsf:
   basic:
     backend: gloo # currently support gloo only
     ip_config: <user_specified_ip_list> # required input
   distill:
     textual_data_path: <user_specified_data_root> # required input
-    lm_name: DistilBertModel # optional, default to be DistilBertModel
-    pretrained_weights: distilbert-base-uncased # optional, default to be null
   output:
     save_model_path: <user_specified_saved_model_path> # required input
     save_model_frequency: 1000 # optional, default to be 1000

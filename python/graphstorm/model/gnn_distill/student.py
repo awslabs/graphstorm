@@ -54,25 +54,25 @@ class GSDistilledModel(nn.Module):
         super(GSDistilledModel, self).__init__()
 
         if not checkpoint_path:
+            assert lm_type is not None, \
+                "HuggingFace Name of model architecture needs to be specified"
+            assert pre_trained_name is not None, \
+                "HuggingFace Name of pre-trained weights needs to be specified"
             # TODO (HZ): need to test other HF models.
             if lm_type not in SUPPORTED_MODEL:
                 raise ValueError(f'Model class {lm_type} is not supported.')
-            if pre_trained_name is not None and pre_trained_name not in PRETRAINED_MODEL:
+            if pre_trained_name not in PRETRAINED_MODEL:
                 raise ValueError(f'Pre-trained model {pre_trained_name} is not supported.')
 
             # initiate Transformer-based model
             self.lm_config = SUPPORTED_MODEL[lm_type][0]()
             self.lm = SUPPORTED_MODEL[lm_type][1](self.lm_config)
 
-            # load pre-trained parameters if any
-            if pre_trained_name is not None:
-                self.tokenizer = AutoTokenizer.from_pretrained(pre_trained_name)
-                self.lm = self.lm.from_pretrained(pre_trained_name)
-            else:
-                # default tokenizer
-                logging.info(f"Warning: No pretrained name specified. Default to use "\
-                    "distilbert-base-uncased Tokenizer.")
-                self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+            # load pre-trained tokenizers
+            self.tokenizer = AutoTokenizer.from_pretrained(pre_trained_name)
+
+            # load pre-trained parameters
+            self.lm = self.lm.from_pretrained(pre_trained_name)
         else:
             self.load_from_gs_checkpoint(checkpoint_path)
 
