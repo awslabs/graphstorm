@@ -582,9 +582,14 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                         "malicious pickle data which will execute arbitrary code " \
                         "during unpickling. Only load data you trust or " \
                         "update torch to 1.13.0+")
-                load_sparse_emb(num_embs, os.path.join(model_path, ntype))
-            else:
-                load_sparse_emb(num_embs, os.path.join(model_path, ntype))
+            emb_path = os.path.join(model_path, ntype)
+            # If we are loading the model from BERT fine-tuning, we may not have
+            # the sparse embeddings.
+            if os.path.exists(emb_path):
+                load_sparse_emb(num_embs, emb_path)
+            elif get_rank() == 0:
+                logging.warning("The required sparse embeddings %s does not exist",
+                                emb_path)
 
 def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
