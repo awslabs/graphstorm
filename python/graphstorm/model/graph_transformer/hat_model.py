@@ -735,6 +735,39 @@ class HATLMHead(nn.Module):
         # To tie those two weights if they get disconnected (on TPU or when the bias is resized)
         self.bias = self.decoder.bias
 
+class AttentivePooling(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.attn_dropout = config.hidden_dropout_prob
+        self.lin_proj = nn.Linear(config.hidden_size, config.hidden_size)
+        self.v = nn.Linear(config.hidden_size, 1, bias=False)
+
+    def forward(self, inputs):
+        lin_out = self.lin_proj(inputs)
+        attention_weights = torch.tanh(self.v(lin_out)).squeeze(-1)
+        attention_weights_normalized = torch.softmax(attention_weights, -1)
+        return torch.sum(attention_weights_normalized.unsqueeze(-1) * inputs, 1)
+
+
+class HATPooler(nn.Module):
+    def __init__(self, config, pooling='max'):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.pooling = pooling
+        if self.pooling == 'attentive':
+            self.attentive_pooling = AttentivePooling(config)
+        self.activation = nn.Tanh()
+        self.max_sentence_length = config.max_sentence_length
+
+    def forward(self, hidden_states):
+        if self.pooling == 'attentive':
+            pooled_output = self.attentive_pooling(hidden_states)
+        else:
+            pooled_output = torch.max(hidden_states, dim=1)[0]
+        pooled_output = self.dense(pooled_output)
+        pooled_output = self.activation(pooled_output)
+        return pooled_output
+
 
 class HATForMaskedLM(HATPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids"]
@@ -838,6 +871,76 @@ class HATForMaskedLM(HATPreTrainedModel):
         )
 
 
+class HATForClassification(HATPreTrainedModel):
+    _keys_to_ignore_on_load_missing = [r"position_ids"]
+
+    def __init__(self, config, pooling='max'):
+        super().__init__(config)
+        self.config = config
+        self.max_sentence_length = config.max_sentence_length
+        self.pooling = pooling
+
+        self.hi_transformer = HATModel(config)
+        self.pooler = HATPooler(config, pooling=pooling)
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None):
+        outputs = self.hi_transformer(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        sequence_output = outputs[0]
+        sequence_output = outputs[0]
+        if self.pooling == 'first':
+            pooled_output = self.pooler(torch.unsqueeze(sequence_output[:, 0, :], 1))
+        elif self.pooling == 'last':
+            pooled_output = self.pooler(torch.unsqueeze(sequence_output[:, -self.max_sentence_length, :], 1))
+        else:
+            pooled_output = self.pooler(sequence_output[:, ::self.max_sentence_length])
+
+        loss = None
+        if labels is not None:
+            logits = self.decoder(pooled_output)
+            loss = self.loss_func(logits, labels)
+
+        if not return_dict:
+            output = (logits,) + outputs[2:]
+            return ((loss,) + output) if loss is not None else output
+
+
+        return SequenceClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
+
+    def set_decoder(self, decoder):
+        self.decoder = decoder
+
+    def set_loss_func(self, loss_func):
+        self.loss_func = loss_func
 
 class HATTokenizer:
     def __init__(self, tokenizer=None):
