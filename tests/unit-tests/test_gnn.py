@@ -56,7 +56,7 @@ from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_mo
 from graphstorm import create_builtin_lp_gnn_model
 from graphstorm import get_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
-from graphstorm.model.gnn import do_full_graph_inference
+from graphstorm.model.gnn import do_full_graph_inference, do_mini_batch_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.node_gnn import GSgnnNodeModelInterface
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
@@ -1279,14 +1279,53 @@ def test_link_prediction_weight():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_mini_batch_full_graph_inference(num_ffn_layers):
+    """ Test will compare embedings from layer-by-layer full graph inference
+        and mini-batch full graph inference
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                  train_etypes=[('n0', 'r1', 'n1')], label_field='label',
+                                  node_feat_field='feat')
+    model = create_rgcn_edge_model(data.g, num_ffn_layers=num_ffn_layers)
+
+    embs_layer = do_full_graph_inference(model, data, fanout=[-1, -1])
+    embs_mini_batch = do_mini_batch_inference(model, data, fanout=[-1, -1])
+    for ntype in data.g.ntypes:
+        assert_almost_equal(embs_layer[ntype][0:data.g.num_nodes(ntype)].numpy(),
+                            embs_mini_batch[ntype][0:data.g.num_nodes(ntype)].numpy())
+
+    embs_layer = do_full_graph_inference(model, data)
+    embs_mini_batch = do_mini_batch_inference(model, data)
+    for ntype in data.g.ntypes:
+        assert_almost_equal(embs_layer[ntype][0:data.g.num_nodes(ntype)].numpy(),
+                            embs_mini_batch[ntype][0:data.g.num_nodes(ntype)].numpy())
+
+    embs_mini_batch = do_mini_batch_inference(model, data, infer_ntypes=["n0"])
+    assert len(embs_mini_batch) == 1
+    assert_almost_equal(embs_layer["n0"][0:data.g.num_nodes("n0")].numpy(),
+                            embs_mini_batch["n0"][0:data.g.num_nodes("n0")].numpy())
+
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 class Dummy_GSEdgeDecoder(MLPEdgeDecoder):
     def __init__(self):
         pass
 
-    def predict(self, g, h):
+    def predict(self, g, h, eh):
         return th.arange(10)
 
-    def predict_proba(self, g, h):
+    def predict_proba(self, g, h, eh):
         return th.arange(10)
 
 class Dummy_GSEdgeModel():
@@ -1410,7 +1449,10 @@ def test_node_mini_batch_gnn_predict():
 
     th.distributed.destroy_process_group()
 
+
 if __name__ == '__main__':
+    test_mini_batch_full_graph_inference(0)
+
     test_lm_model_load_save()
     test_node_mini_batch_gnn_predict()
     test_edge_mini_batch_gnn_predict()
@@ -1421,6 +1463,7 @@ if __name__ == '__main__':
     test_rgcn_node_prediction(None)
     test_rgat_node_prediction(None)
     test_sage_node_prediction(None)
+
     test_edge_classification()
     test_edge_classification_feat()
     test_edge_regression()

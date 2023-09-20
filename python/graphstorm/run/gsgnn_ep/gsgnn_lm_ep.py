@@ -64,10 +64,10 @@ def main(config_args):
                                     config.part_config,
                                     train_etypes=config.target_etype,
                                     node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    label_field=config.label_field,
+                                    decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_model(train_data.g, config, train_task=True)
-    trainer = GSgnnEdgePredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+    trainer = GSgnnEdgePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
@@ -79,14 +79,13 @@ def main(config_args):
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
-    tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=[],
                                      batch_size=config.batch_size, device=device, train_task=True,
-                                     remove_target_edge_type=False,
-                                     decoder_edge_feat=config.decoder_edge_feat)
+                                     remove_target_edge_type=False)
     val_dataloader = None
     test_dataloader = None
     # we don't need fanout for full-graph inference
@@ -95,14 +94,12 @@ def main(config_args):
         val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
-            remove_target_edge_type=False,
-            decoder_edge_feat=config.decoder_edge_feat)
+            remove_target_edge_type=False)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             device=device, train_task=False,
-            remove_target_edge_type=False,
-            decoder_edge_feat=config.decoder_edge_feat)
+            remove_target_edge_type=False)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

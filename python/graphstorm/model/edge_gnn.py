@@ -128,7 +128,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         assert len(labels) == 1, "We only support prediction on one edge type for now."
         target_etype = list(labels.keys())[0]
 
-        logits = self.decoder(target_edges, encode_embs)
+        logits = self.decoder(target_edges, encode_embs, target_edge_feats)
         pred_loss = self.loss_func(logits, labels[target_etype])
 
         # add regularization loss to all parameters to avoid the unused parameter errors
@@ -150,8 +150,8 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
         if return_proba:
-            return self.decoder.predict_proba(target_edges, encode_embs)
-        return self.decoder.predict(target_edges, encode_embs)
+            return self.decoder.predict_proba(target_edges, encode_embs, target_edge_feats)
+        return self.decoder.predict(target_edges, encode_embs, target_edge_feats)
 
 def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
@@ -186,10 +186,20 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
+            if data.decoder_edge_feat is not None:
+                input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
+                        for etype in target_edge_graph.canonical_etypes}
+                edge_decoder_feats = data.get_edge_feats(input_edges,
+                                                         data.decoder_edge_feat,
+                                                         target_edge_graph.device)
+                edge_decoder_feats = {etype: feat.to(th.float32) \
+                    for etype, feat in edge_decoder_feats.items()}
+            else:
+                edge_decoder_feats = None
             blocks = [block.to(device) for block in blocks]
             target_edge_graph = target_edge_graph.to(device)
             pred = model.predict(blocks, target_edge_graph, input_feats,
-                                 None, None, input_nodes,
+                                 None, edge_decoder_feats, input_nodes,
                                  return_proba)
 
             # TODO expand code for multiple edge types
@@ -270,11 +280,21 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             for ntype, in_nodes in input_nodes.items():
                 batch_embs[ntype] = emb[ntype][in_nodes].to(device)
             target_edge_graph = target_edge_graph.to(device)
-            # TODO(zhengda) how to deal with edge features?
-            if return_proba:
-                pred = decoder.predict_proba(target_edge_graph, batch_embs)
+            if data.decoder_edge_feat is not None:
+                input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
+                        for etype in target_edge_graph.canonical_etypes}
+                edge_decoder_feats = data.get_edge_feats(input_edges,
+                                                         data.decoder_edge_feat,
+                                                         target_edge_graph.device)
+                edge_decoder_feats = {etype: feat.to(th.float32) \
+                    for etype, feat in edge_decoder_feats.items()}
             else:
-                pred = decoder.predict(target_edge_graph, batch_embs)
+                edge_decoder_feats = None
+
+            if return_proba:
+                pred = decoder.predict_proba(target_edge_graph, batch_embs, edge_decoder_feats)
+            else:
+                pred = decoder.predict(target_edge_graph, batch_embs, edge_decoder_feats)
             append_to_dict({target_etype: pred}, preds)
 
             # TODO(zhengda) we need to have the data loader reads everything,
