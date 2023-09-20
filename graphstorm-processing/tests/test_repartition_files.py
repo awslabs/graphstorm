@@ -197,6 +197,115 @@ def test_repartition_functions(desired_counts: List[int], partition_function_nam
 # TODO: Add simple tests for the load functions
 
 
+def test_verify_metadata_only_edge_data():
+    """Ensure verify_metadata works as expected when provided with
+    just edge structure and edge data
+    """
+    with open(
+        os.path.join(TEMP_DATA_PREFIX, "partitioned_metadata.json"),
+        "r",
+        encoding="utf-8",
+    ) as metafile:
+        original_metadata_dict = json.load(metafile)
+
+    # Ensure failure with wrong edges vs edge data counts
+    with pytest.raises(RuntimeError):
+        repartition_files.verify_metadata(
+            original_metadata_dict["edges"], original_metadata_dict["edge_data"]
+        )
+
+    row_counts = [10, 10, 10, 10, 10]
+    original_metadata_dict["edge_data"]["src:dummy_type:dst"]["label"]["row_counts"] = row_counts
+    original_metadata_dict["edges"]["src:dummy_type:dst"]["row_counts"] = row_counts
+    original_metadata_dict["edges"].pop("dst:rev-dummy_type:src")
+    original_metadata_dict["edge_data"].pop("dst:rev-dummy_type:src")
+
+    # Ensure success when counts match
+    repartition_files.verify_metadata(
+        original_metadata_dict["edges"], edge_data_meta=original_metadata_dict["edge_data"]
+    )
+
+
+def test_verify_metadata_with_node_data():
+    """Ensure verify_metadata works as expected when provided with edge structure and node data"""
+    with open(
+        os.path.join(TEMP_DATA_PREFIX, "partitioned_metadata.json"),
+        "r",
+        encoding="utf-8",
+    ) as metafile:
+        original_metadata_dict = json.load(metafile)
+
+    original_metadata_dict["node_data"] = {
+        "node_type_1": {
+            "feature_1": {
+                "row_counts": [1, 2, 3],
+            },
+            "feature_2": {
+                "row_counts": [3, 2, 1],
+            },
+        }
+    }
+
+    # Ensure failure with wrong counts
+    with pytest.raises(RuntimeError):
+        repartition_files.verify_metadata(
+            original_metadata_dict["edges"], node_data_meta=original_metadata_dict["node_data"]
+        )
+
+    original_metadata_dict["node_data"] = {
+        "node_type_1": {
+            "feature_1": {
+                "row_counts": [1, 2, 3],
+            },
+            "feature_2": {
+                "row_counts": [1, 2, 3],
+            },
+        }
+    }
+
+    # Ensure success when counts match
+    repartition_files.verify_metadata(
+        original_metadata_dict["edges"], node_data_meta=original_metadata_dict["node_data"]
+    )
+
+    # Ensure failure with right node counts but wrong edge data counts
+    with pytest.raises(RuntimeError):
+        repartition_files.verify_metadata(
+            original_metadata_dict["edges"],
+            edge_data_meta=original_metadata_dict["edge_data"],
+            node_data_meta=original_metadata_dict["node_data"],
+        )
+
+
+def test_collect_frequencies_for_data_counts():
+    """Test functionality for collect_frequencies_for_data_counts"""
+    input_dict = {
+        "type_name_1": {
+            "feature_1": {
+                "row_counts": [1, 2, 3],
+            },
+            "feature_2": {
+                "row_counts": [1, 2, 3],
+            },
+        },
+        "type_name_2": {
+            "feature_1": {
+                "row_counts": [2, 2, 2],
+            },
+            "feature_2": {
+                "row_counts": [1, 2, 3],
+            },
+        },
+    }
+
+    frequencies = repartition_files.collect_frequencies_for_data_counts(input_dict)
+
+    assert frequencies.keys() == {"type_name_1", "type_name_2"}
+
+    assert frequencies["type_name_1"] == {(1, 2, 3): 2}
+    assert frequencies["type_name_2"] == {(2, 2, 2): 1, (1, 2, 3): 1}
+
+
 # Integration test, run for different task types
 @pytest.mark.parametrize(
     "task_type",

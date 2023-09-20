@@ -32,6 +32,7 @@ import pprint
 import re
 import shutil
 import sys
+import tempfile
 import time
 from pathlib import Path
 from collections import Counter, defaultdict
@@ -481,11 +482,12 @@ class ParquetRepartitioner:
                         current_table_row_count,
                     )
                 sliced_table = combined_table.slice(length=desired_count)
-                remainder_table = combined_table.slice(offset=desired_count)
-                if sliced_table.num_rows != desired_count:
+                # Sanity check in case the the combined table does not have enough rows
+                if sliced_table.num_rows < desired_count:
                     raise RuntimeError(
-                        f"Sliced table rows {sliced_table.num_rows} " f"!= desired {desired_count}"
+                        f"Sliced table rows {sliced_table.num_rows} < desired {desired_count}"
                     )
+                remainder_table = combined_table.slice(offset=desired_count)
                 self.write_parquet_to_relative_path(new_relative_path, sliced_table)
                 new_data_entries.append(new_relative_path)
 
@@ -508,6 +510,10 @@ class ParquetRepartitioner:
         table is a single-column-scalar table, will append the value {"shape": (num_rows,)}
         to its metadata and overwrite the file. This indicates to the downstream
         data dispatch step that the file should be read in as a flat array.
+
+        DistPartitioning expects arrays to include a `shape` metadata parameter,
+        otherwise treats all data as 2D arrays. See:
+        https://github.com/dmlc/dgl/blob/9dc361c6b959e0de7af4565bf649670786ff0f36/tools/distpartitioning/array_readwriter/parquet.py#L21-L26
 
         Parameters
         ----------
@@ -1006,29 +1012,28 @@ def main():
             if node_type in metadata_dict["node_data"].keys():
                 metadata_dict["node_data"][node_type] = metadata_dict["node_data"].pop(node_type)
 
-    local_metadata_file = "/tmp/tmp_metadata.json"
-    with open(local_metadata_file, "w", encoding="utf-8") as metafile:
+    with tempfile.NamedTemporaryFile(mode="w") as metafile:
         json.dump(metadata_dict, metafile, indent=4)
-    verify_metadata(edge_structure_meta, edge_data_meta, node_data_meta)
-
-    # Upload the updated metadata file to S3
-    if node_data_exist or edge_data_exist:
-        if filesystem_type == "s3":
-            s3_client.upload_file(
-                local_metadata_file, bucket, f"{s3_key_prefix}/{args.updated_metadata_file_name}"
-            )
-            logging.info(
-                "Uploaded updated metadata file to s3://%s/%s/%s",
-                bucket,
-                s3_key_prefix,
-                args.updated_metadata_file_name,
-            )
+        metafile.flush()
+        verify_metadata(edge_structure_meta, edge_data_meta, node_data_meta)
+        # Upload the updated metadata file to S3
+        if node_data_exist or edge_data_exist:
+            if filesystem_type == "s3":
+                s3_client.upload_file(
+                    metafile.name, bucket, f"{s3_key_prefix}/{args.updated_metadata_file_name}"
+                )
+                logging.info(
+                    "Uploaded updated metadata file to s3://%s/%s/%s",
+                    bucket,
+                    s3_key_prefix,
+                    args.updated_metadata_file_name,
+                )
+            else:
+                shutil.copyfile(
+                    metafile.name, os.path.join(input_prefix, args.updated_metadata_file_name)
+                )
         else:
-            shutil.copyfile(
-                local_metadata_file, os.path.join(input_prefix, args.updated_metadata_file_name)
-            )
-    else:
-        logging.warning("No edge or node feature data to re-partition, exiting.")
+            logging.warning("No edge or node feature data to re-partition, exiting.")
 
     t1 = time.time()
     logging.info("File repartitioning time: %s", t1 - t0)
