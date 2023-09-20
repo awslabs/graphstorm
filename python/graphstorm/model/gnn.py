@@ -484,10 +484,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                     if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
             logging.debug('Load Sparse embedding from %s', restore_model_path)
-            #load_sparse_embeds(restore_model_path,
-            #                    self.node_input_encoder,
-            #                    get_rank(),
-            #                    get_world_size())
+            load_sparse_embeds(restore_model_path,
+                               self.node_input_encoder,
+                               get_rank(),
+                               get_world_size())
         # We need to make sure that the sparse embedding is completely loaded
         # before all processes use the model.
         barrier()
