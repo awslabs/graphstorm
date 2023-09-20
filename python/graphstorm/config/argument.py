@@ -734,7 +734,7 @@ class GSConfig:
 
             fanout = self._fanout.split(",")
             return self._check_fanout(fanout, "Train")
-        return 0
+        return [-1] * self.num_layers
 
     @property
     def eval_fanout(self):
