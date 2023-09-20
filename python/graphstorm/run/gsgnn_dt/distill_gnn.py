@@ -21,10 +21,11 @@ import os
 import torch as th
 import numpy as np
 import graphstorm as gs
-from graphstorm.config import get_argument_parser
-from graphstorm.config import GSConfig
+from graphstorm.config import GSConfig, get_argument_parser
 from graphstorm.distiller import GSdistiller
 from graphstorm.utils import setup_device, barrier
+from graphstorm.model.gnn_distill import GSDistilledModel
+from graphstorm.dataloading import DataloaderGenerator, DataManager
 
 
 def main(config_args):
@@ -34,17 +35,45 @@ def main(config_args):
     config.verify_arguments(True)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
-    distiller = GSdistiller()
+
+    student_model = GSDistilledModel(lm_name=config.lm_name, pre_trained_name=config.pre_trained_name)
+    dataloader_generator = DataloaderGenerator(tokenizer=student_model.tokenizer, 
+        max_seq_len=config.max_seq_len,
+        device=device, 
+        batch_size=config.batch_size,
+    )
+    train_data_mgr = DataManager(
+        dataloader_generator,
+        dataset_path=os.path.join(config.textual_data_path, 'train'),
+        local_rank=config.local_rank,
+        world_size=th.distributed.get_world_size(),
+        is_train=True,
+    )
+    eval_data_mgr = DataManager(
+        dataloader_generator,
+        dataset_path=os.path.join(config.textual_data_path, 'val'),
+        local_rank=config.local_rank,
+        world_size=th.distributed.get_world_size(),
+        is_train=False,
+    )
+
+    # get GNN embed dim
+    dataset_iterator = eval_data_mgr.get_iterator()
+    if not dataset_iterator:
+        raise RuntimeError("No validation data") 
+    batch = next(iter(dataset_iterator))
+    gnn_embed_dim = batch["labels"].shape[1]
+    student_model.init_proj_layer(gnn_embed_dim=gnn_embed_dim)
+
+    # initiate distiller
+    distiller = GSdistiller(model=student_model)
     distiller.setup_device(device=device)
     barrier()
 
     distiller.fit(
-        config.lm_name,
-        config.pre_trained_name,
-        config.textual_data_path,
-        config.batch_size,
-        config.max_seq_len,
-        config.lm_tune_lr,
+        train_data_mgr=train_data_mgr, 
+        eval_data_mgr=eval_data_mgr,
+        distill_lr=config.lm_tune_lr,
         saved_path=config.save_model_path,
         save_model_frequency=config.save_model_frequency,
         eval_frequency=config.eval_frequency,
