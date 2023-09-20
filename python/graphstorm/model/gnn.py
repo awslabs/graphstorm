@@ -666,6 +666,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if self._edge_input_encoder is not None:
             self._edge_input_encoder.unfreeze()
 
+    #pylint: disable=signature-differs
     def restore_dense_model(self, restore_model_path,
                             model_layer_to_load):
         # load dense models for gnn_encoder, node_input_encoder and decoder

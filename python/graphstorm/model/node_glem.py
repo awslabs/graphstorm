@@ -95,7 +95,6 @@ class GLEM(GSgnnNodeModelBase):
     def save_sparse_model(self, model_path, local_rank, world_size):
         """ Sparse embedding is not supported
         """
-        pass
 
     def save_dense_model(self, model_path):
         """Save either the LM and GNN models.
@@ -108,7 +107,6 @@ class GLEM(GSgnnNodeModelBase):
     def restore_sparse_model(self, restore_model_path, local_rank, world_size):
         """ Sparse embedding is not supported
         """
-        pass
 
     def restore_dense_model(self, restore_model_path,
                             model_layer_to_load=None):
