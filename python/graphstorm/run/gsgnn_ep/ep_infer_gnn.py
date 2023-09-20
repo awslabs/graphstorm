@@ -19,7 +19,7 @@
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.inference import GSgnnEdgePredictionInfer
+from graphstorm.inference import GSgnnEdgePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
 from graphstorm.utils import setup_device
@@ -50,11 +50,12 @@ def main(config_args):
                                     config.part_config,
                                     eval_etypes=config.target_etype,
                                     node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    label_field=config.label_field,
+                                    decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path)
     # TODO(zhengda) we should use a different way to get rank.
-    infer = GSgnnEdgePredictionInfer(model, gs.get_rank())
+    infer = GSgnnEdgePredictionInferrer(model)
     infer.setup_device(device=device)
     if not config.no_validation:
         evaluator = get_evaluator(config)
@@ -69,7 +70,7 @@ def main(config_args):
             "you should not define test_mask as its edge feature. " \
             "GraphStorm will do inference on the whole edge set. "
         target_idxs = infer_data.infer_idxs
-    tracker = gs.create_builtin_task_tracker(config, infer.rank)
+    tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=fanout,
@@ -77,7 +78,6 @@ def main(config_args):
                                      device=device, train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
-                                     decoder_edge_feat=config.decoder_edge_feat,
                                      construct_feat_ntype=config.construct_feat_ntype,
                                      construct_feat_fanout=config.construct_feat_fanout)
     # Preparing input layer for training or inference.

@@ -419,8 +419,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             If an output format other than "csv" or "parquet" is requested.
         """
         if self.filesystem_type == "s3":
-            output_bucket = full_output_path.split("/")[2]
-            output_prefix = full_output_path.split("/", 3)[3]
+            output_bucket, output_prefix = s3_utils.extract_bucket_and_key(full_output_path)
         else:
             output_bucket = ""
             output_prefix = full_output_path
@@ -1278,7 +1277,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                         self.graph_info["etype_label"].append(reverse_edge_type)
                         if edge_config.label_configs[0].task_type != "link_prediction":
                             self.graph_info["etype_label_property"].append(
-                                edge_config.label_configs[0].cols[0]
+                                edge_config.label_configs[0].label_column
                             )
 
                         if self.add_reverse_edges:
@@ -1411,7 +1410,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     "edge_class" if label_conf.task_type == "classification" else "edge_regression"
                 )
                 if label_conf.task_type == "classification":
-                    self.graph_info["is_multilabel"] = "True" if label_conf.multilabel else "False"
+                    self.graph_info["is_multilabel"] = label_conf.multilabel
                     self.graph_info["label_map"] = edge_label_loader.label_map
 
                 logging.info(
