@@ -60,10 +60,8 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    # TODO(IN): Support node classification/regression for wholegraph
-    if use_wholegraph(config.part_config):
-        raise NotImplementedError("Wholegraph is not supported for node prediction tasks")
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  use_wholegraph=use_wholegraph(config.part_config))
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)
