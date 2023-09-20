@@ -87,7 +87,7 @@ def main(args):
         print(ntype, train_data.g.nodes[ntype].data.keys())
     feat_size = gs.get_feat_size(train_data.g, args.node_feat)
     model = MyGNNModel(train_data.g, feat_size, 16, args.num_classes)
-    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=1)
+    trainer = GSgnnNodePredictionTrainer(model, topk_model_to_save=1)
     trainer.setup_device(device=device)
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=[10, 10],
                                      batch_size=1000, device=device, train_task=True)

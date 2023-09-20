@@ -70,19 +70,26 @@ def test_parquet():
 
     os.remove(tmpfile)
 
-def test_csv():
+@pytest.mark.parametrize("delimiter", [None, ",", "\t"])
+def test_csv(delimiter):
     data = {
             "t1": np.random.uniform(size=(10,)),
             "t2": np.random.uniform(size=(10,)),
     }
     with tempfile.TemporaryDirectory() as tmpdirname:
-        write_data_csv(data, os.path.join(tmpdirname, 'test.csv'))
-        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'))
+        if not delimiter:
+            write_data_csv(data, os.path.join(tmpdirname, 'test.csv'))
+            data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'))
+        else:
+            write_data_csv(data, os.path.join(tmpdirname, 'test.csv'), delimiter=delimiter)
+            data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), delimiter=delimiter)
+
         for key, val in data.items():
             assert key in data1
             np.testing.assert_almost_equal(data1[key], data[key])
 
-        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), data_fields=['t1'])
+        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), data_fields=['t1']) if not delimiter \
+            else read_data_csv(os.path.join(tmpdirname, 'test.csv'), delimiter=delimiter, data_fields=['t1'])
         assert 't1' in data1
         np.testing.assert_almost_equal(data1['t1'], data['t1'])
 

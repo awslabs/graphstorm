@@ -322,7 +322,7 @@ def _parse_file_format(conf, is_node, in_mem):
     elif fmt["name"] == "hdf5":
         return partial(read_data_hdf5, data_fields=keys, in_mem=in_mem)
     elif fmt["name"] == "csv":
-        delimiter = fmt["delimiter"] if "delimiter" in fmt else ","
+        delimiter = fmt["separator"] if "separator" in fmt else ","
         return partial(read_data_csv, data_fields=keys, delimiter=delimiter)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))
