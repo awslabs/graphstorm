@@ -30,6 +30,8 @@ class GLEM(GSgnnNodeModelBase):
     ----------
     alpha_l2norm: float
         Coef for l2 norm of unused weights
+    target_ntype: str
+        Target node type
     em_order_gnn_first: bool
         In the EM training, set true to train GNN first, train LM first otherwise
     inference_using_gnn: bool
@@ -42,6 +44,7 @@ class GLEM(GSgnnNodeModelBase):
     """
     def __init__(self,
                  alpha_l2norm,
+                 target_ntype,
                  em_order_gnn_first=False,
                  inference_using_gnn=True,
                  pl_weight=0.5,
@@ -49,6 +52,7 @@ class GLEM(GSgnnNodeModelBase):
                  ):
         super(GLEM, self).__init__()
         self.alpha_l2norm = alpha_l2norm
+        self.target_ntype = target_ntype
         self.em_order_gnn_first = em_order_gnn_first
         self.inference_using_gnn = inference_using_gnn
         self.pl_weight = pl_weight
@@ -354,17 +358,17 @@ class GLEM(GSgnnNodeModelBase):
         input_nodes : {target_ntype: tensor.shape [bs], other_ntype: []}
         blocks : list[dgl.Block]
         """
-        target_ntype = blocks[-1].dsttypes[0]
+        target_ntype = self.target_ntype
         n_seed_nodes = blocks[-1].num_dst_nodes()
         return {target_ntype: input_nodes[target_ntype][:n_seed_nodes]}
 
     def _embed_nodes(self, blocks, node_feats, _, input_nodes=None, do_gnn_encode=True):
         """ Embed and encode nodes with LM, optionally followed by GNN encoder for GLEM model
         """
+        target_ntype = self.target_ntype
         if do_gnn_encode:
             # Get the projected LM embeddings without GNN message passing
             encode_embs = self.lm.comput_input_embed(input_nodes, node_feats)
-            target_ntype = list(encode_embs.keys())[0]
             # GNN message passing
             encode_embs_gnn = self.gnn.gnn_encoder(blocks, encode_embs)
             n_seed_nodes = blocks[-1].num_dst_nodes()
@@ -373,7 +377,6 @@ class GLEM(GSgnnNodeModelBase):
             # Get the projected LM embeddings for seed nodes:
             seed_nodes = self._get_seed_nodes(input_nodes, blocks)
             encode_embs = self.lm.comput_input_embed(seed_nodes, node_feats)
-            target_ntype = list(encode_embs.keys())[0]
             return encode_embs[target_ntype], None
 
     def _process_labels(self, labels):
