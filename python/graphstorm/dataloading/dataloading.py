@@ -126,6 +126,7 @@ class GSgnnEdgeDataLoaderBase():
         """ The dataset of this dataloader.
 
         Returns
+        -------
         GSgnnEdgeData : The dataset of the dataloader.
         """
         return self._data
@@ -277,17 +278,35 @@ BUILTIN_FAST_LP_JOINT_NEG_SAMPLER = 'fast_joint'
 BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER = 'fast_localuniform'
 BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 
-LP_DECODER_EDGE_WEIGHT = "lp_edge_weight"
-
 class GSgnnLinkPredictionDataLoaderBase():
-    def __init__(self, ):
+    """ The base class of link prediction dataloader.
+
+    Parameters
+    ----------
+    dataset: GSgnnEdgeData
+        The GraphStorm edge dataset
+    target_idx : dict of Tensors
+        The target edges for prediction
+    fanout: list of int or dict of list
+        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+    """
+    def __init__(self, dataset, target_idx, fanout):
+        self._dataset = dataset
+        self._target_idx = target_idx
+        self._fanout = fanout
 
     def __iter__(self):
-        """
+        """ Returns an iterator object
         """
 
     def __next__(self):
-        """
+        """ Return a mini-batch for link prediction.
+
+        A mini-batch of link prediction contains three objects:
+        the input node IDs of the mini-batch, the target positive edges
+        for prediction, the negative edges for prediction,
+        the subgraph blocks for message passing.
+
         Returns
         -------
         Tensor or dict of Tensors : the input nodes of a mini-batch.
@@ -299,14 +318,32 @@ class GSgnnLinkPredictionDataLoaderBase():
     @property
     def data(self):
         """ The dataset of this dataloader.
+
+        Returns
+        -------
+        GSgnnEdgeData : The dataset of the dataloader.
         """
-        return self._data
+        return self._dataset
 
     @property
     def fanout(self):
         """ The fan out of each GNN layers
+
+        Returns
+        -------
+        list or a dict of list : the fanouts for each GNN layer.
         """
         return self._fanout
+
+    @property
+    def target_eidx(self):
+        """ The target edges for prediction.
+
+        Returns
+        -------
+        dict of Tensors : the target edge IDs.
+        """
+        return self._target_idx
 
 class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     """ Link prediction minibatch dataloader
