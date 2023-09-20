@@ -71,7 +71,7 @@ def prepare_batch_input(g, input_nodes,
             feats = []
             for fname in feat_name:
                 data = g.nodes[ntype].data[fname]
-                if hasattr(data, 'gather') and is_wholegraph_embedding(data):
+                if is_wholegraph_embedding(data):
                     data = data.gather(nid.to(dev))
                 else:
                     data = data[nid].to(dev)
