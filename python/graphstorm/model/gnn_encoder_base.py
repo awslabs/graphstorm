@@ -255,7 +255,7 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
                 # This happens on a homogeneous graph.
                 assert len(g.ntypes) == 1
                 output_nodes = {g.ntypes[0]: output_nodes}
-            if int(layer_id) == 0:
+            if layer_id == "0":
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
                 # All samples should contain all the ntypes for wholegraph compatibility
                 input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
