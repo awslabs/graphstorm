@@ -36,7 +36,11 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
 
-    student_model = GSDistilledModel(lm_name=config.lm_name, pre_trained_name=config.pre_trained_name)
+    # initiate model
+    student_model = GSDistilledModel(lm_type=config.distill_lm_configs[0]["lm_type"], 
+        pre_trained_name=config.distill_lm_configs[0]["model_name"])
+
+    # initiate DataloaderGenerator and DataManager
     dataloader_generator = DataloaderGenerator(tokenizer=student_model.tokenizer, 
         max_seq_len=config.max_seq_len,
         device=device, 

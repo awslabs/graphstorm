@@ -43,26 +43,26 @@ class GSDistilledModel(nn.Module):
 
     Parameters
     ----------
-    lm_name : str
-        Model name for Transformer-based student model.
+    lm_type : str
+        Model type for Transformer-based student model.
     pre_trained_name : str
         Name of pre-trained model.
     checkpoint_path : str
         Path of model checkpoint.
     """
-    def __init__(self, lm_name=None, pre_trained_name=None, checkpoint_path=None):
+    def __init__(self, lm_type=None, pre_trained_name=None, checkpoint_path=None):
         super(GSDistilledModel, self).__init__()
 
         if not checkpoint_path:
             # TODO (HZ): need to test other HF models.
-            if lm_name not in SUPPORTED_MODEL:
-                raise ValueError(f'Model class {lm_name} is not supported.')
+            if lm_type not in SUPPORTED_MODEL:
+                raise ValueError(f'Model class {lm_type} is not supported.')
             if pre_trained_name is not None and pre_trained_name not in PRETRAINED_MODEL:
                 raise ValueError(f'Pre-trained model {pre_trained_name} is not supported.')
 
             # initiate Transformer-based model
-            self.lm_config = SUPPORTED_MODEL[lm_name][0]()
-            self.lm = SUPPORTED_MODEL[lm_name][1](self.lm_config)
+            self.lm_config = SUPPORTED_MODEL[lm_type][0]()
+            self.lm = SUPPORTED_MODEL[lm_type][1](self.lm_config)
 
             # load pre-trained parameters if any
             if pre_trained_name is not None:

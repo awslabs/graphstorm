@@ -147,27 +147,38 @@ class GSConfig:
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
         if 'lm_model' in configuration:
-            # has language model configuration
-            # lm_model:
-            #   node_lm_models:
-            #     -
-            #       lm_type: bert
-            #       model_name: "bert-base-uncased"
-            #       gradient_checkpoint: true
-            #       node_types:
-            #         - n_0
-            #         - n_1
-            #     -
-            #       lm_type: bert
-            #       model_name: "allenai/scibert_scivocab_uncased"
-            #       gradient_checkpoint: true
-            #       node_types:
-            #         - n_2
             lm_model = configuration['lm_model']
-            assert "node_lm_models" in lm_model, "node_lm_models must be provided"
+            assert "node_lm_models" in lm_model or "distill_lm_models" in lm_model, \
+                "either node_lm_models or distill_lm_models must be provided"
             # if node_lm_models is not defined, ignore the lm model
-            node_lm_models = lm_model['node_lm_models']
-            setattr(self, "_node_lm_configs", node_lm_models)
+            if "node_lm_models" in lm_model:
+                # has node language model configuration, e.g.,
+                # lm_model:
+                #   node_lm_models:
+                #     -
+                #       lm_type: bert
+                #       model_name: "bert-base-uncased"
+                #       gradient_checkpoint: true
+                #       node_types:
+                #         - n_0
+                #         - n_1
+                #     -
+                #       lm_type: bert
+                #       model_name: "allenai/scibert_scivocab_uncased"
+                #       gradient_checkpoint: true
+                #       node_types:
+                #         - n_2
+                node_lm_models = lm_model['node_lm_models']
+                setattr(self, "_node_lm_configs", node_lm_models)
+            else:
+                # has distill language model configuration, e.g.,
+                # lm_model:
+                #   distill_lm_models:
+                #     -
+                #       lm_type: DistilBertModel
+                #       model_name: "distilbert-base-uncased"
+                distill_lm_models = lm_model['distill_lm_models']
+                setattr(self, "_distill_lm_configs", distill_lm_models)
 
         # handle gnn config
         gnn_family = configuration['gsf']
@@ -278,6 +289,9 @@ class GSConfig:
         if self.node_lm_configs:
             _ = self.lm_infer_batch_size
             _ = self.freeze_lm_encoder_epochs
+
+        if self.distill_lm_configs:
+            _ = self.textual_data_path
 
         # I/O related
         _ = self.restore_model_layers
@@ -575,7 +589,7 @@ class GSConfig:
             return self._training_method
         return {"name": "default", "kwargs": {}}
 
-    def _check_lm_config(self, lm_config):
+    def _check_node_lm_config(self, lm_config):
         assert "lm_type" in lm_config, "lm_type (type of language model," \
             "e.g., bert) must be provided for node_lm_models."
         assert "model_name" in lm_config, "language model model_name must " \
@@ -589,24 +603,52 @@ class GSConfig:
 
     @property
     def node_lm_configs(self):
-        """ check bert config
+        """ check node lm config
         """
         if hasattr(self, "_node_lm_configs"):
             if self._node_lm_configs is None:
                 return None
 
-            # lm_config is not NOne
+            # node lm_config is not None
             assert isinstance(self._node_lm_configs, list), \
                 "Node language model config is not None. It must be a list"
             assert len(self._node_lm_configs) > 0, \
                 "Number of node language model config must larger than 0"
 
             for lm_config in self._node_lm_configs:
-                self._check_lm_config(lm_config)
+                self._check_node_lm_config(lm_config)
 
             return self._node_lm_configs
 
         # By default there is no node_lm_config
+        return None
+
+    def _check_distill_lm_config(self, lm_config):
+        assert "lm_type" in lm_config, "lm_type (type of language model," \
+            "e.g., DistilBertModel) must be provided for distill_lm_models."
+        assert "model_name" in lm_config, "pre-trained model_name must " \
+            "be provided for distill_lm_models."
+
+    @property
+    def distill_lm_configs(self):
+        """ check distill lm config
+        """
+        if hasattr(self, "_distill_lm_configs"):
+            if self._distill_lm_configs is None:
+                return None
+
+            # distill lm_config is not None
+            assert isinstance(self._distill_lm_configs, list), \
+                "Distill language model config is not None. It must be a list"
+            assert len(self._distill_lm_configs) > 0, \
+                "Number of distill language model config must larger than 0"
+
+            for lm_config in self._distill_lm_configs:
+                self._check_distill_lm_config(lm_config)
+
+            return self._distill_lm_configs
+
+        # By default there is no distill_lm_config
         return None
 
     ###################### general gnn model related ######################
