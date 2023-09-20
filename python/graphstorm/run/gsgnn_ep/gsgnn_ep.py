@@ -27,7 +27,7 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device
+from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
 
 def get_evaluator(config):
     """ Get evaluator class
