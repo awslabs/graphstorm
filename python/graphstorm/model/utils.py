@@ -585,7 +585,7 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path, local_rank, world_size):
         Parameters
         ----------
         target_sparse_emb: dgl.distributed.DistEmbedding
-            A Distributed node embedding object where the laoded spare embeddings are stored.
+            A Distributed node embedding object where the loaded spare embeddings are stored.
         ntype_emb_path: str
             The path where the node embedding are stored (To be loaded).
         local_rank : int
@@ -596,7 +596,7 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path, local_rank, world_size):
     """
     num_files = len(os.listdir(ntype_emb_path))
     num_embs = target_sparse_emb.num_embeddings
-    # Suppose a sparse embedding is trained and saved using N trainers (GPUs).
+    # Suppose a sparse embedding is trained and saved using N trainers (e.g., GPUs).
     # We are going to use K trainers/infers to load it.
     # The code handles the following cases:
     # 1. N == K
@@ -633,7 +633,7 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
         Parameters
         ----------
         model_path: str
-            The path of the model is saved.
+            The path of the model to be saved.
         embed_layer: model
             A (distributed) model of embedding layers.
         local_rank : int
@@ -657,9 +657,11 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                         "malicious pickle data which will execute arbitrary code " \
                         "during unpickling. Only load data you trust or " \
                         "update torch to 1.13.0+")
-                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
+                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype),
+                                local_rank, world_size)
             else:
-                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
+                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype),
+                                local_rank, world_size)
 
 def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
