@@ -35,9 +35,11 @@ def get_evaluator(config):
     """ Get evaluator class
     """
     if config.task_type == "node_classification":
+        multilabel = config.multilabel[config.eval_target_ntype] \
+            if isinstance(config.multilabel, dict) else config.multilabel
         return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
-                                 config.multilabel,
+                                 multilabel,
                                  config.use_early_stop,
                                  config.early_stop_burnin_rounds,
                                  config.early_stop_rounds,
@@ -65,6 +67,7 @@ def main(config_args):
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.target_ntype,
+                                    eval_ntypes=config.eval_target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
@@ -72,8 +75,7 @@ def main(config_args):
         trainer_class = GLEMNodePredictionTrainer
     elif config.training_method["name"] == "default":
         trainer_class = GSgnnNodePredictionTrainer
-    trainer = trainer_class(model, gs.get_rank(),
-                                        topk_model_to_save=config.topk_model_to_save)
+    trainer = trainer_class(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
@@ -84,8 +86,8 @@ def main(config_args):
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
-    tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     if config.use_pseudolabel:

@@ -24,7 +24,6 @@ gsf:
     lm_tune_lr: 0.0001
     num_epochs: 3
     batch_size: 64
-    bert_infer_bs: 128
     wd_l2norm: 0
     no_validation: false
     eval_frequency: 1000

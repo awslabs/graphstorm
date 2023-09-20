@@ -19,6 +19,7 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from .utils import append_to_dict
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -120,8 +121,19 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             assert target_ntype in labels, f"Node type {target_ntype} not in labels"
             emb = encode_embs[target_ntype]
             ntype_labels = labels[target_ntype]
-            ntype_logits = self.decoder(emb)
-            pred_loss += self.loss_func(ntype_logits, ntype_labels)
+            if isinstance(self.decoder, th.nn.ModuleDict):
+                assert target_ntype in self.decoder, f"Node type {target_ntype} not in decoder"
+                decoder = self.decoder[target_ntype]
+            else:
+                decoder = self.decoder
+            ntype_logits = decoder(emb)
+            if isinstance(self.loss_func, th.nn.ModuleDict):
+                assert target_ntype in self.loss_func, \
+                    f"Node type {target_ntype} not in loss function"
+                loss_func = self.loss_func[target_ntype]
+            else:
+                loss_func = self.loss_func
+            pred_loss += loss_func(ntype_logits, ntype_labels)
         # add regularization loss to all parameters to avoid the unused parameter errors
         reg_loss = th.tensor(0.).to(pred_loss.device)
         # L2 regularization of dense parameters
@@ -143,10 +155,16 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         # predict for each node type
         predicts = {}
         for target_ntype in target_ntypes:
-            if return_proba:
-                predicts[target_ntype] = self.decoder.predict_proba(encode_embs[target_ntype])
+            if isinstance(self.decoder, th.nn.ModuleDict):
+                assert target_ntype in self.decoder, \
+                    f"Node type {target_ntype} not in decoder"
+                decoder = self.decoder[target_ntype]
             else:
-                predicts[target_ntype] = self.decoder.predict(encode_embs[target_ntype])
+                decoder = self.decoder
+            if return_proba:
+                predicts[target_ntype] = decoder.predict_proba(encode_embs[target_ntype])
+            else:
+                predicts[target_ntype] = decoder.predict(encode_embs[target_ntype])
         return predicts, encode_embs
 
 def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
@@ -184,13 +202,6 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     embs = {}
     labels = {}
     model.eval()
-
-    def append_to_dict(from_dict, to_dict):
-        for k, v in from_dict.items():
-            if k in to_dict:
-                to_dict[k].append(v.cpu())
-            else:
-                to_dict[k] = [v.cpu()]
 
     with th.no_grad():
         for input_nodes, seeds, blocks in loader:
@@ -271,10 +282,15 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     with th.no_grad():
         for input_nodes, seeds, _ in loader:
             for ntype, in_nodes in input_nodes.items():
-                if return_proba:
-                    pred = model.decoder.predict_proba(emb[ntype][in_nodes].to(device))
+                if isinstance(model.decoder, th.nn.ModuleDict):
+                    assert ntype in model.decoder, f"Node type {ntype} not in decoder"
+                    decoder = model.decoder[ntype]
                 else:
-                    pred = model.decoder.predict(emb[ntype][in_nodes].to(device))
+                    decoder = model.decoder
+                if return_proba:
+                    pred = decoder.predict_proba(emb[ntype][in_nodes].to(device))
+                else:
+                    pred = decoder.predict(emb[ntype][in_nodes].to(device))
                 if ntype in preds:
                     preds[ntype].append(pred.cpu())
                 else:

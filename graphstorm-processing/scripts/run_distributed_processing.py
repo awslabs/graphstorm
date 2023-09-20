@@ -147,15 +147,13 @@ if __name__ == "__main__":
         else f"{s3_input_prefix}/{args.config_filename}"
     )
     s3_input_bucket = s3_input_prefix.split("/")[2]
-    s3_input_key = s3_input_prefix.split("/", 3)[3]
+    s3_input_key = s3_input_prefix.split("/", maxsplit=3)[3]
 
     if not s3_output_prefix:
-        s3_bucket = s3_input_prefix.split("/")[2]
-        s3_output_prefix = (
-            f"s3://{s3_bucket}/graphstorm-distributed-graph-processing/output/{processing_job_name}"
-        )
+        s3_output_prefix = f"s3://{s3_input_bucket}/gs-processing/output/{processing_job_name}"
 
     s3_output_bucket = s3_output_prefix.split("/")[2]
+
     print(
         "Creating SageMaker Processing job for train"
         f" config in {s3_train_config} and outputs to {s3_output_prefix}"
@@ -184,15 +182,16 @@ if __name__ == "__main__":
 
     processor_kwargs = script_utils.parse_processor_kwargs(args.sm_processor_parameters)
 
-    byte_size_on_s3 = script_utils.determine_byte_size_on_s3(
-        s3_input_bucket, s3_input_key, s3_boto
-    ) // (1024 * 1024 * 1024)
-    input_total_size_in_gb = max(1, byte_size_on_s3 // (1024 * 1024 * 1024))
-    # Heuristic: total storage of 6+ times the total input size should be
-    # sufficient for Spark (assuming CSV input)
-    # Using anything less than 2*input_size/instance_count led to failures for large datasets
     max_allowed_volume_size = script_utils.get_max_volume_size_for_processing(args.region)
     if "volume_size_in_gb" not in processor_kwargs:
+        byte_size_on_s3 = script_utils.determine_byte_size_on_s3(
+            s3_input_bucket, s3_input_key, s3_boto
+        ) // (1024 * 1024 * 1024)
+        input_total_size_in_gb = max(1, byte_size_on_s3 // (1024 * 1024 * 1024))
+        logging.info("Total data size: <= %d GB", input_total_size_in_gb)
+        # Heuristic: total storage of 6+ times the total input size should be
+        # sufficient for Spark (assuming CSV input)
+        # Using anything less than 2*input_size/instance_count led to failures for large datasets
         desired_volume_size = 6 * (input_total_size_in_gb // instance_count)
     else:
         desired_volume_size = processor_kwargs["volume_size_in_gb"]
@@ -204,14 +203,14 @@ if __name__ == "__main__":
             desired_volume_size,
             max_allowed_volume_size,
         )
-    required_gb_per_instance = max(min(desired_volume_size, max_allowed_volume_size), 30)
+    # Ensure we don't request volume larger than max allowed
+    capped_volume_size = min(desired_volume_size, max_allowed_volume_size)
+    # Ensure we request at least 30GB for volume
+    requested_gb_per_instance = max(capped_volume_size, 30)
     logging.info(
-        "Total data size <= %d GB, "
-        "assigning %d GB storage "
-        "per instance (total storage: %d GB).",
-        input_total_size_in_gb,
-        required_gb_per_instance,
-        instance_count * required_gb_per_instance,
+        "Assigning %d GB storage per instance (total storage: %d GB).",
+        requested_gb_per_instance,
+        instance_count * requested_gb_per_instance,
     )
 
     pyspark_processor = PySparkProcessor(
@@ -220,7 +219,7 @@ if __name__ == "__main__":
         instance_count=instance_count,
         image_uri=args.image_uri,
         sagemaker_session=sagemaker_session,
-        volume_size_in_gb=required_gb_per_instance,
+        volume_size_in_gb=requested_gb_per_instance,
         **processor_kwargs,
     )
 

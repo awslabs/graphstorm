@@ -27,7 +27,7 @@ from ..model.edge_gnn import GSgnnEdgeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker, rt_profiler, print_mem
+from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed, get_backend
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
@@ -37,13 +37,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     ----------
     model : GSgnnEdgeModelBase
         The GNN model for edge prediction.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save):
-        super(GSgnnEdgePredictionTrainer, self).__init__(model, rank, topk_model_to_save)
+    def __init__(self, model, topk_model_to_save):
+        super(GSgnnEdgePredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnEdgeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
 
@@ -138,6 +136,17 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     assert len(batch_graph.ntypes) == 1
                     input_nodes = {batch_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
+
+                if data.decoder_edge_feat is not None:
+                    input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
+                            for etype in batch_graph.canonical_etypes}
+                    edge_decoder_feats = data.get_edge_feats(input_edges,
+                                                             data.decoder_edge_feat,
+                                                             batch_graph.device)
+                    edge_decoder_feats = {etype: feat.to(th.float32) \
+                        for etype, feat in edge_decoder_feats.items()}
+                else:
+                    edge_decoder_feats = None
                 rt_profiler.record('train_node_feats')
 
                 # retrieving seed edge id from the graph to find labels
@@ -152,7 +161,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 rt_profiler.record('train_graph2GPU')
 
                 # TODO(zhengda) we don't support edge features for now.
-                loss = model(blocks, batch_graph, input_feats, None, lbl, input_nodes)
+                loss = model(blocks, batch_graph, input_feats, None,
+                             edge_decoder_feats, lbl, input_nodes)
                 rt_profiler.record('train_forward')
 
                 self.optimizer.zero_grad()
@@ -165,12 +175,12 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
 
-                if i % 20 == 0 and self.rank == 0:
+                if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
                     # Print task specific info.
                     logging.info(
                             "Part %d | Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
-                            self.rank, epoch, i, loss.item(), time.time() - batch_tic)
+                            get_rank(), epoch, i, loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -206,7 +216,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
             barrier()
             epoch_time = time.time() - epoch_start
-            if self.rank == 0:
+            if get_rank() == 0:
                 logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
@@ -231,7 +241,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         rt_profiler.save_profile()
         print_mem(device)
-        if self.rank == 0 and self.evaluator is not None:
+        if get_rank() == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
@@ -303,18 +313,22 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 test_label = None
             sys_tracker.check("after_test_score")
 
+        # TODO: we only support edge prediction on one edge type for evaluation now
+        assert len(val_label) == 1, "We only support prediction on one edge type for now."
+        etype = list(val_label.keys())[0]
+
         # We need to have val and label (test and test label) data in GPU
         # when backend is nccl, as we need to use nccl.all_reduce to exchange
         # data between GPUs
-        val_pred = val_pred.to(self.device) \
-            if is_distributed() and get_backend() == "nccl" else val_pred
-        val_label = val_label.to(self.device) \
-            if is_distributed() and get_backend() == "nccl" else val_label
+        val_pred = val_pred[etype].to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_pred[etype]
+        val_label = val_label[etype].to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_label[etype]
         if test_pred is not None:
-            test_pred = test_pred.to(self.device) \
-                if is_distributed() and get_backend() == "nccl" else test_pred
-            test_label = test_label.to(self.device) \
-                if is_distributed() and get_backend() == "nccl" else test_label
+            test_pred = test_pred[etype].to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_pred[etype]
+            test_label = test_label[etype].to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_label[etype]
 
         model.train()
         sys_tracker.check('predict')
@@ -322,9 +336,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                                                         val_label, test_label, total_steps)
         sys_tracker.check('evaluate')
 
-        if self.rank == 0:
+        if get_rank() == 0:
             self.log_print_metrics(val_score=val_score,
-                                test_score=test_score,
-                                dur_eval=time.time() - test_start,
-                                total_steps=total_steps)
+                                   test_score=test_score,
+                                   dur_eval=time.time() - test_start,
+                                   total_steps=total_steps)
         return val_score
