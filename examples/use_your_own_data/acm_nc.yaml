@@ -14,14 +14,13 @@ gsf:
     restore_model_path: null
   output:
     save_model_path: /tmp/acm_nc/models
-    save_embeds_path: /tmp/acm_nc/embeds
+    save_embed_path: /tmp/acm_nc/embeds
   hyperparam:
     dropout: 0.
     lr: 0.0001
     lm_tune_lr: 0.0001
     num_epochs: 200
     batch_size: 1024
-    bert_infer_bs: 128
     wd_l2norm: 0
     alpha_l2norm: 0.
   rgcn:

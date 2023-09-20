@@ -37,7 +37,8 @@ class ClassifyLossFunc(GSLayer):
         super(ClassifyLossFunc, self).__init__()
         self.multilabel = multilabel
         if multilabel:
-            self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=multilabel_weights)
+            self.loss_fn = nn.BCEWithLogitsLoss(weight=imbalance_class_weights,
+                                                pos_weight=multilabel_weights)
         else:
             self.loss_fn = nn.CrossEntropyLoss(weight=imbalance_class_weights)
 

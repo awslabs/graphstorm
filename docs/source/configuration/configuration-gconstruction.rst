@@ -14,7 +14,7 @@ Graph Construction
 * **-\-graph-name**: (**Required**) the name assigned for the graph.
 * **-\-remap-node_id**: boolean value to decide whether to rename node IDs or not. Default is true.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
-* **-\-output-format**: the format of constructed graph, options are ``DGL`` and ``DistDGL``. Default is ``DistDGL``. The output format is explained in the :ref:`Output <output-format>` section below.
+* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
 * **-\-num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
@@ -25,7 +25,11 @@ Graph Construction
 Configuration JSON Explanations
 ---------------------------------
 
-The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: ``nodes`` and ``edges``.
+The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains three fields: ``version``, ``nodes`` and ``edges``.
+
+``version``
+...........
+``version`` marks the version of the configuration file schema, allowing its identification to be self-contained for downstream applications. The current (and expected) version is ``gconstruct-v0.1``.
 
 ``nodes``
 ...........
@@ -101,10 +105,11 @@ An example
 ............
 Below shows an example that contains one node type and an edge type. For a real example, please refer to the :ref:`input JSON file <input-config>` used in the :ref:`Use Your Own Graphs Tutorial <use-own-data>`.
 
-.. code-block:: yaml
+.. code-block:: json
 
     {
-        nodes: [
+        "version": "gconstruct-v0.1",
+        "nodes": [
             {
                 "node_id_col":  "paper_id",
                 "node_type":    "paper",
@@ -128,7 +133,7 @@ Below shows an example that contains one node type and an edge type. For a real 
                 ],
             }
         ],
-        edges: [
+        "edges": [
             {
                 "source_id_col":    "src_paper_id",
                 "dest_id_col":      "dest_paper_id",

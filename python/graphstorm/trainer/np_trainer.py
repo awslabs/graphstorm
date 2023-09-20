@@ -17,6 +17,7 @@
 """
 import time
 import resource
+import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -25,7 +26,7 @@ from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker, rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed, get_backend
 
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
@@ -35,13 +36,11 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save=1):
-        super(GSgnnNodePredictionTrainer, self).__init__(model, rank, topk_model_to_save)
+    def __init__(self, model, topk_model_to_save=1):
+        super(GSgnnNodePredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not a node model. Please implement GSgnnNodeModelBase."
 
@@ -52,7 +51,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             save_model_path=None,
             save_model_frequency=-1,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None,
+            grad_norm_type=2.0):
         """ The fit function for node prediction.
 
         Parameters
@@ -78,6 +79,12 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             Freeze the input layer for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
+        grad_norm_type: float
+            Norm type for the gradient clip
+            Default: 2.0
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -147,12 +154,14 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 self.optimizer.step()
                 rt_profiler.record('train_step')
 
+                if max_grad_norm is not None:
+                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
 
-                if i % 20 == 0 and self.rank == 0:
+                if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
-                    print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
-                            format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
+                    logging.info("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f",
+                                 get_rank(), epoch, i,  loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -188,8 +197,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             # end of an epoch
             barrier()
             epoch_time = time.time() - epoch_start
-            if self.rank == 0:
-                print("Epoch {} take {}".format(epoch, epoch_time))
+            if get_rank() == 0:
+                logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
@@ -210,13 +219,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        if th.cuda.is_available():
-            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
-                                                         1024 / 1024))
-        else:
-            print("Peak RAM Mem alloc: {:.4f} MB".format(
-                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
-        if self.rank == 0 and self.evaluator is not None:
+        print_mem(device)
+        if get_rank() == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
@@ -244,6 +248,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             The dataloader for validation data
         test_loader : GSNodeDataLoader
             The dataloader for test data.
+        use_mini_batch_infer: bool
+            Whether do mini-batch inference
         total_steps: int
             Total number of iterations.
         return_proba: bool
@@ -303,7 +309,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
                                                         val_label, test_label, total_steps)
         sys_tracker.check('evaluate')
-        if self.rank == 0:
+        if get_rank() == 0:
             self.log_print_metrics(val_score=val_score,
                                     test_score=test_score,
                                     dur_eval=time.time() - teval,

@@ -17,15 +17,20 @@
 """
 import time
 import resource
+import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
+import dgl
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
-from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
+from ..model.gnn import (do_full_graph_inference,
+                         do_mini_batch_inference,
+                         GSgnnModelBase,
+                         GSgnnModel)
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker, rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
@@ -37,13 +42,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     ----------
     model : GSgnnLinkPredictionModelBase
         The GNN model for link prediction.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save):
-        super(GSgnnLinkPredictionTrainer, self).__init__(model, rank, topk_model_to_save)
+    def __init__(self, model, topk_model_to_save):
+        super(GSgnnLinkPredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnLinkPredictionModelInterface) \
                 and isinstance(model, GSgnnModelBase), \
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
@@ -56,7 +59,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             save_model_frequency=None,
             save_perf_results_path=None,
             edge_mask_for_gnn_embeddings='train_mask',
-            freeze_input_layer_epochs=0):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None,
+            grad_norm_type=2.0):
         """ The fit function for link prediction.
 
         Parameters
@@ -86,6 +91,12 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             Freeze input layer model for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
+        grad_norm_type: float
+            Norm type for the gradient clip
+            Default: 2.0
         """
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
@@ -133,6 +144,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
+                if data.pos_graph_feat_field is not None:
+                    input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                        for etype in pos_graph.canonical_etypes}
+                    pos_graph_feats = data.get_edge_feats(input_edges,
+                                                          data.pos_graph_feat_field,
+                                                          device)
+                else:
+                    pos_graph_feats = None
                 rt_profiler.record('train_node_feats')
 
                 pos_graph = pos_graph.to(device)
@@ -142,7 +161,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
                 # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
-                             input_feats, None, input_nodes)
+                             node_feats=input_feats,
+                             edge_feats=None,
+                             pos_edge_feats=pos_graph_feats,
+                             input_nodes=input_nodes)
                 rt_profiler.record('train_forward')
 
                 self.optimizer.zero_grad()
@@ -151,11 +173,13 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.optimizer.step()
                 rt_profiler.record('train_step')
 
+                if max_grad_norm is not None:
+                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
-                if i % 20 == 0 and self.rank == 0:
+                if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
-                    print("Epoch {:05d} | Batch {:03d} | Train Loss: {:.4f} | Time: {:.4f}".
-                            format(epoch, i, loss.item(), time.time() - batch_tic))
+                    logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
+                                 epoch, i, loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -190,8 +214,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
             barrier()
             epoch_time = time.time() - epoch_start
-            if self.rank == 0:
-                print("Epoch {} take {}".format(epoch, epoch_time))
+            if get_rank() == 0:
+                logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
@@ -215,13 +239,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        if th.cuda.is_available():
-            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
-                                                         1024 / 1024))
-        else:
-            print("Peak RAM Mem alloc: {:.4f} MB".format(
-                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
-        if self.rank == 0 and self.evaluator is not None:
+        print_mem(device)
+        if get_rank() == 0 and self.evaluator is not None:
             output = {'best_test_mrr': self.evaluator.best_test_score,
                        'best_val_mrr':self.evaluator.best_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
@@ -237,8 +256,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 self.save_model_results_to_file(self.evaluator.best_test_score,
                                                 save_perf_results_path)
 
-    def eval(self, model, data, val_loader, test_loader, total_steps,
-             edge_mask_for_gnn_embeddings):
+    def eval(self, model, data, val_loader, test_loader,
+             total_steps, edge_mask_for_gnn_embeddings,
+             use_mini_batch_infer=False):
         """ do the model evaluation using validiation and test sets
 
         Parameters
@@ -255,6 +275,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             Total number of iterations.
         edge_mask_for_gnn_embeddings : str
             The mask that indicates the edges used for computing GNN embeddings.
+        use_mini_batch_infer: bool
+            Whether do mini-batch inference when computing node embeddings
 
         Returns
         -------
@@ -264,9 +286,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         sys_tracker.check('before prediction')
         model.eval()
 
-        emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
-                                      edge_mask=edge_mask_for_gnn_embeddings,
-                                      task_tracker=self.task_tracker)
+        if use_mini_batch_infer:
+            emb = do_mini_batch_inference(model, data, fanout=val_loader.fanout,
+                                          edge_mask=edge_mask_for_gnn_embeddings,
+                                          task_tracker=self.task_tracker)
+        else:
+            emb = do_full_graph_inference(model, data, fanout=val_loader.fanout,
+                                          edge_mask=edge_mask_for_gnn_embeddings,
+                                          task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
             if val_loader is not None else None
@@ -281,7 +308,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         sys_tracker.check('evaluate validation/test')
         model.train()
 
-        if self.rank == 0:
+        if get_rank() == 0:
             self.log_print_metrics(val_score=val_score,
                                    test_score=test_score,
                                    dur_eval=time.time() - test_start,
