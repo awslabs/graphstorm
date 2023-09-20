@@ -90,6 +90,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         if self.evaluator is not None:
             assert val_loader is not None, \
                     "The evaluator is provided but validation set is not provided."
+            return_proba = True if self.evaluator.metric() == ['precision_recall'] else False
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
@@ -167,9 +168,10 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False) and \
                     val_loader is not None:
+
                     val_score = self.eval(model.module if is_distributed() else model,
                                           val_loader, test_loader,
-                                          use_mini_batch_infer, total_steps, return_proba=False)
+                                          use_mini_batch_infer, total_steps, return_proba=return_proba)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -204,7 +206,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       val_loader, test_loader,
-                                      use_mini_batch_infer, total_steps, return_proba=False)
+                                      use_mini_batch_infer, total_steps, return_proba=return_proba)
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
 
