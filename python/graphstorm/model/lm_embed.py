@@ -266,9 +266,6 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
             "language model configurations must be provided"
 
         self._lm_models = LMModels(g, node_lm_configs, num_train, lm_infer_batch_size)
-        assert len(self._lm_models.ntypes) == len(g.ntypes), \
-            "Every node type in a graph should have text feature"
-
         self.num_train = num_train
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_fp16 = use_fp16
