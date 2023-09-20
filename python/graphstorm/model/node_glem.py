@@ -91,28 +91,28 @@ class GLEM(GSgnnNodeModelBase):
         """Create the optimizer that optimizes the model."""
         return self._optimizer
 
-    # pylint: disable=unused-argument
-    def save_sparse_model(self, model_path, local_rank, world_size):
-        """ Sparse embedding is not supported
-        """
-
     def save_dense_model(self, model_path):
-        """Save either the LM and GNN models.
-        `training_lm` flag determine which actively training model to save
-        """
-        self.lm.save_model(os.path.join(model_path, 'LM'))
-        self.gnn.save_model(os.path.join(model_path, 'GNN'))
+        self.lm.save_dense_model(os.path.join(model_path, 'LM'))
+        self.gnn.save_dense_model(os.path.join(model_path, 'GNN'))
 
-    # pylint: disable=unused-argument
-    def restore_sparse_model(self, restore_model_path, local_rank, world_size):
-        """ Sparse embedding is not supported
-        """
+    def save_sparse_model(self, model_path, local_rank, world_size):
+        self.lm.save_sparse_model(os.path.join(model_path, 'LM'),
+                                  local_rank, world_size)
+        self.gnn.save_sparse_model(os.path.join(model_path, 'GNN'),
+                                   local_rank, world_size)
 
     def restore_dense_model(self, restore_model_path,
                             model_layer_to_load=None):
-        """Restore models from checkpoints."""
-        self.lm.restore_model(os.path.join(restore_model_path, 'LM'), model_layer_to_load)
-        self.gnn.restore_model(os.path.join(restore_model_path, 'GNN'), model_layer_to_load)
+        self.lm.restore_dense_model(os.path.join(restore_model_path, 'LM'),
+                                    model_layer_to_load)
+        self.gnn.restore_dense_model(os.path.join(restore_model_path, 'GNN'),
+                                     model_layer_to_load)
+
+    def restore_sparse_model(self, restore_model_path, local_rank, world_size):
+        self.lm.restore_sparse_model(os.path.join(restore_model_path, 'LM'),
+                                    local_rank, world_size)
+        self.gnn.restore_sparse_model(os.path.join(restore_model_path, 'GNN'),
+                                     local_rank, world_size)
 
     def set_node_input_encoder(self, encoder):
         """Set the node input LM encoder for lm, shared with gnn.
