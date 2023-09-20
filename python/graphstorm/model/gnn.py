@@ -187,7 +187,7 @@ class GSgnnModelBase(nn.Module):
         """
 
     @abc.abstractmethod
-    def restore_sparse_model(self, restore_model_path, local_rank, world_size):
+    def restore_sparse_model(self, restore_model_path):
         """ Restore sparse models, e.g., learnable node embeddings
 
         Learnable node embeddings are restored by this function.
@@ -200,18 +200,12 @@ class GSgnnModelBase(nn.Module):
             from graphstorm.model.utils import load_sparse_emb
 
             for ntype, sparse_emb in sparse_embeds.items():
-                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype),
-                                local_rank, world_size)
+                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
 
         Parameters
         ----------
         restore_model_path : str
             The path where we can restore the model.
-        local_rank: int
-            Local rank of the current process in a distributed environment.
-        world_size : int
-            World size in a distributed environment. This tells the size of a distributed cluster
-            (How many processes in a cluster).
         """
 
     @abc.abstractmethod
@@ -249,7 +243,7 @@ class GSgnnModelBase(nn.Module):
         """
 
     @abc.abstractmethod
-    def save_sparse_model(self, model_path, local_rank, world_size):
+    def save_sparse_model(self, model_path):
         """Save sparse models, e.g., learnable node embeddings
 
         Learnable node embeddings are saved by this function. Saving learnable
@@ -261,35 +255,27 @@ class GSgnnModelBase(nn.Module):
         --------
         The implementation of save_sparse_model usually includes two steps:
 
-        Step 1: Create a path to save the learnable node embeddings. Please note,
-        only rank 0 does step 1.
+        Step 1: Create a path to save the learnable node embeddings.
 
         .. code::
             from graphstorm.model.util import create_sparse_emb_path
 
-            if local_rank == 0:
-                for ntype, sparse_emb in sparse_embeds.items():
-                    create_sparse_emb_path(model_path, ntype)
+            for ntype, sparse_emb in sparse_embeds.items():
+                create_sparse_emb_path(model_path, ntype)
             # make sure rank 0 creates the folder and change permission first
-            barrier()
+
 
         Step 2: Save learnable node embeddings.
         .. code::
             from graphstorm.model.utils import save_sparse_emb
 
             for ntype, sparse_emb in sparse_embeds.items():
-                save_sparse_emb(model_path, sparse_emb, ntype,
-                                local_rank world_size)
+                save_sparse_emb(model_path, sparse_emb, ntype)
 
         Parameters
         ----------
         model_path : str
             The path where all model parameters and optimizer states are saved.
-        local_rank: int
-            Local rank of the current process in a distributed environment.
-        world_size : int
-            World size in a distributed environment. This tells the size of a
-            distributed cluster (How many processes in a cluster).
         """
 
 
@@ -321,15 +307,10 @@ class GSgnnModelBase(nn.Module):
         # Restore the model weights from a checkpoint saved previously.
         if restore_model_path is not None:
             logging.debug('load model from %s', restore_model_path)
-            # TODO(zhengda) we need to load edge_input_encoder.
-            model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
-                if model_layer_to_load is None else model_layer_to_load
             self.restore_dense_model(restore_model_path, model_layer_to_load)
 
             logging.debug('Load Sparse embedding from %s', restore_model_path)
-            self.restore_sparse_model(restore_model_path,
-                                      get_rank(),
-                                      get_world_size())
+            self.restore_sparse_model(restore_model_path)
 
         # We need to make sure that the sparse embedding is completely loaded
         # before all processes use the model.
@@ -366,7 +347,7 @@ class GSgnnModelBase(nn.Module):
 
         # We assume the model is written into a shared filesystem accessable
         # to all trainers. Each trainer will save only part of the sparse embedding.
-        self.save_sparse_model(model_path, get_rank(), get_world_size())
+        self.save_sparse_model(model_path)
         # Make sure each process finishes embedding saving.
         barrier()
 
@@ -668,7 +649,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
     #pylint: disable=signature-differs
     def restore_dense_model(self, restore_model_path,
-                            model_layer_to_load):
+                            model_layer_to_load=None):
+        # TODO(zhengda) we need to load edge_input_encoder.
+        model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
+                if model_layer_to_load is None else model_layer_to_load
         # load dense models for gnn_encoder, node_input_encoder and decoder
         load_gsgnn_model(restore_model_path,
                          self.gnn_encoder \
@@ -678,12 +662,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                          self.decoder \
                             if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
-    def restore_sparse_model(self, restore_model_path, local_rank, world_size):
+    def restore_sparse_model(self, restore_model_path):
         # restore sparse embeddings for node_input_encoder.
         load_sparse_embeds(restore_model_path,
-                           self.node_input_encoder,
-                           local_rank,
-                           world_size)
+                           self.node_input_encoder)
 
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
@@ -785,18 +767,11 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
     def save_dense_model(self, model_path):
         save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder, self.decoder)
 
-    def save_sparse_model(self, model_path, local_rank, world_size):
+    def save_sparse_model(self, model_path):
         # Saving sparse embedding is done in a distributed way.
-        if get_rank() == 0:
-            # Need to create embedding path and chmod to 0o777 first
-            create_sparse_embeds_path(model_path, self.node_input_encoder)
-        # make sure rank 0 creates the folder and change permission first
-        barrier()
-
+        create_sparse_embeds_path(model_path, self.node_input_encoder)
         save_sparse_embeds(model_path,
-                           self.node_input_encoder,
-                           local_rank,
-                           world_size)
+                           self.node_input_encoder)
 
     @property
     def node_input_encoder(self):
