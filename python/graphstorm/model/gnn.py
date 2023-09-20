@@ -141,7 +141,7 @@ class GSgnnModelBase(nn.Module):
 
     @abc.abstractmethod
     def restore_dense_model(self, restore_model_path,
-                            model_layer_to_load=GRAPHSTORM_MODEL_ALL_LAYERS):
+                            model_layer_to_load=None):
         """ Restore dense models, e.g., GNN, decoder, etc
 
         All model parameters except for learnable node embeddings, i.e.,
@@ -183,7 +183,7 @@ class GSgnnModelBase(nn.Module):
         model_layer_to_load: list of str
             List of model layers to load. This arguement is used to indicate
             which NN model(s) are going to be restored from the model checkpoint.
-            Default: GRAPHSTORM_MODEL_ALL_LAYERS
+            Default: None
         """
 
     @abc.abstractmethod
@@ -320,7 +320,7 @@ class GSgnnModelBase(nn.Module):
         start_load_t = time.time()
         # Restore the model weights from a checkpoint saved previously.
         if restore_model_path is not None:
-            logging.debug('load GNN model from %s', restore_model_path)
+            logging.debug('load model from %s', restore_model_path)
             # TODO(zhengda) we need to load edge_input_encoder.
             model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
                 if model_layer_to_load is None else model_layer_to_load
@@ -362,7 +362,7 @@ class GSgnnModelBase(nn.Module):
         start_save_t = time.time()
         # Only rank 0 save dense model parameters
         if get_rank() == 0:
-            self.save_dense_model()
+            self.save_dense_model(model_path)
 
         # We assume the model is written into a shared filesystem accessable
         # to all trainers. Each trainer will save only part of the sparse embedding.
@@ -667,7 +667,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             self._edge_input_encoder.unfreeze()
 
     def restore_dense_model(self, restore_model_path,
-                            model_layer_to_load=GRAPHSTORM_MODEL_ALL_LAYERS):
+                            model_layer_to_load):
         # load dense models for gnn_encoder, node_input_encoder and decoder
         load_gsgnn_model(restore_model_path,
                          self.gnn_encoder \
