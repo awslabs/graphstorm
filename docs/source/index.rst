@@ -33,7 +33,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    advanced/advanced-usages
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: API Reference
    :hidden:
    :glob:
