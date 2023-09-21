@@ -25,6 +25,7 @@ def get_high_retry_s3_client() -> boto3.client:
     Returns a high-retry S3 client.
     """
     config = Config(retries={"max_attempts": 10, "mode": "adaptive"})
+    print("hello")
 
     return boto3.client("s3", config=config)
 
