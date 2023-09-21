@@ -311,8 +311,10 @@ class GSgnnModelBase(nn.Module):
             logging.debug('load model from %s', restore_model_path)
             self.restore_dense_model(restore_model_path, model_layer_to_load)
 
-            logging.debug('Load Sparse embedding from %s', restore_model_path)
-            self.restore_sparse_model(restore_model_path)
+            if GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
+                    or GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER in model_layer_to_load:
+                logging.debug('Load Sparse embedding from %s', restore_model_path)
+                self.restore_sparse_model(restore_model_path)
 
         # We need to make sure that the sparse embedding is completely loaded
         # before all processes use the model.
@@ -667,10 +669,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
     def restore_sparse_model(self, restore_model_path):
         # restore sparse embeddings for node_input_encoder.
-        if GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
-                or GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER in model_layer_to_load:
-            logging.debug('Load Sparse embedding from %s', restore_model_path)
-            load_sparse_embeds(restore_model_path, self.node_input_encoder)
+        load_sparse_embeds(restore_model_path, self.node_input_encoder)
 
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
