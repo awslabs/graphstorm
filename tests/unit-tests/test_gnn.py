@@ -849,6 +849,10 @@ def test_gnn_model_load_save():
             param.data[:] += 1
         for param in model1.node_input_encoder.get_sparse_params():
             param[0:len(param)] = param[0:len(param)] + 1
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params[name].numpy() != param.data.numpy())
+        for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
+            assert np.all(sparse_params[i].numpy() != param.numpy())
 
         model1.restore_model(tmpdirname, "dense_embed")
         for name, param in model1.node_input_encoder.named_parameters():
