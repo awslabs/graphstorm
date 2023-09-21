@@ -583,13 +583,8 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
                         "during unpickling. Only load data you trust or " \
                         "update torch to 1.13.0+")
             emb_path = os.path.join(model_path, ntype)
-            # If we are loading the model from BERT fine-tuning, we may not have
-            # the sparse embeddings.
-            if os.path.exists(emb_path):
-                load_sparse_emb(num_embs, emb_path)
-            elif get_rank() == 0:
-                logging.warning("The required sparse embeddings %s does not exist",
-                                emb_path)
+            assert os.path.exists(emb_path), f"The sparse embedding file {emb_path} doesn't exist."
+            load_sparse_emb(num_embs, emb_path)
 
 def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
