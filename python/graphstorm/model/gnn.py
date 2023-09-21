@@ -660,7 +660,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # TODO(zhengda) we need to load edge_input_encoder.
         model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
                 if model_layer_to_load is None else model_layer_to_load
-
         load_dense_input = GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
                 or GRAPHSTORM_MODEL_DENSE_EMBED_LAYER in model_layer_to_load
         # load dense models for gnn_encoder, node_input_encoder and decoder
