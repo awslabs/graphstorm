@@ -17,6 +17,7 @@ Configuration parsing for edges and nodes
 """
 from abc import ABC
 
+import numpy as np
 from typing import Any, Dict, List, Optional, Sequence
 
 from graphstorm_processing.constants import SUPPORTED_FILE_TYPES
