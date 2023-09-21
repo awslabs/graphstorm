@@ -641,9 +641,9 @@ def load_sparse_embeds(model_path, embed_layer):
                         "malicious pickle data which will execute arbitrary code " \
                         "during unpickling. Only load data you trust or " \
                         "update torch to 1.13.0+")
-                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
-            else:
-                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
+            emb_path = os.path.join(model_path, ntype)
+            assert os.path.exists(emb_path), f"The sparse embedding file {emb_path} doesn't exist."
+            load_sparse_emb(sparse_emb, emb_path)
 
 def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
