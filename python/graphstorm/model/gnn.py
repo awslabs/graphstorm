@@ -38,7 +38,9 @@ from ..dataloading.dataset import prepare_batch_input
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
                       GRAPHSTORM_MODEL_EMBED_LAYER,
                       GRAPHSTORM_MODEL_GNN_LAYER,
-                      GRAPHSTORM_MODEL_DECODER_LAYER)
+                      GRAPHSTORM_MODEL_DECODER_LAYER,
+                      GRAPHSTORM_MODEL_DENSE_EMBED_LAYER,
+                      GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER)
 
 class GSOptimizer():
     """ A combination of optimizers.
@@ -476,19 +478,22 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             # TODO(zhengda) we need to load edge_input_encoder.
             model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
                 if model_layer_to_load is None else model_layer_to_load
+            load_dense_input = GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
+                    or GRAPHSTORM_MODEL_DENSE_EMBED_LAYER in model_layer_to_load
             load_gsgnn_model(restore_model_path,
                 self.gnn_encoder \
                     if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,
-                self.node_input_encoder \
-                    if GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load else None,
+                self.node_input_encoder if load_dense_input else None,
                 self.decoder \
                     if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
-            logging.debug('Load Sparse embedding from %s', restore_model_path)
-            load_sparse_embeds(restore_model_path,
-                                self.node_input_encoder,
-                                get_rank(),
-                                get_world_size())
+            if GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
+                    or GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER in model_layer_to_load:
+                logging.debug('Load Sparse embedding from %s', restore_model_path)
+                load_sparse_embeds(restore_model_path,
+                                   self.node_input_encoder,
+                                   get_rank(),
+                                   get_world_size())
         # We need to make sure that the sparse embedding is completely loaded
         # before all processes use the model.
         barrier()
