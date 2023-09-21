@@ -33,6 +33,8 @@ def setup_device(local_rank):
     """Setup computation device
     """
     if th.cuda.is_available():
+        assert local_rank < th.cuda.device_count(), \
+                f"local rank={local_rank} but there are {th.cuda.device_count()} GPUs."
         device = 'cuda:%d' % local_rank
         th.cuda.set_device(device)
     else:
@@ -70,6 +72,12 @@ def barrier():
     """
     if is_distributed():
         th.distributed.barrier()
+
+def use_wholegraph(part_config):
+    """ Use wholegraph for feature fetching if 'wholegraph' folder exists
+    """
+    return bool(part_config is not None and os.path.isdir(os.path.join( \
+        os.path.dirname(part_config), 'wholegraph')))
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.
