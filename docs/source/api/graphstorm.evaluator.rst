@@ -10,7 +10,7 @@ graphstorm.evaluator
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
+    :template: evaltemplate.rst
 
     GSgnnLPEvaluator
     GSgnnMrrLPEvaluator

@@ -37,15 +37,11 @@ Models
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
+    :template: modeltemplate.rst
 
-    model.GSgnnModelBase
     model.GSgnnNodeModelBase
     model.GSgnnEdgeModelBase
     model.GSgnnLinkPredictionModelBase
-    model.GSgnnNodeModelInterface
-    model.GSgnnEdgeModelInterface
-    model.GSgnnLinkPredictionModelInterface
 
 Evaluators
 ------------
