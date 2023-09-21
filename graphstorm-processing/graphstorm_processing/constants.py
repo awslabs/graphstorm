@@ -22,8 +22,7 @@ SINGLE_CATEGORY_COL = "SINGLE_CATEGORY"
 ################ Multi-numerical Limits #####################
 MAX_COLUMNS_TO_IMPUTE = 50
 
-SUPPORTED_FILE_TYPES = ["csv", "parquet", "test1"]
-
+SUPPORTED_FILE_TYPES = ["csv", "parquet"]
 
 ################### Label Properties  ########################
 MIN_VALUE = "MIN_VALUE"
