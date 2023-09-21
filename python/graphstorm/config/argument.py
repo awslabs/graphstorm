@@ -124,8 +124,8 @@ class GSConfig:
     def __init__(self, cmd_args):
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
-        self.configuration = self.load_yaml_config(cmd_args.yaml_config_file)
-        self.set_attributes(self.configuration)
+        configuration = self.load_yaml_config(cmd_args.yaml_config_file)
+        self.set_attributes(configuration)
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
@@ -135,7 +135,7 @@ class GSConfig:
             logging.basicConfig(level=self.logging_level)
         else:
             logging.basicConfig(filename=self.logging_file, level=self.logging_level)
-        logging.debug(str(self.configuration))
+        logging.debug(str(configuration))
         cmd_args_dict = cmd_args.__dict__
         # Print overriden arguments.
         for arg_key in cmd_args_dict:
@@ -634,9 +634,8 @@ class GSConfig:
         """ check distill lm config
         """
         if hasattr(self, "_distill_lm_configs"):
-            if self._distill_lm_configs is None:
-                return None
-
+            assert self._distill_lm_configs is not None, \
+                "distill_lm_configs cannot be None."
             # distill lm_config is not None
             assert isinstance(self._distill_lm_configs, list), \
                 "Distill language model config is not None. It must be a list"
@@ -657,7 +656,7 @@ class GSConfig:
         """ Which graph encoder to use, it can be GNN or language model only
         """
         # pylint: disable=no-member
-        if "distill" not in self.configuration["gsf"]:
+        if self.distill_lm_configs is None:
             assert hasattr(self, "_model_encoder_type"), \
                 "Model encoder type should be provided"
             assert self._model_encoder_type in BUILTIN_ENCODER, \
@@ -803,22 +802,6 @@ class GSConfig:
         return None
 
     @property
-    def lm_name(self):
-        """ HuggingFace Transformer-based model name for distillation
-        """
-        if hasattr(self, "_lm_name"):
-            return self._lm_name
-        return None
-
-    @property
-    def pre_trained_name(self):
-        """ Name of pre-trained HuggingFace model weights for distillation
-        """
-        if hasattr(self, "_pre_trained_name"):
-            return self._pre_trained_name
-        return None
-
-    @property
     def max_distill_step(self):
         """ Maximum training steps for distillation.
         """
@@ -849,7 +832,7 @@ class GSConfig:
         """ Hidden embedding size
         """
         # pylint: disable=no-member
-        if "distill" not in self.configuration["gsf"]:
+        if self.distill_lm_configs is None:
             assert hasattr(self, "_hidden_size"), \
                 "hidden_size must be provided when pretrain a embedding layer, " \
                 "or train a GNN model"
@@ -2394,10 +2377,6 @@ def _add_distill_args(parser):
     group = parser.add_argument_group(title="distill")
     group.add_argument("--textual-data-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the textual data for distillation.")
-    group.add_argument("--lm-name", type=str, default=argparse.SUPPRESS,
-                       help="HuggingFace model name for distillation")
-    group.add_argument("--pre-trained-name", type=str, default=argparse.SUPPRESS,
-                       help="Name for pre-trained HF model")
     return parser
 
 # Users can add their own udf parser

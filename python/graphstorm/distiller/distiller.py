@@ -39,7 +39,7 @@ class GSdistiller():
     def __init__(self, model):
         self.rank = gs.get_rank()
         self.model = model
-        self._device = -1
+        self._device = None
 
     def fit(
         self, 

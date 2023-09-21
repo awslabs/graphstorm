@@ -394,7 +394,9 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
         return seed_nodes, output_nodes, blocks
 
 class FileSamplerInterface:
-    r"""File Sampler Interface.
+    r"""File Sampler Interface. This interface defines the
+    # operation supported by a file sampler and the common 
+    # check and processing for dataset_path.
 
     Parameters:
     ---------
@@ -404,32 +406,23 @@ class FileSamplerInterface:
     """
 
     def __init__(self, dataset_path):
-        self.files = None
-
         if not dataset_path:
             raise ValueError(
                 "Dataset_path={}, should be specified.".format(
                     dataset_path
                 )
             )
-        else:
-            if not isinstance(dataset_path, str):
-                raise TypeError(
-                    f"dataset_path should be a str, but got " "dataset_path={dataset_path}"
-                )
-
-            self.dataset_path = dataset_path
-            self.files = [
-                os.path.join(dataset_path, f)
-                for f in os.listdir(dataset_path)
-                if os.path.isfile(os.path.join(dataset_path, f))
-            ]
-            self.files = [f for f in self.files if os.path.getsize(f)>0]
-            self.files.sort()
-
-            if len(self.files)==0:
-                raise ValueError (
-                    f"no non-empty files found at top directory {dataset_path}.")
+        self.dataset_path = dataset_path
+        self.files = [
+            os.path.join(dataset_path, f)
+            for f in os.listdir(dataset_path)
+            if os.path.isfile(os.path.join(dataset_path, f))
+        ]
+        self.files = [f for f in self.files if os.path.getsize(f)>0]
+        if len(self.files) == 0:
+            raise ValueError (
+                f"no non-empty files found at top directory {dataset_path}.")
+        self.files.sort()
 
         self.num_files = len(self.files)
         logging.info(f"found {self.num_files} files from {dataset_path}")
@@ -447,7 +440,7 @@ class FileSamplerInterface:
         raise NotImplementedError
 
 class SequentialFileSampler():
-    r"""Sequential File Sampler. Samples file sequentially.
+    r"""Sequential File Sampler. It samples files sequentially.
 
     Parameters:
     ----------
@@ -506,6 +499,7 @@ class RandomShuffleFileSampler():
 
         if self._index >= self.num_local_files:
             # make it infinite sampler
+            random.shuffle(self._indices)
             self._index = -1
 
         return self.file_indices[self._indices[self._index]]
@@ -543,16 +537,35 @@ class DistributedFileSampler(FileSamplerInterface):
         super().__init__(dataset_path)
 
         # Initialize distributed ranks
-        if local_rank == -1:
+        if dist.is_initialized():
             self.world_size = 1
             self.local_rank = 0
         else:
             self.local_rank = local_rank
             self.world_size = world_size
 
-        # Assign a slice window of file index to each worker.
-        # The slice window of each worker is specified
-        # by self.global_start and self.global_end
+        # distribute file index
+        self._file_index_distribute()
+
+        if not is_train:
+            self.part_len = self.num_files
+        file_indices = list(range(self.part_len))
+        if shuffle and is_train:
+            sampler = RandomShuffleFileSampler(file_indices=file_indices)
+        else:
+            sampler = SequentialFileSampler(file_indices=file_indices, is_train=is_train)
+        self.sampler = sampler
+        self.sampler_iter = iter(sampler)
+
+        self.infinite = infinite
+        self.shuffle = shuffle
+
+    def _file_index_distribute(self):
+        """
+        Assign a slice window of file index to each worker.
+        The slice window of each worker is specified
+        by self.global_start and self.global_end
+        """
         if self.world_size > self.num_files:
             # If num of workers is greater than num of files,
             # the slice windows are same across all workers,
@@ -571,20 +584,6 @@ class DistributedFileSampler(FileSamplerInterface):
             self.global_start = part_len * self.local_rank + min(self.local_rank, self.remainder)
             self.global_end = self.global_start + part_len + (self.local_rank < self.remainder)
             self.part_len = self.global_end - self.global_start
-
-        if not is_train:
-            self.part_len = self.num_files
-        file_indices = list(range(self.part_len))
-        if shuffle and is_train:
-            sampler = RandomShuffleFileSampler(file_indices=file_indices)
-        else:
-            sampler = SequentialFileSampler(file_indices=file_indices, is_train=is_train)
-        self.sampler = sampler
-        self.sampler_iter = iter(sampler)
-
-        self.infinite = infinite
-        self.shuffle = shuffle
-
 
     def get_file(self, offset):
         """ Get the file name with corresponding index"""
@@ -654,7 +653,7 @@ class DistributedFileSampler(FileSamplerInterface):
             #             |1     |6
             #             ...    ...
             file_index = self.global_start + offset % self.part_len
-        return self.files[file_index % self.num_files]
+        return self.files[file_index]
 
     def __len__(self):
         return self.part_len

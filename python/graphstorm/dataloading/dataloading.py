@@ -1048,12 +1048,12 @@ class DataloaderGenerator:
         self.collate_fn = collate_fn
 
     def _data_len_sync(self, data):
-        min_size = th.tensor(len(data), dtype=th.int64, device=self.device)
-        dist.all_reduce(min_size, op=dist.ReduceOp.MIN)
-        min_size = min_size.item()
+        num_data = th.tensor(len(data), dtype=th.int64, device=self.device)
+        dist.all_reduce(num_data, op=dist.ReduceOp.MIN)
+        min_size = num_data.item()
         select_index = th.randperm(len(data))[:min_size].tolist()
         data.token_id_inputs = [data.token_id_inputs[i] for i in select_index]
-        data.labels = [data.labels[i] for i in select_index]
+        data.labels = data.labels[select_index]
         return data
 
     def generate(self, input_files, is_train=True):
