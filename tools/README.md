@@ -86,9 +86,13 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
 
 ## Convert node features from distDGL format to WholeGraph format
 
-Use the `convert_feat_to_wholegraph.py` script with `--dataset-path` pointing to the distDGL folder of partitions and `--feat-names` to the features you want to convert (e.g. '`paper:feat author:feat,feat2 institution:feat`'). It will convert the node features to WholeGraph compatible format.
+Use the `convert_feat_to_wholegraph.py` script with `--dataset-path` pointing to the distDGL folder of partitions and `--feat-names` to the features you want to convert to WholeGraph compatible format. For example:
 ```
 python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --feat-names paper:feat
+```
+or
+```
+python3 convert_feat_to_wholegraph.py --dataset-path dataset --feat-names paper:feat author:feat,feat2 institution:feat
 ```
 
 The script will create a new folder '`wholegraph`' under '`ogbn-mag240m-2p`' containing the WholeGraph input files and will trim the distDGL file `node_feat.dgl` in each partition to remove the specified feature attributes, leaving only other attributes such as `train_mask`, `test_mask`, `val_mask` or  `labels` intact. It also saves a backup `node_feat.dgl.bak`.
