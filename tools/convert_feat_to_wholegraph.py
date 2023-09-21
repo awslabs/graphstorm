@@ -35,7 +35,6 @@ def main(folder, feat_names):
         os.makedirs(wg_folder)
 
     # TODO(IN): Add support for labels and edge features
-    feats = feat_names.split(',')
     node_feats_data = []
     folder_pattern = re.compile(r"^part[0-9]+$")
     for path in (os.path.join(folder, name) for name in sorted( \
@@ -43,39 +42,57 @@ def main(folder, feat_names):
         and folder_pattern.match(f)), key=lambda x: int(x.split("part")[1]))):
         node_feats_data.append(dgl.data.utils.load_tensors(f'{path}/node_feat.dgl'))
 
+    # per node type feature
+    fname_dict = {}
+    for feat_name in feat_names:
+        print("feat_name", feat_name)
+        feat_info = feat_name.split(":")
+        assert len(feat_info) == 2, \
+                f"Unknown format of the feature name: {feat_name}, " + \
+                "must be NODE_TYPE:FEAT_NAME"
+        ntype = feat_info[0]
+        assert ntype not in fname_dict, \
+                f"You already specify the feature names of {ntype} " \
+                f"as {fname_dict[ntype]}"
+        assert isinstance(feat_info[1], str), \
+            f"Feature name of {ntype} should be a string not {feat_info[1]}"
+        # multiple features separated by ','
+        fname_dict[ntype] = feat_info[1].split(",")
+
     num_parts = len(node_feats_data)
     metadata = {}
-    masks = ["train_mask", "test_mask", "val_mask"]
 
-    for feat in feats:
-        print(f"Processing '{feat}' features...")
-        if feat not in node_feats_data[0]:
-            raise RuntimeError(f"Error: Unknown feature '{feat}'. Files contain \
-                               the following features: {node_feats_data[0].keys()}.")
-        whole_feat_tensor = torch.concat(tuple(t[feat] for t in node_feats_data), dim=0)
-        metadata[feat] = {'shape': list(whole_feat_tensor.shape),
-                          'dtype': str(whole_feat_tensor.dtype)}
+    for ntype, feats in fname_dict.items():
+        for feat in feats:
+            feat = ntype + "/" + feat
+            print(f"Processing '{feat}' features...")
+            if feat not in node_feats_data[0]:
+                raise RuntimeError(f"Error: Unknown feature '{feat}'. Files contain \
+                                   the following features: {node_feats_data[0].keys()}.")
+            whole_feat_tensor = torch.concat(tuple(t[feat] for t in node_feats_data), dim=0)
+            metadata[feat] = {'shape': list(whole_feat_tensor.shape),
+                              'dtype': str(whole_feat_tensor.dtype)}
 
-        # Round up the integer division to match WholeGraph partitioning scheme
-        subpart_size = -(whole_feat_tensor.shape[0] // -num_parts)
+            # Round up the integer division to match WholeGraph partitioning scheme
+            subpart_size = -(whole_feat_tensor.shape[0] // -num_parts)
 
-        for part_num in range(num_parts):
-            st = part_num * subpart_size
-            end = (part_num + 1) * subpart_size if part_num != (num_parts - 1) \
-                else whole_feat_tensor.shape[0]
-            wg_tensor = wgth.create_wholememory_tensor(local_comm, 'continuous', 'cpu',
-                                                      (end - st, *whole_feat_tensor.shape[1:]),
-                                                      whole_feat_tensor.dtype, None)
-            local_tensor, _ = wg_tensor.get_local_tensor(host_view=True)
-            local_tensor.copy_(whole_feat_tensor[st:end])
-            filename = wgth.utils.get_part_file_name(feat.replace('/', '~'),
-                                                     part_num, num_parts)
-            wg_tensor.local_to_file(os.path.join(wg_folder, filename))
-            wgth.destroy_wholememory_tensor(wg_tensor)
+            for part_num in range(num_parts):
+                st = part_num * subpart_size
+                end = (part_num + 1) * subpart_size if part_num != (num_parts - 1) \
+                    else whole_feat_tensor.shape[0]
+                wg_tensor = wgth.create_wholememory_tensor(local_comm, 'continuous', 'cpu',
+                                                          (end - st, *whole_feat_tensor.shape[1:]),
+                                                          whole_feat_tensor.dtype, None)
+                local_tensor, _ = wg_tensor.get_local_tensor(host_view=True)
+                local_tensor.copy_(whole_feat_tensor[st:end])
+                filename = wgth.utils.get_part_file_name(feat.replace('/', '~'),
+                                                         part_num, num_parts)
+                wg_tensor.local_to_file(os.path.join(wg_folder, filename))
+                wgth.destroy_wholememory_tensor(wg_tensor)
 
-        # Delete processed feature from memory
-        for t in node_feats_data:
-            del t[feat]
+            # Delete processed feature from memory
+            for t in node_feats_data:
+                del t[feat]
 
 
     # Save metatada
@@ -98,6 +115,6 @@ def main(folder, feat_names):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset-path', action='store', type=str, required=True)
-    parser.add_argument('--feat-names', action='store', type=str, required=True)
+    parser.add_argument('--feat-names', nargs='+', action='store', type=str, required=True)
     args = parser.parse_args()
     main(args.dataset_path, args.feat_names)
