@@ -72,6 +72,7 @@ def get_bucket_region(bucket: str, s3_boto_client: boto3.client = None) -> str:
 def s3_path_remove_trailing(s3_path: str) -> str:
     """
     Removes trailing slash from S3 path.
+    Test
     """
     if s3_path.endswith("/"):
         return s3_path[:-1]
