@@ -39,8 +39,7 @@ def setup_device(local_rank):
 
     Returns
     -------
-    device: str
-        device where the model runs.
+    str: device where the model runs.
 
     """
     if th.cuda.is_available():

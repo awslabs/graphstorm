@@ -90,7 +90,7 @@ def initialize(ip_config, backend, use_wholegraph=False):
     backend: str
         Torch distributed backend, e.g., ``gloo`` or ``nccl``.
     use_wholegraph: bool
-        Whether to use wholegraph for feature transfer
+        Whether to use wholegraph for feature transfer.
     """
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.

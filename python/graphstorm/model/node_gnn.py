@@ -80,9 +80,9 @@ class GSgnnNodeModelInterface:
             The GNN embeddings.
         """
 
-# class GSgnnNodeModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
-#                          GSgnnNodeModelInterface):
-class GSgnnNodeModelBase(GSgnnNodeModelInterface, GSgnnModelBase):
+class GSgnnNodeModelBase(GSgnnNodeModelInterface,
+                         GSgnnModelBase  # pylint: disable=abstract-method
+                         ):
     """ The base class for node-prediction GNN
 
     When a user wants to define a node prediction GNN model and train the model
