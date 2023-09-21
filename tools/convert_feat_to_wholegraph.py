@@ -45,7 +45,6 @@ def main(folder, feat_names):
     # per node type feature
     fname_dict = {}
     for feat_name in feat_names:
-        print("feat_name", feat_name)
         feat_info = feat_name.split(":")
         assert len(feat_info) == 2, \
                 f"Unknown format of the feature name: {feat_name}, " + \
