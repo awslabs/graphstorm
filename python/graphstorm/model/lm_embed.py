@@ -49,8 +49,7 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=
         lm_node_feat = lm_models.get_lm_node_feat(ntype)
         lm_model.eval()
         if get_rank() == 0:
-            #logging.info('Compute bert embedding on node %s.', ntype)
-            print('Compute bert embedding on node ' + ntype)
+            logging.info('Compute bert embedding on node %s.', ntype)
         hidden_size = lm_model.feat_size
         # TODO we should not save the BERT embeddings on the graph data in the future.
         if 'bert_emb' not in g.nodes[ntype].data:
@@ -61,18 +60,14 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=
                         dtype=th.float16 if use_fp16 else th.float32,
                         part_policy=g.get_node_partition_policy(ntype),
                         persistent=True)
-            print(f"node {ntype} has {g.number_of_nodes(ntype)}, {hidden_size} dimensions")
         input_emb = g.nodes[ntype].data['bert_emb']
         infer_nodes = dgl.distributed.node_split(
                 th.ones((g.number_of_nodes(ntype),), dtype=th.bool),
                 partition_book=g.get_partition_book(),
                 ntype=ntype, force_even=False)
-        #logging.debug("node %s, local infer set: %d, batch size: %d",
-        #              ntype, len(infer_nodes), lm_infer_batch_size)
-        print("node %s, local infer set: %d, batch size: %d" % (
-            ntype, len(infer_nodes), lm_infer_batch_size))
+        logging.debug("node %s, local infer set: %d, batch size: %d",
+                      ntype, len(infer_nodes), lm_infer_batch_size)
 
-        start = time.time()
         node_list = th.split(infer_nodes, lm_infer_batch_size)
         input_ntypes = [ntype]
         for input_nodes in node_list:
@@ -86,7 +81,6 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=
             else:
                 input_emb[input_nodes] = text_embs[ntype].to('cpu')
         barrier()
-        print(f"computing BERT embeddings of {ntype} takes {time.time() - start} seconds.")
         lm_emb_cache[ntype] = input_emb
         lm_model.train()
 
