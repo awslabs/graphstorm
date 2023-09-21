@@ -827,6 +827,42 @@ def test_mlp_node_prediction():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_gnn_model_load_save():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                        train_ntypes=['n1'],
+                                        label_field='label',
+                                        node_feat_field='feat')
+    model = create_mlp_node_model(g, lm_config)
+    dense_params = {name: param.data[:] for name, param in model.node_input_encoder.named_parameters()}
+    sparse_params = [param[0:len(param)] for param in model.node_input_encoder.get_sparse_params()]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        model.save_model(tmpdirname)
+        model1 = copy.deepcopy(model)
+        for param in model1.parameters():
+            param.data[:] += 1
+        for param in model1.node_input_encoder.get_sparse_params():
+            param[0:len(param)] = param[0:len(param)] + 1
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params[name].numpy() != param.data.numpy())
+        for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
+            assert np.all(sparse_params[i].numpy() != param.numpy())
+
+        model1.restore_model(tmpdirname, "dense_embed")
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params[name].numpy() == param.data.numpy())
+        model1.restore_model(tmpdirname, "sparse_embed")
+        for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
+            assert np.all(sparse_params[i].numpy() == param.numpy())
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def test_lm_model_load_save():
     """ Test if we can load and save LM+GNN model correctly.
     """
@@ -1449,10 +1485,10 @@ def test_node_mini_batch_gnn_predict():
 
     th.distributed.destroy_process_group()
 
-
 if __name__ == '__main__':
     test_mini_batch_full_graph_inference(0)
 
+    test_gnn_model_load_save()
     test_lm_model_load_save()
     test_node_mini_batch_gnn_predict()
     test_edge_mini_batch_gnn_predict()

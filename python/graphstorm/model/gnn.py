@@ -38,7 +38,9 @@ from ..dataloading.dataset import prepare_batch_input
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
                       GRAPHSTORM_MODEL_EMBED_LAYER,
                       GRAPHSTORM_MODEL_GNN_LAYER,
-                      GRAPHSTORM_MODEL_DECODER_LAYER)
+                      GRAPHSTORM_MODEL_DECODER_LAYER,
+                      GRAPHSTORM_MODEL_DENSE_EMBED_LAYER,
+                      GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER)
 
 class GSOptimizer():
     """ A combination of optimizers.
@@ -309,8 +311,13 @@ class GSgnnModelBase(nn.Module):
             logging.debug('load model from %s', restore_model_path)
             self.restore_dense_model(restore_model_path, model_layer_to_load)
 
-            logging.debug('Load Sparse embedding from %s', restore_model_path)
-            self.restore_sparse_model(restore_model_path)
+            # If a user doesn't specify the layer to load,
+            # or they specify to load the embed layer or more specifically sparse embed layer.
+            if model_layer_to_load is None \
+                    or GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
+                    or GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER in model_layer_to_load:
+                logging.debug('Load Sparse embedding from %s', restore_model_path)
+                self.restore_sparse_model(restore_model_path)
 
         # We need to make sure that the sparse embedding is completely loaded
         # before all processes use the model.
@@ -653,19 +660,19 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # TODO(zhengda) we need to load edge_input_encoder.
         model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
                 if model_layer_to_load is None else model_layer_to_load
+        load_dense_input = GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
+                or GRAPHSTORM_MODEL_DENSE_EMBED_LAYER in model_layer_to_load
         # load dense models for gnn_encoder, node_input_encoder and decoder
         load_gsgnn_model(restore_model_path,
                          self.gnn_encoder \
                             if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,
-                         self.node_input_encoder \
-                            if GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load else None,
+                         self.node_input_encoder if load_dense_input else None,
                          self.decoder \
                             if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
     def restore_sparse_model(self, restore_model_path):
         # restore sparse embeddings for node_input_encoder.
-        load_sparse_embeds(restore_model_path,
-                           self.node_input_encoder)
+        load_sparse_embeds(restore_model_path, self.node_input_encoder)
 
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """initialize the model's optimizers
