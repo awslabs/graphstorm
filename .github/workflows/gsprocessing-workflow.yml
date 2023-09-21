@@ -10,14 +10,14 @@ on:
     paths:
       - '.github/workflow_scripts/gsprocessing_pytest.sh'
       - '.github/workflow_scripts/gsprocessing_lint.sh'
-      - 'graphstorm-processing/*'
+      - 'graphstorm-processing/**'
       - '.github/workflows/gsprocessing-workflow.yml'
   pull_request:
     types: [ labeled, opened, reopened, synchronize, ready_for_review ]
     paths:
       - '.github/workflow_scripts/gsprocessing_pytest.sh'
       - '.github/workflow_scripts/gsprocessing_lint.sh'
-      - 'graphstorm-processing/*'
+      - 'graphstorm-processing/**'
       - '.github/workflows/gsprocessing-workflow.yml'
 
 permissions:
