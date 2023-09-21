@@ -12,7 +12,7 @@ on:
       - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/**'
       - '.github/workflows/gsprocessing-workflow.yml'
-  pull_request_target:
+  pull_request:
     types: [ labeled, opened, reopened, synchronize, ready_for_review ]
     paths-ignore:
       - '.github/workflow_scripts/gsprocessing_pytest.sh'
