@@ -89,8 +89,9 @@ class GSgnnEdgeModelInterface:
             is true otherwise return the maximum value.
         """
 
+# pylint: disable=abstract-method
 class GSgnnEdgeModelBase(GSgnnEdgeModelInterface,
-                         GSgnnModelBase  # pylint: disable=abstract-method
+                         GSgnnModelBase
                          ):
     """ The base class for edge-prediction GNN
 

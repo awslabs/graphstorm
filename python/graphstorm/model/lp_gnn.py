@@ -54,8 +54,9 @@ class GSgnnLinkPredictionModelInterface:
         The loss of prediction.
         """
 
+# pylint: disable=abstract-method
 class GSgnnLinkPredictionModelBase(GSgnnLinkPredictionModelInterface,
-                                   GSgnnModelBase,  # pylint: disable=abstract-method
+                                   GSgnnModelBase,
                                    ):
     """ The base class for link-prediction GNN
 
