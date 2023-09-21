@@ -89,11 +89,10 @@ def test_sparse_embed_save(world_size):
 
         @patch("graphstorm.model.utils.get_rank")
         @patch("graphstorm.model.utils.get_world_size")
-        def check_saved_sparse_emb(mock_get_rank, mock_get_world_size):
-            mock_get_rank.side_effect = [i for i in range(world_size)]
-            mock_get_world_size.side_effect = [world_size] * world_size
-
+        def check_saved_sparse_emb(mock_get_world_size, mock_get_rank):
             for i in range(world_size):
+                mock_get_rank.side_effect = [i, i]
+                mock_get_world_size.side_effect = [world_size] * 2
                 save_sparse_embeds(model_path, embed_layer)
 
             for ntype in embed_layer.sparse_embeds.keys():
@@ -137,14 +136,16 @@ def test_sparse_embed_load(infer_world_size, train_world_size):
 
         @patch("graphstorm.model.utils.get_rank")
         @patch("graphstorm.model.utils.get_world_size")
-        def check_sparse_emb(mock_get_rank, mock_get_world_size):
-            mock_get_rank.side_effect = [i for i in range(train_world_size)] * 2
-            mock_get_world_size.side_effect = [train_world_size] * train_world_size * 2
+        def check_sparse_emb(mock_get_world_size, mock_get_rank):
 
             for i in range(train_world_size):
+                mock_get_rank.side_effect = [i] * 2
+                mock_get_world_size.side_effect = [train_world_size] * 2
                 save_sparse_embeds(model_path, embed_layer)
 
             for i in range(infer_world_size):
+                mock_get_rank.side_effect = [i] * 2
+                mock_get_world_size.side_effect = [train_world_size] * 2
                 load_sparse_embeds(model_path, embed_layer)
             load_sparse_embs = \
                 {ntype: sparse_emb._tensor[th.arange(embed_layer.g.number_of_nodes(ntype))] \
