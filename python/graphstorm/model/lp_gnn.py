@@ -95,8 +95,8 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
 
         # TODO add w_relation in calculating the score. The current is only valid for
         # homogenous graph.
-        pos_score = self.decoder(pos_graph, encode_embs)
-        neg_score = self.decoder(neg_graph, encode_embs)
+        pos_score = self.decoder(pos_graph, encode_embs, pos_edge_feats)
+        neg_score = self.decoder(neg_graph, encode_embs, neg_edge_feats)
         pred_loss = self.loss_func(pos_score, neg_score)
 
         # add regularization loss to all parameters to avoid the unused parameter errors

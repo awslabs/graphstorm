@@ -49,7 +49,7 @@ from .config import SUPPORTED_TASKS
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
-from .config import GRAPHSTORM_MODEL_ALL_LAYERS
+from .config import GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_LAYER_OPTIONS
 
 from .utils import get_graph_name
 from ..utils import TORCH_MAJOR_VER, get_log_level
@@ -779,7 +779,7 @@ class GSConfig:
 
             fanout = self._fanout.split(",")
             return self._check_fanout(fanout, "Train")
-        return 0
+        return [-1] * self.num_layers
 
     @property
     def eval_fanout(self):
@@ -905,11 +905,11 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_restore_model_layers"):
             assert self.restore_model_path is not None, \
-                "restore-model-path must be provided"
+                "restore-model-path must be provided if restore-model-layers is specified."
             model_layers = self._restore_model_layers.split(',')
             for layer in model_layers:
-                assert layer in GRAPHSTORM_MODEL_ALL_LAYERS, \
-                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_ALL_LAYERS}"
+                assert layer in GRAPHSTORM_MODEL_LAYER_OPTIONS, \
+                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_LAYER_OPTIONS}"
             return model_layers
 
         return GRAPHSTORM_MODEL_ALL_LAYERS
@@ -1331,9 +1331,14 @@ class GSConfig:
             "Must provide the number possible labels through num_classes"
         if isinstance(self._num_classes, dict):
             for num_classes in self._num_classes.values():
-                assert num_classes > 1
+                assert num_classes > 0
         else:
-            assert self._num_classes > 1
+            # We need num_classes=1 for binary classification because when we use precision-recall
+            # as evaluation metric, this precision-recall is computed on the positive score.
+            # If we switch to num_classes=2, we also need changes in the evaluation part:
+            # (1) evaluation code need to first recognize whether it is binary classification
+            # (2) then evaluation code select the positive score column from the 2-d prediction.
+            assert self._num_classes > 0
         return self._num_classes
 
     @property
@@ -1873,10 +1878,10 @@ class GSConfig:
             BUILTIN_TASK_EDGE_CLASSIFICATION]:
             if isinstance(self.num_classes, dict):
                 for num_classes in self.num_classes.values():
-                    assert num_classes > 1, \
+                    assert num_classes > 0, \
                         "For node classification, num_classes must be provided"
             else:
-                assert self.num_classes > 1, \
+                assert self.num_classes > 0, \
                     "For node classification, num_classes must be provided"
 
             # check evaluation metrics

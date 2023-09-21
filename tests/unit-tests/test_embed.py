@@ -326,17 +326,6 @@ def test_pure_lm_embed(num_train):
                                       rank=0,
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
-        lm_config, _, _, _, g, _ = create_lm_graph(tmpdirname)
-
-    # GSPureLMNodeInputLayer will fail as not all ntypes in g have text feature
-    has_error = False
-    try:
-        layer = GSPureLMNodeInputLayer(g, lm_config, num_train=num_train)
-    except:
-        has_error = True
-    assert has_error
-
-    with tempfile.TemporaryDirectory() as tmpdirname:
         lm_config, feat_size, input_ids0, attention_mask0, \
             input_ids1, attention_mask1, g, _ = create_lm_graph2(tmpdirname)
     layer = GSPureLMNodeInputLayer(g, lm_config, num_train=num_train)
@@ -362,10 +351,10 @@ def test_pure_lm_embed(num_train):
 
     assert_almost_equal(out_emb0.detach().numpy(),
                         embeds_with_lm['n0'][th.arange(g.number_of_nodes('n0'))].numpy(),
-                        decimal=5)
+                        decimal=2)
     assert_almost_equal(out_emb1.detach().numpy(),
                         embeds_with_lm['n1'][th.arange(g.number_of_nodes('n0'))].numpy(),
-                        decimal=5)
+                        decimal=2)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 

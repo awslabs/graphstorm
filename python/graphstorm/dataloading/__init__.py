@@ -30,7 +30,7 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
                           FastGSgnnLPJointNegDataLoader,
                           FastGSgnnLPLocalUniformNegDataLoader)
 
-from .dataset import GSgnnEdgeTrainData
+from .dataset import GSgnnEdgeTrainData, GSgnnLPTrainData
 from .dataset import GSgnnEdgeInferData
 from .dataset import GSgnnNodeTrainData
 from .dataset import GSgnnNodeInferData

@@ -22,7 +22,7 @@ import dgl
 from .gnn import GSgnnModel, GSgnnModelBase
 from .utils import append_to_dict
 
-from ..utils import barrier
+from ..utils import barrier, is_distributed
 
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
@@ -128,7 +128,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         assert len(labels) == 1, "We only support prediction on one edge type for now."
         target_etype = list(labels.keys())[0]
 
-        logits = self.decoder(target_edges, encode_embs)
+        logits = self.decoder(target_edges, encode_embs, target_edge_feats)
         pred_loss = self.loss_func(logits, labels[target_etype])
 
         # add regularization loss to all parameters to avoid the unused parameter errors
@@ -150,8 +150,8 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
         if return_proba:
-            return self.decoder.predict_proba(target_edges, encode_embs)
-        return self.decoder.predict(target_edges, encode_embs)
+            return self.decoder.predict_proba(target_edges, encode_embs, target_edge_feats)
+        return self.decoder.predict(target_edges, encode_embs, target_edge_feats)
 
 def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
@@ -180,16 +180,51 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
+    len_dataloader = max_num_batch = len(list(loader))
+    tensor = th.tensor([len_dataloader], device=device)
+    if is_distributed():
+        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = tensor[0]
+
+    dataloader_iter = iter(loader)
+
     with th.no_grad():
-        for input_nodes, target_edge_graph, blocks in loader:
-            if not isinstance(input_nodes, dict):
-                assert len(g.ntypes) == 1
-                input_nodes = {g.ntypes[0]: input_nodes}
+        # WholeGraph does not support imbalanced batch numbers across processes/trainers
+        # TODO (IN): Fix dataloader to have the same number of minibatches
+        for iter_l in range(max_num_batch):
+            tmp_keys = []
+            if iter_l < len_dataloader:
+                input_nodes, target_edge_graph, blocks = next(dataloader_iter)
+                if not isinstance(input_nodes, dict):
+                    assert len(g.ntypes) == 1
+                    input_nodes = {g.ntypes[0]: input_nodes}
+                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+                # All samples should contain all the ntypes for wholegraph compatibility
+                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
+                    for ntype in tmp_keys})
+            else:
+                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
+                blocks = None
+
             input_feats = data.get_node_feats(input_nodes, device)
+            if blocks is None:
+                continue
+            for ntype in tmp_keys:
+                del input_nodes[ntype]
+            if data.decoder_edge_feat is not None:
+                input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
+                        for etype in target_edge_graph.canonical_etypes}
+                edge_decoder_feats = data.get_edge_feats(input_edges,
+                                                         data.decoder_edge_feat,
+                                                         target_edge_graph.device)
+                edge_decoder_feats = {etype: feat.to(th.float32) \
+                    for etype, feat in edge_decoder_feats.items()}
+            else:
+                edge_decoder_feats = None
             blocks = [block.to(device) for block in blocks]
             target_edge_graph = target_edge_graph.to(device)
             pred = model.predict(blocks, target_edge_graph, input_feats,
-                                 None, None, input_nodes,
+                                 None, edge_decoder_feats, input_nodes,
                                  return_proba)
 
             # TODO expand code for multiple edge types
@@ -270,11 +305,21 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             for ntype, in_nodes in input_nodes.items():
                 batch_embs[ntype] = emb[ntype][in_nodes].to(device)
             target_edge_graph = target_edge_graph.to(device)
-            # TODO(zhengda) how to deal with edge features?
-            if return_proba:
-                pred = decoder.predict_proba(target_edge_graph, batch_embs)
+            if data.decoder_edge_feat is not None:
+                input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
+                        for etype in target_edge_graph.canonical_etypes}
+                edge_decoder_feats = data.get_edge_feats(input_edges,
+                                                         data.decoder_edge_feat,
+                                                         target_edge_graph.device)
+                edge_decoder_feats = {etype: feat.to(th.float32) \
+                    for etype, feat in edge_decoder_feats.items()}
             else:
-                pred = decoder.predict(target_edge_graph, batch_embs)
+                edge_decoder_feats = None
+
+            if return_proba:
+                pred = decoder.predict_proba(target_edge_graph, batch_embs, edge_decoder_feats)
+            else:
+                pred = decoder.predict(target_edge_graph, batch_embs, edge_decoder_feats)
             append_to_dict({target_etype: pred}, preds)
 
             # TODO(zhengda) we need to have the data loader reads everything,

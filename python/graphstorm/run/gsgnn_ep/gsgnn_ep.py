@@ -27,7 +27,7 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device
+from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
 
 def get_evaluator(config):
     """ Get evaluator class
@@ -56,7 +56,8 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  use_wholegraph=use_wholegraph(config.part_config))
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)
@@ -65,10 +66,10 @@ def main(config_args):
                                     config.part_config,
                                     train_etypes=config.target_etype,
                                     node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    label_field=config.label_field,
+                                    decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
-    trainer = GSgnnEdgePredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+    trainer = GSgnnEdgePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
@@ -80,8 +81,8 @@ def main(config_args):
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
-    tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
@@ -89,7 +90,6 @@ def main(config_args):
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
                                      exclude_training_targets=config.exclude_training_targets,
-                                     decoder_edge_feat=config.decoder_edge_feat,
                                      construct_feat_ntype=config.construct_feat_ntype,
                                      construct_feat_fanout=config.construct_feat_fanout)
     val_dataloader = None
@@ -102,7 +102,6 @@ def main(config_args):
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
-            decoder_edge_feat=config.decoder_edge_feat,
             construct_feat_ntype=config.construct_feat_ntype,
             construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
@@ -111,7 +110,6 @@ def main(config_args):
             device=device, train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
-            decoder_edge_feat=config.decoder_edge_feat,
             construct_feat_ntype=config.construct_feat_ntype,
             construct_feat_fanout=config.construct_feat_fanout)
 
