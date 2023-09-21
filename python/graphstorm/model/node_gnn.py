@@ -20,7 +20,6 @@ import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
 from .utils import append_to_dict
-from ..utils import is_distributed
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -204,37 +203,12 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
-    len_dataloader = max_num_batch = len(list(loader))
-    tensor = th.tensor([len_dataloader], device=device)
-    if is_distributed():
-        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
-        max_num_batch = tensor[0]
-
-    dataloader_iter = iter(loader)
-
     with th.no_grad():
-        # WholeGraph does not support imbalanced batch numbers across processes/trainers
-        # TODO (IN): Fix dataloader to have the same number of minibatches
-        for iter_l in range(max_num_batch):
-            tmp_keys = []
-            if iter_l < len_dataloader:
-                input_nodes, seeds, blocks = next(dataloader_iter)
-                if not isinstance(input_nodes, dict):
-                    assert len(g.ntypes) == 1
-                    input_nodes = {g.ntypes[0]: input_nodes}
-                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                # All samples should contain all the ntypes for wholegraph compatibility
-                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-                    for ntype in tmp_keys})
-            else:
-                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
-                blocks = None
-
+        for input_nodes, seeds, blocks in loader:
+            if not isinstance(input_nodes, dict):
+                assert len(g.ntypes) == 1
+                input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
-            if blocks is None:
-                continue
-            for ntype in tmp_keys:
-                del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
             label = data.get_labels(seeds)

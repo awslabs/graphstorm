@@ -22,7 +22,7 @@ import dgl
 from .gnn import GSgnnModel, GSgnnModelBase
 from .utils import append_to_dict
 
-from ..utils import barrier, is_distributed
+from ..utils import barrier
 
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
@@ -180,37 +180,12 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
-    len_dataloader = max_num_batch = len(list(loader))
-    tensor = th.tensor([len_dataloader], device=device)
-    if is_distributed():
-        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
-        max_num_batch = tensor[0]
-
-    dataloader_iter = iter(loader)
-
     with th.no_grad():
-        # WholeGraph does not support imbalanced batch numbers across processes/trainers
-        # TODO (IN): Fix dataloader to have the same number of minibatches
-        for iter_l in range(max_num_batch):
-            tmp_keys = []
-            if iter_l < len_dataloader:
-                input_nodes, target_edge_graph, blocks = next(dataloader_iter)
-                if not isinstance(input_nodes, dict):
-                    assert len(g.ntypes) == 1
-                    input_nodes = {g.ntypes[0]: input_nodes}
-                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                # All samples should contain all the ntypes for wholegraph compatibility
-                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-                    for ntype in tmp_keys})
-            else:
-                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
-                blocks = None
-
+        for input_nodes, target_edge_graph, blocks in loader:
+            if not isinstance(input_nodes, dict):
+                assert len(g.ntypes) == 1
+                input_nodes = {g.ntypes[0]: input_nodes}
             input_feats = data.get_node_feats(input_nodes, device)
-            if blocks is None:
-                continue
-            for ntype in tmp_keys:
-                del input_nodes[ntype]
             if data.decoder_edge_feat is not None:
                 input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
                         for etype in target_edge_graph.canonical_etypes}
