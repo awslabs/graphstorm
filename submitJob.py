@@ -43,6 +43,10 @@ job_type_info = {
     'CI-CPU-CHECK': {
         'job_definition': 'graphstorm-definition-check',
         'job_queue': 'graphstorm-queue-lint',
+    },
+    'CI-GSProcessing-CHECK': {
+        'job_definition': 'graphstorm-gsprocessing-definition',
+        'job_queue': 'graphstorm-queue-v2',
     }
 }
 

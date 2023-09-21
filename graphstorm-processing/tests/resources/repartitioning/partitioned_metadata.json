@@ -1,0 +1,137 @@
+{
+    "edge_type": [
+        "src:dummy_type:dst",
+        "dst:rev-dummy_type:src"
+    ],
+    "edges": {
+        "src:dummy_type:dst": {
+            "data": [
+                "edges/dummy_type/parquet/part-00000.parquet",
+                "edges/dummy_type/parquet/part-00001.parquet",
+                "edges/dummy_type/parquet/part-00002.parquet",
+                "edges/dummy_type/parquet/part-00003.parquet",
+                "edges/dummy_type/parquet/part-00004.parquet"
+            ],
+            "row_counts": [8, 8, 8, 8, 18],
+            "format": {
+                "name": "parquet",
+                "delimiter": ""
+            }
+        },
+        "dst:rev-dummy_type:src": {
+            "data": [
+                "edges/dummy_type/parquet/part-00000.parquet",
+                "edges/dummy_type/parquet/part-00001.parquet",
+                "edges/dummy_type/parquet/part-00002.parquet",
+                "edges/dummy_type/parquet/part-00003.parquet",
+                "edges/dummy_type/parquet/part-00004.parquet"
+            ],
+            "row_counts": [8, 8, 8, 8, 18],
+            "format": {
+                "name": "parquet",
+                "delimiter": ""
+            }
+        }
+    },
+    "edge_data": {
+        "src:dummy_type:dst": {
+            "label": {
+                "data":[
+                    "edge_data/dummy_type-label/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-label/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-label/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-label/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-label/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 12, 10, 8, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "feature_one": {
+                "data":[
+                    "edge_data/dummy_type-feature_one/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-feature_one/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-feature_one/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-feature_one/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-feature_one/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "feature_two": {
+                "data":[
+                    "edge_data/dummy_type-feature_two/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-feature_two/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-feature_two/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-feature_two/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-feature_two/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            }
+        },
+        "dst:rev-dummy_type:src": {
+                "label": {
+                    "data":[
+                        "edge_data/dummy_type-label/parquet/part-00000.parquet",
+                        "edge_data/dummy_type-label/parquet/part-00001.parquet",
+                        "edge_data/dummy_type-label/parquet/part-00002.parquet",
+                        "edge_data/dummy_type-label/parquet/part-00003.parquet",
+                        "edge_data/dummy_type-label/parquet/part-00004.parquet"
+                    ],
+                    "row_counts": [10, 12, 10, 8, 10],
+                    "format": {
+                        "name": "parquet",
+                        "delimiter": ""
+                    }
+                },
+                "feature_one": {
+                    "data":[
+                        "edge_data/dummy_type-feature_one/parquet/part-00000.parquet",
+                        "edge_data/dummy_type-feature_one/parquet/part-00001.parquet",
+                        "edge_data/dummy_type-feature_one/parquet/part-00002.parquet",
+                        "edge_data/dummy_type-feature_one/parquet/part-00003.parquet",
+                        "edge_data/dummy_type-feature_one/parquet/part-00004.parquet"
+                    ],
+                    "row_counts": [10, 10, 10, 10, 10],
+                    "format": {
+                        "name": "parquet",
+                        "delimiter": ""
+                    }
+                },
+                "feature_two": {
+                    "data":[
+                        "edge_data/dummy_type-feature_two/parquet/part-00000.parquet",
+                        "edge_data/dummy_type-feature_two/parquet/part-00001.parquet",
+                        "edge_data/dummy_type-feature_two/parquet/part-00002.parquet",
+                        "edge_data/dummy_type-feature_two/parquet/part-00003.parquet",
+                        "edge_data/dummy_type-feature_two/parquet/part-00004.parquet"
+                    ],
+                    "row_counts": [10, 10, 10, 10, 10],
+                    "format": {
+                        "name": "parquet",
+                        "delimiter": ""
+                    }
+                }
+        }
+    },
+    "graph_info": {
+        "ntype_label": [],
+        "ntype_label_property": [],
+        "etype_label": [
+            "src:dummy_type:dst"
+        ],
+        "etype_label_property": [
+            "label"
+        ],
+        "task_type": "edge_class"
+    }
+}

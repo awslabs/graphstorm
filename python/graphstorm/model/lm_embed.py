@@ -362,7 +362,13 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
-        return self._lm_models(input_nodes, lm_emb_cache=cache)
+        embs = self._lm_models(input_nodes, lm_emb_cache=cache)
+        # This module is only used for computing the BERT embeddings on the node types
+        # with text features. If it is asked to compute embeddings for some nodes without
+        # text features, it should report an error.
+        for ntype in input_nodes:
+            assert ntype in embs, f"Cannot compute BERT embeddings for node {ntype}."
+        return embs
 
     @property
     def out_dims(self):
