@@ -9,9 +9,8 @@ graphstorm
     Users can directly use the following code to use these functions.
 
     >>> import graphstorm as gs
-    >>> gs.initialize(ip_config="/tmp/ip_list.txt", backend="gloo")
+    >>> gs.initialize()
     >>> gs.setup_device(local_rank)
-    >>> gs.get_feat_size(g, "ntyp1")
 
 .. autosummary::
     :toctree: ../generated/

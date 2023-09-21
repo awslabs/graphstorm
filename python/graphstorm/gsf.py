@@ -55,14 +55,14 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config, backend):
-    """ Initialize distributed inference context
+    """ Initialize distributed training and inference context.
 
     Parameters
     ----------
     ip_config: str
-        File path of ip_config file
+        File path of ip_config file, e.g., `/tmp/ip_list.txt`.
     backend: str
-        Torch distributed backend
+        Torch distributed backend, e.g., ``gloo`` or ``nccl``.
     """
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
@@ -80,11 +80,12 @@ def get_feat_size(g, node_feat_names):
     g : DistGraph
         The distributed graph.
     node_feat_names : str or dict of str
-        The node feature names.
+        The node type names for extracting feature size.
 
     Returns
     -------
     dict of int : the feature size for each node type.
+
     """
     feat_size = {}
     for ntype in g.ntypes:

@@ -30,7 +30,18 @@ import numpy as np
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 
 def setup_device(local_rank):
-    """Setup computation device
+    r"""Setup computation device.
+    
+    Parameters
+    -----------
+    local_rank: int
+        Rank of the current process in a distributed environment.
+
+    Returns
+    -------
+    device: str
+        device where the model runs.
+
     """
     if th.cuda.is_available():
         assert local_rank < th.cuda.device_count(), \
