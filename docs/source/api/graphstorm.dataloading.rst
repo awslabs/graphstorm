@@ -19,9 +19,9 @@ Base DataLoaders
     :nosignatures:
     :template: datatemplate.rst
 
-    .. GSgnnNodeDataLoaderBase
-    .. GSgnnEdgeDataLoaderBase
-    .. GSgnnLinkPredictionDataLoaderBase
+    GSgnnNodeDataLoaderBase
+    GSgnnEdgeDataLoaderBase
+    GSgnnLinkPredictionDataLoaderBase
 
 DataSets
 ------------
