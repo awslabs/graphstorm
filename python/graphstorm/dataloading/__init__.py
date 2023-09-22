@@ -29,6 +29,9 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
                           FastGSgnnLPLocalJointNegDataLoader,
                           FastGSgnnLPJointNegDataLoader,
                           FastGSgnnLPLocalUniformNegDataLoader)
+from .dataloading import (GSgnnEdgeDataLoaderBase,
+                          GSgnnLinkPredictionDataLoaderBase,
+                          GSgnnNodeDataLoaderBase)
 
 from .dataset import GSgnnEdgeTrainData, GSgnnLPTrainData
 from .dataset import GSgnnEdgeInferData
