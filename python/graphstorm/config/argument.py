@@ -2376,7 +2376,7 @@ def _add_inference_args(parser):
 def _add_distill_args(parser):
     group = parser.add_argument_group(title="distill")
     group.add_argument("--textual-data-path", type=str, default=argparse.SUPPRESS,
-                       help="Where to save the textual data for distillation.")
+                       help="Where to load the textual data for distillation.")
     return parser
 
 # Users can add their own udf parser
