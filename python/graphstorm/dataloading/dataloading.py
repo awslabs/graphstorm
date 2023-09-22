@@ -87,7 +87,75 @@ class _ReconstructedNeighborSampler():
         input_nodes = {ntype: block.srcnodes[ntype].data[dgl.NID] for ntype in block.srctypes}
         return block, input_nodes
 
-class GSgnnEdgeDataLoader():
+class GSgnnEdgeDataLoaderBase():
+    """ The base dataloader class for edge tasks.
+
+    If users want to customize the dataloader for edge prediction tasks
+    they should extend this base class by implementing the special methods
+    `__iter__` and `__next__`.
+
+    Parameters
+    ----------
+    dataset : GSgnnEdgeData
+        The dataset for the edge task.
+    target_idx : dict of Tensors
+        The target edge IDs.
+    fanout : list or dict of lists
+        The fanout for each GNN layer.
+    """
+    def __init__(self, dataset, target_idx, fanout):
+        self._data = dataset
+        self._target_eidx = target_idx
+        self._fanout = fanout
+
+    def __iter__(self):
+        """ Returns an iterator object
+        """
+
+    def __next__(self):
+        """ Return a mini-batch data for the edge task.
+
+        A mini-batch comprises three objects: the input node IDs,
+        the target edges and the subgraph blocks for message passing.
+
+        Returns
+        -------
+        dict of Tensors : the input node IDs of the mini-batch.
+        DGLGraph : the target edges.
+        list of DGLGraph : the subgraph blocks for message passing.
+        """
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+
+        Returns
+        -------
+        GSgnnEdgeData : The dataset of the dataloader.
+        """
+        return self._data
+
+    @property
+    def target_eidx(self):
+        """ Target edge idx for prediction
+
+        Returns
+        -------
+        dict of Tensors : the target edge IDs.
+        """
+        return self._target_eidx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+
+        Returns
+        -------
+        list or a dict of list : the fanouts for each GNN layer.
+        """
+        return self._fanout
+
+class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The minibatch dataloader for edge prediction
 
     Parameters
@@ -121,10 +189,8 @@ class GSgnnEdgeDataLoader():
                  exclude_training_targets=False,
                  construct_feat_ntype=None,
                  construct_feat_fanout=5):
-        self._data = dataset
+        super().__init__(dataset, target_idx, fanout)
         self._device = device
-        self._fanout = fanout
-        self._target_eidx = target_idx
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -216,7 +282,79 @@ BUILTIN_FAST_LP_JOINT_NEG_SAMPLER = 'fast_joint'
 BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER = 'fast_localuniform'
 BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 
-class GSgnnLinkPredictionDataLoader():
+class GSgnnLinkPredictionDataLoaderBase():
+    """ The base class of link prediction dataloader.
+
+    If users want to customize the dataloader for link prediction tasks
+    they should extend this base class by implementing the special methods
+    `__iter__` and `__next__`.
+
+    Parameters
+    ----------
+    dataset: GSgnnEdgeData
+        The GraphStorm edge dataset
+    target_idx : dict of Tensors
+        The target edges for prediction
+    fanout: list of int or dict of list
+        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+    """
+    def __init__(self, dataset, target_idx, fanout):
+        self._dataset = dataset
+        self._target_idx = target_idx
+        self._fanout = fanout
+
+    def __iter__(self):
+        """ Returns an iterator object
+        """
+
+    def __next__(self):
+        """ Return a mini-batch for link prediction.
+
+        A mini-batch of link prediction contains four objects:
+        * the input node IDs of the mini-batch,
+        * the target positive edges for prediction,
+        * the negative edges for prediction,
+        * the subgraph blocks for message passing.
+
+        Returns
+        -------
+        Tensor or dict of Tensors : the input nodes of a mini-batch.
+        DGLGraph : positive edges.
+        DGLGraph : negative edges.
+        list of DGLGraph : subgraph blocks for message passing.
+        """
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+
+        Returns
+        -------
+        GSgnnEdgeData : The dataset of the dataloader.
+        """
+        return self._dataset
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+
+        Returns
+        -------
+        list or a dict of list : the fanouts for each GNN layer.
+        """
+        return self._fanout
+
+    @property
+    def target_eidx(self):
+        """ The target edges for prediction.
+
+        Returns
+        -------
+        dict of Tensors : the target edge IDs.
+        """
+        return self._target_idx
+
+class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     """ Link prediction minibatch dataloader
 
     The negative edges are sampled uniformly.
@@ -254,8 +392,7 @@ class GSgnnLinkPredictionDataLoader():
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
                  edge_mask_for_gnn_embeddings='train_mask',
                  construct_feat_ntype=None, construct_feat_fanout=5):
-        self._data = dataset
-        self._fanout = fanout
+        super().__init__(dataset, target_idx, fanout)
         self._device = device
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
@@ -331,18 +468,6 @@ class GSgnnLinkPredictionDataLoader():
             blocks.insert(0, block)
 
         return (input_nodes, pos_graph, neg_graph, blocks)
-
-    @property
-    def data(self):
-        """ The dataset of this dataloader.
-        """
-        return self._data
-
-    @property
-    def fanout(self):
-        """ The fan out of each GNN layers
-        """
-        return self._fanout
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
@@ -766,7 +891,75 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
 
 ################ Minibatch DataLoader (Node classification) #######################
 
-class GSgnnNodeDataLoader():
+class GSgnnNodeDataLoaderBase():
+    """ The base dataloader class for node tasks.
+
+    If users want to customize the dataloader for node prediction tasks
+    they should extend this base class by implementing the special methods
+    `__iter__` and `__next__`.
+
+    Parameters
+    ----------
+    dataset : GSgnnNodeData
+        The dataset for the node task.
+    target_idx : dict of Tensors
+        The target node IDs.
+    fanout : list or dict of lists
+        The fanout for each GNN layer.
+    """
+    def __init__(self, dataset, target_idx, fanout):
+        self._data = dataset
+        self._target_idx = target_idx
+        self._fanout = fanout
+
+    def __iter__(self):
+        """ Returns an iterator object
+        """
+
+    def __next__(self):
+        """ Return a mini-batch data for the node task.
+
+        A mini-batch comprises three objects: the input node IDs of the mini-batch,
+        the target nodes and the subgraph blocks for message passing.
+
+        Returns
+        -------
+        dict of Tensors : the input node IDs of the mini-batch.
+        dict of Tensors : the target node IDs.
+        list of DGLGraph : the subgraph blocks for message passing.
+        """
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+
+        Returns
+        -------
+        GSgnnNodeData : The dataset of the dataloader.
+        """
+        return self._data
+
+    @property
+    def target_nidx(self):
+        """ Target edge idx for prediction
+
+        Returns
+        -------
+        dict of Tensors : the target edge IDs.
+        """
+        return self._target_idx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+
+        Returns
+        -------
+        list or a dict of list : the fanouts for each GNN layer.
+        """
+        return self._fanout
+
+class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
 
     Parameters
@@ -790,9 +983,7 @@ class GSgnnNodeDataLoader():
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
-        self._data = dataset
-        self._fanout = fanout
-        self._target_nidx  = target_idx
+        super().__init__(dataset, target_idx, fanout)
         if construct_feat_ntype is None:
             construct_feat_ntype = []
         self._construct_feat_sampler = \
@@ -831,24 +1022,6 @@ class GSgnnNodeDataLoader():
             block, input_nodes = self._construct_feat_sampler.sample(input_nodes)
             blocks.insert(0, block)
         return input_nodes, seeds, blocks
-
-    @property
-    def data(self):
-        """ The dataset of this dataloader.
-        """
-        return self._data
-
-    @property
-    def target_nidx(self):
-        """ The target node ids for prediction.
-        """
-        return self._target_nidx
-
-    @property
-    def fanout(self):
-        """ The fan out of each GNN layers
-        """
-        return self._fanout
 
 class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     """ Semisupervised Minibatch dataloader for node tasks
