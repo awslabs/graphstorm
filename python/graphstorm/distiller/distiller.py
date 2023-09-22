@@ -50,7 +50,6 @@ class GSdistiller():
         save_model_frequency,
         eval_frequency,
         max_distill_step,
-        on_cpu=False,
     ):
         """ Distill function, which trains student model.
 
@@ -70,15 +69,13 @@ class GSdistiller():
             Interval for evaluation.
         max_distill_step : int,
             Maximum steps for distillation training.
-        on_cpu : bool
-            Whether the distillation will be conducted on cpu.
         """
 
         # TODO (HZ): add flexibility to specify different optimizers
         optimizer = th.optim.Adam(self.model.parameters(), lr=distill_lr)
         self.model.to(self.device)
-        model = DistributedDataParallel(self.model, device_ids=None if on_cpu else [self.device],
-                                        output_device=None if on_cpu else self.device)
+        model = DistributedDataParallel(self.model, device_ids=[self.device],
+                                        output_device=self.device)
 
         index = 0
         distill_step = 0
