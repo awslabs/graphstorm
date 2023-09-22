@@ -23,7 +23,6 @@ import json
 import logging
 
 import graphstorm as gs
-from .utils import to_device
 from ..utils import barrier
 
 class GSdistiller():
@@ -145,10 +144,9 @@ class GSdistiller():
             logging.info(f"Eval {index + 1}-th shard by trainer {self.rank}")
             with th.no_grad():
                 for _, batch in enumerate(dataset_iterator):
-                    batch = to_device(batch, self.device)  # Move to device
-                    mse = model.module(batch["input_ids"],
-                        batch["attention_mask"],
-                        batch["labels"])
+                    mse = model.module(batch["input_ids"].to(self.device),
+                        batch["attention_mask"].to(self.device),
+                        batch["labels"].to(self.device))
                     total_mse += mse.item()
                     batch_index += 1
 
@@ -209,11 +207,9 @@ class GSdistiller():
 
         for batch_num, batch in enumerate(dataset_iterator):
             try:
-                batch = to_device(batch, self.device)  # Move to device
-
-                loss = model(batch["input_ids"],
-                    batch["attention_mask"],
-                    batch["labels"])
+                loss = model(batch["input_ids"].to(self.device),
+                    batch["attention_mask"].to(self.device),
+                    batch["labels"].to(self.device))
 
                 shard_loss += loss.item()
                 optimizer.zero_grad()
