@@ -34,7 +34,7 @@ class RelationalAttLayer(nn.Module):
     .. math::
         h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{i,j} W^{(l)} h_j^{(l)}
 
-    where :math:`\alpha_{ij}` is the attention score bewteen node :math:`i` and
+    where :math:`\alpha_{ij}` is the attention score between node :math:`i` and
     node :math:`j`:
 
     .. math::
@@ -45,7 +45,21 @@ class RelationalAttLayer(nn.Module):
     Note:
     -----
     * For inner relation message aggregation we use multi-head attention network.
-    * For cross relation message we just use average
+    * For cross relation message we just use average.
+
+    Examples:
+    ----------
+    .. code:: python
+
+        # suppose graph and input_feature are ready
+        from graphstorm.model.rgat_encoder import RelationalAttLayer
+
+        layer = RelationalAttLayer(
+                h_dim, h_dim, g.canonical_etypes,
+                num_heads, activation, self_loop,
+                dropout, num_ffn_layers_in_gnn,
+                fnn_activation, norm)
+        h = layer(g, input_feature)
 
     Parameters
     ----------
@@ -190,6 +204,9 @@ class RelationalAttLayer(nn.Module):
 class RelationalGATEncoder(GraphConvEncoder):
     r"""Relational graph attention encoder
 
+    The RelationalGATEncoder employs several RelationalAttLayers as its encoding mechanism.
+    The RelationalGATEncoder should be designated as the model's encoder within Graphstorm.
+
     Parameters
     g : DGLHeteroGraph
         Input graph.
@@ -214,32 +231,35 @@ class RelationalGATEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-    from graphstorm import get_feat_size
-    from graphstorm.model.rgat_encoder import RelationalGATEncoder
-    from graphstorm.model.node_decoder import EntityClassifier
-    from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
-    from graphstorm.dataloading import GSgnnNodeTrainData
-    from graphstorm.model.gnn import do_full_graph_inference
+    .. code:: python
 
-    np_data = GSgnnNodeTrainData(...)
-    
-    model = GSgnnNodeModel(alpha_l2norm=0)
-    feat_size = get_feat_size(np_data.g, 'feat')
-    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
-                                      dropout=0,
-                                      use_node_embeddings=True)
-    model.set_node_input_encoder(encoder)
+        # Build model and do full-graph inference on RelationalGATEncoder
+        from graphstorm import get_feat_size
+        from graphstorm.model.rgat_encoder import RelationalGATEncoder
+        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.model.gnn import do_full_graph_inference
 
-    gnn_encoder = RelationalGATEncoder(g, 4, 4,
-                                       num_heads=2,
-                                       num_hidden_layers=1,
-                                       dropout=0,
-                                       use_self_loop=True,
-                                       norm=norm)
-    model.set_gnn_encoder(gnn_encoder)
-    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+        np_data = GSgnnNodeTrainData(...)
 
-    h = do_full_graph_inference(model, np_data)
+        model = GSgnnNodeModel(alpha_l2norm=0)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=True)
+        model.set_node_input_encoder(encoder)
+
+        gnn_encoder = RelationalGATEncoder(g, 4, 4,
+                                           num_heads=2,
+                                           num_hidden_layers=1,
+                                           dropout=0,
+                                           use_self_loop=True,
+                                           norm=norm)
+        model.set_gnn_encoder(gnn_encoder)
+        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+
+        h = do_full_graph_inference(model, np_data)
     """
     def __init__(self,
                  g,

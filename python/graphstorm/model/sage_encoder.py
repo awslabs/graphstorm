@@ -47,7 +47,19 @@ class SAGEConv(nn.Module):
 
     Note:
     -----
-    * SageConv is only effective on the homogeneous graph, not like other conv implementation.
+    * SAGEConv is only effective on the homogeneous graph, not like other conv implementation.
+
+    Examples:
+    ----------
+    .. code:: python
+
+        # suppose graph and input_feature are ready
+        from graphstorm.model.sage_encoder import SAGEConv
+
+        layer = SAGEConv(h_dim, h_dim, aggregator_type,
+                                bias, activation, dropout,
+                                num_ffn_layers_in_gnn, norm)
+        h = layer(g, input_feature)
 
     Parameters
     ----------
@@ -135,6 +147,9 @@ class SAGEConv(nn.Module):
 class SAGEEncoder(GraphConvEncoder):
     r""" GraphSage Conv Encoder
 
+    The SAGEEncoder employs several SAGEConv Layers as its encoding mechanism.
+    The SAGEEncoder should be designated as the model's encoder within Graphstorm.
+
     Parameters
     ----------
     h_dim : int
@@ -152,31 +167,34 @@ class SAGEEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-    from graphstorm import get_feat_size
-    from graphstorm.model.sage_encoder import SAGEEncoder
-    from graphstorm.model.node_decoder import EntityClassifier
-    from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
-    from graphstorm.dataloading import GSgnnNodeTrainData
-    from graphstorm.model.gnn import do_full_graph_inference
+    .. code:: python
 
-    np_data = GSgnnNodeTrainData(...)
+        # Build model and do full-graph inference on SAGEEncoder
+        from graphstorm import get_feat_size
+        from graphstorm.model.sage_encoder import SAGEEncoder
+        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.model.gnn import do_full_graph_inference
 
-    model = GSgnnNodeModel(alpha_l2norm=0)
-    feat_size = get_feat_size(np_data.g, 'feat')
-    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
-                                      dropout=0,
-                                      use_node_embeddings=True)
-    model.set_node_input_encoder(encoder)
+        np_data = GSgnnNodeTrainData(...)
 
-    gnn_encoder = SAGEEncoder(4, 4,
-                              num_hidden_layers=1,
-                              dropout=0,
-                              aggregator_type='mean',
-                              norm=norm)
-    model.set_gnn_encoder(gnn_encoder)
-    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+        model = GSgnnNodeModel(alpha_l2norm=0)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=True)
+        model.set_node_input_encoder(encoder)
 
-    h = do_full_graph_inference(model, np_data)
+        gnn_encoder = SAGEEncoder(4, 4,
+                                  num_hidden_layers=1,
+                                  dropout=0,
+                                  aggregator_type='mean',
+                                  norm=norm)
+        model.set_gnn_encoder(gnn_encoder)
+        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+
+        h = do_full_graph_inference(model, np_data)
     """
     def __init__(self,
                  h_dim, out_dim,

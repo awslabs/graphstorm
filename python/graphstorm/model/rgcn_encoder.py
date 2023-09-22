@@ -60,6 +60,20 @@ class RelGraphConvLayer(nn.Module):
     to divide the aggregated messages by each node's in-degrees, which is equivalent to averaging
     the received messages.
 
+    Examples:
+    ----------
+    .. code:: python
+
+        # suppose graph and input_feature are ready
+        from graphstorm.model.rgcn_encoder import RelGraphConvLayer
+
+        layer = RelGraphConvLayer(
+                h_dim, h_dim, g.canonical_etypes,
+                num_bases, activation, self_loop,
+                dropout, num_ffn_layers_in_gnn,
+                ffn_activation, norm)
+        h = layer(g, input_feature)
+
     Parameters
     ----------
     in_feat : int
@@ -233,7 +247,8 @@ class RelGraphConvLayer(nn.Module):
 class RelationalGCNEncoder(GraphConvEncoder):
     r""" Relational graph conv encoder.
 
-    Encoder component that includes layers of RelGraphConvLayer.
+    The RelationalGCNEncoder employs several RelGraphConvLayer as its encoding mechanism.
+    The RelationalGCNEncoder should be designated as the model's encoder within Graphstorm.
 
     Parameters
     ----------
@@ -260,32 +275,35 @@ class RelationalGCNEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-    from graphstorm import get_feat_size
-    from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
-    from graphstorm.model.node_decoder import EntityClassifier
-    from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
-    from graphstorm.dataloading import GSgnnNodeTrainData
-    from graphstorm.model.gnn import do_full_graph_inference
+    .. code:: python
 
-    np_data = GSgnnNodeTrainData(...)
-    
-    model = GSgnnNodeModel(alpha_l2norm=0)
-    feat_size = get_feat_size(np_data.g, 'feat')
-    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
-                                      dropout=0,
-                                      use_node_embeddings=True)
-    model.set_node_input_encoder(encoder)
+        # Build model and do full-graph inference on RelationalGCNEncoder
+        from graphstorm import get_feat_size
+        from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
+        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.model.gnn import do_full_graph_inference
 
-    gnn_encoder = RelationalGCNEncoder(g, 4, 4,
-                                       num_heads=2,
-                                       num_hidden_layers=1,
-                                       dropout=0,
-                                       use_self_loop=True,
-                                       norm=norm)
-    model.set_gnn_encoder(gnn_encoder)
-    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+        np_data = GSgnnNodeTrainData(...)
 
-    h = do_full_graph_inference(model, np_data)
+        model = GSgnnNodeModel(alpha_l2norm=0)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=True)
+        model.set_node_input_encoder(encoder)
+
+        gnn_encoder = RelationalGCNEncoder(g, 4, 4,
+                                           num_heads=2,
+                                           num_hidden_layers=1,
+                                           dropout=0,
+                                           use_self_loop=True,
+                                           norm=norm)
+        model.set_gnn_encoder(gnn_encoder)
+        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+
+        h = do_full_graph_inference(model, np_data)
     """
     def __init__(self,
                  g,
