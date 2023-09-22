@@ -94,7 +94,8 @@ On the full graph, HGT has much better performance than RGCN. The model reaches 
 ### Fine-tune BERT model to predict the venue
 
 We can fine-tune the BERT model on the paper nodes and predict the venue directly.
-This can be done in GraphStorm with the following command.
+This can be done in GraphStorm with the following command. The trained model is saved
+under `mag_bert_nc_model`.
 
 ```
 python3 -m graphstorm.run.gs_node_classification \
@@ -107,13 +108,14 @@ python3 -m graphstorm.run.gs_node_classification \
 		--save-model-path mag_bert_nc_model
 ```
 
-The accuracy is 41.88.
+The accuracy is 41.88%.
 
 ### Fine-tune BERT model on the graph data and train GNN model to predict the venue
 
 To achieve good performance, we should fine-tune the BERT model on the graph data.
 One way of fine-tuning the BERT model on the graph data is to fine-tune the BERT model
-with link prediction. This can be done in GraphStorm with the following command.
+with link prediction. This can be done in GraphStorm with the following command
+and save the trained models under `mag_bert_lp_model`.
 
 ```
 python3 -m graphstorm.run.gs_link_prediction \
@@ -126,9 +128,11 @@ python3 -m graphstorm.run.gs_link_prediction \
 			--save-model-path mag_bert_lp_model
 ```
 
-We can load the fine-tuned BERT model to generate BERT embeddings and train GNN model.
+We can load the BERT model fine-tuned from link prediction to generate BERT embeddings
+and train GNN model.
 
 ```
+# train a RGCN model.
 python3 -m graphstorm.run.gs_node_classification \
             --num-trainers 8 \
             --num-servers 4 \
@@ -139,6 +143,7 @@ python3 -m graphstorm.run.gs_node_classification \
             --restore-model-path mag_bert_lp_model/epoch-2 \
             --restore-model-layers dense_embed
 
+# train a HGT model.
 python3 -m graphstorm.run.gs_node_classification \
             --num-trainers 8 \
             --num-servers 4 \
@@ -148,11 +153,11 @@ python3 -m graphstorm.run.gs_node_classification \
             --cf mag_gnn_nc.yaml \
             --restore-model-path mag_bert_lp_model/epoch-2 \
             --restore-model-layers dense_embed \
-			--model-encoder-type hgt
+            --model-encoder-type hgt
 ```
 
 The accuracy of RGCN with the BERT model fine-tuned with link prediction is 57.86%,
-while the accuracy of HGT is 57.86%.
+while the accuracy of HGT is 62.09%.
 
 We can also train a GNN model with the BERT model fine-tuned for predicting venues.
 

@@ -14,13 +14,13 @@ gsf:
     verbose: false
     save_perf_results_path: null
     use_mini_batch_infer: true
+    model_encoder_type: lm
   input:
     restore_model_path: null
   output:
     save_model_path: null
     save_embed_path: null
   lm:
-    model_encoder_type: lm
     hidden_size: 128
     freeze_lm_encoder_epochs: 0
     dropout: 0.

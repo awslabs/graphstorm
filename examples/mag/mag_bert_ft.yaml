@@ -19,12 +19,12 @@ gsf:
     backend: nccl
     verbose: false
     save_perf_results_path: null
+    model_encoder_type: lm
   lm:
     lm_train_nodes: 128
     lm_infer_batch_size: 32
     freeze_lm_encoder_epochs: 0
   gnn:
-    model_encoder_type: lm
     hidden_size: 128
     use_mini_batch_infer: true
   input:
