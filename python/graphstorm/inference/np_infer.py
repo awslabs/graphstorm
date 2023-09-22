@@ -47,7 +47,7 @@ class GSgnnNodePredictionInfer(GSInfer):
               use_mini_batch_infer=False,
               node_id_mapping_file=None,
               return_proba=True,
-              saved_hdf5_embed=False):
+              save_embed_format="pytorch"):
         """ Do inference
 
         The inference does three things:
@@ -70,8 +70,8 @@ class GSgnnNodePredictionInfer(GSInfer):
             graph partition algorithm.
         return_proba: bool
             Whether to return all the predictions or the maximum prediction.
-        saved_hdf5_embed : bool
-            Whether to save embedding into hdf5 single file.
+        save_embed_format : str
+            Specify the format of saved embeddings.
         """
         do_eval = self.evaluator is not None
         if do_eval:
@@ -138,7 +138,7 @@ class GSgnnNodePredictionInfer(GSInfer):
             else:
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
-            
+
             save_gsgnn_embeddings(save_embed_path, embs, self.rank,
                 get_world_size(),
                 device=device,

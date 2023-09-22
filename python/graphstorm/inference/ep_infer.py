@@ -47,7 +47,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
             node_id_mapping_file=None,
             edge_id_mapping_file=None,
             return_proba=True,
-            saved_hdf5_embed=False):
+            save_embed_format="pytorch"):
         """ Do inference
 
         The infer can do three things:
@@ -69,8 +69,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
             graph partition algorithm.
         return_proba: bool
             Whether to return all the predictions or the maximum prediction.
-        saved_hdf5_embed : bool
-            Whether to save embedding into hdf5 single file.
+        save_embed_format : str
+            Specify the format of saved embeddings.
         """
         do_eval = self.evaluator is not None
         if do_eval:
