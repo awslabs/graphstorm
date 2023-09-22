@@ -138,7 +138,7 @@ class GSgnnNodePredictionInfer(GSInfer):
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
 
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+            save_gsgnn_embeddings(save_embed_path, embeddings, self.rank,
                 get_world_size(),
                 device=device,
                 node_id_mapping_file=node_id_mapping_file,
