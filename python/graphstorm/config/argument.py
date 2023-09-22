@@ -283,6 +283,7 @@ class GSConfig:
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
         _ = self.save_embed_path
+        _ = self.saved_hdf5_embed
 
         # Model architecture
         _ = self.dropout
@@ -859,6 +860,15 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_save_embed_path"):
             return self._save_embed_path
+        return None
+
+    @property
+    def saved_hdf5_embed(self):
+        """ Whether to save the embeddings into single hdf5 file.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_saved_hdf5_embed"):
+            return self._saved_hdf5_embed
         return None
 
     @property
@@ -2021,6 +2031,8 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
+    group.add_argument("--saved-hdf5-embed", type=bool, default=argparse.SUPPRESS,
+            help="Whether to save the embeddings into single hdf5 file.")
     group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,

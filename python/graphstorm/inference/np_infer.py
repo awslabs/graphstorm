@@ -18,6 +18,7 @@
 import time
 from dgl.distributed import DistTensor
 
+from graphstorm.gconstruct.file_io import streamly_write_hdf5_from_dist
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
@@ -45,7 +46,8 @@ class GSgnnNodePredictionInfer(GSInfer):
     def infer(self, loader, save_embed_path, save_prediction_path=None,
               use_mini_batch_infer=False,
               node_id_mapping_file=None,
-              return_proba=True):
+              return_proba=True,
+              saved_hdf5_embed=False):
         """ Do inference
 
         The inference does three things:
@@ -68,6 +70,8 @@ class GSgnnNodePredictionInfer(GSInfer):
             graph partition algorithm.
         return_proba: bool
             Whether to return all the predictions or the maximum prediction.
+        saved_hdf5_embed : bool
+            Whether to save embedding into hdf5 single file.
         """
         do_eval = self.evaluator is not None
         if do_eval:
@@ -134,13 +138,21 @@ class GSgnnNodePredictionInfer(GSInfer):
             else:
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
-
-            save_gsgnn_embeddings(save_embed_path,
-                embeddings, self.rank, get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
-            barrier()
-            sys_tracker.check('save embeddings')
+            if not saved_hdf5_embed:
+                save_gsgnn_embeddings(save_embed_path,
+                    embeddings, self.rank, get_world_size(),
+                    device=device,
+                    node_id_mapping_file=node_id_mapping_file)
+                barrier()
+                sys_tracker.check('save embeddings')
+            else:
+                # remap gnn embeddings without writing to disk
+                mapped_embeds = remap_embeddings(embeddings, self.rank, get_world_size(),
+                    node_id_mapping_file, device=device)
+                if self.rank == 0:
+                    sys_tracker.check(f"Writing GNN embeddings to {os.path.join(save_embed_path, 'embed_dict.hdf5')}")
+                    os.makedirs(save_embed_path, exist_ok=True)
+                    streamly_write_hdf5_from_dist(mapped_embeds, os.path.join(save_embed_path, "embed_dict.hdf5"))
 
         if save_prediction_path is not None:
             # shuffle pred results according to node_id_mapping_file

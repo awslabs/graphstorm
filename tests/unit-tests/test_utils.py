@@ -17,10 +17,12 @@ import os
 import tempfile
 import pytest
 import multiprocessing as mp
+import h5py
 
 import torch as th
 import numpy as np
 from numpy.testing import assert_equal
+from dgl.distributed import DistTensor
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
 from graphstorm.model.utils import _get_data_range
 from graphstorm.model.utils import _exchange_node_id_mapping
@@ -31,6 +33,8 @@ from graphstorm import get_feat_size
 from data_utils import generate_dummy_dist_graph
 from graphstorm.eval.utils import gen_mrr_score
 from graphstorm.utils import setup_device
+
+from graphstorm.gconstruct.file_io import streamly_write_hdf5_from_dist
 
 def gen_embedding_with_nid_mapping(num_embs):
     emb = th.rand((num_embs, 12))
@@ -463,6 +467,24 @@ def test_gen_mrr_score():
 
     assert th.isclose(metrics['mrr'], metrics_opti['mrr'])  # Default tolerance: 1e-08
 
+def test_streamly_write_hdf5_from_dist():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        # medium size has 1,000,000 nodes, which is enough (>chunk_size)
+        g, _ = generate_dummy_dist_graph(tmpdirname, size="medium")
+
+        dummy_dist_embeds = {}
+        for ntype in g.ntypes:
+            dummy_dist_embeds[ntype] = DistTensor((g.number_of_nodes(ntype), 5),
+                      dtype=th.float32, name=f'ntype-{ntype}',
+                      part_policy=g.get_node_partition_policy(ntype))
+
+        streamly_write_hdf5_from_dist(dummy_dist_embeds, os.path.join(tmpdirname, "embed_dict.hdf5"))
+
+        read_f = h5py.File(os.path.join(tmpdirname, "embed_dict.hdf5"), "r")
+        for ntype in g.ntypes:
+            assert g.number_of_nodes(ntype) == len(read_f[ntype])
+
 if __name__ == '__main__':
     test_shuffle_predict(num_embs=16, backend='gloo')
     test_shuffle_predict(num_embs=17, backend='nccl')
@@ -478,3 +500,5 @@ if __name__ == '__main__':
     test_remove_saved_models()
     test_topklist()
     test_gen_mrr_score()
+
+    test_streamly_write_hdf5_from_dist()

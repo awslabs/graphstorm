@@ -85,7 +85,8 @@ def main(config_args):
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
-                return_proba=config.return_proba)
+                return_proba=config.return_proba,
+                saved_hdf5_embed=config.saved_hdf5_embed)
 
 def generate_parser():
     """ Generate an argument parser

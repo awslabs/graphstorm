@@ -45,7 +45,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
             use_mini_batch_infer=False, # pylint: disable=unused-argument
             node_id_mapping_file=None,
             edge_id_mapping_file=None,
-            return_proba=True):
+            return_proba=True,
+            saved_hdf5_embed=False):
         """ Do inference
 
         The infer can do three things:
@@ -67,6 +68,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
             graph partition algorithm.
         return_proba: bool
             Whether to return all the predictions or the maximum prediction.
+        saved_hdf5_embed : bool
+            Whether to save embedding into hdf5 single file.
         """
         do_eval = self.evaluator is not None
         if do_eval:
@@ -119,10 +122,20 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file)
+
+            if not saved_hdf5_embed:
+                save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+                    get_world_size(),
+                    device=device,
+                    node_id_mapping_file=node_id_mapping_file)
+            else:
+                # remap gnn embeddings without writing to disk
+                mapped_embeds = remap_embeddings(embeddings, self.rank, get_world_size(),
+                    node_id_mapping_file, device=device)
+                if self.rank == 0:
+                    sys_tracker.check(f"Writing GNN embeddings to {os.path.join(save_embed_path, 'embed_dict.hdf5')}")
+                    os.makedirs(save_embed_path, exist_ok=True)
+                    streamly_write_hdf5_from_dist(mapped_embeds, os.path.join(save_embed_path, "embed_dict.hdf5"))
         barrier()
         sys_tracker.check('save embeddings')
 
