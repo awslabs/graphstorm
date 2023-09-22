@@ -90,11 +90,15 @@ class _ReconstructedNeighborSampler():
 class GSgnnEdgeDataLoaderBase():
     """ The base dataloader class for edge tasks.
 
+    If users want to customize the dataloader for edge prediction tasks
+    they should extend this base class by implementing the special methods
+    `__iter__` and `__next__`.
+
     Parameters
     ----------
     dataset : GSgnnEdgeData
         The dataset for the edge task.
-    target_idx : Tensor or dict of Tensors
+    target_idx : dict of Tensors
         The target edge IDs.
     fanout : list or dict of lists
         The fanout for each GNN layer.
@@ -281,6 +285,10 @@ BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 class GSgnnLinkPredictionDataLoaderBase():
     """ The base class of link prediction dataloader.
 
+    If users want to customize the dataloader for link prediction tasks
+    they should extend this base class by implementing the special methods
+    `__iter__` and `__next__`.
+
     Parameters
     ----------
     dataset: GSgnnEdgeData
@@ -302,10 +310,11 @@ class GSgnnLinkPredictionDataLoaderBase():
     def __next__(self):
         """ Return a mini-batch for link prediction.
 
-        A mini-batch of link prediction contains three objects:
-        the input node IDs of the mini-batch, the target positive edges
-        for prediction, the negative edges for prediction,
-        the subgraph blocks for message passing.
+        A mini-batch of link prediction contains four objects:
+        * the input node IDs of the mini-batch,
+        * the target positive edges for prediction,
+        * the negative edges for prediction,
+        * the subgraph blocks for message passing.
 
         Returns
         -------
@@ -885,11 +894,15 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
 class GSgnnNodeDataLoaderBase():
     """ The base dataloader class for node tasks.
 
+    If users want to customize the dataloader for node prediction tasks
+    they should extend this base class by implementing the special methods
+    `__iter__` and `__next__`.
+
     Parameters
     ----------
     dataset : GSgnnNodeData
         The dataset for the node task.
-    target_idx : Tensor or dict of Tensors
+    target_idx : dict of Tensors
         The target node IDs.
     fanout : list or dict of lists
         The fanout for each GNN layer.
