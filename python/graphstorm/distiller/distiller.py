@@ -137,11 +137,9 @@ class GSdistiller():
             Distill step of the model checkpoint.
         """
         model.eval()
-        index = 0
         batch_index = 0
         total_mse = 0
-        while True:
-            dataset_iterator = eval_data_mgr.get_iterator()
+        for index, dataset_iterator in enumerate(eval_data_mgr):
             if dataset_iterator is None:
                 break
             logging.info(f"Eval {index + 1}-th shard by trainer {self.rank}")
@@ -153,7 +151,6 @@ class GSdistiller():
                         batch["labels"])
                     total_mse += mse.item()
                     batch_index += 1
-            index += 1
 
         mean_total_mse = total_mse / batch_index
         logging.info(f"Eval MSE at step {distill_step}: {mean_total_mse}")

@@ -973,6 +973,12 @@ class DistillDataManager:
         self.dataloader = dataloader
         return dataloader
 
+    def __next__(self):
+        return self.get_iterator()
+
+    def __iter__(self):
+        return self
+
     def release_iterator(self):
         """ Release the dataloader iterator.
         """
