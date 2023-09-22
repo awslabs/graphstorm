@@ -90,7 +90,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         if self.evaluator is not None:
             assert val_loader is not None, \
                     "The evaluator is provided but validation set is not provided."
-            return_proba = True if self.evaluator.metric == ['precision_recall'] else False
+
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
@@ -171,7 +171,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
                     val_score = self.eval(model.module if is_distributed() else model,
                                           val_loader, test_loader,
-                                          use_mini_batch_infer, total_steps, return_proba=return_proba)
+                                          use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
@@ -206,7 +206,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       val_loader, test_loader,
-                                      use_mini_batch_infer, total_steps, return_proba=return_proba)
+                                      use_mini_batch_infer, total_steps, return_proba=False)
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
 
@@ -263,6 +263,12 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         """
         teval = time.time()
         sys_tracker.check('before prediction')
+
+
+        if 'precision_recall' in self.evaluator.metric and return_proba==False:
+            return_proba = True
+            logging.info("precision_recall metric requires return_proba as True.")
+
         if use_mini_batch_infer:
             val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                                  return_label=True)
