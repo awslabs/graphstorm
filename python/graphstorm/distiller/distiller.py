@@ -78,11 +78,10 @@ class GSdistiller():
 
         index = 0
         distill_step = 0
-        complete=False
-        while complete is False:
+        while distill_step < max_distill_step:
             barrier()
             logging.info(f"Train {index + 1}-th shard by trainer {self.rank}")
-            complete, distill_step = self.train_shard(
+            distill_step = self.train_shard(
                 distill_step=distill_step,
                 model=model, 
                 optimizer=optimizer, 
@@ -192,7 +191,6 @@ class GSdistiller():
     
         Returns
         -------
-        bool : whether to stop distillation.
         int : Distill step of the model checkpoint.
         """
         dataset_iterator = train_data_mgr.get_iterator()
@@ -203,7 +201,6 @@ class GSdistiller():
         # TODO (HZ): support prefetch to speed up the training
         model.train()
         shard_loss = 0
-        complete = False
 
         for batch_num, batch in enumerate(dataset_iterator):
             try:
@@ -236,7 +233,6 @@ class GSdistiller():
                     barrier()
 
                 if distill_step == max_distill_step:
-                    complete = True
                     break
                 distill_step += 1
             except StopIteration:
@@ -245,7 +241,7 @@ class GSdistiller():
         # release the memory
         train_data_mgr.release_iterator()
 
-        return complete, distill_step
+        return distill_step
 
     def setup_device(self, device):
         """ Set up the device for the distillation.
