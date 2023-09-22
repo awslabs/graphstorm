@@ -167,7 +167,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False) and \
                     val_loader is not None:
-
                     val_score = self.eval(model.module if is_distributed() else model,
                                           val_loader, test_loader,
                                           use_mini_batch_infer, total_steps, return_proba=False)
