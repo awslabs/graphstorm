@@ -201,25 +201,25 @@ def test_distribute_nid_map(backend):
                 start, end = _get_data_range(i, 4, g.number_of_nodes(ntype))
                 target_nid_maps[ntype].append(sorted_nid_map[start:end])
 
-        nid_map_dist_path = os.path.join(tmpdirname, "nid_map_dist.pt")
+        nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
         nid_map_tensor_path = os.path.join(tmpdirname, "nid_map_tensor.pt")
-        th.save(ori_nid_maps, nid_map_dist_path)
+        th.save(ori_nid_maps, nid_map_dict_path)
         dummy_ntype = g.ntypes[0]
         th.save(ori_nid_maps[dummy_ntype], nid_map_tensor_path)
 
         # when dummy_dist_embeds is a dict
         ctx = mp.get_context('fork')
         p0 = ctx.Process(target=run_distribute_nid_map,
-                        args=(dummy_dist_embeds, 0, 4, nid_map_dist_path, backend, \
+                        args=(dummy_dist_embeds, 0, 4, nid_map_dict_path, backend, \
                             target_nid_maps.copy()))
         p1 = ctx.Process(target=run_distribute_nid_map,
-                        args=(dummy_dist_embeds, 1, 4, nid_map_dist_path, backend, \
+                        args=(dummy_dist_embeds, 1, 4, nid_map_dict_path, backend, \
                             target_nid_maps.copy()))
         p2 = ctx.Process(target=run_distribute_nid_map,
-                        args=(dummy_dist_embeds, 2, 4, nid_map_dist_path, backend, \
+                        args=(dummy_dist_embeds, 2, 4, nid_map_dict_path, backend, \
                             target_nid_maps.copy()))
         p3 = ctx.Process(target=run_distribute_nid_map,
-                        args=(dummy_dist_embeds, 3, 4, nid_map_dist_path, backend, \
+                        args=(dummy_dist_embeds, 3, 4, nid_map_dict_path, backend, \
                             target_nid_maps.copy()))
         p0.start()
         p1.start()
