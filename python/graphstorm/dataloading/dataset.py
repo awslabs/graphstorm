@@ -984,7 +984,7 @@ class GSDistillData(Dataset):
             ## pad inputs
             input_ids_list = [x["input_ids"] for x in batch]
 
-            padded_input_ids = th.nn.utils.rnn.pad_sequence(input_ids_list, 
+            padded_input_ids = th.nn.utils.rnn.pad_sequence(input_ids_list,
                 batch_first=True, padding_value=self.tokenizer.pad_token_id)
             ## compute mask
             attention_mask = (padded_input_ids != self.tokenizer.pad_token_id).float()

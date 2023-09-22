@@ -15,12 +15,12 @@
 
     Addtional graph samplers for GSF
 """
+import os
+import logging
 from collections.abc import Mapping
 import torch as th
 import torch.distributed as dist
 import numpy as np
-import os
-import logging
 from dgl import backend as F
 from dgl import EID, NID
 from dgl.distributed import node_split
@@ -526,12 +526,12 @@ class DistributedFileSampler(FileSamplerInterface):
         Set to ``True`` if it's training set.
     """
     def __init__(
-        self, 
-        dataset_path=None, 
-        shuffle=False, 
-        infinite=False, 
-        local_rank=-1, 
-        world_size=1, 
+        self,
+        dataset_path=None,
+        shuffle=False,
+        infinite=False,
+        local_rank=-1,
+        world_size=1,
         is_train=True,
     ):
         super().__init__(dataset_path)
@@ -590,36 +590,36 @@ class DistributedFileSampler(FileSamplerInterface):
         if dist.is_initialized() and self.world_size > self.num_files:
             # e.g, when self.world_size=8 and self.num_files=3:
             # local_rank=0|offset|file_index % self.num_files
-            #             |0     |0 
-            #             |1     |1 
-            #             |2     |2 
-            #             |0     |0 
-            #             |1     |1 
+            #             |0     |0
+            #             |1     |1
+            #             |2     |2
+            #             |0     |0
+            #             |1     |1
             #             |2     |2
             #             ...    ...
             # local_rank=1|offset|file_index % self.num_files
-            #             |0     |1 
+            #             |0     |1
             #             |1     |2
             #             |2     |0
-            #             |0     |1 
-            #             |1     |2 
+            #             |0     |1
+            #             |1     |2
             #             |2     |0
             #             ...    ...
             # local_rank=2|offset|file_index % self.num_files
-            #             |0     |2 
+            #             |0     |2
             #             |1     |0
             #             |2     |1
-            #             |0     |2 
-            #             |1     |0 
+            #             |0     |2
+            #             |1     |0
             #             |2     |1
             #             ...    ...
             # ...
             # local_rank=7|offset|file_index % self.num_files
-            #             |0     |1 
+            #             |0     |1
             #             |1     |2
             #             |2     |0
-            #             |0     |1 
-            #             |1     |2 
+            #             |0     |1
+            #             |1     |2
             #             |2     |0
             #             ...    ...
             file_index = (
@@ -629,27 +629,27 @@ class DistributedFileSampler(FileSamplerInterface):
         else:
             # e.g, when self.world_size=3 and self.num_files=7:
             # local_rank=0|offset|file_index % self.num_files
-            #             |0     |0 
-            #             |1     |1 
-            #             |2     |2 
-            #             |0     |0 
-            #             |1     |1 
+            #             |0     |0
+            #             |1     |1
+            #             |2     |2
+            #             |0     |0
+            #             |1     |1
             #             |2     |2
             #             ...    ...
             # local_rank=1|offset|file_index % self.num_files
-            #             |0     |3 
+            #             |0     |3
             #             |1     |4
             #             |0     |3
-            #             |1     |4 
-            #             |0     |3 
+            #             |1     |4
+            #             |0     |3
             #             |1     |4
             #             ...    ...
             # local_rank=2|offset|file_index % self.num_files
-            #             |0     |5 
+            #             |0     |5
             #             |1     |6
             #             |0     |5
-            #             |1     |6 
-            #             |0     |5 
+            #             |1     |6
+            #             |0     |5
             #             |1     |6
             #             ...    ...
             file_index = self.global_start + offset % self.part_len
@@ -666,9 +666,10 @@ class DistributedFileSampler(FileSamplerInterface):
                 while True:
                     try:
                         offset = next(self.sampler_iter)
-                    except StopIteration:
+                    except:
                         self.sampler_iter = iter(self.sampler)
                         offset = next(self.sampler_iter)
+                        return
 
                     ret = self.get_file(offset)
 
@@ -685,5 +686,3 @@ class DistributedFileSampler(FileSamplerInterface):
             ret = self.get_file(offset)
 
         return ret
-
-

@@ -18,10 +18,9 @@
 import math
 import inspect
 import torch as th
-from torch.utils.data import DataLoader
-import random
-import torch.distributed as dist
 import logging
+from torch.utils.data import DataLoader
+import torch.distributed as dist
 
 import dgl
 from dgl.dataloading import DistDataLoader
@@ -31,7 +30,7 @@ from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 from .sampler import (LocalUniform,
                       JointUniform,
                       GlobalUniform,
-                      JointLocalUniform, 
+                      JointLocalUniform,
                       FastMultiLayerNeighborSampler,
                       DistributedFileSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
@@ -930,7 +929,10 @@ class DistillDataManager:
         world_size=1,
         is_train=True,
     ):
-        # TODO (HZ): implement prefetch to put files into a queue
+        # TODO (HZ): Implement prefetch_iterator function to use zero-copy shared memory (e.g., /dev/shm) 
+        # for reducing the costs of serialization and deserialization. Make sure that each data shard is 
+        # not too large so that #workers_per_node * #DataProvider * num_prefetches * data_shard_size < shm_size.
+
         self.is_train = is_train
         assert dataset_path is not None, "dataset_path needs to be specified."
         if not isinstance(dataset_path, str):
@@ -984,12 +986,6 @@ class DistillDataManager:
         """
         self.dataloader = None
         self.data_file = None
-
-    """
-    TODO (HZ): Implement prefetch_iterator function to use zero-copy shared memory (e.g., /dev/shm) 
-    for reducing the costs of serialization and deserialization. Make sure that each data shard is 
-    not too large so that #workers_per_node * #DataProvider * num_prefetches * data_shard_size < shm_size.
-    """
 
 class DistillDataloaderGenerator:
     r"""Distill Data Generator that generates pytorch dataloader based on the given file.
