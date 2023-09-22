@@ -17,10 +17,12 @@
 """
 import time
 from dgl.distributed import DistTensor
+import os
 
+from graphstorm.gconstruct.file_io import streamly_write_hdf5_from_dist
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_prediction_results
+from ..model.utils import save_prediction_results, remap_embeddings
 from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict

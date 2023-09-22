@@ -17,7 +17,6 @@
 """
 import time
 import os
-import numpy as np
 
 from graphstorm.gconstruct.file_io import streamly_write_hdf5_from_dist
 from .graphstorm_infer import GSInfer
