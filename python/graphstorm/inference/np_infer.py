@@ -17,7 +17,6 @@
 """
 import time
 from dgl.distributed import DistTensor
-import os
 
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
