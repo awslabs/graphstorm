@@ -18,5 +18,3 @@ pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/run/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
 
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/sagemaker/
-
-pylint --rcfile=./tests/lint/pylintrc ./graphstorm-processing/graphstorm_processing/
