@@ -225,6 +225,7 @@ class GSdistiller():
                     )
 
                 if distill_step % save_model_frequency == 0 and distill_step != 0:
+                    # TODO (HZ): implement save_topk_models based on val MSE scores
                     self.save_student_model(model, saved_path, distill_step)
 
                 if distill_step % eval_frequency == 0 and distill_step != 0:
