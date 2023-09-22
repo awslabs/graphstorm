@@ -25,7 +25,7 @@ from graphstorm.config import GSConfig, get_argument_parser
 from graphstorm.distiller import GSdistiller
 from graphstorm.utils import setup_device, barrier
 from graphstorm.model.gnn_distill import GSDistilledModel
-from graphstorm.dataloading import DataloaderGenerator, DataManager
+from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
 
 
 def main(config_args):
@@ -41,19 +41,19 @@ def main(config_args):
         pre_trained_name=config.distill_lm_configs[0]["model_name"])
 
     # initiate DataloaderGenerator and DataManager
-    dataloader_generator = DataloaderGenerator(tokenizer=student_model.tokenizer, 
+    dataloader_generator = DistillDataloaderGenerator(tokenizer=student_model.tokenizer, 
         max_seq_len=config.max_seq_len,
         device=device, 
         batch_size=config.batch_size,
     )
-    train_data_mgr = DataManager(
+    train_data_mgr = DistillDataManager(
         dataloader_generator,
         dataset_path=os.path.join(config.textual_data_path, 'train'),
         local_rank=config.local_rank,
         world_size=th.distributed.get_world_size(),
         is_train=True,
     )
-    eval_data_mgr = DataManager(
+    eval_data_mgr = DistillDataManager(
         dataloader_generator,
         dataset_path=os.path.join(config.textual_data_path, 'val'),
         local_rank=config.local_rank,

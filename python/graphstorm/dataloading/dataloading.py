@@ -897,8 +897,8 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
 
 ####################### Distillation #############################
 
-class DataManager:
-    r"""Data Manager. Combines a file sampler and a dataloader generator,
+class DistillDataManager:
+    r"""Distill Data Manager. Combines a file sampler and a dataloader generator,
     and streamingly provides an iterable over a set of files.
 
     Parameters:
@@ -985,8 +985,8 @@ class DataManager:
     not too large so that #workers_per_node * #DataProvider * num_prefetches * data_shard_size < shm_size.
     """
 
-class DataloaderGenerator:
-    r"""Data Generator that generates pytorch dataloader based on the given file.
+class DistillDataloaderGenerator:
+    r"""Distill Data Generator that generates pytorch dataloader based on the given file.
     
     Parameters:
     ----------

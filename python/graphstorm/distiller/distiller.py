@@ -56,9 +56,9 @@ class GSdistiller():
 
         Parameters
         ----------
-        train_data_mgr : DataManager
+        train_data_mgr : DistillDataManager
             Training data manager.
-        eval_data_mgr : DataManager
+        eval_data_mgr : DistillDataManager
             Evaluation data manager.
         distill_lr : float
             Learning rate for distillation.
@@ -134,7 +134,7 @@ class GSdistiller():
         ----------
         model : GSDistilledModel
             Distilled student model.
-        eval_data_mgr : DataManager
+        eval_data_mgr : DistillDataManager
             Data manager for validation data.
         distill_step : int
             Distill step of the model checkpoint.
@@ -185,9 +185,9 @@ class GSdistiller():
             Distilled student model.
         optimizer : torch optimizer
             optimizer for distillation.
-        train_data_mgr : DataManager
+        train_data_mgr : DistillDataManager
             Data manager for training data.
-        eval_data_mgr : DataManager
+        eval_data_mgr : DistillDataManager
             Data manager for validation data.
         saved_path : str
             Path to save the model.
