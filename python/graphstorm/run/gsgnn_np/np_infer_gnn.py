@@ -86,7 +86,7 @@ def main(config_args):
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
                 return_proba=config.return_proba,
-                saved_hdf5_embed=config.saved_hdf5_embed)
+                save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser

@@ -18,10 +18,9 @@
 import time
 import os
 
-from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_relation_embeddings, remap_embeddings
+from ..model.utils import save_relation_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
@@ -47,7 +46,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
             edge_mask_for_gnn_embeddings='train_mask',
             use_mini_batch_infer=False,
             node_id_mapping_file=None,
-            saved_hdf5_embed=False):
+            save_embed_format="pytorch"):
         """ Do inference
 
         The inference can do two things:
@@ -87,19 +86,11 @@ class GSgnnLinkPredictionInfer(GSInfer):
         sys_tracker.check('compute embeddings')
         device = self.device
         if save_embed_path is not None:
-            if not saved_hdf5_embed:
-                save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                    get_world_size(),
-                    device=device,
-                    node_id_mapping_file=node_id_mapping_file)
-            else:
-                # remap gnn embeddings without writing to disk
-                mapped_embeds = remap_embeddings(embs, self.rank, get_world_size(),
-                    node_id_mapping_file, device=device)
-                if self.rank == 0:
-                    sys_tracker.check(f"Writing GNN embeddings to {os.path.join(save_embed_path, 'embed_dict.hdf5')}")
-                    os.makedirs(save_embed_path, exist_ok=True)
-                    stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(save_embed_path, "embed_dict.hdf5"))
+            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+                get_world_size(),
+                device=device,
+                node_id_mapping_file=node_id_mapping_file,
+                save_embed_format=save_embed_format)
 
         barrier()
         sys_tracker.check('save embeddings')

@@ -19,10 +19,9 @@ import time
 from dgl.distributed import DistTensor
 import os
 
-from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_prediction_results, remap_embeddings
+from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
@@ -125,19 +124,11 @@ class GSgnnEdgePredictionInfer(GSInfer):
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
 
-            if not saved_hdf5_embed:
-                save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                    get_world_size(),
-                    device=device,
-                    node_id_mapping_file=node_id_mapping_file)
-            else:
-                # remap gnn embeddings without writing to disk
-                mapped_embeds = remap_embeddings(embeddings, self.rank, get_world_size(),
-                    node_id_mapping_file, device=device)
-                if self.rank == 0:
-                    sys_tracker.check(f"Writing GNN embeddings to {os.path.join(save_embed_path, 'embed_dict.hdf5')}")
-                    os.makedirs(save_embed_path, exist_ok=True)
-                    stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(save_embed_path, "embed_dict.hdf5"))
+            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+                get_world_size(),
+                device=device,
+                node_id_mapping_file=node_id_mapping_file,
+                save_embed_format=save_embed_format)
         barrier()
         sys_tracker.check('save embeddings')
 
