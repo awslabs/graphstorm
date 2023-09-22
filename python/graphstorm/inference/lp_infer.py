@@ -18,7 +18,7 @@
 import time
 import os
 
-from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5
+from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings, remap_embeddings
