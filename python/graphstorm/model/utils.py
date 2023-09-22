@@ -311,9 +311,9 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
         th.distributed.all_to_all(gather_list, data_tensors)
     return gather_list[0]
 
-def distribute_nid_map_to_embed(embeddings, local_rank, world_size, 
+def distribute_nid_map(embeddings, local_rank, world_size, 
     node_id_mapping_file, device=th.device('cpu')):
-    """ Remap embeddings by nid_map without writing to disk.
+    """ Distribute nid_map to all workers.
 
         Parameters
         ----------
@@ -394,7 +394,7 @@ def remap_embeddings(embeddings, local_rank, world_size,
     """
     assert node_id_mapping_file is not None
 
-    nid_mapping = distribute_nid_map_to_embed(embeddings, local_rank, world_size, 
+    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
             node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
@@ -453,7 +453,7 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
     # less than 10 billion. An ID mapping of 10 billion nodes
     # will take around 80 GByte.
     if node_id_mapping_file is not None:
-        nid_mapping = distribute_nid_map_to_embed(embeddings, local_rank, world_size, 
+        nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
             node_id_mapping_file, device)
     else:
         nid_mapping = None

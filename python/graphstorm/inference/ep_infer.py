@@ -19,7 +19,7 @@ import time
 from dgl.distributed import DistTensor
 import os
 
-from graphstorm.gconstruct.file_io import streamly_write_hdf5_from_dist
+from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5
 from .graphstorm_infer import GSInfer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results, remap_embeddings
@@ -137,7 +137,7 @@ class GSgnnEdgePredictionInfer(GSInfer):
                 if self.rank == 0:
                     sys_tracker.check(f"Writing GNN embeddings to {os.path.join(save_embed_path, 'embed_dict.hdf5')}")
                     os.makedirs(save_embed_path, exist_ok=True)
-                    streamly_write_hdf5_from_dist(mapped_embeds, os.path.join(save_embed_path, "embed_dict.hdf5"))
+                    stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(save_embed_path, "embed_dict.hdf5"))
         barrier()
         sys_tracker.check('save embeddings')
 

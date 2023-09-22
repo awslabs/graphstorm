@@ -266,8 +266,8 @@ def read_data_hdf5(data_file, data_fields=None, in_mem=True):
         data[name] = f[name][:] if in_mem else HDF5Array(f[name], handle)
     return data
 
-def streamly_write_hdf5_from_dist(data, data_file):
-    """ Streamly write dict of dist tensor into a HDF5 file.
+def stream_dist_tensors_to_hdf5(data, data_file):
+    """ Stream write dict of dist tensor into a HDF5 file.
 
     Parameters
     ----------
