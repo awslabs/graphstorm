@@ -46,17 +46,10 @@ python3 -m graphstorm.run.gs_link_prediction \
 ```
 
 ## Train GNN model to predict the venue of papers
+
+### Construct the graph with venues as labels.
+First, we need to construct the MAG graph with venues as the label of paper nodes.
 ```
-export TOKENIZERS_PARALLELISM=false
-
-python3 -m graphstorm.gconstruct.construct_graph \
-			--output-dir mag_min_1parts \
-			--graph-name mag \
-			--num-parts 1 \
-			--skip-nonexist-edges \
-			--conf-file mag_min_v0.2.json \
-			--add-reverse-edges
-
 python3 -m graphstorm.gconstruct.construct_graph \
 			--num-processes 16 \
 			--output-dir mag_4parts \
@@ -70,75 +63,123 @@ python3 -m graphstorm.gconstruct.construct_graph \
 ```
 ### Train GNN model with pre-trained BERT model
 
+The command below runs pre-trained BERT model to compute BERT embeddings on
+paper nodes and fos nodes and run RGCN to predict the venues.
 ```
 python3 -m graphstorm.run.gs_node_classification \
             --num-trainers 8 \
             --num-servers 4 \
             --num-samplers 0 \
-            --part-config mag_min_4parts/mag.json \
+            --part-config mag_4parts/mag.json \
             --ip-config ip_list_4p.txt \
             --cf mag_gnn_nc.yaml
 ```
 
-The accuracy is 37.53%.
+This method leads to the accuracy of 53.78%.
+
+We can replace RGCN with HGT.
+
+```
+python3 -m graphstorm.run.gs_node_classification \
+			--num-trainers 8 \
+			--num-servers 4 \
+			--num-samplers 0 \
+			--part-config mag_4parts/mag.json \
+			--ip-config ip_list_4p.txt \
+			--cf mag_gnn_nc.yaml \
+			--model-encoder-type hgt
+```
+On the full graph, HGT has much better performance than RGCN. The model reaches the accuracy of 59.12%.
 
 ### Fine-tune BERT model to predict the venue
+
+We can fine-tune the BERT model on the paper nodes and predict the venue directly.
+This can be done in GraphStorm with the following command.
 
 ```
 python3 -m graphstorm.run.gs_node_classification \
 		--num-trainers 8 \
 		--num-servers 1 \
 		--num-samplers 0 \
-		--part-config mag_min_4parts/mag.json \
+		--part-config mag_4parts/mag.json \
 		--ip-config ip_list_4p.txt \
 		--cf mag_bert_nc.yaml \
 		--save-model-path mag_bert_nc_model
 ```
 
-The accuracy is 51.64%.
+The accuracy is 41.88.
 
 ### Fine-tune BERT model on the graph data and train GNN model to predict the venue
 
-Fine-tune the BERT model.
+To achieve good performance, we should fine-tune the BERT model on the graph data.
+One way of fine-tuning the BERT model on the graph data is to fine-tune the BERT model
+with link prediction. This can be done in GraphStorm with the following command.
 
 ```
 python3 -m graphstorm.run.gs_link_prediction \
 			--num-trainers 8 \
 			--num-servers 1 \
 			--num-samplers 0 \
-			--part-config mag_min_4parts/mag.json \
+			--part-config mag_4parts/mag.json \
 			--ip-config ip_list_4p.txt \
 			--cf mag_bert_ft.yaml \
 			--save-model-path mag_bert_lp_model
 ```
 
-Train the GNN model.
+We can load the fine-tuned BERT model to generate BERT embeddings and train GNN model.
 
 ```
 python3 -m graphstorm.run.gs_node_classification \
             --num-trainers 8 \
             --num-servers 4 \
             --num-samplers 0 \
-            --part-config mag_min_4parts/mag.json \
+            --part-config mag_4parts/mag.json \
             --ip-config ip_list_4p.txt \
             --cf mag_gnn_nc.yaml \
             --restore-model-path mag_bert_lp_model/epoch-2 \
-            --restore-model-layers embed
+            --restore-model-layers dense_embed
+
+python3 -m graphstorm.run.gs_node_classification \
+            --num-trainers 8 \
+            --num-servers 4 \
+            --num-samplers 0 \
+            --part-config mag_4parts/mag.json \
+            --ip-config ip_list_4p.txt \
+            --cf mag_gnn_nc.yaml \
+            --restore-model-path mag_bert_lp_model/epoch-2 \
+            --restore-model-layers dense_embed \
+			--model-encoder-type hgt
 ```
 
-The accuracy is 51.65%.
+The accuracy of RGCN with the BERT model fine-tuned with link prediction is 57.86%,
+while the accuracy of HGT is 57.86%.
+
+We can also train a GNN model with the BERT model fine-tuned for predicting venues.
 
 ```
 python3 -m graphstorm.run.gs_node_classification \
             --num-trainers 8 \
             --num-servers 4 \
             --num-samplers 0 \
-            --part-config mag_min_4parts/mag.json \
+            --part-config mag_4parts/mag.json \
             --ip-config ip_list_4p.txt \
             --cf mag_gnn_nc.yaml \
-            --batch-size 128 \
             --restore-model-path mag_bert_nc_model/epoch-9/ \
-            --restore-model-layers embed
+            --restore-model-layers dense_embed \
+			--save-model-path mag_rgcn_model
+
+python3 -m graphstorm.run.gs_node_classification \
+			--num-trainers 8 \
+			--num-servers 4 \
+			--num-samplers 0 \
+			--part-config mag_4parts/mag.json \
+			--ip-config ip_list_4p.txt \
+			--cf mag_gnn_nc.yaml \
+			--restore-model-path mag_bert_nc_model/epoch-6/ \
+			--restore-model-layers dense_embed \
+			--model-encoder-type hgt \
+			--save-model-path mag_hgt_model
 ```
 
-The accuracy is 57.41%.
+The accuracy of RGCN with the BERT model fine-tuned with venue prediction is 63.22%,
+while the accuracy of HGT is 67.20%.
