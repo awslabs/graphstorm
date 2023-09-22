@@ -90,9 +90,8 @@ class GSgnnLinkPredictionInfer(GSInfer):
                 device=device,
                 node_id_mapping_file=node_id_mapping_file,
                 save_embed_format=save_embed_format)
-
-        barrier()
-        sys_tracker.check('save embeddings')
+            barrier()
+            sys_tracker.check('save embeddings')
 
         if self.evaluator is not None:
             test_start = time.time()

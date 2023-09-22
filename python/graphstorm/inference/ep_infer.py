@@ -128,8 +128,8 @@ class GSgnnEdgePredictionInfer(GSInfer):
                 device=device,
                 node_id_mapping_file=node_id_mapping_file,
                 save_embed_format=save_embed_format)
-        barrier()
-        sys_tracker.check('save embeddings')
+            barrier()
+            sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
             if edge_id_mapping_file is not None:

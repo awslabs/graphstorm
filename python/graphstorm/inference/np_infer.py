@@ -143,6 +143,8 @@ class GSgnnNodePredictionInfer(GSInfer):
                 device=device,
                 node_id_mapping_file=node_id_mapping_file,
                 save_embed_format=save_embed_format)
+            barrier()
+            sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
             # shuffle pred results according to node_id_mapping_file
