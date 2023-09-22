@@ -24,11 +24,8 @@ class GSTaskTrackerAbc():
         ----------
         config: GSConfig
             Configurations. Users can add their own configures in the yaml config file.
-        rank: int
-            Task rank
     """
-    def __init__(self, config, rank):
-        self._rank = rank
+    def __init__(self, config):
         self._report_frequency = config.log_report_frequency # Can be None if not provided
 
     @abc.abstractmethod
@@ -147,9 +144,3 @@ class GSTaskTrackerAbc():
             Total validation time
         """
         # By default do nothing
-
-    @property
-    def rank(self):
-        """ Task rank in a distributed training/inference cluster
-        """
-        return self._rank

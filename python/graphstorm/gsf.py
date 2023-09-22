@@ -16,13 +16,16 @@
     GSF utility functions.
 """
 
+import os
 import logging
 import numpy as np
 import dgl
 import torch as th
 import torch.nn.functional as F
+from dataclasses import dataclass
+from dgl.distributed import role
 
-from .utils import sys_tracker, get_rank
+from .utils import sys_tracker, get_rank, get_world_size, use_wholegraph
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
@@ -54,7 +57,30 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
 
-def initialize(ip_config, backend):
+def init_wholegraph():
+    """ Initialize Wholegraph"""
+    import pylibwholegraph.torch as wgth
+    import pylibwholegraph.binding.wholememory_binding as wmb
+
+    @dataclass
+    class Options: # pylint: disable=missing-class-docstring
+        pass
+    Options.launch_agent = 'pytorch'
+    Options.launch_env_name_world_rank = 'RANK'
+    Options.launch_env_name_world_size = 'WORLD_SIZE'
+    Options.launch_env_name_local_rank = 'LOCAL_RANK'
+    Options.launch_env_name_local_size = 'LOCAL_WORLD_SIZE'
+    Options.launch_env_name_master_addr = 'MASTER_ADDR'
+    Options.launch_env_name_master_port = 'MASTER_PORT'
+    Options.local_rank = get_rank() % role.get_num_trainers()
+    Options.local_size = role.get_num_trainers()
+
+    wgth.distributed_launch(Options, lambda: None)
+    wmb.init(0)
+    wgth.comm.set_world_info(get_rank(), get_world_size(), Options.local_rank,
+                             Options.local_size)
+
+def initialize(ip_config, backend, use_wholegraph=False):
     """ Initialize distributed inference context
 
     Parameters
@@ -63,6 +89,8 @@ def initialize(ip_config, backend):
         File path of ip_config file
     backend: str
         Torch distributed backend
+    use_wholegraph: bool
+        Whether to use wholegraph for feature transfer
     """
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
@@ -70,6 +98,9 @@ def initialize(ip_config, backend):
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
     if ip_config is not None:
         th.distributed.init_process_group(backend=backend)
+        # Use wholegraph for feature and label fetching
+        if use_wholegraph:
+            init_wholegraph()
     sys_tracker.check("load DistDGL")
 
 def get_feat_size(g, node_feat_names):
@@ -186,7 +217,7 @@ def create_builtin_node_model(g, config, train_task):
     GSgnnModel : The GNN model.
     """
     if config.training_method["name"] == "glem":
-        model = GLEM(config.alpha_l2norm, **config.training_method["kwargs"])
+        model = GLEM(config.alpha_l2norm, config.target_ntype, **config.training_method["kwargs"])
     elif config.training_method["name"] == "default":
         model = GSgnnNodeModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)
@@ -592,6 +623,6 @@ def check_homo(g):
     return False
 
 
-def create_builtin_task_tracker(config, rank):
+def create_builtin_task_tracker(config):
     tracker_class = get_task_tracker_class(config.task_tracker)
-    return tracker_class(config, rank)
+    return tracker_class(config)
