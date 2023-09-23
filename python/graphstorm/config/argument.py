@@ -869,7 +869,8 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_save_embed_format"):
             assert self._save_embed_format in ["pytorch", "hdf5"], \
-                f"{self._save_embed_format} is not supported for save_embed_format"
+                f"{self._save_embed_format} is not supported for save_embed_format." \
+                f"Supported format ['pytorch', 'hdf5']."
             return self._save_embed_format
         # default to be 'pytorch'
         return "pytorch"
@@ -2035,7 +2036,7 @@ def _add_output_args(parser):
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
     group.add_argument("--save-embed-format", type=str, default=argparse.SUPPRESS,
-            help="Specify the format for saved embeddings")
+            help="Specify the format for saved embeddings. Valid format: ['pytorch', 'hdf5']")
     group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,
