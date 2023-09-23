@@ -219,6 +219,22 @@ def test_categorize_transform():
     assert np.all(cat_feat["test"][0] == 0)
     assert np.all(cat_feat["test"][1] == 0)
 
+    feat = [str(i) for i in np.random.randint(0, 10, 100)]
+    feat_with_unknown = feat[:]
+    feat_with_unknown[0] = "10"
+    feat = np.array(feat)
+    feat_with_unknown = np.array(feat_with_unknown)
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for i, (feat, str_i) in enumerate(zip(cat_feat["test"], feat)):
+        if i == 0:
+            continue
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
+
     # Test categorical values with empty strings.
     transform = CategoricalTransform("test1", "test", separator=',')
     str_ids = [f"{i},{i+1}" for i in np.random.randint(0, 9, 1000)] + [",0"]
@@ -242,6 +258,24 @@ def test_categorize_transform():
     transform.update_info(info)
     feat = np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, 100)])
     cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_feat in zip(cat_feat["test"], feat):
+        # make sure two elements are 1
+        i = str_feat.split(",")
+        assert feat[int(i[0])] == 1
+        assert feat[int(i[1])] == 1
+        # after removing the elements, the vector has only 0 values.
+        feat[int(i[0])] = 0
+        feat[int(i[1])] = 0
+        assert np.all(feat == 0)
+
+    # feat contains unknown keys
+    feat = [f"{i},{i+1}" for i in np.random.randint(0, 9, 100)]
+    feat_with_unknown = feat[:]
+    feat_with_unknown[0] = feat[0]+",10"
+    feat = np.array(feat)
+    feat_with_unknown = np.array(feat_with_unknown)
+    cat_feat = transform(feat_with_unknown)
     assert "test" in cat_feat
     for feat, str_feat in zip(cat_feat["test"], feat):
         # make sure two elements are 1

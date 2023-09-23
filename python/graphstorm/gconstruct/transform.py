@@ -428,12 +428,14 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                encoding[i, self._val_dict[str(feat)]] = 1
+                if str(feat) in self._val_dict:
+                    encoding[i, self._val_dict[str(feat)]] = 1
+                # if key does not exist, keep the feature as all zeros.
         else:
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                idx = [self._val_dict[val] for val in feat.split(self._separator)]
+                idx = [self._val_dict[val] for val in feat.split(self._separator) if val in self._val_dict]
                 encoding[i, idx] = 1
         return {self.feat_name: encoding}
 
