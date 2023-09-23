@@ -382,7 +382,9 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         return self._test_idxs
 
 class GSgnnEdgeTrainData(GSgnnEdgeData):
-    """ Edge prediction training data
+    r""" Edge prediction training data
+
+    The GSgnnEdgeTrainData prepares the data for training edge prediction.
 
     Parameters
     ----------
@@ -407,10 +409,11 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
     
     Examples
     ----------
-    from graphstorm.dataloading import GSgnnEdgeTrainData
-    ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                    train_etypes=['e1'], label_field='label',
-                                    node_feat_field='node_feat', edge_feat_field='edge_feat')
+    .. code:: python
+        from graphstorm.dataloading import GSgnnEdgeTrainData
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                        train_etypes=['e1'], label_field='label',
+                                        node_feat_field='node_feat', edge_feat_field='edge_feat')
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
@@ -550,7 +553,9 @@ class GSgnnLPTrainData(GSgnnEdgeTrainData):
         return self._pos_graph_feat_field
 
 class GSgnnEdgeInferData(GSgnnEdgeData):
-    """ Edge prediction inference data
+    r""" Edge prediction inference data
+
+    GSgnnEdgeInferData prepares the data for edge prediction inference.
 
     Parameters
     ----------
@@ -573,10 +578,11 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         
     Examples
     ----------
-    from graphstorm.dataloading import GSgnnEdgeInferData
-    ep_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
-                                    eval_etypes=['e1'], label_field='label',
-                                    node_feat_field='node_feat', edge_feat_field='edge_feat')
+    .. code:: python
+        from graphstorm.dataloading import GSgnnEdgeInferData
+        ep_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                        eval_etypes=['e1'], label_field='label',
+                                        node_feat_field='node_feat', edge_feat_field='edge_feat')
     """
     def __init__(self, graph_name, part_config, eval_etypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
@@ -720,7 +726,9 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         return self._test_idxs
 
 class GSgnnNodeTrainData(GSgnnNodeData):
-    """ Training data for node tasks
+    r""" Training data for node tasks
+
+    GSgnnNodeTrainData prepares the data for training node prediction.
 
     Parameters
     ----------
@@ -743,10 +751,11 @@ class GSgnnNodeTrainData(GSgnnNodeData):
     
     Examples
     ----------
-    from graphstorm.dataloading import GSgnnNodeTrainData
-    np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                    train_ntypes=['n1'], label_field='label',
-                                    node_feat_field='feat')
+    .. code:: python
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                        train_ntypes=['n1'], label_field='label',
+                                        node_feat_field='feat')
     """
     def __init__(self, graph_name, part_config, train_ntypes, eval_ntypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None):
@@ -854,7 +863,9 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         return self._eval_ntypes
 
 class GSgnnNodeInferData(GSgnnNodeData):
-    """ Inference data for node tasks
+    r""" Inference data for node tasks
+
+    GSgnnNodeInferData prepares the data for node prediction inference.
 
     Parameters
     ----------
@@ -875,10 +886,11 @@ class GSgnnNodeInferData(GSgnnNodeData):
     
     Examples
     ----------
-    from graphstorm.dataloading import GSgnnNodeInferData
-    np_data = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
-                                    eval_ntypes=['n1'], label_field='label',
-                                    node_feat_field='feat')
+    .. code:: python
+        from graphstorm.dataloading import GSgnnNodeInferData
+        np_data = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                        eval_ntypes=['n1'], label_field='label',
+                                        node_feat_field='feat')
     """
     def __init__(self, graph_name, part_config, eval_ntypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None):
