@@ -275,7 +275,7 @@ class GSgnnData():
                                    feat_field=self._node_feat_field)
 
     def get_edge_feats(self, input_edges, edge_feat_field, device='cpu'):
-        """ Get the node features
+        """ Get the edge features
 
         Parameters
         ----------
@@ -404,6 +404,13 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
+    
+    Examples
+    ----------
+    from graphstorm.dataloading import GSgnnEdgeTrainData
+    ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                    train_etypes=['e1'], label_field='label',
+                                    node_feat_field='node_feat', edge_feat_field='edge_feat')
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
@@ -563,6 +570,13 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
+        
+    Examples
+    ----------
+    from graphstorm.dataloading import GSgnnEdgeInferData
+    ep_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                    eval_etypes=['e1'], label_field='label',
+                                    node_feat_field='node_feat', edge_feat_field='edge_feat')
     """
     def __init__(self, graph_name, part_config, eval_etypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
@@ -726,6 +740,13 @@ class GSgnnNodeTrainData(GSgnnNodeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    
+    Examples
+    ----------
+    from graphstorm.dataloading import GSgnnNodeTrainData
+    np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                    train_ntypes=['n1'], label_field='label',
+                                    node_feat_field='feat')
     """
     def __init__(self, graph_name, part_config, train_ntypes, eval_ntypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None):
@@ -851,6 +872,13 @@ class GSgnnNodeInferData(GSgnnNodeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    
+    Examples
+    ----------
+    from graphstorm.dataloading import GSgnnNodeInferData
+    np_data = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                    eval_ntypes=['n1'], label_field='label',
+                                    node_feat_field='feat')
     """
     def __init__(self, graph_name, part_config, eval_ntypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None):
