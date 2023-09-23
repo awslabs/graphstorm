@@ -368,8 +368,7 @@ def main(args):
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
-                use_mini_batch_infer=True,
-                save_embed_format=config.save_embed_format)
+                use_mini_batch_infer=True)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Training HGT model with the GraphStorm Framework")
