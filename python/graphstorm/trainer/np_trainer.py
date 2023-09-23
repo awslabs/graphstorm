@@ -262,10 +262,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         teval = time.time()
         sys_tracker.check('before prediction')
 
-
-        if 'precision_recall' in self.evaluator.metric and return_proba==False:
+        metric = set(self.evaluator.metric)
+        need_proba = metric.intersection({'roc_auc', 'per_class_roc_auc', 'precision_recall'})
+        need_label_pred = metric.intersection({'accuracy', 'f1_score', 'per_class_f1_score'})
+        assert len(need_proba) == 0 or len(need_label_pred) == 0, \
+            print(f"{need_proba} requires return_proba==True, \
+                         but {need_label_pred} requires return_proba==False.")
+        if len(need_proba) > 0 and return_proba==False:
             return_proba = True
-            logging.info("precision_recall metric requires return_proba as True.")
+            logging.info(f"{need_proba} requires return_proba==True.")
 
         if use_mini_batch_infer:
             val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader, return_proba,
