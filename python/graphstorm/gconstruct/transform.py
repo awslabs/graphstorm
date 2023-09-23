@@ -435,7 +435,8 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                idx = [self._val_dict[val] for val in feat.split(self._separator) if val in self._val_dict]
+                idx = [self._val_dict[val] for val in feat.split(self._separator) \
+                       if val in self._val_dict]
                 encoding[i, idx] = 1
         return {self.feat_name: encoding}
 
