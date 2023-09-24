@@ -804,7 +804,7 @@ def get_argument_parser():
         "--verbose",
         type=lambda x: (str(x).lower() in ['true', '1']),
         default=False,
-        help="Print more information.",
+        help="Print more information. This argument is deprecated and is no longer effective.",
     )
     parser.add_argument(
         "--workspace",
