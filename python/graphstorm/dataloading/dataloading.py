@@ -158,6 +158,9 @@ class GSgnnEdgeDataLoaderBase():
 class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The minibatch dataloader for edge prediction
 
+    GSgnnEdgeDataLoader samples GraphStorm edge dataset into an iterable over mini-batches 
+    of samples, both source and destination nodes are included in the batch_graph.
+
     Parameters
     ------------
     dataset: GSgnnEdgeData
@@ -182,6 +185,20 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
+        
+    Examples
+    ------------
+    To train a 2-layer GNN for edge prediction on a set of edges ``target_idx`` on 
+    a homogenous graph where each nodes takes messages from 15 neighbors on the first layer
+    and 10 neighbors on the second. 
+    .. code:: python
+        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnEdgeDataLoader
+
+        ep_data = GSgnnEdgeTrainData(...)
+        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[15, 10], batch_size=128)
+        for input_nodes, batch_graph, blocks in ep_dataloader:
+            train_on(input_nodes, batch_graph, blocks)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
@@ -357,7 +374,9 @@ class GSgnnLinkPredictionDataLoaderBase():
 class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     """ Link prediction minibatch dataloader
 
-    The negative edges are sampled uniformly.
+    GSgnnLinkPredictionDataLoader samples GraphStorm edge dataset into an iterable over mini-batches 
+    of samples. In each batch, pos_graph and neg_graph are sampled subgraph for positive and 
+    negative edges, respectively. Given positive edges, the negative edges are sampled uniformly. 
 
     Argument
     --------
@@ -387,6 +406,21 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
+    
+    Examples
+    ------------
+    To train a 2-layer GNN for link prediction on a set of positive edges ``target_idx`` on 
+    a homogenous graph where each nodes takes messages from 15 neighbors on the first layer
+    and 10 neighbors on the second. We use 10 negative edges per positive in this example.
+    .. code:: python
+        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
+
+        ep_data = GSgnnEdgeTrainData(...)
+        ep_dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, fanout=[15, 10], 
+        num_negative_edges=10, batch_size=128)
+        for input_nodes, pos_graph, neg_graph, blocks in ep_dataloader:
+            train_on(input_nodes, pos_graph, neg_graph, blocks)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
@@ -961,6 +995,8 @@ class GSgnnNodeDataLoaderBase():
 
 class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
+    
+    GSgnnNodeDataLoader samples GraphStorm node dataset into an iterable over mini-batches of samples.
 
     Parameters
     ----------
@@ -980,6 +1016,20 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
+    
+    Examples
+    ----------
+    To train a 2-layer GNN for node classification on a set of nodes ``target_idx`` on 
+    a homogenous graph where each nodes takes messages from 15 neighbors on the first layer
+    and 10 neighbors on the second. 
+    .. code:: python
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnNodeDataLoader
+
+        np_data = GSgnnNodeTrainData(...)
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10], batch_size=128)
+        for input_nodes, output_nodes, blocks in np_dataloader:
+            train_on(input_nodes, output_nodes, blocks)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
