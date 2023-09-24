@@ -15,12 +15,11 @@
 
     Distill wrapper.
 """
-
-import torch as th
-from torch.nn.parallel import DistributedDataParallel
 import os
 import json
 import logging
+import torch as th
+from torch.nn.parallel import DistributedDataParallel
 
 import graphstorm as gs
 from ..utils import barrier
@@ -41,7 +40,7 @@ class GSdistiller():
         self._device = None
 
     def fit(
-        self, 
+        self,
         train_data_mgr,
         eval_data_mgr,
         distill_lr,
@@ -80,7 +79,8 @@ class GSdistiller():
         distill_step = 0
         while distill_step < max_distill_step:
             barrier()
-            logging.info(f"Train {index + 1}-th shard by trainer {self.rank}")
+            logging.info("Train %s-th shard by trainer %s", \
+                index+1, self.rank)
             distill_step = self.train_shard(
                 distill_step=distill_step,
                 model=model, 
@@ -113,7 +113,7 @@ class GSdistiller():
             tokenizer_dir_loc = os.path.join(checkpoint_path, "tokenizer")
             lm_dir_loc = os.path.join(checkpoint_path, "lm")
             os.makedirs(proj_dir_loc, exist_ok=True)
-            logging.info(f"Saving checkpoint to {checkpoint_path}")
+            logging.info("Saving checkpoint to %s", checkpoint_path)
 
             model.module.tokenizer.save_pretrained(tokenizer_dir_loc)
             model.module.lm.save_pretrained(lm_dir_loc)
@@ -140,7 +140,8 @@ class GSdistiller():
         for index, dataset_iterator in enumerate(eval_data_mgr):
             if dataset_iterator is None:
                 break
-            logging.info(f"Eval {index + 1}-th shard by trainer {self.rank}")
+            logging.info("Eval %s-th shard by trainer %s", \
+                index+1, self.rank)
             with th.no_grad():
                 for _, batch in enumerate(dataset_iterator):
                     mse = model.module(batch["input_ids"].to(self.device),
@@ -150,17 +151,17 @@ class GSdistiller():
                     batch_index += 1
 
         mean_total_mse = total_mse / batch_index
-        logging.info(f"Eval MSE at step {distill_step}: {mean_total_mse}")
+        logging.info("Eval MSE at step %s: %s", distill_step, mean_total_mse)
         model.train()
         eval_data_mgr.release_iterator()
 
     def train_shard(
-        self, 
-        distill_step, 
-        model, 
-        optimizer, 
-        train_data_mgr, 
-        eval_data_mgr, 
+        self,
+        distill_step,
+        model,
+        optimizer,
+        train_data_mgr,
+        eval_data_mgr,
         saved_path,
         save_model_frequency,
         eval_frequency,
@@ -216,10 +217,10 @@ class GSdistiller():
                 mean_shard_loss = shard_loss / (batch_num + 1)
                 if distill_step % 20 == 0:
                     logging.info(
-                        f"Loss for shard {train_data_mgr.get_iterator_name()}"
-                        f" at step {distill_step} = {mean_shard_loss}"
-                        f" from trainer {self.rank}"
-                    )
+                        "Loss for shard {train_data_mgr.get_iterator_name()}" \
+                        " at step %s = %s" \
+                        " from trainer %s", distill_step, mean_shard_loss, \
+                        self.rank)
 
                 if distill_step % save_model_frequency == 0 and distill_step != 0:
                     # TODO (HZ): implement save_topk_models based on val MSE scores

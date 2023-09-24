@@ -37,13 +37,13 @@ def main(config_args):
     device = setup_device(config.local_rank)
 
     # initiate model
-    student_model = GSDistilledModel(lm_type=config.distill_lm_configs[0]["lm_type"], 
+    student_model = GSDistilledModel(lm_type=config.distill_lm_configs[0]["lm_type"],
         pre_trained_name=config.distill_lm_configs[0]["model_name"])
 
     # initiate DataloaderGenerator and DataManager
-    dataloader_generator = DistillDataloaderGenerator(tokenizer=student_model.tokenizer, 
+    dataloader_generator = DistillDataloaderGenerator(tokenizer=student_model.tokenizer,
         max_seq_len=config.max_seq_len,
-        device=device, 
+        device=device,
         batch_size=config.batch_size,
     )
     train_data_mgr = DistillDataManager(
@@ -75,7 +75,7 @@ def main(config_args):
     barrier()
 
     distiller.fit(
-        train_data_mgr=train_data_mgr, 
+        train_data_mgr=train_data_mgr,
         eval_data_mgr=eval_data_mgr,
         distill_lr=config.lm_tune_lr,
         saved_path=config.save_model_path,
