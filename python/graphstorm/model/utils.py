@@ -395,6 +395,7 @@ def remap_embeddings(embeddings, rank, world_size,
     """
     assert node_id_mapping_file is not None
 
+    # TODO: handle when node_id_mapping_file is None.
     nid_mapping = distribute_nid_map(embeddings, rank, world_size, 
             node_id_mapping_file, device)
 
