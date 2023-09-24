@@ -173,6 +173,7 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
     device = setup_device(local_rank)
     nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
         node_id_mapping_file, device)
+
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         assert_equal(target_nid_mapping[local_rank].numpy(), nid_mapping.cpu().numpy())
     elif isinstance(embeddings, dict):
@@ -200,7 +201,7 @@ def test_distribute_nid_map(backend):
             _, sorted_nid_map = th.sort(ori_nid_maps[ntype])
             for i in range(4):
                 start, end = _get_data_range(i, 4, g.number_of_nodes(ntype))
-                target_nid_maps[ntype].append(sorted_nid_map[start:end])
+                target_nid_maps[ntype].append(sorted_nid_map[start:end].clone())
 
         nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
         nid_map_tensor_path = os.path.join(tmpdirname, "nid_map_tensor.pt")
@@ -209,7 +210,7 @@ def test_distribute_nid_map(backend):
         th.save(ori_nid_maps[dummy_ntype], nid_map_tensor_path)
 
         # when dummy_dist_embeds is a dict
-        ctx = mp.get_context('fork')
+        ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds, 0, 4, nid_map_dict_path, backend, \
                             target_nid_maps))
@@ -236,19 +237,19 @@ def test_distribute_nid_map(backend):
         assert p3.exitcode == 0
 
         # when dummy_dist_embeds is a dist tensor
-        ctx2 = mp.get_context('fork')
+        ctx2 = mp.get_context('spawn')
         p4 = ctx2.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds[dummy_ntype], 0, 4, nid_map_tensor_path, \
-                            backend, target_nid_maps[dummy_ntype].copy()))
+                            backend, target_nid_maps[dummy_ntype]))
         p5 = ctx2.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds[dummy_ntype], 1, 4, nid_map_tensor_path, \
-                            backend, target_nid_maps[dummy_ntype].copy()))
+                            backend, target_nid_maps[dummy_ntype]))
         p6 = ctx2.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds[dummy_ntype], 2, 4, nid_map_tensor_path, \
-                            backend, target_nid_maps[dummy_ntype].copy()))
+                            backend, target_nid_maps[dummy_ntype]))
         p7 = ctx2.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds[dummy_ntype], 3, 4, nid_map_tensor_path, \
-                            backend, target_nid_maps[dummy_ntype].copy()))
+                            backend, target_nid_maps[dummy_ntype]))
 
         p4.start()
         p5.start()
