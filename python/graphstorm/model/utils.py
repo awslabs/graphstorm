@@ -485,7 +485,7 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
     # less than 10 billion. An ID mapping of 10 billion nodes
     # will take around 80 GByte.
     if node_id_mapping_file is not None:
-        nid_mapping = distribute_nid_map(embeddings, rank, world_size, 
+        nid_mapping = distribute_nid_map(embeddings, rank, world_size,
             node_id_mapping_file, device)
     else:
         nid_mapping = None
@@ -554,7 +554,7 @@ def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
         stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(model_path, "embed_dict.hdf5"))
 
 def save_embeddings(model_path, embeddings, rank, world_size,
-    device=th.device('cpu'), node_id_mapping_file=None, 
+    device=th.device('cpu'), node_id_mapping_file=None,
     save_embed_format="pytorch"):
     """ Save embeddings.
 
@@ -582,14 +582,15 @@ def save_embeddings(model_path, embeddings, rank, world_size,
     os.makedirs(model_path, exist_ok=True)
     if save_embed_format == "pytorch":
         if rank == 0:
-            logging.info(f"Writing GNN embeddings to "\
-                f"{model_path} in pytorch format.")
+            logging.info("Writing GNN embeddings to "\
+                "%s in pytorch format.", model_path)
         save_pytorch_embeddings(model_path, embeddings, rank, world_size,
             device, node_id_mapping_file)
     elif save_embed_format == "hdf5":
         if rank == 0:
-           logging.info(f"Writing GNN embeddings to "\
-                f"{os.path.join(model_path, 'embed_dict.hdf5')} in hdf5 format.")
+            logging.info("Writing GNN embeddings to "\
+                "%s in hdf5 format.", \
+                os.path.join(model_path, 'embed_dict.hdf5'))
         save_hdf5_embeddings(model_path, embeddings, rank, world_size,
             device, node_id_mapping_file)
     else:
