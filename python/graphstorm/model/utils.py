@@ -312,7 +312,7 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
         th.distributed.all_to_all(gather_list, data_tensors)
     return gather_list[0]
 
-def distribute_nid_map(embeddings, local_rank, world_size, 
+def distribute_nid_map(embeddings, rank, world_size, 
     node_id_mapping_file, device=th.device('cpu')):
     """ Distribute nid_map to all workers.
 
@@ -320,7 +320,7 @@ def distribute_nid_map(embeddings, local_rank, world_size,
         ----------
         embeddings : DistTensor
             Embeddings to save
-        local_rank : int
+        rank : int
             Local rank
         world_size : int
             World size in a distributed env.
@@ -339,22 +339,22 @@ def distribute_nid_map(embeddings, local_rank, world_size,
     assert node_id_mapping_file is not None
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         # only host 0 will load node id mapping from disk
-        if local_rank == 0:
+        if rank == 0:
             ori_node_id_mapping = th.load(node_id_mapping_file)
             _, node_id_mapping = th.sort(ori_node_id_mapping)
         else:
             node_id_mapping = None
 
         nid_mapping = _exchange_node_id_mapping(
-            local_rank, world_size, device, node_id_mapping, len(embeddings))
+            rank, world_size, device, node_id_mapping, len(embeddings))
     elif isinstance(embeddings, dict):
         nid_mapping = {}
         # only host 0 will load node id mapping from disk
         node_id_mappings = th.load(node_id_mapping_file) \
-            if local_rank == 0 else None
+            if rank == 0 else None
 
         for name, emb in embeddings.items():
-            if local_rank == 0:
+            if rank == 0:
                 assert name in node_id_mappings, \
                     f"node id mapping for ntype {name} should exists"
                 # new mapping back index
@@ -364,12 +364,12 @@ def distribute_nid_map(embeddings, local_rank, world_size,
                 node_id_mapping = None
 
             nid_mapping[name] = _exchange_node_id_mapping(
-                local_rank, world_size, device, node_id_mapping, len(emb))
+                rank, world_size, device, node_id_mapping, len(emb))
     else:
         nid_mapping = None
     return nid_mapping
 
-def remap_embeddings(embeddings, local_rank, world_size,
+def remap_embeddings(embeddings, rank, world_size,
     node_id_mapping_file, device=th.device('cpu')):
     """ Remap embeddings by nid_map without writing to disk.
 
@@ -377,7 +377,7 @@ def remap_embeddings(embeddings, local_rank, world_size,
         ----------
         embeddings : DistTensor
             Embeddings to save
-        local_rank : int
+        rank : int
             Local rank
         world_size : int
             World size in a distributed env.
@@ -395,11 +395,11 @@ def remap_embeddings(embeddings, local_rank, world_size,
     """
     assert node_id_mapping_file is not None
 
-    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
+    nid_mapping = distribute_nid_map(embeddings, rank, world_size, 
             node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-        start, end = _get_data_range(local_rank, world_size, len(embeddings))
+        start, end = _get_data_range(rank, world_size, len(embeddings))
         embeddings[list(range(start, end))] = embeddings[nid_mapping]
     elif isinstance(embeddings, dict):
         # We need to duplicate the dict so that the input argument is not changed.
@@ -407,14 +407,14 @@ def remap_embeddings(embeddings, local_rank, world_size,
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 # this is the same window as nid_mapping
-                start, end = _get_data_range(local_rank, world_size, len(emb))
+                start, end = _get_data_range(rank, world_size, len(emb))
                 # we need to keep emb to be dist tensor unchanged
                 emb[th.arange(start, end)] = emb[nid_mapping[name]]
             th.distributed.barrier()
 
     return embeddings
 
-def save_pytorch_embeddings(model_path, embeddings, local_rank, world_size,
+def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through pytorch a distributed way
 
@@ -424,7 +424,7 @@ def save_pytorch_embeddings(model_path, embeddings, local_rank, world_size,
             The path of the folder where the model is saved.
         embeddings : DistTensor
             Embeddings to save
-        local_rank : int
+        rank : int
             Local rank
         world_size : int
             World size in a distributed env.
@@ -437,7 +437,7 @@ def save_pytorch_embeddings(model_path, embeddings, local_rank, world_size,
             graph partition algorithm.
     """
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
-    if local_rank == 0:
+    if rank == 0:
         # mode 767 means rwx-rw-rwx:
         #     - owner of the folder can read, write, and execute;
         #     - owner' group can read, write;
@@ -447,19 +447,19 @@ def save_pytorch_embeddings(model_path, embeddings, local_rank, world_size,
     # make sure the model_path permission is changed before other process start to save
     barrier()
 
-    assert local_rank < world_size
+    assert rank < world_size
     # Node ID mapping won't be very large if number of nodes is
     # less than 10 billion. An ID mapping of 10 billion nodes
     # will take around 80 GByte.
     if node_id_mapping_file is not None:
-        nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
+        nid_mapping = distribute_nid_map(embeddings, rank, world_size, 
             node_id_mapping_file, device)
     else:
         nid_mapping = None
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         if nid_mapping is None:
-            start, end = _get_data_range(local_rank, world_size, len(embeddings))
+            start, end = _get_data_range(rank, world_size, len(embeddings))
             embeddings = embeddings[start:end]
         else:
             embeddings = embeddings[nid_mapping]
@@ -469,7 +469,7 @@ def save_pytorch_embeddings(model_path, embeddings, local_rank, world_size,
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 if nid_mapping is None:
-                    start, end = _get_data_range(local_rank, world_size, len(emb))
+                    start, end = _get_data_range(rank, world_size, len(emb))
                     emb = emb[start:end]
                 else:
                     emb = emb[nid_mapping[name]]
@@ -483,17 +483,17 @@ def save_pytorch_embeddings(model_path, embeddings, local_rank, world_size,
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
-            th.save(emb, os.path.join(model_path, f'{name}_emb.part{local_rank}.bin'))
+            th.save(emb, os.path.join(model_path, f'{name}_emb.part{rank}.bin'))
             emb_info["emb_name"].append(name)
     else:
-        th.save(embeddings, os.path.join(model_path, f'emb.part{local_rank}.bin'))
+        th.save(embeddings, os.path.join(model_path, f'emb.part{rank}.bin'))
         emb_info["emb_name"] = None
 
-    if local_rank == 0:
+    if rank == 0:
         with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(emb_info))
 
-def save_hdf5_embeddings(model_path, embeddings, local_rank, world_size,
+def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through hdf5 into a single file.
 
@@ -503,7 +503,7 @@ def save_hdf5_embeddings(model_path, embeddings, local_rank, world_size,
             The path of the folder where the model is saved.
         embeddings : DistTensor
             Embeddings to save
-        local_rank : int
+        rank : int
             Local rank
         world_size : int
             World size in a distributed env.
@@ -515,12 +515,12 @@ def save_hdf5_embeddings(model_path, embeddings, local_rank, world_size,
             Path to the file storing node id mapping generated by the
             graph partition algorithm.
     """
-    mapped_embeds = remap_embeddings(embeddings, local_rank, world_size,
+    mapped_embeds = remap_embeddings(embeddings, rank, world_size,
     node_id_mapping_file, device)
-    if local_rank == 0:
+    if rank == 0:
         stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(model_path, "embed_dict.hdf5"))
 
-def save_embeddings(model_path, embeddings, local_rank, world_size,
+def save_embeddings(model_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None, 
     save_embed_format="pytorch"):
     """ Save embeddings.
@@ -531,7 +531,7 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
             The path of the folder where the model is saved.
         embeddings : DistTensor
             Embeddings to save
-        local_rank : int
+        rank : int
             Local rank
         world_size : int
             World size in a distributed env.
@@ -548,16 +548,16 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
     """
     os.makedirs(model_path, exist_ok=True)
     if save_embed_format == "pytorch":
-        if local_rank == 0:
+        if rank == 0:
             logging.info(f"Writing GNN embeddings to "\
                 f"{model_path} in pytorch format.")
-        save_pytorch_embeddings(model_path, embeddings, local_rank, world_size,
+        save_pytorch_embeddings(model_path, embeddings, rank, world_size,
             device, node_id_mapping_file)
     elif save_embed_format == "hdf5":
-        if local_rank == 0:
+        if rank == 0:
            logging.info(f"Writing GNN embeddings to "\
                 f"{os.path.join(model_path, 'embed_dict.hdf5')} in hdf5 format.") 
-        save_hdf5_embeddings(model_path, embeddings, local_rank, world_size,
+        save_hdf5_embeddings(model_path, embeddings, rank, world_size,
             device, node_id_mapping_file)
     else:
         raise ValueError(f"{model_path} is not supported for save_embed_format")
