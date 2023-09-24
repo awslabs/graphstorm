@@ -290,10 +290,10 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         assert len(need_proba) == 0 or len(need_label_pred) == 0, \
             f"{need_proba} requires return_proba==True, \
                          but {need_label_pred} requires return_proba==False."
-        if len(need_proba) > 0 and return_proba==False:
+        if len(need_proba) > 0 and return_proba is False:
             return_proba = True
-            logging.warning(f"{need_proba} requires return_proba==True. \
-                Set return_proba to True.")
+            logging.warning("%s requires return_proba==True. \
+                Set return_proba to True."%need_proba)
 
         model.eval()
         if use_mini_batch_infer:
