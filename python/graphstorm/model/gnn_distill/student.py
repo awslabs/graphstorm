@@ -16,15 +16,14 @@
     GNN student model class
 """
 import os
-import logging
 import torch as th
 from torch import nn
 from transformers import (
     AutoTokenizer,
     AutoConfig,
     AutoModel,
-    DistilBertConfig, 
-    DistilBertModel, 
+    DistilBertConfig,
+    DistilBertModel,
 )
 
 SUPPORTED_MODEL = {
@@ -76,7 +75,7 @@ class GSDistilledModel(nn.Module):
         else:
             self.load_from_gs_checkpoint(checkpoint_path)
 
-        # TODO (HZ): support more distance-based loss 
+        # TODO (HZ): support more distance-based loss
         self.loss = nn.MSELoss()
 
     def load_from_gs_checkpoint(self, checkpoint_path):
