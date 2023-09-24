@@ -170,7 +170,6 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
                                       init_method=dist_init_method,
                                       world_size=world_size,
                                       rank=local_rank)
-    th.cuda.set_device(local_rank)
     device = setup_device(local_rank)
     nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
         node_id_mapping_file, device)
@@ -185,7 +184,6 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
 def test_distribute_nid_map(backend):
     # need to force to reset the fork context
     # because dist tensor is the input for mulitiple processes 
-    th.multiprocessing.set_start_method('fork', force=True)
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
