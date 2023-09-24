@@ -308,7 +308,8 @@ class GSgnnModelBase(nn.Module):
         start_load_t = time.time()
         # Restore the model weights from a checkpoint saved previously.
         if restore_model_path is not None:
-            logging.debug('load model from %s', restore_model_path)
+            if get_rank() == 0:
+                logging.debug('load model from %s', restore_model_path)
             self.restore_dense_model(restore_model_path, model_layer_to_load)
 
             # If a user doesn't specify the layer to load,
@@ -316,7 +317,8 @@ class GSgnnModelBase(nn.Module):
             if model_layer_to_load is None \
                     or GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
                     or GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER in model_layer_to_load:
-                logging.debug('Load Sparse embedding from %s', restore_model_path)
+                if get_rank() == 0:
+                    logging.debug('Load Sparse embedding from %s', restore_model_path)
                 self.restore_sparse_model(restore_model_path)
 
         # We need to make sure that the sparse embedding is completely loaded
