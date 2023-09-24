@@ -183,6 +183,9 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
 
 @pytest.mark.parametrize("backend", ["gloo"])
 def test_distribute_nid_map(backend):
+    # need to force to reset the fork context
+    # because dist tensor is the input for mulitiple processes 
+    th.multiprocessing.set_start_method('fork', force=True)
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
@@ -211,16 +214,16 @@ def test_distribute_nid_map(backend):
         ctx = mp.get_context('fork')
         p0 = ctx.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds, 0, 4, nid_map_dict_path, backend, \
-                            target_nid_maps.copy()))
+                            target_nid_maps))
         p1 = ctx.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds, 1, 4, nid_map_dict_path, backend, \
-                            target_nid_maps.copy()))
+                            target_nid_maps))
         p2 = ctx.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds, 2, 4, nid_map_dict_path, backend, \
-                            target_nid_maps.copy()))
+                            target_nid_maps))
         p3 = ctx.Process(target=run_distribute_nid_map,
                         args=(dummy_dist_embeds, 3, 4, nid_map_dict_path, backend, \
-                            target_nid_maps.copy()))
+                            target_nid_maps))
         p0.start()
         p1.start()
         p2.start()
