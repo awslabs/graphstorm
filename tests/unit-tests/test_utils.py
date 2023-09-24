@@ -581,8 +581,9 @@ def test_stream_dist_tensors_to_hdf5():
                       part_policy=g.get_node_partition_policy(ntype))
 
         # chunk size needs to be smaller than num of nodes
+        chunk_size = g.number_of_nodes(g.ntypes[0]) // 4
         stream_dist_tensors_to_hdf5(dummy_dist_embeds, os.path.join(tmpdirname, "embed_dict.hdf5"), \
-            chunk_size=100000)
+            chunk_size=chunk_size)
 
         read_f = h5py.File(os.path.join(tmpdirname, "embed_dict.hdf5"), "r")
         for ntype in g.ntypes:
