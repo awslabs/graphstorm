@@ -13,31 +13,29 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infer wrapper for link predicion.
+    Inferrer wrapper for link predicion.
 """
 import time
 
-from .graphstorm_infer import GSInfer
+from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
-from ..utils import sys_tracker, get_world_size, barrier
+from ..utils import sys_tracker, get_rank, get_world_size, barrier
 
-class GSgnnLinkPredictionInfer(GSInfer):
-    """ Link prediction infer.
+class GSgnnLinkPredictionInferrer(GSInferrer):
+    """ Link prediction inferrer.
 
-    This is a highlevel infer wrapper that can be used directly
+    This is a high-level inferrer wrapper that can be used directly
     to do link prediction model inference.
 
     Parameters
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     """
 
     # TODO(zhengda) We only support full-graph inference for now.
@@ -49,8 +47,9 @@ class GSgnnLinkPredictionInfer(GSInfer):
         """ Do inference
 
         The inference can do two things:
-        1. (Optional) Evaluate the model performance on a test set if given
-        2. Generate node embeddings
+
+        1. (Optional) Evaluate the model performance on a test set if given.
+        2. Generate node embeddings.
 
         Parameters
         ----------
@@ -98,7 +97,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
             test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
             val_mrr, test_mrr = self.evaluator.evaluate(None, test_rankings, 0)
             sys_tracker.check('run evaluation')
-            if self.rank == 0:
+            if get_rank() == 0:
                 self.log_print_metrics(val_score=val_mrr,
                                        test_score=test_mrr,
                                        dur_eval=time.time() - test_start,
@@ -106,7 +105,7 @@ class GSgnnLinkPredictionInfer(GSInfer):
 
         barrier()
         # save relation embedding if any
-        if self.rank == 0:
+        if get_rank() == 0:
             decoder = self._model.decoder
             if isinstance(decoder, LinkPredictDistMultDecoder):
                 if save_embed_path is not None:

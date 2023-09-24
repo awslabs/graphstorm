@@ -168,8 +168,9 @@ class RelGraphConvLayer(nn.Module):
                     # tensor. This tensor won't be used for computing embeddings.
                     # We need this just to fulfill the requirements of DGL message passing
                     # modules.
-                    assert not self.self_loop, \
-                            f"We cannot allow self-loop if node {k} doesn't have input features."
+                    if g.num_dst_nodes(k) > 0:
+                        assert not self.self_loop, \
+                                f"We cannot allow self-loop if node {k} has no input features."
                     inputs_dst[k] = th.zeros((g.num_dst_nodes(k), self.in_feat),
                                              dtype=th.float32, device=g.device)
         else:

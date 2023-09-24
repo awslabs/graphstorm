@@ -1,0 +1,43 @@
+---
+version: 1.0
+lm_model:
+  node_lm_models:
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - paper
+gsf:
+  basic:
+    backend: gloo
+    verbose: false
+    save_perf_results_path: null
+    use_mini_batch_infer: true
+    model_encoder_type: lm
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  lm:
+    hidden_size: 128
+    freeze_lm_encoder_epochs: 0
+    dropout: 0.
+  hyperparam:
+    lr: 0.003
+    lm_tune_lr: 0.0001
+    sparse_optimizer_lr: 0.01
+    num_epochs: 100
+    batch_size: 128
+    eval_batch_size: 128
+    lm_train_nodes: 128
+    lm_infer_batch_size: 1024
+    wd_l2norm: 0
+    no_validation: false
+    eval_frequency: 500
+  node_classification:
+    target_ntype: "paper"
+    label_field: "venue"
+    multilabel: false
+    num_classes: 1523

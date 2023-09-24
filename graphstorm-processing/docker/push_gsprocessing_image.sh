@@ -114,6 +114,6 @@ docker tag ${IMAGE}:${SUFFIX} ${FULLNAME}
 docker push ${FULLNAME}
 
 if [ ${VERSION} = ${LATEST_VERSION} ]; then
-    docker tag ${IMAGAE}:${SUFFIX} ${LATEST_tag}
-    docker push ${LATEST_tag}
+    docker tag ${IMAGE}:${SUFFIX} ${LATEST_TAG}
+    docker push ${LATEST_TAG}
 fi

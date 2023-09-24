@@ -26,7 +26,7 @@ from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
 from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
 
-from ..utils import barrier
+from ..utils import barrier, get_rank
 
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
@@ -35,22 +35,19 @@ class GSgnnTrainer():
     ----------
     model : GSgnnModel
         The GNN model.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save=1):
+    def __init__(self, model, topk_model_to_save=1):
         super(GSgnnTrainer, self).__init__()
         self._model = model
         optimizer = model.create_optimizer()
         assert optimizer is not None, "The model cannot provide an optimizer"
         if not isinstance(optimizer, GSOptimizer):
-            if rank == 0:
+            if get_rank() == 0:
                 logging.warning("the optimizer is not GSOptimizer. Convert it to GSOptimizer.")
             optimizer = GSOptimizer([optimizer])
         self._optimizer = optimizer
-        self._rank = rank
         self._device = -1
         self._evaluator = None
         self._task_tracker = None
@@ -209,7 +206,7 @@ class GSgnnTrainer():
         save_model_path : str
             The path where the model is saved.
         """
-        if save_model_path is not None and self.rank == 0:
+        if save_model_path is not None and get_rank() == 0:
             # construct model path
             saved_model_path = self._gen_model_path(save_model_path, epoch, i)
 
@@ -335,9 +332,3 @@ class GSgnnTrainer():
         """ The device associated with the trainer.
         """
         return self._device
-
-    @property
-    def rank(self):
-        """ The rank of the trainer.
-        """
-        return self._rank

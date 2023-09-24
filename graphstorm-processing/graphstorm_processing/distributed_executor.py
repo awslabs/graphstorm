@@ -56,6 +56,7 @@ from typing import Any, Dict
 import tempfile
 
 import boto3
+import botocore
 
 from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     DistHeterogeneousGraphLoader,
@@ -160,7 +161,7 @@ class DistributedExecutor:
             response = bucket_resouce.delete_objects(
                 Delete={"Objects": [{"Key": f"{prefix}/test_file.txt"}], "Quiet": True}
             )
-            assert "Deleted" in response
+            assert response["ResponseMetadata"]["HTTPStatusCode"] == 200
 
         graph_conf = os.path.join(self.local_config_path, self.config_filename)
         with open(graph_conf, "r", encoding="utf-8") as f:
@@ -168,11 +169,19 @@ class DistributedExecutor:
 
         if "version" in dataset_config_dict:
             self.config_version = dataset_config_dict["version"]
-            if self.config_version != "gsprocessing-v1.0":
+            if self.config_version == "gsprocessing-v1.0":
+                logging.info("Parsing config file as GSProcessing config")
+                self.graph_config_dict = dataset_config_dict["graph"]
+            elif self.config_version == "gconstruct-v1.0":
+                logging.info("Parsing config file as GConstruct config")
+                converter = GConstructConfigConverter()
+                self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
+                    "graph"
+                ]
+            else:
                 logging.warning("Unrecognized version name: %s", self.config_version)
-            self.graph_config_dict = dataset_config_dict["graph"]
         else:
-            # TODO: Change once GConstruct adds a version to their config spec
+            # Older versions of GConstruct configs might be missing a version entry
             self.config_version = "gconstruct"
             converter = GConstructConfigConverter()
             self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)["graph"]
@@ -251,7 +260,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help=(
-            "The desired number of output files to be crea ted per type. "
+            "The desired number of output files to be created per type. "
             "If set to '', None, or '-1', we let Spark decide."
         ),
     )
@@ -319,11 +328,18 @@ def main():
                 gsprocessing_args.input_prefix
             )
             s3 = boto3.client("s3")
-            s3.download_file(
-                input_bucket,
-                f"{input_s3_prefix}/{gsprocessing_args.config_filename}",
-                os.path.join(tempdir.name, gsprocessing_args.config_filename),
-            )
+            try:
+                s3.download_file(
+                    input_bucket,
+                    f"{input_s3_prefix}/{gsprocessing_args.config_filename}",
+                    os.path.join(tempdir.name, gsprocessing_args.config_filename),
+                )
+            except botocore.exceptions.ClientError as e:
+                raise RuntimeError(
+                    "Unable to download config file at"
+                    f"s3://{input_bucket}/{input_s3_prefix}/"
+                    f"{gsprocessing_args.config_filename}"
+                ) from e
             local_config_path = tempdir.name
 
     # local output location for metadata files
@@ -336,7 +352,7 @@ def main():
             # Only needed for local execution with S3 data
             local_output_path = tempdir.name
 
-    if gsprocessing_args.num_output_files == "" or gsprocessing_args.num_output_files is None:
+    if not gsprocessing_args.num_output_files:
         gsprocessing_args.num_output_files = -1
 
     executor_configuration = ExecutorConfig(
