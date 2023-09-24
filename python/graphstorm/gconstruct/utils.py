@@ -235,7 +235,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
     -------
     a dict : key is the file index, the value is processed data.
     """
-    if num_processes > 0 and len(in_files) > 1:
+    if num_processes > 1 and len(in_files) > 1:
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
