@@ -122,7 +122,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+            save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
                 get_world_size(),
                 device=device,
                 node_id_mapping_file=node_id_mapping_file,

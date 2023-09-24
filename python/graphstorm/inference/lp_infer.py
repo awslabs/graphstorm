@@ -84,7 +84,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         sys_tracker.check('compute embeddings')
         device = self.device
         if save_embed_path is not None:
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
+            save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
                 get_world_size(),
                 device=device,
                 node_id_mapping_file=node_id_mapping_file,

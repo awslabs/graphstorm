@@ -290,8 +290,9 @@ def stream_dist_tensors_to_hdf5(data, data_file, chunk_size=100000):
                     chunk_val = np.array(val[i*chunk_size:(i+1)*chunk_size])
                     arr[i*chunk_size:(i+1)*chunk_size] = chunk_val
                 # need to write remainder
-                remainder_val = np.array(val[num_chunks*chunk_size:len(val)])
-                arr[num_chunks*chunk_size:] = remainder_val
+                if remainder != 0:
+                    remainder_val = np.array(val[num_chunks*chunk_size:len(val)])
+                    arr[num_chunks*chunk_size:] = remainder_val
             else:
                 arr[:] = np.array(val[0:len(val)])
 
