@@ -17,12 +17,12 @@
 """
 import math
 import inspect
-import torch as th
 import logging
+import dgl
+import torch as th
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 
-import dgl
 from dgl.dataloading import DistDataLoader
 from dgl.dataloading import EdgeCollator
 from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
@@ -909,8 +909,6 @@ class DistillDataManager:
         Path to the data files.
     shuffle : bool
         Set to ``True`` to have the files reshuffled at every epoch (default: ``False``).
-    infinite : bool
-        Set to ``True`` to have the files sampled infinitely (default: ``False``).
     local_rank : int
         Local rank for the trainer (default: ``-1``).
     world_size : int
@@ -924,14 +922,16 @@ class DistillDataManager:
         dataloader_generator,
         dataset_path,
         shuffle=False,
-        infinite=False,
         local_rank=-1,
         world_size=1,
         is_train=True,
     ):
-        # TODO (HZ): Implement prefetch_iterator function to use zero-copy shared memory (e.g., /dev/shm) 
-        # for reducing the costs of serialization and deserialization. Make sure that each data shard is 
-        # not too large so that #workers_per_node * #DataProvider * num_prefetches * data_shard_size < shm_size.
+        # TODO (HZ): Implement prefetch_iterator function
+        # to use zero-copy shared memory (e.g., /dev/shm)
+        # for reducing the costs of serialization and deserialization.
+        # Make sure that each data shard is
+        # not too large so that workers_per_node * #DataProvider *
+        # num_prefetches * data_shard_size < shm_size.
 
         self.is_train = is_train
         assert dataset_path is not None, "dataset_path needs to be specified."
@@ -943,7 +943,6 @@ class DistillDataManager:
         file_sampler = DistributedFileSampler(
             dataset_path=dataset_path,
             shuffle=shuffle,
-            infinite=infinite,
             local_rank=local_rank,
             world_size=world_size,
             is_train=is_train,
@@ -955,7 +954,7 @@ class DistillDataManager:
         self.dataloader = None
         self.data_file = None
 
-        logging.info(f"DataProvider - Initialization: num_files = {len(file_sampler)}")
+        logging.info("DataProvider - Initialization: num_files = %s", len(file_sampler))
 
     def get_iterator_name(self):
         """ Return shard name.

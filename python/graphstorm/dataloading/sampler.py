@@ -425,7 +425,7 @@ class FileSamplerInterface:
         self.files.sort()
 
         self.num_files = len(self.files)
-        logging.info(f"found {self.num_files} files from {dataset_path}")
+        logging.info("found %s files from %s", self.num_files, dataset_path)
 
     def __len__(self):
         """ Return number of files in the sampler."""
@@ -516,8 +516,6 @@ class DistributedFileSampler(FileSamplerInterface):
     shuffle : bool
         Set to ``True`` to have the files reshuffled
         at every epoch. Shuffling is performed on the files of the local partition.
-    infinite : bool
-        Set to ``True`` to have the files sampled infinitely.
     local_rank : int
         Local rank ID.
     world_size : int
@@ -529,7 +527,6 @@ class DistributedFileSampler(FileSamplerInterface):
         self,
         dataset_path=None,
         shuffle=False,
-        infinite=False,
         local_rank=-1,
         world_size=1,
         is_train=True,
@@ -557,7 +554,6 @@ class DistributedFileSampler(FileSamplerInterface):
         self.sampler = sampler
         self.sampler_iter = iter(sampler)
 
-        self.infinite = infinite
         self.shuffle = shuffle
 
     def _file_index_distribute(self):
@@ -659,23 +655,7 @@ class DistributedFileSampler(FileSamplerInterface):
         return self.part_len
 
     def __iter__(self):
-        if not self.infinite:
-            return self
-        else:
-            def _infinite_sample_iter():
-                while True:
-                    try:
-                        offset = next(self.sampler_iter)
-                    except:
-                        self.sampler_iter = iter(self.sampler)
-                        offset = next(self.sampler_iter)
-                        return
-
-                    ret = self.get_file(offset)
-
-                    yield ret
-
-            return _infinite_sample_iter()
+        return self
 
     def __next__(self):
         """ Get the file name for next file from sampler"""
