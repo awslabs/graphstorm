@@ -79,7 +79,8 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
 
         if use_mini_batch_infer:
             assert save_embed_path is None, \
-                "Not allowed to save embedding when using mini batch inference"
+                "Unable to save the node embeddings when using mini batch inference." \
+                "It is not guaranteed that mini-batch prediction will cover all the nodes."
         sys_tracker.check('start inferencing')
         self._model.eval()
 
