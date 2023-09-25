@@ -48,3 +48,5 @@ from .dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
 
 from .dataloading import (DistillDataloaderGenerator,
                           DistillDataManager)
+
+from .sampler import DistributedFileSampler

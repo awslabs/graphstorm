@@ -19,14 +19,20 @@ import os
 import tempfile
 import shutil
 import numpy as np
+import multiprocessing as mp
 from unittest.mock import patch, MagicMock
 
 import torch as th
 import dgl
 import pytest
-from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_reconstruct
+from data_utils import (
+    generate_dummy_dist_graph, 
+    generate_dummy_dist_graph_reconstruct,
+    create_distill_data,
+)
 
 import graphstorm as gs
+from graphstorm.utils import setup_device
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
@@ -35,6 +41,8 @@ from graphstorm.dataloading import (GSgnnLinkPredictionDataLoader,
                                    FastGSgnnLinkPredictionDataLoader)
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
+from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
+from graphstorm.dataloading import DistributedFileSampler
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
@@ -44,6 +52,7 @@ from graphstorm.dataloading.utils import modify_fanout_for_target_etype
 from graphstorm.dataloading.utils import trim_data
 
 from numpy.testing import assert_equal
+from transformers import AutoTokenizer
 
 def get_nonzero(mask):
     mask = mask[0:len(mask)]
@@ -894,25 +903,132 @@ def test_edge_dataloader_trim_data(dataloader):
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
+@pytest.mark.parametrize("num_files", [3, 8, 9])
+@pytest.mark.parametrize("is_train", [True, True, False])
+@pytest.mark.parametrize("infinite", [False, True, False])
+@pytest.mark.parametrize("shuffle", [True, False, True])
+def test_DistributedFileSampler(num_files, is_train, 
+    infinite, shuffle):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        create_distill_data(tmpdirname, num_files)
+        global_sampled_files = []
+
+        # set world_size to 4
+        # test 1) when num_files < world size.
+        # 2) when num_files >= world size and can be evenly divided.
+        # 3) when num_files > world size and cannot be evenly divided.
+
+        for rank in range(4):
+            th.cuda.set_device(rank)
+            device = setup_device(rank)
+
+            file_sampler = DistributedFileSampler(
+                    dataset_path=tmpdirname,
+                    shuffle=shuffle,
+                    local_rank=rank,
+                    world_size=4,
+                    is_train=is_train,
+                    infinite=infinite,
+                )
+            if num_files >= 4:
+                assert file_sampler.part_len >= (num_files // 4)
+                assert file_sampler.part_len <= (num_files // 4) + 1
+            else:
+                assert file_sampler.part_len == num_files
+
+            file_sampler_iter = iter(file_sampler)
+            if is_train and infinite:
+                local_sampled_files = []
+                for i, data_file in enumerate(file_sampler_iter):
+                    if i == file_sampler.part_len:
+                        assert data_file.split("/")[-1] in local_sampled_files, \
+                            "Infinite sampler doesn't sample evenly."
+                        break
+                    global_sampled_files.append(data_file.split("/")[-1])
+                    local_sampled_files.append(data_file.split("/")[-1])
+            else:
+                for i, data_file in enumerate(file_sampler_iter):
+                    if i == file_sampler.part_len:
+                        assert False, "Non-infinite sampler doesn't exit."
+                    if data_file is None:
+                        break
+                    else:
+                        global_sampled_files.append(data_file.split("/")[-1])
+        assert set(global_sampled_files) == set(os.listdir(tmpdirname))
+
+
+
+# def run_dist_distill_sampler(worker_rank, world_size, 
+#     backend, tmpdirname, num_files):
+#     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+#         master_ip='127.0.0.1', master_port='12345')
+#     th.distributed.init_process_group(backend=backend,
+#                                       init_method=dist_init_method,
+#                                       world_size=world_size,
+#                                       rank=worker_rank)
+#     th.cuda.set_device(worker_rank)
+#     device = setup_device(worker_rank)
+
+#     file_sampler = DistributedFileSampler(
+#             dataset_path=tmpdirname,
+#             shuffle=True,
+#             local_rank=worker_rank,
+#             world_size=world_size,
+#             is_train=True,
+#         )
+#     assert file_sampler.part_len >= (num_files // world_size)
+#     assert file_sampler.part_len <= (num_files // world_size) + 1
+
+
+# @pytest.mark.parametrize("backend", ["gloo"])
+# def test_DistillDataloaderGenerator(backend):
+#     # test DistillDataloaderGenerator
+#     with tempfile.TemporaryDirectory() as tmpdirname:
+#         # test wen num of files cannot be evenly distribted by num of workers
+#         num_files = 110
+#         create_distill_data(tmpdirname, num_files)
+#         ctx = mp.get_context('spawn')
+#         p0 = ctx.Process(target=run_dist_distill_sampler,
+#                         args=(0, 4, backend, tmpdirname))
+
+#         p1 = ctx.Process(target=run_dist_save_embeddings,
+#                         args=(tmpdirname, emb, 1, 2, nid_mapping_file, backend, num_files))
+
+#         p0.start()
+#         p1.start()
+#         p0.join()
+#         p1.join()
+#         assert p0.exitcode == 0
+#         assert p1.exitcode == 0
+#     for rank in range(4):
+#         device = setup_device(rank)
+#         tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+#         generator = DistillDataloaderGenerator(tokenizer, 128, device=device, batch_size=16)
+
+
+
 
 if __name__ == '__main__':
-    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnEdgeData_wo_test_mask()
-    test_GSgnnNodeData_wo_test_mask()
-    test_GSgnnEdgeData()
-    test_GSgnnNodeData()
-    test_lp_dataloader()
-    test_edge_dataloader()
-    test_node_dataloader()
-    test_node_dataloader_reconstruct()
-    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    # test_GSgnnEdgeData_wo_test_mask()
+    # test_GSgnnNodeData_wo_test_mask()
+    # test_GSgnnEdgeData()
+    # test_GSgnnNodeData()
+    # test_lp_dataloader()
+    # test_edge_dataloader()
+    # test_node_dataloader()
+    # test_node_dataloader_reconstruct()
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    test_prepare_input()
-    test_modify_fanout_for_target_etype()
+    # test_prepare_input()
+    # test_modify_fanout_for_target_etype()
+
+    test_DistributedFileSampler(num_files=3, is_train=True, \
+        infinite=True, shuffle=True)

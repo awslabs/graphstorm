@@ -17,6 +17,7 @@
 """
 import os
 import logging
+import random
 from collections.abc import Mapping
 import torch as th
 import torch.distributed as dist
@@ -448,12 +449,15 @@ class SequentialFileSampler():
         File indices for a local trainer
     is_train : bool
         Set to ``True`` if it's training set.
+    infinite : bool
+        Set to ``True`` to make it infinite.
     """
-    def __init__(self, file_indices, is_train=True):
+    def __init__(self, file_indices, is_train=True, infinite=True):
         self.file_indices = file_indices
         self.num_local_files = len(self.file_indices)
         self._indices = list(range(self.num_local_files))
         self.is_train = is_train
+        self.infinite = infinite
 
     def __iter__(self):
         self._index = -1
@@ -464,10 +468,10 @@ class SequentialFileSampler():
         self._index += 1
 
         if self._index >= self.num_local_files:
-            if self.is_train:
-                self._index = -1
+            if self.is_train and self.infinite:
+                self._index = 0
             else:
-                # non-infinite sampler if it's for evaluation.
+                # non-infinite sampler.
                 # set _index to -1 for next evaluation.
                 self._index = -1
                 return None
@@ -481,11 +485,14 @@ class RandomShuffleFileSampler():
     ----------
     file_indices : list of int
         File indices for a local trainer
+    infinite : bool
+        Set to ``True`` to make it infinite.
     """
-    def __init__(self, file_indices):
+    def __init__(self, file_indices, infinite=True):
         self.file_indices = file_indices
         self.num_local_files = len(self.file_indices)
         self._indices = list(range(self.num_local_files))
+        self.infinite = infinite
 
     def __iter__(self):
         self._index = -1
@@ -500,7 +507,9 @@ class RandomShuffleFileSampler():
         if self._index >= self.num_local_files:
             # make it infinite sampler
             random.shuffle(self._indices)
-            self._index = -1
+            self._index = 0
+            if not self.infinite:
+                return None
 
         return self.file_indices[self._indices[self._index]]
 
@@ -522,6 +531,8 @@ class DistributedFileSampler(FileSamplerInterface):
         Number of all trainers.
     is_train : bool
         Set to ``True`` if it's training set.
+    infinite : bool
+        Set to ``True`` to make it infinite.
     """
     def __init__(
         self,
@@ -530,6 +541,7 @@ class DistributedFileSampler(FileSamplerInterface):
         local_rank=-1,
         world_size=1,
         is_train=True,
+        infinite=True,
     ):
         super().__init__(dataset_path)
 
@@ -548,9 +560,11 @@ class DistributedFileSampler(FileSamplerInterface):
             self.part_len = self.num_files
         file_indices = list(range(self.part_len))
         if shuffle and is_train:
-            sampler = RandomShuffleFileSampler(file_indices=file_indices)
+            sampler = RandomShuffleFileSampler(file_indices=file_indices, \
+                infinite=infinite)
         else:
-            sampler = SequentialFileSampler(file_indices=file_indices, is_train=is_train)
+            sampler = SequentialFileSampler(file_indices=file_indices, \
+                is_train=is_train, infinite=infinite)
         self.sampler = sampler
         self.sampler_iter = iter(sampler)
 
