@@ -458,7 +458,7 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
         embeddings : DistTensor
             Embeddings to save
         rank : int
-            Local rank
+            Rank of the current process in a distributed environment.
         world_size : int
             World size in a distributed env.
         device: torch device
@@ -537,7 +537,7 @@ def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
         embeddings : DistTensor
             Embeddings to save
         rank : int
-            Local rank
+            Rank of the current process in a distributed environment.
         world_size : int
             World size in a distributed env.
         device: torch device
@@ -565,7 +565,7 @@ def save_embeddings(model_path, embeddings, rank, world_size,
         embeddings : DistTensor
             Embeddings to save
         rank : int
-            Local rank
+            Rank of the current process in a distributed environment.
         world_size : int
             World size in a distributed env.
         device: torch device
