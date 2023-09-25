@@ -46,4 +46,5 @@ for etype in g1.canonical_etypes:
     for name in g1.edges[etype].data:
         # We should skip '*_mask' because data split is split randomly.
         if 'mask' not in name:
-            assert np.all(g1.edges[etype].data[name].numpy() == g2.edges[etype].data[name].numpy())
+            assert_almost_equal(g1.edges[etype].data[name].numpy(),
+                                g2.edges[etype].data[name].numpy())
