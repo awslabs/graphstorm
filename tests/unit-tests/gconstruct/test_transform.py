@@ -149,7 +149,10 @@ def test_fp_transform(input_dtype):
         "max_val": [1.,1.,1.],
         "min_val": [-1.,-1.,-1.]
     }
-    transform = NumericalMinMaxTransform("test", "test", transform_conf=transform_conf)
+    transform = NumericalMinMaxTransform("test", "test",
+                                        max_val=transform_conf['max_val'],
+                                        min_val=transform_conf['min_val'],
+                                        transform_conf=transform_conf)
     feats = 2 * np.random.randn(10, 3).astype(input_dtype)
     feats[0][0] = 2
     feats[0][1] = -2
@@ -173,7 +176,9 @@ def test_fp_transform(input_dtype):
         "name": "max_min_norm",
         "min_val": [-1.,-1.,-1.]
     }
-    transform = NumericalMinMaxTransform("test", "test", transform_conf=transform_conf)
+    transform = NumericalMinMaxTransform("test", "test",
+                                        min_val=transform_conf['min_val'],
+                                        transform_conf=transform_conf)
     info = transform.pre_process(feats)
     max_val = info["test"][0]
     min_val = np.array(transform_conf['min_val'])
@@ -193,7 +198,9 @@ def test_fp_transform(input_dtype):
         "name": "max_min_norm",
         "max_val": [1.,1.,1.]
     }
-    transform = NumericalMinMaxTransform("test", "test", transform_conf=transform_conf)
+    transform = NumericalMinMaxTransform("test", "test",
+                                        max_val=transform_conf['max_val'],
+                                        transform_conf=transform_conf)
     info = transform.pre_process(feats)
     max_val = np.array(transform_conf['max_val'])
     min_val = info["test"][1]
