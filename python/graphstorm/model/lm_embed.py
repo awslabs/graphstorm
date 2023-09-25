@@ -254,6 +254,23 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         Batch size used for computing text embeddings for static lm model
     use_fp16 : bool
         Use float16 to store BERT embeddings.
+    
+    Examples:
+    ----------
+    .. code:: python
+
+        from graphstorm.model import GSgnnNodeModel, GSPureLMNodeInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+
+        node_lm_configs = [{"lm_type": "bert",
+                                "model_name": "bert-base-uncased",
+                                "gradient_checkpoint": True,
+                                "node_types": ['a']}]
+        np_data = GSgnnNodeTrainData(...)
+        model = GSgnnNodeModel(...)
+        lm_train_nodes=10
+        encoder = GSPureLMNodeInputLayer(np_data.g, node_lm_configs, lm_train_nodes)
+        model.set_node_input_encoder(encoder)
     """
     def __init__(self,
                  g,
@@ -406,6 +423,24 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         available.
     use_fp16 : bool
         Use float16 to store the BERT embeddings.
+
+    Examples:
+    ----------
+    .. code:: python
+        from graphstorm import get_feat_size
+        from graphstorm.model import GSgnnNodeModel, GSLMNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        np_data = GSgnnNodeTrainData(...)
+        model = GSgnnNodeModel(...)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        node_lm_configs = [{"lm_type": "bert",
+                        "model_name": "bert-base-uncased",
+                        "gradient_checkpoint": True,
+                        "node_types": ['a']}]
+        lm_train_nodes=10
+
+        encoder = GSLMNodeEncoderInputLayer(np_data.g, feat_size, 128, node_lm_configs, lm_train_nodes)
+        model.set_node_input_encoder(encoder)
     """
     def __init__(self,
                  g,
