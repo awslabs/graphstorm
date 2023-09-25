@@ -974,6 +974,9 @@ class DistillDataManager:
         self.dataloader = dataloader
         return dataloader
 
+    def __len__(self):
+        return len(self.file_sampler)
+
     def __next__(self):
         return self.get_iterator()
 

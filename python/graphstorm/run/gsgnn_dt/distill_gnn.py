@@ -16,10 +16,8 @@
     Training script for distillation tasks with GNN
 """
 
-import random
 import os
 import torch as th
-import numpy as np
 import graphstorm as gs
 from graphstorm.config import GSConfig, get_argument_parser
 from graphstorm.distiller import GSdistiller
@@ -64,7 +62,7 @@ def main(config_args):
     # get GNN embed dim
     dataset_iterator = eval_data_mgr.get_iterator()
     if not dataset_iterator:
-        raise RuntimeError("No validation data") 
+        raise RuntimeError("No validation data")
     batch = next(iter(dataset_iterator))
     gnn_embed_dim = batch["labels"].shape[1]
     student_model.init_proj_layer(gnn_embed_dim=gnn_embed_dim)

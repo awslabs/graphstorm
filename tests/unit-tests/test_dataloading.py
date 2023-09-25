@@ -20,6 +20,7 @@ import tempfile
 import shutil
 import numpy as np
 import multiprocessing as mp
+import torch.distributed as dist
 from unittest.mock import patch, MagicMock
 
 import torch as th
@@ -53,6 +54,7 @@ from graphstorm.dataloading.utils import trim_data
 
 from numpy.testing import assert_equal
 from transformers import AutoTokenizer
+from torch.utils.data import DataLoader
 
 def get_nonzero(mask):
     mask = mask[0:len(mask)]
@@ -907,7 +909,7 @@ def test_edge_dataloader_trim_data(dataloader):
 @pytest.mark.parametrize("is_train", [True, True, False])
 @pytest.mark.parametrize("infinite", [False, True, False])
 @pytest.mark.parametrize("shuffle", [True, False, True])
-def test_DistributedFileSampler(num_files, is_train, 
+def test_DistillDistributedFileSampler(num_files, is_train, 
     infinite, shuffle):
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_distill_data(tmpdirname, num_files)
@@ -957,78 +959,113 @@ def test_DistributedFileSampler(num_files, is_train,
         assert set(global_sampled_files) == set(os.listdir(tmpdirname))
 
 
+def run_distill_dist_data(worker_rank, world_size, 
+    backend, tmpdirname, num_files, is_train):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend=backend,
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=worker_rank)
+    th.cuda.set_device(worker_rank)
+    device = setup_device(worker_rank)
 
-# def run_dist_distill_sampler(worker_rank, world_size, 
-#     backend, tmpdirname, num_files):
-#     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
-#         master_ip='127.0.0.1', master_port='12345')
-#     th.distributed.init_process_group(backend=backend,
-#                                       init_method=dist_init_method,
-#                                       world_size=world_size,
-#                                       rank=worker_rank)
-#     th.cuda.set_device(worker_rank)
-#     device = setup_device(worker_rank)
+    tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
 
-#     file_sampler = DistributedFileSampler(
-#             dataset_path=tmpdirname,
-#             shuffle=True,
-#             local_rank=worker_rank,
-#             world_size=world_size,
-#             is_train=True,
-#         )
-#     assert file_sampler.part_len >= (num_files // world_size)
-#     assert file_sampler.part_len <= (num_files // world_size) + 1
+    dataloader_generator = DistillDataloaderGenerator(
+        tokenizer=tokenizer,
+        max_seq_len=8,
+        device=device,
+        batch_size=4,
+    )
+    data_mgr = DistillDataManager(
+        dataloader_generator,
+        dataset_path=tmpdirname,
+        local_rank=worker_rank,
+        world_size=world_size,
+        is_train=is_train,
+    )
 
+    if num_files >= 4:
+        assert len(data_mgr) >= num_files // 4
+        assert len(data_mgr) <= num_files // 4 + 1
+    else:
+        assert len(data_mgr) == num_files
 
-# @pytest.mark.parametrize("backend", ["gloo"])
-# def test_DistillDataloaderGenerator(backend):
-#     # test DistillDataloaderGenerator
-#     with tempfile.TemporaryDirectory() as tmpdirname:
-#         # test wen num of files cannot be evenly distribted by num of workers
-#         num_files = 110
-#         create_distill_data(tmpdirname, num_files)
-#         ctx = mp.get_context('spawn')
-#         p0 = ctx.Process(target=run_dist_distill_sampler,
-#                         args=(0, 4, backend, tmpdirname))
+    dataset_iterator = data_mgr.get_iterator()
+    assert isinstance(dataset_iterator, DataLoader)
+    batch = next(iter(dataset_iterator))
+    assert len(batch) == 3
 
-#         p1 = ctx.Process(target=run_dist_save_embeddings,
-#                         args=(tmpdirname, emb, 1, 2, nid_mapping_file, backend, num_files))
+    for i, dataset_iterator in enumerate(data_mgr):
+        assert isinstance(dataset_iterator, DataLoader)
 
-#         p0.start()
-#         p1.start()
-#         p0.join()
-#         p1.join()
-#         assert p0.exitcode == 0
-#         assert p1.exitcode == 0
-#     for rank in range(4):
-#         device = setup_device(rank)
-#         tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-#         generator = DistillDataloaderGenerator(tokenizer, 128, device=device, batch_size=16)
+        num_batches = th.tensor(len(dataset_iterator), \
+            dtype=th.int64, device=device)
+        dist.all_reduce(num_batches, op=dist.ReduceOp.MIN)
+        min_size = num_batches.item()
+        assert int(min_size) == int(num_batches)
 
+        if i == len(data_mgr):
+            # infinite
+            if is_train:
+                assert dataset_iterator is not None
+                break
+            else:
+                assert False, "DistillDataManager doesn't exit."
 
+@pytest.mark.parametrize("backend", ["gloo"])
+@pytest.mark.parametrize("num_files", [3, 8, 9])
+@pytest.mark.parametrize("is_train", [True, False, False])
+def test_DistillDataloaderGenerator(backend, num_files, is_train):
+    # test DistillDataloaderGenerator
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        create_distill_data(tmpdirname, num_files)
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_distill_dist_data,
+                        args=(0, 4, backend, tmpdirname, num_files, is_train))
+        p1 = ctx.Process(target=run_distill_dist_data,
+                        args=(1, 4, backend, tmpdirname, num_files, is_train))
+        p2 = ctx.Process(target=run_distill_dist_data,
+                        args=(2, 4, backend, tmpdirname, num_files, is_train))
+        p3 = ctx.Process(target=run_distill_dist_data,
+                        args=(3, 4, backend, tmpdirname, num_files, is_train))
 
+        p0.start()
+        p1.start()
+        p2.start()
+        p3.start()
+        p0.join()
+        p1.join()
+        p2.join()
+        p3.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+        assert p2.exitcode == 0
+        assert p3.exitcode == 0
 
 if __name__ == '__main__':
-    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    # test_GSgnnEdgeData_wo_test_mask()
-    # test_GSgnnNodeData_wo_test_mask()
-    # test_GSgnnEdgeData()
-    # test_GSgnnNodeData()
-    # test_lp_dataloader()
-    # test_edge_dataloader()
-    # test_node_dataloader()
-    # test_node_dataloader_reconstruct()
-    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    test_GSgnnEdgeData_wo_test_mask()
+    test_GSgnnNodeData_wo_test_mask()
+    test_GSgnnEdgeData()
+    test_GSgnnNodeData()
+    test_lp_dataloader()
+    test_edge_dataloader()
+    test_node_dataloader()
+    test_node_dataloader_reconstruct()
+    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    # test_prepare_input()
-    # test_modify_fanout_for_target_etype()
+    test_prepare_input()
+    test_modify_fanout_for_target_etype()
 
-    test_DistributedFileSampler(num_files=3, is_train=True, \
+    test_DistillDistributedFileSampler(num_files=3, is_train=True, \
         infinite=True, shuffle=True)
+    test_DistillDataloaderGenerator("gloo", 3, True)
