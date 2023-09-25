@@ -464,10 +464,10 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         self._max_val = None
         self._min_val = None
         if transform_conf is not None:
-            if 'max_bound' in transform_conf:
-                self._max_val = transform_conf['max_bound']
-            if 'min_bound' in transform_conf:
-                self._min_val = transform_conf['min_bound']
+            if 'max_val' in transform_conf:
+                self._max_val = np.array(transform_conf['max_val'], dtype=np.float32)
+            if 'min_val' in transform_conf:
+                self._min_val = np.array(transform_conf['min_val'], dtype=np.float32)
         self._conf = transform_conf
         self._max_bound = max_bound
         self._min_bound = min_bound
@@ -550,8 +550,8 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
         # We need to save the max_val and min_val in the config object.
         if self._conf is not None:
-            self._conf['max_val'] = self._max_val
-            self._conf['min_val'] = self._min_val
+            self._conf['max_val'] = self._max_val.tolist()
+            self._conf['min_val'] = self._min_val.tolist()
 
     def call(self, feats):
         """ Do normalization for feats
