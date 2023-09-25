@@ -139,6 +139,13 @@ class GSgnnData():
         self._val_idxs = {}
         self._test_idxs = {}
 
+        if get_rank() == 0:
+            g = self._g
+            for ntype in g.ntypes:
+                logging.debug("%s has %d nodes.", ntype, g.number_of_nodes(ntype))
+            for etype in g.canonical_etypes:
+                logging.debug("%s has %d edges.", str(etype), g.number_of_edges(etype))
+
         # Use wholegraph for feature transfer
         if is_distributed() and use_wholegraph(part_config):
             logging.info("Allocate features with Wholegraph")

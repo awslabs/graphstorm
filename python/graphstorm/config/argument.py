@@ -132,9 +132,11 @@ class GSConfig:
                 if hasattr(cmd_args, "logging_level") else logging.INFO
         log_file = cmd_args.logging_file if hasattr(cmd_args, "logging_file") else None
         if log_file is None:
-            logging.basicConfig(level=log_level)
+            # We need to force the logging to reset the existing logging handlers
+            # in order to make sure this config is effective.
+            logging.basicConfig(level=log_level, force=True)
         else:
-            logging.basicConfig(filename=log_file, level=log_level)
+            logging.basicConfig(filename=log_file, level=log_level, force=True)
 
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
