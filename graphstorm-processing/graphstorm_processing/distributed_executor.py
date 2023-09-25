@@ -168,21 +168,31 @@ class DistributedExecutor:
             dataset_config_dict: Dict[str, Any] = json.load(f)
 
         if "version" in dataset_config_dict:
-            self.config_version = dataset_config_dict["version"]
-            if self.config_version == "gsprocessing-v1.0":
+            config_version = dataset_config_dict["version"]
+            if config_version == "gsprocessing-v1.0":
                 logging.info("Parsing config file as GSProcessing config")
                 self.graph_config_dict = dataset_config_dict["graph"]
-            elif self.config_version == "gconstruct-v1.0":
+            elif config_version == "gconstruct-v1.0":
                 logging.info("Parsing config file as GConstruct config")
                 converter = GConstructConfigConverter()
                 self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
                     "graph"
                 ]
             else:
-                logging.warning("Unrecognized version name: %s", self.config_version)
+                logging.warning("Unrecognized version name: %s", config_version)
+                try:
+                    converter = GConstructConfigConverter()
+                    self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
+                        "graph"
+                    ]
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logging.warning("Could not parse config as GConstruct, trying GSProcessing")
+                    assert (
+                        "graph" in dataset_config_dict
+                    ), "Top-level element 'graph' needs to exist in a GSProcessing config"
+                    self.graph_config_dict = dataset_config_dict["graph"]
         else:
             # Older versions of GConstruct configs might be missing a version entry
-            self.config_version = "gconstruct"
             converter = GConstructConfigConverter()
             self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)["graph"]
 
