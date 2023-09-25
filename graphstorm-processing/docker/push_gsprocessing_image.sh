@@ -13,12 +13,13 @@ Script description here.
 
 Available options:
 
--h, --help      Print this help and exit
--x, --verbose   Print script debug info
--i, --image     Docker image name, default is 'graphstorm-processing'.
--v, --version   Docker version tag, default is the library's current version (`poetry version --short`)
--r, --region    AWS Region to which we'll push the image. By default will get from aws-cli configuration.
--a, --account   AWS Account ID. By default will get from aws-cli configuration.
+-h, --help          Print this help and exit
+-x, --verbose       Print script debug info
+-e, --environment   Image execution environment. Must be one of 'emr' or 'sagemaker'. Required.
+-i, --image         Docker image name, default is 'graphstorm-processing'.
+-v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
+-r, --region        AWS Region to which we'll push the image. By default will get from aws-cli configuration.
+-a, --account       AWS Account ID. By default will get from aws-cli configuration.
 EOF
   exit
 }
@@ -49,6 +50,10 @@ parse_params() {
     -h | --help) usage ;;
     -x | --verbose) set -x ;;
     --no-color) NO_COLOR=1 ;;
+    -e | --environment)
+      EXEC_ENV="${2-}"
+      shift
+      ;;
     -i | --image)
       IMAGE="${2-}"
       shift
@@ -71,6 +76,8 @@ parse_params() {
     shift
   done
 
+  [[ -z "${EXEC_ENV-}" ]] && die "Missing required parameter: -e/--environment [emr|emr-serverless|sagemaker]"
+
   return 0
 }
 
@@ -80,6 +87,12 @@ cleanup() {
 }
 
 parse_params "$@"
+
+if [[ ${EXEC_ENV} == "emr" || ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
+    :  # Do nothing
+else
+    die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
+fi
 
 
 # script logic here
@@ -91,16 +104,17 @@ msg "- ACCOUNT: ${ACCOUNT}"
 
 SUFFIX="${VERSION}"
 LATEST_SUFFIX="latest"
+IMAGE_WITH_ENV="${IMAGE}-${EXEC_ENV}"
 
 
-FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE}:${SUFFIX}"
-LATEST_TAG="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE}:${LATEST_SUFFIX}"
+FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_WITH_ENV}:${SUFFIX}"
+LATEST_TAG="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_WITH_ENV}:${LATEST_SUFFIX}"
 
 # If the repository doesn't exist in ECR, create it.
-echo "Getting or creating container repository: ${IMAGE}"
-if ! $(aws ecr describe-repositories --repository-names "${IMAGE}" --region ${REGION} > /dev/null 2>&1); then
-    echo "Container repository ${IMAGE} does not exist. Creating"
-    aws ecr create-repository --repository-name "${IMAGE}" --region ${REGION} > /dev/null
+echo "Getting or creating container repository: ${IMAGE_WITH_ENV}"
+if ! $(aws ecr describe-repositories --repository-names "${IMAGE_WITH_ENV}" --region ${REGION} > /dev/null 2>&1); then
+    echo "Container repository ${IMAGE_WITH_ENV} does not exist. Creating"
+    aws ecr create-repository --repository-name "${IMAGE_WITH_ENV}" --region ${REGION} > /dev/null
 fi
 
 echo "Logging into ECR with local credentials"
@@ -109,11 +123,11 @@ aws ecr get-login-password --region ${REGION} | \
 
 echo "Pushing image to ${FULLNAME}"
 
-docker tag ${IMAGE}:${SUFFIX} ${FULLNAME}
+docker tag ${IMAGE_WITH_ENV}:${SUFFIX} ${FULLNAME}
 
 docker push ${FULLNAME}
 
 if [ ${VERSION} = ${LATEST_VERSION} ]; then
-    docker tag ${IMAGE}:${SUFFIX} ${LATEST_TAG}
+    docker tag ${IMAGE_WITH_ENV}:${SUFFIX} ${LATEST_TAG}
     docker push ${LATEST_TAG}
 fi

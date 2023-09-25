@@ -1,0 +1,51 @@
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:8-al2-native-jdk as runtime
+ENV PYTHON_VERSION=3.9.18
+
+# Python won’t try to write .pyc or .pyo files on the import of source modules
+# Force stdin, stdout and stderr to be totally unbuffered. Good for logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=UTF-8
+
+# Set up pyenv
+# TODO: These can probably all go to another builder stage?
+RUN yum erase -y openssl-devel && \
+    yum install -y \
+        bzip2-devel\
+        gcc \
+        git \
+        libffi-devel \
+        ncurses-devel \
+        openssl11-devel \
+        readline-devel \
+        sqlite-devel \
+        sudo \
+        xz-devel && \
+        rm -rf /var/cache/yum
+RUN git clone https://github.com/pyenv/pyenv.git ${LIBDIR}/.pyenv && \
+    pyenv install ${PYTHON_VERSION} && \
+    pyenv global ${PYTHON_VERSION}
+    # source ${VIRTUAL_ENV}/bin/activate
+
+ENV PYENV_ROOT="${HOME}/.pyenv"
+ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${PATH}"
+ENV PYSPARK_DRIVER_PYTHON=${PYENV_ROOT}/shims/python
+ENV PYSPARK_PYTHON=${PYENV_ROOT}/shims/python
+
+# GSProcessing codebase
+COPY code/ /usr/lib/spark/code/
+WORKDIR /usr/lib/spark/code/
+
+ENTRYPOINT [ "docker-entry.sh" ]
+
+FROM runtime AS prod
+RUN python -m pip install /usr/lib/spark/code/graphstorm_processing-*.whl && \
+    rm /usr/lib/spark/code/graphstorm_processing-*.whl
+CMD ["gs-processing"]
+
+FROM runtime AS test
+RUN python -m pip install /usr/lib/spark/code/graphstorm-processing/
+CMD ["sh", "-c", "pytest ./code/tests/"]
+
+USER hadoop:hadoop
+WORKDIR /home/hadoop

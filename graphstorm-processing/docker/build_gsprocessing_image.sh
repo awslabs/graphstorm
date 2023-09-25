@@ -13,13 +13,14 @@ Script description here.
 
 Available options:
 
--h, --help      Print this help and exit
--x, --verbose   Print script debug info (set -x)
--t, --target    Docker image target, must be one of 'prod' or 'test'. Default is 'test'.
--p, --path      Path to graphstorm-processing directory, default is one level above this script.
--i, --image     Docker image name, default is 'graphstorm-processing'.
--v, --version   Docker version tag, default is the library's current version (`poetry version --short`)
--b, --build     Docker build directory, default is '/tmp/`
+-h, --help          Print this help and exit
+-x, --verbose       Print script debug info (set -x)
+-e, --environment   Image execution environment. Must be one of 'emr' or 'sagemaker'. Required.
+-t, --target        Docker image target, must be one of 'prod' or 'test'. Required.
+-p, --path          Path to graphstorm-processing directory, default is the current directory.
+-i, --image         Docker image name, default is 'graphstorm-processing'.
+-v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
+-b, --build         Docker build directory, default is '/tmp/`
 EOF
   exit
 }
@@ -52,6 +53,10 @@ parse_params() {
       TARGET="${2-}"
       shift
       ;;
+    -e | --environment)
+      EXEC_ENV="${2-}"
+      shift
+      ;;
     -p | --path)
       GSP_HOME="${2-}"
       shift
@@ -76,15 +81,19 @@ parse_params() {
 
   args=("$@")
 
+  # check required params and arguments
+  [[ -z "${TARGET-}" ]] && die "Missing required parameter: -t/--target [prod|test]"
+  [[ -z "${EXEC_ENV-}" ]] && die "Missing required parameter: -e/--environment [emr-serverless|sagemaker]"
+
   return 0
 }
 
 cleanup() {
   trap - SIGINT SIGTERM ERR EXIT
   # script cleanup here
-  if [[ $BUILD_DIR ]]; then
-    rm -rf "${BUILD_DIR}/docker/code"
-  fi
+#   if [[ $BUILD_DIR ]]; then
+#     rm -rf "${BUILD_DIR}/docker/code"
+#   fi
 }
 
 parse_params "$@"
@@ -92,11 +101,18 @@ parse_params "$@"
 if [[ ${TARGET} == "prod" || ${TARGET} == "test" ]]; then
     :  # Do nothing
 else
-    die "target parameter needs to be one of 'prod' or 'test', got ${TARGET}"
+    die "--target parameter needs to be one of 'prod' or 'test', got ${TARGET}"
+fi
+
+if [[ ${EXEC_ENV} == "emr" || ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
+    :  # Do nothing
+else
+    die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
 fi
 
 # script logic here
 msg "Execution parameters:"
+msg "- ENVIRONMENT: ${EXEC_ENV}"
 msg "- TARGET: ${TARGET}"
 msg "- GSP_HOME: ${GSP_HOME}"
 msg "- IMAGE_NAME: ${IMAGE_NAME}"
@@ -120,12 +136,22 @@ fi
 # Copy Docker entry point to build folder
 cp ${GSP_HOME}/docker-entry.sh "${BUILD_DIR}/docker/code/"
 
-DOCKER_FULLNAME="${IMAGE_NAME}:${VERSION}"
+# Export Poetry requirements to requirements.txt file
+poetry export -f requirements.txt --output "${BUILD_DIR}/docker/requirements.txt"
+
+# Set image name
+DOCKER_FULLNAME="${IMAGE_NAME}-${EXEC_ENV}:${VERSION}"
 
 # Login to ECR to be able to pull source SageMaker image
-aws ecr get-login-password --region us-west-2 \
-    | docker login --username AWS --password-stdin 153931337802.dkr.ecr.us-west-2.amazonaws.com
+if [[ ${EXEC_ENV} == "sagemaker" ]]; then
+    aws ecr get-login-password --region us-west-2 \
+        | docker login --username AWS --password-stdin 153931337802.dkr.ecr.us-west-2.amazonaws.com
+else
+    aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+    # aws ecr get-login-password --region us-west-2 \
+    #     | docker login --username AWS --password-stdin 895885662937.dkr.ecr.us-west-2.amazonaws.com
+fi
 
 echo "Build a Docker image ${DOCKER_FULLNAME}"
-DOCKER_BUILDKIT=1 docker build -f "${GSP_HOME}/docker/${VERSION}/Dockerfile.cpu" \
+DOCKER_BUILDKIT=1 docker build -f "${GSP_HOME}/docker/${VERSION}/${EXEC_ENV}/Dockerfile.cpu" \
     "${BUILD_DIR}/docker/" -t $DOCKER_FULLNAME --target ${TARGET}
