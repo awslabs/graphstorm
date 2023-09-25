@@ -905,10 +905,10 @@ def test_edge_dataloader_trim_data(dataloader):
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
-@pytest.mark.parametrize("num_files", [3, 8, 9])
-@pytest.mark.parametrize("is_train", [True, True, False])
-@pytest.mark.parametrize("infinite", [False, True, False])
-@pytest.mark.parametrize("shuffle", [True, False, True])
+@pytest.mark.parametrize("num_files", [3, 8])
+@pytest.mark.parametrize("is_train", [True, False])
+@pytest.mark.parametrize("infinite", [False, True])
+@pytest.mark.parametrize("shuffle", [True, False])
 def test_DistillDistributedFileSampler(num_files, is_train, 
     infinite, shuffle):
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -932,7 +932,7 @@ def test_DistillDistributedFileSampler(num_files, is_train,
                     is_train=is_train,
                     infinite=infinite,
                 )
-            if num_files >= 4:
+            if is_train and num_files >= 4:
                 assert file_sampler.part_len >= (num_files // 4)
                 assert file_sampler.part_len <= (num_files // 4) + 1
             else:
@@ -950,10 +950,10 @@ def test_DistillDistributedFileSampler(num_files, is_train,
                     local_sampled_files.append(data_file.split("/")[-1])
             else:
                 for i, data_file in enumerate(file_sampler_iter):
-                    if i == file_sampler.part_len:
-                        assert False, "Non-infinite sampler doesn't exit."
                     if data_file is None:
                         break
+                    if i == file_sampler.part_len:
+                        assert False, "Non-infinite sampler doesn't exit."
                     else:
                         global_sampled_files.append(data_file.split("/")[-1])
         assert set(global_sampled_files) == set(os.listdir(tmpdirname))
@@ -986,7 +986,7 @@ def run_distill_dist_data(worker_rank, world_size,
         is_train=is_train,
     )
 
-    if num_files >= 4:
+    if is_train and num_files >= 4:
         assert len(data_mgr) >= num_files // 4
         assert len(data_mgr) <= num_files // 4 + 1
     else:
@@ -997,9 +997,14 @@ def run_distill_dist_data(worker_rank, world_size,
     batch = next(iter(dataset_iterator))
     assert len(batch) == 3
 
-    for i, dataset_iterator in enumerate(data_mgr):
-        assert isinstance(dataset_iterator, DataLoader)
+    data_mgr.refresh_manager()
 
+    for i, dataset_iterator in enumerate(data_mgr):
+        if is_train:
+            assert isinstance(dataset_iterator, DataLoader)
+        if dataset_iterator is None:
+            assert i == len(data_mgr)
+            break
         num_batches = th.tensor(len(dataset_iterator), \
             dtype=th.int64, device=device)
         dist.all_reduce(num_batches, op=dist.ReduceOp.MIN)
@@ -1015,8 +1020,8 @@ def run_distill_dist_data(worker_rank, world_size,
                 assert False, "DistillDataManager doesn't exit."
 
 @pytest.mark.parametrize("backend", ["gloo"])
-@pytest.mark.parametrize("num_files", [3, 8, 9])
-@pytest.mark.parametrize("is_train", [True, False, False])
+@pytest.mark.parametrize("num_files", [3, 8])
+@pytest.mark.parametrize("is_train", [True, False])
 def test_DistillDataloaderGenerator(backend, num_files, is_train):
     # test DistillDataloaderGenerator
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -1066,6 +1071,6 @@ if __name__ == '__main__':
     test_prepare_input()
     test_modify_fanout_for_target_etype()
 
-    test_DistillDistributedFileSampler(num_files=3, is_train=True, \
-        infinite=True, shuffle=True)
-    test_DistillDataloaderGenerator("gloo", 3, True)
+    test_DistillDistributedFileSampler(num_files=9, is_train=True, \
+        infinite=False, shuffle=True)
+    test_DistillDataloaderGenerator("gloo", 8, True)

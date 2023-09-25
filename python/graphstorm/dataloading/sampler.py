@@ -20,7 +20,6 @@ import logging
 import random
 from collections.abc import Mapping
 import torch as th
-import torch.distributed as dist
 import numpy as np
 from dgl import backend as F
 from dgl import EID, NID
@@ -546,12 +545,8 @@ class DistributedFileSampler(FileSamplerInterface):
         super().__init__(dataset_path)
 
         # Initialize distributed ranks
-        if dist.is_initialized():
-            self.world_size = 1
-            self.local_rank = 0
-        else:
-            self.local_rank = local_rank
-            self.world_size = world_size
+        self.local_rank = local_rank
+        self.world_size = world_size
 
         # distribute file index
         self._file_index_distribute()
@@ -597,7 +592,7 @@ class DistributedFileSampler(FileSamplerInterface):
 
     def get_file(self, offset):
         """ Get the file name with corresponding index"""
-        if dist.is_initialized() and self.world_size > self.num_files:
+        if self.world_size > self.num_files:
             # e.g, when self.world_size=8 and self.num_files=3:
             # local_rank=0|offset|file_index % self.num_files
             #             |0     |0
@@ -663,7 +658,7 @@ class DistributedFileSampler(FileSamplerInterface):
             #             |1     |6
             #             ...    ...
             file_index = self.global_start + offset % self.part_len
-        return self.files[file_index]
+        return self.files[file_index % self.num_files]
 
     def __len__(self):
         return self.part_len

@@ -61,6 +61,7 @@ def main(config_args):
 
     # get GNN embed dim
     dataset_iterator = eval_data_mgr.get_iterator()
+    eval_data_mgr.refresh_manager()
     if not dataset_iterator:
         raise RuntimeError("No validation data")
     batch = next(iter(dataset_iterator))

@@ -961,6 +961,10 @@ class DistillDataManager:
         """
         return self.data_file
 
+    def refresh_manager(self):
+        """ refresh manager."""
+        self.file_sampler.sampler._index = -1
+
     def get_iterator(self):
         """ Get dataloader iterator for a data file.
         """
