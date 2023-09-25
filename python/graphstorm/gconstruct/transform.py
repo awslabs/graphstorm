@@ -453,11 +453,11 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     min_bound : float
         The minimum float value. Any number smaller than min_bound will be set to min_bound.
     max_val : list of float
-        Define the value of `max` in the Min-Max normalization formula. When max_val is set
-        max_bound will be ignored.
+        Define the value of `max` in the Min-Max normalization formula for each feature.
+        If max_val is set, max_bound will be ignored.
     min_val : list of float
-        Define the value of `min` in the Min-Max normalization formula. When min_val is set
-        min_bound will be ignored.
+        Define the value of `min` in the Min-Max normalization formula for each feature.
+        If min_val is set, min_bound will be ignored.
     out_dtype:
         The dtype of the transformed feature.
         Default: None, we will not do data type casting.
