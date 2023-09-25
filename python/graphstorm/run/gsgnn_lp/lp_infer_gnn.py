@@ -78,7 +78,8 @@ def main(config_args):
                 edge_mask_for_gnn_embeddings=None if config.no_validation else \
                     'train_mask', # if no validation,any edge can be used in message passing.
                 use_mini_batch_infer=config.use_mini_batch_infer,
-                node_id_mapping_file=config.node_id_mapping_file)
+                node_id_mapping_file=config.node_id_mapping_file,
+                save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser

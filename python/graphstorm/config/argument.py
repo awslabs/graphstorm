@@ -295,6 +295,7 @@ class GSConfig:
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
         _ = self.save_embed_path
+        _ = self.save_embed_format
 
         # Model architecture
         _ = self.dropout
@@ -854,6 +855,19 @@ class GSConfig:
         if hasattr(self, "_save_embed_path"):
             return self._save_embed_path
         return None
+
+    @property
+    def save_embed_format(self):
+        """ Specify the format of saved embeddings.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_save_embed_format"):
+            assert self._save_embed_format in ["pytorch", "hdf5"], \
+                f"{self._save_embed_format} is not supported for save_embed_format." \
+                f"Supported format ['pytorch', 'hdf5']."
+            return self._save_embed_format
+        # default to be 'pytorch'
+        return "pytorch"
 
     @property
     def save_model_path(self):
@@ -2014,6 +2028,8 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
+    group.add_argument("--save-embed-format", type=str, default=argparse.SUPPRESS,
+            help="Specify the format for saved embeddings. Valid format: ['pytorch', 'hdf5']")
     group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,

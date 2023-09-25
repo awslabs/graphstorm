@@ -17,13 +17,16 @@ import os
 import tempfile
 import pytest
 import multiprocessing as mp
+import h5py
 
 import torch as th
 import numpy as np
+import dgl
 from numpy.testing import assert_equal
+from dgl.distributed import DistTensor
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
 from graphstorm.model.utils import _get_data_range
-from graphstorm.model.utils import _exchange_node_id_mapping
+from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
 from graphstorm.model.utils import shuffle_predict
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
@@ -31,6 +34,8 @@ from graphstorm import get_feat_size
 from data_utils import generate_dummy_dist_graph
 from graphstorm.eval.utils import gen_mrr_score
 from graphstorm.utils import setup_device
+
+from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5
 
 def gen_embedding_with_nid_mapping(num_embs):
     emb = th.rand((num_embs, 12))
@@ -156,6 +161,108 @@ def test_exchange_node_id_mapping(num_embs, backend):
     assert p1.exitcode == 0
     assert p2.exitcode == 0
     assert p3.exitcode == 0
+
+def run_distribute_nid_map(embeddings, local_rank, world_size, 
+    node_id_mapping_file, backend, target_nid_mapping):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend=backend,
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=local_rank)
+    device = setup_device(local_rank)
+    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
+        node_id_mapping_file, device)
+
+    if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
+        assert_equal(target_nid_mapping[local_rank].numpy(), nid_mapping.cpu().numpy())
+    elif isinstance(embeddings, dict):
+        for name in embeddings.keys():
+            assert_equal(target_nid_mapping[name][local_rank].numpy(), \
+                nid_mapping[name].cpu().numpy())
+
+@pytest.mark.parametrize("backend", ["gloo"])
+def test_distribute_nid_map(backend):
+    # need to force to reset the fork context
+    # because dist tensor is the input for mulitiple processes 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
+        dummy_dist_embeds = {}
+        ori_nid_maps = {}
+        target_nid_maps = {}
+        for ntype in g.ntypes:
+            dummy_dist_embeds[ntype] = DistTensor((g.number_of_nodes(ntype), 5),
+                      dtype=th.float32, name=f'ntype-{ntype}',
+                      part_policy=g.get_node_partition_policy(ntype))
+            ori_nid_maps[ntype] = th.randperm(g.number_of_nodes(ntype))
+
+            target_nid_maps[ntype] = []
+            _, sorted_nid_map = th.sort(ori_nid_maps[ntype])
+            for i in range(4):
+                start, end = _get_data_range(i, 4, g.number_of_nodes(ntype))
+                target_nid_maps[ntype].append(sorted_nid_map[start:end].clone())
+
+        nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
+        nid_map_tensor_path = os.path.join(tmpdirname, "nid_map_tensor.pt")
+        th.save(ori_nid_maps, nid_map_dict_path)
+        dummy_ntype = g.ntypes[0]
+        th.save(ori_nid_maps[dummy_ntype], nid_map_tensor_path)
+
+        # when dummy_dist_embeds is a dict
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_distribute_nid_map,
+                        args=(dummy_dist_embeds, 0, 4, nid_map_dict_path, backend, \
+                            target_nid_maps))
+        p1 = ctx.Process(target=run_distribute_nid_map,
+                        args=(dummy_dist_embeds, 1, 4, nid_map_dict_path, backend, \
+                            target_nid_maps))
+        p2 = ctx.Process(target=run_distribute_nid_map,
+                        args=(dummy_dist_embeds, 2, 4, nid_map_dict_path, backend, \
+                            target_nid_maps))
+        p3 = ctx.Process(target=run_distribute_nid_map,
+                        args=(dummy_dist_embeds, 3, 4, nid_map_dict_path, backend, \
+                            target_nid_maps))
+        p0.start()
+        p1.start()
+        p2.start()
+        p3.start()
+        p0.join()
+        p1.join()
+        p2.join()
+        p3.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+        assert p2.exitcode == 0
+        assert p3.exitcode == 0
+
+        # when dummy_dist_embeds is a dist tensor
+        ctx2 = mp.get_context('spawn')
+        p4 = ctx2.Process(target=run_distribute_nid_map,
+                        args=(dummy_dist_embeds[dummy_ntype], 0, 4, nid_map_tensor_path, \
+                            backend, target_nid_maps[dummy_ntype]))
+        p5 = ctx2.Process(target=run_distribute_nid_map,
+                        args=(dummy_dist_embeds[dummy_ntype], 1, 4, nid_map_tensor_path, \
+                            backend, target_nid_maps[dummy_ntype]))
+        p6 = ctx2.Process(target=run_distribute_nid_map,
+                        args=(dummy_dist_embeds[dummy_ntype], 2, 4, nid_map_tensor_path, \
+                            backend, target_nid_maps[dummy_ntype]))
+        p7 = ctx2.Process(target=run_distribute_nid_map,
+                        args=(dummy_dist_embeds[dummy_ntype], 3, 4, nid_map_tensor_path, \
+                            backend, target_nid_maps[dummy_ntype]))
+
+        p4.start()
+        p5.start()
+        p6.start()
+        p7.start()
+        p4.join()
+        p5.join()
+        p6.join()
+        p7.join()
+        assert p4.exitcode == 0
+        assert p5.exitcode == 0
+        assert p6.exitcode == 0
+        assert p7.exitcode == 0
 
 def run_dist_save_embeddings(model_path, emb, worker_rank,
     world_size, node_id_mapping_file, backend):
@@ -463,6 +570,29 @@ def test_gen_mrr_score():
 
     assert th.isclose(metrics['mrr'], metrics_opti['mrr'])  # Default tolerance: 1e-08
 
+def test_stream_dist_tensors_to_hdf5():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        # medium size has 1,000,000 nodes, which is enough (>chunk_size)
+        g, _ = generate_dummy_dist_graph(tmpdirname, size="medium")
+
+        dummy_dist_embeds = {}
+        for ntype in g.ntypes:
+            dummy_dist_embeds[ntype] = DistTensor((g.number_of_nodes(ntype), 5),
+                      dtype=th.float32, name=f'ntype-{ntype}',
+                      part_policy=g.get_node_partition_policy(ntype))
+
+        # chunk size needs to be smaller than num of nodes
+        chunk_size = g.number_of_nodes(g.ntypes[0]) // 4
+        stream_dist_tensors_to_hdf5(dummy_dist_embeds, os.path.join(tmpdirname, "embed_dict.hdf5"), \
+            chunk_size=chunk_size)
+
+        read_f = h5py.File(os.path.join(tmpdirname, "embed_dict.hdf5"), "r")
+        for ntype in g.ntypes:
+            assert g.number_of_nodes(ntype) == len(read_f[ntype])
+            assert_equal(dummy_dist_embeds[ntype][0:len(dummy_dist_embeds[ntype])].numpy(), \
+                read_f[ntype][0:])
+
 if __name__ == '__main__':
     test_shuffle_predict(num_embs=16, backend='gloo')
     test_shuffle_predict(num_embs=17, backend='nccl')
@@ -478,3 +608,6 @@ if __name__ == '__main__':
     test_remove_saved_models()
     test_topklist()
     test_gen_mrr_score()
+
+    test_stream_dist_tensors_to_hdf5()
+    test_distribute_nid_map(backend='gloo')
