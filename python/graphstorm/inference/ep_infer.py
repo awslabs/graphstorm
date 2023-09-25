@@ -77,6 +77,10 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                 "A label field must be provided for edge classification " \
                 "or regression inference when evaluation is required."
 
+        if use_mini_batch_infer:
+            assert save_embed_path is not None, \
+                "Not allowed to save embedding when using mini batch inference"
+            
         sys_tracker.check('start inferencing')
         self._model.eval()
 
