@@ -1,52 +1,70 @@
-FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
-ENV DEBIAN_FRONTEND=noninteractive
-ENV HOME=/root
+FROM nvcr.io/nvidia/dgl:23.07-py3
 
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends build-essential python3-dev make g++ vim net-tools
+#################################################
+## Install EFA installer
+ARG EFA_INSTALLER_VERSION=latest
+RUN cd $HOME \
+    && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && cd aws-efa-installer \
+    && apt-get update \
+    && apt-get install -y libhwloc-dev \
+    && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get install -y python3-pip git wget psmisc
-RUN apt-get install -y cmake
+###################################################
+## Install AWS-OFI-NCCL plugin
+ARG AWS_OFI_NCCL_VERSION=v1.7.1-aws
+RUN git clone https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl \
+    && cd /opt/aws-ofi-nccl \
+    && git checkout ${AWS_OFI_NCCL_VERSION} \
+    && ./autogen.sh \
+    && ./configure --prefix=/opt/aws-ofi-nccl/ \
+       --with-libfabric=/opt/amazon/efa/ \
+       --with-cuda=/usr/local/cuda \
+    && make && make install
 
-# Install Pytorch
-RUN pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+ENV PATH "/opt/amazon/efa/bin:$PATH"
 
-# Install DGL
-RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
+# Install WholeGraph
+COPY install-wg.sh install-wg.sh
+RUN bash install-wg.sh
 
-# Install related Python packages
-RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers
+# Patch DGL
+COPY distDGL.v1.1.1_patch.diff distDGL.v1.1.1_patch.diff
+RUN cd /usr/local/lib/python3.10/dist-packages/dgl && patch -p1 </workspace/distDGL.v1.1.1_patch.diff
+COPY launcher.v1.1.1_patch.diff launcher.v1.1.1_patch.diff
+RUN cd /opt/dgl/dgl-source && patch -p1 </workspace/launcher.v1.1.1_patch.diff
 
-# Install other dependencies
-RUN apt-get install -y cython3 libicu-dev
-RUN pip3 install h5py psutil
+# Install GraphStorm
+RUN pip install --no-cache-dir boto3 'h5py>=2.10.0' scipy tqdm 'pyarrow>=3' 'transformers==4.28.1' pandas pylint scikit-learn ogb psutil
+RUN git clone https://github.com/awslabs/graphstorm -b 0.1.1
 
-RUN apt-get install -y unzip
+# Patch GraphStorm
+COPY graphstorm.v0.1.1_patch.diff graphstorm.v0.1.1_patch.diff
+RUN cd graphstorm && git apply /workspace/graphstorm.v0.1.1_patch.diff
 
-# Download DGL source code
-RUN cd /root; git clone --recursive https://github.com/dmlc/dgl.git
+# Increase nofile limit
+RUN echo "root                soft    nofile          1048576" >> /etc/security/limits.conf \
+    && echo "root                hard    nofile          1048576" >> /etc/security/limits.conf
 
-# Install GraphStorm from source code
-RUN mkdir -p /graphstorm
-COPY code/python/graphstorm /graphstorm/python/graphstorm
-ENV PYTHONPATH="/graphstorm/python/:${PYTHONPATH}"
-
-# Copy GraphStorm scripts and tools
-COPY code/examples /graphstorm/examples
-COPY code/inference_scripts /graphstorm/inference_scripts
-COPY code/tools /graphstorm/tools
-COPY code/training_scripts /graphstorm/training_scripts
+# Make EFA NCCL plugin the default plugin
+RUN sed -i '/nccl_rdma_sharp_plugin/d' /etc/ld.so.conf.d/hpcx.conf \
+    && echo "/opt/aws-ofi-nccl/lib" >> /etc/ld.so.conf.d/hpcx.conf \
+    && ldconfig
 
 # Set up SSH
-RUN apt-get install -y openssh-client openssh-server
+RUN apt-get update && apt-get install -y openssh-client openssh-server && rm -rf /var/lib/apt/lists/*
 ENV SSH_PORT=2222
 RUN cat /etc/ssh/sshd_config > /tmp/sshd_config && \
     sed "0,/^#Port 22/s//Port ${SSH_PORT}/" /tmp/sshd_config > /etc/ssh/sshd_config
+ENV HOME=/root
 ENV SSHDIR $HOME/.ssh
 RUN mkdir -p ${SSHDIR}
 RUN ssh-keygen -t rsa -f ${SSHDIR}/id_rsa -N ''
 RUN cp ${SSHDIR}/id_rsa.pub ${SSHDIR}/authorized_keys
-
+RUN touch /root/.ssh/config;echo -e "Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile=/dev/null\n  Port ${SSH_PORT}" > /root/.ssh/config
 EXPOSE 2222
 RUN mkdir /run/sshd
+
 CMD ["/usr/sbin/sshd", "-D"]
