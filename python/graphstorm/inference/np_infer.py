@@ -98,8 +98,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                 embs = {ntype: embs}
         else:
             if isinstance(self._model, GLEM):
-                embedding_model = self._model.lm if self._model.training_lm else self._model
-                decoding_model = self._model.gnn if self._model.training_lm else self._model.lm
+                embedding_model = self._model if self._model.inference_using_gnn else self._model.lm
+                decoding_model = self._model.gnn if self._model.inference_using_gnn else self._model.lm
             else:
                 embedding_model = self._model
                 decoding_model = self._model

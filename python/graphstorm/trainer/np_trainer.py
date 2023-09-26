@@ -289,7 +289,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         else:
             if isinstance(model, GLEM):
                 embedding_model = model.lm if model.training_lm else model
-                decoding_model = model.gnn if model.training_lm else model.lm
+                decoding_model = model.lm if model.training_lm else model.gnn
             else:
                 embedding_model = model
                 decoding_model = model
