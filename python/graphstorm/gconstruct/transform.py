@@ -442,6 +442,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     """ Numerical value with Min-Max normalization.
+
         $val = (val-min) / (max-min)$
 
     Parameters
@@ -451,17 +452,29 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     feat_name : str
         The feature name used in the constructed graph.
     max_bound : float
-        The maximum float value.
+        The maximum float value. Any number larger than max_bound will be set to max_bound.
     min_bound : float
-        The minimum float value
+        The minimum float value. Any number smaller than min_bound will be set to min_bound.
+    max_val : list of float
+        Define the value of `max` in the Min-Max normalization formula for each feature.
+        If max_val is set, max_bound will be ignored.
+    min_val : list of float
+        Define the value of `min` in the Min-Max normalization formula for each feature.
+        If min_val is set, min_bound will be ignored.
     out_dtype:
         The dtype of the transformed feature.
         Default: None, we will not do data type casting.
+    transform_conf : dict
+        The configuration for the feature transformation.
     """
     def __init__(self, col_name, feat_name,
                  max_bound=sys.float_info.max,
                  min_bound=-sys.float_info.max,
-                 out_dtype=None):
+                 max_val=None, min_val=None,
+                 out_dtype=None, transform_conf=None):
+        self._max_val = np.array(max_val, dtype=np.float32) if max_val is not None else None
+        self._min_val = np.array(min_val, dtype=np.float32) if min_val is not None else None
+        self._conf = transform_conf
         self._max_bound = max_bound
         self._min_bound = min_bound
         out_dtype = np.float32 if out_dtype is None else out_dtype
@@ -477,6 +490,12 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         """
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
             "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+
+        # The max and min of $val = (val-min) / (max-min)$ is pre-defined
+        # in the transform_conf, return max_val and min_val directly
+        if self._max_val is not None and self._min_val is not None:
+            return {self.feat_name: (self._max_val, self._min_val)}
+
         if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
@@ -493,15 +512,22 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 feats = feats.astype(np.float32)
             except: # pylint: disable=bare-except
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
-
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
-        max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
-            else np.array([np.amax(feats, axis=0)])
-        min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
-            else np.array([np.amin(feats, axis=0)])
 
-        max_val[max_val > self._max_bound] = self._max_bound
-        min_val[min_val < self._min_bound] = self._min_bound
+        if self._max_val is None:
+            max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
+                else np.array([np.amax(feats, axis=0)])
+            max_val[max_val > self._max_bound] = self._max_bound
+        else:
+            max_val = self._max_val
+
+        if self._min_val is None:
+            min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
+                else np.array([np.amin(feats, axis=0)])
+            min_val[min_val < self._min_bound] = self._min_bound
+        else:
+            min_val = self._min_val
+
         return {self.feat_name: (max_val, min_val)}
 
     def update_info(self, info):
@@ -527,6 +553,11 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
         self._max_val = max_val
         self._min_val = min_val
+
+        # We need to save the max_val and min_val in the config object.
+        if self._conf is not None:
+            self._conf['max_val'] = self._max_val.tolist()
+            self._conf['min_val'] = self._min_val.tolist()
 
     def call(self, feats):
         """ Do normalization for feats
@@ -878,11 +909,15 @@ def parse_feat_ops(confs):
             elif conf['name'] == 'max_min_norm':
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
+                max_val = conf['max_val'] if 'max_val' in conf else None
+                min_val = conf['min_val'] if 'min_val' in conf else None
                 transform = NumericalMinMaxTransform(feat['feature_col'],
                                                      feat_name,
                                                      max_bound,
                                                      min_bound,
-                                                     out_dtype=out_dtype)
+                                                     max_val,
+                                                     min_val,
+                                                     out_dtype=out_dtype, transform_conf=conf)
             elif conf['name'] == 'rank_gauss':
                 epsilon = conf['epsilon'] if 'epsilon' in conf else None
                 transform = RankGaussTransform(feat['feature_col'],

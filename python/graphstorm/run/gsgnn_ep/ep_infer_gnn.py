@@ -53,7 +53,8 @@ def main(config_args):
                                     label_field=config.label_field,
                                     decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_gnn_model(infer_data.g, config, train_task=False)
-    model.restore_model(config.restore_model_path)
+    model.restore_model(config.restore_model_path,
+                        model_layer_to_load=config.restore_model_layers)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnEdgePredictionInferrer(model)
     infer.setup_device(device=device)
