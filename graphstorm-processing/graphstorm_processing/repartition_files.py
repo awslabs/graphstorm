@@ -833,7 +833,7 @@ def main():
         for type_idx, (type_name, type_data_dict) in enumerate(edge_data_meta.items()):
             src, relation, dst = type_name.split(":")
 
-            if relation.startswith("rev-"):
+            if relation.endswith("-rev"):
                 # Reverse edge types do not have their own data,
                 # and if needed we re-partition their structure while
                 # handling the "regular" edge type.
@@ -845,7 +845,7 @@ def main():
                     type_name,
                 )
                 continue
-            reverse_edge_type_name = f"{dst}:rev-{relation}:{src}"
+            reverse_edge_type_name = f"{dst}:{relation}-rev:{src}"
             most_frequent_counts = list(edge_row_counts_frequencies[type_name].most_common(1)[0][0])
             repartitioner = ParquetRepartitioner(
                 input_prefix, filesystem_type, region, verify_outputs=True

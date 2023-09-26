@@ -165,11 +165,11 @@ def verify_integ_test_output(
     assert metadata["node_type"] == ["director", "genre", "movie", "user"]
     assert metadata["edge_type"] == [
         "movie:included_in:genre",
-        "genre:rev-included_in:movie",
+        "genre:included_in-rev:movie",
         "user:rated:movie",
-        "movie:rev-rated:user",
+        "movie:rated-rev:user",
         "director:directed:movie",
-        "movie:rev-directed:director",
+        "movie:directed-rev:director",
     ]
 
     expected_node_counts = {"director": 3, "genre": 2, "movie": 4, "user": 5}
@@ -182,11 +182,11 @@ def verify_integ_test_output(
 
     expected_edge_counts = {
         "movie:included_in:genre": 4,
-        "genre:rev-included_in:movie": 4,
+        "genre:included_in-rev:movie": 4,
         "user:rated:movie": 6,
-        "movie:rev-rated:user": 6,
+        "movie:rated-rev:user": 6,
         "director:directed:movie": 4,
-        "movie:rev-directed:director": 4,
+        "movie:directed-rev:director": 4,
     }
 
     for edge_type in metadata["edge_type"]:
@@ -266,11 +266,11 @@ def test_load_dist_hgl_without_labels(dghl_loader_no_label: DistHeterogeneousGra
         "task_type": "link_predict",
         "etype_label": [
             "movie:included_in:genre",
-            "genre:rev-included_in:movie",
+            "genre:included_in-rev:movie",
             "user:rated:movie",
-            "movie:rev-rated:user",
+            "movie:rated-rev:user",
             "director:directed:movie",
-            "movie:rev-directed:director",
+            "movie:directed-rev:director",
         ],
         "etype_label_property": [],
         "ntype_label": [],
@@ -283,18 +283,18 @@ def test_load_dist_hgl_without_labels(dghl_loader_no_label: DistHeterogeneousGra
 
     expected_edge_data = {
         "user:rated:movie": {"train_mask", "val_mask", "test_mask"},
-        "movie:rev-rated:user": {"train_mask", "val_mask", "test_mask"},
+        "movie:rated-rev:user": {"train_mask", "val_mask", "test_mask"},
         "movie:included_in:genre": {"train_mask", "val_mask", "test_mask"},
-        "genre:rev-included_in:movie": {"train_mask", "val_mask", "test_mask"},
+        "genre:included_in-rev:movie": {"train_mask", "val_mask", "test_mask"},
         "director:directed:movie": {"train_mask", "val_mask", "test_mask"},
-        "movie:rev-directed:director": {"train_mask", "val_mask", "test_mask"},
+        "movie:directed-rev:director": {"train_mask", "val_mask", "test_mask"},
     }
 
     for edge_type in metadata["edge_data"]:
         assert metadata["edge_data"][edge_type].keys() == expected_edge_data[edge_type]
-        if not "rev-" in edge_type:
+        if not "-rev" in edge_type:
             src_type, relation, dst_type = edge_type.split(":")
-            rev_type = f"{dst_type}:rev-{relation}:{src_type}"
+            rev_type = f"{dst_type}:{relation}-rev:{src_type}"
             assert (
                 metadata["edge_data"][rev_type]["train_mask"]
                 == metadata["edge_data"][edge_type]["train_mask"]
