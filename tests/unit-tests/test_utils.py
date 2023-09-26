@@ -467,11 +467,11 @@ def test_save_embeddings():
         type0_random_emb, type1_random_emb = helper_save_embedding(tmpdirname)
 
         # Only work with torch 1.13+
-        feats_type0 = [th.load(os.path.join(tmpdirname, f"type0_emb.part{{pad_file_index(0)}}.bin"),
+        feats_type0 = [th.load(os.path.join(tmpdirname, f"type0_emb.part{pad_file_index(0)}.bin"),
                                weights_only=True) for i in range(4)]
         feats_type0 = th.cat(feats_type0, dim=0)
         # Only work with torch 1.13+
-        feats_type1 = [th.load(os.path.join(tmpdirname, f"type1_emb.part{{pad_file_index(1)}}.bin"),
+        feats_type1 = [th.load(os.path.join(tmpdirname, f"type1_emb.part{pad_file_index(1)}.bin"),
                                weights_only=True) for i in range(4)]
         feats_type1 = th.cat(feats_type1, dim=0)
 
