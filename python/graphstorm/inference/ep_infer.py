@@ -15,13 +15,13 @@
 
     Inferrer wrapper for edge classification and regression.
 """
+import os
 import time
-from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_prediction_results
-from ..model.utils import shuffle_predict
+from ..model.utils import save_ep_prediction_results
+from ..model.utils import shuffle_nids
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
@@ -131,22 +131,22 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
             sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
-            if edge_id_mapping_file is not None:
-                g = loader.data.g
-                etype = infer_data.eval_etypes[0]
-                pred_shape = list(pred.shape)
-                pred_shape[0] = g.num_edges(etype)
-                pred_data = DistTensor(pred_shape, dtype=pred.dtype,
-                                       name='predict-'+'-'.join(etype),
-                                       part_policy=g.get_edge_partition_policy(etype),
-                                       # TODO: this makes the tensor persistent in memory.
-                                       persistent=True)
-                # edges that have predictions may be just a subset of the
-                # entire edge set.
-                pred_data[loader.target_eidx[etype]] = pred.cpu()
+            g = loader.data.g
+            etype = infer_data.eval_etypes[0]
+            pred_src_nids, pred_dst_nids = g.find_edges(loader.target_eidx[etype], etype=etype)
 
-                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, get_rank(),
-                                       get_world_size(), device=device)
-            save_prediction_results(pred, save_prediction_path, get_rank())
+            if node_id_mapping_file is not None:
+                original_src_nids = shuffle_nids(g, etype[0], pred_src_nids, node_id_mapping_file, get_rank())
+                original_dst_nids = shuffle_nids(g, etype[2], pred_dst_nids, node_id_mapping_file, get_rank())
+                pred_src_nids = original_src_nids
+                pred_dst_nids = original_dst_nids
+
+            save_ep_prediction_results(pred,
+                                       pred_src_nids,
+                                       pred_dst_nids,
+                                       etype,
+                                       os.path.join(save_prediction_path,
+                                                    "_".join(etype)),
+                                       get_rank())
         barrier()
         sys_tracker.check('save predictions')

@@ -27,7 +27,7 @@ from dgl.distributed import DistTensor
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
 from graphstorm.model.utils import _get_data_range
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
-from graphstorm.model.utils import shuffle_predict
+from graphstorm.model.utils import shuffle_predict, shuffle_nids
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
@@ -162,7 +162,7 @@ def test_exchange_node_id_mapping(num_embs, backend):
     assert p2.exitcode == 0
     assert p3.exitcode == 0
 
-def run_distribute_nid_map(embeddings, local_rank, world_size, 
+def run_distribute_nid_map(embeddings, local_rank, world_size,
     node_id_mapping_file, backend, target_nid_mapping):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
@@ -171,7 +171,7 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
                                       world_size=world_size,
                                       rank=local_rank)
     device = setup_device(local_rank)
-    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
+    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size,
         node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
@@ -181,10 +181,52 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
             assert_equal(target_nid_mapping[name][local_rank].numpy(), \
                 nid_mapping[name].cpu().numpy())
 
+def run_distributed_shuffle_nids(g, ntype, nids, node_id_mapping_file,
+                                 rank, world_size, original_nids):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=rank)
+
+    shuffled_nids = shuffle_nids(g, ntype, nids, node_id_mapping_file, rank)
+    assert_equal(shuffled_nids.numpy(), original_nids.numpy())
+
+def test_shuffle_nids():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
+        nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
+
+        target_ntype = g.ntypes[0]
+        ori_nid_maps = {target_ntype: th.randperm(g.number_of_nodes(target_ntype))}
+        th.save(ori_nid_maps, nid_map_dict_path)
+
+        test_nids0 = th.randint(g.number_of_nodes(target_ntype),
+                                (g.number_of_nodes(target_ntype),))
+        test_nids1 = th.randint(g.number_of_nodes(target_ntype),
+                                (g.number_of_nodes(target_ntype),))
+        orig_nids0 = ori_nid_maps[target_ntype][test_nids0]
+        orig_nids1 = ori_nid_maps[target_ntype][test_nids1]
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_distributed_shuffle_nids,
+                        args=(g, target_ntype, test_nids0, nid_map_dict_path,
+                              0, 2, orig_nids0))
+        p1 = ctx.Process(target=run_distributed_shuffle_nids,
+                        args=(g, target_ntype, test_nids1, nid_map_dict_path,
+                              1, 2, orig_nids1))
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+
 @pytest.mark.parametrize("backend", ["gloo"])
 def test_distribute_nid_map(backend):
     # need to force to reset the fork context
-    # because dist tensor is the input for mulitiple processes 
+    # because dist tensor is the input for mulitiple processes
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
@@ -594,6 +636,8 @@ def test_stream_dist_tensors_to_hdf5():
                 read_f[ntype][0:])
 
 if __name__ == '__main__':
+    test_shuffle_nids()
+
     test_shuffle_predict(num_embs=16, backend='gloo')
     test_shuffle_predict(num_embs=17, backend='nccl')
 

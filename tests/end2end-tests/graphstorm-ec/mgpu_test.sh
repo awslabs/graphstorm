@@ -128,6 +128,27 @@ then
     exit -1
 fi
 
+cnt=$(ls -l /data/gsgnn_ec/prediction/user_rating_movie/ | grep predict | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS
+then
+    echo "The number of saved prediction results $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_ec/prediction/user_rating_movie/ | grep src_nids | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS
+then
+    echo "The number of saved source node ids $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_ec/prediction/user_rating_movie/ | grep dst_nids | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS
+then
+    echo "The number of saved dst node ids results $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
+    exit -1
+fi
+
 rm /tmp/log.txt
 
 cd $GS_HOME/tests/end2end-tests/
