@@ -15,6 +15,7 @@
 
     Inference script for node classification/regression tasks with GNN
 """
+import logging
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
@@ -64,11 +65,22 @@ def main(config_args):
             "You can use --no-validation true to avoid do testing"
         target_idxs = infer_data.test_idxs
     else:
-        assert len(infer_data.infer_idxs) > 0, \
-            f"To do inference on {config.target_ntype} without doing evaluation, " \
-            "you should not define test_mask as its node feature. " \
-            "GraphStorm will do inference on the whole node set. "
-        target_idxs = infer_data.infer_idxs
+        if len(infer_data.infer_idxs) == 0:
+            logging.warning(
+                "To do inference on %s without doing evaluation, " \
+                "you defines test_mask in the graph, so GraphStorm " \
+                "will only do inference on nodes with the corresponding." \
+                "test mask set to 1", config.target_ntype)
+
+            assert len(infer_data.test_idxs) > 0, \
+                "Test mask exists for {config.target_ntype}, but test " \
+                "set is empty. You can either remove the test mask so that " \
+                "GraphStorm will do inference on the entire node set or " \
+                "provide a valid test_mask."
+            target_idxs = infer_data.test_idxs
+        else:
+            logging.info("Do inference on the entire node set of %s", config.target_ntype)
+            target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
