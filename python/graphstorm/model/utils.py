@@ -29,7 +29,7 @@ import dgl
 
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import get_rank, barrier, get_world_size
-from ..data.utils import alltoallv_cpu
+from ..data.utils import alltoallv_cpu, alltoallv_nccl
 
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
@@ -344,7 +344,7 @@ def _exchange_node_id_mapping(rank, world_size, device,
     if backend == "gloo":
         alltoallv_cpu(rank, world_size, gather_list, data_tensors)
     else: # backend == "nccl"
-        th.distributed.all_to_all(gather_list, data_tensors)
+        alltoallv_nccl(gather_list, data_tensors)
     # move mapping into CPU
     return gather_list[0].to(th.device("cpu"))
 
