@@ -40,7 +40,6 @@ def setup_device(local_rank):
     Returns
     -------
     str: device where the model runs.
-
     """
     if th.cuda.is_available():
         assert local_rank < th.cuda.device_count(), \
