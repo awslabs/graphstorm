@@ -41,6 +41,7 @@ def gen_rand_nid(max_nid, num_nodes):
         return gen_rand_nid(max_nid, num_nodes)
     return node_ids
 
+np.random.seed(1)
 node_id1 = gen_rand_nid(1000000000, 10000)
 node_text = np.array([str(nid) for nid in node_id1])
 node_data1 = {
