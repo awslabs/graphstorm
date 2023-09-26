@@ -32,7 +32,7 @@ RUN bash install_wholegraph.sh
 
 # Install GraphStorm
 RUN pip install --no-cache-dir boto3 'h5py>=2.10.0' scipy tqdm 'pyarrow>=3' 'transformers==4.28.1' pandas pylint scikit-learn ogb psutil
-RUN git clone https://github.com/awslabs/graphstorm -b 0.1.1
+RUN git clone https://github.com/awslabs/graphstorm
 
 # Increase nofile limit
 RUN echo "root                soft    nofile          1048576" >> /etc/security/limits.conf \
