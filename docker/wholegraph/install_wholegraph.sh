@@ -6,11 +6,13 @@ mkdir build && cd build
 cmake -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE ..
 make
 make install
+
 git clone https://github.com/gabime/spdlog.git  /opt/spdlog
 cd /opt/spdlog && mkdir build && cd build
 cmake .. && make -j
 cp libspdlog.a  /usr/lib/libspdlog.a
 export PYTHON=/usr/bin/python
+
 cd  /opt/rapids/
 git clone https://github.com/rapidsai/wholegraph.git -b refactoring
 cd /opt/rapids/wholegraph/
