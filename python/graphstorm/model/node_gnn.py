@@ -82,8 +82,7 @@ class GSgnnNodeModelInterface:
 
 # pylint: disable=abstract-method
 class GSgnnNodeModelBase(GSgnnNodeModelInterface,
-                         GSgnnModelBase
-                         ):
+                         GSgnnModelBase):
     """ The base class for node-prediction GNN
 
     When a user wants to define a node prediction GNN model and train the model
