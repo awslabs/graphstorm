@@ -210,6 +210,17 @@ rm /tmp/log.txt
 python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_nc_ml_text/emb/ --infer_embout /data/gsgnn_nc_ml_text/infer-emb/
 
 error_and_exit $?
+
+echo "**************dataset: Movielens, use GLEM to restore checkpoint saved by GSgnnNodePredictionTrainer and do inference"
+# create softlinks for GLEM
+mkdir -p /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM
+ln -s /data/gsgnn_nc_ml_text/epoch-$best_epoch /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM/LM
+ln -s /data/gsgnn_nc_ml_text/epoch-$best_epoch /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM/GNN
+
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM --restore-model-layers embed --inference 
+
+error_and_exit $?
+
 rm -fr /data/gsgnn_nc_ml_text/*
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user, with warmup inference: mini-batch save model save emb node"
@@ -285,6 +296,12 @@ then
     echo "The number of save models $cnt is not equal to the specified topk 1"
     exit -1
 fi
+
+best_epoch=$(ls /data/gsgnn_nc_ml_text/ | grep epoch)
+echo "**************dataset: MovieLens node classification, GLEM loads GLEM trained checkpoints, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml  --restore-model-path /data/gsgnn_nc_ml_text/$best_epoch --inference
+
+error_and_exit $?
 
 rm -fr /data/gsgnn_nc_ml_text/*
 

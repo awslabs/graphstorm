@@ -49,7 +49,8 @@ from .config import SUPPORTED_TASKS
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
-from .config import GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_LAYER_OPTIONS
+from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
+                     GRAPHSTORM_MODEL_LAYER_OPTIONS)
 
 from .utils import get_graph_name
 from ..utils import TORCH_MAJOR_VER, get_log_level
@@ -816,6 +817,7 @@ class GSConfig:
         """ GraphStorm model layers to load.
         """
         # pylint: disable=no-member
+        model_layers = GRAPHSTORM_MODEL_ALL_LAYERS
         if hasattr(self, "_restore_model_layers"):
             assert self.restore_model_path is not None, \
                 "restore-model-path must be provided if restore-model-layers is specified."
@@ -823,9 +825,14 @@ class GSConfig:
             for layer in model_layers:
                 assert layer in GRAPHSTORM_MODEL_LAYER_OPTIONS, \
                     f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_LAYER_OPTIONS}"
-            return model_layers
-
-        return GRAPHSTORM_MODEL_ALL_LAYERS
+        if self.training_method["name"] == "glem":
+            # GLEM restore model layers conflicts with all layers
+            if model_layers == GRAPHSTORM_MODEL_ALL_LAYERS:
+                logging.warning("Restoring GLEM's LM from checkpoint doesn't support" \
+                                + " all layers, setting to: '%s'", GRAPHSTORM_MODEL_EMBED_LAYER
+                                )
+                model_layers = [GRAPHSTORM_MODEL_EMBED_LAYER]
+        return model_layers
 
     @property
     def restore_model_path(self):
