@@ -91,7 +91,7 @@ class GSgnnEdgeModelInterface:
 
 # pylint: disable=abstract-method
 class GSgnnEdgeModelBase(GSgnnEdgeModelInterface,
-                         GSgnnModelBase
+                         GSgnnModelBase):
                          ):
     """ The base class for edge-prediction GNN
 
