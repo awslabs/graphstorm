@@ -52,7 +52,8 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)
-    model.restore_model(config.restore_model_path)
+    model.restore_model(config.restore_model_path,
+                        model_layer_to_load=config.restore_model_layers)
     infer = GSgnnNodePredictionInferrer(model)
     infer.setup_device(device=device)
     if not config.no_validation:
@@ -84,7 +85,8 @@ def main(config_args):
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
-                return_proba=config.return_proba)
+                return_proba=config.return_proba,
+                save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser

@@ -132,9 +132,11 @@ class GSConfig:
                 if hasattr(cmd_args, "logging_level") else logging.INFO
         log_file = cmd_args.logging_file if hasattr(cmd_args, "logging_file") else None
         if log_file is None:
-            logging.basicConfig(level=log_level)
+            # We need to force the logging to reset the existing logging handlers
+            # in order to make sure this config is effective.
+            logging.basicConfig(level=log_level, force=True)
         else:
-            logging.basicConfig(filename=log_file, level=log_level)
+            logging.basicConfig(filename=log_file, level=log_level, force=True)
 
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
@@ -293,6 +295,7 @@ class GSConfig:
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
         _ = self.save_embed_path
+        _ = self.save_embed_format
 
         # Model architecture
         _ = self.dropout
@@ -852,6 +855,19 @@ class GSConfig:
         if hasattr(self, "_save_embed_path"):
             return self._save_embed_path
         return None
+
+    @property
+    def save_embed_format(self):
+        """ Specify the format of saved embeddings.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_save_embed_format"):
+            assert self._save_embed_format in ["pytorch", "hdf5"], \
+                f"{self._save_embed_format} is not supported for save_embed_format." \
+                f"Supported format ['pytorch', 'hdf5']."
+            return self._save_embed_format
+        # default to be 'pytorch'
+        return "pytorch"
 
     @property
     def save_model_path(self):
@@ -2012,6 +2028,8 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
+    group.add_argument("--save-embed-format", type=str, default=argparse.SUPPRESS,
+            help="Specify the format for saved embeddings. Valid format: ['pytorch', 'hdf5']")
     group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,

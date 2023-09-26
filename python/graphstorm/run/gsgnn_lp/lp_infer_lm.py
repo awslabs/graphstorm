@@ -44,7 +44,8 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_lp_model(infer_data.g, config, train_task=False)
-    model.restore_model(config.restore_model_path)
+    model.restore_model(config.restore_model_path,
+                        model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
     infer.setup_device(device=device)
     if not config.no_validation:
@@ -77,7 +78,8 @@ def main(config_args):
                 save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings=None, # LM infer does not use GNN
                 use_mini_batch_infer=config.use_mini_batch_infer,
-                node_id_mapping_file=config.node_id_mapping_file)
+                node_id_mapping_file=config.node_id_mapping_file,
+                save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser

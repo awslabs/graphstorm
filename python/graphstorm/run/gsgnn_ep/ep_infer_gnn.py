@@ -53,7 +53,8 @@ def main(config_args):
                                     label_field=config.label_field,
                                     decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_gnn_model(infer_data.g, config, train_task=False)
-    model.restore_model(config.restore_model_path)
+    model.restore_model(config.restore_model_path,
+                        model_layer_to_load=config.restore_model_layers)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnEdgePredictionInferrer(model)
     infer.setup_device(device=device)
@@ -89,7 +90,8 @@ def main(config_args):
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
                 edge_id_mapping_file=config.edge_id_mapping_file,
-                return_proba=config.return_proba)
+                return_proba=config.return_proba,
+                save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser

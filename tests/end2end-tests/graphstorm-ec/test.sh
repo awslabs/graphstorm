@@ -79,8 +79,8 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 # TODO(zhengda) Failure found during evaluation of the auc metric returning -1 multiclass format is not supported
-echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, eval_metric: precision_recall accuracy"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --eval-metric precision_recall accuracy --num-epochs 1
+echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, eval_metric: accuracy"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --eval-metric precision_recall --num-epochs 1
 
 error_and_exit $?
 
