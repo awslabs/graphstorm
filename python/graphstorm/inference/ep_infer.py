@@ -39,8 +39,9 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         The GNN model for node prediction.
     """
 
+    # pylint: disable=unused-argument
     def infer(self, loader, save_embed_path, save_prediction_path=None,
-            use_mini_batch_infer=False, # pylint: disable=unused-argument
+            use_mini_batch_infer=False,
             node_id_mapping_file=None,
             edge_id_mapping_file=None,
             return_proba=True,
