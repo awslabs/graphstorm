@@ -11,12 +11,10 @@ graphstorm
     >>> import graphstorm as gs
     >>> gs.initialize(ip_config="/tmp/ip_list.txt", backend="gloo")
     >>> gs.setup_device(local_rank)
-    >>> gs.get_feat_size(g, "ntyp1")
 
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
 
     gsf.initialize
-    gsf.get_feat_size
     utils.setup_device

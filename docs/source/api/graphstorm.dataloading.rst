@@ -6,10 +6,12 @@ graphstorm.dataloading
     GraphStorm dataloading module includes a set of graph DataSets and DataLoaders for different
     graph machine learning tasks.
 
-    If users would like to customize DataLoaders, please extend those ``***DataLoaderBase`` classes
-    and customize the abstract methods.
+    If users would like to customize DataLoaders, please extend those classes in the
+    :ref:`Base DataLoaders <basedataloaders>` section and customize their abstract methods.
 
 .. currentmodule:: graphstorm.dataloading
+
+.. _basedataloaders:
 
 Base DataLoaders
 -------------------
