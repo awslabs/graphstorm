@@ -13,7 +13,7 @@ graphstorm.inference
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: pipelinetemplate.rst
+    :template: inferencetemplate.rst
 
     GSgnnLinkPredictionInferrer
     GSgnnNodePredictionInferrer

@@ -17,7 +17,7 @@ Trainers
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: pipeplinetemplate.rst
+    :template: trainertemplate.rst
 
     GSgnnLinkPredictionTrainer
     GSgnnNodePredictionTrainer
