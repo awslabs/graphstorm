@@ -329,15 +329,6 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                           use_fp16=self.use_fp16)
         self.use_cache = True
 
-    def require_cache_embed(self):
-        """ Whether to cache the embeddings for inference.
-
-        Returns
-        -------
-        Bool : return True to cache the embeddings for inference.
-        """
-        return True
-
     #pylint: disable=keyword-arg-before-vararg
     #pylint: disable=unused-argument
     def forward(self, input_feats, input_nodes):
@@ -501,15 +492,6 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         """
         if self.num_train != 0:
             self.use_cache = False
-
-    def require_cache_embed(self):
-        """ Whether to cache the embeddings for inference.
-
-        Returns
-        -------
-        Bool : return True to cache the embeddings for inference.
-        """
-        return True
 
     #pylint: disable=keyword-arg-before-vararg
     def forward(self, input_feats, input_nodes):
