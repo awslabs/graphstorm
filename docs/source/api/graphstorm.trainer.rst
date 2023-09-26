@@ -11,32 +11,15 @@ graphstorm.trainer
 
 .. currentmodule:: graphstorm.trainer
 
-
-Base class
+Trainers
 --------------
+
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
-
-    GSgnnTrainer
-
-Task classes
------------------
-.. autosummary::
-    :toctree: ../generated/
-    :nosignatures:
-    :template: classtemplate.rst
+    :template: trainertemplate.rst
 
     GSgnnLinkPredictionTrainer
     GSgnnNodePredictionTrainer
     GSgnnEdgePredictionTrainer
-
-Method classes
------------------
-.. autosummary::
-    :toctree: ../generated/
-    :nosignatures:
-    :template: classtemplate.rst
-
     GLEMNodePredictionTrainer

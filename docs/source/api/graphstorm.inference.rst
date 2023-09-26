@@ -1,6 +1,6 @@
-.. _apiinferrer:
+.. _apiinference:
 
-graphstorm.inferrer
+graphstorm.inference
 ====================
 
     GraphStorm inferrers assemble the distributed inference pipeline for different tasks.
@@ -13,7 +13,7 @@ graphstorm.inferrer
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
+    :template: inferencetemplate.rst
 
     GSgnnLinkPredictionInferrer
     GSgnnNodePredictionInferrer
