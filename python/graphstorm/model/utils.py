@@ -679,6 +679,8 @@ def save_ep_prediction_results(predictions, src_nids, dst_nids,
         the prediction results; 2) src_nids, which stores the source
         node ids of target edges and 3) dst_nids, which stores the
         destination node ids of target edges.
+        The (src_nid, dst_nid) pairs can be used to identify the target
+        edges.
 
         Parameters
         ----------

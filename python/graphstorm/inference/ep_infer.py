@@ -137,10 +137,10 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
             pred_src_nids, pred_dst_nids = g.find_edges(loader.target_eidx[etype], etype=etype)
 
             if node_id_mapping_file is not None:
-                original_src_nids = shuffle_nids(g, etype[0], pred_src_nids, node_id_mapping_file, get_rank())
-                original_dst_nids = shuffle_nids(g, etype[2], pred_dst_nids, node_id_mapping_file, get_rank())
-                pred_src_nids = original_src_nids
-                pred_dst_nids = original_dst_nids
+                pred_src_nids = shuffle_nids(g, etype[0], pred_src_nids,
+                                             node_id_mapping_file, get_rank())
+                pred_dst_nids = shuffle_nids(g, etype[2], pred_dst_nids,
+                                             node_id_mapping_file, get_rank())
 
             save_ep_prediction_results(pred,
                                        pred_src_nids,
