@@ -202,7 +202,7 @@ the graph structure, features, and labels. In more detail:
 
 * ``launch_arguments.json``: Contains the arguments that were used
   to launch the processing job, allowing you to check the parameters after the
-  job is finished.
+  job finishes.
 * ``updated_row_counts_metadata.json``:
   This file is meant to be used as the input configuration for the
   distributed partitioning pipeline. ``repartition_files.py`` produces

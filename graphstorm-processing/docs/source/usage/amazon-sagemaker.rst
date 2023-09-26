@@ -46,7 +46,7 @@ Once the data are uploaded to S3, we can use the Python script
 ``graphstorm-processing/scripts/run_distributed_processing.py``
 to run a GSProcessing job on Amazon SageMaker.
 
-For this example we'll use a Spark cluster with 2 ``ml.t3.xlarge`` instances
+For this example we'll use a SageMaker Spark cluster with 2 ``ml.t3.xlarge`` instances
 since this is a tiny dataset. Using SageMaker you'll be able to create clusters
 of up to 20 instances, allowing you to scale your processing to massive graphs,
 using larger instances like `ml.r5.24xlarge`.

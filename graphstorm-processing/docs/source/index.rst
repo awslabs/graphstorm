@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to GraphStorm Processing documentation!
+Welcome to GraphStorm Distributed Data Processing documentation!
 =================================================
 
 .. toctree::
@@ -17,7 +17,7 @@ Welcome to GraphStorm Processing documentation!
     Input configuration <developer/input-configuration>
 
 
-GraphStorm Processing allows you to process and prepare massive graph data
+GraphStorm Distributed Data Processing allows you to process and prepare massive graph data
 for training with GraphStorm. GraphStorm Processing takes care of generating
 unique ids for nodes, using them to encode edge structure files, process
 individual features and prepare the data to be passed into the
@@ -92,7 +92,7 @@ Usage
 
 To use the library to process your data, you will need to have your data
 in a tabular format, and a corresponding JSON configuration file that describes the
-data. The input data can be in CSV (with header) or Parquet format.
+data. The input data can be in CSV (with header(s)) or Parquet format.
 
 The configuration file can be in GraphStorm's GConstruct format,
 with the caveat that the file paths need to be relative to the

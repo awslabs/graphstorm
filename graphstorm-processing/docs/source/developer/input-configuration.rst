@@ -101,7 +101,7 @@ nodes:
 
          -  e.g. ``"files": ['path/to/edge/type/']``
          -  This option allows for concise listing of entire types and
-            would be preferred.
+            would be preferred. All the files under the path will be loaded. 
 
       -  a multi-element list of **relative** file paths.
 
@@ -236,7 +236,7 @@ following top-level keys:
    -  ``type`` (String, required): Specifies that target task type which
       can be:
 
-      -  ``"classification"``: A node classification task.
+      -  ``"classification"``: A node classification task. The values in the specified ``column`` as treated as categorical variables.
       -  ``"regression"``: A node regression task.
 
    -  ``separator`` (String, optional): For multi-label

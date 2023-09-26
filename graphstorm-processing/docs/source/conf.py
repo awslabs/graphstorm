@@ -20,7 +20,7 @@
 
 project = 'graphstorm-processing'
 copyright = '2023, AGML Team'
-author = 'AGML Team'
+author = 'AGML Team, Amazon'
 
 
 # -- General configuration ---------------------------------------------------
