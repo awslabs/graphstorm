@@ -31,12 +31,25 @@ from ..utils import barrier, get_rank
 from ..dataloading import GSgnnNodeSemiSupDataLoader
 
 class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
-    """ A trainer for node prediction
+    """ A trainer for node prediction using GLEM.
+
+    This class is used to train models for node prediction tasks,
+    such as node classification and node regression, using the
+    GLEM framework [1].
+
+    GLEM will iteratively train a GNN and a Language Model in
+    turn, allowing it to make better use of textual information
+    in the graph.
+
+    The input `model` needs to be an instance of `model.node_glem.GLEM`
+
+    [1] https://arxiv.org/abs/2210.14709
 
     Parameters
     ----------
     model : GSgnnNodeModel
-        The GNN model for node prediction.
+        The GNN model for node prediction. Need to be an instance of
+        `model.node_glem.GLEM`.
     topk_model_to_save : int
         The top K model to save.
     """
@@ -58,6 +71,13 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             max_grad_norm=None,
             grad_norm_type=2.0):
         """ The fit function for node prediction.
+
+        The fit method alternates between training a GNN model and
+        a Language Model at every epoch, and can run in fully supervised
+        or semi-supervised mode.
+
+        If an evaluator has been assigned to the
+        trainer, it will run evaluation at the end of every epoch.
 
         Parameters
         ----------

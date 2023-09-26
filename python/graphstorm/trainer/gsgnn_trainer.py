@@ -31,6 +31,12 @@ from ..utils import barrier, get_rank
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
 
+    This class is used as a mixin for classes that implement trainers
+    for various learning tasks at the node and edge level.
+
+    It contains functions that can be used in the implementing classes'
+    `fit` and `eval` functions.
+
     Parameters
     ----------
     model : GSgnnModel

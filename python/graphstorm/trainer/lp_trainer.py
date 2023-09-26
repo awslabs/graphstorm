@@ -259,7 +259,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     def eval(self, model, data, val_loader, test_loader,
              total_steps, edge_mask_for_gnn_embeddings,
              use_mini_batch_infer=False):
-        """ do the model evaluation using validiation and test sets
+        """ do the model evaluation using validation and test sets
 
         Parameters
         ----------

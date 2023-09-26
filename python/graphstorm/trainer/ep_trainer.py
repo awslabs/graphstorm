@@ -33,6 +33,15 @@ from ..utils import barrier, is_distributed, get_backend
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
 
+    This class is used to train models for edge prediction tasks,
+    such as edge classification and edge regression.
+
+    It makes use of the functions provided by `GSgnnTrainer`
+    to define two main functions: `fit` that performs the training
+    for the model that is provided when the object is created,
+    and `eval` that evaluates a provided model against test and
+    validation data.
+
     Parameters
     ----------
     model : GSgnnEdgeModelBase
@@ -56,6 +65,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             max_grad_norm=None,
             grad_norm_type=2.0):
         """ The fit function for edge prediction.
+
+        Performs the training for `self.model`. Iterates over the training
+        batches in `train_loader` to compute the loss and perform the backwards
+        step using `self.optimizer`. If an evaluator has been assigned to the
+        trainer, it will run evaluation at the end of every epoch.
 
         Parameters
         ----------
@@ -260,7 +274,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
     def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
              return_proba=True):
-        """ do the model evaluation using validiation and test sets
+        """ do the model evaluation using validation and test sets
 
         Parameters
         ----------
