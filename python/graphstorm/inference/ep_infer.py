@@ -145,7 +145,6 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
             save_ep_prediction_results(pred,
                                        pred_src_nids,
                                        pred_dst_nids,
-                                       etype,
                                        os.path.join(save_prediction_path,
                                                     "_".join(etype)),
                                        get_rank())
