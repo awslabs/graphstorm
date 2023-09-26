@@ -4,7 +4,7 @@ This folder contains Python codes that demonstrate how to leverage the GraphStor
 
 ## How to run this example
 
-The following commands assume the user is in the directory `graphstorm/examples/temporal_graph_learning/`.
+The following commands run within the GraphStorm docker environment, and assume the user is in the directory `graphstorm/examples/temporal_graph_learning/`.
 
 **Step 1: Prepare the MAG dataset for using the GraphStorm.**
 
@@ -18,12 +18,19 @@ wget -P ./DATA/GDELT https://s3.us-west-2.amazonaws.com/dgl-data/dataset/tgl/GDE
 
 **Step 2: Pre-processing the raw data into GraphStorm/DGL's data structure**
 
-Run the command to convert the data into the required raw format:
+Run the command to convert the data into the required raw format by splitting the edges by time:
 ```
 python3 gen_graph.py
 ```
 
-Once successful, the command will generate a set of folders and files under the `./DATA` folder, which contains pre-processed graph data recognizable by the GraphStorm's graph construction tool.
+Once the command is successfully executed, it will generate a set of folders and files within the `./DATA` folder.
+These files contain pre-processed graph data that can be recognized and utilized by GraphStorm's graph construction tool. The generated files include:
+- `edge-paper-cite_{time}-paper.parquet` files for edge type "paper-cite-paper" that contain interactions between nodes for each day
+- `node-paper-{parquet_split}.parquet` files for node type "paper" and contain node features. These node features are divided into multiple parquet splits to comply with parquet's maximum row requirements.
+- `author_{train/val/test}_idx.json` which specify the indices for the training, validation, and test sets.
+- `partition_config.json` which store the file paths for the aforementioned files.
+
+
 Afterward, you can use the graph construction tool to create the partitioned graph data with the command below:
 
 ```
@@ -38,7 +45,7 @@ Please note that we modified the downloaded data to undirected graph and removed
 
 **Step 3: Run the modified TGAT model**
 
-Run the command below to train the modified TGAT model with GraphStorm:
+Run the command below to train the modified TGAT model with GraphStorm for node classification task:
 
 ```
 export WORKSPACE=/home/ubuntu/graphstorm/examples/temporal_graph_learning/
@@ -51,11 +58,13 @@ python3 -m graphstorm.run.launch \
     --num-servers 1 \
     --num-omp-threads 1 \
     --num-samplers 4 \
-    --ssh-port 22 \
+    --ssh-port 2222 \
     main_nc.py \
     --cf ./graphstorm_train_script_nc_config.yaml \
     --save-model-path $WORKSPACE/model
 ```
+
+The task is to predict the primary subject areas of the given arXiv papers, which is cast as an ordinary multi-class classification problem. The metric is the classification accuracy.
 
 # Implementation
 
