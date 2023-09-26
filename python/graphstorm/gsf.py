@@ -111,7 +111,7 @@ def get_feat_size(g, node_feat_names):
     g : DistGraph
         The distributed graph.
     node_feat_names : str or dict of str
-        The node type names for extracting feature size.
+        The node feature names.
 
     Returns
     -------
