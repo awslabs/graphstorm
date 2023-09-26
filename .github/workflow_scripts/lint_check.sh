@@ -4,7 +4,7 @@ cd ../../
 set -ex
 
 python3 -m pip install --upgrade prospector pip
-pip3 uninstall astroid
+pip3 uninstall -y astroid
 pip3 install -y astroid==2.15.7
 FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/data/*.py
@@ -14,7 +14,7 @@ pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/config/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/eval/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/trainer/
-pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/inference/
+pylint --rcfile=./tests/lint/pyglintrc ./python/graphstorm/inference/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/tracker/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/run/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
