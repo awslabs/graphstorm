@@ -128,7 +128,7 @@ def run_dist_exchange_node_id_mapping(worker_rank, world_size, backend,
     assert_equal(target_nid_mapping.numpy(), nid_mapping.cpu().numpy())
 
 @pytest.mark.parametrize("num_embs", [100, 101])
-@pytest.mark.parametrize("backend", ["gloo"])
+@pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_exchange_node_id_mapping(num_embs, backend):
     node_id_mapping = th.randperm(num_embs)
     start, end = _get_data_range(0, 4, num_embs)
@@ -162,7 +162,7 @@ def test_exchange_node_id_mapping(num_embs, backend):
     assert p2.exitcode == 0
     assert p3.exitcode == 0
 
-def run_distribute_nid_map(embeddings, local_rank, world_size, 
+def run_distribute_nid_map(embeddings, local_rank, world_size,
     node_id_mapping_file, backend, target_nid_mapping):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
@@ -171,7 +171,7 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
                                       world_size=world_size,
                                       rank=local_rank)
     device = setup_device(local_rank)
-    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
+    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size,
         node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
@@ -181,10 +181,10 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
             assert_equal(target_nid_mapping[name][local_rank].numpy(), \
                 nid_mapping[name].cpu().numpy())
 
-@pytest.mark.parametrize("backend", ["gloo"])
+@pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_distribute_nid_map(backend):
     # need to force to reset the fork context
-    # because dist tensor is the input for mulitiple processes 
+    # because dist tensor is the input for mulitiple processes
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
@@ -373,7 +373,7 @@ def test_shuffle_predict(num_embs, backend):
 # TODO: Only test gloo now
 # Will add test for nccl once we enable nccl
 @pytest.mark.parametrize("num_embs", [16, 17])
-@pytest.mark.parametrize("backend", ["gloo"])
+@pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_save_embeddings_with_id_mapping(num_embs, backend):
     import tempfile
 
@@ -594,6 +594,9 @@ def test_stream_dist_tensors_to_hdf5():
                 read_f[ntype][0:])
 
 if __name__ == '__main__':
+    test_distribute_nid_map(backend='gloo')
+    test_distribute_nid_map(backend='nccl')
+
     test_shuffle_predict(num_embs=16, backend='gloo')
     test_shuffle_predict(num_embs=17, backend='nccl')
 
@@ -610,4 +613,3 @@ if __name__ == '__main__':
     test_gen_mrr_score()
 
     test_stream_dist_tensors_to_hdf5()
-    test_distribute_nid_map(backend='gloo')
