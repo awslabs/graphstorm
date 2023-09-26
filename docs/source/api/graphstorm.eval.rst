@@ -4,7 +4,7 @@ graphstorm.eval
 =======================
 
     GraphStorm provides built-in evaluation methods for different Graph Machine
-    Learning (GML).
+    Learning (GML) tasks.
 
     If users want to implement customized evaluators or evaluation methods, a best practice is to
     extend base evaluators, i.e., the ``GSgnnInstanceEvaluator`` class for node or edge prediction
