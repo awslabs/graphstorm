@@ -27,22 +27,12 @@ RUN git clone https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl \
 ENV PATH "/opt/amazon/efa/bin:$PATH"
 
 # Install WholeGraph
-COPY install-wg.sh install-wg.sh
-RUN bash install-wg.sh
-
-# Patch DGL
-COPY distDGL.v1.1.1_patch.diff distDGL.v1.1.1_patch.diff
-RUN cd /usr/local/lib/python3.10/dist-packages/dgl && patch -p1 </workspace/distDGL.v1.1.1_patch.diff
-COPY launcher.v1.1.1_patch.diff launcher.v1.1.1_patch.diff
-RUN cd /opt/dgl/dgl-source && patch -p1 </workspace/launcher.v1.1.1_patch.diff
+COPY wholegraph/install_wholegraph.sh install_wholegraph.sh
+RUN bash install_wholegraph.sh
 
 # Install GraphStorm
 RUN pip install --no-cache-dir boto3 'h5py>=2.10.0' scipy tqdm 'pyarrow>=3' 'transformers==4.28.1' pandas pylint scikit-learn ogb psutil
 RUN git clone https://github.com/awslabs/graphstorm -b 0.1.1
-
-# Patch GraphStorm
-COPY graphstorm.v0.1.1_patch.diff graphstorm.v0.1.1_patch.diff
-RUN cd graphstorm && git apply /workspace/graphstorm.v0.1.1_patch.diff
 
 # Increase nofile limit
 RUN echo "root                soft    nofile          1048576" >> /etc/security/limits.conf \
