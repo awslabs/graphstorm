@@ -19,7 +19,7 @@ Base DataLoaders
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: datatemplate.rst
+    :template: dataloadertemplate.rst
 
     GSgnnNodeDataLoaderBase
     GSgnnEdgeDataLoaderBase
@@ -31,7 +31,7 @@ DataSets
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: datatemplate.rst
+    :template: datasettemplate.rst
 
     GSgnnNodeTrainData
     GSgnnNodeInferData
@@ -44,7 +44,7 @@ DataLoaders
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: datatemplate.rst
+    :template: dataloadertemplate.rst
 
     GSgnnNodeDataLoader
     GSgnnEdgeDataLoader
