@@ -176,6 +176,7 @@ class RelationalGATEncoder(GraphConvEncoder):
     r"""Relational graph attention encoder
 
     Parameters
+    -----------
     g : DGLHeteroGraph
         Input graph.
     h_dim: int

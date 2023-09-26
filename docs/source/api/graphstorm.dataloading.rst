@@ -3,29 +3,48 @@
 graphstorm.dataloading
 ==========================
 
-    GraphStorm dataloading module includes a set of graph datasets and dataloaders for different
+    GraphStorm dataloading module includes a set of graph DataSets and DataLoaders for different
     graph machine learning tasks.
+
+    If users would like to customize DataLoaders, please extend those classes in the
+    :ref:`Base DataLoaders <basedataloaders>` section and customize their abstract methods.
 
 .. currentmodule:: graphstorm.dataloading
 
-DataSets
-------------
+.. _basedataloaders:
+
+Base DataLoaders
+-------------------
+
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
+    :template: dataloadertemplate.rst
+
+    GSgnnNodeDataLoaderBase
+    GSgnnEdgeDataLoaderBase
+    GSgnnLinkPredictionDataLoaderBase
+
+DataSets
+------------
+
+.. autosummary::
+    :toctree: ../generated/
+    :nosignatures:
+    :template: datasettemplate.rst
 
     GSgnnNodeTrainData
     GSgnnNodeInferData
     GSgnnEdgeTrainData
     GSgnnEdgeInferData
 
-Dataloaders
+DataLoaders
 ------------
+
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
+    :template: dataloadertemplate.rst
 
     GSgnnNodeDataLoader
     GSgnnEdgeDataLoader
