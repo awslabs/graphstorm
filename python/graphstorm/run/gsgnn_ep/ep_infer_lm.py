@@ -54,7 +54,8 @@ def main(config_args):
                                     label_field=config.label_field,
                                     decoder_edge_feat=config.decoder_edge_feat)
     model = gs.create_builtin_edge_model(infer_data.g, config, train_task=False)
-    model.restore_model(config.restore_model_path)
+    model.restore_model(config.restore_model_path,
+                        model_layer_to_load=config.restore_model_layers)
     infer = GSgnnEdgePredictionInferrer(model)
     infer.setup_device(device=device)
     if not config.no_validation:
