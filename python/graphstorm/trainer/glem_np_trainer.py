@@ -93,9 +93,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         if self.evaluator is not None:
             assert val_loader is not None, \
                     "The evaluator is provided but validation set is not provided."
-        if not use_mini_batch_infer:
-            assert isinstance(self._model, GSgnnModel), \
-                    "Only GSgnnModel supports full-graph inference."
 
         # computation graph will be changed during training.
         on_cpu = self.device == th.device('cpu')
