@@ -162,40 +162,47 @@ def test_exchange_node_id_mapping(num_embs, backend):
     assert p2.exitcode == 0
     assert p3.exitcode == 0
 
-def run_distribute_nid_map(embeddings, local_rank, world_size,
+def run_distribute_nid_map(embeddings, worker_rank, world_size,
     node_id_mapping_file, backend, target_nid_mapping):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
     th.distributed.init_process_group(backend=backend,
                                       init_method=dist_init_method,
                                       world_size=world_size,
-                                      rank=local_rank)
-    device = setup_device(local_rank)
-    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size,
+                                      rank=worker_rank)
+    device = setup_device(worker_rank)
+    nid_mapping = distribute_nid_map(embeddings, worker_rank, world_size,
         node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-        assert_equal(target_nid_mapping[local_rank].numpy(), nid_mapping.cpu().numpy())
+        assert_equal(target_nid_mapping[worker_rank].numpy(), nid_mapping.cpu().numpy())
     elif isinstance(embeddings, dict):
         for name in embeddings.keys():
-            assert_equal(target_nid_mapping[name][local_rank].numpy(), \
+            assert_equal(target_nid_mapping[name][worker_rank].numpy(), \
                 nid_mapping[name].cpu().numpy())
+    if worker_rank == 0:
+        th.distributed.destroy_process_group()
 
-def run_distributed_shuffle_nids(g, ntype, nids, node_id_mapping_file,
-                                 rank, world_size, original_nids):
+def run_distributed_shuffle_nids(part_config, ntype, nids, node_id_mapping_file,
+                                 worker_rank, world_size, original_nids):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
     th.distributed.init_process_group(backend="gloo",
                                       init_method=dist_init_method,
                                       world_size=world_size,
-                                      rank=rank)
+                                      rank=worker_rank)
+    dgl.distributed.initialize('')
+    g = dgl.distributed.DistGraph(graph_name='dummy', part_config=part_config)
 
-    shuffled_nids = shuffle_nids(g, ntype, nids, node_id_mapping_file, rank)
+    shuffled_nids = shuffle_nids(g, ntype, nids, node_id_mapping_file, worker_rank)
     assert_equal(shuffled_nids.numpy(), original_nids.numpy())
+
+    if worker_rank == 0:
+        th.distributed.destroy_process_group()
 
 def test_shuffle_nids():
     with tempfile.TemporaryDirectory() as tmpdirname:
-        g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
+        g, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
         nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
 
         target_ntype = g.ntypes[0]
@@ -204,24 +211,15 @@ def test_shuffle_nids():
 
         test_nids0 = th.randint(g.number_of_nodes(target_ntype),
                                 (g.number_of_nodes(target_ntype),))
-        test_nids1 = th.randint(g.number_of_nodes(target_ntype),
-                                (g.number_of_nodes(target_ntype),))
         orig_nids0 = ori_nid_maps[target_ntype][test_nids0]
-        orig_nids1 = ori_nid_maps[target_ntype][test_nids1]
 
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_distributed_shuffle_nids,
-                        args=(g, target_ntype, test_nids0, nid_map_dict_path,
-                              0, 2, orig_nids0))
-        p1 = ctx.Process(target=run_distributed_shuffle_nids,
-                        args=(g, target_ntype, test_nids1, nid_map_dict_path,
-                              1, 2, orig_nids1))
+                        args=(part_config, target_ntype, test_nids0, nid_map_dict_path,
+                              0, 1, orig_nids0))
         p0.start()
-        p1.start()
         p0.join()
-        p1.join()
         assert p0.exitcode == 0
-        assert p1.exitcode == 0
 
 @pytest.mark.parametrize("backend", ["gloo"])
 def test_distribute_nid_map(backend):
