@@ -52,6 +52,7 @@ class GSDistilledModel(nn.Module):
     def __init__(self, lm_type=None, pre_trained_name=None, checkpoint_path=None):
         super(GSDistilledModel, self).__init__()
 
+        # TODO: Try to unify between loading HF checkpoints and loading GS checkpoints.
         if not checkpoint_path:
             assert lm_type is not None, \
                 "HuggingFace Name of model architecture needs to be specified"
