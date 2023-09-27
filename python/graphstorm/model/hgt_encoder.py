@@ -189,6 +189,7 @@ class HGTLayer(nn.Module):
         """
         # pylint: disable=no-member
         with g.local_scope():
+            edge_fn = {}
             for srctype, etype, dsttype in g.canonical_etypes:
                 c_etype_str = '_'.join((srctype, etype, dsttype))
                 # extract each relation as a sub graph
@@ -227,9 +228,6 @@ class HGTLayer(nn.Module):
                 attn_score = edge_softmax(sub_graph, attn_score, norm_by='dst')
                 sub_graph.edata[f't_{c_etype_str}'] = attn_score.unsqueeze(-1)
 
-            edge_fn = {}
-            for srctype, etype, dsttype in g.canonical_etypes:
-                c_etype_str = '_'.join((srctype, etype, dsttype))
                 edge_fn[srctype, etype, dsttype] = (fn.u_mul_e(f'v_{c_etype_str}',
                                                                f't_{c_etype_str}', 'm'),
                                                     fn.sum('m', 't'))
