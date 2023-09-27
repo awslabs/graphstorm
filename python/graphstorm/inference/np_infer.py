@@ -43,7 +43,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
     def infer(self, loader, save_embed_path, save_prediction_path=None,
               use_mini_batch_infer=False,
               node_id_mapping_file=None,
-              return_proba=True):
+              return_proba=True,
+              save_embed_format="pytorch"):
         """ Do inference
 
         The inference does three things:
@@ -67,6 +68,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             graph partition algorithm.
         return_proba: bool
             Whether to return all the predictions or the maximum prediction.
+        save_embed_format : str
+            Specify the format of saved embeddings.
         """
         do_eval = self.evaluator is not None
         if do_eval:
@@ -134,9 +137,11 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                 ntype_emb = embs[ntype]
             embeddings = {ntype: ntype_emb}
 
-            save_gsgnn_embeddings(save_embed_path, embeddings,
-                                  get_rank(), get_world_size(), device=device,
-                                  node_id_mapping_file=node_id_mapping_file)
+            save_gsgnn_embeddings(save_embed_path, embeddings, get_rank(),
+                get_world_size(),
+                device=device,
+                node_id_mapping_file=node_id_mapping_file,
+                save_embed_format=save_embed_format)
             barrier()
             sys_tracker.check('save embeddings')
 

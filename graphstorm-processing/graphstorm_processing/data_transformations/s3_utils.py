@@ -112,5 +112,7 @@ def extract_bucket_and_key(
     file_bucket = file_s3_uri.split("/")[2]
     # Similarly, by having maxsplit=3 we get the S3 key value as the fourth element
     file_key = file_s3_uri.split("/", 3)[3]
+    # We remove any trailing '/' from the key
+    file_key = s3_path_remove_trailing(file_key)
 
     return file_bucket, file_key

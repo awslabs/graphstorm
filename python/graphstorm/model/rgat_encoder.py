@@ -208,6 +208,7 @@ class RelationalGATEncoder(GraphConvEncoder):
     The RelationalGATEncoder should be designated as the model's encoder within Graphstorm.
 
     Parameters
+    -----------
     g : DGLHeteroGraph
         Input graph.
     h_dim: int

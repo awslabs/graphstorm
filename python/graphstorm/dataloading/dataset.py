@@ -15,15 +15,17 @@
 
     Various datasets for the GSF
 """
+import os
 import abc
+import json
 import logging
 
 import torch as th
 import dgl
 
-from ..utils import get_rank, get_world_size
-from ..utils import sys_tracker
-from .utils import dist_sum, flip_node_mask
+from ..utils import get_rank, get_world_size, is_distributed
+from ..utils import sys_tracker, use_wholegraph
+from .utils import dist_sum, flip_node_mask, is_wholegraph_embedding
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
@@ -66,8 +68,15 @@ def prepare_batch_input(g, input_nodes,
 
         if feat_name is not None:
             # concatenate multiple features together
-            feat[ntype] = th.cat([g.nodes[ntype].data[fname][nid].to(dev) \
-                for fname in feat_name], dim=1)
+            feats = []
+            for fname in feat_name:
+                data = g.nodes[ntype].data[fname]
+                if is_wholegraph_embedding(data):
+                    data = data.gather(nid.to(dev))
+                else:
+                    data = data[nid].to(dev)
+                feats.append(data)
+            feat[ntype] = th.cat(feats, dim=1)
     return feat
 
 def prepare_batch_edge_input(g, input_edges,
@@ -130,6 +139,32 @@ class GSgnnData():
         self._val_idxs = {}
         self._test_idxs = {}
 
+        if get_rank() == 0:
+            g = self._g
+            for ntype in g.ntypes:
+                logging.debug("%s has %d nodes.", ntype, g.number_of_nodes(ntype))
+            for etype in g.canonical_etypes:
+                logging.debug("%s has %d edges.", str(etype), g.number_of_edges(etype))
+
+        # Use wholegraph for feature transfer
+        if is_distributed() and use_wholegraph(part_config):
+            logging.info("Allocate features with Wholegraph")
+            num_parts = self._g.get_partition_book().num_partitions()
+
+            # load node feature from wholegraph memory
+            for ntype in node_feat_field.keys():
+                assert ntype in self._g.ntypes, \
+                        f"Cannot load features of node type '{ntype}' as graph has" \
+                        f" no such node type."
+                data = {}
+                feat_names = node_feat_field[ntype]
+                for name in feat_names:
+                    data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
+                if len(self._g.ntypes) == 1:
+                    self._g._ndata_store.update(data)
+                else:
+                    self._g._ndata_store[ntype].update(data)
+
         self.prepare_data(self._g)
         sys_tracker.check('construct training data')
 
@@ -157,6 +192,53 @@ class GSgnnData():
     def edge_feat_field(self):
         """the field of edge feature"""
         return self._edge_feat_field
+
+    def load_wg_feat(self, part_config_path, num_parts, ntype, name):
+        """Load features from wholegraph memory
+
+        Parameters
+        ----------
+        part_config_path : str
+            The path of the partition configuration file.
+        num_parts : int
+            The number of partitions of the dataset
+        ntype: str
+            The type of node for which to fetch features or labels for.
+        name: str
+            The name of the features or labels to load
+        """
+        import pylibwholegraph.torch as wgth
+
+        global_comm = wgth.comm.get_global_communicator()
+        feature_comm = global_comm
+        embedding_wholememory_type = 'distributed'
+        embedding_wholememory_location = 'cpu'
+        cache_policy = wgth.create_builtin_cache_policy(
+            "none", # cache type
+            embedding_wholememory_type,
+            embedding_wholememory_location,
+            "readonly", # access type
+            0.0, # cache ratio
+        )
+        metadata_file = os.path.join(os.path.dirname(part_config_path),
+                                     'wholegraph/metadata.json')
+        with open(metadata_file, encoding="utf8") as f:
+            wg_metadata = json.load(f)
+        data_shape = wg_metadata[ntype + '/' + name]['shape']
+        node_feat_wm_embedding = wgth.create_embedding(
+            feature_comm,
+            embedding_wholememory_type,
+            embedding_wholememory_location,
+            getattr(th, wg_metadata[ntype + '/' + name]['dtype'].split('.')[1]),
+            [data_shape[0],1] if len(data_shape) == 1 else data_shape,
+            optimizer=None,
+            cache_policy=cache_policy,
+        )
+        feat_path = os.path.join(os.path.dirname(part_config_path), 'wholegraph', \
+                                                 ntype + '~' + name)
+        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
+                                                                       part_count=num_parts)
+        return node_feat_wm_embedding
 
     def has_node_feats(self, ntype):
         """ Test if the specified node type has features.
@@ -524,13 +606,14 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         for canonical_etype in self.eval_etypes:
             if 'test_mask' in g.edges[canonical_etype].data:
                 # test_mask exists
-                # we will do evaluation.
+                # we will do evaluation or inference on test data.
                 test_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['test_mask'],
                     pb, etype=canonical_etype, force_even=True)
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
+                    infer_idxs[canonical_etype] = test_idx
             else:
                 # Inference only
                 # we will do inference on the entire edge set
@@ -810,13 +893,14 @@ class GSgnnNodeInferData(GSgnnNodeData):
                 if 'trainer_id' in g.nodes[ntype].data else None
             if 'test_mask' in g.nodes[ntype].data:
                 # test_mask exists
-                # we will do evaluation.
+                # we will do evaluation or inference on test data.
                 test_idx = dgl.distributed.node_split(g.nodes[ntype].data['test_mask'],
                                                       pb, ntype=ntype, force_even=True,
                                                       node_trainer_ids=node_trainer_ids)
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[ntype] = test_idx
+                    infer_idxs[ntype] = test_idx
                 elif test_idx is None:
                     logging.warning("%s does not contains test data, skip testing %s",
                                     ntype, ntype)

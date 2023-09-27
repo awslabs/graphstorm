@@ -49,7 +49,7 @@ from .config import SUPPORTED_TASKS
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
-from .config import GRAPHSTORM_MODEL_ALL_LAYERS
+from .config import GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_LAYER_OPTIONS
 
 from .utils import get_graph_name
 from ..utils import TORCH_MAJOR_VER, get_log_level
@@ -68,6 +68,12 @@ __all__ = [
 def get_argument_parser():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description="GSGNN Arguments")
+    parser.add_argument('--logging-level', type=str, default="info",
+                        help="Change the logging level. " + \
+                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
+                               "The default value is 'info'.")
+    parser.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
+                        help='The file where the logging is saved to.')
     # Required parameters
     parser.add_argument(
         "--yaml_config_file",
@@ -121,6 +127,17 @@ class GSConfig:
         Commend line arguments
     """
     def __init__(self, cmd_args):
+        # We need to config the logging at very beginning. Otherwise, logging will not work.
+        log_level = get_log_level(cmd_args.logging_level) \
+                if hasattr(cmd_args, "logging_level") else logging.INFO
+        log_file = cmd_args.logging_file if hasattr(cmd_args, "logging_file") else None
+        if log_file is None:
+            # We need to force the logging to reset the existing logging handlers
+            # in order to make sure this config is effective.
+            logging.basicConfig(level=log_level, force=True)
+        else:
+            logging.basicConfig(filename=log_file, level=log_level, force=True)
+
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
@@ -129,11 +146,6 @@ class GSConfig:
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
 
-        # We need to config the logging at very beginning. Otherwise, logging will not work.
-        if self.logging_file is None:
-            logging.basicConfig(level=self.logging_level)
-        else:
-            logging.basicConfig(filename=self.logging_file, level=self.logging_level)
         logging.debug(str(configuration))
         cmd_args_dict = cmd_args.__dict__
         # Print overriden arguments.
@@ -283,6 +295,7 @@ class GSConfig:
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
         _ = self.save_embed_path
+        _ = self.save_embed_format
 
         # Model architecture
         _ = self.dropout
@@ -475,24 +488,6 @@ class GSConfig:
             return self._verbose
 
         return False
-
-    @property
-    def logging_level(self):
-        """ Get the logging level.
-        """
-        if hasattr(self, "_logging_level"):
-            return get_log_level(self._logging_level)
-        else:
-            return logging.INFO
-
-    @property
-    def logging_file(self):
-        """ The file where logs are saved to.
-        """
-        if hasattr(self, "_logging_file"):
-            return self._logging_file
-        else:
-            return None
 
     ###################### language model support #########################
     # Bert related
@@ -826,8 +821,8 @@ class GSConfig:
                 "restore-model-path must be provided if restore-model-layers is specified."
             model_layers = self._restore_model_layers.split(',')
             for layer in model_layers:
-                assert layer in GRAPHSTORM_MODEL_ALL_LAYERS, \
-                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_ALL_LAYERS}"
+                assert layer in GRAPHSTORM_MODEL_LAYER_OPTIONS, \
+                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_LAYER_OPTIONS}"
             return model_layers
 
         return GRAPHSTORM_MODEL_ALL_LAYERS
@@ -860,6 +855,19 @@ class GSConfig:
         if hasattr(self, "_save_embed_path"):
             return self._save_embed_path
         return None
+
+    @property
+    def save_embed_format(self):
+        """ Specify the format of saved embeddings.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_save_embed_format"):
+            assert self._save_embed_format in ["pytorch", "hdf5"], \
+                f"{self._save_embed_format} is not supported for save_embed_format." \
+                f"Supported format ['pytorch', 'hdf5']."
+            return self._save_embed_format
+        # default to be 'pytorch'
+        return "pytorch"
 
     @property
     def save_model_path(self):
@@ -1940,12 +1948,6 @@ def _add_initialization_args(parser):
         default=argparse.SUPPRESS,
         help="Print more information.",
     )
-    group.add_argument('--logging-level', type=str, default="info",
-                       help="Change the logging level. " + \
-                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
-                               "The default value is 'info'.")
-    group.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
-                       help='The file where the logging is saved to.')
     return parser
 
 def _add_gsgnn_basic_args(parser):
@@ -2026,6 +2028,8 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
+    group.add_argument("--save-embed-format", type=str, default=argparse.SUPPRESS,
+            help="Specify the format for saved embeddings. Valid format: ['pytorch', 'hdf5']")
     group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,
