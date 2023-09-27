@@ -16,13 +16,15 @@
     GNN model for edge prediction s in GraphStorm
 """
 import abc
+import logging
+import time
 import torch as th
 import dgl
 
 from .gnn import GSgnnModel, GSgnnModelBase
 from .utils import append_to_dict
 
-from ..utils import barrier, is_distributed
+from ..utils import barrier, is_distributed, get_rank
 
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
@@ -174,6 +176,8 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         otherwise return the maximum result.
     dict of Tensor : labels if return_labels is True
     """
+    if get_rank() == 0:
+        logging.debug("Perform mini-batch inference for edge prediction.")
     device = model.device
     data = loader.data
     g = data.g
@@ -193,6 +197,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         # WholeGraph does not support imbalanced batch numbers across processes/trainers
         # TODO (IN): Fix dataloader to have the same number of minibatches
         for iter_l in range(max_num_batch):
+            iter_start = time.time()
             tmp_keys = []
             if iter_l < len_dataloader:
                 input_nodes, target_edge_graph, blocks = next(dataloader_iter)
@@ -245,6 +250,9 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 append_to_dict(pred, preds)
             else: # model.predict return a tensor instead of a dict
                 append_to_dict({target_etype: pred}, preds)
+            if get_rank() == 0 and iter_l % 20 == 0:
+                logging.debug("iter %d out of %d: takes %.3f seconds",
+                              iter_l, max_num_batch, time.time() - iter_start)
 
     model.train()
     for target_etype, pred in preds.items():

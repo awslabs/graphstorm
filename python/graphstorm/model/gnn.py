@@ -862,6 +862,8 @@ def do_mini_batch_inference(model, data, batch_size=1024,
     -------
     dict of th.Tensor : node embeddings.
     """
+    if get_rank() == 0:
+        logging.debug("Perform mini-batch inference on the full graph.")
     t1 = time.time() # pylint: disable=invalid-name
     barrier()
     if model.gnn_encoder is None:
@@ -942,6 +944,8 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
     -------
     dict of th.Tensor : node embeddings.
     """
+    if get_rank() == 0:
+        logging.debug("Perform full-graph inference.")
     assert isinstance(model, GSgnnModel), "Only GSgnnModel supports full-graph inference."
     t1 = time.time() # pylint: disable=invalid-name
     # full graph evaluation
