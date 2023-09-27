@@ -14,7 +14,7 @@ cp libspdlog.a  /usr/lib/libspdlog.a
 export PYTHON=/usr/bin/python
 
 cd  /opt/rapids/
-git clone https://github.com/rapidsai/wholegraph.git -b refactoring
+git clone https://github.com/rapidsai/wholegraph.git -b branch-23.08
 cd /opt/rapids/wholegraph/
 pip install scikit-build
 export WHOLEGRAPH_CMAKE_CUDA_ARCHITECTURES="70-real;80-real;90"
