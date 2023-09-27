@@ -209,7 +209,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             self.optimizer.zero_grad()
             loss.backward()
             profiler.record('train_backward')
-            self.optimizer.step()
+            self.optimizer.step(optimize_sparse_params=model.module.training_sparse_embed)
             profiler.record('train_step')
 
             if max_grad_norm is not None:

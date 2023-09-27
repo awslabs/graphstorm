@@ -95,10 +95,12 @@ class GSOptimizer():
         for optimizer in all_opts:
             optimizer.zero_grad()
 
-    def step(self):
+    def step(self, optimize_sparse_params=True):
         """ Moving the optimizer
         """
-        all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
+        all_opts = self.dense_opts + self.lm_opts
+        if optimize_sparse_params:
+            all_opts += self.sparse_opts
         for optimizer in all_opts:
             optimizer.step()
 
