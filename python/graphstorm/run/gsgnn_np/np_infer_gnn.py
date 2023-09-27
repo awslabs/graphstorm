@@ -15,7 +15,6 @@
 
     Inference script for node classification/regression tasks with GNN
 """
-
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig

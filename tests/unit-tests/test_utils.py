@@ -28,6 +28,7 @@ from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved
 from graphstorm.model.utils import _get_data_range
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
 from graphstorm.model.utils import shuffle_predict
+from graphstorm.model.utils import pad_file_index
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
@@ -128,7 +129,7 @@ def run_dist_exchange_node_id_mapping(worker_rank, world_size, backend,
     assert_equal(target_nid_mapping.numpy(), nid_mapping.cpu().numpy())
 
 @pytest.mark.parametrize("num_embs", [100, 101])
-@pytest.mark.parametrize("backend", ["gloo"])
+@pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_exchange_node_id_mapping(num_embs, backend):
     node_id_mapping = th.randperm(num_embs)
     start, end = _get_data_range(0, 4, num_embs)
@@ -162,7 +163,7 @@ def test_exchange_node_id_mapping(num_embs, backend):
     assert p2.exitcode == 0
     assert p3.exitcode == 0
 
-def run_distribute_nid_map(embeddings, local_rank, world_size, 
+def run_distribute_nid_map(embeddings, local_rank, world_size,
     node_id_mapping_file, backend, target_nid_mapping):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
@@ -171,7 +172,7 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
                                       world_size=world_size,
                                       rank=local_rank)
     device = setup_device(local_rank)
-    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size, 
+    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size,
         node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
@@ -181,10 +182,10 @@ def run_distribute_nid_map(embeddings, local_rank, world_size,
             assert_equal(target_nid_mapping[name][local_rank].numpy(), \
                 nid_mapping[name].cpu().numpy())
 
-@pytest.mark.parametrize("backend", ["gloo"])
+@pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_distribute_nid_map(backend):
     # need to force to reset the fork context
-    # because dist tensor is the input for mulitiple processes 
+    # because dist tensor is the input for mulitiple processes
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
@@ -373,7 +374,7 @@ def test_shuffle_predict(num_embs, backend):
 # TODO: Only test gloo now
 # Will add test for nccl once we enable nccl
 @pytest.mark.parametrize("num_embs", [16, 17])
-@pytest.mark.parametrize("backend", ["gloo"])
+@pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_save_embeddings_with_id_mapping(num_embs, backend):
     import tempfile
 
@@ -396,8 +397,8 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         assert p1.exitcode == 0
 
         # Load saved embeddings
-        emb0 = th.load(os.path.join(tmpdirname, 'emb.part0.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(tmpdirname, 'emb.part1.bin'), weights_only=True)
+        emb0 = th.load(os.path.join(tmpdirname, f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(tmpdirname, f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(emb)
         assert_equal(emb[nid_mapping].numpy(), saved_emb.numpy())
@@ -436,20 +437,20 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         assert p1.exitcode == 0
 
         # Load saved embeddings
-        emb0 = th.load(os.path.join(tmpdirname, 'n0_emb.part0.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(tmpdirname, 'n0_emb.part1.bin'), weights_only=True)
+        emb0 = th.load(os.path.join(tmpdirname, f'n0_emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(tmpdirname, f'n0_emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n0'])
         assert_equal(embs['n0'][nid_mappings['n0']].numpy(), saved_emb.numpy())
 
-        emb0 = th.load(os.path.join(tmpdirname, 'n1_emb.part0.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(tmpdirname, 'n1_emb.part1.bin'), weights_only=True)
+        emb0 = th.load(os.path.join(tmpdirname, f'n1_emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(tmpdirname, f'n1_emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n1'])
         assert_equal(embs['n1'][nid_mappings['n1']].numpy(), saved_emb.numpy())
 
-        emb0 = th.load(os.path.join(tmpdirname, 'n2_emb.part0.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(tmpdirname, 'n2_emb.part1.bin'), weights_only=True)
+        emb0 = th.load(os.path.join(tmpdirname, f'n2_emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(tmpdirname, f'n2_emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n2'])
         assert_equal(embs['n2'][nid_mappings['n2']].numpy(), saved_emb.numpy())
@@ -466,11 +467,11 @@ def test_save_embeddings():
         type0_random_emb, type1_random_emb = helper_save_embedding(tmpdirname)
 
         # Only work with torch 1.13+
-        feats_type0 = [th.load(os.path.join(tmpdirname, "type0_emb.part{}.bin".format(i)),
+        feats_type0 = [th.load(os.path.join(tmpdirname, f"type0_emb.part{pad_file_index(i)}.bin"),
                                weights_only=True) for i in range(4)]
         feats_type0 = th.cat(feats_type0, dim=0)
         # Only work with torch 1.13+
-        feats_type1 = [th.load(os.path.join(tmpdirname, "type1_emb.part{}.bin".format(i)),
+        feats_type1 = [th.load(os.path.join(tmpdirname, f"type1_emb.part{pad_file_index(i)}.bin"),
                                weights_only=True) for i in range(4)]
         feats_type1 = th.cat(feats_type1, dim=0)
 
@@ -593,7 +594,21 @@ def test_stream_dist_tensors_to_hdf5():
             assert_equal(dummy_dist_embeds[ntype][0:len(dummy_dist_embeds[ntype])].numpy(), \
                 read_f[ntype][0:])
 
+def test_pad_file_index():
+    assert pad_file_index(1) == "00001"
+    assert pad_file_index(111) == "00111"
+    assert pad_file_index(111, 4) == "0111"
+    fail = False
+    try:
+        pad_file_index(111, 0)
+    except:
+        fail = True
+    assert fail
+
 if __name__ == '__main__':
+    test_distribute_nid_map(backend='gloo')
+    test_distribute_nid_map(backend='nccl')
+
     test_shuffle_predict(num_embs=16, backend='gloo')
     test_shuffle_predict(num_embs=17, backend='nccl')
 
@@ -610,4 +625,3 @@ if __name__ == '__main__':
     test_gen_mrr_score()
 
     test_stream_dist_tensors_to_hdf5()
-    test_distribute_nid_map(backend='gloo')
