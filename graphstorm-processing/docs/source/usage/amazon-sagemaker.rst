@@ -6,7 +6,7 @@ use the Amazon SageMaker launch scripts to launch distributed processing
 jobs that use AWS resources.
 
 To demonstrate the usage of GSProcessing on Amazon SageMaker, we will execute the same job we used in our local
-execution example, but this time use Amazon SageMaker to provide the compute instead of our
+execution example, but this time use Amazon SageMaker to provide the compute resources instead of our
 local machine.
 
 Upload data to S3
@@ -54,7 +54,7 @@ using larger instances like `ml.r5.24xlarge`.
 Since we're now executing on AWS, we'll need access to an execution role
 for SageMaker and the ECR image URI we created in :doc:`/usage/distributed-processing-setup`.
 For instructions on how to create an execution role for SageMaker
-see the `AWS SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-roles.html#sagemaker-roles-create-execution-role>`.
+see the `AWS SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-roles.html#sagemaker-roles-create-execution-role>`_.
 
 Let's set up a small bash script that will run the parametrized processing
 job, followed by the re-partitioning job, both on SageMaker
@@ -112,6 +112,19 @@ job, followed by the re-partitioning job, both on SageMaker
     The re-partitioning job runs on a single instance, so for large graphs you will
     want to scale up to an instance with more memory to avoid memory errors. `ml.r5` instances
     should allow you to re-partition graph data with billions of nodes and edges.
+
+The ``--num-output-files`` parameter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can see that we provided a parameter named
+``--num-output-files`` to ``run_distributed_processing.py``. This is an
+important parameter, as it provides a hint to set the parallelism for Spark.
+
+It can safely be skipped and let Spark decide the proper value based on the cluster's
+instance type and count. If setting it yourself a good value to use is
+``num_instances * num_cores_per_instance * 2``, which will ensure good
+utilization of the cluster resources.
+
 
 Examine the output
 ------------------

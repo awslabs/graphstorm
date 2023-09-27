@@ -37,16 +37,18 @@ us to perform the processing and prepare the data for partitioning and training.
 
 The data files are expected to be:
 
-* Tabular data files. We support CSV with header format, or in Parquet format.
-  The files can be partitioned (multiple parts), or a single file.
-* Available on a local filesystem or on S3.
+* Tabular data files. We support CSV-with-header format, or in Parquet format.
+  The files can be split (multiple parts), or a single file.
+* Available on a local file system or on S3.
 * One tabular file source per edge and node type. For example, for a particular edge
   type, all node identifiers (source, destination), features, and labels should
   exist as columns in a single file source.
 
 Apart from the data, GSProcessing also requires a configuration file that describes the
-data and the transformations we will need to apply to the features and labels. We support
-both the GConstruct configuration format, and the library's own GSProcessing format.
+data and the transformations we will need to apply to the features and any encoding needed for
+labels.
+We support both the `GConstruct configuration format <https://graphstorm.readthedocs.io/en/latest/configuration/configuration-gconstruction.html#configuration-json-explanations>`_
+, and the library's own GSProcessing format, described in :doc:`/developer/input-configuration`.
 
 .. note::
     We expect end users to only provide a GConstruct configuration file,
@@ -80,23 +82,25 @@ For example:
     /home/path/to/data/ # This is the current working directory (cwd)
     > ls
     gconstruct-config.json edge_data # These are the files under the cwd
-    > ls edge_data/ # These are the files under the edge_data director
+    > ls edge_data/ # These are the files under the edge_data directory
     movie-included_in-genre.csv
 
 The contents of the ``gconstruct-config.json`` can be:
 
-.. code-block:: json
+.. code-block:: python
 
     {
-    "edges" : [
-        {
-            "files": ["edges/movie-included_in-genre.csv"],
-            "format": {
-                "name": "csv",
-                "separator" : ","
+        "edges" : [
+            {
+                # Note that the file is a relative path
+                "files": ["edges/movie-included_in-genre.csv"],
+                "format": {
+                    "name": "csv",
+                    "separator" : ","
+                }
+                # [...] Other edge config values
             }
-        }
-      ]
+        ]
     }
 
 Given the above we can run a job with local input data as:
@@ -104,7 +108,7 @@ Given the above we can run a job with local input data as:
 .. code-block:: bash
 
     > gs-processing --input-data /home/path/to/data \
-        --config-filename gsprocessing-config.json
+        --config-filename gconstruct-config.json
 
 The benefit with using relative paths is that we can move the same files
 to any location, including S3, and run the same job without making changes to the config
@@ -116,13 +120,13 @@ file:
     > mv /home/path/to/data /home/new-path/to/data
     # After moving all the files we can still use the same config
     > gs-processing --input-data /home/new-path/to/data \
-        --config-filename gsprocessing-config.json
+        --config-filename gconstruct-config.json
 
     # Upload data to S3
     > aws s3 sync /home/new-path/to/data s3://my-bucket/data/
     # We can still use the same config, just change the prefix to an S3 path
     > python run_distributed_processing.py --input-data s3://my-bucket/data \
-        --config-filename gsprocessing-config.json
+        --config-filename gconstruct-config.json
 
 Node files are optional
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -131,7 +135,7 @@ GSProcessing does not require node files to be provided for
 every node type. If a node type appears in one of the edges,
 its unique node identifiers will be determined by the edge files.
 
-In the example GConstruct above, the node ids for the node types
+In the example GConstruct file above (`gconstruct-config.json`), the node ids for the node types
 ``movie`` and ``genre`` will be extracted from the edge list provided.
 
 Example data and configuration
@@ -151,7 +155,7 @@ and one label, ``gender``, that we transform to prepare the data for a node clas
 Run a GSProcessing job locally
 ------------------------------
 
-While GSProcessing is designed to run on distributed clusters on Amazon SageMaker,
+While GSProcessing is designed to run on distributed clusters,
 we can also run small jobs in a local environment, using a local Spark instance.
 
 To do so, we will be using the ``gs-processing`` entry point,
@@ -187,7 +191,9 @@ Examining the job output
 ------------------------
 
 Once the processing and re-partitioning jobs are done,
-we can examine the outputs they created.
+we can examine the outputs they created. The output will be
+compatible with the `Chunked Graph Format of DistDGL <https://docs.dgl.ai/guide/distributed-preprocessing.html#chunked-graph-format>`_
+and can be used downstream to create a partitioned graph.
 
 .. code-block:: bash
 
@@ -216,15 +222,28 @@ the graph structure, features, and labels. In more detail:
 The directories created contain:
 
 * ``edges``: Contains the edge structures, one sub-directory per edge
-  type.
+  type. Each edge file will contain two columns, the source and destination
+  `numerical` node id, named ``src_int_id`` and ``dist_int_id`` respectively.
 * ``node_data``: Contains the features for the nodes, one sub-directory
-  per node type.
+  per node type. Each file will contain one column named after the original
+  feature name that contains the value of the feature (could be a scalar or a vector).
 * ``node_id_mappings``: Contains mappings from the original node ids to the
   ones created by the processing job. This mapping would allow you to trace
-  back predictions to the original nodes/edges.
+  back predictions to the original nodes/edges. The files will have two columns,
+  ``node_str_id`` that contains the original string ID of the node, and ``node_int_id``
+  that contains the numerical id that the string id was mapped to.
 
 If the graph had included edge features they would appear
 in an ``edge_data`` directory.
+
+.. note::
+
+    It's important to note that files for edges and edge data will have the
+    same order and row counts per file, as expected by DistDGL. Similarly,
+    all node feature files will have the same order and row counts, where
+    the first row corresponds to the feature value for node id 0, the second
+    for node id 1 etc.
+
 
 At this point you can use the DGL distributed partitioning pipeline
 to partition your data, as described in the
@@ -232,7 +251,7 @@ to partition your data, as described in the
 
 To simplify the process of partitioning and training, without the need
 to manage your own infrastructure, we recommend using GraphStorm's
-`SageMaker wrappers <https://github.com/awslabs/graphstorm/wiki/scale-sagemaker>`_
+`SageMaker wrappers <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
 that do all the hard work for you and allow
 you to focus on model development.
 

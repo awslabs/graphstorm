@@ -40,8 +40,8 @@ To get started with building the GraphStorm Processing image
 you'll need to have the Docker engine installed.
 
 
-To install Docker follow the instructions at:
-https://docs.docker.com/engine/install/
+To install Docker follow the instructions at the
+`official site <https://docs.docker.com/engine/install/>`_.
 
 Install Poetry
 --------------
@@ -56,8 +56,8 @@ You can install Poetry using:
 
     curl -sSL https://install.python-poetry.org | python3 -
 
-For detailed installation instructions see:
-https://python-poetry.org/docs/
+For detailed installation instructions the
+`Poetry docs <https://python-poetry.org/docs/>`_.
 
 
 Set up AWS access
@@ -74,8 +74,8 @@ To install the AWS CLI you can use:
     unzip awscliv2.zip
     sudo ./aws/install
 
-To set up credentials for use with ``aws-cli`` see:
-https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-examples
+To set up credentials for use with ``aws-cli`` see the
+`AWS docs <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-examples>`_.
 
 Your role should have full ECR access to be able to pull from ECR to build the image,
 create an ECR repository if it doesn't exist, and push the GSProcessing image to the repository.
