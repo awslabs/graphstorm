@@ -23,7 +23,7 @@ gsf:
     model_encoder_type: rgcn
     num_layers: 2
     hidden_size: 128
-    use_mini_batch_infer: true
+    use_mini_batch_infer: false
   input:
     restore_model_path: null
   output:
@@ -41,7 +41,7 @@ gsf:
     eval_batch_size: 1024
     lm_infer_batch_size: 1024
     wd_l2norm: 0
-    no_validation: true
+    no_validation: false
     eval_frequency: 500
   rgcn:
     num_bases: -1
