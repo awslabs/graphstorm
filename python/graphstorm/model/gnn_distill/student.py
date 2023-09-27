@@ -78,6 +78,21 @@ class GSDistilledModel(nn.Module):
         # TODO (HZ): support more distance-based loss
         self.loss = nn.MSELoss()
 
+    def save_gs_checkpoint(self, tokenizer_dir_loc, lm_dir_loc, proj_dir_loc):
+        """ Save distilled checkpoint.
+        Parameters
+        ----------
+        tokenizer_dir_loc : str
+            Saved path for tokenizer.
+        lm_dir_loc : str
+            Saved path for language model.
+        proj_dir_loc : str
+            Saved path for projection layer.
+        """
+        self.tokenizer.save_pretrained(tokenizer_dir_loc)
+        self.lm.save_pretrained(lm_dir_loc)
+        th.save(self.state_dict()["proj"], os.path.join(proj_dir_loc, "pytorch_model.bin"))
+
     def load_from_gs_checkpoint(self, checkpoint_path):
         """ Load student moddel from checkpoint_path.
 

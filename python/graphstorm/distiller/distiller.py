@@ -114,11 +114,7 @@ class GSdistiller():
             lm_dir_loc = os.path.join(checkpoint_path, "lm")
             os.makedirs(proj_dir_loc, exist_ok=True)
             logging.info("Saving checkpoint to %s", checkpoint_path)
-
-            model.module.tokenizer.save_pretrained(tokenizer_dir_loc)
-            model.module.lm.save_pretrained(lm_dir_loc)
-            th.save(model.module.state_dict()["proj"], os.path.join(proj_dir_loc, "pytorch_model.bin"))
-
+            model.module.save_gs_checkpoint(tokenizer_dir_loc, lm_dir_loc, proj_dir_loc)
         return True
 
     def eval(self, model, eval_data_mgr, distill_step):
