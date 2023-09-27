@@ -1,15 +1,19 @@
 ---
 version: 1.0
+lm_model:
+  distill_lm_models:
+    -
+      lm_type: DistilBertModel
+      model_name: "distilbert-base-uncased"
 gsf:
   basic:
-    backend: gloo
+    backend: gloo # TODO: enable nccl as it's faster for LM training.
     ip_config: ip_list.txt
     verbose: false
     save_perf_results_path: null
   distill:
     textual_data_path: "/tmp/gsgnn_dt/distill_data" # textual dataset
-    lm_name: DistilBertModel # optional, default to be DistilBertModel
-    pre_trained_name: distilbert-base-uncased # optional, default to be null
+    max_distill_step: 10000 # optionial, default to be 10000.
   output:
     save_model_path: "/tmp/gsgnn_dt/checkpoints"
     save_model_frequency: 1000 # optional, default to be 1000

@@ -921,7 +921,6 @@ def test_DistillDistributedFileSampler(num_files, is_train,
         # 3) when num_files > world size and cannot be evenly divided.
 
         for rank in range(4):
-            th.cuda.set_device(rank)
             device = setup_device(rank)
 
             file_sampler = DistributedFileSampler(
@@ -952,10 +951,9 @@ def test_DistillDistributedFileSampler(num_files, is_train,
                 for i, data_file in enumerate(file_sampler_iter):
                     if data_file is None:
                         break
-                    if i == file_sampler.part_len:
-                        assert False, "Non-infinite sampler doesn't exit."
-                    else:
-                        global_sampled_files.append(data_file.split("/")[-1])
+                    assert i < file_sampler.part_len, \
+                        "Non-infinite sampler doesn't exit."
+                    global_sampled_files.append(data_file.split("/")[-1])
         assert set(global_sampled_files) == set(os.listdir(tmpdirname))
 
 
@@ -1019,7 +1017,7 @@ def run_distill_dist_data(worker_rank, world_size,
             else:
                 assert False, "DistillDataManager doesn't exit."
 
-@pytest.mark.parametrize("backend", ["gloo"])
+@pytest.mark.parametrize("backend", ["gloo", "nccl"])
 @pytest.mark.parametrize("num_files", [3, 8])
 @pytest.mark.parametrize("is_train", [True, False])
 def test_DistillDataloaderGenerator(backend, num_files, is_train):
@@ -1050,27 +1048,27 @@ def test_DistillDataloaderGenerator(backend, num_files, is_train):
         assert p3.exitcode == 0
 
 if __name__ == '__main__':
-    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnEdgeData_wo_test_mask()
-    test_GSgnnNodeData_wo_test_mask()
-    test_GSgnnEdgeData()
-    test_GSgnnNodeData()
-    test_lp_dataloader()
-    test_edge_dataloader()
-    test_node_dataloader()
-    test_node_dataloader_reconstruct()
-    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    # test_GSgnnEdgeData_wo_test_mask()
+    # test_GSgnnNodeData_wo_test_mask()
+    # test_GSgnnEdgeData()
+    # test_GSgnnNodeData()
+    # test_lp_dataloader()
+    # test_edge_dataloader()
+    # test_node_dataloader()
+    # test_node_dataloader_reconstruct()
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    test_prepare_input()
-    test_modify_fanout_for_target_etype()
+    # test_prepare_input()
+    # test_modify_fanout_for_target_etype()
 
-    test_DistillDistributedFileSampler(num_files=9, is_train=True, \
-        infinite=False, shuffle=True)
-    test_DistillDataloaderGenerator("gloo", 8, True)
+    # test_DistillDistributedFileSampler(num_files=9, is_train=True, \
+    #     infinite=False, shuffle=True)
+    test_DistillDataloaderGenerator("nccl", 8, True)
