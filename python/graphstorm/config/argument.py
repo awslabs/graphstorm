@@ -2195,8 +2195,6 @@ def _add_lm_model_args(parser):
     group.add_argument("--freeze-lm-encoder-epochs", type=int, default=argparse.SUPPRESS,
             help="Before fine-tuning LM model, how many epochs we will take "
                  "to warmup a GNN model")
-    group.add_argument("--max-distill-step", type=int, default=argparse.SUPPRESS,
-                       help="The maximum of training step for each node type for distillation")
     group.add_argument("--max-seq-len", type=int, default=argparse.SUPPRESS,
                        help="The maximum of sequence length for distillation")
     return parser
@@ -2368,6 +2366,8 @@ def _add_distill_args(parser):
     group = parser.add_argument_group(title="distill")
     group.add_argument("--textual-data-path", type=str, default=argparse.SUPPRESS,
                        help="Where to load the textual data for distillation.")
+    group.add_argument("--max-distill-step", type=int, default=argparse.SUPPRESS,
+                       help="The maximum of training step for each node type for distillation")
     return parser
 
 # Users can add their own udf parser
