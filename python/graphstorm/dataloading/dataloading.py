@@ -994,7 +994,7 @@ class DistillDataManager:
         self.data_file = None
 
 class DistillDataloaderGenerator:
-    r"""Distill Data Generator that generates pytorch dataloader based on the given file.
+    r""" Distill Data Generator that generates pytorch dataloader based on the given file.
     
     Parameters:
     ----------
@@ -1026,6 +1026,19 @@ class DistillDataloaderGenerator:
         self.collate_fn = collate_fn
 
     def _data_len_sync(self, data):
+        r""" Drop additional samples to make sure each dataloader 
+        has the same number of batches. This is to avoid the training
+        stuck in distributed mode if any trainer has more or less batches.
+        
+        Parameters:
+        ----------
+        data : GSDistillData
+            The pytorch dataset for a trainer.
+
+        Returns:
+        -------
+        GSDistillData : The pytorch dataset for a trainer after the sync.
+        """
         num_data = th.tensor(len(data), dtype=th.int64, device=self.device)
         dist.all_reduce(num_data, op=dist.ReduceOp.MIN)
         min_size = num_data.item()
