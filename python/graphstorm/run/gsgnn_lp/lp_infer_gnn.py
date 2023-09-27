@@ -70,10 +70,6 @@ def main(config_args):
                                      batch_size=config.eval_batch_size,
                                      num_negative_edges=config.num_negative_edges_eval,
                                      fanout=config.eval_fanout)
-    # Preparing input layer for training or inference.
-    # The input layer can pre-compute node features in the preparing step if needed.
-    # For example pre-compute all BERT embeddings
-    model.prepare_input_encoder(infer_data)
     infer.infer(infer_data, dataloader,
                 save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings=None if config.no_validation else \
