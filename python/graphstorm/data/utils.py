@@ -236,6 +236,19 @@ def alltoall_cpu(rank, world_size, output_tensor_list, input_tensor_list):
     for i in range(world_size):
         dist.scatter(output_tensor_list[i], input_tensor_list if i == rank else None, src=i)
 
+def alltoallv_nccl(output_tensor_list, input_tensor_list):
+    """ Each process scatters list of input tensors to all processes in a cluster
+        and return gathered list of tensors in output list using nccl backend.
+
+    Parameters
+    ----------
+    output_tensor_list : List of tensor
+        The received tensors
+    input_tensor_list : List of tensor
+        The tensors to exchange
+    """
+    th.distributed.all_to_all(output_tensor_list, input_tensor_list)
+
 def alltoallv_cpu(rank, world_size, output_tensor_list, input_tensor_list):
     """Each process scatters list of input tensors to all processes in a cluster
     and return gathered list of tensors in output list.
