@@ -905,7 +905,88 @@ def test_edge_dataloader_trim_data(dataloader):
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
-@pytest.mark.parametrize("num_files", [3, 8])
+def get_dist_sampler_attributes(rank, world_size, num_files):
+    """
+    Assign a slice window of file index to each worker.
+    The slice window of each worker is specified
+    by self.global_start and self.global_end
+    """
+    if world_size > num_files:
+        # If num of workers is greater than num of files,
+        # the slice windows are same across all workers,
+        # which covers all files.
+        remainder = world_size % num_files
+        global_start = 0
+        global_end = num_files
+        part_len = global_end
+    else:
+        # If num of workers is smaller than num of files,
+        # the slice windows are different for each worker.
+        # In the case where the files cannot be evenly distributed,
+        # the remainder will be assigned to one or multiple workers evenly.
+        part_len = num_files // world_size
+        remainder = num_files % world_size
+        global_start = part_len * rank + min(rank, remainder)
+        global_end = global_start + part_len + (rank < remainder)
+        part_len = global_end - global_start
+    return global_start, global_end, part_len, remainder
+
+@pytest.mark.parametrize("num_files", [3, 7, 8])
+@pytest.mark.parametrize("rank", [0, 1, 2, 3])
+def test_distill_sampler_get_file(num_files, rank):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        create_distill_data(tmpdirname, num_files)
+        file_list = os.listdir(tmpdirname)
+        dist_sampler = DistributedFileSampler(
+                    dataset_path=tmpdirname,
+                    shuffle=False,
+                    local_rank=rank,
+                    world_size=4,
+                    is_train=True,
+                    infinite=True,
+                )
+
+        # test DistributedFileSampler._file_index_distribute
+        global_start, global_end, part_len, remainder = \
+            get_dist_sampler_attributes(rank, 4, num_files)
+        assert global_start == dist_sampler.global_start
+        assert global_end == dist_sampler.global_end
+        assert part_len == dist_sampler.part_len
+        assert remainder == dist_sampler.remainder
+        
+        # test DistributedFileSampler.get_file
+        if num_files == 3:
+            if rank == 0 or rank == 3:
+                target_index = [0, 2, 1]
+            elif rank == 1:
+                target_index = [1, 0, 2]
+            elif rank == 2:
+                target_index = [2, 1, 0]
+
+        if num_files == 7:
+            if rank == 0:
+                target_index = [0, 1]
+            elif rank == 1:
+                target_index = [2, 3]
+            elif rank == 2:
+                target_index = [4, 5]
+            elif rank == 3:
+                target_index = [6]
+
+        if num_files == 8:
+            if rank == 0:
+                target_index = [0, 1]
+            elif rank == 1:
+                target_index = [2, 3]
+            elif rank == 2:
+                target_index = [4, 5]
+            elif rank == 3:
+                target_index = [6, 7]
+        for offset in range(2*num_files):
+            assert os.path.join(tmpdirname, file_list[target_index[offset%len(target_index)]]) == \
+                dist_sampler.get_file(offset)
+
+@pytest.mark.parametrize("num_files", [3, 7, 8])
 @pytest.mark.parametrize("is_train", [True, False])
 @pytest.mark.parametrize("infinite", [False, True])
 @pytest.mark.parametrize("shuffle", [True, False])
@@ -997,28 +1078,31 @@ def run_distill_dist_data(worker_rank, world_size,
 
     data_mgr.refresh_manager()
 
-    for i, dataset_iterator in enumerate(data_mgr):
-        if is_train:
+    if is_train:
+        train_idx = 0
+        while True:
+            dataset_iterator = data_mgr.get_iterator()
             assert isinstance(dataset_iterator, DataLoader)
-        if dataset_iterator is None:
-            assert i == len(data_mgr)
-            break
-        num_batches = th.tensor(len(dataset_iterator), \
-            dtype=th.int64, device=device)
-        dist.all_reduce(num_batches, op=dist.ReduceOp.MIN)
-        min_size = num_batches.item()
-        assert int(min_size) == int(num_batches)
-
-        if i == len(data_mgr):
-            # infinite
-            if is_train:
-                assert dataset_iterator is not None
+            num_batches = th.tensor(len(dataset_iterator), \
+                dtype=th.int64, device=device)
+            dist.all_reduce(num_batches, op=dist.ReduceOp.MIN)
+            min_size = num_batches.item()
+            assert int(min_size) == int(num_batches)
+            if train_idx == 2 * num_files:
                 break
-            else:
-                assert False, "DistillDataManager doesn't exit."
+            train_idx += 1
+    else:
+        for i, dataset_iterator in enumerate(data_mgr):
+            if i < len(data_mgr):
+                assert isinstance(dataset_iterator, DataLoader)
+            if dataset_iterator is None:
+                assert i == len(data_mgr)
+                break
+            assert i < len(data_mgr), \
+                "DistillDataManager doesn't exit."
 
 @pytest.mark.parametrize("backend", ["gloo", "nccl"])
-@pytest.mark.parametrize("num_files", [3, 8])
+@pytest.mark.parametrize("num_files", [3, 7, 8])
 @pytest.mark.parametrize("is_train", [True, False])
 def test_DistillDataloaderGenerator(backend, num_files, is_train):
     # test DistillDataloaderGenerator
@@ -1048,27 +1132,28 @@ def test_DistillDataloaderGenerator(backend, num_files, is_train):
         assert p3.exitcode == 0
 
 if __name__ == '__main__':
-    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    # test_GSgnnEdgeData_wo_test_mask()
-    # test_GSgnnNodeData_wo_test_mask()
-    # test_GSgnnEdgeData()
-    # test_GSgnnNodeData()
-    # test_lp_dataloader()
-    # test_edge_dataloader()
-    # test_node_dataloader()
-    # test_node_dataloader_reconstruct()
-    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    test_GSgnnEdgeData_wo_test_mask()
+    test_GSgnnNodeData_wo_test_mask()
+    test_GSgnnEdgeData()
+    test_GSgnnNodeData()
+    test_lp_dataloader()
+    test_edge_dataloader()
+    test_node_dataloader()
+    test_node_dataloader_reconstruct()
+    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    # test_prepare_input()
-    # test_modify_fanout_for_target_etype()
+    test_prepare_input()
+    test_modify_fanout_for_target_etype()
 
-    # test_DistillDistributedFileSampler(num_files=9, is_train=True, \
-    #     infinite=False, shuffle=True)
-    test_DistillDataloaderGenerator("nccl", 8, True)
+    test_distill_sampler_get_file(num_files=7, rank=3)
+    test_DistillDistributedFileSampler(num_files=7, is_train=True, \
+        infinite=False, shuffle=True)
+    test_DistillDataloaderGenerator("gloo", 7, True)
