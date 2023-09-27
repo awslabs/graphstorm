@@ -159,7 +159,8 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The minibatch dataloader for edge prediction
 
     GSgnnEdgeDataLoader samples GraphStorm edge dataset into an iterable over mini-batches 
-    of samples, both source and destination nodes are included in the batch_graph.
+    of samples. Both source and destination nodes are included in the batch_graph, which
+    will be used by GraphStorm Trainers and Inferrers.
 
     Parameters
     ------------
@@ -189,16 +190,18 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     Examples
     ------------
     To train a 2-layer GNN for edge prediction on a set of edges ``target_idx`` on 
-    a homogenous graph where each nodes takes messages from 15 neighbors on the first layer
+    a graph where each nodes takes messages from 15 neighbors on the first layer
     and 10 neighbors on the second. 
     .. code:: python
+
         from graphstorm.dataloading import GSgnnEdgeTrainData
         from graphstorm.dataloading import GSgnnEdgeDataLoader
+        from graphstorm.trainer import GSgnnEdgePredictionTrainer
 
         ep_data = GSgnnEdgeTrainData(...)
         ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[15, 10], batch_size=128)
-        for input_nodes, batch_graph, blocks in ep_dataloader:
-            train_on(input_nodes, batch_graph, blocks)
+        ep_trainer = GSgnnEdgePredictionTrainer(...)
+        ep_trainer.fit(ep_dataloader, 10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
@@ -376,7 +379,9 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     GSgnnLinkPredictionDataLoader samples GraphStorm edge dataset into an iterable over mini-batches 
     of samples. In each batch, pos_graph and neg_graph are sampled subgraph for positive and 
-    negative edges, respectively. Given positive edges, the negative edges are sampled uniformly. 
+    negative edges, which will be used by GraphStorm Trainers and Inferrers. Given a positive edge, 
+    a negative edge is composed of the source node and a random negative destination nodes 
+    according to a uniform distribution.
 
     Argument
     --------
@@ -410,17 +415,18 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     Examples
     ------------
     To train a 2-layer GNN for link prediction on a set of positive edges ``target_idx`` on 
-    a homogenous graph where each nodes takes messages from 15 neighbors on the first layer
+    a graph where each nodes takes messages from 15 neighbors on the first layer
     and 10 neighbors on the second. We use 10 negative edges per positive in this example.
     .. code:: python
         from graphstorm.dataloading import GSgnnEdgeTrainData
         from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
+        from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
-        ep_data = GSgnnEdgeTrainData(...)
-        ep_dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, fanout=[15, 10], 
+        lp_data = GSgnnEdgeTrainData(...)
+        lp_dataloader = GSgnnLinkPredictionDataLoader(lp_data, target_idx, fanout=[15, 10], 
         num_negative_edges=10, batch_size=128)
-        for input_nodes, pos_graph, neg_graph, blocks in ep_dataloader:
-            train_on(input_nodes, pos_graph, neg_graph, blocks)
+        lp_trainer = GSgnnLinkPredictionTrainer(...)
+        lp_trainer.fit(lp_dataloader, 10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
@@ -996,7 +1002,9 @@ class GSgnnNodeDataLoaderBase():
 class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
     
-    GSgnnNodeDataLoader samples GraphStorm node dataset into an iterable over mini-batches of samples.
+    GSgnnNodeDataLoader samples GraphStorm node dataset into an iterable over mini-batches of
+    samples including target nodes and sampled neighbor nodes, which will be used by GraphStorm 
+    Trainers and Inferrers. 
 
     Parameters
     ----------
@@ -1020,16 +1028,17 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     Examples
     ----------
     To train a 2-layer GNN for node classification on a set of nodes ``target_idx`` on 
-    a homogenous graph where each nodes takes messages from 15 neighbors on the first layer
+    a graph where each nodes takes messages from 15 neighbors on the first layer
     and 10 neighbors on the second. 
     .. code:: python
         from graphstorm.dataloading import GSgnnNodeTrainData
         from graphstorm.dataloading import GSgnnNodeDataLoader
+        from graphstorm.trainer import GSgnnNodePredictionTrainer
 
         np_data = GSgnnNodeTrainData(...)
         np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10], batch_size=128)
-        for input_nodes, output_nodes, blocks in np_dataloader:
-            train_on(input_nodes, output_nodes, blocks)
+        np_trainer = GSgnnNodePredictionTrainer(...)
+        np_trainer.fit(np_dataloader, 10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
