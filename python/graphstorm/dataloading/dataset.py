@@ -409,6 +409,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
     
     Examples
     ----------
+
     .. code:: python
 
         from graphstorm.dataloading import GSgnnEdgeTrainData
@@ -581,6 +582,7 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         
     Examples
     ----------
+
     .. code:: python
 
         from graphstorm.dataloading import GSgnnEdgeInferData
@@ -757,6 +759,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
     
     Examples
     ----------
+
     .. code:: python
 
         from graphstorm.dataloading import GSgnnNodeTrainData
@@ -896,6 +899,7 @@ class GSgnnNodeInferData(GSgnnNodeData):
     
     Examples
     ----------
+    
     .. code:: python
 
         from graphstorm.dataloading import GSgnnNodeInferData
