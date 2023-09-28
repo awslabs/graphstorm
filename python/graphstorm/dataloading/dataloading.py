@@ -192,6 +192,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     To train a 2-layer GNN for edge prediction on a set of edges ``target_idx`` on 
     a graph where each nodes takes messages from 15 neighbors on the first layer
     and 10 neighbors on the second. 
+
     .. code:: python
 
         from graphstorm.dataloading import GSgnnEdgeTrainData
@@ -417,7 +418,9 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     To train a 2-layer GNN for link prediction on a set of positive edges ``target_idx`` on 
     a graph where each nodes takes messages from 15 neighbors on the first layer
     and 10 neighbors on the second. We use 10 negative edges per positive in this example.
+
     .. code:: python
+
         from graphstorm.dataloading import GSgnnEdgeTrainData
         from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
@@ -1030,7 +1033,9 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     To train a 2-layer GNN for node classification on a set of nodes ``target_idx`` on 
     a graph where each nodes takes messages from 15 neighbors on the first layer
     and 10 neighbors on the second. 
+
     .. code:: python
+    
         from graphstorm.dataloading import GSgnnNodeTrainData
         from graphstorm.dataloading import GSgnnNodeDataLoader
         from graphstorm.trainer import GSgnnNodePredictionTrainer
