@@ -154,6 +154,8 @@ class TemporalRelationalGraphConv(nn.Module):
 
         self.conv = nn.ModuleDict()
         for canonical_etypes in get_unique_etype_triplet(g.canonical_etypes):
+            # The "canonical_etypes" does not include timestamps, i.e., all timestamps
+            # will utilize the same message passing model.
             conv_name = "%s-%s-%s" % (
                 canonical_etypes[0],
                 canonical_etypes[1],

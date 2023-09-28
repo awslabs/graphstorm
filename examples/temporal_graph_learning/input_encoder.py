@@ -46,7 +46,7 @@ class NodeEncoderInputLayer(gsmodel.embed.GSNodeInputLayer):
         self.feat_size = feat_size
 
         self.fields = get_unique_nfields(g.etypes)
-        # field_embeds is a collection of trainable vectors used for time encoding purposes.
+        # "field_embeds" is a collection of trainable vectors used for time encoding purposes.
 
         # Each timestamp is associated with a learnable vector, which will be subsequently added
         # to the original node features. This will help models in distinguishing the timestamp
