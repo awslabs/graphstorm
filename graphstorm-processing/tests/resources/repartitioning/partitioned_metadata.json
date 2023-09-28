@@ -1,7 +1,7 @@
 {
     "edge_type": [
         "src:dummy_type:dst",
-        "dst:rev-dummy_type:src"
+        "dst:dummy_type-rev:src"
     ],
     "edges": {
         "src:dummy_type:dst": {
@@ -18,7 +18,7 @@
                 "delimiter": ""
             }
         },
-        "dst:rev-dummy_type:src": {
+        "dst:dummy_type-rev:src": {
             "data": [
                 "edges/dummy_type/parquet/part-00000.parquet",
                 "edges/dummy_type/parquet/part-00001.parquet",
@@ -78,7 +78,7 @@
                 }
             }
         },
-        "dst:rev-dummy_type:src": {
+        "dst:dummy_type-rev:src": {
                 "label": {
                     "data":[
                         "edge_data/dummy_type-label/parquet/part-00000.parquet",
