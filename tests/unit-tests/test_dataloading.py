@@ -932,59 +932,87 @@ def get_dist_sampler_attributes(rank, world_size, num_files):
     return global_start, global_end, part_len, remainder
 
 @pytest.mark.parametrize("num_files", [3, 7, 8])
-@pytest.mark.parametrize("rank", [0, 1, 2, 3])
-def test_distill_sampler_get_file(num_files, rank):
+def test_distill_sampler_get_file(num_files):
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_distill_data(tmpdirname, num_files)
         file_list = os.listdir(tmpdirname)
-        dist_sampler = DistributedFileSampler(
-                    dataset_path=tmpdirname,
-                    shuffle=False,
-                    local_rank=rank,
-                    world_size=4,
-                    is_train=True,
-                    infinite=True,
-                )
+        tracker = {
+            "global_start": [],
+            "global_end": [], 
+            "part_len": [],
+        }
+        for rank in range(4):
+            dist_sampler = DistributedFileSampler(
+                        dataset_path=tmpdirname,
+                        shuffle=False,
+                        local_rank=rank,
+                        world_size=4,
+                        is_train=True,
+                        infinite=True,
+                    )
 
-        # test DistributedFileSampler._file_index_distribute
-        global_start, global_end, part_len, remainder = \
-            get_dist_sampler_attributes(rank, 4, num_files)
-        assert global_start == dist_sampler.global_start
-        assert global_end == dist_sampler.global_end
-        assert part_len == dist_sampler.part_len
-        assert remainder == dist_sampler.remainder
-        
-        # test DistributedFileSampler.get_file
-        if num_files == 3:
-            if rank == 0 or rank == 3:
-                target_index = [0, 2, 1]
-            elif rank == 1:
-                target_index = [1, 0, 2]
-            elif rank == 2:
-                target_index = [2, 1, 0]
-
-        if num_files == 7:
+            # test DistributedFileSampler._file_index_distribute
+            global_start, global_end, part_len, remainder = \
+                get_dist_sampler_attributes(rank, 4, num_files)
+            assert global_start == dist_sampler.global_start
+            assert global_end == dist_sampler.global_end
+            assert part_len == dist_sampler.part_len
+            assert remainder == dist_sampler.remainder
+            tracker["global_start"].append(dist_sampler.global_start)
+            tracker["global_end"].append(dist_sampler.global_end)
+            tracker["part_len"].append(dist_sampler.part_len)
             if rank == 0:
-                target_index = [0, 1]
-            elif rank == 1:
-                target_index = [2, 3]
-            elif rank == 2:
-                target_index = [4, 5]
-            elif rank == 3:
-                target_index = [6]
+                tracker["remainder"] = dist_sampler.remainder
+            
+            # test DistributedFileSampler.get_file
+            if num_files == 3:
+                if rank == 0 or rank == 3:
+                    target_index = [0, 2, 1]
+                elif rank == 1:
+                    target_index = [1, 0, 2]
+                elif rank == 2:
+                    target_index = [2, 1, 0]
 
-        if num_files == 8:
-            if rank == 0:
-                target_index = [0, 1]
-            elif rank == 1:
-                target_index = [2, 3]
-            elif rank == 2:
-                target_index = [4, 5]
-            elif rank == 3:
-                target_index = [6, 7]
-        for offset in range(2*num_files):
-            assert os.path.join(tmpdirname, file_list[target_index[offset%len(target_index)]]) == \
-                dist_sampler.get_file(offset)
+            if num_files == 7:
+                if rank == 0:
+                    target_index = [0, 1]
+                elif rank == 1:
+                    target_index = [2, 3]
+                elif rank == 2:
+                    target_index = [4, 5]
+                elif rank == 3:
+                    target_index = [6]
+
+            if num_files == 8:
+                if rank == 0:
+                    target_index = [0, 1]
+                elif rank == 1:
+                    target_index = [2, 3]
+                elif rank == 2:
+                    target_index = [4, 5]
+                elif rank == 3:
+                    target_index = [6, 7]
+            for offset in range(2*num_files):
+                assert os.path.join(tmpdirname, file_list[target_index[offset%len(target_index)]]) == \
+                    dist_sampler.get_file(offset)
+
+        # test relative relation
+        if num_files >= 4:
+            assert tracker["global_end"][0] == tracker["global_start"][1]
+            assert tracker["global_end"][1] == tracker["global_start"][2]
+            assert tracker["global_end"][2] == tracker["global_start"][3]
+            total_len = 0
+            for rank in range(4):
+                assert tracker["part_len"][rank] == \
+                    tracker["global_end"][rank] - tracker["global_start"][rank]
+                total_len += tracker["part_len"][rank]
+            assert total_len == num_files
+        else:
+            for rank in range(4):
+                assert tracker["part_len"][rank] == num_files
+                assert tracker["global_start"][rank] == 0
+                assert tracker["global_end"][rank] == num_files
+                assert tracker["remainder"] == 4 % num_files
 
 @pytest.mark.parametrize("num_files", [3, 7, 8])
 @pytest.mark.parametrize("is_train", [True, False])
@@ -1132,28 +1160,28 @@ def test_DistillDataloaderGenerator(backend, num_files, is_train):
         assert p3.exitcode == 0
 
 if __name__ == '__main__':
-    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnEdgeData_wo_test_mask()
-    test_GSgnnNodeData_wo_test_mask()
-    test_GSgnnEdgeData()
-    test_GSgnnNodeData()
-    test_lp_dataloader()
-    test_edge_dataloader()
-    test_node_dataloader()
-    test_node_dataloader_reconstruct()
-    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    # test_GSgnnEdgeData_wo_test_mask()
+    # test_GSgnnNodeData_wo_test_mask()
+    # test_GSgnnEdgeData()
+    # test_GSgnnNodeData()
+    # test_lp_dataloader()
+    # test_edge_dataloader()
+    # test_node_dataloader()
+    # test_node_dataloader_reconstruct()
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    test_prepare_input()
-    test_modify_fanout_for_target_etype()
+    # test_prepare_input()
+    # test_modify_fanout_for_target_etype()
 
-    test_distill_sampler_get_file(num_files=7, rank=3)
-    test_DistillDistributedFileSampler(num_files=7, is_train=True, \
-        infinite=False, shuffle=True)
-    test_DistillDataloaderGenerator("gloo", 7, True)
+    test_distill_sampler_get_file(num_files=7)
+    # test_DistillDistributedFileSampler(num_files=7, is_train=True, \
+    #     infinite=False, shuffle=True)
+    # test_DistillDataloaderGenerator("gloo", 7, True)

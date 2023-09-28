@@ -109,12 +109,9 @@ class GSdistiller():
         barrier()
         if self.rank == 0:
             checkpoint_path = os.path.join(saved_path, f"checkpoint-{distill_step}")
-            proj_dir_loc = os.path.join(checkpoint_path, "proj")
-            tokenizer_dir_loc = os.path.join(checkpoint_path, "tokenizer")
-            lm_dir_loc = os.path.join(checkpoint_path, "lm")
             os.makedirs(proj_dir_loc, exist_ok=True)
             logging.info("Saving checkpoint to %s", checkpoint_path)
-            model.module.save_gs_checkpoint(tokenizer_dir_loc, lm_dir_loc, proj_dir_loc)
+            model.module.save_gs_checkpoint(checkpoint_path)
         return True
 
     def eval(self, model, eval_data_mgr, distill_step):
