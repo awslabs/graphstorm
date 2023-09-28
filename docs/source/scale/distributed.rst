@@ -16,7 +16,7 @@ Create a GraphStorm Cluster
 
 Setup the instance of a cluster
 .......................................
-A cluster contains several GPU installed instances each of which can run GraphStorm Docker container. For each instance, please follow the :ref:`Environment Setup <setup>` description to setup GraphStorm Docker container environment. This tutorial uses three EC2 instances in the cluster.
+A cluster contains several GPU installed instances each of which can run GraphStorm Docker container. For each instance, please follow the :ref:`Environment Setup <setup_docker>` description to setup GraphStorm Docker container environment. This tutorial uses three EC2 instances in the cluster.
 
 Setup of a shared file system for the cluster
 ...............................................
@@ -66,15 +66,16 @@ Pick one instance and run the following command to connect to the GraphStorm Doc
 
     docker container exec -it test /bin/bash
 
-In the container environment, users can check the connectivity with the command ``ssh <ip-in-the-cluster> -p 2222``. Please replacing the ``<ip-in-the-cluster>`` with the real IP address in the ``ip_list.txt`` file above, e.g., 
+In the container environment, users can check the connectivity with the command ``ssh <ip-in-the-cluster> -o StrictHostKeyChecking=no -p 2222``. Please replace the ``<ip-in-the-cluster>`` with the real IP address from the ``ip_list.txt`` file above, e.g.,
 
 .. code-block:: bash
 
-    ssh 172.38.12.143 -p 2222
+    ssh 172.38.12.143 -o StrictHostKeyChecking=no -p 2222
 
 If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance. 
 
 If not, please make sure there is no limitation of port 2222. 
+You may also have to exchange the keys from inside the GraphStorm Docker containers to allow their communication. For that, copy the keys from the ``/root/.ssh/id_rsa.pub`` from this container to ``/root/.ssh/authorized_keys`` in containers on every machine in your cluster.
 
 For distributed training, users also need to make sure ports under 65536 is open for DistDGL to use.
 
@@ -85,7 +86,7 @@ Partition a Graph
 
 .. note::
 
-    All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare your environment.
+    All commands below should be run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup_docker>` to prepare your environment.
 
 Now we can download and process the OGBN-MAG data with the command below.
 

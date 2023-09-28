@@ -34,7 +34,7 @@ On Amazon Linux 2 you can use:
     sudo yum install java-11-amazon-corretto-devel
 
 Install ``pyenv``
-~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 ``pyenv`` is a tool to manage multiple Python version installations. It
 can be installed through the installer below on a Linux machine:
@@ -50,7 +50,7 @@ or use ``brew`` on a Mac:
    brew update
    brew install pyenv
 
-For more info on ``pyenv`` see `its documentation. <https://github.com/pyenv/pyenv>`
+For more info on ``pyenv`` see `its documentation. <https://github.com/pyenv/pyenv>`_
 
 Create a Python 3.9 env and activate it.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,7 +72,7 @@ training.
    dependencies.
 
 Install ``poetry``
-~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 ``poetry`` is a dependency and build management system for Python. To install it
 use:
@@ -82,7 +82,7 @@ use:
    curl -sSL https://install.python-poetry.org | python3 -
 
 Install dependencies through ``poetry``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now we are ready to install our dependencies through ``poetry``.
 
@@ -176,8 +176,8 @@ ensure your code conforms to the expectation by running
 on your code before commits. To make this easier we include
 a pre-commit hook below.
 
-Use a pre-commit hook to ensure ``black`` and ``pylint`` runs before commits
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Use a pre-commit hook to ensure ``black`` and ``pylint`` run before commits
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To make code formatting and ``pylint`` checks easier for graphstorm-processing
 developers, we recommend using a pre-commit hook.
@@ -216,14 +216,14 @@ And then run:
 
    pre-commit install
 
-which will install the ``black`` and ``pylin`` hooks into your local repository and
+which will install the ``black`` and ``pylint`` hooks into your local repository and
 ensure it runs before every commit.
 
 .. note::
 
     The pre-commit hook will also apply to all commits you make to the root
     GraphStorm repository. Since that Graphstorm doesn't use ``black``, you might
-    want to remove the hooks. You can do so from the root repo
+    want to remove the ``black`` hook. You can do so from the root repo
     using ``rm -rf .git/hooks``.
 
     Both projects use ``pylint`` to check Python files so we'd still recommend using
