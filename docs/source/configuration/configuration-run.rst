@@ -414,7 +414,7 @@ Distillation Specific Configurations
 --------------------------------------------
 GraphStorm provides a set of parameters to control GNN distillation.
 
-- **textual_data_path**: The path to load the textual data for distillation. User need to specify a path of directory with two sub-directory for ``train`` split and ``val`` split. In each split, there should be multiple partitions of ``*.parquet file``. Find more details in ``training_scripts/gsgnn_dt/README.md``.
+- **textual_data_path**: The path to load the textual data for distillation. User need to specify a path of directory with two sub-directory for ``train`` split and ``val`` split. In each split, there can be one or more ``*.parquet file``s. Find more details in ``training_scripts/gsgnn_dt/README.md``.
     - Yaml: ``textual_data_path: <str>``
     - Argument: ``--textual-data-path <str>``
     - Default value: This parameter must be provided by user.

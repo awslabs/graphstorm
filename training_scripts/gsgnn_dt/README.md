@@ -81,8 +81,8 @@ gsf:
 
 User needs to specify IP list of machines for distributed training. This list is a ```*.txt``` file, where each IP saved in a row. For example, an IP list with two instances file like the following:
 ```
-10.2.14.2
-10.2.76.33
+10.0.0.1
+10.0.0.2
 ```
 
 User needs to specify the path of IP list in Yaml config:

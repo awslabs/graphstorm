@@ -94,7 +94,7 @@ class GSDistilledModel(nn.Module):
         self.lm.save_pretrained(lm_dir_loc)
         th.save(self.state_dict()["proj"], os.path.join(proj_dir_loc, "pytorch_model.bin"))
 
-    def load_from_gs_checkpoint(self, checkpoint_path):
+    def load_gs_checkpoint(self, checkpoint_path):
         """ Load student moddel from checkpoint_path.
 
         Parameters
