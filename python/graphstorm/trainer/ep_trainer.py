@@ -59,7 +59,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         from graphstorm.model import GSgnnEdgeModel
         from graphstorm.trainer import GSgnnEdgePredictionTrainer
 
-        my_dataset = GSgnnEdgeData("my_graph", "/path/to/part_config")
+        my_dataset = GSgnnEdgeTrainData(
+            "my_graph", "/path/to/part_config", train_etypes="edge_type")
         target_idx = {"edge_type": target_edges_tensor}
         my_data_loader = GSgnnEdgeDataLoader(
             my_dataset, target_idx, fanout=[10], batch_size=1024)

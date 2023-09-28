@@ -59,11 +59,12 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
     .. code:: python
 
         from graphstorm.dataloading import GSgnnNodeDataLoader
-        from graphstorm.dataset import GSgnnNodeData
+        from graphstorm.dataset import GSgnnNodeTrainData
         from graphstorm.model.node_glem import GLEM
         from graphstorm.trainer import GLEMNodePredictionTrainer
 
-        my_dataset = GSgnnNodeData("my_graph", "/path/to/part_config")
+        my_dataset = GSgnnNodeTrainData(
+            "my_graph", "/path/to/part_config", "my_node_type")
         target_idx = {"my_node_type": target_nodes_tensor}
         my_data_loader = GSgnnNodeDataLoader(
             my_dataset, target_idx, fanout=[10], batch_size=1024, device='cpu')
