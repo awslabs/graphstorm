@@ -417,7 +417,8 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
                                         train_etypes=[('n1', 'e1', 'n2')], label_field='label',
                                         node_feat_field='node_feat', edge_feat_field='edge_feat')
-        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]}, fanout=[15, 10], batch_size=128)
+        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]}, 
+                                            fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
@@ -590,7 +591,8 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         ep_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
                                         eval_etypes=[('n1', 'e1', 'n2')], label_field='label',
                                         node_feat_field='node_feat', edge_feat_field='edge_feat')
-        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]}, fanout=[15, 10], batch_size=128)
+        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]}, 
+                                            fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, eval_etypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
@@ -768,7 +770,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                         train_ntypes=['n1'], label_field='label',
                                         node_feat_field='feat')
-        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]}, fanout=[15, 10], batch_size=128)
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]}, 
+                                            fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, train_ntypes, eval_ntypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None):
@@ -908,7 +911,8 @@ class GSgnnNodeInferData(GSgnnNodeData):
         np_data = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
                                         eval_ntypes=['n1'], label_field='label',
                                         node_feat_field='feat')
-        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]}, fanout=[15, 10], batch_size=128)
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]}, 
+                                            fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, eval_ntypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None):
