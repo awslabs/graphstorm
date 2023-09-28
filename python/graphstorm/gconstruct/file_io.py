@@ -266,15 +266,45 @@ def read_data_hdf5(data_file, data_fields=None, in_mem=True):
         data[name] = f[name][:] if in_mem else HDF5Array(f[name], handle)
     return data
 
+def stream_dist_tensors_to_hdf5(data, data_file, chunk_size=100000):
+    """ Stream write dict of dist tensor into a HDF5 file.
+
+    Parameters
+    ----------
+    data : dict of dist tensor
+        The data to be saved to the hdf5 file.
+    data_file : str
+        The file name of the hdf5 file.
+    chunk_size : int
+        The size of a chunk to extract from dist tensor.
+    """
+    chunk_size = 100000
+    with h5py.File(data_file, "w") as f:
+        for key, val in data.items():
+            arr = f.create_dataset(key, val.shape, dtype=np.array(val[0]).dtype)
+            if len(val) > chunk_size:
+                num_chunks = len(val) // chunk_size
+                remainder = len(val) % chunk_size
+                for i in range(num_chunks):
+                    # extract a chunk from dist tensor
+                    chunk_val = np.array(val[i*chunk_size:(i+1)*chunk_size])
+                    arr[i*chunk_size:(i+1)*chunk_size] = chunk_val
+                # need to write remainder
+                if remainder != 0:
+                    remainder_val = np.array(val[num_chunks*chunk_size:len(val)])
+                    arr[num_chunks*chunk_size:] = remainder_val
+            else:
+                arr[:] = np.array(val[0:len(val)])
+
 def write_data_hdf5(data, data_file):
     """ Write data into a HDF5 file.
 
     Parameters
     ----------
     data : dict
-        The data to be saved to the Parquet file.
+        The data to be saved to the hdf5 file.
     data_file : str
-        The file name of the Parquet file.
+        The file name of the hdf5 file.
     """
     with h5py.File(data_file, "w") as f:
         for key, val in data.items():
