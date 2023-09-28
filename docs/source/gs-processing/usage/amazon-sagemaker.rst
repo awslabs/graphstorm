@@ -36,7 +36,7 @@ directory we can upload the test data to S3 using:
 
     Make sure you are uploading your data to a bucket
     that was created in the same region as the ECR image
-    you pushed in :doc:`/usage/distributed-processing-setup`.
+    you pushed in :doc:`distributed-processing-setup`.
 
 
 Launch the GSProcessing job on Amazon SageMaker
@@ -52,7 +52,7 @@ of up to 20 instances, allowing you to scale your processing to massive graphs,
 using larger instances like `ml.r5.24xlarge`.
 
 Since we're now executing on AWS, we'll need access to an execution role
-for SageMaker and the ECR image URI we created in :doc:`/usage/distributed-processing-setup`.
+for SageMaker and the ECR image URI we created in :doc:`distributed-processing-setup`.
 For instructions on how to create an execution role for SageMaker
 see the `AWS SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-roles.html#sagemaker-roles-create-execution-role>`_.
 
