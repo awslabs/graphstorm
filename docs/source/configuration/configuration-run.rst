@@ -422,4 +422,7 @@ GraphStorm provides a set of parameters to control GNN distillation.
     - Yaml: ``max_distill_step: 10000``
     - Argument: ``--max-distill-step 10000``
     - Default value: ``10000``
-    
+- **max_seq_len**: The maximum sequence length for tokenized textual data.
+    - Yaml: ``max_seq_len: 1024``
+    - Argument: ``--max-seq-len 1024``
+    - Default value: ``1024``
