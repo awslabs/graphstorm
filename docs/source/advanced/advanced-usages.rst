@@ -10,7 +10,7 @@ Link prediction is widely employed as a pre-training technique to generate high-
 
 GraphStorm provides supports to avoid theses problems:
 
-* To avoid including target edges in message passing, users need to set ``exclude_training_targets`` to `True`` and provide ``reverse_edge_types_map`` when launching link prediction training tasks. These two arguments tell GraphStorm to exclude the training target edges and the corresponding reverse edges when doing message passing. More explanation of the two arguments can be found on the :ref:`Training and Inference Configurations<configurations-run>`.
+* To avoid including target edges in message passing, users need to set ``exclude_training_targets`` to `True` and provide ``reverse_edge_types_map`` when launching link prediction training tasks. These two arguments tell GraphStorm to exclude the training target edges and the corresponding reverse edges when doing message passing. More explanation of the two arguments can be found on the :ref:`Training and Inference Configurations<configurations-run>`.
 
 * To avoid including validation/test edges in message passing during model training, users need to mask validation edges and test edges with ``val_mask`` and ``test_mask`` respectively. Users also need to mask all the other edges with ``train_mask``.
 
