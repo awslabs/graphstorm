@@ -74,7 +74,7 @@ class GSDistilledModel(nn.Module):
             # load pre-trained parameters
             self.lm = self.lm.from_pretrained(pre_trained_name)
         else:
-            self.load_from_gs_checkpoint(checkpoint_path)
+            self.load_gs_checkpoint(checkpoint_path)
 
         # TODO (HZ): support more distance-based loss
         self.loss = nn.MSELoss()
