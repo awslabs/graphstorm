@@ -24,7 +24,43 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class SAGEConv(nn.Module):
-    r"""Sage Convolutional layer.
+    r"""GraphSage Convolutional layerfrom `Inductive Representation Learning on
+    Large Graphs <https://arxiv.org/pdf/1706.02216.pdf>`__
+
+    .. math::
+        h_{\mathcal{N}(i)}^{(l+1)} &= \mathrm{aggregate}
+        \left(\{h_{j}^{l}, \forall j \in \mathcal{N}(i) \}\right)
+
+        h_{i}^{(l+1)} &= \sigma \left(W \cdot \mathrm{concat}
+        (h_{i}^{l}, h_{\mathcal{N}(i)}^{l+1}) \right)
+
+        h_{i}^{(l+1)} &= \mathrm{norm}(h_{i}^{(l+1)})
+
+    If a weight tensor on each edge is provided, the aggregation becomes:
+
+    .. math::
+        h_{\mathcal{N}(i)}^{(l+1)} = \mathrm{aggregate}
+        \left(\{e_{ji} h_{j}^{l}, \forall j \in \mathcal{N}(i) \}\right)
+
+    where :math:`e_{ji}` is the scalar weight on the edge from node :math:`j` to node :math:`i`.
+    Please make sure that :math:`e_{ji}` is broadcastable with :math:`h_j^{l}`.
+
+    Note:
+    -----
+    * SAGEConv is only effective on the homogeneous graph, not like other conv implementation.
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        # suppose graph and input_feature are ready
+        from graphstorm.model.sage_encoder import SAGEConv
+
+        layer = SAGEConv(h_dim, h_dim, aggregator_type,
+                                bias, activation, dropout,
+                                num_ffn_layers_in_gnn, norm)
+        h = layer(g, input_feature)
 
     Parameters
     ----------
@@ -44,6 +80,8 @@ class SAGEConv(nn.Module):
         Number of layers of ngnn between gnn layers
     ffn_actication: torch.nn.functional
         Activation Method for ngnn
+    norm : str, optional
+        Normalization Method. Default: None
     """
     def __init__(self,
                  in_feat,
@@ -53,7 +91,8 @@ class SAGEConv(nn.Module):
                  dropout=0.0,
                  activation=F.relu,
                  num_ffn_layers_in_gnn=0,
-                 ffn_activation=F.relu):
+                 ffn_activation=F.relu,
+                 norm=None):
         super(SAGEConv, self).__init__()
         self.in_feat, self.out_feat = in_feat, out_feat
         self.aggregator_type = aggregator_type
@@ -62,6 +101,17 @@ class SAGEConv(nn.Module):
                                    feat_drop=dropout, bias=bias)
 
         self.activation = activation
+        # normalization
+        self.norm = None
+        if activation is None and norm is not None:
+            raise ValueError("Cannot set gnn norm layer when activation layer is None")
+        if norm == "batch":
+            self.norm = nn.BatchNorm1d(out_feat)
+        elif norm == "layer":
+            self.norm = nn.LayerNorm(out_feat)
+        else:
+            # by default we don't apply any normalization
+            self.norm = None
         # ngnn
         self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
         self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
@@ -85,6 +135,8 @@ class SAGEConv(nn.Module):
 
         inputs = inputs['_N']
         h_conv = self.conv(g, inputs)
+        if self.norm:
+            h_conv = self.norm(h_conv)
         if self.activation:
             h_conv = self.activation(h_conv)
         if self.num_ffn_layers_in_gnn > 0:
@@ -94,7 +146,10 @@ class SAGEConv(nn.Module):
 
 
 class SAGEEncoder(GraphConvEncoder):
-    r""" Sage Conv Layer
+    r""" GraphSage Conv Encoder
+
+    The SAGEEncoder employs several SAGEConv Layers as its encoding mechanism.
+    The SAGEEncoder should be designated as the model's encoder within Graphstorm.
 
     Parameters
     ----------
@@ -108,6 +163,40 @@ class SAGEEncoder(GraphConvEncoder):
         Dropout. Default 0.
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
+    norm : str, optional
+        Normalization Method. Default: None
+
+    Examples:
+    ----------
+    
+    .. code:: python
+
+        # Build model and do full-graph inference on SAGEEncoder
+        from graphstorm import get_feat_size
+        from graphstorm.model.sage_encoder import SAGEEncoder
+        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.model.gnn import do_full_graph_inference
+
+        np_data = GSgnnNodeTrainData(...)
+
+        model = GSgnnNodeModel(alpha_l2norm=0)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=True)
+        model.set_node_input_encoder(encoder)
+
+        gnn_encoder = SAGEEncoder(4, 4,
+                                  num_hidden_layers=1,
+                                  dropout=0,
+                                  aggregator_type='mean',
+                                  norm=norm)
+        model.set_gnn_encoder(gnn_encoder)
+        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+
+        h = do_full_graph_inference(model, np_data)
     """
     def __init__(self,
                  h_dim, out_dim,
@@ -115,7 +204,8 @@ class SAGEEncoder(GraphConvEncoder):
                  dropout=0,
                  aggregator_type='mean',
                  activation=F.relu,
-                 num_ffn_layers_in_gnn=0):
+                 num_ffn_layers_in_gnn=0,
+                 norm=None):
         super(SAGEEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
 
         self.layers = nn.ModuleList()
@@ -123,7 +213,8 @@ class SAGEEncoder(GraphConvEncoder):
             self.layers.append(SAGEConv(h_dim, h_dim, aggregator_type,
                                         bias=False, activation=activation,
                                         dropout=dropout,
-                                        num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
+                                        num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
+                                        norm=norm))
 
         self.layers.append(SAGEConv(h_dim, out_dim, aggregator_type,
                                     bias=False, activation=activation,

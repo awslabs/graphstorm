@@ -22,11 +22,13 @@ import tempfile
 
 import torch as th
 from numpy.testing import assert_equal
+from unittest.mock import patch
 
 from graphstorm.model import GSNodeEncoderInputLayer
 from graphstorm.model.utils import save_sparse_embeds
 from graphstorm.model.utils import load_sparse_embeds
 from graphstorm.model.utils import _get_sparse_emb_range
+from graphstorm.model.utils import pad_file_index
 from graphstorm import get_feat_size
 
 from data_utils import generate_dummy_dist_graph
@@ -85,17 +87,24 @@ def test_sparse_embed_save(world_size):
         sparse_embs = \
             {ntype: sparse_emb._tensor[th.arange(embed_layer.g.number_of_nodes(ntype))] \
                 for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
-        for i in range(world_size):
-            save_sparse_embeds(model_path, embed_layer, i, world_size)
 
-        for ntype in embed_layer.sparse_embeds.keys():
-            saved_embs = []
+        @patch("graphstorm.model.utils.get_rank")
+        @patch("graphstorm.model.utils.get_world_size")
+        def check_saved_sparse_emb(mock_get_world_size, mock_get_rank):
             for i in range(world_size):
-                saved_embs.append(th.load(
-                    os.path.join(os.path.join(model_path, ntype),
-                                 f'sparse_emb_{i}.pt')))
-            saved_embs = th.cat(saved_embs, dim=0)
-            assert_equal(saved_embs.numpy(), sparse_embs[ntype].numpy())
+                mock_get_rank.side_effect = [i, i]
+                mock_get_world_size.side_effect = [world_size] * 2
+                save_sparse_embeds(model_path, embed_layer)
+
+            for ntype in embed_layer.sparse_embeds.keys():
+                saved_embs = []
+                for i in range(world_size):
+                    saved_embs.append(th.load(
+                        os.path.join(os.path.join(model_path, ntype),
+                                    f'sparse_emb_{pad_file_index(i)}.pt')))
+                saved_embs = th.cat(saved_embs, dim=0)
+                assert_equal(saved_embs.numpy(), sparse_embs[ntype].numpy())
+        check_saved_sparse_emb()
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -125,18 +134,27 @@ def test_sparse_embed_load(infer_world_size, train_world_size):
         saved_embs = \
             {ntype: sparse_emb._tensor[th.arange(embed_layer.g.number_of_nodes(ntype))] \
                 for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
-        #
-        for i in range(train_world_size):
-            save_sparse_embeds(model_path, embed_layer, i, train_world_size)
 
-        for i in range(infer_world_size):
-            load_sparse_embeds(model_path, embed_layer, i, infer_world_size)
-        load_sparse_embs = \
-            {ntype: sparse_emb._tensor[th.arange(embed_layer.g.number_of_nodes(ntype))] \
-                for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
+        @patch("graphstorm.model.utils.get_rank")
+        @patch("graphstorm.model.utils.get_world_size")
+        def check_sparse_emb(mock_get_world_size, mock_get_rank):
 
-        for ntype in embed_layer.sparse_embeds.keys():
-            assert_equal(saved_embs[ntype].numpy(), load_sparse_embs[ntype].numpy())
+            for i in range(train_world_size):
+                mock_get_rank.side_effect = [i] * 2
+                mock_get_world_size.side_effect = [train_world_size] * 2
+                save_sparse_embeds(model_path, embed_layer)
+
+            for i in range(infer_world_size):
+                mock_get_rank.side_effect = [i] * 2
+                mock_get_world_size.side_effect = [train_world_size] * 2
+                load_sparse_embeds(model_path, embed_layer)
+            load_sparse_embs = \
+                {ntype: sparse_emb._tensor[th.arange(embed_layer.g.number_of_nodes(ntype))] \
+                    for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
+
+            for ntype in embed_layer.sparse_embeds.keys():
+                assert_equal(saved_embs[ntype].numpy(), load_sparse_embs[ntype].numpy())
+        check_sparse_emb()
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -156,7 +174,7 @@ def test_sparse_embed_load_corner_cases():
         model_path = os.path.join(tmpdirname, "model")
         # embed_layer is None
         try:
-            load_sparse_embeds(model_path, None, 1, 0) # This call should pass
+            load_sparse_embeds(model_path, None) # This call should pass
         except:
             raise "load_sparse_embeds call error with embed_layer as None"
 
@@ -166,27 +184,10 @@ def test_sparse_embed_load_corner_cases():
         embed_layer = GSNodeEncoderInputLayer(g, feat_size, 4)
         assert len(embed_layer.sparse_embeds) == 0
         try:
-            load_sparse_embeds(model_path, None, 1, 0) # This call should pass
+            load_sparse_embeds(model_path, None) # This call should pass
         except:
             raise "load_sparse_embeds call error with embed_layer.sparse_embeds is empty"
 
-        feat_size = {"n0":0, "n1":0}
-        embed_layer = GSNodeEncoderInputLayer(g, feat_size, 4)
-        model_path = os.path.join(tmpdirname, "model")
-        save_sparse_embeds(model_path, embed_layer, 0, 1) # make sure the model exists
-        load_sparse_fail = False
-        try:
-            load_sparse_embeds(model_path, embed_layer, 0, 0)
-        except:
-            load_sparse_fail = True # should catch an exception.
-        assert load_sparse_fail, "load_sparse_embeds with world size equal to 0 should fail."
-
-        load_sparse_fail = False
-        try:
-            load_sparse_embeds(model_path, embed_layer, -1, 1)
-        except:
-            load_sparse_fail = True # should catch an exception.
-        assert load_sparse_fail, "load_sparse_embeds with local rank equal to -1 should fail."
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 

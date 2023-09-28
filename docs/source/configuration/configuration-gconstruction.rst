@@ -14,7 +14,7 @@ Graph Construction
 * **-\-graph-name**: (**Required**) the name assigned for the graph.
 * **-\-remap-node_id**: boolean value to decide whether to rename node IDs or not. Default is true.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
-* **-\-output-format**: the format of constructed graph, options are ``DGL`` and ``DistDGL``. Default is ``DistDGL``. The output format is explained in the :ref:`Output <output-format>` section below.
+* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
 * **-\-num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
@@ -25,7 +25,11 @@ Graph Construction
 Configuration JSON Explanations
 ---------------------------------
 
-The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains two fields: ``nodes`` and ``edges``.
+The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains three fields: ``version``, ``nodes`` and ``edges``.
+
+``version``
+...........
+``version`` marks the version of the configuration file schema, allowing its identification to be self-contained for downstream applications. The current (and expected) version is ``gconstruct-v0.1``.
 
 ``nodes``
 ...........
@@ -81,9 +85,9 @@ Feature transformation
 .........................
 Currently, the graph construction pipeline supports the following feature transformation:
 
-* **HuggingFace tokenizer transformation** tokenizes text strings with a HuggingFace tokenizer. The ``name`` field in the feature transformation dictionary is ``tokenize_hf``. The dict should contain two additional fields. ``bert_model`` specifies the BERT model used for tokenization. Users can choose any `HuggingFace BERT models <https://huggingface.co/models>`_. ``max_seq_length`` specifies the maximal sequence length.
-* **HuggingFace BERT transformation** encodes text strings with a HuggingFace BERT model.  The ``name`` field in the feature transformation dictionary is ``bert_hf``. The dict should contain two additional fields. ``bert_model`` specifies the BERT model used for embedding text. Users can choose any `HuggingFace BERT models <https://huggingface.co/models>`_. ``max_seq_length`` specifies the maximal sequence length.
-* **Numerical MAX_MIN transformation** normalizes numerical input features with `val = (val-min)/(max-min)`, where `val` is the feature value, `max` is the maximum number in the feature and `min` is the minimum number in the feature. The ``name`` field in the feature transformation dictionary is ``max_min_norm``. The dict can contains two optional fields. ``max_bound`` specifies the maximum value allowed in the feature. Any number larger than ``max_bound`` will be set to ``max_bound``. ``min_bound`` specifies the minimum value allowed in the feature. Any number smaller than ``min_bound`` will be set to ``min_bound``.
+* **HuggingFace tokenizer transformation** tokenizes text strings with a HuggingFace tokenizer. The ``name`` field in the feature transformation dictionary is ``tokenize_hf``. The dict should contain two additional fields. ``bert_model`` specifies the LM model used for tokenization. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``. ``max_seq_length`` specifies the maximal sequence length.
+* **HuggingFace LM transformation** encodes text strings with a HuggingFace LM model.  The ``name`` field in the feature transformation dictionary is ``bert_hf``. The dict should contain two additional fields. ``bert_model`` specifies the LM model used for embedding text. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``. ``max_seq_length`` specifies the maximal sequence length.
+* **Numerical MAX_MIN transformation** normalizes numerical input features with `val = (val-min)/(max-min)`, where `val` is the feature value, `max` is the maximum number in the feature and `min` is the minimum number in the feature. The ``name`` field in the feature transformation dictionary is ``max_min_norm``. The dict can contain four optional fields: ``max_bound``, ``min_bound``, ``max_val`` and ``min_val``. ``max_bound`` specifies the maximum value allowed in the feature. Any number larger than ``max_bound`` will be set to ``max_bound``. Here, `max` = min(np.amax(feats), ``max_bound``). ``min_bound`` specifies the minimum value allowed in the feature. Any number smaller than ``min_bound`` will be set to ``min_bound``. Here, `min` = max(np.amin(feats), ``min_bound``). ``max_val`` defines the `max` in the transformation formula. When ``max_val`` is provided, `max` is always equal to ``max_val``. ``min_val`` defines the `min` in the transformation formula.  When ``min_val`` is provided, `min` is always equal to ``min_val``. ``max_val`` and ``min_val`` are mainly used in the inference stage, where we want to use the max & min values computed in the training stage to normalize inference data.
 * **Numerical Rank Gauss transformation** normalizes numerical input features with rank gauss normalization. It maps the numeric feature values to gaussian distribution based on ranking. The method follows https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/discussion/44629#250927. The ``name`` field in the feature transformation dictionary is ``rank_gauss``. The dict can contains one optional field, i.e., ``epsilon`` which is used to avoid INF float during computation.
 * **Convert to categorical values** converts text data to categorial values. The `name` field is `to_categorical`. `separator` specifies how to split the string into multiple categorical values (this is only used to define multiple categorical values). If `separator` is not specified, the entire string is a categorical value. `mapping` is a dict that specifies how to map a string to an integer value that defines a categorical value.
 
@@ -101,10 +105,11 @@ An example
 ............
 Below shows an example that contains one node type and an edge type. For a real example, please refer to the :ref:`input JSON file <input-config>` used in the :ref:`Use Your Own Graphs Tutorial <use-own-data>`.
 
-.. code-block:: yaml
+.. code-block:: json
 
     {
-        nodes: [
+        "version": "gconstruct-v0.1",
+        "nodes": [
             {
                 "node_id_col":  "paper_id",
                 "node_type":    "paper",
@@ -128,7 +133,7 @@ Below shows an example that contains one node type and an edge type. For a real 
                 ],
             }
         ],
-        edges: [
+        "edges": [
             {
                 "source_id_col":    "src_paper_id",
                 "dest_id_col":      "dest_paper_id",

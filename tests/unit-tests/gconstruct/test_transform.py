@@ -112,7 +112,10 @@ def test_fp_transform(input_dtype):
         assert_equal(min_val[i], -5.)
 
     # Test collect info
-    transform = NumericalMinMaxTransform("test", "test")
+    transform_conf = {
+        "name": "max_min_norm"
+    }
+    transform = NumericalMinMaxTransform("test", "test", transform_conf=transform_conf)
     info = [(np.array([1.]), np.array([-1.])),
             (np.array([2.]), np.array([-0.5])),
             (np.array([0.5]), np.array([-0.1]))]
@@ -121,6 +124,10 @@ def test_fp_transform(input_dtype):
     assert len(transform._min_val) == 1
     assert_equal(transform._max_val[0], 2.)
     assert_equal(transform._min_val[0], -1.)
+    assert 'max_val' in transform_conf
+    assert 'min_val' in transform_conf
+    assert_equal(np.array(transform_conf['max_val']), 2.)
+    assert_equal(np.array(transform_conf['min_val']), -1.)
 
     info = [(np.array([1., 2., 3.]), np.array([-1., -2., 0.5])),
             (np.array([2., 1., 3.]), np.array([-0.5, -3., 0.1])),
@@ -130,6 +137,84 @@ def test_fp_transform(input_dtype):
     assert len(transform._min_val) == 3
     assert_equal(transform._max_val[0], 2.)
     assert_equal(transform._min_val[0], -1.)
+    assert 'max_val' in transform_conf
+    assert 'min_val' in transform_conf
+    assert_equal(np.array(transform_conf['max_val']),
+                 np.array([2.,3.,3.]))
+    assert_equal(np.array(transform_conf['min_val']),
+                 np.array([-1.,-3.,0.1]))
+
+    transform_conf = {
+        "name": "max_min_norm",
+        "max_val": [1.,1.,1.],
+        "min_val": [-1.,-1.,-1.]
+    }
+    transform = NumericalMinMaxTransform("test", "test",
+                                        max_val=transform_conf['max_val'],
+                                        min_val=transform_conf['min_val'],
+                                        transform_conf=transform_conf)
+    feats = 2 * np.random.randn(10, 3).astype(input_dtype)
+    feats[0][0] = 2
+    feats[0][1] = -2
+    info = transform.pre_process(feats)
+    max_val = np.array(transform_conf['max_val'])
+    min_val = np.array(transform_conf["min_val"])
+    assert_equal(info["test"][0], max_val)
+    assert_equal(info["test"][1], min_val)
+    transform.update_info([info["test"]])
+    assert_equal(np.array(transform_conf['max_val']),
+                 np.array([1.,1.,1.]))
+    assert_equal(np.array(transform_conf['min_val']),
+                 np.array([-1.,-1.,-1.]))
+    result = transform(feats)
+    true_result = (feats - min_val) / (max_val - min_val)
+    true_result[true_result > 1] = 1
+    true_result[true_result < 0] = 0
+    assert_almost_equal(result["test"].astype(input_dtype), true_result)
+
+    transform_conf = {
+        "name": "max_min_norm",
+        "min_val": [-1.,-1.,-1.]
+    }
+    transform = NumericalMinMaxTransform("test", "test",
+                                        min_val=transform_conf['min_val'],
+                                        transform_conf=transform_conf)
+    info = transform.pre_process(feats)
+    max_val = info["test"][0]
+    min_val = np.array(transform_conf['min_val'])
+    assert_equal(info["test"][0], max_val)
+    transform.update_info([info["test"]])
+    assert_equal(np.array(transform_conf['max_val']),
+                 max_val)
+    assert_equal(np.array(transform_conf['min_val']),
+                 np.array([-1.,-1.,-1.]))
+    result = transform(feats)
+    true_result = (feats - min_val) / (max_val - min_val)
+    true_result[true_result > 1] = 1
+    true_result[true_result < 0] = 0
+    assert_almost_equal(result["test"].astype(input_dtype), true_result)
+
+    transform_conf = {
+        "name": "max_min_norm",
+        "max_val": [1.,1.,1.]
+    }
+    transform = NumericalMinMaxTransform("test", "test",
+                                        max_val=transform_conf['max_val'],
+                                        transform_conf=transform_conf)
+    info = transform.pre_process(feats)
+    max_val = np.array(transform_conf['max_val'])
+    min_val = info["test"][1]
+    assert_equal(info["test"][0], max_val)
+    transform.update_info([info["test"]])
+    assert_equal(np.array(transform_conf['max_val']),
+                 np.array([1.,1.,1.]))
+    assert_equal(np.array(transform_conf['min_val']),
+                 min_val)
+    result = transform(feats)
+    true_result = (feats - min_val) / (max_val - min_val)
+    true_result[true_result > 1] = 1
+    true_result[true_result < 0] = 0
+    assert_almost_equal(result["test"].astype(input_dtype), true_result)
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
@@ -219,6 +304,22 @@ def test_categorize_transform():
     assert np.all(cat_feat["test"][0] == 0)
     assert np.all(cat_feat["test"][1] == 0)
 
+    feat = [str(i) for i in np.random.randint(0, 10, 100)]
+    feat_with_unknown = feat[:]
+    feat_with_unknown[0] = "10"
+    feat = np.array(feat)
+    feat_with_unknown = np.array(feat_with_unknown)
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for i, (feat, str_i) in enumerate(zip(cat_feat["test"], feat)):
+        if i == 0:
+            continue
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
+
     # Test categorical values with empty strings.
     transform = CategoricalTransform("test1", "test", separator=',')
     str_ids = [f"{i},{i+1}" for i in np.random.randint(0, 9, 1000)] + [",0"]
@@ -253,6 +354,24 @@ def test_categorize_transform():
         feat[int(i[1])] = 0
         assert np.all(feat == 0)
 
+    # feat contains unknown keys
+    feat = [f"{i},{i+1}" for i in np.random.randint(0, 9, 100)]
+    feat_with_unknown = feat[:]
+    feat_with_unknown[0] = feat[0]+",10"
+    feat = np.array(feat)
+    feat_with_unknown = np.array(feat_with_unknown)
+    cat_feat = transform(feat_with_unknown)
+    assert "test" in cat_feat
+    for feat, str_feat in zip(cat_feat["test"], feat):
+        # make sure two elements are 1
+        i = str_feat.split(",")
+        assert feat[int(i[0])] == 1
+        assert feat[int(i[1])] == 1
+        # after removing the elements, the vector has only 0 values.
+        feat[int(i[0])] = 0
+        feat[int(i[1])] = 0
+        assert np.all(feat == 0)
+
     # Test transformation with existing mapping.
     transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
     str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
@@ -270,6 +389,73 @@ def test_categorize_transform():
         assert feat[idx] == 1
         # after we set the value to 0, the entire vector has 0 values.
         feat[idx] = 0
+        assert np.all(feat == 0)
+
+    # Test the case when the input ids are mixture of int and strings
+    # This may happen when loading csv files.
+    transform_conf = {
+        "name": "to_categorical"
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    str_ids = [str(i) for i in np.random.randint(0, 10, 1000)]
+    str_ids[0] = None
+    str_ids[-1] = None # allow None data
+    str_ids = str_ids + [i for i in range(10)] # mix strings with ints
+    res = transform.pre_process(np.array(str_ids))
+    assert "test" in res
+    assert len(res["test"]) == 10
+    for i in range(10):
+        assert str(i) in res["test"]
+
+    info = [np.array([str(i) for i in range(6)]),
+            np.array([str(i) for i in range(4, 10)])]
+    transform.update_info(info)
+    feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
+    feat[0] = int(feat[0])
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
+    assert "mapping" in transform_conf
+    assert len(transform_conf["mapping"]) == 10
+
+    # check update_info
+    transform_conf = {
+        "name": "to_categorical"
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    info = [np.array([i for i in range(6)]),
+            np.array([i for i in range(4, 10)])]
+    transform.update_info(info)
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
+        assert np.all(feat == 0)
+    assert len(transform_conf["mapping"]) == 10
+
+    # check backward compatible
+     # check update_info
+    transform_conf = {
+        "name": "to_categorical",
+        "mapping": {i: i for i in range(10)}
+    }
+    transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
+    assert len(transform_conf["mapping"]) == 10
+    cat_feat = transform(feat)
+    assert "test" in cat_feat
+    for feat, str_i in zip(cat_feat["test"], feat):
+        # make sure one value is 1
+        assert feat[int(str_i)] == 1
+        # after we set the value to 0, the entire vector has 0 values.
+        feat[int(str_i)] = 0
         assert np.all(feat == 0)
 
 @pytest.mark.parametrize("out_dtype", [None, np.float16])

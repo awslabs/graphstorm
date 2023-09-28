@@ -46,7 +46,7 @@ def cleanup_proc(get_all_remote_pids_func, conn):
         conn:
             connection
     """
-    print("cleanupu process runs")
+    logging.debug("cleanupu process runs")
     # This process should not handle SIGINT.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -59,7 +59,7 @@ def cleanup_proc(get_all_remote_pids_func, conn):
         # Otherwise, we need to ssh to each machine and kill the training jobs.
         for (ip, port), pids in remote_pids.items():
             kill_process(ip, port, pids)
-    print("cleanup process exits")
+    logging.debug("cleanup process exits")
 
 
 def kill_process(ip, port, pids):
@@ -81,7 +81,7 @@ def kill_process(ip, port, pids):
     pids.sort()
     for pid in pids:
         assert curr_pid != pid
-        print("kill process {} on {}:{}".format(pid, ip, port), flush=True)
+        logging.debug("kill process %d on %s:%d", pid, ip, port)
         kill_cmd = (
             "ssh -o StrictHostKeyChecking=no -p "
             + str(port)
@@ -99,9 +99,7 @@ def kill_process(ip, port, pids):
 
         killed_pids.sort()
         for pid in killed_pids:
-            print(
-                "kill process {} on {}:{}".format(pid, ip, port), flush=True
-            )
+            logging.debug("kill process %d on %s:%d", pid, ip, port)
             kill_cmd = (
                 "ssh -o StrictHostKeyChecking=no -p "
                 + str(port)
@@ -188,7 +186,7 @@ def execute_remote(
             subprocess.check_call(ssh_cmd, shell=True)
             state_q.put(0)
         except subprocess.CalledProcessError as err:
-            print(f"Called process error {err}")
+            logging.error("Called process error %s", err)
             state_q.put(err.returncode)
         except Exception: # pylint: disable=broad-exception-caught
             state_q.put(-1)
@@ -593,9 +591,6 @@ def update_udf_command(udf_command, args):
     udf_command.append("--part-config")
     udf_command.append(args.part_config)
 
-    udf_command.append("--verbose")
-    udf_command.append(str(args.verbose))
-
     return udf_command
 
 def get_available_port(ip):
@@ -757,9 +752,7 @@ def submit_jobs(args, udf_command):
                 cmd, state_q, ip, args.ssh_port, username=args.ssh_username
             )
         )
-
-        if args.verbose:
-            print(torch_dist_udf_command)
+        logging.debug(torch_dist_udf_command)
 
     # Start a cleanup process dedicated for cleaning up remote training jobs.
     conn1, conn2 = multiprocessing.Pipe()
@@ -788,7 +781,7 @@ def submit_jobs(args, udf_command):
     conn2.send("exit")
     process.join()
     if err != 0:
-        print("Task failed")
+        logging.error("Task failed")
         sys.exit(-1)
 
 def get_argument_parser():
@@ -806,11 +799,12 @@ def get_argument_parser():
               then the ssh command will be like: 'ssh bob@1.2.3.4 CMD' "
              "instead of 'ssh 1.2.3.4 CMD'",
     )
+    # We should deprecate it.
     parser.add_argument(
         "--verbose",
         type=lambda x: (str(x).lower() in ['true', '1']),
         default=False,
-        help="Print more information.",
+        help="Print more information. This argument is deprecated and is no longer effective.",
     )
     parser.add_argument(
         "--workspace",
@@ -937,8 +931,8 @@ def check_input_arguments(args):
         args.num_omp_threads = max(
             cpu_cores_per_trainer, 1
         )
-        if args.verbose:
-            print(f"The number of OMP threads per trainer is set to {args.num_omp_threads}")
+        logging.debug("The number of OMP threads per trainer is set to %d",
+                      args.num_omp_threads)
     else:
         assert args.num_omp_threads > 0, \
             "The number of OMP threads per trainer should be larger than 0"
@@ -950,8 +944,8 @@ def check_input_arguments(args):
         args.num_server_threads = max(
             cpu_cores_per_server, 1
         )
-        if args.verbose:
-            print(f"The number of OMP threads per server is set to {args.num_server_threads}")
+        logging.debug("The number of OMP threads per server is set to %d",
+                      args.num_server_threads)
     else:
         assert args.num_server_threads > 0, \
             "The number of OMP threads per server should be larger than 1"

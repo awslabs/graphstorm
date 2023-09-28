@@ -33,4 +33,10 @@ from .config import SUPPORTED_LP_DECODER
 from .config import (GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_GNN_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER,
-                     GRAPHSTORM_MODEL_ALL_LAYERS)
+                     GRAPHSTORM_MODEL_ALL_LAYERS,
+                     GRAPHSTORM_MODEL_LAYER_OPTIONS,
+                     GRAPHSTORM_MODEL_DENSE_EMBED_LAYER,
+                     GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER)
+from .config import (BUILTIN_GNN_NORM,
+                     BUILDIN_GNN_LAYER_NORM,
+                     BUILDIN_GNN_BATCH_NORM)

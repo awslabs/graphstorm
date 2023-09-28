@@ -11,7 +11,7 @@ import graphstorm as gs
 from graphstorm.config import GSConfig
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
-from graphstorm.inference import GSgnnNodePredictionInfer
+from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
@@ -308,7 +308,7 @@ def main(args):
                 lr=config.lr)
 
     # Create a trainer for the node classification task.
-    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=config.topk_model_to_save)
+    trainer = GSgnnNodePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     trainer.setup_device(device=device)
 
     # Define the GraphStorm train dataloader
@@ -335,7 +335,7 @@ def main(args):
                                   config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.
-    tracker = GSSageMakerTaskTracker(config, gs.get_rank())
+    tracker = GSSageMakerTaskTracker(config)
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.
@@ -349,7 +349,7 @@ def main(args):
     # After training, get the best model from the trainer.
     best_model_path = trainer.get_best_model_path()
     model.restore_model(best_model_path)
-    
+
     # Create a dataset for inference.
     infer_data = GSgnnNodeInferData(config.graph_name, config.part_config,
                                     eval_ntypes=config.target_ntype,
@@ -357,7 +357,7 @@ def main(args):
                                     label_field=config.label_field)
 
     # Create an inference for a node task.
-    infer = GSgnnNodePredictionInfer(model, gs.get_rank())
+    infer = GSgnnNodePredictionInferrer(model)
     infer.setup_device(device=device)
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)

@@ -236,6 +236,19 @@ def alltoall_cpu(rank, world_size, output_tensor_list, input_tensor_list):
     for i in range(world_size):
         dist.scatter(output_tensor_list[i], input_tensor_list if i == rank else None, src=i)
 
+def alltoallv_nccl(output_tensor_list, input_tensor_list):
+    """ Each process scatters list of input tensors to all processes in a cluster
+        and return gathered list of tensors in output list using nccl backend.
+
+    Parameters
+    ----------
+    output_tensor_list : List of tensor
+        The received tensors
+    input_tensor_list : List of tensor
+        The tensors to exchange
+    """
+    th.distributed.all_to_all(output_tensor_list, input_tensor_list)
+
 def alltoallv_cpu(rank, world_size, output_tensor_list, input_tensor_list):
     """Each process scatters list of input tensors to all processes in a cluster
     and return gathered list of tensors in output list.
@@ -261,39 +274,6 @@ def alltoallv_cpu(rank, world_size, output_tensor_list, input_tensor_list):
             output_tensor_list[i] = input_tensor_list[i].to(th.device('cpu'))
         else:
             sender = dist.isend(input_tensor_list[i].to(th.device('cpu')), dst=i)
-            senders.append(sender)
-
-    for i in range(world_size):
-        if i != rank:
-            dist.recv(output_tensor_list[i], src=i)
-
-    barrier()
-
-def alltoallv_nccl(rank, world_size, output_tensor_list, input_tensor_list):
-    """Each process scatters list of input tensors to all processes in a cluster
-    and return gathered list of tensors in output list.
-
-    Note: for NCCL backend
-
-    Parameters
-    ----------
-    rank : int
-        The rank of current worker
-    world_size : int
-        The size of the entire
-    output_tensor_list : List of tensor
-        The received tensors
-    input_tensor_list : List of tensor
-        The tensors to exchange
-    """
-    # send tensor to each target trainer using torch.distributed.isend
-    # isend is async
-    senders = []
-    for i in range(world_size):
-        if i == rank:
-            output_tensor_list[i] = input_tensor_list[i]
-        else:
-            sender = dist.isend(input_tensor_list[i], dst=i)
             senders.append(sender)
 
     for i in range(world_size):

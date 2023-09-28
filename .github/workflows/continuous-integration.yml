@@ -7,8 +7,18 @@ on:
     branches:
       - main
       - ci_dev
+    paths-ignore:
+      - '.github/workflow_scripts/gsprocessing_pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_lint.sh'
+      - 'graphstorm-processing/**'
+      - '.github/workflows/gsprocessing-workflow.yml'
   pull_request_target:
-    
+    types: [ labeled, opened, reopened, synchronize, ready_for_review ]
+    paths-ignore:
+      - '.github/workflow_scripts/gsprocessing_pytest.sh'
+      - '.github/workflow_scripts/gsprocessing_lint.sh'
+      - 'graphstorm-processing/**'
+      - '.github/workflows/gsprocessing-workflow.yml'    
 
 permissions:
   id-token: write
@@ -30,7 +40,10 @@ env:
 jobs:
 
   lint_check:
-    if: ${{ github.event.label.name != 'draft' }}
+    if: ${{ github.event_name == 'push' ||
+      (github.event.label.name != 'draft'
+      && github.event_name == 'pull_request_target'
+      && contains(github.event.pull_request.labels.*.name, 'ready'))}}
     runs-on: ubuntu-latest
     steps:
     - name: Configure AWS Credentials
@@ -246,5 +259,5 @@ jobs:
                                --command "${{ env.COMMAND-E2E-MGPU }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait    
+                               --wait
 

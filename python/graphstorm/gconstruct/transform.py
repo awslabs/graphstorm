@@ -27,8 +27,8 @@ import numpy as np
 import torch as th
 
 from scipy.special import erfinv # pylint: disable=no-name-in-module
-from transformers import BertTokenizer
-from transformers import BertModel, BertConfig
+from transformers import AutoTokenizer
+from transformers import AutoModel, AutoConfig
 
 from .file_io import read_index_json
 from .utils import ExtMemArrayWrapper
@@ -351,7 +351,11 @@ class CategoricalTransform(TwoPhaseFeatTransform):
     def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
         self._val_dict = {}
         if transform_conf is not None and 'mapping' in transform_conf:
-            self._val_dict = transform_conf['mapping']
+            # We assume the keys of a categorical mapping are strings.
+            # But previously keys can be integers. So we convert them
+            # into strings.
+            self._val_dict = \
+                {str(key): val for key, val in transform_conf['mapping'].items()}
             self._conf = transform_conf
         else:
             self._conf = transform_conf
@@ -379,7 +383,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
         feats = feats[feats != None] # pylint: disable=singleton-comparison
         if self._separator is None:
-            return {self.feat_name: np.unique(feats)}
+            return {self.feat_name: np.unique(feats.astype(str))}
         else:
             assert feats.dtype.type is np.str_, \
                     "We can only convert strings to multiple categorical values with separaters."
@@ -402,7 +406,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             assert len(info) == 0
             return
 
-        self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        self._val_dict = {str(key): i for i, key in enumerate(np.unique(np.concatenate(info)))}
         # We need to save the mapping in the config object.
         if self._conf is not None:
             self._conf['mapping'] = self._val_dict
@@ -424,17 +428,21 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                encoding[i, self._val_dict[feat]] = 1
+                if str(feat) in self._val_dict:
+                    encoding[i, self._val_dict[str(feat)]] = 1
+                # if key does not exist, keep the feature as all zeros.
         else:
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                idx = [self._val_dict[val] for val in feat.split(self._separator)]
+                idx = [self._val_dict[val] for val in feat.split(self._separator) \
+                       if val in self._val_dict]
                 encoding[i, idx] = 1
         return {self.feat_name: encoding}
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     """ Numerical value with Min-Max normalization.
+
         $val = (val-min) / (max-min)$
 
     Parameters
@@ -444,17 +452,29 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     feat_name : str
         The feature name used in the constructed graph.
     max_bound : float
-        The maximum float value.
+        The maximum float value. Any number larger than max_bound will be set to max_bound.
     min_bound : float
-        The minimum float value
+        The minimum float value. Any number smaller than min_bound will be set to min_bound.
+    max_val : list of float
+        Define the value of `max` in the Min-Max normalization formula for each feature.
+        If max_val is set, max_bound will be ignored.
+    min_val : list of float
+        Define the value of `min` in the Min-Max normalization formula for each feature.
+        If min_val is set, min_bound will be ignored.
     out_dtype:
         The dtype of the transformed feature.
         Default: None, we will not do data type casting.
+    transform_conf : dict
+        The configuration for the feature transformation.
     """
     def __init__(self, col_name, feat_name,
                  max_bound=sys.float_info.max,
                  min_bound=-sys.float_info.max,
-                 out_dtype=None):
+                 max_val=None, min_val=None,
+                 out_dtype=None, transform_conf=None):
+        self._max_val = np.array(max_val, dtype=np.float32) if max_val is not None else None
+        self._min_val = np.array(min_val, dtype=np.float32) if min_val is not None else None
+        self._conf = transform_conf
         self._max_bound = max_bound
         self._min_bound = min_bound
         out_dtype = np.float32 if out_dtype is None else out_dtype
@@ -470,6 +490,12 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         """
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
             "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+
+        # The max and min of $val = (val-min) / (max-min)$ is pre-defined
+        # in the transform_conf, return max_val and min_val directly
+        if self._max_val is not None and self._min_val is not None:
+            return {self.feat_name: (self._max_val, self._min_val)}
+
         if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
@@ -486,15 +512,22 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 feats = feats.astype(np.float32)
             except: # pylint: disable=bare-except
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
-
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
-        max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
-            else np.array([np.amax(feats, axis=0)])
-        min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
-            else np.array([np.amin(feats, axis=0)])
 
-        max_val[max_val > self._max_bound] = self._max_bound
-        min_val[min_val < self._min_bound] = self._min_bound
+        if self._max_val is None:
+            max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
+                else np.array([np.amax(feats, axis=0)])
+            max_val[max_val > self._max_bound] = self._max_bound
+        else:
+            max_val = self._max_val
+
+        if self._min_val is None:
+            min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
+                else np.array([np.amin(feats, axis=0)])
+            min_val[min_val < self._min_bound] = self._min_bound
+        else:
+            min_val = self._min_val
+
         return {self.feat_name: (max_val, min_val)}
 
     def update_info(self, info):
@@ -520,6 +553,11 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
         self._max_val = max_val
         self._min_val = min_val
+
+        # We need to save the max_val and min_val in the config object.
+        if self._conf is not None:
+            self._conf['max_val'] = self._max_val.tolist()
+            self._conf['min_val'] = self._min_val.tolist()
 
     def call(self, feats):
         """ Do normalization for feats
@@ -636,13 +674,13 @@ class Tokenizer(FeatTransform):
     feat_name : str
         The prefix of the tokenized data
     bert_model : str
-        The name of the BERT model.
+        The name of the lm model. We keep the parameter name for backward compatibilities
     max_seq_length : int
         The maximal length of the tokenization results.
     """
     def __init__(self, col_name, feat_name, bert_model, max_seq_length):
         super(Tokenizer, self).__init__(col_name, feat_name)
-        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
+        self.tokenizer = AutoTokenizer.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
     def call(self, feats):
@@ -669,7 +707,8 @@ class Tokenizer(FeatTransform):
             # The masks are small integers. We can use int4 or int8 to store them.
             # This can signficantly reduce memory consumption.
             att_masks.append(t['attention_mask'].to(th.int8))
-            type_ids.append(t['token_type_ids'].to(th.int8))
+            # Some tokenizer doesn't produce `token_type_ids`, replace w. zeros
+            type_ids.append(t.get('token_type_ids', th.zeros_like(t['input_ids'])).to(th.int8))
         token_id_name = 'input_ids'
         atten_mask_name = 'attention_mask'
         token_type_id_name = 'token_type_ids'
@@ -678,9 +717,9 @@ class Tokenizer(FeatTransform):
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
 
 class Text2BERT(FeatTransform):
-    """ Compute BERT embeddings.
+    """ Compute LM embeddings.
 
-    It computes BERT embeddings.
+    It computes LM embeddings.
 
     Parameters
     ----------
@@ -691,7 +730,7 @@ class Text2BERT(FeatTransform):
     tokenizer : Tokenizer
         A tokenizer
     model_name : str
-        The BERT model name.
+        The LM model name.
     infer_batch_size : int
         The inference batch size.
     out_dtype:
@@ -709,10 +748,10 @@ class Text2BERT(FeatTransform):
         self.infer_batch_size = infer_batch_size
 
     def _init(self):
-        """ Initialize the BERT model.
+        """ Initialize the LM model.
 
-        We should delay the BERT model initialization because we need to
-        initialize the BERT model in the worker process instead of creating it
+        We should delay the LM model initialization because we need to
+        initialize the LM model in the worker process instead of creating it
         in the master process and passing it to the worker process.
         """
         if th.cuda.is_available():
@@ -723,18 +762,17 @@ class Text2BERT(FeatTransform):
             self.device = "cpu"
 
         if self.lm_model is None:
-            config = BertConfig.from_pretrained(self.model_name)
-            lm_model = BertModel.from_pretrained(self.model_name,
-                                                 config=config)
+            config = AutoConfig.from_pretrained(self.model_name)
+            lm_model = AutoModel.from_pretrained(self.model_name, config)
             lm_model.eval()
 
-            # We use the local GPU to compute BERT embeddings.
+            # We use the local GPU to compute LM embeddings.
             if self.device is not None:
                 lm_model = lm_model.to(self.device)
             self.lm_model = lm_model
 
     def call(self, feats):
-        """ Compute BERT embeddings of the strings..
+        """ Compute LM embeddings of the strings..
 
         Parameters
         ----------
@@ -743,7 +781,7 @@ class Text2BERT(FeatTransform):
 
         Returns
         -------
-        dict: BERT embeddings.
+        dict: LM embeddings.
         """
         self._init()
         strs = feats
@@ -871,11 +909,15 @@ def parse_feat_ops(confs):
             elif conf['name'] == 'max_min_norm':
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
+                max_val = conf['max_val'] if 'max_val' in conf else None
+                min_val = conf['min_val'] if 'min_val' in conf else None
                 transform = NumericalMinMaxTransform(feat['feature_col'],
                                                      feat_name,
                                                      max_bound,
                                                      min_bound,
-                                                     out_dtype=out_dtype)
+                                                     max_val,
+                                                     min_val,
+                                                     out_dtype=out_dtype, transform_conf=conf)
             elif conf['name'] == 'rank_gauss':
                 epsilon = conf['epsilon'] if 'epsilon' in conf else None
                 transform = RankGaussTransform(feat['feature_col'],

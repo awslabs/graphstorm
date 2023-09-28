@@ -17,6 +17,7 @@
 """
 
 import os
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -28,15 +29,17 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device
+from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
 
 def get_evaluator(config):
     """ Get evaluator class
     """
     if config.task_type == "node_classification":
+        multilabel = config.multilabel[config.eval_target_ntype] \
+            if isinstance(config.multilabel, dict) else config.multilabel
         return GSgnnAccEvaluator(config.eval_frequency,
                                  config.eval_metric,
-                                 config.multilabel,
+                                 multilabel,
                                  config.use_early_stop,
                                  config.early_stop_burnin_rounds,
                                  config.early_stop_rounds,
@@ -57,13 +60,15 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  use_wholegraph=use_wholegraph(config.part_config))
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.target_ntype,
+                                    eval_ntypes=config.eval_target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
@@ -71,8 +76,7 @@ def main(config_args):
         trainer_class = GLEMNodePredictionTrainer
     elif config.training_method["name"] == "default":
         trainer_class = GSgnnNodePredictionTrainer
-    trainer = trainer_class(model, gs.get_rank(),
-                                        topk_model_to_save=config.topk_model_to_save)
+    trainer = trainer_class(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
@@ -83,14 +87,10 @@ def main(config_args):
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
-    tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True)
-    val_dataloader = None
-    test_dataloader = None
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
         unlabeled_idxs = train_data.get_unlabeled_idxs()
@@ -100,18 +100,26 @@ def main(config_args):
                                                 device=device, train_task=True)
     else:
         dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                         batch_size=config.batch_size, device=device,
-                                         train_task=True)
+                                         batch_size=config.batch_size,
+                                         device=device, train_task=True,
+                                         construct_feat_ntype=config.construct_feat_ntype,
+                                         construct_feat_fanout=config.construct_feat_fanout)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
+    val_dataloader = None
+    test_dataloader = None
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
-                                             device=device, train_task=False)
+                                             device=device, train_task=False,
+                                             construct_feat_ntype=config.construct_feat_ntype,
+                                             construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
-                                              device=device, train_task=False)
+                                              device=device, train_task=False,
+                                              construct_feat_ntype=config.construct_feat_ntype,
+                                              construct_feat_fanout=config.construct_feat_fanout)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -130,7 +138,9 @@ def main(config_args):
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path,
-                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
+                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs,
+                max_grad_norm=config.max_grad_norm,
+                grad_norm_type=config.grad_norm_type)
 
     if config.save_embed_path is not None:
         model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=False)
@@ -158,5 +168,4 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     args = arg_parser.parse_args()
-    print(args)
     main(args)

@@ -1,4 +1,5 @@
 {
+    "version": "gconstruct-v0.1",
     "nodes": [
             {
                     "node_id_col":  "id",
@@ -22,7 +23,7 @@
                                 "transform":    {
                                         "name": "bert_hf",
                                         "bert_model": "bert-base-uncased",
-                                        "max_seq_length": 128
+                                        "max_seq_length": 16
                                 }
                         }
                  ],

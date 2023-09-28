@@ -17,11 +17,12 @@
 """
 
 import os
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
-from graphstorm.dataloading import GSgnnEdgeTrainData
+from graphstorm.dataloading import GSgnnLPTrainData
 from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
 from graphstorm.dataloading import GSgnnLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnLPLocalUniformNegDataLoader
@@ -44,10 +45,42 @@ from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
                                     FastGSgnnLPJointNegDataLoader,
                                     FastGSgnnLPLocalUniformNegDataLoader,
                                     FastGSgnnLPLocalJointNegDataLoader)
-from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device
+from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+
+def get_evaluator(config, train_data):
+    """ Get evaluator according to config
+
+        Parameters
+        ----------
+        config: GSConfig
+            Configuration
+        train_data: GSgnnEdgeData
+            Training data
+    """
+    assert len(config.eval_metric) == 1, \
+        "GraphStorm doees not support computing multiple metrics at the same time."
+    if config.report_eval_per_type:
+        return GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+                                           train_data,
+                                           config.num_negative_edges_eval,
+                                           config.lp_decoder_type,
+                                           config.model_select_etype,
+                                           config.use_early_stop,
+                                           config.early_stop_burnin_rounds,
+                                           config.early_stop_rounds,
+                                           config.early_stop_strategy)
+    else:
+        return GSgnnMrrLPEvaluator(config.eval_frequency,
+                                   train_data,
+                                   config.num_negative_edges_eval,
+                                   config.lp_decoder_type,
+                                   config.use_early_stop,
+                                   config.early_stop_burnin_rounds,
+                                   config.early_stop_rounds,
+                                   config.early_stop_strategy)
 
 def main(config_args):
     """ main function
@@ -55,39 +88,33 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  use_wholegraph=use_wholegraph(config.part_config))
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)
-    node_feat_field = config.node_feat_name
-    train_data = GSgnnEdgeTrainData(config.graph_name,
-                                    config.part_config,
-                                    train_etypes=config.train_etype,
-                                    eval_etypes=config.eval_etype,
-                                    node_feat_field=node_feat_field)
+    train_data = GSgnnLPTrainData(config.graph_name,
+                                  config.part_config,
+                                  train_etypes=config.train_etype,
+                                  eval_etypes=config.eval_etype,
+                                  node_feat_field=config.node_feat_name,
+                                  pos_graph_feat_field=config.lp_edge_weight_for_loss)
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
-    trainer = GSgnnLinkPredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+    trainer = GSgnnLinkPredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
     trainer.setup_device(device=device)
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
-        trainer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.eval_frequency,
-                                train_data,
-                                config.num_negative_edges_eval,
-                                config.lp_decoder_type,
-                                config.use_early_stop,
-                                config.early_stop_burnin_rounds,
-                                config.early_stop_rounds,
-                                config.early_stop_strategy))
+        # Currently, we only support mrr
+        evaluator = get_evaluator(config, train_data)
+        trainer.setup_evaluator(evaluator)
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
-    tracker = gs.create_builtin_task_tracker(config, trainer.rank)
-    if trainer.rank == 0:
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
@@ -118,7 +145,8 @@ def main(config_args):
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
                                 exclude_training_targets=config.exclude_training_targets,
-                                lp_edge_weight_for_loss=config.lp_edge_weight_for_loss)
+                                construct_feat_ntype=config.construct_feat_ntype,
+                                construct_feat_fanout=config.construct_feat_fanout)
 
     # TODO(zhengda) let's use full-graph inference for now.
     if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
@@ -155,7 +183,9 @@ def main(config_args):
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 save_model_frequency=config.save_model_frequency,
                 save_perf_results_path=config.save_perf_results_path,
-                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs)
+                freeze_input_layer_epochs=config.freeze_lm_encoder_epochs,
+                max_grad_norm=config.max_grad_norm,
+                grad_norm_type=config.grad_norm_type)
 
     if config.save_embed_path is not None:
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
@@ -184,5 +214,4 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     args = arg_parser.parse_args()
-    print(args)
     main(args)

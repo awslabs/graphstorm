@@ -16,6 +16,6 @@
     Modules for inference
 """
 
-from .lp_infer import GSgnnLinkPredictionInfer
-from .np_infer import GSgnnNodePredictionInfer
-from .ep_infer import GSgnnEdgePredictionInfer
+from .lp_infer import GSgnnLinkPredictionInferrer
+from .np_infer import GSgnnNodePredictionInferrer
+from .ep_infer import GSgnnEdgePredictionInferrer
