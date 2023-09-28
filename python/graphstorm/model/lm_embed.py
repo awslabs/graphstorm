@@ -245,15 +245,38 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     Parameters
     ----------
     g: DistGraph
-        The distributed graph
+        The distributed graph.
     node_lm_configs:
         A list of language model configurations.
     num_train: int
-        Number of trainable texts
+        Number of trainable texts. Default: 0
     lm_infer_batch_size: int
-        Batch size used for computing text embeddings for static lm model
-    use_fp16 : bool
-        Use float16 to store BERT embeddings.
+        Batch size used for computing text embeddings for static lm model. Default: 16
+    use_fp16 : bool 
+        Use float16 to store BERT embeddings. Default: True
+    
+    Examples:
+    ----------
+
+    .. code:: python
+
+        from graphstorm.model import GSgnnNodeModel, GSPureLMNodeInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+
+        node_lm_configs = [
+            {
+                "lm_type": "bert",
+                "model_name": "bert-base-uncased",
+                "gradient_checkpoint": True,
+                "node_types": ['a']
+            }
+        ]
+        np_data = GSgnnNodeTrainData(...)
+        model = GSgnnNodeModel(...)
+        lm_train_nodes=10
+        encoder = GSPureLMNodeInputLayer(g=np_data.g, node_lm_configs=node_lm_configs,
+                                        num_train=lm_train_nodes)
+        model.set_node_input_encoder(encoder)
     """
     def __init__(self,
                  g,
@@ -394,18 +417,44 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     embed_size : int
         The embedding size
     num_train: int
-        Number of trainable texts
+        Number of trainable texts. Default: 0
     lm_infer_batch_size: int
-        Batch size used for computing text embeddings for static lm model
+        Batch size used for computing text embeddings for static lm model. Default: 16
     activation : func
-        The activation function
+        The activation function. Default: None
     dropout : float
-        The dropout parameter
+        The dropout parameter. Default: 0.0
     use_node_embeddings : bool
         Whether we will use the node embeddings for individual nodes even when node features are
-        available.
+        available. Default: False
     use_fp16 : bool
-        Use float16 to store the BERT embeddings.
+        Use float16 to store the BERT embeddings. Default: True
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        from graphstorm import get_feat_size
+        from graphstorm.model import GSgnnNodeModel, GSLMNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        np_data = GSgnnNodeTrainData(...)
+        model = GSgnnNodeModel(...)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        node_lm_configs = [{"lm_type": "bert",
+                        "model_name": "bert-base-uncased",
+                        "gradient_checkpoint": True,
+                        "node_types": ['a']}]
+        lm_train_nodes=10
+
+        encoder = GSLMNodeEncoderInputLayer(
+            g=np_data.g, 
+            node_lm_configs=node_lm_configs,
+            feat_size=feat_size, 
+            embed_size=128, 
+            num_train=lm_train_nodes
+        )
+        model.set_node_input_encoder(encoder)
     """
     def __init__(self,
                  g,
