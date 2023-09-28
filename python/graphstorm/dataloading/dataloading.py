@@ -202,7 +202,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         ep_data = GSgnnEdgeTrainData(...)
         ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[15, 10], batch_size=128)
         ep_trainer = GSgnnEdgePredictionTrainer(...)
-        ep_trainer.fit(ep_dataloader, 10)
+        ep_trainer.fit(ep_dataloader, num_epochs=10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
@@ -427,9 +427,9 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
         lp_data = GSgnnEdgeTrainData(...)
         lp_dataloader = GSgnnLinkPredictionDataLoader(lp_data, target_idx, fanout=[15, 10], 
-        num_negative_edges=10, batch_size=128)
+                                                    num_negative_edges=10, batch_size=128)
         lp_trainer = GSgnnLinkPredictionTrainer(...)
-        lp_trainer.fit(lp_dataloader, 10)
+        lp_trainer.fit(lp_dataloader, num_epochs=10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
@@ -1006,7 +1006,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
     
     GSgnnNodeDataLoader samples GraphStorm node dataset into an iterable over mini-batches of
-    samples including target nodes and sampled neighbor nodes, which will be used by GraphStorm 
+    samples including target nodes and sampled neighbor nodes, which will be used by GraphStorm
     Trainers and Inferrers. 
 
     Parameters
@@ -1043,7 +1043,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         np_data = GSgnnNodeTrainData(...)
         np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10], batch_size=128)
         np_trainer = GSgnnNodePredictionTrainer(...)
-        np_trainer.fit(np_dataloader, 10)
+        np_trainer.fit(np_dataloader, num_epochs=10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
