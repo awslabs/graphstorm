@@ -33,8 +33,9 @@ class RelGraphConvLayer(nn.Module):
 
     The relational graph convolution layer applies GraphConv on the relation graphs,
     which reads the features from source nodes and writes the updated ones to destination nodes.
-    If multiple relations have the same destination node types, their results are aggregated by the specified method.
-    If the relation graph has no edge, the corresponding module will not be called.
+    If multiple relations have the same destination node types, their results
+    are aggregated by the specified method. If the relation graph has no edge,
+    the corresponding module will not be called.
 
     Mathematically for the GraphConv it is defined as follows:
 
