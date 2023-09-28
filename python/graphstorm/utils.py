@@ -251,7 +251,7 @@ def get_log_level(log_level):
 def create_dist_tensor(shape, dtype, name=None, part_policy=None, persistent=False):
     """ A wrapper function to create a distributed tensor.
     """
-    tensor = dgl.distributed.DistTenosr(shape, dtype, name=name,
+    tensor = dgl.distributed.DistTensor(shape, dtype, name=name,
                                         part_policy=part_policy, persistent=persistent)
     logging.debug("Create DistTensor of %s with shape of %s", name, str(tensor.shape))
     return tensor
