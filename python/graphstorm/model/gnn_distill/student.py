@@ -87,6 +87,7 @@ class GSDistilledModel(nn.Module):
             Saved path for checkpoint.
         """
         proj_dir_loc = os.path.join(checkpoint_path, "proj")
+        os.makedirs(proj_dir_loc, exist_ok=True)
         tokenizer_dir_loc = os.path.join(checkpoint_path, "tokenizer")
         lm_dir_loc = os.path.join(checkpoint_path, "lm")
         self.tokenizer.save_pretrained(tokenizer_dir_loc)

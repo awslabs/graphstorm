@@ -109,7 +109,6 @@ class GSdistiller():
         barrier()
         if self.rank == 0:
             checkpoint_path = os.path.join(saved_path, f"checkpoint-{distill_step}")
-            os.makedirs(proj_dir_loc, exist_ok=True)
             logging.info("Saving checkpoint to %s", checkpoint_path)
             model.module.save_gs_checkpoint(checkpoint_path)
         return True
