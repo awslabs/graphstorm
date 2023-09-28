@@ -102,8 +102,6 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                                           return_label=do_eval)
             pred = res[0]
             label = res[1] if do_eval else None
-        for ntype, emb in embs.items():
-            logging.info("node %s has shape %s", ntype, str(emb.shape))
         if isinstance(pred, dict):
             pred = pred[ntype]
         if isinstance(label, dict):
@@ -125,7 +123,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                                        total_steps=0)
 
         if save_embed_path is not None:
-            logging.info("save embeddings to %s", save_embed_path)
+            if get_rank() == 0:
+                logging.info("save embeddings to %s", save_embed_path)
             if use_mini_batch_infer:
                 g = loader.data.g
                 ntype_emb = create_dist_tensor((g.num_nodes(ntype), embs[ntype].shape[1]),
