@@ -56,8 +56,8 @@ for SageMaker and the ECR image URI we created in :doc:`/usage/distributed-proce
 For instructions on how to create an execution role for SageMaker
 see the `AWS SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-roles.html#sagemaker-roles-create-execution-role>`_.
 
-Let's set up a small bash script that will run the parametrized processing
-job, followed by the re-partitioning job, both on SageMaker
+Let's set up a small ``bash`` script that will run the parametrized processing
+job, followed by the re-partitioning job, both on SageMaker:
 
 .. code-block:: bash
 
@@ -131,7 +131,7 @@ Examine the output
 
 Once both jobs are finished we can examine the output created, which
 should match the output we saw when running the same jobs locally
-in :doc:`/usage/example`:
+in :ref:`gsp-examining-output`.
 
 
 .. code-block:: bash
