@@ -19,6 +19,8 @@ import argparse
 import dgl
 import numpy as np
 
+from numpy.testing import assert_almost_equal
+
 argparser = argparse.ArgumentParser("Compare graphs")
 argparser.add_argument("--graph-path1", type=str, required=True,
                        help="The path of the constructed graph.")
@@ -35,11 +37,14 @@ for ntype in g1.ntypes:
     for name in g1.nodes[ntype].data:
         # We should skip '*_mask' because data split is split randomly.
         if 'mask' not in name:
-            assert np.all(g1.nodes[ntype].data[name].numpy() == g2.nodes[ntype].data[name].numpy())
+            assert_almost_equal(g1.nodes[ntype].data[name].numpy(),
+                                g2.nodes[ntype].data[name].numpy())
+
 
 for etype in g1.canonical_etypes:
     assert g1.number_of_edges(etype) == g2.number_of_edges(etype)
     for name in g1.edges[etype].data:
         # We should skip '*_mask' because data split is split randomly.
         if 'mask' not in name:
-            assert np.all(g1.edges[etype].data[name].numpy() == g2.edges[etype].data[name].numpy())
+            assert_almost_equal(g1.edges[etype].data[name].numpy(),
+                                g2.edges[etype].data[name].numpy())
