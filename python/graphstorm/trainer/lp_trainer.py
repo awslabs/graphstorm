@@ -34,16 +34,44 @@ from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
-    """ Link prediction trainer.
+    """ A trainer for link prediction
 
-    This is a highlevel trainer wrapper that can be used directly to train a link prediction model.
+    This is a high-level trainer wrapper that can be used
+    directly to train a link prediction model.
+
+    It makes use of the functions provided by `GSgnnTrainer`
+    to define two main functions: `fit` that performs the training
+    for the model that is provided when the object is created,
+    and `eval` that evaluates a provided model against test and
+    validation data.
 
     Parameters
     ----------
-    model : GSgnnLinkPredictionModelBase
+    model : GSgnnLinkPredictionModel
         The GNN model for link prediction.
     topk_model_to_save : int
         The top K model to save.
+
+    Example
+    -------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
+        from graphstorm.dataset import GSgnnEdgeTrainData
+        from graphstorm.model import GSgnnLinkPredictionModel
+        from graphstorm.trainer import GSgnnLinkPredictionTrainer
+
+        my_dataset = GSgnnEdgeTrainData(
+            "my_graph", "/path/to/part_config", train_etypes="edge_type")
+        target_idx = {"edge_type": target_edges_tensor}
+        my_data_loader = GSgnnLinkPredictionDataLoader(
+            my_dataset, target_idx, fanout=[10], batch_size=1024)
+        my_model = GSgnnLinkPredictionModel(alpha_l2norm=0.0)
+
+        trainer = GSgnnLinkPredictionTrainer(my_model, topk_model_to_save=1)
+
+        trainer.fit(my_data_loader, num_epochs=2)
     """
     def __init__(self, model, topk_model_to_save):
         super(GSgnnLinkPredictionTrainer, self).__init__(model, topk_model_to_save)
@@ -259,7 +287,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     def eval(self, model, data, val_loader, test_loader,
              total_steps, edge_mask_for_gnn_embeddings,
              use_mini_batch_infer=False):
-        """ do the model evaluation using validiation and test sets
+        """ do the model evaluation using validation and test sets
 
         Parameters
         ----------
