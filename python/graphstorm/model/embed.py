@@ -171,7 +171,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
     Examples:
     ----------
-    .. code:: python
+        .. code:: python
 
         from graphstorm import get_feat_size
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
