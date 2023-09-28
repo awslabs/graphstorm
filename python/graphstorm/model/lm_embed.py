@@ -274,7 +274,8 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         np_data = GSgnnNodeTrainData(...)
         model = GSgnnNodeModel(...)
         lm_train_nodes=10
-        encoder = GSPureLMNodeInputLayer(g=np_data.g, node_lm_configs=node_lm_configs, num_train=lm_train_nodes)
+        encoder = GSPureLMNodeInputLayer(g=np_data.g, node_lm_configs=node_lm_configs,
+                                        num_train=lm_train_nodes)
         model.set_node_input_encoder(encoder)
     """
     def __init__(self,
