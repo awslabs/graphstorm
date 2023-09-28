@@ -23,7 +23,7 @@ sudo apt install Docker.io
 ## Build a Docker image from source
 ---------------
 
-Please use the following command to build a Docker image from source:
+Once you have the GraphStorm repository cloned, please use the following command to build a Docker image from source:
 ```shell
 cd /path-to-graphstorm/docker/
 
@@ -33,11 +33,13 @@ bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ d
 There are three arguments of the `build_docker_oss4local.sh`:
 
 1. **path-to-graphstorm**(required), is the absolute path of the "graphstorm" folder, where you
-clone the GraphStorm source code. For example, the path could be "/code/graphstorm".
+cloned the GraphStorm source code. For example, the path could be "/code/graphstorm".
 2. **docker-name**(optional), is the assigned name of the to be built Docker image. Default is
 "graphstorm".
 3. **docker-tag**(optional), is the assigned tag name of the to be built docker image. Default is
 "local".
+
+If Docker requires you to run it as a root user and you don't want to preface all docker commands with sudo, you can check the solution available [here](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
 
 You can use the below command to check if the new image exists.
 ```shell
