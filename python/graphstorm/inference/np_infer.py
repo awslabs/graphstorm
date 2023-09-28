@@ -123,7 +123,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                                        total_steps=0)
 
         if save_embed_path is not None:
-            logging.debug("save embeddings to %s", save_embed_path)
+            if get_rank() == 0:
+                logging.info("save embeddings to %s", save_embed_path)
             if use_mini_batch_infer:
                 g = loader.data.g
                 ntype_emb = create_dist_tensor((g.num_nodes(ntype), embs[ntype].shape[1]),
