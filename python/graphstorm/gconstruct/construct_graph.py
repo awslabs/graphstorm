@@ -31,14 +31,19 @@ import dgl
 
 from ..utils import sys_tracker
 from .file_io import parse_node_file_format, parse_edge_file_format
-from .file_io import get_in_files, HDF5Array
+from .file_io import get_in_files
 from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
 from .transform import do_multiprocess_transform
+from .transform import LABEL_STATS_FIELD, collect_label_stats
+from .transform import (print_node_label_stats,
+                        print_edge_label_stats,
+                        save_node_label_stats,
+                        save_edge_label_stats)
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
-                    partition_graph)
+                    partition_graph, ExtMemArrayWrapper)
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -257,6 +262,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
     """
     node_data = {}
     node_id_map = {}
+    label_stats = {}
     for process_conf in process_confs:
         # each iteration is to process a node type.
         assert 'node_type' in process_conf, \
@@ -301,9 +307,9 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                 if feat_name not in type_node_data:
                     type_node_data[feat_name] = [None] * len(return_dict)
                 type_node_data[feat_name][i] = data[feat_name]
-            # If it's HDF5Array, it's better to convert it into a Numpy array.
+            # If it's ExtMemArray, it's better to convert it into a Numpy array.
             # This will make the next operations on it more efficiently.
-            if isinstance(node_ids, HDF5Array):
+            if isinstance(node_ids, ExtMemArrayWrapper):
                 type_node_id_map[i] = node_ids.to_numpy()
             else:
                 type_node_id_map[i] = node_ids
@@ -333,15 +339,25 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
             type_node_id_map = IdMap(type_node_id_map)
             sys_tracker.check(f'Create node ID map of {node_type}')
 
-        for feat_name in type_node_data:
-            merged_feat = arr_merger(type_node_data[feat_name],
-                                     node_type + "_" + feat_name)
-            if feat_name in after_merge_feat_ops:
-                # do data transformation with the entire feat array.
-                merged_feat = after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
-            type_node_data[feat_name] = merged_feat
+        if node_type not in label_stats:
+            label_stats[node_type] = {}
+        for feat_name in list(type_node_data):
+            # features start with LABEL_STATS_FIELD store label statistics
+            if feat_name.startswith(LABEL_STATS_FIELD):
+                label_name, stats_type, stats = \
+                    collect_label_stats(feat_name, type_node_data[feat_name])
+                label_stats[node_type][label_name] = (stats_type, stats)
+                del type_node_data[feat_name]
+            else:
+                merged_feat = arr_merger(type_node_data[feat_name],
+                                         node_type + "_" + feat_name)
+                if feat_name in after_merge_feat_ops:
+                    # do data transformation with the entire feat array.
+                    merged_feat = \
+                        after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+                type_node_data[feat_name] = merged_feat
+                sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
             gc.collect()
-            sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
         # If we didn't see the node data for this node type before.
         if len(type_node_data) > 0 and node_type not in node_data:
@@ -367,7 +383,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                     f"Node data and node IDs for node type {node_type} does not match: " + \
                     f"{len(data)} vs. {len(node_id_map[node_type])}"
     sys_tracker.check('Finish processing node data')
-    return (node_id_map, node_data)
+    return (node_id_map, node_data, label_stats)
 
 def process_edge_data(process_confs, node_id_map, arr_merger,
                       num_processes=1,
@@ -416,7 +432,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
     """
     edges = {}
     edge_data = {}
-
+    label_stats = {}
     for process_conf in process_confs:
         # each iteration is to process an edge type.
         assert 'relation' in process_conf, \
@@ -473,19 +489,29 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 type_edge_data[feat_name][i] = part_data[feat_name]
         return_dict = None
 
-        # handle edge type
-        for feat_name in type_edge_data:
-            etype_str = "-".join(edge_type)
-            merged_feat = arr_merger(type_edge_data[feat_name],
-                                                   etype_str + "_" + feat_name)
-            if feat_name in after_merge_feat_ops:
-                # do data transformation with the entire feat array.
-                merged_feat = after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
-            type_edge_data[feat_name] = merged_feat
-            gc.collect()
-            sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
-
         edge_type = tuple(edge_type)
+        if edge_type not in label_stats:
+            label_stats[edge_type] = {}
+        # handle edge type
+        for feat_name in list(type_edge_data):
+            # features start with LABEL_STATS_FIELD store label statistics
+            if feat_name.startswith(LABEL_STATS_FIELD):
+                label_name, stats_type, stats = \
+                    collect_label_stats(feat_name, type_edge_data[feat_name])
+                label_stats[edge_type][label_name] = (stats_type, stats)
+                del type_edge_data[feat_name]
+            else:
+                etype_str = "-".join(edge_type)
+                merged_feat = arr_merger(type_edge_data[feat_name],
+                                         etype_str + "_" + feat_name)
+                if feat_name in after_merge_feat_ops:
+                    # do data transformation with the entire feat array.
+                    merged_feat = \
+                        after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+                type_edge_data[feat_name] = merged_feat
+                sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
+            gc.collect()
+
         if type_src_ids[0] is not None: # handle src_ids and dst_ids
             assert all(src_ids is not None for src_ids in type_src_ids)
             assert all(dst_ids is not None for dst_ids in type_dst_ids)
@@ -518,7 +544,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 f"does not match the number of edges of {edge_type}. " \
                 f"Expecting {len(edges[edge_type][0])}, but get {len(efeats)}"
 
-    return edges, edge_data
+    return (edges, edge_data, label_stats)
 
 def verify_confs(confs):
     """ Verify the configuration of the input data.
@@ -549,7 +575,7 @@ def get_log_level(log_level):
         raise ValueError(f"Unknown logging level {log_level}. " + \
                 "The possible values are: debug, info, warning, error.")
 
-def print_graph_info(g, node_data, edge_data):
+def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats):
     """ Print graph information.
 
     Parameters
@@ -560,9 +586,14 @@ def print_graph_info(g, node_data, edge_data):
         Node features
     edge_data : dict of dict of Numpy arrays.
         Edge features
+    node_label_stats: dict of dict of tuple.
+        Node label stats
+    edge_label_stats: dict of dict of tuple.
+        Edge label stats
     """
     logging.info("The graph has %d node types and %d edge types.",
                  len(g.ntypes), len(g.etypes))
+
     for ntype in node_data:
         feat_names = list(node_data[ntype].keys())
         logging.info("Node type %s has %d nodes with features: %s.",
@@ -590,6 +621,14 @@ def print_graph_info(g, node_data, edge_data):
             logging.info("Train/val/test on %s: %d, %d, %d",
                          str(etype), num_train, num_val, num_test)
 
+    for ntype in node_label_stats:
+        for label_name, stats in node_label_stats[ntype].items():
+            print_node_label_stats(ntype, label_name, stats)
+
+    for etype in edge_label_stats:
+        for label_name, stats in edge_label_stats[etype].items():
+            print_edge_label_stats(etype, label_name, stats)
+
 def process_graph(args):
     """ Process the graph.
     """
@@ -606,19 +645,23 @@ def process_graph(args):
     # We only store data to external memory if we partition a graph for distributed training.
     ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
     convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
-    node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
-                                               args.remap_node_id,
-                                               num_processes=num_processes_for_nodes)
-    edges, edge_data = process_edge_data(process_confs['edges'], node_id_map,
-                                         convert2ext_mem,
-                                         num_processes=num_processes_for_edges,
-                                         skip_nonexist_edges=args.skip_nonexist_edges)
+
+    node_id_map, node_data, node_label_stats = \
+        process_node_data(process_confs['nodes'], convert2ext_mem,
+                          args.remap_node_id,
+                          num_processes=num_processes_for_nodes)
+    sys_tracker.check('Process the node data')
+    edges, edge_data, edge_label_stats = \
+        process_edge_data(process_confs['edges'], node_id_map,
+                          convert2ext_mem,
+                          num_processes=num_processes_for_edges,
+                          skip_nonexist_edges=args.skip_nonexist_edges)
+    sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.output_conf_file is not None:
         # Save the new config file.
         with open(args.output_conf_file, "w", encoding="utf8") as outfile:
             json.dump(process_confs, outfile, indent=4)
-    sys_tracker.check('Process input data')
 
     if args.add_reverse_edges:
         edges1 = {}
@@ -631,7 +674,12 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    print_graph_info(g, node_data, edge_data)
+    print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats)
+    os.makedirs(args.output_dir, exist_ok=True)
+    if len(node_label_stats) > 0:
+        save_node_label_stats(args.output_dir, node_label_stats)
+    if len(edge_label_stats) > 0:
+        save_edge_label_stats(args.output_dir, edge_label_stats)
     sys_tracker.check('Construct DGL graph')
 
     # reshape customized mask
@@ -659,13 +707,13 @@ def process_graph(args):
     elif args.output_format == "DGL":
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
-                if isinstance(ndata, HDF5Array):
+                if isinstance(ndata, ExtMemArrayWrapper):
                     g.nodes[ntype].data[name] = ndata.to_tensor()
                 else:
                     g.nodes[ntype].data[name] = th.tensor(ndata)
         for etype in edge_data:
             for name, edata in edge_data[etype].items():
-                if isinstance(edata, HDF5Array):
+                if isinstance(edata, ExtMemArrayWrapper):
                     g.edges[etype].data[name] = edata.to_tensor()
                 else:
                     g.edges[etype].data[name] = th.tensor(edata)

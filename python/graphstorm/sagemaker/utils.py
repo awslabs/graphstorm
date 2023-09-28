@@ -15,15 +15,40 @@
 
     sagemaker script utilities
 """
-
+import subprocess
+import logging
 import os
 import time
 import shutil
-
 from urllib.parse import urlparse
 
-from sagemaker.s3 import S3Downloader # pylint: disable=no-name-in-module
-from sagemaker.s3 import S3Uploader   # pylint: disable=no-name-in-module
+import boto3
+from botocore.errorfactory import ClientError
+from sagemaker.s3 import S3Downloader
+from sagemaker.s3 import S3Uploader
+
+
+def run(launch_cmd, state_q, env=None):
+    """ Running cmd using shell
+
+    Parameters
+    ----------
+    launch_cmd: str
+        cmd to launch
+    state_q: queue.Queue()
+        A queue used to return execution result (success or failure)
+    env: dict
+        System environment. If None, subprocess will use the inherited one.
+    """
+    try:
+        subprocess.check_call(launch_cmd, shell=False, env=env)
+        state_q.put(0)
+    except subprocess.CalledProcessError as err:
+        logging.error("Called process error %s", err)
+        state_q.put(err.returncode)
+    except Exception as err: # pylint: disable=broad-except
+        logging.error("Called process error %s", err)
+        state_q.put(-1)
 
 def barrier_master(client_list, world_size):
     """ Master barrier, called by host_rank == 0
@@ -88,7 +113,7 @@ def keep_alive(client_list, world_size, task_end):
         for rank in range(1, world_size):
             client_list[rank].send(b"Dummy")
 
-    print("Exit")
+    logging.info("keepalive thread exiting...")
 
 def terminate_workers(client_list, world_size, task_end):
     """ termiate all worker deamons.
@@ -106,7 +131,8 @@ def terminate_workers(client_list, world_size, task_end):
     for rank in range(1, world_size):
         client_list[rank].send(b"Done")
         msg = client_list[rank].recv(8)
-        print(f"Client {rank} exit {msg.decode()}")
+        logging.info("Client %d exit %s",
+            rank, msg.decode())
 
     # close connections with clients
     for rank in range(1, world_size):
@@ -123,7 +149,7 @@ def wait_for_exit(master_sock):
     msg = master_sock.recv(8)
     while msg.decode() != "Done":
         msg = master_sock.recv(8)
-        print(msg.decode())
+        logging.debug(msg.decode())
     master_sock.send(b"Exit")
 
 def download_yaml_config(yaml_s3, local_path, sagemaker_session):
@@ -148,7 +174,8 @@ def download_yaml_config(yaml_s3, local_path, sagemaker_session):
     # Download training yaml file
     s3_url = urlparse(yaml_s3)
     yaml_file_name = s3_url.path.split('/')[-1]
-    assert yaml_file_name.endswith('yaml'), f"{yaml_s3} must be a yaml file."
+    assert yaml_file_name.endswith('yaml') or yaml_file_name.endswith('yml'), \
+        f"{yaml_s3} must be a yaml file."
     yaml_path = os.path.join(local_path, yaml_file_name)
     ### Download Partitioned graph data
 
@@ -206,16 +233,43 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
     """
     # Download partitioned graph data.
     # Each training instance only download 1 partition.
-    graph_config = f"{graph_name}.json"
     graph_part = f"part{part_id}"
 
     graph_path = os.path.join(local_path, graph_name)
     graph_part_path = os.path.join(graph_path, graph_part)
     os.makedirs(graph_path, exist_ok=True)
     os.makedirs(graph_part_path, exist_ok=True)
-    try:
-        S3Downloader.download(os.path.join(graph_data_s3, graph_config),
+
+    graph_data_s3 = graph_data_s3[:-1] if graph_data_s3.endswith('/') else graph_data_s3
+
+    # We split on '/' to get the bucket, as it's always the third split element in an S3 URI
+    s3_input_bucket = graph_data_s3.split("/")[2]
+    # Similarly, by having maxsplit=3 we get the S3 key value as the fourth element
+    s3_input_key = graph_data_s3.split("/", maxsplit=3)[3]
+
+    s3_client = boto3.client('s3')
+    graph_config = None
+    for config_name  in [f"{graph_name}.json", "metadata.json"]:
+        try:
+            s3_client.head_object(Bucket=s3_input_bucket, Key=f"{s3_input_key}/{config_name}")
+            # This will only be accessed if the above doesn't trigger an exception
+            graph_config = config_name
+        except ClientError as err:
+            if err.response['ResponseMetadata']['HTTPStatusCode'] == 404:
+                # The key does not exist.
+                logging.debug("Metadata key %s does not exist",
+                            f"{s3_input_key}/{graph_config}")
+            elif err.response['Error']['Code'] == 403:
+                # Unauthorized, including invalid bucket
+                logging.error("Authorization error, check the path again: %s",
+                            f"{s3_input_key}/{graph_config}")
+            else:
+                # Something else has gone wrong.
+                raise err
+
+    S3Downloader.download(os.path.join(graph_data_s3, graph_config),
             graph_path, sagemaker_session=sagemaker_session)
+    try:
         S3Downloader.download(os.path.join(graph_data_s3, graph_part),
             graph_part_path, sagemaker_session=sagemaker_session)
     except Exception: # pylint: disable=broad-except

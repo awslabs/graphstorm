@@ -16,7 +16,7 @@
     GraphStorm trainer for edge prediction
 """
 import time
-
+import resource
 import dgl
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
@@ -26,8 +26,8 @@ from ..model.edge_gnn import GSgnnEdgeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler
+from ..utils import barrier, is_distributed
 
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
@@ -90,10 +90,15 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
-        model = DistributedDataParallel(self._model, device_ids=[self.dev_id],
-                                        output_device=self.dev_id,
-                                        find_unused_parameters=True,
-                                        static_graph=static_graph)
+        on_cpu = self.device == th.device('cpu')
+        if is_distributed():
+            model = DistributedDataParallel(self._model,
+                                            device_ids=None if on_cpu else [self.device],
+                                            output_device=None if on_cpu else self.device,
+                                            find_unused_parameters=True,
+                                            static_graph=static_graph)
+        else:
+            model = self._model
         device = model.device
         data = train_loader.data
 
@@ -159,7 +164,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False):
-                    val_score = self.eval(model.module, val_loader, test_loader,
+                    val_score = self.eval(model.module if is_distributed() else model,
+                                          val_loader, test_loader,
                                           use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
@@ -187,14 +193,15 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
             # ------- end of an epoch -------
 
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - epoch_start
             if self.rank == 0:
                 print("Epoch {} take {}".format(epoch, epoch_time))
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, val_loader, test_loader, use_mini_batch_infer,
+                val_score = self.eval(model.module if is_distributed() else model,
+                                      val_loader, test_loader, use_mini_batch_infer,
                                       total_steps, return_proba=False)
 
                 if self.evaluator.do_early_stop(val_score):
@@ -205,19 +212,25 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             # depends on the setting of top k. To show this is after epoch save, set the iteration
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
-
-            th.distributed.barrier()
+            barrier()
 
             # early_stop, exit training
             if early_stop is True:
                 break
 
         rt_profiler.save_profile()
-        print("Peak Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) / 1024 /1024))
+        if th.cuda.is_available():
+            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
+                                                         1024 / 1024))
+        else:
+            print("Peak RAM Mem alloc: {:.4f} MB".format(
+                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
         if self.rank == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
-                       'peak_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
+                       'peak_RAM_mem_alloc_MB': \
+                           resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
                            self.evaluator.best_iter_num[self.evaluator.metric[0]],
                        'best model path': \
@@ -259,8 +272,13 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             val_pred, val_label = edge_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                               return_label=True)
             sys_tracker.check("after_val_score")
-            test_pred, test_label = edge_mini_batch_gnn_predict(model, test_loader, return_proba,
-                                                                return_label=True)
+            if test_loader is not None:
+                test_pred, test_label = \
+                    edge_mini_batch_gnn_predict(model, test_loader, return_proba,
+                                                return_label=True)
+            else: # there is no test set
+                test_pred = None
+                test_label = None
             sys_tracker.check("after_test_score")
         else:
             emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
@@ -269,8 +287,14 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             val_pred, val_label = edge_mini_batch_predict(model, emb, val_loader, return_proba,
                                                           return_label=True)
             sys_tracker.check("after_val_score")
-            test_pred, test_label = edge_mini_batch_predict(model, emb, test_loader, return_proba,
-                                                            return_label=True)
+            if test_loader is not None:
+                test_pred, test_label = \
+                    edge_mini_batch_predict(model, emb, test_loader, return_proba,
+                                            return_label=True)
+            else:
+                # there is no test set
+                test_pred = None
+                test_label = None
             sys_tracker.check("after_test_score")
 
         model.train()

@@ -21,6 +21,7 @@ import logging
 import os
 import sys
 import abc
+import json
 
 import numpy as np
 import torch as th
@@ -29,15 +30,163 @@ from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import BertTokenizer
 from transformers import BertModel, BertConfig
 
-from .file_io import HDF5Array, read_index_json
+from .file_io import read_index_json
+from .utils import ExtMemArrayWrapper
+
+LABEL_STATS_FIELD = "training_label_stats"
+LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
+
+CLASSIFICATION_LABEL_STATS_TYPES = [LABEL_STATS_FREQUENCY_COUNT]
+
+def _check_label_stats_type(task_type, label_stats_type):
+    if task_type == "classification":
+        if label_stats_type is not None:
+            assert label_stats_type in CLASSIFICATION_LABEL_STATS_TYPES, \
+                "GraphStorm only support collecting training label statistics in " \
+                f"following format {CLASSIFICATION_LABEL_STATS_TYPES} for classification tasks."
+        return label_stats_type
+
+    return None
+
+def collect_label_stats(feat_name, label_stats):
+    """ Collect label stats according to different stats_type
+
+    Parameters
+    ----------
+    feat_name: str
+        Feature name that stores label stats. It composes of two parts:
+        LABEL_STATS_FIELD+<label feature name>
+    label_stats: list
+        A list of stats created by differet works.
+
+    Return:
+    tuple: A tuple of
+        1. Name of the corresponding label
+        2. label stats type (Used for printing statistics)
+        3. label stats
+    """
+    label_feat_name = feat_name[len(LABEL_STATS_FIELD):]
+    stats_type = label_stats[0][0]
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        label_frequency = {}
+        for _, vals, counts in label_stats:
+            for val, cnt in zip(vals, counts):
+                if val not in label_frequency:
+                    label_frequency[int(val)] = int(cnt)
+                else:
+                    label_frequency[int(val)] += int(cnt)
+        return (label_feat_name, LABEL_STATS_FREQUENCY_COUNT, label_frequency)
+
+    raise RuntimeError(f"Unknown label stats type {stats_type}")
+
+def print_label_stats(stats):
+    """ Print label stats
+
+    Parameters
+    ----------
+    stats: tuple
+        stats_type, stats
+    """
+    stats_type, stats = stats
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        logging.debug("Counts of each label:")
+        logging.debug("[Label Index] | Label Name | Counts")
+        for i, label_name in enumerate(stats):
+            logging.debug("[%d]\t%s: \t%d", i, label_name, stats[label_name])
+
+def print_node_label_stats(ntype, label_name, stats):
+    """ Print label stats of nodes
+
+    Parameters
+    ----------
+    ntype: str
+        Node type
+    label_name: str
+        Label name
+    stats: tuple
+        stats_type, stats
+    """
+    logging.debug("Label statistics of %s nodes with label name %s", ntype, label_name)
+    print_label_stats(stats)
+
+def print_edge_label_stats(etype, label_name, stats):
+    """ Print label stats of nodes
+
+    Parameters
+    ----------
+    etype: tuple
+        Edge type
+    label_name: str
+        Label name
+    stats: tuple
+        stats_type, stats
+    """
+    logging.debug("Label statistics of %s edges with label name %s", etype, label_name)
+    print_label_stats(stats)
+
+def compress_label_stats(stats):
+    """ Compress stats into a json object
+
+    Parameters
+    ----------
+    stats: tuple
+        stats_type, stats
+    """
+    stats_type, stats = stats
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        info = {"stats_type": LABEL_STATS_FREQUENCY_COUNT,
+                "info": stats}
+        return info
+    else:
+        raise RuntimeError(f"Unknown label stats type {stats_type}")
+
+def save_node_label_stats(output_dir, node_label_stats):
+    """ Save node label stats into disk
+
+    Parameters
+    ----------
+    output_dir: str
+        Path to store node label stats
+    node_label_stats: dict
+        Node label stats to save
+    """
+    info = {}
+    for ntype in node_label_stats:
+        stats_summary = {}
+        for label_name, stats in node_label_stats[ntype].items():
+            stats_summary[label_name] = compress_label_stats(stats)
+        info[ntype] = stats_summary
+    with open(os.path.join(output_dir, 'node_label_stats.json'), 'w', encoding="utf8") as f:
+        json.dump(info, f, indent=4)
+
+def save_edge_label_stats(output_dir, edge_label_stats):
+    """ Save edge label stats into disk
+
+    Parameters
+    ----------
+    output_dir: str
+        Path to store edge label stats
+    edge_label_stats: dict
+        Edge label stats to save
+    """
+    info = {}
+    for etype in edge_label_stats:
+        stats_summary = {}
+        for label_name, stats in edge_label_stats[etype].items():
+            stats_summary[label_name] = compress_label_stats(stats)
+        info[",".join(etype)] = stats_summary
+    with open(os.path.join(output_dir, 'edge_label_stats.json'), 'w', encoding="utf8") as f:
+        json.dump(info, f, indent=4)
 
 def _get_output_dtype(dtype_str):
     if dtype_str == 'float16':
         return np.float16
     elif dtype_str == 'float32':
         return np.float32
+    elif dtype_str == 'int8':
+        return np.int8 # for train, val, test mask
     else:
-        assert False, f"Unknown dtype {dtype_str}, only support float16 and float32"
+        assert False, f"Unknown dtype {dtype_str}, only support int8, float16 and float32"
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -221,9 +370,9 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         if len(self._val_dict) > 0:
             return {}
 
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of CategoricalTransform must be numpy array or HDF5Array"
-        if isinstance(feats, HDF5Array):
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of CategoricalTransform must be numpy array or ExtMemArray"
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -319,9 +468,9 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats: np.array
             Data to be processed
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
-        if isinstance(feats, HDF5Array):
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -384,14 +533,14 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         -------
         np.array
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or HDF5Array"
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
 
         assert not np.any(self._max_val == self._min_val), \
             f"At least one element of Max Val {self._max_val} " \
             f"and Min Val {self._min_val} is equal. This will cause divide by zero error"
 
-        if isinstance(feats, HDF5Array):
+        if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
             feats = feats.to_numpy()
@@ -442,7 +591,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
 
     def call(self, feats):
         # do nothing. Rank Gauss is done after merging all arrays together.
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
 
         if np.issubdtype(feats.dtype, np.integer) \
@@ -464,6 +613,8 @@ class RankGaussTransform(GlobalProcessFeatTransform):
     def after_merge_transform(self, feats):
         # The feats can be a numpy array or a numpy memmaped object
         # Get ranking information.
+        if isinstance(feats, ExtMemArrayWrapper):
+            feats = feats.to_numpy()
         feats = feats.argsort(axis=0).argsort(axis=0)
         feat_range = len(feats) - 1
         # norm to [-1, 1]
@@ -569,7 +720,7 @@ class Text2BERT(FeatTransform):
                     if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
             self.device = f"cuda:{gpu}"
         else:
-            self.device = None
+            self.device = "cpu"
 
         if self.lm_model is None:
             config = BertConfig.from_pretrained(self.model_name)
@@ -656,7 +807,7 @@ class Noop(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        assert isinstance(feats, (np.ndarray, HDF5Array)), \
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
@@ -800,7 +951,7 @@ def process_features(data, ops):
         for key, val in res.items():
             # Check if has 1D features. If yes, convert to 2D features
             if len(val.shape) == 1:
-                if isinstance(val, HDF5Array):
+                if isinstance(val, ExtMemArrayWrapper):
                     val = val.to_numpy().reshape(-1, 1)
                 else:
                     val = val.reshape(-1, 1)
@@ -854,9 +1005,12 @@ class CustomLabelProcessor:
         The array that contains the index of validation data points.
     test_idx : Numpy array
         The array that contains the index of test data points.
+    stats_type: str
+        Speicfy how to summarize label statistics
     """
     def __init__(self, col_name, label_name, id_col, task_type,
-                 train_idx=None, val_idx=None, test_idx=None):
+                 train_idx=None, val_idx=None, test_idx=None,
+                 stats_type=None):
         self._id_col = id_col
         self._col_name = col_name
         self._label_name = label_name
@@ -864,6 +1018,7 @@ class CustomLabelProcessor:
         self._val_idx = set(val_idx.tolist()) if val_idx is not None else None
         self._test_idx = set(test_idx.tolist()) if test_idx is not None else None
         self._task_type = task_type
+        self._stats_type = stats_type
 
     @property
     def col_name(self):
@@ -928,6 +1083,14 @@ class CustomLabelProcessor:
         res = self.data_split(data[self._id_col])
         if label is not None and self._task_type == "classification":
             res[self.label_name] = np.int32(label)
+            if self._stats_type is not None:
+                if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
+                    # get train labels
+                    train_labels = res[self.label_name][ \
+                        res['train_mask'].astype(np.bool_)]
+                    vals, counts = np.unique(train_labels, return_counts=True)
+                    res[LABEL_STATS_FIELD+self.label_name] = \
+                        (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
         elif label is not None:
             res[self.label_name] = label
         return res
@@ -943,11 +1106,14 @@ class LabelProcessor:
         The label name.
     split_pct : list of int
         The percentage of training, validation and test.
+    stats_type: str
+        Speicfy how to summarize label statistics
     """
-    def __init__(self, col_name, label_name, split_pct):
+    def __init__(self, col_name, label_name, split_pct, stats_type=None):
         self._col_name = col_name
         self._label_name = label_name
         self._split_pct = split_pct
+        self._stats_type = stats_type
 
     @property
     def col_name(self):
@@ -978,6 +1144,10 @@ class LabelProcessor:
         train_split, val_split, test_split = self._split_pct
         assert train_split + val_split + test_split <= 1, \
                 "The data split of training/val/test cannot be more than the entire dataset."
+        if train_split == 0 and val_split == 0 and test_split == 0:
+            # Train, val and test are all zero
+            # Ignore the split
+            return {}
         rand_idx = get_valid_idx()
         num_labels = len(rand_idx)
         num_train = int(num_labels * train_split)
@@ -1030,6 +1200,15 @@ class ClassificationProcessor(LabelProcessor):
             return np.random.permutation(valid_label_idx)
         res = self.data_split(permute_idx, len(label))
         res[self.label_name] = np.int32(label)
+
+        if self._stats_type is not None:
+            if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
+                # get train labels
+                train_labels = res[self.label_name][ \
+                    res['train_mask'].astype(np.bool_)]
+                vals, counts = np.unique(train_labels, return_counts=True)
+                res[LABEL_STATS_FIELD+self.label_name] = \
+                    (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
         return res
 
 class RegressionProcessor(LabelProcessor):
@@ -1105,6 +1284,9 @@ def parse_label_ops(confs, is_node):
     label_conf = label_confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
+    label_stats_type = label_conf['label_stats_type'] \
+        if 'label_stats_type' in label_conf else None
+    label_stats_type = _check_label_stats_type(task_type, label_stats_type)
     if 'custom_split_filenames' in label_conf:
         custom_split = label_conf['custom_split_filenames']
         assert isinstance(custom_split, dict), \
@@ -1115,7 +1297,8 @@ def parse_label_ops(confs, is_node):
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         assert "node_id_col" in confs, "Custom data split only works for nodes."
         return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
-                                     task_type, train_idx, val_idx, test_idx)]
+                                     task_type, train_idx, val_idx, test_idx,
+                                     label_stats_type)]
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
@@ -1128,17 +1311,17 @@ def parse_label_ops(confs, is_node):
         assert 'label_col' in label_conf, \
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
-        return [ClassificationProcessor(label_col, label_col, split_pct)]
+        return [ClassificationProcessor(label_col, label_col, split_pct, label_stats_type)]
     elif task_type == 'regression':
         assert 'label_col' in label_conf, \
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
-        return [RegressionProcessor(label_col, label_col, split_pct)]
+        return [RegressionProcessor(label_col, label_col, split_pct, label_stats_type)]
     else:
         assert task_type == 'link_prediction', \
                 "The task type must be classification, regression or link_prediction."
         assert not is_node, "link_prediction task must be defined on edges."
-        return [LinkPredictionProcessor(None, None, split_pct)]
+        return [LinkPredictionProcessor(None, None, split_pct, label_stats_type)]
 
 def process_labels(data, label_processors):
     """ Process labels

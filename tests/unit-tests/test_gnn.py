@@ -17,6 +17,7 @@ from pathlib import Path
 import os
 import yaml
 import tempfile
+import pytest
 from argparse import Namespace
 from types import MethodType
 
@@ -35,6 +36,7 @@ from graphstorm.model import GSLMNodeEncoderInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
+from graphstorm.model.sage_encoder import SAGEEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            MLPEdgeDecoder,
                                            MLPEFeatEdgeDecoder,
@@ -51,7 +53,7 @@ from graphstorm.model.gnn import do_full_graph_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from data_utils import generate_dummy_dist_graph
+from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_multi_target_ntypes
 from data_utils import create_lm_graph
 
 def is_int(a):
@@ -95,7 +97,25 @@ def create_rgat_node_model(g):
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
 
-def check_node_prediction(model, data):
+def create_sage_node_model(g):
+    model = GSgnnNodeModel(alpha_l2norm=0)
+
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = SAGEEncoder(4, 4,
+                              num_hidden_layers=1,
+                              dropout=0,
+                              aggregator_type='mean')
+
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+    return model
+
+def check_node_prediction(model, data, is_homo=False):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnNodeModel with GNN layers.
 
@@ -134,24 +154,40 @@ def check_node_prediction(model, data):
         assert_almost_equal(embs3[ntype][0:len(embs3[ntype])].numpy(),
                             embs4[ntype][0:len(embs4[ntype])].numpy())
 
-    target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
+    target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))} \
+        if not is_homo else {"_N": th.arange(g.number_of_nodes("_N"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1, -1],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
-    assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
-    assert_equal(labels1.numpy(), labels2.numpy())
+    if isinstance(pred1,dict):
+        assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
+        for ntype in pred1:
+            assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(), pred2[ntype][0:len(pred2)].numpy(), decimal=5)
+            assert_equal(labels1[ntype].numpy(), labels2[ntype].numpy())
+    else:
+        assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
+        assert_equal(labels1.numpy(), labels2.numpy())
 
     # Test the return_proba argument.
     pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
-    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
-    assert(th.is_floating_point(pred3))
     pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
-    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
-    assert(is_int(pred4))
-    assert(th.equal(pred3.argmax(dim=1), pred4))
+    if isinstance(pred3, dict):
+        assert len(pred3) == len(pred4) and len(labels3) == len(labels4)
+        for key in pred3:
+            assert pred3[key].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+            assert(th.is_floating_point(pred3[key]))
+            assert(pred4[key].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+            assert(is_int(pred4[key]))
+            assert(th.equal(pred3[key].argmax(dim=1), pred4[key]))
+    else:
+        assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+        assert(th.is_floating_point(pred3))
+        assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+        assert(is_int(pred4))
+        assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def check_mlp_node_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
@@ -173,17 +209,32 @@ def check_mlp_node_prediction(model, data):
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
-    assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
-    assert_equal(labels1.numpy(), labels2.numpy())
+    if isinstance(pred1, dict):
+        assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
+        for ntype in pred1:
+            assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(), pred2[ntype][0:len(pred2)].numpy(), decimal=5)
+            assert_equal(labels1[ntype].numpy(), labels2[ntype].numpy())
+    else:
+        assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
+        assert_equal(labels1.numpy(), labels2.numpy())
 
     # Test the return_proba argument.
     pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
-    assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
-    assert(th.is_floating_point(pred3))
     pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
-    assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
-    assert(is_int(pred4))
-    assert(th.equal(pred3.argmax(dim=1), pred4))
+    if isinstance(pred3, dict):
+        assert len(pred3) == len(pred4)
+        for ntype in pred3:
+            assert pred3[ntype].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+            assert(th.is_floating_point(pred3[ntype]))
+            assert(pred4[ntype].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+            assert(is_int(pred4[ntype]))
+            assert(th.equal(pred3[ntype].argmax(dim=1), pred4[ntype]))
+    else:
+        assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+        assert(th.is_floating_point(pred3))
+        assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+        assert(is_int(pred4))
+        assert(th.equal(pred3.argmax(dim=1), pred4))
 
 def test_rgcn_node_prediction():
     """ Test edge prediction logic correctness with a node prediction model
@@ -202,6 +253,29 @@ def test_rgcn_node_prediction():
         _, part_config = generate_dummy_dist_graph(tmpdirname)
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n1'], label_field='label',
+                                     node_feat_field='feat')
+    model = create_rgcn_node_model(np_data.g)
+    check_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_rgcn_node_prediction_multi_target_ntypes():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGCNLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph_multi_target_ntypes(tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n0', 'n1'], label_field='label',
                                      node_feat_field='feat')
     model = create_rgcn_node_model(np_data.g)
     check_node_prediction(model, np_data)
@@ -231,7 +305,53 @@ def test_rgat_node_prediction():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def create_rgcn_edge_model(g):
+def test_rgat_node_prediction_multi_target_ntypes():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGATLayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph_multi_target_ntypes(tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n0', 'n1'], label_field='label',
+                                     node_feat_field='feat')
+    model = create_rgat_node_model(np_data.g)
+    check_node_prediction(model, np_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_sage_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + SAGELayer + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, is_homo=True)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['_N'], label_field='label',
+                                     node_feat_field='feat')
+    model = create_sage_node_model(np_data.g)
+    check_node_prediction(model, np_data, is_homo=True)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def create_rgcn_edge_model(g, num_ffn_layers):
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, 'feat')
@@ -247,7 +367,8 @@ def create_rgcn_edge_model(g):
                                        use_self_loop=True)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
-                                     3, multilabel=False, target_etype=("n0", "r1", "n1")))
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1"),
+                                     num_ffn_layers=num_ffn_layers))
     return model
 
 
@@ -319,7 +440,8 @@ def check_mlp_edge_prediction(model, data):
     assert(is_int(pred4))
     assert(th.equal(pred3.argmax(dim=1), pred4))
 
-def test_rgcn_edge_prediction():
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_rgcn_edge_prediction(num_ffn_layers):
     """ Test edge prediction logic correctness with a edge prediction model
         composed of InputLayerEncoder + RGCNLayer + Decoder
 
@@ -337,12 +459,12 @@ def test_rgcn_edge_prediction():
         ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
                                      train_etypes=[('n0', 'r1', 'n1')], label_field='label',
                                      node_feat_field='feat')
-    model = create_rgcn_edge_model(ep_data.g)
+    model = create_rgcn_edge_model(ep_data.g, num_ffn_layers=num_ffn_layers)
     check_edge_prediction(model, ep_data)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def create_mlp_edge_model(g, lm_config):
+def create_mlp_edge_model(g, lm_config, num_ffn_layers):
     """ Create a GSgnnEdgeModel with only an input encoder and a decoder.
 
     Parameters
@@ -364,10 +486,12 @@ def create_mlp_edge_model(g, lm_config):
     model.set_node_input_encoder(encoder)
 
     model.set_decoder(MLPEdgeDecoder(model.node_input_encoder.out_dims,
-                                     3, multilabel=False, target_etype=("n0", "r1", "n1")))
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1"),
+                                     num_ffn_layers=num_ffn_layers))
     return model
 
-def test_mlp_edge_prediction():
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_mlp_edge_prediction(num_ffn_layers):
     """ Test edge prediction logic correctness with a edge prediction model
         composed of InputLayerEncoder + Decoder
 
@@ -386,7 +510,7 @@ def test_mlp_edge_prediction():
                                         train_etypes=[('n0', 'r1', 'n1')], label_field='label',
                                         node_feat_field='feat')
         g.edges['r1'].data['label']= ep_data.g.edges['r1'].data['label']
-    model = create_mlp_edge_model(g, lm_config)
+    model = create_mlp_edge_model(g, lm_config, num_ffn_layers=num_ffn_layers)
     assert model.gnn_encoder is None
     check_mlp_edge_prediction(model, ep_data)
     th.distributed.destroy_process_group()
@@ -838,6 +962,7 @@ if __name__ == '__main__':
     test_rgcn_edge_prediction()
     test_rgcn_node_prediction()
     test_rgat_node_prediction()
+    test_sage_node_prediction()
     test_edge_classification()
     test_edge_classification_feat()
     test_edge_regression()
@@ -849,3 +974,6 @@ if __name__ == '__main__':
     test_mlp_edge_prediction()
     test_mlp_node_prediction()
     test_mlp_link_prediction()
+
+    test_rgcn_node_prediction_multi_target_ntypes()
+    test_rgat_node_prediction_multi_target_ntypes()

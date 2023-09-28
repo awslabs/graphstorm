@@ -61,6 +61,9 @@ if __name__ == '__main__':
     argparser.add_argument("--generate-new-edge-split", type=lambda x:(str(x).lower() in ['true', '1']),
                            default=False, help="If we are splitting the data from scatch we should "
                            + "not do it by default.")
+    argparser.add_argument("--no-split", type=lambda x:(str(x).lower() in ['true', '1']),
+                           default=False, help="Remove the train/valid/test mask."
+                           "Used when testing inference.")
     argparser.add_argument('--train-pct', type=float, default=0.8,
                            help='The pct of train nodes/edges. Should be > 0 and < 1, and only work in '
                                 + 'generating new split')
@@ -86,6 +89,8 @@ if __name__ == '__main__':
     argparser.add_argument('--num-trainers-per-machine', type=int, default=1,
                            help='the number of trainers per machine. The trainer ids are stored\
                                 in the node feature \'trainer_id\'')
+    argparser.add_argument('--is-homo', action='store_true', help='if user wants to '
+                                'start a partition on homogeneous graph')
     # output arguments
     argparser.add_argument('--output', type=str, default='data',
                            help='The output directory to store the partitioned results.')
@@ -124,13 +129,13 @@ if __name__ == '__main__':
     pred_ntypes = args.target_ntype.split(',') if args.target_ntype is not None else None
     if pred_ntypes is None:
         try:
-            pred_ntypes = [dataset.predict_category]
+            pred_ntypes = [dataset.predict_category] if not args.is_homo else ['_N']
         except:
             pass
     pred_etypes = [tuple(args.target_etype.split(','))] if args.target_etype is not None else None
     if pred_etypes is None:
         try:
-            pred_etypes = [dataset.target_etype]
+            pred_etypes = [dataset.target_etype] if not args.is_homo else ['_E']
         except:
             pass
     assert pred_ntypes is not None or pred_etypes is not None, \
@@ -263,6 +268,25 @@ if __name__ == '__main__':
             raise Exception('There is no predicted edge type to split. Please set the '
                             +'target_etype argument ......')
 
+    if args.no_split:
+        if pred_ntypes is not None:
+            for ntype in pred_ntypes:
+                if 'train_mask' in g.nodes[ntype].data:
+                    del g.nodes[ntype].data['train_mask']
+                if 'val_mask' in g.nodes[ntype].data:
+                    del g.nodes[ntype].data['val_mask']
+                if 'test_mask' in g.nodes[ntype].data:
+                    del g.nodes[ntype].data['test_mask']
+
+        if pred_etypes is not None:
+            for etype in pred_etypes:
+                if 'train_mask' in g.edges[etype].data:
+                    del g.edges[etype].data['train_mask']
+                if 'val_mask' in g.edges[etype].data:
+                    del g.edges[etype].data['val_mask']
+                if 'test_mask' in g.edges[etype].data:
+                    del g.edges[etype].data['test_mask']
+
     # Output general graph information
     print(f'load {args.dataset} takes {time.time() - start:.3f} seconds')
     print(f'\n|V|={g.number_of_nodes()}, |E|={g.number_of_edges()}\n')
@@ -280,14 +304,14 @@ if __name__ == '__main__':
     # Output split information if predicted node/edge types specified
     if pred_ntypes is not None:
         for ntype in pred_ntypes:
-            train_total = th.sum(g.nodes[ntype].data['train_mask'])
+            train_total = th.sum(g.nodes[ntype].data['train_mask']) if 'train_mask' in g.nodes[ntype].data else 0
             val_total = th.sum(g.nodes[ntype].data['val_mask']) if 'val_mask' in g.nodes[ntype].data else 0
             test_total = th.sum(g.nodes[ntype].data['test_mask']) if 'test_mask' in g.nodes[ntype].data else 0
             print(f'\ntraining target node type: \'{ntype}\', '
                   + f'train: {train_total}, valid: {val_total}, test: {test_total}')
     if pred_etypes is not None:
         for etype in pred_etypes:
-            train_total = th.sum(g.edges[etype].data['train_mask'])
+            train_total = th.sum(g.edges[etype].data['train_mask']) if 'train_mask' in g.edges[etype].data else 0
             val_total = th.sum(g.edges[etype].data['val_mask']) if 'val_mask' in g.edges[etype].data else 0
             test_total = th.sum(g.edges[etype].data['test_mask']) if 'test_mask' in g.edges[etype].data else 0
             print(f'\ntraining target edge type: \'{etype}\', '

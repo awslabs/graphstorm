@@ -19,9 +19,9 @@ import abc
 import torch as th
 import dgl
 
-from ..utils import get_rank
+from ..utils import get_rank, get_world_size
 from ..utils import sys_tracker
-from .utils import dist_sum
+from .utils import dist_sum, flip_node_mask
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
@@ -29,9 +29,9 @@ def split_full_edge_list(g, etype, rank):
     # TODO(zhengda) we need to split the edges to co-locate data and computation.
     # We assume that the number of edges is larger than the number of processes.
     # This should always be true unless a user's training set is extremely small.
-    assert g.num_edges(etype) >= th.distributed.get_world_size()
-    start = g.num_edges(etype) // th.distributed.get_world_size() * rank
-    end = g.num_edges(etype) // th.distributed.get_world_size() * (rank + 1)
+    assert g.num_edges(etype) >= get_world_size()
+    start = g.num_edges(etype) // get_world_size() * rank
+    end = g.num_edges(etype) // get_world_size() * (rank + 1)
     return th.arange(start, end)
 
 def prepare_batch_input(g, input_nodes,
@@ -257,6 +257,11 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         return labels
 
     @property
+    def labels(self):
+        """Labels"""
+        return self._labels
+
+    @property
     def train_idxs(self):
         """train set's indexes"""
         return self._train_idxs
@@ -436,30 +441,44 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         """
         pb = g.get_partition_book()
         test_idxs = {}
+        infer_idxs = {}
         # If eval_etypes is None, we use all edge types.
         if self.eval_etypes is None:
             self._eval_etypes = g.canonical_etypes
-        # test_mask exists
         for canonical_etype in self.eval_etypes:
             if 'test_mask' in g.edges[canonical_etype].data:
+                # test_mask exists
+                # we will do evaluation.
                 test_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['test_mask'],
                     pb, etype=canonical_etype, force_even=True)
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
-                elif test_idx is None:
-                    print(f"WARNING: {canonical_etype} does not contains " \
-                            "test data, skip testing {canonical_etype}")
             else:
-                print(f"WARNING: {canonical_etype} does not contains " \
-                      "test_mask, skip testing {canonical_etype}")
+                # Inference only
+                # we will do inference on the entire edge set
+                print(f"NOTE: {canonical_etype} does not contains " \
+                      f"test_mask, skip testing {canonical_etype}. \n" \
+                      "We will do inference on the entire edge set.")
+                infer_idx = dgl.distributed.edge_split(
+                    th.full((g.num_edges(canonical_etype),), True, dtype=th.bool),
+                    pb, etype=canonical_etype, force_even=True)
+                infer_idxs[canonical_etype] = infer_idx
+
         self._test_idxs = test_idxs
+        self._infer_idxs = infer_idxs
 
     @property
     def eval_etypes(self):
         """edge type for evaluation"""
         return self._eval_etypes
+
+    @property
+    def infer_idxs(self):
+        """ Set of edges to do inference.
+        """
+        return self._infer_idxs
 
 #### Node classification/regression Task Data ####
 class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
@@ -514,6 +533,11 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
             assert ntype in self._labels
             labels[ntype] = self._labels[ntype][nid].to(device)
         return labels
+
+    @property
+    def labels(self):
+        """Labels"""
+        return self._labels
 
     @property
     def train_idxs(self):
@@ -623,6 +647,29 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         self._val_idxs = val_idxs
         self._test_idxs = test_idxs
 
+    def get_unlabeled_idxs(self):
+        """ Collect indices of nodes not used for training.
+        """
+        g = self.g
+        pb = g.get_partition_book()
+        unlabeled_idxs = {}
+        num_unlabeled = 0
+        for ntype in self.train_ntypes:
+            unlabeled_mask = flip_node_mask(g.nodes[ntype].data['train_mask'])
+            if 'trainer_id' in g.nodes[ntype].data:
+                node_trainer_ids = g.nodes[ntype].data['trainer_id']
+                unlabeled_idx = dgl.distributed.node_split(unlabeled_mask,
+                                                       pb, ntype=ntype, force_even=True,
+                                                       node_trainer_ids=node_trainer_ids)
+            else:
+                unlabeled_idx = dgl.distributed.node_split(unlabeled_mask,
+                                                       pb, ntype=ntype, force_even=True)
+            assert unlabeled_idx is not None, "There is no training data."
+            num_unlabeled += len(unlabeled_idx)
+            unlabeled_idxs[ntype] = unlabeled_idx
+        print('part {}, unlabeled: {}'.format(get_rank(), num_unlabeled))
+        return unlabeled_idxs
+
     @property
     def train_ntypes(self):
         """node type for training"""
@@ -680,10 +727,13 @@ class GSgnnNodeInferData(GSgnnNodeData):
         """
         pb = g.get_partition_book()
         test_idxs = {}
+        infer_idxs = {}
         for ntype in self.eval_ntypes:
+            node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
+                if 'trainer_id' in g.nodes[ntype].data else None
             if 'test_mask' in g.nodes[ntype].data:
-                node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
-                        if 'trainer_id' in g.nodes[ntype].data else None
+                # test_mask exists
+                # we will do evaluation.
                 test_idx = dgl.distributed.node_split(g.nodes[ntype].data['test_mask'],
                                                       pb, ntype=ntype, force_even=True,
                                                       node_trainer_ids=node_trainer_ids)
@@ -693,10 +743,26 @@ class GSgnnNodeInferData(GSgnnNodeData):
                 elif test_idx is None:
                     print(f"WARNING: {ntype} does not contains test data, skip testing {ntype}")
             else:
-                print(f"WARNING: {ntype} does not contains test_mask, skip testing {ntype}")
+                # Inference only
+                # we will do inference on the entire edge set
+                print(f"NOTE: {ntype} does not contains " \
+                      f"test_mask, skip testing {ntype}. \n" \
+                      "We will do inference on the entire node set.")
+                infer_idx = dgl.distributed.node_split(
+                    th.full((g.num_nodes(ntype),), True, dtype=th.bool),
+                    pb, ntype=ntype, force_even=True,
+                    node_trainer_ids=node_trainer_ids)
+                infer_idxs[ntype] = infer_idx
         self._test_idxs = test_idxs
+        self._infer_idxs = infer_idxs
 
     @property
     def eval_ntypes(self):
         """node type for evaluation"""
         return self._eval_ntypes
+
+    @property
+    def infer_idxs(self):
+        """ Set of nodes to do inference.
+        """
+        return self._infer_idxs

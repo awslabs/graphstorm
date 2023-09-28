@@ -17,17 +17,18 @@
 """
 
 import os
-import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnNodePredictionTrainer
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
+from graphstorm.trainer import GLEMNodePredictionTrainer
+from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader,\
+    GSgnnNodeSemiSupDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker
+from graphstorm.utils import rt_profiler, sys_tracker, setup_device
 
 def get_evaluator(config):
     """ Get evaluator class
@@ -54,22 +55,28 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
+    config.verify_arguments(True)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
+    device = setup_device(config.local_rank)
     train_data = GSgnnNodeTrainData(config.graph_name,
                                     config.part_config,
                                     train_ntypes=config.target_ntype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
-    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(),
-                                         topk_model_to_save=config.topk_model_to_save)
+    if config.training_method["name"] == "glem":
+        trainer_class = GLEMNodePredictionTrainer
+    elif config.training_method["name"] == "default":
+        trainer_class = GSgnnNodePredictionTrainer
+    trainer = trainer_class(model, gs.get_rank(),
+                                        topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_cuda(dev_id=config.local_rank)
+    trainer.setup_device(device=device)
     if not config.no_validation:
         evaluator = get_evaluator(config)
         trainer.setup_evaluator(evaluator)
@@ -80,11 +87,21 @@ def main(config_args):
     if trainer.rank == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-    device = 'cuda:%d' % trainer.dev_id
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                      batch_size=config.batch_size, device=device, train_task=True)
     val_dataloader = None
     test_dataloader = None
+    if config.use_pseudolabel:
+        # Use nodes not in train_idxs as unlabeled node sets
+        unlabeled_idxs = train_data.get_unlabeled_idxs()
+        # semi-supervised loader
+        dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
+                                                fanout=config.fanout, batch_size=config.batch_size,
+                                                device=device, train_task=True)
+    else:
+        dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
+                                         batch_size=config.batch_size, device=device,
+                                         train_task=True)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     if len(train_data.val_idxs) > 0:
@@ -127,7 +144,7 @@ def main(config_args):
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        th.distributed.get_world_size(),
+                        gs.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file)
 

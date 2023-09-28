@@ -16,22 +16,16 @@
     Launch SageMaker inference task
 """
 import os
-import argparse
 
 import boto3 # pylint: disable=import-error
 import sagemaker
 from sagemaker.pytorch.estimator import PyTorch
 
-INSTANCE_TYPE = "ml.g4dn.12xlarge"
-SUPPORTED_TASKS = {
-    "node_classification",
-    "node_regression",
-    "edge_classification",
-    "edge_regression",
-    "link_prediction"
-}
+from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_TASKS
 
-def run_job(input_args, image, unknowargs):
+INSTANCE_TYPE = "ml.g4dn.12xlarge"
+
+def run_job(input_args, image, unknownargs):
     """ Run job using SageMaker estimator.PyTorch
 
         We use SageMaker training task to run offline inference.
@@ -44,7 +38,7 @@ def run_job(input_args, image, unknowargs):
         Input arguments
     image: str
         ECR image uri
-    unknowargs: dict
+    unknownargs: dict
         GraphStorm parameters
     """
     sm_task_name = input_args.task_name # SageMaker task name
@@ -71,7 +65,7 @@ def run_job(input_args, image, unknowargs):
 
     container_image_uri = image
 
-    prefix = "script-mode-container"
+    prefix = f"gs-infer-{graph_name}"
 
     # In Link Prediction, no prediction outputs
     if task_type == "link_prediction":
@@ -93,21 +87,25 @@ def run_job(input_args, image, unknowargs):
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
     unknow_idx = 0
-    while unknow_idx < len(unknowargs):
-        print(unknowargs[unknow_idx])
-        assert unknowargs[unknow_idx].startswith("--")
+    while unknow_idx < len(unknownargs):
+        print(unknownargs[unknow_idx])
+        assert unknownargs[unknow_idx].startswith("--")
         sub_params = []
-        for i in range(unknow_idx+1, len(unknowargs)+1):
+        for i in range(unknow_idx+1, len(unknownargs)+1):
             # end of loop or stand with --
-            if i == len(unknowargs) or \
-                unknowargs[i].startswith("--"):
+            if i == len(unknownargs) or \
+                unknownargs[i].startswith("--"):
                 break
-            sub_params.append(unknowargs[i])
-        params[unknowargs[unknow_idx][2:]] = ' '.join(sub_params)
+            sub_params.append(unknownargs[i])
+        params[unknownargs[unknow_idx][2:]] = ' '.join(sub_params)
         unknow_idx = i
 
     print(f"Parameters {params}")
-    print(f"GraphStorm Parameters {unknowargs}")
+    print(f"GraphStorm Parameters {unknownargs}")
+    if input_args.sm_estimator_parameters:
+        print(f"SageMaker Estimator parameters: '{input_args.sm_estimator_parameters}'")
+
+    estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
 
     est = PyTorch(
         entry_point=os.path.basename(entry_point),
@@ -123,52 +121,47 @@ def run_job(input_args, image, unknowargs):
         sagemaker_session=sess,
         tags=[{"Key":"GraphStorm", "Value":"beta"},
               {"Key":"GraphStorm_Task", "Value":"Inference"}],
+        **estimator_kwargs
     )
 
-    est.fit(inputs={"train": infer_yaml_s3}, job_name=sm_task_name, wait=True)
+    est.fit(inputs={"train": infer_yaml_s3}, job_name=sm_task_name, wait=not input_args.async_execution)
 
-def parse_args():
-    parser = argparse.ArgumentParser()
+def get_inference_parser():
+    """
+    Get GraphStorm inference task parser.
+    """
+    parser = get_common_parser()
 
-    parser.add_argument("--image-url", type=str,
-        help="Inference docker image")
-    parser.add_argument("--role", type=str,
-        help="SageMaker role")
-    parser.add_argument("--instance-type", type=str,
-        default=INSTANCE_TYPE,
-        help="instance type used to do inference")
-    parser.add_argument("--instance-count", type=int,
-        default=2,
-        help="number of infernece instances")
-    parser.add_argument("--region", type=str,
-        default="us-east-1",
-        help="Region")
-    parser.add_argument("--entry-point", type=str,
-        default="graphstorm/sagemaker/run/infer_entry.py",
-        help="PATH-TO graphstorm/sagemaker/run/infer_entry.py")
-    parser.add_argument("--task-name", type=str,
-        default=None, help="User defined SageMaker task name")
+    inference_args = parser.add_argument_group("GraphStorm Inference Args")
 
     # task specific
-    parser.add_argument("--graph-name", type=str, help="Graph name")
-    parser.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input inference graph")
-    parser.add_argument("--task-type", type=str,
-        help=f"Task type in {SUPPORTED_TASKS}")
-    parser.add_argument("--yaml-s3", type=str,
+    inference_args.add_argument("--entry-point", type=str,
+        default="graphstorm/sagemaker/run/infer_entry.py",
+        help="PATH-TO graphstorm/sagemaker/run/infer_entry.py")
+    inference_args.add_argument("--graph-name", type=str, help="Graph name",
+        required=True)
+    inference_args.add_argument("--graph-data-s3", type=str,
+        help="S3 location of input inference graph",
+        required=True)
+    inference_args.add_argument("--task-type", type=str,
+        help=f"Task type in {SUPPORTED_TASKS}",
+        required=True)
+    inference_args.add_argument("--yaml-s3", type=str,
         help="S3 location of inference yaml file. "
-             "Do not store it with partitioned graph")
-    parser.add_argument("--model-artifact-s3", type=str,
-        help="S3 bucket to load the saved model artifacts")
-    parser.add_argument("--output-emb-s3", type=str,
+             "Do not store it with partitioned graph",
+             required=True)
+    inference_args.add_argument("--model-artifact-s3", type=str,
+        help="S3 bucket to load the saved model artifacts",
+        required=True)
+    inference_args.add_argument("--output-emb-s3", type=str,
         help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
-    parser.add_argument("--output-prediction-s3", type=str,
+    inference_args.add_argument("--output-prediction-s3", type=str,
         help="S3 location to store prediction results. " \
              "(Only works with node classification/regression " \
              "and edge classification/regression tasks)",
         default=None)
-    parser.add_argument("--model-sub-path", type=str, default=None,
+    inference_args.add_argument("--model-sub-path", type=str, default=None,
         help="Relative path to the trained model under <model_artifact_s3>."
              "There can be multiple model checkpoints under"
              "<model_artifact_s3>, this argument is used to choose one.")
@@ -176,10 +169,13 @@ def parse_args():
     return parser
 
 if __name__ == "__main__":
-    arg_parser = parse_args()
+    arg_parser = get_inference_parser()
     args, unknownargs = arg_parser.parse_known_args()
     print(args)
 
     infer_image = args.image_url
+    if not args.instance_type:
+        args.instance_type = INSTANCE_TYPE
+
 
     run_job(args, infer_image, unknownargs)

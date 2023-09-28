@@ -29,6 +29,8 @@ if __name__ == '__main__':
     parser.add_argument("--max-sequence-length", type=int, default=512)
     parser.add_argument("--retain-original-features",
                         type=lambda x: (str(x).lower() in ['true', '1']), default=True)
+    parser.add_argument('--is-homo', action='store_true')
+
     args = parser.parse_args()
 
     dataset = OGBTextFeatDataset(args.filepath,
@@ -36,5 +38,6 @@ if __name__ == '__main__':
                                  edge_pct=args.edge_pct,
                                  bert_model_name=args.bert_model_name,
                                  max_sequence_length=args.max_sequence_length,
-                                 retain_original_features=args.retain_original_features)
+                                 retain_original_features=args.retain_original_features,
+                                 is_homo=args.is_homo)
     dataset.save_graph(args.savepath)
