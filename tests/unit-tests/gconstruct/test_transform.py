@@ -112,7 +112,10 @@ def test_fp_transform(input_dtype):
         assert_equal(min_val[i], -5.)
 
     # Test collect info
-    transform = NumericalMinMaxTransform("test", "test")
+    transform_conf = {
+        "name": "max_min_norm"
+    }
+    transform = NumericalMinMaxTransform("test", "test", transform_conf=transform_conf)
     info = [(np.array([1.]), np.array([-1.])),
             (np.array([2.]), np.array([-0.5])),
             (np.array([0.5]), np.array([-0.1]))]
@@ -121,6 +124,10 @@ def test_fp_transform(input_dtype):
     assert len(transform._min_val) == 1
     assert_equal(transform._max_val[0], 2.)
     assert_equal(transform._min_val[0], -1.)
+    assert 'max_val' in transform_conf
+    assert 'min_val' in transform_conf
+    assert_equal(np.array(transform_conf['max_val']), 2.)
+    assert_equal(np.array(transform_conf['min_val']), -1.)
 
     info = [(np.array([1., 2., 3.]), np.array([-1., -2., 0.5])),
             (np.array([2., 1., 3.]), np.array([-0.5, -3., 0.1])),
@@ -130,6 +137,84 @@ def test_fp_transform(input_dtype):
     assert len(transform._min_val) == 3
     assert_equal(transform._max_val[0], 2.)
     assert_equal(transform._min_val[0], -1.)
+    assert 'max_val' in transform_conf
+    assert 'min_val' in transform_conf
+    assert_equal(np.array(transform_conf['max_val']),
+                 np.array([2.,3.,3.]))
+    assert_equal(np.array(transform_conf['min_val']),
+                 np.array([-1.,-3.,0.1]))
+
+    transform_conf = {
+        "name": "max_min_norm",
+        "max_val": [1.,1.,1.],
+        "min_val": [-1.,-1.,-1.]
+    }
+    transform = NumericalMinMaxTransform("test", "test",
+                                        max_val=transform_conf['max_val'],
+                                        min_val=transform_conf['min_val'],
+                                        transform_conf=transform_conf)
+    feats = 2 * np.random.randn(10, 3).astype(input_dtype)
+    feats[0][0] = 2
+    feats[0][1] = -2
+    info = transform.pre_process(feats)
+    max_val = np.array(transform_conf['max_val'])
+    min_val = np.array(transform_conf["min_val"])
+    assert_equal(info["test"][0], max_val)
+    assert_equal(info["test"][1], min_val)
+    transform.update_info([info["test"]])
+    assert_equal(np.array(transform_conf['max_val']),
+                 np.array([1.,1.,1.]))
+    assert_equal(np.array(transform_conf['min_val']),
+                 np.array([-1.,-1.,-1.]))
+    result = transform(feats)
+    true_result = (feats - min_val) / (max_val - min_val)
+    true_result[true_result > 1] = 1
+    true_result[true_result < 0] = 0
+    assert_almost_equal(result["test"].astype(input_dtype), true_result)
+
+    transform_conf = {
+        "name": "max_min_norm",
+        "min_val": [-1.,-1.,-1.]
+    }
+    transform = NumericalMinMaxTransform("test", "test",
+                                        min_val=transform_conf['min_val'],
+                                        transform_conf=transform_conf)
+    info = transform.pre_process(feats)
+    max_val = info["test"][0]
+    min_val = np.array(transform_conf['min_val'])
+    assert_equal(info["test"][0], max_val)
+    transform.update_info([info["test"]])
+    assert_equal(np.array(transform_conf['max_val']),
+                 max_val)
+    assert_equal(np.array(transform_conf['min_val']),
+                 np.array([-1.,-1.,-1.]))
+    result = transform(feats)
+    true_result = (feats - min_val) / (max_val - min_val)
+    true_result[true_result > 1] = 1
+    true_result[true_result < 0] = 0
+    assert_almost_equal(result["test"].astype(input_dtype), true_result)
+
+    transform_conf = {
+        "name": "max_min_norm",
+        "max_val": [1.,1.,1.]
+    }
+    transform = NumericalMinMaxTransform("test", "test",
+                                        max_val=transform_conf['max_val'],
+                                        transform_conf=transform_conf)
+    info = transform.pre_process(feats)
+    max_val = np.array(transform_conf['max_val'])
+    min_val = info["test"][1]
+    assert_equal(info["test"][0], max_val)
+    transform.update_info([info["test"]])
+    assert_equal(np.array(transform_conf['max_val']),
+                 np.array([1.,1.,1.]))
+    assert_equal(np.array(transform_conf['min_val']),
+                 min_val)
+    result = transform(feats)
+    true_result = (feats - min_val) / (max_val - min_val)
+    true_result[true_result > 1] = 1
+    true_result[true_result < 0] = 0
+    assert_almost_equal(result["test"].astype(input_dtype), true_result)
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
