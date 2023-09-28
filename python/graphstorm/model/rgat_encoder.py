@@ -49,7 +49,8 @@ class RelationalAttLayer(nn.Module):
 
     Examples:
     ----------
-        .. code:: python
+
+    .. code:: python
 
         # suppose graph and input_feature are ready
         from graphstorm.model.rgat_encoder import RelationalAttLayer
@@ -232,7 +233,8 @@ class RelationalGATEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-        .. code:: python
+
+    .. code:: python
 
         # Build model and do full-graph inference on RelationalGATEncoder
         from graphstorm import get_feat_size

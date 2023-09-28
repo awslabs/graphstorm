@@ -62,7 +62,8 @@ class RelGraphConvLayer(nn.Module):
 
     Examples:
     ----------
-        .. code:: python
+
+    .. code:: python
 
         # suppose graph and input_feature are ready
         from graphstorm.model.rgcn_encoder import RelGraphConvLayer
@@ -276,7 +277,8 @@ class RelationalGCNEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-        .. code:: python
+
+    .. code:: python
 
         # Build model and do full-graph inference on RelationalGCNEncoder
         from graphstorm import get_feat_size

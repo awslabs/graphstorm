@@ -51,7 +51,8 @@ class SAGEConv(nn.Module):
 
     Examples:
     ----------
-        .. code:: python
+
+    .. code:: python
 
         # suppose graph and input_feature are ready
         from graphstorm.model.sage_encoder import SAGEConv
@@ -167,7 +168,8 @@ class SAGEEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-        .. code:: python
+    
+    .. code:: python
 
         # Build model and do full-graph inference on SAGEEncoder
         from graphstorm import get_feat_size
