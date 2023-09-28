@@ -16,7 +16,6 @@
     Inferrer wrapper for edge classification and regression.
 """
 import time
-import logging
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
