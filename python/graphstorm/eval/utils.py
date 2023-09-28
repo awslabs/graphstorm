@@ -18,7 +18,7 @@
 import torch as th
 
 from ..utils import get_backend, is_distributed
-from ..data.utils import alltoallv_cpu
+from ..data.utils import alltoallv_cpu, alltoallv_nccl
 
 def calc_distmult_pos_score(h_emb, t_emb, r_emb, device=None):
     """ Calculate DistMulti Score for positive pairs
@@ -321,7 +321,7 @@ def broadcast_data(rank, world_size, data_tensor):
     if get_backend() == "gloo":
         alltoallv_cpu(rank, world_size, gather_list, data_tensors)
     else: #get_backend() == "nccl"
-        th.distributed.all_to_all(gather_list, data_tensors)
+        alltoallv_nccl(gather_list, data_tensors)
 
     data_tensor = th.cat(gather_list, dim=0)
     return data_tensor
