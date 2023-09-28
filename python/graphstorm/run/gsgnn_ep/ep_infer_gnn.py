@@ -81,10 +81,6 @@ def main(config_args):
                                      remove_target_edge_type=config.remove_target_edge_type,
                                      construct_feat_ntype=config.construct_feat_ntype,
                                      construct_feat_fanout=config.construct_feat_fanout)
-    # Preparing input layer for training or inference.
-    # The input layer can pre-compute node features in the preparing step if needed.
-    # For example pre-compute all BERT embeddings
-    model.prepare_input_encoder(infer_data)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,

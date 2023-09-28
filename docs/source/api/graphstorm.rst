@@ -9,13 +9,12 @@ graphstorm
     Users can directly use the following code to use these functions.
 
     >>> import graphstorm as gs
-    >>> gs.initialize()
-    >>> gs.get_rank()
+    >>> gs.initialize(ip_config="/tmp/ip_list.txt", backend="gloo")
+    >>> gs.setup_device(local_rank)
 
 .. autosummary::
     :toctree: ../generated/
+    :nosignatures:
 
     gsf.initialize
-    gsf.get_feat_size
-    utils.get_rank
-    utils.get_world_size
+    utils.setup_device

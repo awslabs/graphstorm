@@ -142,7 +142,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                             for etype in batch_graph.canonical_etypes}
                     edge_decoder_feats = data.get_edge_feats(input_edges,
                                                              data.decoder_edge_feat,
-                                                             batch_graph.device)
+                                                             device)
                     edge_decoder_feats = {etype: feat.to(th.float32) \
                         for etype, feat in edge_decoder_feats.items()}
                 else:

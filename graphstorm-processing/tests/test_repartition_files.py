@@ -217,8 +217,8 @@ def test_verify_metadata_only_edge_data():
     row_counts = [10, 10, 10, 10, 10]
     original_metadata_dict["edge_data"]["src:dummy_type:dst"]["label"]["row_counts"] = row_counts
     original_metadata_dict["edges"]["src:dummy_type:dst"]["row_counts"] = row_counts
-    original_metadata_dict["edges"].pop("dst:rev-dummy_type:src")
-    original_metadata_dict["edge_data"].pop("dst:rev-dummy_type:src")
+    original_metadata_dict["edges"].pop("dst:dummy_type-rev:src")
+    original_metadata_dict["edge_data"].pop("dst:dummy_type-rev:src")
 
     # Ensure success when counts match
     repartition_files.verify_metadata(
