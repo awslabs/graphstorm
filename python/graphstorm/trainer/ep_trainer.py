@@ -44,7 +44,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
     Parameters
     ----------
-    model : GSgnnEdgeModelBase
+    model : GSgnnEdgeModel
         The GNN model for edge prediction.
     topk_model_to_save : int
         The top K model to save.
