@@ -1,4 +1,4 @@
-GraphStorm Processing example
+GraphStorm Processing Example
 =============================
 
 To demonstrate how to use the library locally we will
@@ -13,7 +13,7 @@ To run the local example you will need to install the GSProcessing
 library to your Python environment, and you'll need to clone the
 GraphStorm repository to get access to the data.
 
-Follow the :ref:`installation-ref` guide to install the GSProcessing library.
+Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library.
 
 You can clone the repository using
 
@@ -48,7 +48,7 @@ Apart from the data, GSProcessing also requires a configuration file that descri
 data and the transformations we will need to apply to the features and any encoding needed for
 labels.
 We support both the `GConstruct configuration format <https://graphstorm.readthedocs.io/en/latest/configuration/configuration-gconstruction.html#configuration-json-explanations>`_
-, and the library's own GSProcessing format, described in :doc:`/developer/input-configuration`.
+, and the library's own GSProcessing format, described in :doc:`/gs-processing/developer/input-configuration`.
 
 .. note::
     We expect end users to only provide a GConstruct configuration file,
@@ -61,7 +61,9 @@ We support both the `GConstruct configuration format <https://graphstorm.readthe
     as we do with GConstruct.
 
 For a detailed description of all the entries of the GSProcessing configuration file see
-:doc:`/developer/input-configuration`.
+:doc:`/gs-processing/developer/input-configuration`.
+
+.. _gsp-relative-paths:
 
 Relative file paths required
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -186,6 +188,7 @@ guarantees the data conform to the expectations of DGL:
 
     gs-repartition --input-prefix /tmp/gsprocessing-example/
 
+.. _gsp-examining-output:
 
 Examining the job output
 ------------------------
@@ -248,16 +251,19 @@ in an ``edge_data`` directory.
 At this point you can use the DGL distributed partitioning pipeline
 to partition your data, as described in the
 `DGL documentation <https://docs.dgl.ai/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
+.
 
 To simplify the process of partitioning and training, without the need
 to manage your own infrastructure, we recommend using GraphStorm's
 `SageMaker wrappers <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
 that do all the hard work for you and allow
-you to focus on model development.
+you to focus on model development. In particular you can follow the GraphStorm documentation to run
+`distributed partititioning on SageMaker <https://github.com/awslabs/graphstorm/tree/main/sagemaker#launch-graph-partitioning-task>`_.
+
 
 To run GSProcessing jobs on Amazon SageMaker we'll need to follow
-:doc:`/usage/distributed-processing-setup` to set up our environment
-and :doc:`/usage/amazon-sagemaker` to execute the job.
+:doc:`/gs-processing/usage/distributed-processing-setup` to set up our environment
+and :doc:`/gs-processing/usage/amazon-sagemaker` to execute the job.
 
 
 .. rubric:: Footnotes
