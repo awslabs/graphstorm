@@ -50,7 +50,7 @@ from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
-                     GRAPHSTORM_MODEL_LAYER_OPTIONS)
+                     GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
 
 from .utils import get_graph_name
 from ..utils import TORCH_MAJOR_VER, get_log_level
@@ -828,8 +828,11 @@ class GSConfig:
         if self.training_method["name"] == "glem":
             # GLEM restore model layers conflicts with all layers
             if model_layers == GRAPHSTORM_MODEL_ALL_LAYERS:
-                logging.warning("Restoring GLEM's LM from checkpoint doesn't support" \
-                                + " all layers, setting to: '%s'", GRAPHSTORM_MODEL_EMBED_LAYER
+                logging.warning("Restoring GLEM's LM from checkpoint only support %s and %s.'\
+                                'Setting to: '%s'",
+                                [GRAPHSTORM_MODEL_EMBED_LAYER],
+                                [GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_DECODER_LAYER],
+                                GRAPHSTORM_MODEL_EMBED_LAYER
                                 )
                 model_layers = [GRAPHSTORM_MODEL_EMBED_LAYER]
         return model_layers
