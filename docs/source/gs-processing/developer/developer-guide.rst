@@ -50,7 +50,7 @@ or use ``brew`` on a Mac:
    brew update
    brew install pyenv
 
-For more info on ``pyenv`` see `its documentation. <https://github.com/pyenv/pyenv>`
+For more info on ``pyenv`` see `its documentation. <https://github.com/pyenv/pyenv>`_
 
 Create a Python 3.9 env and activate it.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
