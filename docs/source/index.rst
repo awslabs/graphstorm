@@ -15,7 +15,18 @@ Welcome to the GraphStorm Documentation and Tutorials
 
 .. toctree::
    :maxdepth: 1
-   :caption: Scale to Giant Graphs
+   :caption: Distributed Processing
+   :hidden:
+   :glob:
+
+   gs-processing/gs-processing-getting-started
+   gs-processing/usage/example
+   gs-processing/usage/distributed-processing-setup
+   gs-processing/usage/amazon-sagemaker
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Distributed Training
    :hidden:
    :glob:
 
@@ -52,7 +63,7 @@ Getting Started
 
 For beginners, please first start with the :ref:`GraphStorm Docker environment setup<setup>`. This tutorial covers how to set up a Docker environment and build a GraphStorm Docker image, which serves as the Standalone running environment for GraphStorm. We are working on supporting more running environments for GraphStorm.
 
-Once successfully set up the GraphStorm Docker running environment, 
+Once successfully set up the GraphStorm Docker running environment,
 
 - follow the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` to run examples using GraphStorm built-in data and models, hence getting familiar with GraphStorm's usage of training and inference.
 - follow the :ref:`Use Your Own Graph Data Tutorial<use-own-data>` to prepare your own graph data for using GraphStorm.
