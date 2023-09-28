@@ -16,16 +16,15 @@
     Embedding layer implementation
 """
 
-import time
 import logging
 import torch as th
 from torch import nn
 import torch.nn.functional as F
-from dgl.distributed import DistEmbedding, node_split
+from dgl.distributed import DistEmbedding, DistTensor, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
-from ..utils import get_rank, barrier, is_distributed, get_backend, create_dist_tensor
+from ..utils import get_rank, barrier, is_distributed, get_backend
 from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
@@ -350,15 +349,12 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
     -------
     dict of Tensors : the node embeddings.
     """
-    if get_rank() == 0:
-        logging.debug("Compute the node input embeddings.")
     assert embed_layer is not None, "The input embedding layer is needed"
     embed_layer.eval()
 
     n_embs = {}
     target_ntypes = g.ntypes if target_ntypes is None else target_ntypes
     th.cuda.empty_cache()
-    start = time.time()
     with th.no_grad():
         for ntype in target_ntypes:
             embed_size = embed_layer.out_dims
@@ -366,9 +362,9 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
             # distributed tensor to store the node embeddings. This can potentially consume
             # a lot of memory.
             if 'input_emb' not in g.nodes[ntype].data:
-                g.nodes[ntype].data['input_emb'] = create_dist_tensor(
+                g.nodes[ntype].data['input_emb'] = DistTensor(
                         (g.number_of_nodes(ntype), embed_size),
-                        dtype=th.float32, name=f'{ntype}_input_emb',
+                        dtype=th.float32, name='{}_input_emb'.format(ntype),
                         part_policy=g.get_node_partition_policy(ntype),
                         persistent=True)
             else:
@@ -381,20 +377,18 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
             node_list = th.split(infer_nodes, batch_size)
             dev = embed_layer.device
             for iter_l, input_nodes in enumerate(node_list):
-                iter_start = time.time()
+                if iter_l % 10000 == 0 and g.rank() == 0:
+                    print ("extract_all_embeddings_dist on {}: {} of {}".format(ntype,
+                                                                                iter_l,
+                                                                                len(node_list)))
                 if task_tracker is not None:
                     task_tracker.keep_alive(iter_l)
 
                 feat = prepare_batch_input(g, {ntype: input_nodes}, dev=dev, feat_field=feat_field)
                 emb = embed_layer(feat, {ntype: input_nodes})
                 input_emb[input_nodes] = emb[ntype].to('cpu')
-                if iter_l % 200 == 0 and g.rank() == 0:
-                    logging.debug("compute input embeddings on %s: %d of %d, takes %.3f seconds",
-                                  ntype, iter_l, len(node_list), time.time() - iter_start)
             n_embs[ntype] = input_emb
     if embed_layer is not None:
         embed_layer.train()
     barrier()
-    if get_rank() == 0:
-        logging.info("Computing input embeddings takes %.3f seconds", time.time() - start)
     return n_embs

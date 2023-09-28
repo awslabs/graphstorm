@@ -27,7 +27,7 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from ..utils import get_rank, barrier, create_dist_tensor
+from ..utils import get_rank, barrier
 
 def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=True):
     """ Update the lm_emb_cache using lanaguage models.
@@ -52,7 +52,8 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=
         hidden_size = lm_model.feat_size
         # TODO we should not save the BERT embeddings on the graph data in the future.
         if 'bert_emb' not in g.nodes[ntype].data:
-            g.nodes[ntype].data['bert_emb'] = create_dist_tensor(
+            g.nodes[ntype].data['bert_emb'] = \
+                    dgl.distributed.DistTensor(
                         (g.number_of_nodes(ntype), hidden_size),
                         name="bert_emb",
                         dtype=th.float16 if use_fp16 else th.float32,
