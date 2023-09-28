@@ -52,6 +52,26 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         `model.node_glem.GLEM`.
     topk_model_to_save : int
         The top K model to save.
+
+    Example
+    -------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnNodeDataLoader
+        from graphstorm.dataset import GSgnnNodeData
+        from graphstorm.model.node_glem import GLEM
+        from graphstorm.trainer import GLEMNodePredictionTrainer
+
+        my_dataset = GSgnnNodeData("my_graph", "/path/to/part_config")
+        target_idx = {"my_node_type": target_nodes_tensor}
+        my_data_loader = GSgnnNodeDataLoader(
+            my_dataset, target_idx, fanout=[10], batch_size=1024, device='cpu')
+        my_model = GLEM(alpha_l2norm=0.0, target_ntype="my_node_type")
+
+        trainer =  GLEMNodePredictionTrainer(my_model, topk_model_to_save=1)
+
+        trainer.fit(my_data_loader, num_epochs=2)
     """
     def __init__(self, model, topk_model_to_save=1):
         super(GLEMNodePredictionTrainer, self).__init__(model, topk_model_to_save)

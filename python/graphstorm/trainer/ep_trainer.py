@@ -48,6 +48,26 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         The GNN model for edge prediction.
     topk_model_to_save : int
         The top K model to save.
+
+    Example
+    -------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnEdgeDataLoader
+        from graphstorm.dataset import GSgnnEdgeData
+        from graphstorm.model import GSgnnEdgeModel
+        from graphstorm.trainer import GSgnnEdgePredictionTrainer
+
+        my_dataset = GSgnnEdgeData("my_graph", "/path/to/part_config")
+        target_idx = {"edge_type": target_edges_tensor}
+        my_data_loader = GSgnnEdgeDataLoader(
+            my_dataset, target_idx, fanout=[10], batch_size=1024)
+        my_model = GSgnnEdgeModel(alpha_l2norm=0.0)
+
+        trainer = GSgnnEdgePredictionTrainer(my_model, topk_model_to_save=1)
+
+        trainer.fit(my_data_loader, num_epochs=2)
     """
     def __init__(self, model, topk_model_to_save):
         super(GSgnnEdgePredictionTrainer, self).__init__(model, topk_model_to_save)

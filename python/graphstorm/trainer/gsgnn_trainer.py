@@ -37,6 +37,9 @@ class GSgnnTrainer():
     It contains functions that can be used in the implementing classes'
     `fit` and `eval` functions.
 
+    To implement your own trainers, extend this class and add implementations
+    for the `fit` and `eval` functions.
+
     Parameters
     ----------
     model : GSgnnModel
