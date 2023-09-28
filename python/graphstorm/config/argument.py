@@ -825,8 +825,11 @@ class GSConfig:
             for layer in model_layers:
                 assert layer in GRAPHSTORM_MODEL_LAYER_OPTIONS, \
                     f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_LAYER_OPTIONS}"
+        # GLEM restore layers to the LM component, thus conflicting with all layers:
+        # use [GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_DECODER_LAYER] to restore an LM
+        # checkpoint with decoder trained for node classification;
+        # use [GRAPHSTORM_MODEL_EMBED_LAYER] if the checkpoint doesn't contain such decoder for LM.
         if self.training_method["name"] == "glem":
-            # GLEM restore model layers conflicts with all layers
             if model_layers == GRAPHSTORM_MODEL_ALL_LAYERS:
                 logging.warning("Restoring GLEM's LM from checkpoint only support %s and %s.'\
                                 'Setting to: '%s'",
