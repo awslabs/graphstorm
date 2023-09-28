@@ -176,8 +176,8 @@ ensure your code conforms to the expectation by running
 on your code before commits. To make this easier we include
 a pre-commit hook below.
 
-Use a pre-commit hook to ensure ``black`` and ``pylint`` runs before commits
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Use a pre-commit hook to ensure ``black`` and ``pylint`` run before commits
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To make code formatting and ``pylint`` checks easier for graphstorm-processing
 developers, we recommend using a pre-commit hook.
@@ -223,7 +223,7 @@ ensure it runs before every commit.
 
     The pre-commit hook will also apply to all commits you make to the root
     GraphStorm repository. Since that Graphstorm doesn't use ``black``, you might
-    want to remove the black hook. You can do so from the root repo
+    want to remove the ``black`` hook. You can do so from the root repo
     using ``rm -rf .git/hooks``.
 
     Both projects use ``pylint`` to check Python files so we'd still recommend using

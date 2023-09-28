@@ -33,8 +33,8 @@ With PyEnv installed you can create and activate a Python 3.9 environment using
     pyenv install 3.9
     pyenv local 3.9
 
-Install from source
-^^^^^^^^^^^^^^^^^^^
+Install GSProcessing from source
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 With a recent version of ``pip`` installed (we recommend ``pip>=21.3``), you can simply run ``pip install .``
 from the root directory of the project (``graphstorm/graphstorm-processing``),
@@ -47,8 +47,8 @@ which should install the library into your environment and pull in all dependenc
     cd graphstorm/graphstorm-processing
     pip install .
 
-Install using poetry
-^^^^^^^^^^^^^^^^^^^^
+Install GSProcessing using poetry
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can also create a local virtual environment using `poetry <https://python-poetry.org/docs/>`_.
 With Python 3.9 and ``poetry`` installed you can run:
