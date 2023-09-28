@@ -606,13 +606,14 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         for canonical_etype in self.eval_etypes:
             if 'test_mask' in g.edges[canonical_etype].data:
                 # test_mask exists
-                # we will do evaluation.
+                # we will do evaluation or inference on test data.
                 test_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['test_mask'],
                     pb, etype=canonical_etype, force_even=True)
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
+                    infer_idxs[canonical_etype] = test_idx
             else:
                 # Inference only
                 # we will do inference on the entire edge set
@@ -893,13 +894,14 @@ class GSgnnNodeInferData(GSgnnNodeData):
                 if 'trainer_id' in g.nodes[ntype].data else None
             if 'test_mask' in g.nodes[ntype].data:
                 # test_mask exists
-                # we will do evaluation.
+                # we will do evaluation or inference on test data.
                 test_idx = dgl.distributed.node_split(g.nodes[ntype].data['test_mask'],
                                                       pb, ntype=ntype, force_even=True,
                                                       node_trainer_ids=node_trainer_ids)
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[ntype] = test_idx
+                    infer_idxs[ntype] = test_idx
                 elif test_idx is None:
                     logging.warning("%s does not contains test data, skip testing %s",
                                     ntype, ntype)

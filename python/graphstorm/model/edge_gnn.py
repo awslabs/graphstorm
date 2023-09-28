@@ -222,7 +222,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                         for etype in target_edge_graph.canonical_etypes}
                 edge_decoder_feats = data.get_edge_feats(input_edges,
                                                          data.decoder_edge_feat,
-                                                         target_edge_graph.device)
+                                                         device)
                 edge_decoder_feats = {etype: feat.to(th.float32) \
                     for etype, feat in edge_decoder_feats.items()}
             else:

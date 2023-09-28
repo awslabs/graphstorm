@@ -178,8 +178,10 @@ def test_GSgnnEdgeData():
     for etype in tr_etypes:
         assert th.all(tr_data1.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
     assert len(ev_data.test_idxs) == len(va_etypes)
+    assert len(ev_data.infer_idxs) == len(ev_data.test_idxs)
     for etype in va_etypes:
         assert th.all(ev_data.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+        assert th.all(ev_data.infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
     # pass train etypes as None
     assert len(tr_data2.train_idxs) == len(dist_graph.canonical_etypes)
@@ -201,8 +203,10 @@ def test_GSgnnEdgeData():
 
     # pass eval etypes as None
     assert len(ev_data2.test_idxs) == 2
+    assert len(ev_data2.infer_idxs) == 2
     for etype in dist_graph.canonical_etypes:
         assert th.all(ev_data2.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+        assert th.all(ev_data2.infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
     labels = tr_data.get_labels({('n0', 'r1', 'n1'): [0, 1]})
     assert len(labels.keys()) == 1
@@ -273,8 +277,10 @@ def test_GSgnnNodeData():
     for ntype in tr_ntypes:
         assert th.all(tr_data1.test_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
     assert len(ev_data.test_idxs) == len(va_ntypes)
+    assert len(ev_data.infer_idxs) == len(va_ntypes)
     for ntype in va_ntypes:
         assert th.all(ev_data.test_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
+        assert th.all(ev_data.infer_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
 
     labels = tr_data.get_labels({'n1': [0, 1]})
     assert len(labels.keys()) == 1

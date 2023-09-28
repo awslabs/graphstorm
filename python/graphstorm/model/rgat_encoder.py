@@ -27,10 +27,40 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class RelationalAttLayer(nn.Module):
-    r"""Relational graph attention layer.
+    r"""Relational graph attention layer from `
+    Relational Graph Attention Networks <https://arxiv.org/abs/1904.05811>`__.
 
-    For inner relation message aggregation we use multi-head attention network.
-    For cross relation message we just use average
+    For the GATConv on each relation type:
+    .. math::
+        h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{i,j} W^{(l)} h_j^{(l)}
+
+    where :math:`\alpha_{ij}` is the attention score between node :math:`i` and
+    node :math:`j`:
+
+    .. math::
+        \alpha_{ij}^{l} &= \mathrm{softmax_i} (e_{ij}^{l})
+
+        e_{ij}^{l} &= \mathrm{LeakyReLU}\left(\vec{a}^T [W h_{i} \| W h_{j}]\right)
+
+    Note:
+    -----
+    * For inner relation message aggregation we use multi-head attention network.
+    * For cross relation message we just use average.
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        # suppose graph and input_feature are ready
+        from graphstorm.model.rgat_encoder import RelationalAttLayer
+
+        layer = RelationalAttLayer(
+                h_dim, h_dim, g.canonical_etypes,
+                num_heads, activation, self_loop,
+                dropout, num_ffn_layers_in_gnn,
+                fnn_activation, norm)
+        h = layer(g, input_feature)
 
     Parameters
     ----------
@@ -175,6 +205,9 @@ class RelationalAttLayer(nn.Module):
 class RelationalGATEncoder(GraphConvEncoder):
     r"""Relational graph attention encoder
 
+    The RelationalGATEncoder employs several RelationalAttLayers as its encoding mechanism.
+    The RelationalGATEncoder should be designated as the model's encoder within Graphstorm.
+
     Parameters
     -----------
     g : DGLHeteroGraph
@@ -197,6 +230,39 @@ class RelationalGATEncoder(GraphConvEncoder):
         Number of ngnn gnn layers between GNN layers
     norm : str, optional
         Normalization Method. Default: None
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        # Build model and do full-graph inference on RelationalGATEncoder
+        from graphstorm import get_feat_size
+        from graphstorm.model.rgat_encoder import RelationalGATEncoder
+        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.model.gnn import do_full_graph_inference
+
+        np_data = GSgnnNodeTrainData(...)
+
+        model = GSgnnNodeModel(alpha_l2norm=0)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=True)
+        model.set_node_input_encoder(encoder)
+
+        gnn_encoder = RelationalGATEncoder(g, 4, 4,
+                                           num_heads=2,
+                                           num_hidden_layers=1,
+                                           dropout=0,
+                                           use_self_loop=True,
+                                           norm=norm)
+        model.set_gnn_encoder(gnn_encoder)
+        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+
+        h = do_full_graph_inference(model, np_data)
     """
     def __init__(self,
                  g,
@@ -231,6 +297,12 @@ class RelationalGATEncoder(GraphConvEncoder):
             Sampled subgraph in DGL MFG
         h: dict[str, torch.Tensor]
             Input node feature for each node type.
+
+        Returns
+        ----------
+        h: dict[str, torch.Tensor]
+            Output node feature for each node type.
+
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)
