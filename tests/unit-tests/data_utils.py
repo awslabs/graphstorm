@@ -20,6 +20,7 @@ import os
 import dgl
 import numpy as np
 import torch as th
+import pandas as pd
 import dgl.distributed as dist
 import tempfile
 
@@ -487,6 +488,28 @@ def create_lm_graph2(tmpdirname):
 
     return lm_config, feat_size, input_ids0, attention_mask0, \
         input_ids1, attention_mask1, g, create_lm_graph
+
+def create_distill_data(tmpdirname, num_files):
+    """ Create a dataset for distillation.
+    """
+    os.makedirs(tmpdirname, exist_ok=True)
+    for part_i in range(num_files):
+        # test when files have different num of samples
+        if part_i // 2 == 0:
+            num_samples = 100
+        else:
+            num_samples = 110
+
+        id_col = list(range(num_samples))
+        textual_col = ["this is unit test"] * num_samples
+        embeddings_col = [th.rand(10).tolist()] * num_samples
+
+        textual_embed_pddf = pd.DataFrame({
+            "ids": id_col,
+            "textual_feats": textual_col, 
+            "embeddings": embeddings_col
+            }).set_index("ids")
+        textual_embed_pddf.to_parquet(os.path.join(tmpdirname, f"part-{part_i}.parquet"))
 
 """ For self tests"""
 if __name__ == '__main__':

@@ -1490,7 +1490,7 @@ def test_lm():
         config = GSConfig(args)
         check_failure(config, "freeze_lm_encoder_epochs")
 
-def test_check_lm_config():
+def test_check_node_lm_config():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         yaml_object = create_dummpy_config_obj()
@@ -1505,19 +1505,19 @@ def test_check_lm_config():
                      "gradient_checkpoint": True,
                      "node_types": ['a']}
         old_config = dict(lm_config)
-        config._check_lm_config(lm_config)
+        config._check_node_lm_config(lm_config)
         assert old_config == lm_config
         lm_config = {"lm_type": "bert",
                      "model_name": "bert-base-uncased",
                      "node_types": ['a', 'b', 'c']}
-        config._check_lm_config(lm_config)
+        config._check_node_lm_config(lm_config)
         assert "gradient_checkpoint" in lm_config
         assert lm_config["gradient_checkpoint"] == False
 
         def must_fail(conf):
             has_error = False
             try:
-                config._check_lm_config(conf)
+                config._check_node_lm_config(conf)
             except:
                 has_error = True
             assert has_error
@@ -1552,4 +1552,4 @@ if __name__ == '__main__':
     test_lp_info()
 
     test_lm()
-    test_check_lm_config()
+    test_check_node_lm_config()
