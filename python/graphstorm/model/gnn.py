@@ -162,7 +162,8 @@ class GSgnnModelBase(nn.Module):
         To restore model parameters for a model with a node_input_encoder, a
         GNN layer and a decoder:
 
-        .. code::
+        .. code:: python
+
             # suppose we are going to load all layers.
             input_encoder = self.input_encoder
             gnn_model = self.gnn_model
@@ -200,7 +201,8 @@ class GSgnnModelBase(nn.Module):
         --------
         To load sparse model parameters for a node_input_encoder
 
-        .. code::
+        .. code:: python
+
             from graphstorm.model.utils import load_sparse_emb
 
             for ntype, sparse_emb in sparse_embeds.items():
@@ -224,7 +226,8 @@ class GSgnnModelBase(nn.Module):
         Example:
         --------
 
-        .. code::
+        .. code:: python
+
             # This function is only called by rank 0
             input_encoder = self.input_encoder
             gnn_model = self.gnn_model
@@ -261,18 +264,20 @@ class GSgnnModelBase(nn.Module):
 
         Step 1: Create a path to save the learnable node embeddings.
 
-        .. code::
-            from graphstorm.model.util import create_sparse_emb_path
+        .. code:: python
 
+            from graphstorm.model.util import create_sparse_emb_path
+           
             for ntype, sparse_emb in sparse_embeds.items():
                 create_sparse_emb_path(model_path, ntype)
             # make sure rank 0 creates the folder and change permission first
 
-
         Step 2: Save learnable node embeddings.
-        .. code::
-            from graphstorm.model.utils import save_sparse_emb
 
+        .. code:: python
+
+            from graphstorm.model.utils import save_sparse_emb
+           
             for ntype, sparse_emb in sparse_embeds.items():
                 save_sparse_emb(model_path, sparse_emb, ntype)
 
@@ -293,9 +298,11 @@ class GSgnnModelBase(nn.Module):
         --------
         Load a model from "/tmp/checkpoints".
 
-        .. code::
+        .. code:: python
+
             # CustomGSgnnModel is a child class of GSgnnModelBase
             model = CustomGSgnnModel()
+            
             # Restore model parameters from "/tmp/checkpoints"
             model.restore_model("/tmp/checkpoints")
 
@@ -340,9 +347,11 @@ class GSgnnModelBase(nn.Module):
         --------
         Save a model into "/tmp/checkpoints".
 
-        .. code::
+        .. code:: python
+
             # CustomGSgnnModel is a child class of GSgnnModelBase
             model = CustomGSgnnModel()
+
             # Model parameters will be saved into "/tmp/checkpoints"
             model.save_model("/tmp/checkpoints")
 
@@ -381,12 +390,19 @@ class GSgnnModelBase(nn.Module):
         optimizers.
 
         Example:
+        
         Case 1: if there is only one optimizer:
+        
+        .. code:: python
+
             def create_optimizer(self):
                 # define torch.optim.Optimizer
                 return optimizer
 
         Case 2: if there are both dense and sparse optimizers:
+        
+        .. code:: python
+
             def create_optimizer(self):
                 dense = [dense_opt] # define torch.optim.Optimizer
                 sparse = [sparse_opt] # define dgl sparse Optimizer

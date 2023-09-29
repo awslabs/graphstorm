@@ -81,16 +81,16 @@ def init_wholegraph():
                              Options.local_size)
 
 def initialize(ip_config, backend, use_wholegraph=False):
-    """ Initialize distributed inference context
+    """ Initialize distributed training and inference context.
 
     Parameters
     ----------
     ip_config: str
-        File path of ip_config file
+        File path of ip_config file, e.g., `/tmp/ip_list.txt`.
     backend: str
-        Torch distributed backend
+        Torch distributed backend, e.g., ``gloo`` or ``nccl``.
     use_wholegraph: bool
-        Whether to use wholegraph for feature transfer
+        Whether to use wholegraph for feature transfer.
     """
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
@@ -116,6 +116,7 @@ def get_feat_size(g, node_feat_names):
     Returns
     -------
     dict of int : the feature size for each node type.
+
     """
     feat_size = {}
     for ntype in g.ntypes:
