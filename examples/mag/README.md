@@ -225,5 +225,6 @@ while the accuracy of HGT is 67.20%.
 				--ip-config ip_list_4p.txt \
 				--cf mag_glem_nc.yaml \
 				--use-pseudolabel true \
-				--restore-model-path mag_pretrained_models
+				--restore-model-path mag_pretrained_models \
+				--restore-model-layers embed
 	```
