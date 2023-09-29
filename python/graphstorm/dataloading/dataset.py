@@ -22,6 +22,8 @@ import logging
 
 import torch as th
 import dgl
+from torch.utils.data import Dataset
+import pandas as pd
 
 from ..utils import get_rank, get_world_size, is_distributed
 from ..utils import sys_tracker, use_wholegraph
@@ -989,3 +991,80 @@ class GSgnnNodeInferData(GSgnnNodeData):
         """ Set of nodes to do inference.
         """
         return self._infer_idxs
+
+class GSDistillData(Dataset):
+    """ Dataset for distillation
+
+    Parameters
+    ----------
+    file_list : list of str
+        List of input files.
+    tokenizer : transformers.AutoTokenizer
+        HuggingFace Tokenizer.
+    max_seq_len : int
+        Maximum sequence length.
+    device : str
+        Device name.
+
+    """
+    def __init__(self, file_list, tokenizer, max_seq_len, device):
+        super().__init__()
+        self.file_list = file_list
+        self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
+        self.device = device
+        self.token_id_inputs, self.labels = self.get_inputs()
+
+    def get_inputs(self):
+        """ Tokenize textual data."""
+        inputs = [pd.read_parquet(file_name) for file_name in self.file_list]
+        inputs = pd.concat(inputs)
+
+        token_id_inputs = []
+        for i in range(len(inputs["textual_feats"])):
+            # Do tokenization line by line. The length of token_ids may vary.
+            # will do padding in the collate function.
+            tokens = self.tokenizer.tokenize(inputs["textual_feats"][i])
+            tokens.insert(0, self.tokenizer.cls_token) # cls token for pooling
+            token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+            token_ids = token_ids[0:min(len(token_ids), self.max_seq_len)]
+            # token_id_inputs cannot be converted to tensor here
+            # because of the different sequence length
+            token_id_inputs.append(token_ids)
+
+        labels = th.tensor(inputs["embeddings"], dtype=th.float, device="cpu")
+        return token_id_inputs, labels
+
+    def __len__(self):
+        return len(self.token_id_inputs)
+
+    def __getitem__(self, index):
+        input_ids = th.tensor(self.token_id_inputs[index], dtype=th.int32, device="cpu")
+        labels = self.labels[index]
+        return {
+            "input_ids": input_ids,
+            "labels": labels,
+        }
+
+    def get_collate_fn(self):
+        '''get collate function
+        '''
+        def collate_fn(batch):
+            ''' Pad tensors in a batch to the same length.
+            '''
+            ## pad inputs
+            input_ids_list = [x["input_ids"] for x in batch]
+
+            padded_input_ids = th.nn.utils.rnn.pad_sequence(input_ids_list,
+                batch_first=True, padding_value=self.tokenizer.pad_token_id)
+            ## compute mask
+            attention_mask = (padded_input_ids != self.tokenizer.pad_token_id).float()
+            labels = th.stack([x["labels"] for x in batch], 0)
+
+            return {
+                "input_ids": padded_input_ids,
+                "attention_mask": attention_mask,
+                "labels": labels,
+            }
+
+        return collate_fn
