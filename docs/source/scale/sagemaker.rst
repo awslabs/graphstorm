@@ -226,7 +226,7 @@ data for distributed training.
        --log-level INFO \
        --partition-algorithm ${ALGORITHM}
 
-Running the above will take take the dataset in chunked format
+Running the above will take the dataset in chunked format
 from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
 ``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
 Currently we only support ``random`` as the partitioning algorithm.
