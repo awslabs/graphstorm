@@ -126,7 +126,7 @@ class GLEM(GSgnnNodeModelBase):
     @property
     def gnn_encoder(self):
         """Alias for accessing the gnn_encoder"""
-        return self.gnn.gnn_encoder
+        return self.gnn.gnn_encoder if self.inference_using_gnn else None
 
     @property
     def node_input_encoder(self):

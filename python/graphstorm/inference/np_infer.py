@@ -25,7 +25,6 @@ from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
-from ..model.node_glem import GLEM
 
 from ..utils import sys_tracker, get_world_size, get_rank, barrier
 
@@ -97,15 +96,9 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             else:
                 embs = {ntype: embs}
         else:
-            if isinstance(self._model, GLEM):
-                embedding_model = self._model if self._model.inference_using_gnn else self._model.lm
-                decoding_model = self._model.gnn if self._model.inference_using_gnn else self._model.lm
-            else:
-                embedding_model = self._model
-                decoding_model = self._model
-            embs = do_full_graph_inference(embedding_model, loader.data, fanout=loader.fanout,
+            embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
                                            task_tracker=self.task_tracker)
-            res = node_mini_batch_predict(decoding_model, embs, loader, return_proba,
+            res = node_mini_batch_predict(self._model, embs, loader, return_proba,
                                           return_label=do_eval)
             pred = res[0]
             label = res[1] if do_eval else None
