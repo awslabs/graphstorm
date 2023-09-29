@@ -108,11 +108,10 @@ class GLEM(GSgnnNodeModelBase):
         self.lm.restore_dense_model(os.path.join(restore_model_path, 'LM'),
                                     model_layer_to_load)
         self.gnn.restore_dense_model(os.path.join(restore_model_path, 'GNN'),
-                                     model_layer_to_load)
+                                     ['gnn', 'decoder'])
 
     def restore_sparse_model(self, restore_model_path):
         self.lm.restore_sparse_model(os.path.join(restore_model_path, 'LM'))
-        self.gnn.restore_sparse_model(os.path.join(restore_model_path, 'GNN'))
 
     def set_node_input_encoder(self, encoder):
         """Set the node input LM encoder for lm, shared with gnn.
