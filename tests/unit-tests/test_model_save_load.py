@@ -28,6 +28,7 @@ from graphstorm.model import GSNodeEncoderInputLayer
 from graphstorm.model.utils import save_sparse_embeds
 from graphstorm.model.utils import load_sparse_embeds
 from graphstorm.model.utils import _get_sparse_emb_range
+from graphstorm.model.utils import pad_file_index
 from graphstorm import get_feat_size
 
 from data_utils import generate_dummy_dist_graph
@@ -100,7 +101,7 @@ def test_sparse_embed_save(world_size):
                 for i in range(world_size):
                     saved_embs.append(th.load(
                         os.path.join(os.path.join(model_path, ntype),
-                                    f'sparse_emb_{i}.pt')))
+                                    f'sparse_emb_{pad_file_index(i)}.pt')))
                 saved_embs = th.cat(saved_embs, dim=0)
                 assert_equal(saved_embs.numpy(), sparse_embs[ntype].numpy())
         check_saved_sparse_emb()

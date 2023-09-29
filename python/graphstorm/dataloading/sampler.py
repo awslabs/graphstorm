@@ -15,6 +15,9 @@
 
     Addtional graph samplers for GSF
 """
+import os
+import logging
+import random
 from collections.abc import Mapping
 import torch as th
 import numpy as np
@@ -389,3 +392,286 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
             blocks.insert(0, block)
 
         return seed_nodes, output_nodes, blocks
+
+class FileSamplerInterface:
+    r"""File Sampler Interface. This interface defines the
+    # operation supported by a file sampler and the common 
+    # check and processing for dataset_path.
+
+    Parameters:
+    ---------
+    dataset_path : str
+        Path to the data files.
+        Mutually exclusive with :attr:`files`.
+    """
+
+    def __init__(self, dataset_path):
+        if not dataset_path:
+            raise ValueError(
+                "Dataset_path={}, should be specified.".format(
+                    dataset_path
+                )
+            )
+        self.dataset_path = dataset_path
+        self.files = [
+            os.path.join(dataset_path, f)
+            for f in os.listdir(dataset_path)
+            if os.path.isfile(os.path.join(dataset_path, f))
+        ]
+        self.files = [f for f in self.files if os.path.getsize(f)>0]
+        if len(self.files) == 0:
+            raise ValueError (
+                f"no non-empty files found at top directory {dataset_path}.")
+        self.files.sort()
+
+        self.num_files = len(self.files)
+        logging.info("found %s files from %s", self.num_files, dataset_path)
+
+    def __len__(self):
+        """ Return number of files in the sampler."""
+        return self.num_files
+
+    def __iter__(self):
+        """ Return the iterator of the sampler."""
+        raise NotImplementedError
+
+    def __next__(self):
+        """ Return next file name from the sampler iterator."""
+        raise NotImplementedError
+
+class SequentialFileSampler():
+    r"""Sequential File Sampler. It samples files sequentially.
+
+    Parameters:
+    ----------
+    file_indices : list of int
+        File indices for a local trainer
+    is_train : bool
+        Set to ``True`` if it's training set.
+    infinite : bool
+        Set to ``True`` to make it infinite.
+    """
+    def __init__(self, file_indices, is_train=True, infinite=True):
+        self.file_indices = file_indices
+        self.num_local_files = len(self.file_indices)
+        self._indices = list(range(self.num_local_files))
+        self.is_train = is_train
+        self.infinite = infinite
+
+    def __iter__(self):
+        self._index = -1
+        return self
+
+    def __next__(self):
+        """ Get index for next file"""
+        self._index += 1
+
+        if self._index >= self.num_local_files:
+            if self.is_train and self.infinite:
+                self._index = 0
+            else:
+                # non-infinite sampler.
+                # set _index to -1 for next evaluation.
+                self._index = -1
+                return None
+
+        return self.file_indices[self._index]
+
+class RandomShuffleFileSampler():
+    r"""Random File Sampler. Has files reshuffled for sampling.
+
+    Parameters:
+    ----------
+    file_indices : list of int
+        File indices for a local trainer
+    infinite : bool
+        Set to ``True`` to make it infinite.
+    """
+    def __init__(self, file_indices, infinite=True):
+        self.file_indices = file_indices
+        self.num_local_files = len(self.file_indices)
+        self._indices = list(range(self.num_local_files))
+        self.infinite = infinite
+
+    def __iter__(self):
+        self._index = -1
+        # shuffle the file indices
+        random.shuffle(self._indices)
+        return self
+
+    def __next__(self):
+        """ Get index for next file"""
+        self._index += 1
+
+        if self._index >= self.num_local_files:
+            # make it infinite sampler
+            random.shuffle(self._indices)
+            self._index = 0
+            if not self.infinite:
+                return None
+
+        return self.file_indices[self._indices[self._index]]
+
+class DistributedFileSampler(FileSamplerInterface):
+    r"""Distributed File Sampler. Samples file from the data path.
+    Each rank only has access to a partition of all the data shards.
+
+    Parameters:
+    ---------
+    dataset_path : str
+        path to the data files.
+        Mutually exclusive with :attr:`files`.
+    shuffle : bool
+        Set to ``True`` to have the files reshuffled
+        at every epoch. Shuffling is performed on the files of the local partition.
+    local_rank : int
+        Local rank ID.
+    world_size : int
+        Number of all trainers.
+    is_train : bool
+        Set to ``True`` if it's training set.
+    infinite : bool
+        Set to ``True`` to make it infinite.
+    """
+    def __init__(
+        self,
+        dataset_path=None,
+        shuffle=False,
+        local_rank=-1,
+        world_size=1,
+        is_train=True,
+        infinite=True,
+    ):
+        super().__init__(dataset_path)
+
+        # Initialize distributed ranks
+        self.local_rank = local_rank
+        self.world_size = world_size
+
+        # distribute file index
+        self._file_index_distribute()
+
+        if not is_train:
+            self.part_len = self.num_files
+        file_indices = list(range(self.part_len))
+        if shuffle and is_train:
+            sampler = RandomShuffleFileSampler(file_indices=file_indices, \
+                infinite=infinite)
+        else:
+            sampler = SequentialFileSampler(file_indices=file_indices, \
+                is_train=is_train, infinite=infinite)
+        self.sampler = sampler
+        self.sampler_iter = iter(sampler)
+
+        self.shuffle = shuffle
+
+    def _file_index_distribute(self):
+        """
+        Assign a slice window of file index to each worker.
+        The slice window of each worker is specified
+        by self.global_start and self.global_end
+        """
+        if self.world_size > self.num_files:
+            # If num of workers is greater than num of files,
+            # the slice windows are same across all workers,
+            # which covers all files.
+            self.remainder = self.world_size % self.num_files
+            self.global_start = 0
+            self.global_end = self.num_files
+            self.part_len = self.global_end
+        else:
+            # If num of workers is smaller than num of files,
+            # the slice windows are different for each worker.
+            # In the case where the files cannot be evenly distributed,
+            # the remainder will be assigned to one or multiple workers evenly.
+            part_len = self.num_files // self.world_size
+            self.remainder = self.num_files % self.world_size
+            self.global_start = part_len * self.local_rank + min(self.local_rank, self.remainder)
+            self.global_end = self.global_start + part_len + (self.local_rank < self.remainder)
+            self.part_len = self.global_end - self.global_start
+
+    def get_file(self, offset):
+        """ Get the file name with corresponding index"""
+        if self.world_size > self.num_files:
+            # e.g, when self.world_size=8 and self.num_files=3:
+            # local_rank=0|offset|file_index % self.num_files
+            #             |0     |0
+            #             |1     |1
+            #             |2     |2
+            #             |0     |0
+            #             |1     |1
+            #             |2     |2
+            #             ...    ...
+            # local_rank=1|offset|file_index % self.num_files
+            #             |0     |1
+            #             |1     |2
+            #             |2     |0
+            #             |0     |1
+            #             |1     |2
+            #             |2     |0
+            #             ...    ...
+            # local_rank=2|offset|file_index % self.num_files
+            #             |0     |2
+            #             |1     |0
+            #             |2     |1
+            #             |0     |2
+            #             |1     |0
+            #             |2     |1
+            #             ...    ...
+            # ...
+            # local_rank=7|offset|file_index % self.num_files
+            #             |0     |1
+            #             |1     |2
+            #             |2     |0
+            #             |0     |1
+            #             |1     |2
+            #             |2     |0
+            #             ...    ...
+            file_index = (
+                (offset * self.world_size) + self.local_rank + (self.remainder * offset)
+            )
+            file_index = self.global_start + file_index % self.part_len
+        else:
+            # e.g, when self.world_size=3 and self.num_files=7:
+            # local_rank=0|offset|file_index % self.num_files
+            #             |0     |0
+            #             |1     |1
+            #             |2     |2
+            #             |0     |0
+            #             |1     |1
+            #             |2     |2
+            #             ...    ...
+            # local_rank=1|offset|file_index % self.num_files
+            #             |0     |3
+            #             |1     |4
+            #             |0     |3
+            #             |1     |4
+            #             |0     |3
+            #             |1     |4
+            #             ...    ...
+            # local_rank=2|offset|file_index % self.num_files
+            #             |0     |5
+            #             |1     |6
+            #             |0     |5
+            #             |1     |6
+            #             |0     |5
+            #             |1     |6
+            #             ...    ...
+            file_index = self.global_start + offset % self.part_len
+        return self.files[file_index % self.num_files]
+
+    def __len__(self):
+        return self.part_len
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """ Get the file name for next file from sampler"""
+        ret = None
+        offset = next(self.sampler_iter)
+
+        if offset is not None:
+            ret = self.get_file(offset)
+
+        return ret

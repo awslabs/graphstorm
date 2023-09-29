@@ -316,6 +316,7 @@ then
     exit -1
 fi
 
+
 rm -fr /data/gsgnn_nc_ml_text/*
 rm /tmp/full_graph_inf.txt
 rm /tmp/mini_batch_inf.txt

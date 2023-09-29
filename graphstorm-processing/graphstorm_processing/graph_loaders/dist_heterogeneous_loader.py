@@ -315,7 +315,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             # Add original and reverse edge types
             edge_types.append(f"{src_type}:{rel_type}:{dst_type}")
             if self.add_reverse_edges:
-                edge_types.append(f"{dst_type}:rev-{rel_type}:{src_type}")
+                edge_types.append(f"{dst_type}:{rel_type}-rev:{src_type}")
 
         metadata_dict["edge_type"] = edge_types
         metadata_dict["node_type"] = sorted(node_type_set)
@@ -1072,7 +1072,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             f"{edge_config.src_ntype}:{edge_config.get_relation_name()}:{edge_config.dst_ntype}"
         )
         rev_edge_type = (
-            f"{edge_config.dst_ntype}:rev-{edge_config.get_relation_name()}:{edge_config.src_ntype}"
+            f"{edge_config.dst_ntype}:{edge_config.get_relation_name()}-rev:{edge_config.src_ntype}"
         )
 
         src_node_id_mapping = (
@@ -1223,7 +1223,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             reverse_edge_type = (
                 f"{edge_config.dst_ntype}"
-                f":rev-{edge_config.get_relation_name()}"
+                f":{edge_config.get_relation_name()}-rev"
                 f":{edge_config.src_ntype}"
             )
             logging.info("Processing edge type '%s'...", edge_type)

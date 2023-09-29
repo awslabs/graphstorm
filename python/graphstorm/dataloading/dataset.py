@@ -22,6 +22,8 @@ import logging
 
 import torch as th
 import dgl
+from torch.utils.data import Dataset
+import pandas as pd
 
 from ..utils import get_rank, get_world_size, is_distributed
 from ..utils import sys_tracker, use_wholegraph
@@ -282,7 +284,7 @@ class GSgnnData():
                                    feat_field=self._node_feat_field)
 
     def get_edge_feats(self, input_edges, edge_feat_field, device='cpu'):
-        """ Get the node features
+        """ Get the edge features
 
         Parameters
         ----------
@@ -389,7 +391,9 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         return self._test_idxs
 
 class GSgnnEdgeTrainData(GSgnnEdgeData):
-    """ Edge prediction training data
+    r""" Edge prediction training data
+
+    The GSgnnEdgeTrainData prepares the data for training edge prediction.
 
     Parameters
     ----------
@@ -411,6 +415,19 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
+    
+    Examples
+    ----------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnEdgeDataLoader
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                        train_etypes=[('n1', 'e1', 'n2')], label_field='label',
+                                        node_feat_field='node_feat', edge_feat_field='edge_feat')
+        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]}, 
+                                            fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
@@ -550,7 +567,9 @@ class GSgnnLPTrainData(GSgnnEdgeTrainData):
         return self._pos_graph_feat_field
 
 class GSgnnEdgeInferData(GSgnnEdgeData):
-    """ Edge prediction inference data
+    r""" Edge prediction inference data
+
+    GSgnnEdgeInferData prepares the data for edge prediction inference.
 
     Parameters
     ----------
@@ -570,6 +589,19 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
+        
+    Examples
+    ----------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnEdgeInferData
+        from graphstorm.dataloading import GSgnnEdgeDataLoader
+        ep_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                        eval_etypes=[('n1', 'e1', 'n2')], label_field='label',
+                                        node_feat_field='node_feat', edge_feat_field='edge_feat')
+        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]}, 
+                                            fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, eval_etypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
@@ -606,13 +638,14 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         for canonical_etype in self.eval_etypes:
             if 'test_mask' in g.edges[canonical_etype].data:
                 # test_mask exists
-                # we will do evaluation.
+                # we will do evaluation or inference on test data.
                 test_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['test_mask'],
                     pb, etype=canonical_etype, force_even=True)
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[canonical_etype] = test_idx
+                    infer_idxs[canonical_etype] = test_idx
             else:
                 # Inference only
                 # we will do inference on the entire edge set
@@ -713,7 +746,9 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         return self._test_idxs
 
 class GSgnnNodeTrainData(GSgnnNodeData):
-    """ Training data for node tasks
+    r""" Training data for node tasks
+
+    GSgnnNodeTrainData prepares the data for training node prediction.
 
     Parameters
     ----------
@@ -733,6 +768,20 @@ class GSgnnNodeTrainData(GSgnnNodeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    
+    Examples
+    ----------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnNodeDataLoader
+
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                        train_ntypes=['n1'], label_field='label',
+                                        node_feat_field='feat')
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]}, 
+                                            fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, train_ntypes, eval_ntypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None):
@@ -840,7 +889,9 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         return self._eval_ntypes
 
 class GSgnnNodeInferData(GSgnnNodeData):
-    """ Inference data for node tasks
+    r""" Inference data for node tasks
+
+    GSgnnNodeInferData prepares the data for node prediction inference.
 
     Parameters
     ----------
@@ -858,6 +909,20 @@ class GSgnnNodeInferData(GSgnnNodeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    
+    Examples
+    ----------
+    
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnNodeInferData
+        from graphstorm.dataloading import 
+
+        np_data = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                        eval_ntypes=['n1'], label_field='label',
+                                        node_feat_field='feat')
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]}, 
+                                            fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, eval_ntypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None):
@@ -892,13 +957,14 @@ class GSgnnNodeInferData(GSgnnNodeData):
                 if 'trainer_id' in g.nodes[ntype].data else None
             if 'test_mask' in g.nodes[ntype].data:
                 # test_mask exists
-                # we will do evaluation.
+                # we will do evaluation or inference on test data.
                 test_idx = dgl.distributed.node_split(g.nodes[ntype].data['test_mask'],
                                                       pb, ntype=ntype, force_even=True,
                                                       node_trainer_ids=node_trainer_ids)
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
                     test_idxs[ntype] = test_idx
+                    infer_idxs[ntype] = test_idx
                 elif test_idx is None:
                     logging.warning("%s does not contains test data, skip testing %s",
                                     ntype, ntype)
@@ -925,3 +991,80 @@ class GSgnnNodeInferData(GSgnnNodeData):
         """ Set of nodes to do inference.
         """
         return self._infer_idxs
+
+class GSDistillData(Dataset):
+    """ Dataset for distillation
+
+    Parameters
+    ----------
+    file_list : list of str
+        List of input files.
+    tokenizer : transformers.AutoTokenizer
+        HuggingFace Tokenizer.
+    max_seq_len : int
+        Maximum sequence length.
+    device : str
+        Device name.
+
+    """
+    def __init__(self, file_list, tokenizer, max_seq_len, device):
+        super().__init__()
+        self.file_list = file_list
+        self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
+        self.device = device
+        self.token_id_inputs, self.labels = self.get_inputs()
+
+    def get_inputs(self):
+        """ Tokenize textual data."""
+        inputs = [pd.read_parquet(file_name) for file_name in self.file_list]
+        inputs = pd.concat(inputs)
+
+        token_id_inputs = []
+        for i in range(len(inputs["textual_feats"])):
+            # Do tokenization line by line. The length of token_ids may vary.
+            # will do padding in the collate function.
+            tokens = self.tokenizer.tokenize(inputs["textual_feats"][i])
+            tokens.insert(0, self.tokenizer.cls_token) # cls token for pooling
+            token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+            token_ids = token_ids[0:min(len(token_ids), self.max_seq_len)]
+            # token_id_inputs cannot be converted to tensor here
+            # because of the different sequence length
+            token_id_inputs.append(token_ids)
+
+        labels = th.tensor(inputs["embeddings"], dtype=th.float, device="cpu")
+        return token_id_inputs, labels
+
+    def __len__(self):
+        return len(self.token_id_inputs)
+
+    def __getitem__(self, index):
+        input_ids = th.tensor(self.token_id_inputs[index], dtype=th.int32, device="cpu")
+        labels = self.labels[index]
+        return {
+            "input_ids": input_ids,
+            "labels": labels,
+        }
+
+    def get_collate_fn(self):
+        '''get collate function
+        '''
+        def collate_fn(batch):
+            ''' Pad tensors in a batch to the same length.
+            '''
+            ## pad inputs
+            input_ids_list = [x["input_ids"] for x in batch]
+
+            padded_input_ids = th.nn.utils.rnn.pad_sequence(input_ids_list,
+                batch_first=True, padding_value=self.tokenizer.pad_token_id)
+            ## compute mask
+            attention_mask = (padded_input_ids != self.tokenizer.pad_token_id).float()
+            labels = th.stack([x["labels"] for x in batch], 0)
+
+            return {
+                "input_ids": padded_input_ids,
+                "attention_mask": attention_mask,
+                "labels": labels,
+            }
+
+        return collate_fn

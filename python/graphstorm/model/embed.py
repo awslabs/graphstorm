@@ -168,6 +168,24 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         Number of layers of feedforward neural network for each node type in the input layers
     ffn_activation : callable
         The activation function for the feedforward neural networks.
+
+    Examples:
+    ----------
+    
+    .. code:: python
+
+        from graphstorm import get_feat_size
+        from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+
+        np_data = GSgnnNodeTrainData(...)
+
+        model = GSgnnEdgeModel(alpha_l2norm=0)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=True)
+        model.set_node_input_encoder(encoder)
     """
     def __init__(self,
                  g,

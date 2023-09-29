@@ -33,12 +33,42 @@ from ..utils import barrier, is_distributed, get_backend
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Edge prediction trainer.
 
+    This class is used to train models for edge prediction tasks,
+    such as edge classification and edge regression.
+
+    It makes use of the functions provided by `GSgnnTrainer`
+    to define two main functions: `fit` that performs the training
+    for the model that is provided when the object is created,
+    and `eval` that evaluates a provided model against test and
+    validation data.
+
     Parameters
     ----------
-    model : GSgnnEdgeModelBase
+    model : GSgnnEdgeModel
         The GNN model for edge prediction.
     topk_model_to_save : int
         The top K model to save.
+
+    Example
+    -------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnEdgeDataLoader
+        from graphstorm.dataset import GSgnnEdgeData
+        from graphstorm.model import GSgnnEdgeModel
+        from graphstorm.trainer import GSgnnEdgePredictionTrainer
+
+        my_dataset = GSgnnEdgeTrainData(
+            "my_graph", "/path/to/part_config", train_etypes="edge_type")
+        target_idx = {"edge_type": target_edges_tensor}
+        my_data_loader = GSgnnEdgeDataLoader(
+            my_dataset, target_idx, fanout=[10], batch_size=1024)
+        my_model = GSgnnEdgeModel(alpha_l2norm=0.0)
+
+        trainer = GSgnnEdgePredictionTrainer(my_model, topk_model_to_save=1)
+
+        trainer.fit(my_data_loader, num_epochs=2)
     """
     def __init__(self, model, topk_model_to_save):
         super(GSgnnEdgePredictionTrainer, self).__init__(model, topk_model_to_save)
@@ -56,6 +86,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             max_grad_norm=None,
             grad_norm_type=2.0):
         """ The fit function for edge prediction.
+
+        Performs the training for `self.model`. Iterates over the training
+        batches in `train_loader` to compute the loss and perform the backwards
+        step using `self.optimizer`. If an evaluator has been assigned to the
+        trainer, it will run evaluation at the end of every epoch.
 
         Parameters
         ----------
@@ -142,7 +177,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                             for etype in batch_graph.canonical_etypes}
                     edge_decoder_feats = data.get_edge_feats(input_edges,
                                                              data.decoder_edge_feat,
-                                                             batch_graph.device)
+                                                             device)
                     edge_decoder_feats = {etype: feat.to(th.float32) \
                         for etype, feat in edge_decoder_feats.items()}
                 else:
@@ -260,7 +295,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
     def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
              return_proba=True):
-        """ do the model evaluation using validiation and test sets
+        """ do the model evaluation using validation and test sets
 
         Parameters
         ----------
