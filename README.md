@@ -1,5 +1,5 @@
 ## GraphStorm
-|[Document and Tutorial Site](https://github.com/awslabs/graphstorm/wiki) |
+|[Document and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) |
 
 GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
 It simplifies the development, training and deployment of GML models for industry-scale graphs
@@ -18,11 +18,11 @@ provide their own model implementations and use GraphStorm training pipeline to 
 ### Installation
 GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.13+, DGL 1.0 and transformers 4.3.0+.
 
-To install GraphStorm in your environment, you can clone the repository and run `python3 setup.py install` to install it. However, running GraphStorm in a distributed environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we highly recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to run GraphStorm. A guideline to build GraphStorm docker image and run it on Amazon EC2 can be found at [here](https://github.com/awslabs/graphstorm/tree/main/docker).
+To install GraphStorm in your environment, you can clone the repository and run `python3 setup.py install` to install it. However, running GraphStorm in a distributed environment is non-trivial. Users need to install dependencies and configure distributed Pytorch running environments. For this reason, we highly recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to run GraphStorm. A guideline to build GraphStorm docker image and run it on Amazon EC2 can be found at [here](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-docker-environment) and a full instruction on how to setup distributed training can be found [here](https://graphstorm.readthedocs.io/en/latest/scale/distributed.html).
 
 ### Run GraphStorm with OGB datasets
 
-**Note**: we assume users have setup their Docker container following the [Build a Docker image from source](https://github.com/awslabs/graphstorm/tree/main/docker#build-a-docker-image-from-source) instructions. All following commands run within a Docker container.
+**Note**: we assume users have setup their Docker container following the [Build a Docker image from source](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#build-a-graphstorm-docker-image-from-source-code) instructions. All following commands run within a Docker container.
 
 **Start the GraphStorm docker container**
 First, start your docker container by running the following command:

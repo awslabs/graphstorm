@@ -6,7 +6,7 @@ paper data (`mag_papers_*.zip`). All data are stored in JSON format.
 To construct a graph for GNN training in GraphStorm, we need to preprocess the data
 and convert them to the format supported by GraphStorm in
 [here](https://github.com/awslabs/graphstorm/wiki/tutorials-own-data#use-own-data).
-This data preprocessing is done in the Notebook (`MAG_parser.ipynb`) on a CPU machine.
+This data preprocessing is done in the Notebook (`MAG_parser_v0.1.ipynb`) on a CPU machine.
 
 After the data preprocessing, we also need to run `ComputeBERTEmbed.ipynb` to compute
 BERT embeddings on the paper nodes and fos nodes. Please use a GPU machine to generate
@@ -48,7 +48,9 @@ python3 -m graphstorm.run.gs_link_prediction \
 ## Train GNN model to predict the venue of papers
 
 ### Construct the graph with venues as labels.
-First, we need to construct the MAG graph with venues as the label of paper nodes.
+To train a GNN model to predict the venues, a user should run `MAG_parser_v0.2.ipynb`
+to process the raw dataset to create labels of venues for node classification.
+Then we construct the MAG graph.
 ```
 python3 -m graphstorm.gconstruct.construct_graph \
 			--num-processes 16 \
@@ -110,7 +112,7 @@ python3 -m graphstorm.run.gs_node_classification \
 
 The accuracy is 41.88%.
 
-### Fine-tune BERT model on the graph data and train GNN model to predict the venue
+### <a name="bert-ft-gnn"></a>Fine-tune BERT model on the graph data and train GNN model to predict the venue
 
 To achieve good performance, we should fine-tune the BERT model on the graph data.
 One way of fine-tuning the BERT model on the graph data is to fine-tune the BERT model
@@ -188,3 +190,43 @@ python3 -m graphstorm.run.gs_node_classification \
 
 The accuracy of RGCN with the BERT model fine-tuned with venue prediction is 63.22%,
 while the accuracy of HGT is 67.20%.
+
+### Co-training BERT and GNN models using GLEM to predict the venue
+
+[GLEM](https://arxiv.org/abs/2210.14709) is a variational EM framework that trains a LM and GNN iteratively for semi-supervised node classification. There are two important pre-requisite for achieve good performance with GLEM
+
+1. The pseudolabeling technique: it predicts pseudolabels on the unlabeled nodes and uses as additional supervision signal for mutual distillation between LM and GNN. This can be enabled by the `--use-pseudolabel true` argument in command line. 
+2. Well pre-trained LM and GNN before the co-training: empirically, LM or GNN models that are not well-trained lead to degraded performance when co-training with GLEM directly. Therefore, we suggest user to pre-train the LM and GNN first. This can be achieved by:
+	1. Setting `num_pretrain_epochs` in the [yaml config](mag_glem_w_pretrain.yaml). 
+
+	```
+	python3 -m graphstorm.run.gs_node_classification \
+				--num-trainers 8 \
+				--num-servers 4 \
+				--num-samplers 0 \
+				--part-config mag_min_4parts/mag.json \
+				--ip-config ip_list_4p.txt \
+				--cf mag_glem_w_pretrain.yaml \
+				--use-pseudolabel true
+	```
+
+	2. Restoring pretrained model from checkpoints using `--restore-model-path`. In the following example, we restore the GNN trained on fine-tuned BERT model in the [previous section](#bert-ft-gnn). GLEM requires checkpoints of LM and GNN to be in the same path, under separate directories `LM` and `GNN`. It then loads the LM's `node_input_encoder` and GNN's `gnn_encoder` and `decoder`. Since our GNN checkpoint contain both the fine-tuned LM and GNN, we set up softlinks to point both LM and GNN to this checkpiont. 
+
+	```
+	# prepare paths to pretrained models:
+	mkdir mag_pretrained_models
+	ln -s mag_gnn_nc_model/epoch-7 mag_pretrained_models/LM
+	ln -s mag_gnn_nc_model/epoch-7 mag_pretrained_models/GNN
+	
+	# co-training pre-trained LM and GNN with GLEM:
+	python3 -m graphstorm.run.gs_node_classification \
+				--num-trainers 8 \
+				--num-servers 4 \
+				--num-samplers 0 \
+				--part-config mag_min_4parts/mag.json \
+				--ip-config ip_list_4p.txt \
+				--cf mag_glem_nc.yaml \
+				--use-pseudolabel true \
+				--restore-model-path mag_pretrained_models \
+				--restore-model-layers embed
+	```

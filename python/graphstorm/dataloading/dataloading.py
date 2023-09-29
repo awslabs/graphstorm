@@ -17,9 +17,12 @@
 """
 import math
 import inspect
-import torch as th
-
+import logging
 import dgl
+import torch as th
+from torch.utils.data import DataLoader
+import torch.distributed as dist
+
 from dgl.dataloading import DistDataLoader
 from dgl.dataloading import EdgeCollator
 from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
@@ -27,8 +30,11 @@ from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 from .sampler import (LocalUniform,
                       JointUniform,
                       GlobalUniform,
-                      JointLocalUniform, FastMultiLayerNeighborSampler)
+                      JointLocalUniform,
+                      FastMultiLayerNeighborSampler,
+                      DistributedFileSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
+from .dataset import GSDistillData
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
@@ -158,6 +164,10 @@ class GSgnnEdgeDataLoaderBase():
 class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The minibatch dataloader for edge prediction
 
+    GSgnnEdgeDataLoader samples GraphStorm edge dataset into an iterable over mini-batches 
+    of samples. Both source and destination nodes are included in the batch_graph, which
+    will be used by GraphStorm Trainers and Inferrers.
+
     Parameters
     ------------
     dataset: GSgnnEdgeData
@@ -182,6 +192,23 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
+        
+    Examples
+    ------------
+    To train a 2-layer GNN for edge prediction on a set of edges ``target_idx`` on 
+    a graph where each nodes takes messages from 15 neighbors on the first layer
+    and 10 neighbors on the second. 
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnEdgeDataLoader
+        from graphstorm.trainer import GSgnnEdgePredictionTrainer
+
+        ep_data = GSgnnEdgeTrainData(...)
+        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[15, 10], batch_size=128)
+        ep_trainer = GSgnnEdgePredictionTrainer(...)
+        ep_trainer.fit(ep_dataloader, num_epochs=10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
                  train_task=True, reverse_edge_types_map=None,
@@ -357,7 +384,11 @@ class GSgnnLinkPredictionDataLoaderBase():
 class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     """ Link prediction minibatch dataloader
 
-    The negative edges are sampled uniformly.
+    GSgnnLinkPredictionDataLoader samples GraphStorm edge dataset into an iterable over mini-batches 
+    of samples. In each batch, pos_graph and neg_graph are sampled subgraph for positive and 
+    negative edges, which will be used by GraphStorm Trainers and Inferrers. Given a positive edge, 
+    a negative edge is composed of the source node and a random negative destination nodes 
+    according to a uniform distribution.
 
     Argument
     --------
@@ -387,6 +418,24 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
+    
+    Examples
+    ------------
+    To train a 2-layer GNN for link prediction on a set of positive edges ``target_idx`` on 
+    a graph where each nodes takes messages from 15 neighbors on the first layer
+    and 10 neighbors on the second. We use 10 negative edges per positive in this example.
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
+        from graphstorm.trainer import GSgnnLinkPredictionTrainer
+
+        lp_data = GSgnnEdgeTrainData(...)
+        lp_dataloader = GSgnnLinkPredictionDataLoader(lp_data, target_idx, fanout=[15, 10], 
+                                                    num_negative_edges=10, batch_size=128)
+        lp_trainer = GSgnnLinkPredictionTrainer(...)
+        lp_trainer.fit(lp_dataloader, num_epochs=10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
@@ -961,6 +1010,10 @@ class GSgnnNodeDataLoaderBase():
 
 class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
+    
+    GSgnnNodeDataLoader samples GraphStorm node dataset into an iterable over mini-batches of
+    samples including target nodes and sampled neighbor nodes, which will be used by GraphStorm
+    Trainers and Inferrers. 
 
     Parameters
     ----------
@@ -980,6 +1033,23 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
+    
+    Examples
+    ----------
+    To train a 2-layer GNN for node classification on a set of nodes ``target_idx`` on 
+    a graph where each nodes takes messages from 15 neighbors on the first layer
+    and 10 neighbors on the second. 
+
+    .. code:: python
+    
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnNodeDataLoader
+        from graphstorm.trainer import GSgnnNodePredictionTrainer
+
+        np_data = GSgnnNodeTrainData(...)
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10], batch_size=128)
+        np_trainer = GSgnnNodePredictionTrainer(...)
+        np_trainer.fit(np_dataloader, num_epochs=10)
     """
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
@@ -1060,3 +1130,187 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
 
     def __next__(self):
         return self.dataloader.__next__(), self.unlabeled_dataloader.__next__()
+
+####################### Distillation #############################
+
+class DistillDataManager:
+    r"""Distill Data Manager. Combines a file sampler and a dataloader generator,
+    and streamingly provides an iterable over a set of files.
+
+    Parameters:
+    ----------
+    dataloader_generator : DataloaderGenerator: 
+        A dataloader generator
+        Generates dataloader based on given a file path.
+    dataset_path str : 
+        Path to the data files.
+    shuffle : bool
+        Set to ``True`` to have the files reshuffled at every epoch (default: ``False``).
+    local_rank : int
+        Local rank for the trainer (default: ``-1``).
+    world_size : int
+        Number of all trainers.
+    is_train : bool
+        Set to ``True`` if the provider is for training set (default: ``True``).
+    """
+
+    def __init__(
+        self,
+        dataloader_generator,
+        dataset_path,
+        shuffle=False,
+        local_rank=-1,
+        world_size=1,
+        is_train=True,
+    ):
+        # TODO (HZ): Implement prefetch_iterator function
+        # to use zero-copy shared memory (e.g., /dev/shm)
+        # for reducing the costs of serialization and deserialization.
+        # Make sure that each data shard is
+        # not too large so that workers_per_node * #DataProvider *
+        # num_prefetches * data_shard_size < shm_size.
+
+        self.is_train = is_train
+        assert dataset_path is not None, "dataset_path needs to be specified."
+        if not isinstance(dataset_path, str):
+            raise TypeError(
+                f"dataset_path should be a str, but got {type(dataset_path)} "
+                f"dataset_path={dataset_path}"
+            )
+        file_sampler = DistributedFileSampler(
+            dataset_path=dataset_path,
+            shuffle=shuffle,
+            local_rank=local_rank,
+            world_size=world_size,
+            is_train=is_train,
+        )
+
+        self.file_sampler = file_sampler
+        self.file_sampler_iter = iter(self.file_sampler)
+        self.dataloader_generator = dataloader_generator
+        self.dataloader = None
+        self.data_file = None
+
+        logging.info("DataProvider - Initialization: num_files = %s", len(file_sampler))
+
+    def get_iterator_name(self):
+        """ Return shard name.
+        """
+        return self.data_file
+
+    def refresh_manager(self):
+        """ refresh manager."""
+        self.file_sampler.sampler._index = -1
+
+    def get_iterator(self):
+        """ Get dataloader iterator for a data file.
+        """
+        dataloader = None
+        data_file = next(self.file_sampler_iter)
+
+        # TODO (HZ): implement a queue to store and pop the files by prefetch and get_iterator
+        if data_file is not None:
+            dataloader = self.dataloader_generator.generate(data_file, is_train=self.is_train)
+        self.data_file = data_file
+        self.dataloader = dataloader
+        return dataloader
+
+    def __len__(self):
+        return len(self.file_sampler)
+
+    def __next__(self):
+        return self.get_iterator()
+
+    def __iter__(self):
+        return self
+
+    def release_iterator(self):
+        """ Release the dataloader iterator.
+        """
+        self.dataloader = None
+        self.data_file = None
+
+class DistillDataloaderGenerator:
+    r""" Distill Data Generator that generates pytorch dataloader based on the given file.
+    
+    Parameters:
+    ----------
+    tokenizer : transformers.AutoTokenizer
+        HuggingFace Tokenizer.
+    max_seq_len : int
+        Maximum sequence length.
+    device : str
+        Device name.
+    batch_size : int
+        How many samples per batch to load.
+    collate_fn : func
+        Function to merge a list of samples to form a
+           mini-batch of Tensor(s)
+    """
+
+    def __init__(
+        self,
+        tokenizer,
+        max_seq_len,
+        device,
+        batch_size=1,
+        collate_fn=None,
+    ):
+        self.batch_size = batch_size
+        self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
+        self.device = device
+        self.collate_fn = collate_fn
+
+    def _data_len_sync(self, data):
+        r""" Drop additional samples to make sure each dataloader 
+        has the same number of batches. This is to avoid the training
+        stuck in distributed mode if any trainer has more or less batches.
+        
+        Parameters:
+        ----------
+        data : GSDistillData
+            The pytorch dataset for a trainer.
+
+        Returns:
+        -------
+        GSDistillData : The pytorch dataset for a trainer after the sync.
+        """
+        num_data = th.tensor(len(data), dtype=th.int64, device=self.device)
+        dist.all_reduce(num_data, op=dist.ReduceOp.MIN)
+        min_size = num_data.item()
+        select_index = th.randperm(len(data))[:min_size].tolist()
+        data.token_id_inputs = [data.token_id_inputs[i] for i in select_index]
+        data.labels = data.labels[select_index]
+        return data
+
+    def generate(self, input_files, is_train=True):
+        """ Generate dataloader given input files"
+
+        Parameters:
+        ----------
+        input_files : list of str
+            list of input files
+
+        Returns:
+        -------
+        torch.DataLoader : dataloaders for training
+        int : Number of samples in the dataloader
+        """
+        if not isinstance(input_files, (list, tuple)):
+            input_files = [input_files]
+
+        data = GSDistillData(input_files, self.tokenizer, self.max_seq_len, self.device)
+
+        # do all_reduce here:
+        if is_train:
+            data = self._data_len_sync(data)
+
+        collate_fn = data.get_collate_fn() if self.collate_fn is None else self.collate_fn
+        dataloader = DataLoader(
+            data,
+            batch_size=self.batch_size,
+            collate_fn=collate_fn,
+            pin_memory=True,
+        )
+        return dataloader
