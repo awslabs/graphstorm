@@ -212,16 +212,22 @@ data for distributed training.
 
 .. code:: bash
 
-   python launch/launch_partition.py --graph-data-s3 ${DATASET_S3_PATH} \
-       --num-parts ${NUM_PARTITIONS} --instance-count ${NUM_PARTITIONS} \
-       --output-data-s3 ${OUTPUT_PATH} --instance-type ${INSTANCE_TYPE} \
-       --image-url ${IMAGE_URI} --region ${REGION} \
-       --role ${ROLE}  --entry-point "run/partition_entry.py" \
+   python launch/launch_partition.py \
+       --graph-data-s3 ${DATASET_S3_PATH} \
+       --num-parts ${NUM_PARTITIONS} \
+       --instance-count ${NUM_PARTITIONS} \
+       --output-data-s3 ${OUTPUT_PATH} \
+       --instance-type ${INSTANCE_TYPE} \
+       --image-url ${IMAGE_URI} \
+       --region ${REGION} \
+       --role ${ROLE}  \
+       --entry-point "run/partition_entry.py" \
        --metadata-filename ${METADATA_FILE} \
-       --log-level INFO --partition-algorithm ${ALGORITHM}
+       --log-level INFO \
+       --partition-algorithm ${ALGORITHM}
 
-Running the above will take as input the dataset in chunked format from
-``${DATASET_S3_PATH}`` and create a DistDGL graph with
+Running the above will take take the dataset in chunked format
+from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
 ``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
 Currently we only support ``random`` as the partitioning algorithm.
 
@@ -267,7 +273,10 @@ the ``Processor`` base class, so its arguments are different,
 e.g. ``volume_size_in_gb`` for the ``Processor`` vs. ``volume_size`` for
 the ``Estimator``.
 
-So the above example would become:
+For a full list of ``Processor`` parameters see the `SageMaker Processor documentation.
+<https://sagemaker.readthedocs.io/en/stable/api/training/processing.html>`_
+
+Using ``Processor`` arguments the above example would become:
 
 .. code:: bash
 
@@ -275,8 +284,6 @@ So the above example would become:
        <other arugments> \
        --sm-estimator-parameters "max_runtime_in_seconds=3600 volume_size_in_gb=100"
 
-For a full list of ``Processor`` parameters see the `SageMaker Processor documentation.
-<https://sagemaker.readthedocs.io/en/stable/api/training/processing.html>`_
 
 Run GraphStorm SageMaker with Docker Compose
 ..............................................
