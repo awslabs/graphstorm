@@ -143,22 +143,20 @@ class GLEM(GSgnnNodeModelBase):
 
     @property
     def gnn_encoder(self):
-        """Alias for accessing the gnn_encoder. Hide gnn_encoder if the inference route is lm"""
+        """Alias for accessing the gnn_encoder. Hide gnn_encoder if the inference route is lm.
+        This property is only used for model inference and evaluation."""
         return self.gnn.gnn_encoder if self.inference_route_is_gnn else None
 
     @property
     def node_input_encoder(self):
-        """Alias for accessing the node_input_encoder"""
-        return self.lm.node_input_encoder
-
-    @property
-    def _node_input_encoder(self):
-        """Alias for accessing the node_input_encoder"""
+        """Alias for accessing the node_input_encoder.
+        This property is only used for model inference and evaluation."""
         return self.lm.node_input_encoder
 
     @property
     def decoder(self):
-        """Alias for accessing the decoder. """
+        """Alias for accessing the decoder.
+        This property is only used for model inference and evaluation."""
         return self.gnn.decoder if self.inference_route_is_gnn else self.lm.decoder
 
     def set_decoder(self, decoder):
