@@ -23,7 +23,6 @@ from torch.nn.parallel import DistributedDataParallel
 
 from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model.node_glem import GLEM
-from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem
