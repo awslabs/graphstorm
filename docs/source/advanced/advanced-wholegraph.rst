@@ -72,7 +72,7 @@ You can launch a container based on the Docker image built in the previous step.
                       --ulimit stack=67108864 \
                       --network=host \
                       --privileged \
-                      --name test -d -t graphstorm-wholegraph:
+                      --name test -d -t graphstorm-wholegraph:local
                       
 This command will create a GraphStorm-wholeGraph container, named test and run the container as a daemon.
 Then connect to the container by running the following command:
