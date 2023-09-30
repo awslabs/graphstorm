@@ -146,8 +146,8 @@ You can provide multiple features names such as ``--feat-names paper:feat author
 
 In the above example, the script will create a new folder named ``wholegraph`` under the ``ogbn-mag240m-2p`` folder, containing the WholeGraph input files. And the script will trim the distDGL file ``node_feat.dgl`` in each partition to remove the specified feature attributes, leaving only other attributes such as ``train_mask``, ``test_mask``, ``val_mask`` or ``labels`` intact. The script also keeps an copy of the original file in ``node_feat.dgl.bak``.
 
-Run training jobs for link prediction
---------------------------------------
+Run training jobs for link prediction using WholeGraph
+-------------------------------------------------------
 
 After completing the setup steps outlined in 1-3, launching a GraphStorm task with WholeGraph becomes a straightforward process. Once the machines are configured correctly, training jobs can be initiated using regular GraphStorm scripts. Utilizing WholeGraph within GraphStorm is seamless and doesn't require any additional steps. The system automatically detects the generated ``wholegraph`` folder and utilizes WholeGraph when available.
 
