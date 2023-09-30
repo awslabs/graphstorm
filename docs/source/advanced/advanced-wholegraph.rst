@@ -12,7 +12,7 @@ Feature transfer is often the most expensive module in a link prediction trainin
 
     WholeGraph support is an experimental feature of GraphStorm. Currently, only node features can be accessed through WholeGraph. We will add support of accessing edge features through WholeGraph in `the next release <https://github.com/awslabs/graphstorm/issues/512>`_.
 
-Setup GraphStorm-WholeGraph Docker Environment
+Setup GraphStorm-WholeGraph Docker environment
 ------------------------------------------------
 
 Prerequisite
