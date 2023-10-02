@@ -59,7 +59,25 @@ class GLEM(GSgnnNodeModelBase):
         self.num_pretrain_epochs = num_pretrain_epochs
         self.lm = GSgnnNodeModel(alpha_l2norm)
         self.gnn = GSgnnNodeModel(alpha_l2norm)
-        self.training_lm = not em_order_gnn_first
+        # `training_lm` has three states, controled by `.toggle()`:
+        # None: model is loaded for inference, inference logic is decided by `inference_using_gnn`
+        # True: lm is being trained
+        # False: gnn is being trained
+        self.training_lm = None
+
+    @property
+    def inference_route_is_gnn(self):
+        """This flag decides which inference route to perform: gnn (True) or lm (False).
+        This is decided based on the values of `training_lm` and `inference_using_gnn`.
+        There are two inference routes for GLEM:
+        - False (lm): lm.node_input_encoder->lm.decoder
+        - True (gnn): lm.node_input_encoder->gnn.gnn_encoder->gnn.decoder
+        """
+        if self.training_lm is None:
+            # GLEM is loaded for inference only, decide based `inference_using_gnn`
+            return self.inference_using_gnn
+        # GLEM is being trained: use gnn route if not training lm
+        return not self.training_lm
 
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """Initialize optimzer, which will be stored in self.lm._optimizer, self.gnn._optimizer
@@ -108,11 +126,10 @@ class GLEM(GSgnnNodeModelBase):
         self.lm.restore_dense_model(os.path.join(restore_model_path, 'LM'),
                                     model_layer_to_load)
         self.gnn.restore_dense_model(os.path.join(restore_model_path, 'GNN'),
-                                     model_layer_to_load)
+                                     ['gnn', 'decoder'])
 
     def restore_sparse_model(self, restore_model_path):
         self.lm.restore_sparse_model(os.path.join(restore_model_path, 'LM'))
-        self.gnn.restore_sparse_model(os.path.join(restore_model_path, 'GNN'))
 
     def set_node_input_encoder(self, encoder):
         """Set the node input LM encoder for lm, shared with gnn.
@@ -126,8 +143,21 @@ class GLEM(GSgnnNodeModelBase):
 
     @property
     def gnn_encoder(self):
-        """Alias for accessing the gnn_encoder"""
-        return self.gnn.gnn_encoder
+        """Alias for accessing the gnn_encoder. Hide gnn_encoder if the inference route is lm.
+        This property is only used for model inference and evaluation."""
+        return self.gnn.gnn_encoder if self.inference_route_is_gnn else None
+
+    @property
+    def node_input_encoder(self):
+        """Alias for accessing the node_input_encoder.
+        This property is only used for model inference and evaluation."""
+        return self.lm.node_input_encoder
+
+    @property
+    def decoder(self):
+        """Alias for accessing the decoder.
+        This property is only used for model inference and evaluation."""
+        return self.gnn.decoder if self.inference_route_is_gnn else self.lm.decoder
 
     def set_decoder(self, decoder):
         """Set the same decoder for both, since lm needs to be able to
@@ -321,8 +351,8 @@ class GLEM(GSgnnNodeModelBase):
 
     def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
         """Make prediction on the nodes with the LM or GNN.
-        The model's `inference_using_gnn` flag determines how inference is performed.
-        If inference_using_gnn is True, message-passing GNN is used on the LM features,
+        The model's `inference_route_is_gnn` flag determines how inference is performed.
+        If inference_route_is_gnn, message-passing GNN is used on the LM features,
         Otherwise, LM's decoder is used for inference, no message-passing involved.
 
         Parameters
@@ -345,8 +375,8 @@ class GLEM(GSgnnNodeModelBase):
         Tensor : the GNN embeddings.
         """
         emb_lm, emb_gnn = self._embed_nodes(blocks, node_feats, edge_feats, input_nodes,
-                                do_gnn_encode=self.inference_using_gnn)
-        if self.inference_using_gnn:
+                                do_gnn_encode=self.inference_route_is_gnn)
+        if self.inference_route_is_gnn:
             decoder = self.gnn.decoder
             emb = emb_gnn
         else:

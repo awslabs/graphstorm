@@ -1,8 +1,8 @@
-Distributed Processing setup for Amazon SageMaker
-=================================================
+GraphStorm Processing setup for Amazon SageMaker
+================================================
 
 In this guide we'll demonstrate how to prepare your environment to run
-GraphStorm Processing (GSP) jobs on Amazon SageMaker.
+GraphStorm Processing (GSProcessing) jobs on Amazon SageMaker.
 
 We're assuming a Linux host environment used throughout
 this tutorial, but other OS should work fine as well.

@@ -946,7 +946,8 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
     """
     if get_rank() == 0:
         logging.debug("Perform full-graph inference.")
-    assert isinstance(model, GSgnnModel), "Only GSgnnModel supports full-graph inference."
+    assert isinstance(model, GSgnnModel) or type(model).__name__ == 'GLEM',\
+        "Only GSgnnModel and GLEM support full-graph inference."
     t1 = time.time() # pylint: disable=invalid-name
     # full graph evaluation
     barrier()

@@ -6,7 +6,7 @@ paper data (`mag_papers_*.zip`). All data are stored in JSON format.
 To construct a graph for GNN training in GraphStorm, we need to preprocess the data
 and convert them to the format supported by GraphStorm in
 [here](https://github.com/awslabs/graphstorm/wiki/tutorials-own-data#use-own-data).
-This data preprocessing is done in the Notebook (`MAG_parser.ipynb`) on a CPU machine.
+This data preprocessing is done in the Notebook (`MAG_parser_v0.1.ipynb`) on a CPU machine.
 
 After the data preprocessing, we also need to run `ComputeBERTEmbed.ipynb` to compute
 BERT embeddings on the paper nodes and fos nodes. Please use a GPU machine to generate
@@ -48,7 +48,9 @@ python3 -m graphstorm.run.gs_link_prediction \
 ## Train GNN model to predict the venue of papers
 
 ### Construct the graph with venues as labels.
-First, we need to construct the MAG graph with venues as the label of paper nodes.
+To train a GNN model to predict the venues, a user should run `MAG_parser_v0.2.ipynb`
+to process the raw dataset to create labels of venues for node classification.
+Then we construct the MAG graph.
 ```
 python3 -m graphstorm.gconstruct.construct_graph \
 			--num-processes 16 \
@@ -225,5 +227,6 @@ while the accuracy of HGT is 67.20%.
 				--ip-config ip_list_4p.txt \
 				--cf mag_glem_nc.yaml \
 				--use-pseudolabel true \
-				--restore-model-path mag_pretrained_models
+				--restore-model-path mag_pretrained_models \
+				--restore-model-layers embed
 	```
