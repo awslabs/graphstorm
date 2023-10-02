@@ -134,7 +134,7 @@ The output should resemble with the following screenshot which includes `NCCL IN
 Convert node features to a WholeGraph-compatible format
 ---------------------------------------------------------
 
-Different from typical GraphStorm training where node features are stored in the ``node_feat.dgl`` in each partition, to utilize WholeGraph, the node features must be converted into a compatible WholeGraph format. After construct your raw data into GraphStorm required DistDGL format following this :ref:`graph construction tutorial<use-own-data>`, users can achieve this by utilizing the ``convert_feat_to_wholegraph.py`` script with ``--dataset-path`` pointing to the folder with the partitioned graph data and specify the features to be transformed using the ``—feat-names`` option. For example:
+Different from typical GraphStorm training where node features are stored in the ``node_feat.dgl`` in each partition, to utilize WholeGraph, the node features must be converted into a compatible WholeGraph format. After construct your raw data into GraphStorm required DistDGL format following this :ref:`graph construction tutorial<use-own-data>`, users can achieve this by utilizing the ``convert_feat_to_wholegraph.py`` script with ``--dataset-path`` pointing to the folder with the partitioned graph data and specify the features to be transformed using the ``--feat-names`` option. For example:
 
 .. code:: bash
 
