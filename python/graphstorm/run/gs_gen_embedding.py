@@ -16,7 +16,7 @@
     Entry point for running link prediction tasks.
 
     Run as:
-    python3 -m graphstorm.run.gs_gen_embedding <Launch args> <Train/Infer args>
+    python3 -m graphstorm.run.gs_gen_embedding <Launch args>
 """
 import os
 import logging
