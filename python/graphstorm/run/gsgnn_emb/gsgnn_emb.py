@@ -23,28 +23,6 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.dataloading import GSgnnLPTrainData
-from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
-from graphstorm.dataloading import GSgnnLPJointNegDataLoader
-from graphstorm.dataloading import GSgnnLPLocalUniformNegDataLoader
-from graphstorm.dataloading import GSgnnLPLocalJointNegDataLoader
-from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
-from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_LOCALJOINT_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
-from graphstorm.dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
-                                    BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
-                                    BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
-                                    BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
-from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
-                                    FastGSgnnLPJointNegDataLoader,
-                                    FastGSgnnLPLocalUniformNegDataLoader,
-                                    FastGSgnnLPLocalJointNegDataLoader)
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
