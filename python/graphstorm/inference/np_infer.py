@@ -20,7 +20,7 @@ from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_prediction_results
+from ..model.utils import save_node_prediction_results
 from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
@@ -87,9 +87,9 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         if use_mini_batch_infer:
             res = node_mini_batch_gnn_predict(self._model, loader, return_proba,
                                               return_label=do_eval)
-            pred = res[0]
+            preds = res[0]
             embs = res[1]
-            label = res[2] if do_eval else None
+            labels = res[2] if do_eval else None
 
             if isinstance(embs, dict):
                 embs = {ntype: embs[ntype]}
@@ -100,12 +100,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                                            task_tracker=self.task_tracker)
             res = node_mini_batch_predict(self._model, embs, loader, return_proba,
                                           return_label=do_eval)
-            pred = res[0]
-            label = res[1] if do_eval else None
-        if isinstance(pred, dict):
-            pred = pred[ntype]
-        if isinstance(label, dict):
-            label = label[ntype]
+            preds = res[0]
+            labels = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
         device = self.device
@@ -113,6 +109,11 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         # do evaluation first
         # do evaluation if any
         if do_eval:
+            if isinstance(pred, dict):
+                pred = preds[ntype]
+            if isinstance(label, dict):
+                label = labels[ntype]
+
             test_start = time.time()
             val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
             sys_tracker.check('run evaluation')
@@ -149,18 +150,20 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             # shuffle pred results according to node_id_mapping_file
             if node_id_mapping_file is not None:
                 g = loader.data.g
-
-                pred_shape = list(pred.shape)
-                pred_shape[0] = g.num_nodes(ntype)
-                pred_data = DistTensor(pred_shape, dtype=pred.dtype, name=f'predict-{ntype}',
-                                       part_policy=g.get_node_partition_policy(ntype),
-                                       # TODO: this makes the tensor persistent in memory.
-                                       persistent=True)
-                # nodes that have predictions may be just a subset of the
-                # entire node set.
-                pred_data[loader.target_nidx[ntype]] = pred.cpu()
-                pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, get_rank(),
-                                       get_world_size(), device=device)
-            save_prediction_results(pred, save_prediction_path, get_rank())
+                shuffled_preds = {}
+                for ntype, pred in preds.items():
+                    pred_shape = list(pred.shape)
+                    pred_shape[0] = g.num_nodes(ntype)
+                    pred_data = DistTensor(pred_shape, dtype=pred.dtype, name=f'predict-{ntype}',
+                                           part_policy=g.get_node_partition_policy(ntype),
+                                           # TODO: this makes the tensor persistent in memory.
+                                           persistent=True)
+                    # nodes that have predictions may be just a subset of the
+                    # entire node set.
+                    pred_data[loader.target_nidx[ntype]] = pred.cpu()
+                    pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, get_rank(),
+                                           get_world_size(), device=device)
+                    shuffled_preds[ntype] = pred
+            save_node_prediction_results(shuffled_preds, save_prediction_path)
         barrier()
         sys_tracker.check('save predictions')

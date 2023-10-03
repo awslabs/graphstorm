@@ -533,6 +533,7 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
                 embeddings[name] = emb
 
     emb_info = {
+        "format": "pytorch",
         "emb_name":[],
         "world_size":world_size
     }
@@ -576,6 +577,12 @@ def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
     node_id_mapping_file, device)
     if rank == 0:
         stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(model_path, "embed_dict.hdf5"))
+        emb_info = {
+            "format": "hdf5",
+            "world_size":0
+        }
+        with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+            f.write(json.dumps(emb_info))
 
 def save_embeddings(model_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None,
@@ -680,6 +687,58 @@ def save_prediction_results(predictions, prediction_path, rank):
     barrier()
 
     th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
+
+def save_node_prediction_results(predictions, prediction_path):
+    """ Save node predictions to the given path
+
+        Parameters
+        ----------
+        prediction: tensor
+            The dict of tensors of predictions.
+        prediction_path: str
+            The path of the prediction is saved.
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    for ntype, pred in predictions.items():
+        save_prediction_results(pred,
+                                os.path.join(prediction_path, ntype),
+                                rank)
+    if rank == 0:
+        meta_fname = os.path.join(prediction_path, "result_info.json")
+        meta_info = {
+            "format": "pytorch",
+            "world_size": world_size,
+            "ntypes": predictions.keys()
+        }
+        with open(meta_fname, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(meta_info))
+
+
+def save_edge_prediction_results(predictions, prediction_path):
+    """ Save edge predictions to the given path
+
+        Parameters
+        ----------
+        prediction: dict of tensor
+            The dict of tensors of predictions.
+        prediction_path: str
+            The path of the prediction is saved.
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    for etype, pred in predictions.items():
+        save_prediction_results(pred,
+                                os.path.join(prediction_path, "_".join(etype)), rank)
+    if rank == 0:
+        meta_fname = os.path.join(prediction_path, "result_info.json")
+        meta_info = {
+            "format": "pytorch",
+            "world_size": world_size,
+            "etypes": predictions.keys()
+        }
+        with open(meta_fname, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(meta_info))
 
 def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ Load a complete gnn model.
