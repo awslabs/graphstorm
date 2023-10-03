@@ -20,12 +20,12 @@ import time
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_ep_prediction_results
+from ..model.utils import save_edge_prediction_results
 from ..model.utils import shuffle_nids
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from ..utils import sys_tracker, get_world_size, get_rank, barrier
+from ..utils import sys_tracker, get_world_size, get_rank, barrier, create_dist_tensor
 
 class GSgnnEdgePredictionInferrer(GSInferrer):
     """ Edge classification/regression inferrer.
@@ -96,8 +96,8 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
             sys_tracker.check('compute embeddings')
             res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
                                           return_label=do_eval)
-        pred = res[0]
-        label = res[1] if do_eval else None
+        preds = res[0]
+        labels = res[1] if do_eval else None
         sys_tracker.check('compute prediction')
 
         # Only save the embeddings related to target edge types.
@@ -105,12 +105,12 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         # TODO support multiple etypes
         assert len(infer_data.eval_etypes) == 1, \
             "GraphStorm only support single target edge type for training and inference"
-        pred = pred[infer_data.eval_etypes[0]]
-        label = label[infer_data.eval_etypes[0]] if label is not None else None
 
         # do evaluation first
         if do_eval:
             test_start = time.time()
+            pred = preds[infer_data.eval_etypes[0]]
+            label = labels[infer_data.eval_etypes[0]] if labels is not None else None
             val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
@@ -137,20 +137,18 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
 
         if save_prediction_path is not None:
             g = loader.data.g
-            etype = infer_data.eval_etypes[0]
-            pred_src_nids, pred_dst_nids = g.find_edges(loader.target_eidx[etype], etype=etype)
+            shuffled_preds = {}
+            for etype, pred in preds.items():
+                pred_src_nids, pred_dst_nids = \
+                    g.find_edges(loader.target_eidx[etype], etype=etype)
 
-            if node_id_mapping_file is not None:
-                pred_src_nids = shuffle_nids(g, etype[0], pred_src_nids,
-                                             node_id_mapping_file, get_rank())
-                pred_dst_nids = shuffle_nids(g, etype[2], pred_dst_nids,
-                                             node_id_mapping_file, get_rank())
+                if node_id_mapping_file is not None:
+                    pred_src_nids = shuffle_nids(g, etype[0], pred_src_nids,
+                                                node_id_mapping_file, get_rank())
+                    pred_dst_nids = shuffle_nids(g, etype[2], pred_dst_nids,
+                                                node_id_mapping_file, get_rank())
+                shuffled_preds[etype] = (pred, pred_src_nids, pred_dst_nids)
+            save_edge_prediction_results(shuffled_preds, save_prediction_path)
 
-            save_ep_prediction_results(pred,
-                                       pred_src_nids,
-                                       pred_dst_nids,
-                                       os.path.join(save_prediction_path,
-                                                    "_".join(etype)),
-                                       get_rank())
         barrier()
         sys_tracker.check('save predictions')

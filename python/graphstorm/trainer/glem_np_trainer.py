@@ -23,7 +23,6 @@ from torch.nn.parallel import DistributedDataParallel
 
 from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model.node_glem import GLEM
-from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem
@@ -134,9 +133,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         if self.evaluator is not None:
             assert val_loader is not None, \
                     "The evaluator is provided but validation set is not provided."
-        if not use_mini_batch_infer:
-            assert isinstance(self._model, GSgnnModel), \
-                    "Only GSgnnModel supports full-graph inference."
 
         # computation graph will be changed during training.
         on_cpu = self.device == th.device('cpu')
