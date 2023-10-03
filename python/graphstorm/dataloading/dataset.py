@@ -649,9 +649,10 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
             else:
                 # Inference only
                 # we will do inference on the entire edge set
-                logging.info("%s does not contains test_mask, skip testing %s. " + \
-                        "We will do inference on the entire edge set.",
-                             str(canonical_etype), str(canonical_etype))
+                if get_rank() == 0:
+                    logging.info("%s does not contains test_mask, skip testing %s. " + \
+                            "We will do inference on the entire edge set.",
+                            str(canonical_etype), str(canonical_etype))
                 infer_idx = dgl.distributed.edge_split(
                     th.full((g.num_edges(canonical_etype),), True, dtype=th.bool),
                     pb, etype=canonical_etype, force_even=True)
