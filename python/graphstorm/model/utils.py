@@ -26,7 +26,6 @@ from torch import nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
-from dgl.distributed import DistTensor
 
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
