@@ -50,7 +50,8 @@ from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
-                     GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
+                     GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS,
+                     GLEM_CONFIGURABLE_PARAMETER_NAMES)
 
 from .utils import get_graph_name
 from ..utils import TORCH_MAJOR_VER, get_log_level
@@ -579,11 +580,15 @@ class GSConfig:
                     "inference_using_gnn": True,
                     "pl_weight": 0.5,
                     "num_pretrain_epochs": 1,
-                    "lm_param_group": ["pure_lm", 'sparse_embed', 'node_proj_matrix'],
+                    "lm_param_group": ["pure_lm", "node_proj_matrix"],
                     "gnn_param_group": ["node_input_projs"]
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
+                for param_group in ["lm_param_group", "gnn_param_group"]:
+                    assert set(self._training_method["kwargs"][param_group]).issubset(
+                        set(GLEM_CONFIGURABLE_PARAMETER_NAMES)),\
+                        f"{param_group} must be a subset of {GLEM_CONFIGURABLE_PARAMETER_NAMES}"
             return self._training_method
         return {"name": "default", "kwargs": {}}
 

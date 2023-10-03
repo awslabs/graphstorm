@@ -54,7 +54,7 @@ class GLEM(GSgnnNodeModelBase):
                  inference_using_gnn=True,
                  pl_weight=0.5,
                  num_pretrain_epochs=1,
-                 lm_param_group=['pure_lm', 'sparse_embed', 'node_proj_matrix'],
+                 lm_param_group=['pure_lm', 'node_proj_matrix'],
                  gnn_param_group=['node_input_projs']
                  ):
         super(GLEM, self).__init__()
@@ -66,31 +66,35 @@ class GLEM(GSgnnNodeModelBase):
         self.num_pretrain_epochs = num_pretrain_epochs
         self.lm = GSgnnNodeModel(alpha_l2norm)
         self.gnn = GSgnnNodeModel(alpha_l2norm)
-        
         # `training_lm` has three states, controled by `.toggle()`:
         # None: model is loaded for inference, inference logic is decided by `inference_using_gnn`
         # True: lm is being trained
         # False: gnn is being trained
         self.training_lm = None
-        
-        self.training_lm = not em_order_gnn_first
         assert set(lm_param_group).issubset(set(GLEM_CONFIGURABLE_PARAMETER_NAMES))
         assert set(gnn_param_group).issubset(set(GLEM_CONFIGURABLE_PARAMETER_NAMES))
         self.param_names_groups = {'lm': lm_param_group, 'gnn': gnn_param_group}
-        # to store the grouping of trainable parameters irrespective of input config:
-        self._default_parameter_groups = {
-            'lm': self.lm.decoder.parameters(),
-            'gnn': self.gnn.gnn_encoder.parameters()
+        # set up default flag for `training_sparse_embed` based on whether its trainable at
+        # either stages:
+        self.training_sparse_embed = 'sparse_embed' in lm_param_group + gnn_param_group
+
+    @property
+    def default_parameter_groups(self):
+        """To store the grouping of trainable parameters irrespective of input config"""
+        return {
+            'lm': list(self.lm.decoder.parameters()),
+            'gnn': list(self.gnn.gnn_encoder.parameters())
         }
 
     @property
     def named_params(self):
+        """Mapping parameter name to the actual list of parameters."""
         return {
-        'pure_lm': self.lm.get_lm_params(),
-        'sparse_embed': self.lm.get_sparse_params(),
-        'node_input_projs': self.lm.node_input_encoder.input_projs.parameters(),
-        'node_proj_matrix': self.lm.node_input_encoder.proj_matrix.parameters(),
-    }
+            'pure_lm': self.lm.get_lm_params(),
+            'sparse_embed': self.lm.get_sparse_params(),
+            'node_input_projs': list(self.lm.node_input_encoder.input_projs.parameters()),
+            'node_proj_matrix': list(self.lm.node_input_encoder.proj_matrix.parameters()),
+        }
 
     @property
     def inference_route_is_gnn(self):
@@ -186,21 +190,6 @@ class GLEM(GSgnnNodeModelBase):
         This property is only used for model inference and evaluation."""
         return self.gnn.decoder if self.inference_route_is_gnn else self.lm.decoder
 
-    @property
-    def node_input_encoder(self):
-        """Alias for accessing the node_input_encoder"""
-        return self.lm.node_input_encoder
-
-    @property
-    def _node_input_encoder(self):
-        """Alias for accessing the node_input_encoder"""
-        return self.lm.node_input_encoder
-
-    @property
-    def decoder(self):
-        """Alias for accessing the decoder"""
-        return self.gnn.decoder if self.inference_using_gnn else self.lm.decoder
-
     def set_decoder(self, decoder):
         """Set the same decoder for both, since lm needs to be able to
         predict node labels during training
@@ -214,25 +203,14 @@ class GLEM(GSgnnNodeModelBase):
         self.lm.set_loss_func(loss_fn)
         self.gnn.set_loss_func(loss_fn)
 
-    # def freeze_params(self, part='lm'):
-    #     """Freeze parameters in lm or gnn"""
-    #     params = self._default_parameter_groups[part]
-    #     for param_name in self.param_names_groups[part]:
-    #         if param_name == 'sparse_embed':
-    #             self.training_sparse_embed = False
-    #         else:
-    #             params.append(self.named_params[param_name])
-    #     for param in params:
-    #         param.requires_grad = False
-
     def toggle_params(self, part='lm', freeze=True):
         """Freeze or unfreeze parameters in lm or gnn"""
-        params = self._default_parameter_groups[part]
+        params = self.default_parameter_groups[part]
         for param_name in self.param_names_groups[part]:
             if param_name == 'sparse_embed':
                 self.training_sparse_embed = not freeze
             else:
-                params.append(self.named_params[param_name])
+                params.extend(self.named_params[param_name])
         for param in params:
             param.requires_grad = not freeze
 
