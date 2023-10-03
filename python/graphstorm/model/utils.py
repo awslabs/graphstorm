@@ -709,11 +709,10 @@ def save_node_prediction_results(predictions, prediction_path):
         meta_info = {
             "format": "pytorch",
             "world_size": world_size,
-            "ntypes": predictions.keys()
+            "ntypes": list(predictions.keys())
         }
         with open(meta_fname, 'w', encoding='utf-8') as f:
-            f.write(json.dumps(meta_info))
-
+            json.dump(meta_info, f, indent=4)
 
 def save_edge_prediction_results(predictions, prediction_path):
     """ Save edge predictions to the given path
@@ -735,10 +734,10 @@ def save_edge_prediction_results(predictions, prediction_path):
         meta_info = {
             "format": "pytorch",
             "world_size": world_size,
-            "etypes": predictions.keys()
+            "etypes": list(predictions.keys())
         }
         with open(meta_fname, 'w', encoding='utf-8') as f:
-            f.write(json.dumps(meta_info))
+            json.dump(meta_info, f, indent=4)
 
 def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ Load a complete gnn model.
