@@ -16,7 +16,6 @@
     Inferrer wrapper for edge classification and regression.
 """
 import time
-from dgl.distributed import DistTensor
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
@@ -25,7 +24,7 @@ from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from ..utils import sys_tracker, get_world_size, get_rank, barrier
+from ..utils import sys_tracker, get_world_size, get_rank, barrier, create_dist_tensor
 
 class GSgnnEdgePredictionInferrer(GSInferrer):
     """ Edge classification/regression inferrer.
@@ -140,11 +139,11 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                 etype = infer_data.eval_etypes[0]
                 pred_shape = list(pred.shape)
                 pred_shape[0] = g.num_edges(etype)
-                pred_data = DistTensor(pred_shape, dtype=pred.dtype,
-                                       name='predict-'+'-'.join(etype),
-                                       part_policy=g.get_edge_partition_policy(etype),
-                                       # TODO: this makes the tensor persistent in memory.
-                                       persistent=True)
+                pred_data = create_dist_tensor(pred_shape, dtype=pred.dtype,
+                                               name='predict-'+'-'.join(etype),
+                                               part_policy=g.get_edge_partition_policy(etype),
+                                               # TODO: this makes the tensor persistent in memory.
+                                               persistent=True)
                 # edges that have predictions may be just a subset of the
                 # entire edge set.
                 pred_data[loader.target_eidx[etype]] = pred.cpu()

@@ -23,7 +23,7 @@ To be more specific, these dataloaders will do neighbor sampling regardless of a
 With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localuniform`` dataloader on training a 2 layer RGCN on MAG dataset on four g5.48x instances.
 
 Multiple Target Node Types Training
-===================================
+-------------------------------------
 
 When training on a hetergenious graph, we often need to train a model by minimizing the objective function on more than one node type. GraphStorm provides supports to achieve this goal.
 

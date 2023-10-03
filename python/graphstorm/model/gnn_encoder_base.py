@@ -22,10 +22,10 @@ import logging
 import dgl
 import torch as th
 from torch import nn
-from dgl.distributed import DistTensor, node_split
+from dgl.distributed import node_split
 from .gs_layer import GSLayer
 
-from ..utils import get_rank, barrier, is_distributed
+from ..utils import get_rank, barrier, is_distributed, create_dist_tensor
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -142,11 +142,11 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
         for ntype in target_ntypes:
             h_dim = gnn_encoder.out_dims
             # Create dist tensor to store the output embeddings
-            out_embs[ntype] = DistTensor((g.number_of_nodes(ntype), h_dim),
-                                         dtype=th.float32, name='h-last',
-                                         part_policy=g.get_node_partition_policy (ntype),
-                                         # TODO(zhengda) this makes the tensor persistent in memory.
-                                         persistent=True)
+            out_embs[ntype] = create_dist_tensor((g.number_of_nodes(ntype), h_dim),
+                                                 dtype=th.float32, name='h-last',
+                                                 part_policy=g.get_node_partition_policy (ntype),
+                                                 # TODO(zhengda) this makes the tensor persistent.
+                                                 persistent=True)
             infer_nodes[ntype] = node_split(th.ones((g.number_of_nodes(ntype),),
                                                         dtype=th.bool),
                                                 partition_book=g.get_partition_book(),
@@ -298,11 +298,11 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
 
             # Create distributed tensors to store the embeddings.
             for k in target_ntypes:
-                y[k] = DistTensor((g.number_of_nodes(k), h_dim),
-                                  dtype=dtype, name=f'h-{layer_id}',
-                                  part_policy=g.get_node_partition_policy(k),
-                                  # TODO(zhengda) this makes the tensor persistent in memory.
-                                  persistent=True)
+                y[k] = create_dist_tensor((g.number_of_nodes(k), h_dim),
+                                          dtype=dtype, name=f'h-{layer_id}',
+                                          part_policy=g.get_node_partition_policy(k),
+                                          # TODO(zhengda) this makes the tensor persistent.
+                                          persistent=True)
 
         for k in h.keys():
             # some ntypes might be in the tensor h but are not in the output nodes
