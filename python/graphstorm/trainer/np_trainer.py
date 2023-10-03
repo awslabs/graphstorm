@@ -322,21 +322,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 test_label = None
             sys_tracker.check('after_test_score')
         else:
-            if isinstance(model, GLEM):
-                embedding_model = model.lm if model.training_lm else model
-                decoding_model = model.lm if model.training_lm else model.gnn
-            else:
-                embedding_model = model
-                decoding_model = model
-            emb = do_full_graph_inference(embedding_model, val_loader.data,
-                                          fanout=val_loader.fanout, task_tracker=self.task_tracker)
+            emb = do_full_graph_inference(model, val_loader.data, fanout=val_loader.fanout,
+                                          task_tracker=self.task_tracker)
             sys_tracker.check('after_full_infer')
-            val_pred, val_label = node_mini_batch_predict(decoding_model, emb, val_loader,
+            val_pred, val_label = node_mini_batch_predict(model, emb, val_loader,
                                                           return_proba, return_label=True)
             sys_tracker.check('after_val_score')
             if test_loader is not None:
                 test_pred, test_label = \
-                    node_mini_batch_predict(decoding_model, emb, test_loader, return_proba,
+                    node_mini_batch_predict(model, emb, test_loader, return_proba,
                                             return_label=True)
             else:
                 # there is no test set
