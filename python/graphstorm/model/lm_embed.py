@@ -18,6 +18,7 @@
 """
 
 import logging
+import time
 
 import torch as th
 from torch import nn
@@ -27,7 +28,7 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from ..utils import get_rank, barrier
+from ..utils import get_rank, barrier, create_dist_tensor
 
 def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=True):
     """ Update the lm_emb_cache using lanaguage models.
@@ -44,16 +45,14 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=
         Use float16 to store BERT embeddings.
     """
     for ntype in lm_models.ntypes:
+        start = time.time()
         lm_model = lm_models.get_lm_model(ntype)
         lm_node_feat = lm_models.get_lm_node_feat(ntype)
         lm_model.eval()
-        if get_rank() == 0:
-            logging.info('Compute bert embedding on node %s.', ntype)
         hidden_size = lm_model.feat_size
         # TODO we should not save the BERT embeddings on the graph data in the future.
         if 'bert_emb' not in g.nodes[ntype].data:
-            g.nodes[ntype].data['bert_emb'] = \
-                    dgl.distributed.DistTensor(
+            g.nodes[ntype].data['bert_emb'] = create_dist_tensor(
                         (g.number_of_nodes(ntype), hidden_size),
                         name="bert_emb",
                         dtype=th.float16 if use_fp16 else th.float32,
@@ -80,6 +79,9 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=
             else:
                 input_emb[input_nodes] = text_embs[ntype].to('cpu')
         barrier()
+        if get_rank() == 0:
+            logging.info('Computing bert embedding on node %s takes %.3f seconds',
+                         ntype, time.time() - start)
         lm_emb_cache[ntype] = input_emb
         lm_model.train()
 

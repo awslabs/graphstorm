@@ -42,6 +42,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    advanced/own-models
    advanced/language-models
    advanced/advanced-usages
+   advanced/advanced-wholegraph
 
 .. toctree::
    :maxdepth: 1
