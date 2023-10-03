@@ -29,7 +29,7 @@ import dgl
 from dgl.distributed import DistTensor
 
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
-from ..utils import get_rank, barrier, get_world_size
+from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
 
 def pad_file_index(file_index, width=5):
@@ -682,11 +682,11 @@ def shuffle_nids(g, ntype, nids, node_id_mapping_file, rank):
             Rank of the current process in a distributed environment.
     """
     num_nodes = g.num_nodes(ntype)
-    id_mapping_info = DistTensor((num_nodes,), dtype=th.int64,
-                                 name=f"mapping-{ntype}",
-                                 part_policy=g.get_node_partition_policy(ntype),
-                                 # TODO: this makes the tensor persistent in memory.
-                                 persistent=True)
+    id_mapping_info = create_dist_tensor((num_nodes,), dtype=th.int64,
+                                          name=f"mapping-{ntype}",
+                                          part_policy=g.get_node_partition_policy(ntype),
+                                          # TODO: this makes the tensor persistent in memory.
+                                          persistent=True)
     if rank == 0:
         id_mappings = th.load(node_id_mapping_file)
         # the id_mapping stores the mapping from shuffled node ID to original ID

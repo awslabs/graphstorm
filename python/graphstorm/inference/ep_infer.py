@@ -15,7 +15,6 @@
 
     Inferrer wrapper for edge classification and regression.
 """
-import os
 import time
 
 from .graphstorm_infer import GSInferrer
@@ -25,7 +24,7 @@ from ..model.utils import shuffle_nids
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from ..utils import sys_tracker, get_world_size, get_rank, barrier, create_dist_tensor
+from ..utils import sys_tracker, get_world_size, get_rank, barrier
 
 class GSgnnEdgePredictionInferrer(GSInferrer):
     """ Edge classification/regression inferrer.
