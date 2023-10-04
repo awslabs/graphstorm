@@ -46,7 +46,7 @@ def main(config_args):
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
 
-    if config.task_type == BUILTIN_TASK_LINK_PREDICTION or not config.task_type:
+    if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
         train_data = GSgnnLPTrainData(config.graph_name,
                                       config.part_config,
                                       train_etypes=config.train_etype,
