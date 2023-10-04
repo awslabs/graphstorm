@@ -26,7 +26,7 @@ import dgl
 from numpy.testing import assert_equal, assert_almost_equal
 from dgl.distributed import DistTensor
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
-from graphstorm.model.utils import _get_data_range
+from graphstorm.model.utils import get_data_range
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
 from graphstorm.model.utils import shuffle_predict, shuffle_nids
 from graphstorm.model.utils import pad_file_index
@@ -85,34 +85,34 @@ def helper_save_embedding(tmpdirname):
     return type0_random_emb, type1_random_emb
 
 def test_get_data_range():
-    # test _get_data_range
+    # test get_data_range
     # num_embs < world_size, only latest rank will do the work
-    start, end = _get_data_range(0, 3, 2)
+    start, end = get_data_range(0, 3, 2)
     assert start == 0
     assert end == 0
 
-    start, end = _get_data_range(1, 3, 2)
+    start, end = get_data_range(1, 3, 2)
     assert start == 0
     assert end == 0
 
-    start, end = _get_data_range(2, 3, 2)
+    start, end = get_data_range(2, 3, 2)
     assert start == 0
     assert end == 2
 
     # num_embs > world_size
-    start, end = _get_data_range(0, 2, 5)
+    start, end = get_data_range(0, 2, 5)
     assert start == 0
     assert end == 2
 
-    start, end = _get_data_range(1, 2, 5)
+    start, end = get_data_range(1, 2, 5)
     assert start == 2
     assert end == 5
 
-    start, end = _get_data_range(0, 2, 4)
+    start, end = get_data_range(0, 2, 4)
     assert start == 0
     assert end == 2
 
-    start, end = _get_data_range(1, 2, 4)
+    start, end = get_data_range(1, 2, 4)
     assert start == 2
     assert end == 4
 
@@ -135,13 +135,13 @@ def run_dist_exchange_node_id_mapping(worker_rank, world_size, backend,
 @pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_exchange_node_id_mapping(num_embs, backend):
     node_id_mapping = th.randperm(num_embs)
-    start, end = _get_data_range(0, 4, num_embs)
+    start, end = get_data_range(0, 4, num_embs)
     target_nid_mapping_0 = node_id_mapping[start:end]
-    start, end = _get_data_range(1, 4, num_embs)
+    start, end = get_data_range(1, 4, num_embs)
     target_nid_mapping_1 = node_id_mapping[start:end]
-    start, end = _get_data_range(2, 4, num_embs)
+    start, end = get_data_range(2, 4, num_embs)
     target_nid_mapping_2 = node_id_mapping[start:end]
-    start, end = _get_data_range(3, 4, num_embs)
+    start, end = get_data_range(3, 4, num_embs)
     target_nid_mapping_3 = node_id_mapping[start:end]
     ctx = mp.get_context('spawn')
     p0 = ctx.Process(target=run_dist_exchange_node_id_mapping,
@@ -244,7 +244,7 @@ def test_distribute_nid_map(backend):
             target_nid_maps[ntype] = []
             _, sorted_nid_map = th.sort(ori_nid_maps[ntype])
             for i in range(4):
-                start, end = _get_data_range(i, 4, g.number_of_nodes(ntype))
+                start, end = get_data_range(i, 4, g.number_of_nodes(ntype))
                 target_nid_maps[ntype].append(sorted_nid_map[start:end].clone())
 
         nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")

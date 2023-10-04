@@ -16,6 +16,7 @@
     Generate example graph data using built-in datasets for node classifcation,
     node regression, edge classification and edge regression.
 """
+import os
 import logging
 
 import pandas as pd
@@ -23,6 +24,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
 
+from .file_io import read_data_parquet
 from .utils import ExtMemArrayWrapper
 
 class NoopMap:
@@ -65,6 +67,59 @@ class NoopMap:
         file_path : str
             The file where the ID map is saved to.
         """
+
+class IdReverseMap:
+    """ Map GraphStorm ID into original Node ID
+
+        This loads an ID map for output IDs.
+
+        Parameters
+        ----------
+        id_map_path : str
+            Id mapping file path
+    """
+    def __init__(self, id_map_path):
+        assert os.path.exists(id_map_path), \
+            f"{id_map_path} does not exits."
+        data = read_data_parquet(["new", "orig"])
+        sort_idx = np.argsort(data['new'])
+        self._ids = data['orig'][sort_idx]
+
+    def __len__(self):
+        return len(self._ids)
+
+    def map_range(self, start, end):
+        """ Map a range of GraphStorm IDs to the raw IDs.
+
+        Parameters
+        ----------
+        start : int
+            Starting idx
+        end: int
+            Ending indx
+
+        Returns
+        -------
+        tensor: A tensor of raw IDs.
+        """
+        return self._ids[start:end]
+
+    def map_id(self, ids):
+        """ Map the GraphStorm IDs to the raw IDs.
+
+        Parameters
+        ----------
+        ids : tensor
+            The input IDs
+
+        Returns
+        -------
+        tensor: A tensor of raw IDs.
+        """
+        if len(ids) == 0:
+            return np.array([], dtype=np.str)
+
+        return self._ids[ids]
 
 class IdMap:
     """ Map an ID to a new ID.
