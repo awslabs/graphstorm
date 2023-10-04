@@ -21,12 +21,15 @@ import os
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.trainer import GSgnnLinkPredictionTrainer
-from graphstorm.dataloading import GSgnnLPTrainData
+from graphstorm.dataloading import GSgnnLPTrainData, GSgnnNodeTrainData, GSgnnEdgeTrainData
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
-
+from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
+                                BUILTIN_TASK_NODE_REGRESSION,
+                                BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                BUILTIN_TASK_EDGE_REGRESSION,
+                                BUILTIN_TASK_LINK_PREDICTION)
 
 def main(config_args):
     """ main function
@@ -39,16 +42,32 @@ def main(config_args):
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)
-    train_data = GSgnnLPTrainData(config.graph_name,
-                                  config.part_config,
-                                  train_etypes=config.train_etype,
-                                  eval_etypes=config.eval_etype,
-                                  node_feat_field=config.node_feat_name,
-                                  pos_graph_feat_field=config.lp_edge_weight_for_loss)
 
-    # Preparing input layer for training or inference.
-    # The input layer can pre-compute node features in the preparing step if needed.
-    # For example pre-compute all BERT embeddings
+    if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
+        train_data = GSgnnLPTrainData(config.graph_name,
+                                      config.part_config,
+                                      train_etypes=config.train_etype,
+                                      eval_etypes=config.eval_etype,
+                                      node_feat_field=config.node_feat_name,
+                                      pos_graph_feat_field=config.lp_edge_weight_for_loss)
+    elif config.task_type == BUILTIN_TASK_NODE_REGRESSION or BUILTIN_TASK_NODE_CLASSIFICATION:
+        train_data = GSgnnNodeTrainData(config.graph_name,
+                                        config.part_config,
+                                        train_ntypes=config.target_ntype,
+                                        eval_ntypes=config.eval_target_ntype,
+                                        node_feat_field=config.node_feat_name,
+                                        label_field=config.label_field)
+    elif config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION or BUILTIN_TASK_EDGE_REGRESSION:
+        train_data = GSgnnEdgeTrainData(config.graph_name,
+                                        config.part_config,
+                                        train_etypes=config.target_etype,
+                                        node_feat_field=config.node_feat_name,
+                                        label_field=config.label_field,
+                                        decoder_edge_feat=config.decoder_edge_feat)
+    else:
+        raise TypeError("Not supported for task type: ", config.task_type)
+
+    # assert the setting for the graphstorm embedding generation.
     assert (config.save_embed_path is not None, "save embeded path cannot be none for gs_gen_embeddings")
     assert (config.restore_model_path is not None, "restore model path cannot be none for gs_gen_embeddings")
 
