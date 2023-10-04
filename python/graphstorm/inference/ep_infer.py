@@ -142,10 +142,10 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                     pred_shape = list(pred.shape)
                     pred_shape[0] = g.num_edges(etype)
                     pred_data = create_dist_tensor(pred_shape, dtype=pred.dtype,
-                                                   name='predict-'+'-'.join(etype),
-                                                   part_policy=g.get_edge_partition_policy(etype),
-                                                   # TODO: this makes the tensor persistent in memory.
-                                                   persistent=True)
+                        name='predict-'+'-'.join(etype),
+                        part_policy=g.get_edge_partition_policy(etype),
+                        # TODO: this makes the tensor persistent in memory.
+                        persistent=True)
                     # edges that have predictions may be just a subset of the
                     # entire edge set.
                     pred_data[loader.target_eidx[etype]] = pred.cpu()

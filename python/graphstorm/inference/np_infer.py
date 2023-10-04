@@ -157,10 +157,10 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                     pred_shape = list(pred.shape)
                     pred_shape[0] = g.num_nodes(ntype)
                     pred_data = create_dist_tensor(pred_shape, dtype=pred.dtype,
-                                                   name=f'predict-{ntype}',
-                                                   part_policy=g.get_node_partition_policy(ntype),
-                                                   # TODO: this makes the tensor persistent in memory.
-                                                   persistent=True)
+                        name=f'predict-{ntype}',
+                        part_policy=g.get_node_partition_policy(ntype),
+                        # TODO: this makes the tensor persistent in memory.
+                        persistent=True)
                     # nodes that have predictions may be just a subset of the
                     # entire node set.
                     pred_data[loader.target_nidx[ntype]] = pred.cpu()
