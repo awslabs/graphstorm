@@ -22,15 +22,21 @@ Prerequisite
     
     2. **EFA-enabled security group**: Please follow the `steps <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start-nccl-base.html#nccl-start-base-setup>`_ to prepare an EFA-enabled security group for Amazon EC2 instances.
     
-    3. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
+    3. **NVIDIA-Docker**: You need to install NVIDIA Docker in your environment and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
-For example, in an Amazon EC2 instance without Docker preinstalled, you can run the following commands to install Docker.
+For example, in an Amazon EC2 instance without Docker preinstalled, you can run the following commands to install NVIDIA Docker.
 
 .. code:: bash
 
+    distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+    && curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+    && curl -s -L https://nvidia.github.io/libnvidia-container/experimental/$distribution/libnvidia-container.list | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+        sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
     sudo apt-get update
-    sudo apt update
-    sudo apt install Docker.io
+    sudo apt-get install -y nvidia-docker2
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
 
 Launch instance with EFA support
 --------------------------------------------------------
