@@ -32,6 +32,19 @@ For example, in an Amazon EC2 instance without Docker preinstalled, you can run 
     sudo apt update
     sudo apt install Docker.io
 
+Launch instance with EFA support
+--------------------------------------------------------
+
+While launching the EFA supported EC2 instances, in the Network settings section, choose Edit, and then do the following:
+
+    1. For Subnet, choose the subnet in which to launch the instance. If you do not select a subnet, you can't enable the instance for EFA.
+
+    2. For Firewall (security groups), choose Select existing security group, and then select the EFA-enabled security group
+
+    3. Expand the Advanced network configuration section, and for Elastic Fabric Adapter, select Enable.
+
+
+
 Build a GraphStorm-WholeGraph Docker image from source
 --------------------------------------------------------
 
