@@ -246,7 +246,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                          input_nodes_u=input_nodes_u)
             profiler.record('train_forward')
 
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad(optimize_sparse_params=model.module.training_sparse_embed)
             loss.backward()
             profiler.record('train_backward')
             self.optimizer.step(optimize_sparse_params=model.module.training_sparse_embed)

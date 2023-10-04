@@ -88,10 +88,12 @@ class GSOptimizer():
         for optimizer in all_opts:
             assert optimizer is not None
 
-    def zero_grad(self):
+    def zero_grad(self, optimize_sparse_params=True):
         """ Setting the gradient to zero
         """
-        all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
+        all_opts = self.dense_opts + self.lm_opts
+        if optimize_sparse_params:
+            all_opts += self.sparse_opts
         for optimizer in all_opts:
             optimizer.zero_grad()
 
