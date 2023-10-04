@@ -15,9 +15,6 @@
 
     GSgnn pure gpu generate embeddings.
 """
-
-import os
-
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -71,8 +68,10 @@ def main(config_args):
         raise TypeError("Not supported for task type: ", config.task_type)
 
     # assert the setting for the graphstorm embedding generation.
-    assert config.save_embed_path is not None, "save embeded path cannot be none for gs_gen_embeddings"
-    assert config.restore_model_path is not None, "restore model path cannot be none for gs_gen_embeddings"
+    assert config.save_embed_path is not None, \
+        "save embeded path cannot be none for gs_gen_embeddings"
+    assert config.restore_model_path is not None, \
+        "restore model path cannot be none for gs_gen_embeddings"
 
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION or not config.task_type:
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
