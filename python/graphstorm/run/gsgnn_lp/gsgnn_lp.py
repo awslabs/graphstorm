@@ -203,7 +203,7 @@ def main(config_args):
                         gs.get_world_size(),
                         device=device,
                         node_id_mapping_file=config.node_id_mapping_file,
-                        save_embed_format=save_embed_format)
+                        save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser
