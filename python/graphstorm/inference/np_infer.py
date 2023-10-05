@@ -109,10 +109,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         # do evaluation first
         # do evaluation if any
         if do_eval:
-            if isinstance(pred, dict):
-                pred = preds[ntype]
-            if isinstance(label, dict):
-                label = labels[ntype]
+            pred = preds[ntype]
+            label = labels[ntype]
 
             test_start = time.time()
             val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
