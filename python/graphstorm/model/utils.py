@@ -31,6 +31,9 @@ from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import get_rank, barrier, get_world_size
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
 
+# placeholder of the ntype for homogeneous graphs
+NTYPE = dgl.NTYPE
+
 def pad_file_index(file_index, width=5):
     """ Left pad file_index with zerros.
 
@@ -540,11 +543,15 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
-            th.save(emb, os.path.join(model_path, f'{name}_emb.part{pad_file_index(rank)}.bin'))
+            th.save(emb, os.path.join(os.path.join(model_path, name),
+                                      f'emb.part{pad_file_index(rank)}.bin'))
             emb_info["emb_name"].append(name)
     else:
-        th.save(embeddings, os.path.join(model_path, f'emb.part{pad_file_index(rank)}.bin'))
-        emb_info["emb_name"] = None
+        # There is no ntype for the embedding
+        # use NTYPE
+        th.save(embeddings, os.path.join(os.path.join(model_path, NTYPE),
+                                         f'emb.part{pad_file_index(rank)}.bin'))
+        emb_info["emb_name"] = NTYPE
 
     if rank == 0:
         with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
@@ -586,7 +593,7 @@ def save_embeddings(model_path, embeddings, rank, world_size,
         ----------
         model_path : str
             The path of the folder where the model is saved.
-        embeddings : DistTensor
+        embeddings : dict of DistTensor or DistTensor
             Embeddings to save
         rank : int
             Rank of the current process in a distributed environment.

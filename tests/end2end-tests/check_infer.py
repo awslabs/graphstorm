@@ -56,17 +56,23 @@ if __name__ == '__main__':
     info_emb_files = sorted(info_emb_files)
     for name in info_emb_info["emb_name"]:
         train_emb = []
-        for f in train_emb_files:
-            if f.startswith(f'{name}_emb.part'):
+        for ntype in train_emb_files:
+            ntype_emb_path = os.path.join(args.train_embout, ntype)
+            ntype_emb_files = os.listdir(ntype_emb_path)
+            ntype_emb_files = sorted(ntype_emb_files)
+            for f in ntype_emb_files:
                 # Only work with torch 1.13+
-                train_emb.append(th.load(os.path.join(args.train_embout, f),weights_only=True))
+                train_emb.append(th.load(os.path.join(ntype_emb_path, f),weights_only=True))
         train_emb = th.cat(train_emb, dim=0)
 
         infer_emb = []
-        for f in info_emb_files:
-            if f.startswith(f'{name}_emb.part'):
+        for ntype in info_emb_files:
+            ntype_emb_path = os.path.join(args.infer_embout, ntype)
+            ntype_emb_files = os.listdir(ntype_emb_path)
+            ntype_emb_files = sorted(ntype_emb_files)
+            for f in ntype_emb_files:
                 # Only work with torch 1.13+
-                infer_emb.append(th.load(os.path.join(args.infer_embout, f), weights_only=True))
+                infer_emb.append(th.load(os.path.join(ntype_emb_path, f), weights_only=True))
         infer_emb = th.cat(infer_emb, dim=0)
 
         assert train_emb.shape[0] == infer_emb.shape[0]
