@@ -70,5 +70,7 @@ BUILTIN_LP_DISTMULT_DECODER = "distmult"
 SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER, BUILTIN_LP_DISTMULT_DECODER]
 
 # GLEM supports configuring the parameter grouping of the following:
-GLEM_CONFIGURABLE_PARAMETER_NAMES = [
-    "pure_lm", "sparse_embed", "node_input_projs", "node_proj_matrix"]
+GLEM_CONFIGURABLE_PARAMETER_NAMES = {
+    "gnn_param_group": set(["pure_lm", "sparse_embed", "node_input_projs", "node_proj_matrix"]),
+    "lm_param_group": set(["pure_lm", "node_input_projs", "node_proj_matrix"])
+    }

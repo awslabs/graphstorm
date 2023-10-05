@@ -586,9 +586,10 @@ class GSConfig:
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
                 for param_group in ["lm_param_group", "gnn_param_group"]:
+                    allowed_param_set = GLEM_CONFIGURABLE_PARAMETER_NAMES[param_group]
                     assert set(self._training_method["kwargs"][param_group]).issubset(
-                        set(GLEM_CONFIGURABLE_PARAMETER_NAMES)),\
-                        f"{param_group} must be a subset of {GLEM_CONFIGURABLE_PARAMETER_NAMES}"
+                        allowed_param_set),\
+                        f"{param_group} must be a subset of {allowed_param_set}"
             return self._training_method
         return {"name": "default", "kwargs": {}}
 

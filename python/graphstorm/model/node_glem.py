@@ -71,8 +71,8 @@ class GLEM(GSgnnNodeModelBase):
         # True: lm is being trained
         # False: gnn is being trained
         self.training_lm = None
-        assert set(lm_param_group).issubset(set(GLEM_CONFIGURABLE_PARAMETER_NAMES))
-        assert set(gnn_param_group).issubset(set(GLEM_CONFIGURABLE_PARAMETER_NAMES))
+        assert set(lm_param_group).issubset(GLEM_CONFIGURABLE_PARAMETER_NAMES['lm_param_group'])
+        assert set(gnn_param_group).issubset(GLEM_CONFIGURABLE_PARAMETER_NAMES['gnn_param_group'])
         self.param_names_groups = {'lm': lm_param_group, 'gnn': gnn_param_group}
         # set up default flag for `training_sparse_embed` based on whether its trainable at
         # either stages:
