@@ -88,8 +88,12 @@ def main(config_args):
     # For example pre-compute all BERT embeddings
     model.prepare_input_encoder(train_data)
     # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
-    embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
-                                         task_tracker=tracker)
+    if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
+                                         edge_mask="train_mask", task_tracker=tracker)
+    else:
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
+                                             task_tracker=tracker)
     save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                      gs.get_world_size(),
                      device=device,
