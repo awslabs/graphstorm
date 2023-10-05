@@ -691,6 +691,39 @@ def save_prediction_results(predictions, prediction_path, rank):
 def save_node_prediction_results(predictions, prediction_path):
     """ Save node predictions to the given path
 
+        The saved node prediction results looks like:
+
+        Example:
+        --------
+        .. code::
+            PATH_TO_RESULTS:
+            |- result_info.json
+            |- ntype0
+                |- predict-00000.pt
+                |- predict-00001.pt
+                |- ...
+            |- ntype1
+                |- ...
+
+        The result_info.json contains three information:
+           * "format", how data are stored, e.g., "pytorch".
+           * "world_size", the total number of file parts. 0 means there is no partition.
+           * "ntypes", a list of node types that have prediction results.
+
+        Example:
+        --------
+        .. code::
+            {
+                "format": "pytorch",
+                "world_size": 8,
+                "ntypes": ["movie", "user"]
+            }
+
+        .. note::
+        The saved prediction results are in GraphStorm node ID space.
+        You need to remap them into raw input
+        node ID space by following [LINK].
+
         Parameters
         ----------
         prediction: tensor
@@ -716,6 +749,39 @@ def save_node_prediction_results(predictions, prediction_path):
 
 def save_edge_prediction_results(predictions, prediction_path):
     """ Save edge predictions to the given path
+
+        Example:
+        --------
+        The saved node prediction results looks like:
+
+        .. code::
+            PATH_TO_RESULTS:
+            |- result_info.json
+            |- etype0
+                |- predict-00000.pt
+                |- predict-00001.pt
+                |- ...
+            |- etype1
+                |- ...
+
+        The result_info.json contains three information:
+           * "format", how data are stored, e.g., "pytorch".
+           * "world_size", the total number of file parts. 0 means there is no partition.
+           * "etypes", a list of edge types that have prediction results.
+
+        Example:
+        --------
+        .. code::
+            {
+                "format": "pytorch",
+                "world_size": 8,
+                "etypes": [("movie","rated-by","user"), ("user","watched","movie")]
+            }
+
+        .. note::
+        The saved prediction results are in GraphStorm node ID space.
+        You need to remap them into raw input
+        node ID space by following [LINK].
 
         Parameters
         ----------
