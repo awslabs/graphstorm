@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import os
+import json
 import tempfile
 import pytest
 import multiprocessing as mp
@@ -22,13 +23,15 @@ import h5py
 import torch as th
 import numpy as np
 import dgl
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_almost_equal
 from dgl.distributed import DistTensor
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
 from graphstorm.model.utils import _get_data_range
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
 from graphstorm.model.utils import shuffle_predict
 from graphstorm.model.utils import pad_file_index
+from graphstorm.model.utils import save_node_prediction_results
+from graphstorm.model.utils import save_edge_prediction_results
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
@@ -605,7 +608,131 @@ def test_pad_file_index():
         fail = True
     assert fail
 
+def run_dist_save_predict_results(func, result_path, predictions, worker_rank, world_size):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=worker_rank)
+    func(predictions, result_path)
+
+    th.distributed.barrier()
+    if worker_rank == 0:
+        th.distributed.destroy_process_group()
+
+def test_save_node_prediction_results():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        ntype0 = "ntype0"
+        ntype1 = "ntype1"
+        predictions0 = {
+            ntype0: th.rand((10, 4)),
+            ntype1: th.rand((10, 4)),
+        }
+        predictions1 = {
+            ntype0: th.rand((10, 4)),
+            ntype1: th.rand((10, 4)),
+        }
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_dist_save_predict_results,
+                         args=(save_node_prediction_results,
+                               tmpdirname, predictions0, 0, 2))
+        p1 = ctx.Process(target=run_dist_save_predict_results,
+                         args=(save_node_prediction_results,
+                               tmpdirname, predictions1, 1, 2))
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+
+        os.path.exists(os.path.join(tmpdirname, "result_info.json"))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join(ntype0, "predict-00000.pt")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join(ntype0, "predict-00001.pt")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join(ntype1, "predict-00000.pt")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join(ntype1, "predict-00001.pt")))
+        with open(os.path.join(tmpdirname, "result_info.json"), 'r', encoding='utf-8') as f:
+            info = json.load(f)
+            assert info["format"] == "pytorch"
+            assert info["world_size"] == 2
+            assert set(info["ntypes"]) == set([ntype0, ntype1])
+
+        n0_feat0 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "predict-00000.pt")))
+        n0_feat1 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "predict-00001.pt")))
+        n1_feat0 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "predict-00000.pt")))
+        n1_feat1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "predict-00001.pt")))
+
+        assert_almost_equal(th.cat([n0_feat0, n0_feat1]).numpy(),
+                            th.cat([predictions0[ntype0], predictions1[ntype0]]).numpy())
+        assert_almost_equal(th.cat([n1_feat0, n1_feat1]).numpy(),
+                            th.cat([predictions0[ntype1], predictions1[ntype1]]).numpy())
+
+def test_save_edge_prediction_results():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        etype0 = ("ntype0", "rel0", "ntype1")
+        etype1 = ("ntype0", "rel1", "ntype2")
+        predictions0 = {
+            etype0: th.rand((10, 4)),
+            etype1: th.rand((10, 4)),
+        }
+        predictions1 = {
+            etype0: th.rand((10, 4)),
+            etype1: th.rand((10, 4)),
+        }
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_dist_save_predict_results,
+                         args=(save_edge_prediction_results,
+                               tmpdirname, predictions0, 0, 2))
+        p1 = ctx.Process(target=run_dist_save_predict_results,
+                         args=(save_edge_prediction_results,
+                               tmpdirname, predictions1, 1, 2))
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+
+        os.path.exists(os.path.join(tmpdirname, "result_info.json"))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join("_".join(etype0), "predict-00000.pt")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join("_".join(etype0), "predict-00001.pt")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join("_".join(etype1), "predict-00000.pt")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join("_".join(etype1), "predict-00001.pt")))
+        with open(os.path.join(tmpdirname, "result_info.json"), 'r', encoding='utf-8') as f:
+            info = json.load(f)
+            assert info["format"] == "pytorch"
+            assert info["world_size"] == 2
+            print(info["etypes"])
+            print([etype0, etype1])
+            assert set([tuple(etype) for etype in info["etypes"]]) == set([etype0, etype1])
+
+        e0_feat0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype0), "predict-00000.pt")))
+        e0_feat1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype0), "predict-00001.pt")))
+        e1_feat0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype1), "predict-00000.pt")))
+        e1_feat1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype1), "predict-00001.pt")))
+
+        assert_almost_equal(th.cat([e0_feat0, e0_feat1]).numpy(),
+                            th.cat([predictions0[etype0], predictions1[etype0]]).numpy())
+        assert_almost_equal(th.cat([e1_feat0, e1_feat1]).numpy(),
+                            th.cat([predictions0[etype1], predictions1[etype1]]).numpy())
+
 if __name__ == '__main__':
+    test_save_node_prediction_results()
+    test_save_edge_prediction_results()
     test_distribute_nid_map(backend='gloo')
     test_distribute_nid_map(backend='nccl')
 
