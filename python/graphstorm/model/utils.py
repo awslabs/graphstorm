@@ -543,10 +543,12 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
+            os.makedirs(os.path.join(model_path, name), exist_ok=True)
             th.save(emb, os.path.join(os.path.join(model_path, name),
                                       f'emb.part{pad_file_index(rank)}.bin'))
             emb_info["emb_name"].append(name)
     else:
+        os.makedirs(os.path.join(model_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
         # use NTYPE
         th.save(embeddings, os.path.join(os.path.join(model_path, NTYPE),
