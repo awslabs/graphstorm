@@ -24,7 +24,7 @@ import dgl
 import pylibwholegraph.torch as wgth
 
 
-def main(folder):
+def main(folder, feat_names):
     """ Convert node features from distDGL format to WholeGraph format"""
     os.environ['MASTER_ADDR'] = '127.0.0.1'
     os.environ['MASTER_PORT'] = '1234'
@@ -34,7 +34,7 @@ def main(folder):
     if not os.path.exists(wg_folder):
         os.makedirs(wg_folder)
 
-    # TODO(IN): Add support for edge features
+    # TODO(IN): Add support for labels and edge features
     node_feats_data = []
     folder_pattern = re.compile(r"^part[0-9]+$")
     for path in (os.path.join(folder, name) for name in sorted( \
@@ -42,13 +42,32 @@ def main(folder):
         and folder_pattern.match(f)), key=lambda x: int(x.split("part")[1]))):
         node_feats_data.append(dgl.data.utils.load_tensors(f'{path}/node_feat.dgl'))
 
+    # per node type feature
+    fname_dict = {}
+    for feat_name in feat_names:
+        feat_info = feat_name.split(":")
+        assert len(feat_info) == 2, \
+                f"Unknown format of the feature name: {feat_name}, " + \
+                "must be NODE_TYPE:FEAT_NAME"
+        ntype = feat_info[0]
+        assert ntype not in fname_dict, \
+                f"You already specify the feature names of {ntype} " \
+                f"as {fname_dict[ntype]}"
+        assert isinstance(feat_info[1], str), \
+            f"Feature name of {ntype} should be a string not {feat_info[1]}"
+        # multiple features separated by ','
+        fname_dict[ntype] = feat_info[1].split(",")
+
     num_parts = len(node_feats_data)
     metadata = {}
-    masks = ["train_mask", "test_mask", "val_mask"]
 
-    for feat in list(node_feats_data[0].keys()):
-        if feat.split('/')[1] not in masks:
+    for ntype, feats in fname_dict.items():
+        for feat in feats:
+            feat = ntype + "/" + feat
             print(f"Processing '{feat}' features...")
+            if feat not in node_feats_data[0]:
+                raise RuntimeError(f"Error: Unknown feature '{feat}'. Files contain \
+                                   the following features: {node_feats_data[0].keys()}.")
             whole_feat_tensor = torch.concat(tuple(t[feat] for t in node_feats_data), dim=0)
             metadata[feat] = {'shape': list(whole_feat_tensor.shape),
                               'dtype': str(whole_feat_tensor.dtype)}
@@ -73,8 +92,7 @@ def main(folder):
             # Delete processed feature from memory
             for t in node_feats_data:
                 del t[feat]
-        else:
-            print("Skip processing", feat)
+
 
     # Save metatada
     with open(os.path.join(wg_folder, 'metadata.json'), 'w') as fp:
@@ -96,5 +114,6 @@ def main(folder):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset-path', action='store', type=str, required=True)
+    parser.add_argument('--feat-names', nargs='+', action='store', type=str, required=True)
     args = parser.parse_args()
-    main(args.dataset_path)
+    main(args.dataset_path, args.feat_names)

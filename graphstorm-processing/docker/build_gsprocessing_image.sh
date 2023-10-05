@@ -15,7 +15,7 @@ Available options:
 
 -h, --help      Print this help and exit
 -x, --verbose   Print script debug info (set -x)
--t, --target    Docker image target, must be one of 'prod' or 'test'. Default is 'prod'.
+-t, --target    Docker image target, must be one of 'prod' or 'test'. Default is 'test'.
 -p, --path      Path to graphstorm-processing directory, default is one level above this script.
 -i, --image     Docker image name, default is 'graphstorm-processing'.
 -v, --version   Docker version tag, default is the library's current version (`poetry version --short`)
@@ -41,6 +41,7 @@ parse_params() {
   IMAGE_NAME='graphstorm-processing'
   VERSION=`poetry version --short`
   BUILD_DIR='/tmp'
+  TARGET='test'
 
   while :; do
     case "${1-}" in
@@ -74,9 +75,6 @@ parse_params() {
   done
 
   args=("$@")
-
-  # check required params and arguments
-  [[ -z "${TARGET-}" ]] && die "Missing required parameter: --target [prod|test]"
 
   return 0
 }

@@ -10,7 +10,7 @@ Link prediction is widely employed as a pre-training technique to generate high-
 
 GraphStorm provides supports to avoid theses problems:
 
-* To avoid including target edges in message passing, users need to set ``exclude_training_targets`` to `True`` and provide ``reverse_edge_types_map`` when launching link prediction training tasks. These two arguments tell GraphStorm to exclude the training target edges and the corresponding reverse edges when doing message passing. More explanation of the two arguments can be found on the :ref:`Training and Inference Configurations<configurations-run>`.
+* To avoid including target edges in message passing, users need to set ``exclude_training_targets`` to `True` and provide ``reverse_edge_types_map`` when launching link prediction training tasks. These two arguments tell GraphStorm to exclude the training target edges and the corresponding reverse edges when doing message passing. More explanation of the two arguments can be found on the :ref:`Training and Inference Configurations<configurations-run>`.
 
 * To avoid including validation/test edges in message passing during model training, users need to mask validation edges and test edges with ``val_mask`` and ``test_mask`` respectively. Users also need to mask all the other edges with ``train_mask``.
 
@@ -23,7 +23,7 @@ To be more specific, these dataloaders will do neighbor sampling regardless of a
 With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localuniform`` dataloader on training a 2 layer RGCN on MAG dataset on four g5.48x instances.
 
 Multiple Target Node Types Training
-===================================
+-------------------------------------
 
 When training on a hetergenious graph, we often need to train a model by minimizing the objective function on more than one node type. GraphStorm provides supports to achieve this goal.
 

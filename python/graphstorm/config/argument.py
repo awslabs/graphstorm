@@ -49,7 +49,8 @@ from .config import SUPPORTED_TASKS
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
-from .config import GRAPHSTORM_MODEL_ALL_LAYERS
+from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
+                     GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
 
 from .utils import get_graph_name
 from ..utils import TORCH_MAJOR_VER, get_log_level
@@ -68,6 +69,12 @@ __all__ = [
 def get_argument_parser():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description="GSGNN Arguments")
+    parser.add_argument('--logging-level', type=str, default="info",
+                        help="Change the logging level. " + \
+                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
+                               "The default value is 'info'.")
+    parser.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
+                        help='The file where the logging is saved to.')
     # Required parameters
     parser.add_argument(
         "--yaml_config_file",
@@ -109,6 +116,7 @@ def get_argument_parser():
     parser = _add_edge_classification_args(parser)
     parser = _add_task_general_args(parser)
     parser = _add_lm_model_args(parser)
+    parser = _add_distill_args(parser)
     return parser
 
 # pylint: disable=no-member
@@ -121,6 +129,17 @@ class GSConfig:
         Commend line arguments
     """
     def __init__(self, cmd_args):
+        # We need to config the logging at very beginning. Otherwise, logging will not work.
+        log_level = get_log_level(cmd_args.logging_level) \
+                if hasattr(cmd_args, "logging_level") else logging.INFO
+        log_file = cmd_args.logging_file if hasattr(cmd_args, "logging_file") else None
+        if log_file is None:
+            # We need to force the logging to reset the existing logging handlers
+            # in order to make sure this config is effective.
+            logging.basicConfig(level=log_level, force=True)
+        else:
+            logging.basicConfig(filename=log_file, level=log_level, force=True)
+
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
@@ -129,11 +148,6 @@ class GSConfig:
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
 
-        # We need to config the logging at very beginning. Otherwise, logging will not work.
-        if self.logging_file is None:
-            logging.basicConfig(level=self.logging_level)
-        else:
-            logging.basicConfig(filename=self.logging_file, level=self.logging_level)
         logging.debug(str(configuration))
         cmd_args_dict = cmd_args.__dict__
         # Print overriden arguments.
@@ -146,27 +160,38 @@ class GSConfig:
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
         if 'lm_model' in configuration:
-            # has language model configuration
-            # lm_model:
-            #   node_lm_models:
-            #     -
-            #       lm_type: bert
-            #       model_name: "bert-base-uncased"
-            #       gradient_checkpoint: true
-            #       node_types:
-            #         - n_0
-            #         - n_1
-            #     -
-            #       lm_type: bert
-            #       model_name: "allenai/scibert_scivocab_uncased"
-            #       gradient_checkpoint: true
-            #       node_types:
-            #         - n_2
             lm_model = configuration['lm_model']
-            assert "node_lm_models" in lm_model, "node_lm_models must be provided"
+            assert "node_lm_models" in lm_model or "distill_lm_models" in lm_model, \
+                "either node_lm_models or distill_lm_models must be provided"
             # if node_lm_models is not defined, ignore the lm model
-            node_lm_models = lm_model['node_lm_models']
-            setattr(self, "_node_lm_configs", node_lm_models)
+            if "node_lm_models" in lm_model:
+                # has node language model configuration, e.g.,
+                # lm_model:
+                #   node_lm_models:
+                #     -
+                #       lm_type: bert
+                #       model_name: "bert-base-uncased"
+                #       gradient_checkpoint: true
+                #       node_types:
+                #         - n_0
+                #         - n_1
+                #     -
+                #       lm_type: bert
+                #       model_name: "allenai/scibert_scivocab_uncased"
+                #       gradient_checkpoint: true
+                #       node_types:
+                #         - n_2
+                node_lm_models = lm_model['node_lm_models']
+                setattr(self, "_node_lm_configs", node_lm_models)
+            else:
+                # has distill language model configuration, e.g.,
+                # lm_model:
+                #   distill_lm_models:
+                #     -
+                #       lm_type: DistilBertModel
+                #       model_name: "distilbert-base-uncased"
+                distill_lm_models = lm_model['distill_lm_models']
+                setattr(self, "_distill_lm_configs", distill_lm_models)
 
         # handle gnn config
         gnn_family = configuration['gsf']
@@ -278,11 +303,15 @@ class GSConfig:
             _ = self.lm_infer_batch_size
             _ = self.freeze_lm_encoder_epochs
 
+        if self.distill_lm_configs:
+            _ = self.textual_data_path
+
         # I/O related
         _ = self.restore_model_layers
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
         _ = self.save_embed_path
+        _ = self.save_embed_format
 
         # Model architecture
         _ = self.dropout
@@ -476,24 +505,6 @@ class GSConfig:
 
         return False
 
-    @property
-    def logging_level(self):
-        """ Get the logging level.
-        """
-        if hasattr(self, "_logging_level"):
-            return get_log_level(self._logging_level)
-        else:
-            return logging.INFO
-
-    @property
-    def logging_file(self):
-        """ The file where logs are saved to.
-        """
-        if hasattr(self, "_logging_file"):
-            return self._logging_file
-        else:
-            return None
-
     ###################### language model support #########################
     # Bert related
     @property
@@ -574,7 +585,7 @@ class GSConfig:
             return self._training_method
         return {"name": "default", "kwargs": {}}
 
-    def _check_lm_config(self, lm_config):
+    def _check_node_lm_config(self, lm_config):
         assert "lm_type" in lm_config, "lm_type (type of language model," \
             "e.g., bert) must be provided for node_lm_models."
         assert "model_name" in lm_config, "language model model_name must " \
@@ -588,24 +599,51 @@ class GSConfig:
 
     @property
     def node_lm_configs(self):
-        """ check bert config
+        """ check node lm config
         """
         if hasattr(self, "_node_lm_configs"):
             if self._node_lm_configs is None:
                 return None
 
-            # lm_config is not NOne
+            # node lm_config is not None
             assert isinstance(self._node_lm_configs, list), \
                 "Node language model config is not None. It must be a list"
             assert len(self._node_lm_configs) > 0, \
                 "Number of node language model config must larger than 0"
 
             for lm_config in self._node_lm_configs:
-                self._check_lm_config(lm_config)
+                self._check_node_lm_config(lm_config)
 
             return self._node_lm_configs
 
         # By default there is no node_lm_config
+        return None
+
+    def _check_distill_lm_config(self, lm_config):
+        assert "lm_type" in lm_config, "lm_type (type of language model," \
+            "e.g., DistilBertModel) must be provided for distill_lm_models."
+        assert "model_name" in lm_config, "pre-trained model_name must " \
+            "be provided for distill_lm_models."
+
+    @property
+    def distill_lm_configs(self):
+        """ check distill lm config
+        """
+        if hasattr(self, "_distill_lm_configs"):
+            assert self._distill_lm_configs is not None, \
+                "distill_lm_configs cannot be None."
+            # distill lm_config is not None
+            assert isinstance(self._distill_lm_configs, list), \
+                "Distill language model config is not None. It must be a list"
+            assert len(self._distill_lm_configs) > 0, \
+                "Number of distill language model config must larger than 0"
+
+            for lm_config in self._distill_lm_configs:
+                self._check_distill_lm_config(lm_config)
+
+            return self._distill_lm_configs
+
+        # By default there is no distill_lm_config
         return None
 
     ###################### general gnn model related ######################
@@ -614,11 +652,14 @@ class GSConfig:
         """ Which graph encoder to use, it can be GNN or language model only
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_model_encoder_type"), \
-            "Model encoder type should be provided"
-        assert self._model_encoder_type in BUILTIN_ENCODER, \
-            f"Model encoder type should be in {BUILTIN_ENCODER}"
-        return self._model_encoder_type
+        if self.distill_lm_configs is None:
+            assert hasattr(self, "_model_encoder_type"), \
+                "Model encoder type should be provided"
+            assert self._model_encoder_type in BUILTIN_ENCODER, \
+                f"Model encoder type should be in {BUILTIN_ENCODER}"
+            return self._model_encoder_type
+        else:
+            return None
 
     @property
     def max_grad_norm(self):
@@ -749,18 +790,55 @@ class GSConfig:
             return [-1] * self.num_layers
 
     @property
+    def textual_data_path(self):
+        """ distillation textual data path
+        """
+        if hasattr(self, "_textual_data_path"):
+            return self._textual_data_path
+        return None
+
+    @property
+    def max_distill_step(self):
+        """ Maximum training steps for distillation.
+        """
+        # only needed by distillation
+        if hasattr(self, "_max_distill_step"):
+            assert self._max_distill_steps > 0, \
+                "Maximum training steps should be greater than 0."
+            return self._max_distill_step
+        else:
+            # default max training steps
+            return 10000
+
+    @property
+    def max_seq_len(self):
+        """ Maximum sequence length for distillation.
+        """
+        # only needed by distillation
+        if hasattr(self, "_max_seq_len"):
+            assert self._max_seq_len > 0, \
+                "Maximum sequence length for distillation should be greater than 0."
+            return self._max_seq_len
+        else:
+            # default maximum sequence length
+            return 1024
+
+    @property
     def hidden_size(self):
         """ Hidden embedding size
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_hidden_size"), \
-            "hidden_size must be provided when pretrain a embedding layer, " \
-            "or train a GNN model"
-        assert isinstance(self._hidden_size, int), \
-            "Hidden embedding size must be an integer"
-        assert self._hidden_size > 0, \
-            "Hidden embedding size must be larger than 0"
-        return self._hidden_size
+        if self.distill_lm_configs is None:
+            assert hasattr(self, "_hidden_size"), \
+                "hidden_size must be provided when pretrain a embedding layer, " \
+                "or train a GNN model"
+            assert isinstance(self._hidden_size, int), \
+                "Hidden embedding size must be an integer"
+            assert self._hidden_size > 0, \
+                "Hidden embedding size must be larger than 0"
+            return self._hidden_size
+        else:
+            return None
 
     @property
     def num_layers(self):
@@ -821,16 +899,29 @@ class GSConfig:
         """ GraphStorm model layers to load.
         """
         # pylint: disable=no-member
+        model_layers = GRAPHSTORM_MODEL_ALL_LAYERS
         if hasattr(self, "_restore_model_layers"):
             assert self.restore_model_path is not None, \
                 "restore-model-path must be provided if restore-model-layers is specified."
             model_layers = self._restore_model_layers.split(',')
             for layer in model_layers:
-                assert layer in GRAPHSTORM_MODEL_ALL_LAYERS, \
-                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_ALL_LAYERS}"
-            return model_layers
-
-        return GRAPHSTORM_MODEL_ALL_LAYERS
+                assert layer in GRAPHSTORM_MODEL_LAYER_OPTIONS, \
+                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_LAYER_OPTIONS}"
+        # GLEM restore layers to the LM component, thus conflicting with all layers:
+        # use [GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_DECODER_LAYER] to restore an LM
+        # checkpoint with decoder trained for node classification.
+        # For example, the check point is saved from a GLEM model.
+        # use [GRAPHSTORM_MODEL_EMBED_LAYER] if the checkpoint doesn't contain such decoder for LM.
+        if self.training_method["name"] == "glem":
+            if model_layers == GRAPHSTORM_MODEL_ALL_LAYERS:
+                logging.warning("Restoring GLEM's LM from checkpoint only support %s and %s.'\
+                                'Setting to: '%s'",
+                                [GRAPHSTORM_MODEL_EMBED_LAYER],
+                                [GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_DECODER_LAYER],
+                                GRAPHSTORM_MODEL_EMBED_LAYER
+                                )
+                model_layers = [GRAPHSTORM_MODEL_EMBED_LAYER]
+        return model_layers
 
     @property
     def restore_model_path(self):
@@ -860,6 +951,19 @@ class GSConfig:
         if hasattr(self, "_save_embed_path"):
             return self._save_embed_path
         return None
+
+    @property
+    def save_embed_format(self):
+        """ Specify the format of saved embeddings.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_save_embed_format"):
+            assert self._save_embed_format in ["pytorch", "hdf5"], \
+                f"{self._save_embed_format} is not supported for save_embed_format." \
+                f"Supported format ['pytorch', 'hdf5']."
+            return self._save_embed_format
+        # default to be 'pytorch'
+        return "pytorch"
 
     @property
     def save_model_path(self):
@@ -1940,12 +2044,6 @@ def _add_initialization_args(parser):
         default=argparse.SUPPRESS,
         help="Print more information.",
     )
-    group.add_argument('--logging-level', type=str, default="info",
-                       help="Change the logging level. " + \
-                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
-                               "The default value is 'info'.")
-    group.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
-                       help='The file where the logging is saved to.')
     return parser
 
 def _add_gsgnn_basic_args(parser):
@@ -2026,6 +2124,8 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
+    group.add_argument("--save-embed-format", type=str, default=argparse.SUPPRESS,
+            help="Specify the format for saved embeddings. Valid format: ['pytorch', 'hdf5']")
     group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,
@@ -2127,6 +2227,8 @@ def _add_lm_model_args(parser):
     group.add_argument("--freeze-lm-encoder-epochs", type=int, default=argparse.SUPPRESS,
             help="Before fine-tuning LM model, how many epochs we will take "
                  "to warmup a GNN model")
+    group.add_argument("--max-seq-len", type=int, default=argparse.SUPPRESS,
+                       help="The maximum of sequence length for distillation")
     return parser
 
 def _add_rgat_args(parser):
@@ -2290,6 +2392,14 @@ def _add_inference_args(parser):
     group = parser.add_argument_group(title="infer")
     group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
+    return parser
+
+def _add_distill_args(parser):
+    group = parser.add_argument_group(title="distill")
+    group.add_argument("--textual-data-path", type=str, default=argparse.SUPPRESS,
+                       help="Where to load the textual data for distillation.")
+    group.add_argument("--max-distill-step", type=int, default=argparse.SUPPRESS,
+                       help="The maximum of training step for each node type for distillation")
     return parser
 
 # Users can add their own udf parser

@@ -29,6 +29,9 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
                           FastGSgnnLPLocalJointNegDataLoader,
                           FastGSgnnLPJointNegDataLoader,
                           FastGSgnnLPLocalUniformNegDataLoader)
+from .dataloading import (GSgnnEdgeDataLoaderBase,
+                          GSgnnLinkPredictionDataLoaderBase,
+                          GSgnnNodeDataLoaderBase)
 
 from .dataset import GSgnnEdgeTrainData, GSgnnLPTrainData
 from .dataset import GSgnnEdgeInferData
@@ -45,3 +48,8 @@ from .dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
                           BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
                           BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
                           BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
+
+from .dataloading import (DistillDataloaderGenerator,
+                          DistillDataManager)
+
+from .sampler import DistributedFileSampler

@@ -1,0 +1,46 @@
+gsf:
+  basic:
+    backend: gloo
+    local_rank: 0
+    model_encoder_type: rgcn
+    verbose: false
+  gnn:
+    fanout: 20, 15
+    hidden_size: 16
+    num_heads: 2
+    num_layers: 2
+    use_mini_batch_infer: true
+  hyperparam:
+    batch_size: 512
+    dropout: 0.1
+    eval_batch_size: 512
+    eval_frequency: 300
+    lr: 0.001
+    num_epochs: 1000
+    save_model_frequency: 300
+    sparse_optimizer_lr: 0.0001
+    wd_l2norm: 1.0e-06
+  input:
+    restore_model_path: null
+  node_classification:
+    early_stop_rounds: 10
+    early_stop_strategy: consecutive_increase
+    eval_metric:
+    - accuracy
+    label_field: label
+    multilabel: false
+    node_feat_name:
+    - paper:feat
+    num_classes: 152
+    target_ntype:
+    - paper
+  output:
+    topk_model_to_save: 1
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+udf:
+  save_result_path: tgat_nc_gpu
+  eval_target_ntype:
+  - paper
+version: 1.0

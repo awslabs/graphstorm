@@ -32,12 +32,42 @@ from ..utils import barrier, is_distributed, get_backend
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ A trainer for node prediction
 
+    This class is used to train models for node prediction tasks,
+    such as node classification and node regression.
+
+    It makes use of the functions provided by `GSgnnTrainer`
+    to define two main functions: `fit` that performs the training
+    for the model that is provided when the object is created,
+    and `eval` that evaluates a provided model against test and
+    validation data.
+
     Parameters
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
     topk_model_to_save : int
         The top K model to save.
+
+    Example
+    -------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnNodeDataLoader
+        from graphstorm.dataset import GSgnnNodeTrainData
+        from graphstorm.model.node_gnn import GSgnnNodeModel
+        from graphstorm.trainer import GSgnnNodePredictionTrainer
+
+        my_dataset = GSgnnNodeTrainData(
+            "my_graph", "/path/to/part_config", "my_node_type")
+        target_idx = {"my_node_type": target_nodes_tensor}
+        my_data_loader = GSgnnNodeDataLoader(
+            my_dataset, target_idx, fanout=[10], batch_size=1024, device='cpu')
+        my_model = GSgnnNodeModel(alpha_l2norm=0.0)
+
+        trainer =  GSgnnNodePredictionTrainer(my_model, topk_model_to_save=1)
+
+        trainer.fit(my_data_loader, num_epochs=2)
     """
     def __init__(self, model, topk_model_to_save=1):
         super(GSgnnNodePredictionTrainer, self).__init__(model, topk_model_to_save)
@@ -55,6 +85,11 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             max_grad_norm=None,
             grad_norm_type=2.0):
         """ The fit function for node prediction.
+
+        Performs the training for `self.model`. Iterates over the training
+        batches in `train_loader` to compute the loss and perform the backwards
+        step using `self.optimizer`. If an evaluator has been assigned to the
+        trainer, it will run evaluation at the end of every epoch.
 
         Parameters
         ----------
@@ -238,7 +273,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
     def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
              return_proba=True):
-        """ do the model evaluation using validiation and test sets
+        """ do the model evaluation using validation and test sets
 
         Parameters
         ----------
@@ -261,6 +296,18 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         """
         teval = time.time()
         sys_tracker.check('before prediction')
+
+        metric = set(self.evaluator.metric)
+        need_proba = metric.intersection({'roc_auc', 'per_class_roc_auc', 'precision_recall'})
+        need_label_pred = metric.intersection({'accuracy', 'f1_score', 'per_class_f1_score'})
+        assert len(need_proba) == 0 or len(need_label_pred) == 0, \
+            f"{need_proba} requires return_proba==True, \
+                         but {need_label_pred} requires return_proba==False."
+        if len(need_proba) > 0 and return_proba is False:
+            return_proba = True
+            logging.warning("%s requires return_proba==True. \
+                Set return_proba to True.", need_proba)
+
         if use_mini_batch_infer:
             val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                                  return_label=True)

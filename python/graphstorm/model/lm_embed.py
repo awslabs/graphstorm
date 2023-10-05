@@ -18,6 +18,7 @@
 """
 
 import logging
+import time
 
 import torch as th
 from torch import nn
@@ -27,7 +28,7 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from ..utils import get_rank, barrier
+from ..utils import get_rank, barrier, create_dist_tensor
 
 def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=True):
     """ Update the lm_emb_cache using lanaguage models.
@@ -44,16 +45,14 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=
         Use float16 to store BERT embeddings.
     """
     for ntype in lm_models.ntypes:
+        start = time.time()
         lm_model = lm_models.get_lm_model(ntype)
         lm_node_feat = lm_models.get_lm_node_feat(ntype)
         lm_model.eval()
-        if get_rank() == 0:
-            logging.info('Compute bert embedding on node %s.', ntype)
         hidden_size = lm_model.feat_size
         # TODO we should not save the BERT embeddings on the graph data in the future.
         if 'bert_emb' not in g.nodes[ntype].data:
-            g.nodes[ntype].data['bert_emb'] = \
-                    dgl.distributed.DistTensor(
+            g.nodes[ntype].data['bert_emb'] = create_dist_tensor(
                         (g.number_of_nodes(ntype), hidden_size),
                         name="bert_emb",
                         dtype=th.float16 if use_fp16 else th.float32,
@@ -80,6 +79,9 @@ def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=
             else:
                 input_emb[input_nodes] = text_embs[ntype].to('cpu')
         barrier()
+        if get_rank() == 0:
+            logging.info('Computing bert embedding on node %s takes %.3f seconds',
+                         ntype, time.time() - start)
         lm_emb_cache[ntype] = input_emb
         lm_model.train()
 
@@ -245,15 +247,38 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     Parameters
     ----------
     g: DistGraph
-        The distributed graph
+        The distributed graph.
     node_lm_configs:
         A list of language model configurations.
     num_train: int
-        Number of trainable texts
+        Number of trainable texts. Default: 0
     lm_infer_batch_size: int
-        Batch size used for computing text embeddings for static lm model
-    use_fp16 : bool
-        Use float16 to store BERT embeddings.
+        Batch size used for computing text embeddings for static lm model. Default: 16
+    use_fp16 : bool 
+        Use float16 to store BERT embeddings. Default: True
+    
+    Examples:
+    ----------
+
+    .. code:: python
+
+        from graphstorm.model import GSgnnNodeModel, GSPureLMNodeInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+
+        node_lm_configs = [
+            {
+                "lm_type": "bert",
+                "model_name": "bert-base-uncased",
+                "gradient_checkpoint": True,
+                "node_types": ['a']
+            }
+        ]
+        np_data = GSgnnNodeTrainData(...)
+        model = GSgnnNodeModel(...)
+        lm_train_nodes=10
+        encoder = GSPureLMNodeInputLayer(g=np_data.g, node_lm_configs=node_lm_configs,
+                                        num_train=lm_train_nodes)
+        model.set_node_input_encoder(encoder)
     """
     def __init__(self,
                  g,
@@ -266,9 +291,6 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
             "language model configurations must be provided"
 
         self._lm_models = LMModels(g, node_lm_configs, num_train, lm_infer_batch_size)
-        assert len(self._lm_models.ntypes) == len(g.ntypes), \
-            "Every node type in a graph should have text feature"
-
         self.num_train = num_train
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_fp16 = use_fp16
@@ -360,7 +382,13 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
-        return self._lm_models(input_nodes, lm_emb_cache=cache)
+        embs = self._lm_models(input_nodes, lm_emb_cache=cache)
+        # This module is only used for computing the BERT embeddings on the node types
+        # with text features. If it is asked to compute embeddings for some nodes without
+        # text features, it should report an error.
+        for ntype in input_nodes:
+            assert ntype in embs, f"Cannot compute BERT embeddings for node {ntype}."
+        return embs
 
     @property
     def out_dims(self):
@@ -391,18 +419,44 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     embed_size : int
         The embedding size
     num_train: int
-        Number of trainable texts
+        Number of trainable texts. Default: 0
     lm_infer_batch_size: int
-        Batch size used for computing text embeddings for static lm model
+        Batch size used for computing text embeddings for static lm model. Default: 16
     activation : func
-        The activation function
+        The activation function. Default: None
     dropout : float
-        The dropout parameter
+        The dropout parameter. Default: 0.0
     use_node_embeddings : bool
         Whether we will use the node embeddings for individual nodes even when node features are
-        available.
+        available. Default: False
     use_fp16 : bool
-        Use float16 to store the BERT embeddings.
+        Use float16 to store the BERT embeddings. Default: True
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        from graphstorm import get_feat_size
+        from graphstorm.model import GSgnnNodeModel, GSLMNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+        np_data = GSgnnNodeTrainData(...)
+        model = GSgnnNodeModel(...)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        node_lm_configs = [{"lm_type": "bert",
+                        "model_name": "bert-base-uncased",
+                        "gradient_checkpoint": True,
+                        "node_types": ['a']}]
+        lm_train_nodes=10
+
+        encoder = GSLMNodeEncoderInputLayer(
+            g=np_data.g, 
+            node_lm_configs=node_lm_configs,
+            feat_size=feat_size, 
+            embed_size=128, 
+            num_train=lm_train_nodes
+        )
+        model.set_node_input_encoder(encoder)
     """
     def __init__(self,
                  g,

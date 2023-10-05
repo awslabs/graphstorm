@@ -409,3 +409,20 @@ Link Prediction Task
                 | ``- "ntype0,rel1,ntype1:weight1"``
     - Argument: ``--lp-edge-weight-for-loss ntype0,rel0,ntype1:weight0 ntype0,rel1,ntype1:weight1``
     - Default value: None
+
+Distillation Specific Configurations
+--------------------------------------------
+GraphStorm provides a set of parameters to control GNN distillation.
+
+- **textual_data_path**: The path to load the textual data for distillation. User need to specify a path of directory with two sub-directory for ``train`` split and ``val`` split. In each split, there can be one or more ``*.parquet file``s. Find more details in ``training_scripts/gsgnn_dt/README.md``.
+    - Yaml: ``textual_data_path: <str>``
+    - Argument: ``--textual-data-path <str>``
+    - Default value: This parameter must be provided by user.
+- **max_distill_step**: The maximum of training step for each node type for distillation.
+    - Yaml: ``max_distill_step: 10000``
+    - Argument: ``--max-distill-step 10000``
+    - Default value: ``10000``
+- **max_seq_len**: The maximum sequence length for tokenized textual data.
+    - Yaml: ``max_seq_len: 1024``
+    - Argument: ``--max-seq-len 1024``
+    - Default value: ``1024``

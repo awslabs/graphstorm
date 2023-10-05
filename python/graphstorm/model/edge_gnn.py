@@ -16,13 +16,15 @@
     GNN model for edge prediction s in GraphStorm
 """
 import abc
+import logging
+import time
 import torch as th
 import dgl
 
 from .gnn import GSgnnModel, GSgnnModelBase
 from .utils import append_to_dict
 
-from ..utils import barrier
+from ..utils import barrier, is_distributed, get_rank
 
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
@@ -89,8 +91,9 @@ class GSgnnEdgeModelInterface:
             is true otherwise return the maximum value.
         """
 
-class GSgnnEdgeModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
-                         GSgnnEdgeModelInterface):
+# pylint: disable=abstract-method
+class GSgnnEdgeModelBase(GSgnnEdgeModelInterface,
+                         GSgnnModelBase):
     """ The base class for edge-prediction GNN
 
     When a user wants to define an edge prediction GNN model and train the model
@@ -173,6 +176,8 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         otherwise return the maximum result.
     dict of Tensor : labels if return_labels is True
     """
+    if get_rank() == 0:
+        logging.debug("Perform mini-batch inference for edge prediction.")
     device = model.device
     data = loader.data
     g = data.g
@@ -180,18 +185,44 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
+    len_dataloader = max_num_batch = len(list(loader))
+    tensor = th.tensor([len_dataloader], device=device)
+    if is_distributed():
+        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = tensor[0]
+
+    dataloader_iter = iter(loader)
+
     with th.no_grad():
-        for input_nodes, target_edge_graph, blocks in loader:
-            if not isinstance(input_nodes, dict):
-                assert len(g.ntypes) == 1
-                input_nodes = {g.ntypes[0]: input_nodes}
+        # WholeGraph does not support imbalanced batch numbers across processes/trainers
+        # TODO (IN): Fix dataloader to have the same number of minibatches
+        for iter_l in range(max_num_batch):
+            iter_start = time.time()
+            tmp_keys = []
+            if iter_l < len_dataloader:
+                input_nodes, target_edge_graph, blocks = next(dataloader_iter)
+                if not isinstance(input_nodes, dict):
+                    assert len(g.ntypes) == 1
+                    input_nodes = {g.ntypes[0]: input_nodes}
+                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+                # All samples should contain all the ntypes for wholegraph compatibility
+                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
+                    for ntype in tmp_keys})
+            else:
+                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
+                blocks = None
+
             input_feats = data.get_node_feats(input_nodes, device)
+            if blocks is None:
+                continue
+            for ntype in tmp_keys:
+                del input_nodes[ntype]
             if data.decoder_edge_feat is not None:
                 input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
                         for etype in target_edge_graph.canonical_etypes}
                 edge_decoder_feats = data.get_edge_feats(input_edges,
                                                          data.decoder_edge_feat,
-                                                         target_edge_graph.device)
+                                                         device)
                 edge_decoder_feats = {etype: feat.to(th.float32) \
                     for etype, feat in edge_decoder_feats.items()}
             else:
@@ -219,6 +250,9 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 append_to_dict(pred, preds)
             else: # model.predict return a tensor instead of a dict
                 append_to_dict({target_etype: pred}, preds)
+            if get_rank() == 0 and iter_l % 20 == 0:
+                logging.debug("iter %d out of %d: takes %.3f seconds",
+                              iter_l, max_num_batch, time.time() - iter_start)
 
     model.train()
     for target_etype, pred in preds.items():

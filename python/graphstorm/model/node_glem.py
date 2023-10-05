@@ -30,6 +30,8 @@ class GLEM(GSgnnNodeModelBase):
     ----------
     alpha_l2norm: float
         Coef for l2 norm of unused weights
+    target_ntype: str
+        Target node type
     em_order_gnn_first: bool
         In the EM training, set true to train GNN first, train LM first otherwise
     inference_using_gnn: bool
@@ -38,10 +40,11 @@ class GLEM(GSgnnNodeModelBase):
         Weight for the pseudo-likelihood loss in GLEM's loss function.
     num_pretrain_epochs: int
         Number of pretraining epochs to train LM and GNN independently without
-        pseudo-likelihood loss.        
+        pseudo-likelihood loss.
     """
     def __init__(self,
                  alpha_l2norm,
+                 target_ntype,
                  em_order_gnn_first=False,
                  inference_using_gnn=True,
                  pl_weight=0.5,
@@ -49,13 +52,32 @@ class GLEM(GSgnnNodeModelBase):
                  ):
         super(GLEM, self).__init__()
         self.alpha_l2norm = alpha_l2norm
+        self.target_ntype = target_ntype
         self.em_order_gnn_first = em_order_gnn_first
         self.inference_using_gnn = inference_using_gnn
         self.pl_weight = pl_weight
         self.num_pretrain_epochs = num_pretrain_epochs
         self.lm = GSgnnNodeModel(alpha_l2norm)
         self.gnn = GSgnnNodeModel(alpha_l2norm)
-        self.training_lm = not em_order_gnn_first
+        # `training_lm` has three states, controled by `.toggle()`:
+        # None: model is loaded for inference, inference logic is decided by `inference_using_gnn`
+        # True: lm is being trained
+        # False: gnn is being trained
+        self.training_lm = None
+
+    @property
+    def inference_route_is_gnn(self):
+        """This flag decides which inference route to perform: gnn (True) or lm (False).
+        This is decided based on the values of `training_lm` and `inference_using_gnn`.
+        There are two inference routes for GLEM:
+        - False (lm): lm.node_input_encoder->lm.decoder
+        - True (gnn): lm.node_input_encoder->gnn.gnn_encoder->gnn.decoder
+        """
+        if self.training_lm is None:
+            # GLEM is loaded for inference only, decide based `inference_using_gnn`
+            return self.inference_using_gnn
+        # GLEM is being trained: use gnn route if not training lm
+        return not self.training_lm
 
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """Initialize optimzer, which will be stored in self.lm._optimizer, self.gnn._optimizer
@@ -91,20 +113,26 @@ class GLEM(GSgnnNodeModelBase):
         """Create the optimizer that optimizes the model."""
         return self._optimizer
 
-    def save_model(self, model_path):
-        """Save either the LM and GNN models.
-        `training_lm` flag determine which actively training model to save
-        """
-        self.lm.save_model(os.path.join(model_path, 'LM'))
-        self.gnn.save_model(os.path.join(model_path, 'GNN'))
+    def save_dense_model(self, model_path):
+        self.lm.save_dense_model(os.path.join(model_path, 'LM'))
+        self.gnn.save_dense_model(os.path.join(model_path, 'GNN'))
 
-    def restore_model(self, restore_model_path, model_layer_to_load=None):
-        """Restore models from checkpoints."""
-        self.lm.restore_model(os.path.join(restore_model_path, 'LM'), model_layer_to_load)
-        self.gnn.restore_model(os.path.join(restore_model_path, 'GNN'), model_layer_to_load)
+    def save_sparse_model(self, model_path):
+        self.lm.save_sparse_model(os.path.join(model_path, 'LM'))
+        self.gnn.save_sparse_model(os.path.join(model_path, 'GNN'))
+
+    def restore_dense_model(self, restore_model_path,
+                            model_layer_to_load=None):
+        self.lm.restore_dense_model(os.path.join(restore_model_path, 'LM'),
+                                    model_layer_to_load)
+        self.gnn.restore_dense_model(os.path.join(restore_model_path, 'GNN'),
+                                     ['gnn', 'decoder'])
+
+    def restore_sparse_model(self, restore_model_path):
+        self.lm.restore_sparse_model(os.path.join(restore_model_path, 'LM'))
 
     def set_node_input_encoder(self, encoder):
-        """Set the node input LM encoder for lm, shared with gnn. 
+        """Set the node input LM encoder for lm, shared with gnn.
         """
         self.lm.set_node_input_encoder(encoder)
 
@@ -115,18 +143,31 @@ class GLEM(GSgnnNodeModelBase):
 
     @property
     def gnn_encoder(self):
-        """Alias for accessing the gnn_encoder"""
-        return self.gnn.gnn_encoder
+        """Alias for accessing the gnn_encoder. Hide gnn_encoder if the inference route is lm.
+        This property is only used for model inference and evaluation."""
+        return self.gnn.gnn_encoder if self.inference_route_is_gnn else None
+
+    @property
+    def node_input_encoder(self):
+        """Alias for accessing the node_input_encoder.
+        This property is only used for model inference and evaluation."""
+        return self.lm.node_input_encoder
+
+    @property
+    def decoder(self):
+        """Alias for accessing the decoder.
+        This property is only used for model inference and evaluation."""
+        return self.gnn.decoder if self.inference_route_is_gnn else self.lm.decoder
 
     def set_decoder(self, decoder):
-        """Set the same decoder for both, since lm needs to be able to 
+        """Set the same decoder for both, since lm needs to be able to
         predict node labels during training
         """
         self.lm.set_decoder(deepcopy(decoder))
         self.gnn.set_decoder(decoder)
 
     def set_loss_func(self, loss_fn):
-        """Set the final loss function based on the node task 
+        """Set the final loss function based on the node task
         """
         self.lm.set_loss_func(loss_fn)
         self.gnn.set_loss_func(loss_fn)
@@ -170,7 +211,7 @@ class GLEM(GSgnnNodeModelBase):
                 input_nodes_u=None):
         """ Forward pass for GLEM model.
         Parameters
-        ----------        
+        ----------
         blocks : List[dgl.heterograph.DGLBlock] labeled message flow graphs
         node_feats : Dict[ntype: tensors.shape [bs, feat_dim]]
         edge_feats : None
@@ -309,9 +350,9 @@ class GLEM(GSgnnNodeModelBase):
         return loss + self.alpha_l2norm * reg_loss
 
     def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
-        """Make prediction on the nodes with the LM or GNN. 
-        The model's `inference_using_gnn` flag determines how inference is performed.
-        If inference_using_gnn is True, message-passing GNN is used on the LM features,
+        """Make prediction on the nodes with the LM or GNN.
+        The model's `inference_route_is_gnn` flag determines how inference is performed.
+        If inference_route_is_gnn, message-passing GNN is used on the LM features,
         Otherwise, LM's decoder is used for inference, no message-passing involved.
 
         Parameters
@@ -334,8 +375,8 @@ class GLEM(GSgnnNodeModelBase):
         Tensor : the GNN embeddings.
         """
         emb_lm, emb_gnn = self._embed_nodes(blocks, node_feats, edge_feats, input_nodes,
-                                do_gnn_encode=self.inference_using_gnn)
-        if self.inference_using_gnn:
+                                do_gnn_encode=self.inference_route_is_gnn)
+        if self.inference_route_is_gnn:
             decoder = self.gnn.decoder
             emb = emb_gnn
         else:
@@ -350,21 +391,21 @@ class GLEM(GSgnnNodeModelBase):
     def _get_seed_nodes(self, input_nodes, blocks):
         """ Get seed nodes from input nodes and labels of the seed nodes.
         Parameters
-        ----------        
+        ----------
         input_nodes : {target_ntype: tensor.shape [bs], other_ntype: []}
         blocks : list[dgl.Block]
         """
-        target_ntype = blocks[-1].dsttypes[0]
+        target_ntype = self.target_ntype
         n_seed_nodes = blocks[-1].num_dst_nodes()
         return {target_ntype: input_nodes[target_ntype][:n_seed_nodes]}
 
     def _embed_nodes(self, blocks, node_feats, _, input_nodes=None, do_gnn_encode=True):
         """ Embed and encode nodes with LM, optionally followed by GNN encoder for GLEM model
         """
+        target_ntype = self.target_ntype
         if do_gnn_encode:
             # Get the projected LM embeddings without GNN message passing
             encode_embs = self.lm.comput_input_embed(input_nodes, node_feats)
-            target_ntype = list(encode_embs.keys())[0]
             # GNN message passing
             encode_embs_gnn = self.gnn.gnn_encoder(blocks, encode_embs)
             n_seed_nodes = blocks[-1].num_dst_nodes()
@@ -373,7 +414,6 @@ class GLEM(GSgnnNodeModelBase):
             # Get the projected LM embeddings for seed nodes:
             seed_nodes = self._get_seed_nodes(input_nodes, blocks)
             encode_embs = self.lm.comput_input_embed(seed_nodes, node_feats)
-            target_ntype = list(encode_embs.keys())[0]
             return encode_embs[target_ntype], None
 
     def _process_labels(self, labels):
@@ -384,10 +424,10 @@ class GLEM(GSgnnNodeModelBase):
 
 
 def compute_loss(loss_func, logits, labels, pseudo_labels=None, pl_weight=0.5):
-    """Combine two types of losses: (1-alpha)*MLE (CE loss on gold labels) + alpha*Pl_loss 
-    (CE loss on pseudo labels) semi-supervised objective for training LM or GNN individually 
+    """Combine two types of losses: (1-alpha)*MLE (CE loss on gold labels) + alpha*Pl_loss
+    (CE loss on pseudo labels) semi-supervised objective for training LM or GNN individually
     in E-step, M-step, respectively.
-    If pseudo_labels is provided, assuming the first segment are for gold, and later segment are 
+    If pseudo_labels is provided, assuming the first segment are for gold, and later segment are
     for pseudo in logits.
     """
     if pseudo_labels is not None:
