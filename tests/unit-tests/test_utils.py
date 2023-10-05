@@ -743,7 +743,7 @@ def test_save_edge_prediction_results():
         os.path.exists(os.path.join(tmpdirname,
                                     os.path.join("_".join(etype0), "predict-00000.pt")))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join("_".join(etype0), "predict-00000.pt")))
+                                    os.path.join("_".join(etype0), "predict-00001.pt")))
         os.path.exists(os.path.join(tmpdirname,
                                     os.path.join("_".join(etype1), "predict-00000.pt")))
         os.path.exists(os.path.join(tmpdirname,
