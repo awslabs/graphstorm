@@ -478,6 +478,37 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through pytorch a distributed way
 
+        Example:
+        --------
+        The saved node embeddings looks like:
+
+        .. code::
+            PATH_TO_EMB:
+                |- emb_info.json
+                |- ntype0_emb.part00000.bin
+                |- ...
+                |- ntype1_emb.part00000.bin
+                |- ...
+
+        The emb.info.json contains three information:
+            * "format", how data are stored, e.g., "pytorch".
+            * "world_size", the total number of file parts. 0 means there is no partition.
+            * "emb_name", a list of node types that have embeddings saved.
+
+        Example:
+        --------
+        .. code::
+            {
+                "format": "pytorch",
+                "world_size": 8,
+                "emb_name": ["movie", "user"]
+            }
+
+        .. note::
+        The saved node embeddings are in GraphStorm node ID space.
+        You need to remap them into raw input
+        node ID space by following [LINK].
+
         Parameters
         ----------
         model_path : str
