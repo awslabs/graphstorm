@@ -75,9 +75,9 @@ def main(config_args):
 
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
-    elif config.task_type == {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
+    elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
         model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=False)
-    elif config.task_type == {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
+    elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
         model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=False)
 
     model_path = config.restore_model_path
