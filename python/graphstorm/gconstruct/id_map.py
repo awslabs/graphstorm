@@ -81,7 +81,7 @@ class IdReverseMap:
     def __init__(self, id_map_path):
         assert os.path.exists(id_map_path), \
             f"{id_map_path} does not exits."
-        data = read_data_parquet(["new", "orig"])
+        data = read_data_parquet(id_map_path, ["new", "orig"])
         sort_idx = np.argsort(data['new'])
         self._ids = data['orig'][sort_idx]
 
@@ -120,6 +120,11 @@ class IdReverseMap:
             return np.array([], dtype=np.str)
 
         return self._ids[ids]
+
+    @property
+    def size(self):
+        "Get the approximated szie of the id mapping"
+        return self._ids.size * self._ids.itemsize
 
 class IdMap:
     """ Map an ID to a new ID.
