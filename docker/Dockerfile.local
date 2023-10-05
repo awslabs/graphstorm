@@ -9,7 +9,7 @@ RUN apt-get install -y python3-pip git wget psmisc
 RUN apt-get install -y cmake
 
 # Install Pytorch
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+RUN pip3 install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 # Install DGL
 RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
