@@ -57,6 +57,8 @@ if __name__ == '__main__':
     for name in info_emb_info["emb_name"]:
         train_emb = []
         for ntype in train_emb_files:
+            if ntype == "emb_info.json":
+                continue
             ntype_emb_path = os.path.join(args.train_embout, ntype)
             ntype_emb_files = os.listdir(ntype_emb_path)
             ntype_emb_files = sorted(ntype_emb_files)
@@ -67,6 +69,8 @@ if __name__ == '__main__':
 
         infer_emb = []
         for ntype in info_emb_files:
+            if ntype == "emb_info.json":
+                continue
             ntype_emb_path = os.path.join(args.infer_embout, ntype)
             ntype_emb_files = os.listdir(ntype_emb_path)
             ntype_emb_files = sorted(ntype_emb_files)
