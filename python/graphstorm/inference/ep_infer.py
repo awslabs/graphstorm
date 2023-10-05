@@ -138,14 +138,13 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                 g = loader.data.g
                 shuffled_preds = {}
                 for etype, pred in preds.items():
-                    assert etype in infer_data.eval_etypes
+                    assert etype in infer_data.eval_etypes, \
+                        f"{etype} is not in the set of evaluation etypes {infer_data.eval_etypes}"
                     pred_shape = list(pred.shape)
                     pred_shape[0] = g.num_edges(etype)
                     pred_data = create_dist_tensor(pred_shape, dtype=pred.dtype,
                         name='predict-'+'-'.join(etype),
-                        part_policy=g.get_edge_partition_policy(etype),
-                        # TODO: this makes the tensor persistent in memory.
-                        persistent=True)
+                        part_policy=g.get_edge_partition_policy(etype))
                     # edges that have predictions may be just a subset of the
                     # entire edge set.
                     pred_data[loader.target_eidx[etype]] = pred.cpu()
