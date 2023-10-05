@@ -50,14 +50,14 @@ def main(config_args):
                                       eval_etypes=config.eval_etype,
                                       node_feat_field=config.node_feat_name,
                                       pos_graph_feat_field=config.lp_edge_weight_for_loss)
-    elif config.task_type == BUILTIN_TASK_NODE_REGRESSION or BUILTIN_TASK_NODE_CLASSIFICATION:
+    elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
         train_data = GSgnnNodeTrainData(config.graph_name,
                                         config.part_config,
                                         train_ntypes=config.target_ntype,
                                         eval_ntypes=config.eval_target_ntype,
                                         node_feat_field=config.node_feat_name,
                                         label_field=config.label_field)
-    elif config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION or BUILTIN_TASK_EDGE_REGRESSION:
+    elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
         train_data = GSgnnEdgeTrainData(config.graph_name,
                                         config.part_config,
                                         train_etypes=config.target_etype,
@@ -75,9 +75,9 @@ def main(config_args):
 
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
-    elif config.task_type == BUILTIN_TASK_NODE_REGRESSION or BUILTIN_TASK_NODE_CLASSIFICATION:
+    elif config.task_type == {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
         model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=False)
-    elif config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION or BUILTIN_TASK_EDGE_REGRESSION:
+    elif config.task_type == {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
         model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=False)
 
     model_path = config.restore_model_path
