@@ -29,7 +29,7 @@ Users can use ``pip`` or ``pip3`` to install GraphStorm.
 
 Install Dependencies
 .....................
-Users should install PyTorch v1.13.1 and DGL v1.0.4 that is the core dependency of GraphStorm using the following commands.
+Users should install PyTorch v2.1.0 and DGL v1.0.4 that is the core dependency of GraphStorm using the following commands.
 
 For Nvidia GPU environment:
 
