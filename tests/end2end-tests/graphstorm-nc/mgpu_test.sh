@@ -138,7 +138,7 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_n
 error_and_exit $?
 
 echo "**************dataset: Movielens, use gen_embeddings to generate embeddings on node classification"
-python3 -m graphstorm.run.gs_gen_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-embed-path /data/gsgnn_nc_ml/save-emb --logging-file /tmp/train_log.txt --logging-level debug
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-embed-path /data/gsgnn_nc_ml/save-emb/ --logging-file /tmp/train_log.txt --logging-level debug
 
 error_and_exit $?
 

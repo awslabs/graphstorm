@@ -33,7 +33,7 @@ def main():
     check_input_arguments(args)
 
     lib_dir = os.path.abspath(os.path.dirname(__file__))
-    cmd = "gsgnn_emb/gsgnn_emb.py"
+    cmd = "gsgnn_emb/gsgnn_node_emb.py"
     cmd_path = os.path.join(lib_dir, cmd)
     exec_script_args = [cmd_path] + exec_script_args
 

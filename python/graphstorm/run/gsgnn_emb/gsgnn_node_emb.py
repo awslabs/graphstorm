@@ -69,11 +69,11 @@ def main(config_args):
 
     # assert the setting for the graphstorm embedding generation.
     assert config.save_embed_path is not None, \
-        "save embeded path cannot be none for gs_gen_embeddings"
+        "save embeded path cannot be none for gs_gen_node_embeddings"
     assert config.restore_model_path is not None, \
-        "restore model path cannot be none for gs_gen_embeddings"
+        "restore model path cannot be none for gs_gen_node_embeddings"
 
-    if config.task_type == BUILTIN_TASK_LINK_PREDICTION or not config.task_type:
+    if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION or BUILTIN_TASK_NODE_CLASSIFICATION:
         model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=False)
