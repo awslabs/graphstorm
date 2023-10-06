@@ -52,7 +52,7 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
         pred = pred_result[start:end]
         src_nid = src_id_map.map_id(src_nids[start:end])
         dst_nid = dst_id_map.map_id(dst_nids[start:end])
-        data = {"perd": pred,
+        data = {"pred": pred,
                 "src_nid": src_nid,
                 "dst_nid": dst_nid}
 
