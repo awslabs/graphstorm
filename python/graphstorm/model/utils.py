@@ -31,6 +31,9 @@ from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import get_rank, barrier, get_world_size
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
 
+# placeholder of the ntype for homogeneous graphs
+NTYPE = dgl.NTYPE
+
 def pad_file_index(file_index, width=5):
     """ Left pad file_index with zerros.
 
@@ -475,6 +478,37 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through pytorch a distributed way
 
+        Example:
+        --------
+        The saved node embeddings looks like:
+
+        .. code::
+            PATH_TO_EMB:
+                |- emb_info.json
+                |- ntype0_emb.part00000.bin
+                |- ...
+                |- ntype1_emb.part00000.bin
+                |- ...
+
+        The emb.info.json contains three information:
+            * "format", how data are stored, e.g., "pytorch".
+            * "world_size", the total number of file parts. 0 means there is no partition.
+            * "emb_name", a list of node types that have embeddings saved.
+
+        Example:
+        --------
+        .. code::
+            {
+                "format": "pytorch",
+                "world_size": 8,
+                "emb_name": ["movie", "user"]
+            }
+
+        .. note::
+        The saved node embeddings are in GraphStorm node ID space.
+        You need to remap them into raw input
+        node ID space by following [LINK].
+
         Parameters
         ----------
         model_path : str
@@ -541,11 +575,17 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
-            th.save(emb, os.path.join(model_path, f'{name}_emb.part{pad_file_index(rank)}.bin'))
+            os.makedirs(os.path.join(model_path, name), exist_ok=True)
+            th.save(emb, os.path.join(os.path.join(model_path, name),
+                                      f'emb.part{pad_file_index(rank)}.bin'))
             emb_info["emb_name"].append(name)
     else:
-        th.save(embeddings, os.path.join(model_path, f'emb.part{pad_file_index(rank)}.bin'))
-        emb_info["emb_name"] = None
+        os.makedirs(os.path.join(model_path, NTYPE), exist_ok=True)
+        # There is no ntype for the embedding
+        # use NTYPE
+        th.save(embeddings, os.path.join(os.path.join(model_path, NTYPE),
+                                         f'emb.part{pad_file_index(rank)}.bin'))
+        emb_info["emb_name"] = NTYPE
 
     if rank == 0:
         with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
@@ -593,7 +633,7 @@ def save_embeddings(model_path, embeddings, rank, world_size,
         ----------
         model_path : str
             The path of the folder where the model is saved.
-        embeddings : DistTensor
+        embeddings : dict of DistTensor or DistTensor
             Embeddings to save
         rank : int
             Rank of the current process in a distributed environment.
