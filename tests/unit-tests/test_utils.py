@@ -26,7 +26,7 @@ import dgl
 from numpy.testing import assert_equal, assert_almost_equal
 from dgl.distributed import DistTensor
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
-from graphstorm.model.utils import _get_data_range
+from graphstorm.model.utils import _get_data_range, NTYPE
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
 from graphstorm.model.utils import shuffle_predict, shuffle_nids
 from graphstorm.model.utils import pad_file_index
@@ -440,8 +440,10 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         assert p1.exitcode == 0
 
         # Load saved embeddings
-        emb0 = th.load(os.path.join(tmpdirname, f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(tmpdirname, f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
+        emb0 = th.load(os.path.join(os.path.join(tmpdirname, NTYPE),
+                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(os.path.join(tmpdirname, NTYPE),
+                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(emb)
         assert_equal(emb[nid_mapping].numpy(), saved_emb.numpy())
@@ -480,20 +482,26 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         assert p1.exitcode == 0
 
         # Load saved embeddings
-        emb0 = th.load(os.path.join(tmpdirname, f'n0_emb.part{pad_file_index(0)}.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(tmpdirname, f'n0_emb.part{pad_file_index(1)}.bin'), weights_only=True)
+        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n0'),
+                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n0'),
+                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n0'])
         assert_equal(embs['n0'][nid_mappings['n0']].numpy(), saved_emb.numpy())
 
-        emb0 = th.load(os.path.join(tmpdirname, f'n1_emb.part{pad_file_index(0)}.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(tmpdirname, f'n1_emb.part{pad_file_index(1)}.bin'), weights_only=True)
+        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n1'),
+                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n1'),
+                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n1'])
         assert_equal(embs['n1'][nid_mappings['n1']].numpy(), saved_emb.numpy())
 
-        emb0 = th.load(os.path.join(tmpdirname, f'n2_emb.part{pad_file_index(0)}.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(tmpdirname, f'n2_emb.part{pad_file_index(1)}.bin'), weights_only=True)
+        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n2'),
+                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n2'),
+                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n2'])
         assert_equal(embs['n2'][nid_mappings['n2']].numpy(), saved_emb.numpy())
@@ -510,11 +518,13 @@ def test_save_embeddings():
         type0_random_emb, type1_random_emb = helper_save_embedding(tmpdirname)
 
         # Only work with torch 1.13+
-        feats_type0 = [th.load(os.path.join(tmpdirname, f"type0_emb.part{pad_file_index(i)}.bin"),
+        feats_type0 = [th.load(os.path.join(os.path.join(tmpdirname, "type0"),
+                                            f"emb.part{pad_file_index(i)}.bin"),
                                weights_only=True) for i in range(4)]
         feats_type0 = th.cat(feats_type0, dim=0)
         # Only work with torch 1.13+
-        feats_type1 = [th.load(os.path.join(tmpdirname, f"type1_emb.part{pad_file_index(i)}.bin"),
+        feats_type1 = [th.load(os.path.join(os.path.join(tmpdirname, "type1"),
+                                            f"emb.part{pad_file_index(i)}.bin"),
                                weights_only=True) for i in range(4)]
         feats_type1 = th.cat(feats_type1, dim=0)
 
