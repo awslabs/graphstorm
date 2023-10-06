@@ -24,24 +24,35 @@ from graphstorm.config import (GSConfig,
 
 from .utils import SHARED_MEM_OBJECT_THRESHOLD
 
-def worker_fn(worker_id, task_queue, func):
-    """ Process remap tasks with multiprocessing
-    """
-    try:
-        while True:
-            # If the queue is empty, it will raise the Empty exception.
-            idx, task_args = task_queue.get_nowait()
-            logging.debug("worker %d Processing %s task", worker_id, idx)
-            func(**task_args)
-    except queue.Empty:
-        pass
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_id_map, dst_id_map,
     output_fname_prefix, chunk_size, preserve_input):
+    """ Do one edge remapping task
+
+        Parameters
+        ----------
+        pred_file_path: str
+            The path to the prediction result.
+        src_nid_path: str
+            The path to the file storing source node ids
+        dst_nid_path: str
+            The path to the file storing destination node ids
+        src_id_map: IdReverseMap
+            Id mapping for source nodes
+        dst_id_map: IdReverseMap
+            Id mapping for destination nodes
+        output_fname_prefix: str
+            Output file name prefix.
+        chunk_size: int
+            Max number of raws per output file.
+        preserve_input: bool
+            Whether the input data should be removed.
+    """
     pred_result = th.load(pred_file_path).numpy()
     src_nids = th.load(src_nid_path).numpy()
     dst_nids = th.load(dst_nid_path).numpy()
+    dst_id_map = dst_id_map if dst_id_map is not None else src_id_map
 
     num_chunks = math.ceil(len(pred_result) / chunk_size)
     for i in range(num_chunks):
@@ -62,15 +73,47 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
         os.remove(src_nid_path)
         os.remove(dst_nid_path)
 
-def multiprocessing_remap(tasks, num_processes, remap_func):
-    if num_processes > 1 and len(tasks) > 1:
+def worker_fn(worker_id, task_queue, func):
+    """ Process remap tasks with multiprocessing
+
+        Parameters
+        ----------
+        worker_id: int
+            Worker id.
+        task_queue: Queue
+            Task queue.
+        func: function
+            Function to be executed.
+    """
+    try:
+        while True:
+            # If the queue is empty, it will raise the Empty exception.
+            idx, task_args = task_queue.get_nowait()
+            logging.debug("worker %d Processing %s task", worker_id, idx)
+            func(**task_args)
+    except queue.Empty:
+        pass
+
+def multiprocessing_remap(tasks, num_proc, remap_func):
+    """ Do multi-processing remap
+
+        Parameters
+        ----------
+        task: list
+            List of remap tasks.
+        num_proc: int
+            Number of workers to spin up.
+        remap_func: func
+            Reampping function
+    """
+    if num_proc > 1 and len(tasks) > 1:
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
         for i, task in enumerate(tasks):
             task_queue.put((i, task))
 
-        for i in range(num_processes):
+        for i in range(num_proc):
             proc = Process(target=worker_fn, args=(i, task_queue, remap_func))
             proc.start()
             processes.append(proc)
@@ -120,7 +163,34 @@ def remap_edge_pred(pred_etypes, pred_dir,
                     output_dir, out_chunk_size,
                     num_proc, rank, world_size, id_maps, with_shared_fs,
                     preserve_input=False):
-    """
+    """ Remap edge prediction result.
+
+        The function wil iterate all the edge types that
+        have prediction results and spin num_proc workers
+        to do the rampping jos.
+
+        Parameters
+        ----------
+        pred_etypes: list of tuples
+            List of edge types that have prediction results to be remapped。
+        pred_dir: str
+            The directory storing the prediction results.
+        output_dir: str
+            The directory storing the remapped prediction results.
+        out_chunk_size: int
+            Max number of raws per output file.
+        num_proc: int
+            Number of workers used in processing.
+        rank: int
+            The global rank of current processes.
+        world_size: int
+            The total number of processes in the cluster.
+        id_maps: dict of IdReverseMap
+            Node id mappings
+        with_shared_fs: bool
+            Whether shared file system is avaliable
+        preserve_input: bool
+            Whether the input data should be removed.
     """
     start = time.time()
     task_list = []
@@ -164,11 +234,20 @@ def remap_edge_pred(pred_etypes, pred_dir,
             if nid_mapping_size > SHARED_MEM_OBJECT_THRESHOLD:
                 num_proc = 1
 
-            # file is in format of emb.part00000.bin
+            # file is in format of
+            #    predict-00000.pt
+            #    predict-00001.pt
+            #    ...
+            #    src_nids-00000.pt
+            #    src_nids-00001.pt
+            #    ...
+            #    dst_nids-00000.pt
+            #    dst_nids-00001.pt
+            #    ...
             # the output emb files will be
-            #     emb.part00000_00000.parquet
-            #     emb.part00000_00001.parquet
-            #     ...
+            #    predict-00000_00000.parquet
+            #    predict-00000_00001.parquet
+            #    ...
             task_list.append({
                 "pred_file_path": os.path.join(input_pred_dir, pred_file),
                 "src_nid_path": os.path.join(input_pred_dir, src_nid_file),
@@ -221,6 +300,10 @@ def main(args, gs_config_args):
     """ main function
     """
     if args.yaml_config_file is not None:
+        # Case 1: remap_result is called right after the
+        # train/inference script.
+        # GraphStorm yaml exists, extract information from
+        # train or inference configs.
         gs_config_args = ["--cf", args.yaml_config_file,
                           "--logging-level", args.logging_level] + gs_config_args
         gs_parser = get_argument_parser()
@@ -230,6 +313,9 @@ def main(args, gs_config_args):
         id_mapping_path, predict_dir, _, _, pred_etypes = \
             _parse_gs_config(config)
     else:
+        # Case 2: remap_result is called alone.
+        # GraphStorm train/inference configs are not avaliable.
+        # We collect information from input arguments.
         logging.basicConfig(level=get_log_level(args.logging_level), force=True)
         id_mapping_path = args.node_id_mapping
         predict_dir = args.prediction_dir
@@ -247,6 +333,11 @@ def main(args, gs_config_args):
     assert out_chunk_size > 0, \
         f"Output chunk size should larger than 0 but get {out_chunk_size}"
 
+    # if pred_etypes (edges with prediction results)
+    # is not None, We need to remap edge prediction results.
+    # Note: For distributed SageMaker runs, pred_etypes must be
+    # provided if edge prediction result rempa is required,
+    # as result_info.json is only saved by rank0 and there is no shared fs.
     if pred_etypes is not None:
         assert len(pred_etypes) > 0, \
             f"prediction etypes is empty"
@@ -255,9 +346,6 @@ def main(args, gs_config_args):
         for pred_etype in pred_etypes:
             assert os.path.exists(os.path.join(predict_dir, "_".join(pred_etype))), \
                 f"prediction results of {pred_etype} do not exists"
-    # Note: For distributed SageMaker runs
-    # pred_etypes must be provided as result_info.json
-    # is only saved by rank0 and there is no shared fs
     elif os.path.exists(os.path.join(predict_dir, "result_info.json")):
         # User does not provide pred_etypes.
         # Try to get it from saved prediction config.
@@ -279,8 +367,8 @@ def main(args, gs_config_args):
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
 
-    pred_output = predict_dir
     if len(pred_etypes) > 0:
+        pred_output = predict_dir
         # We need to do ID remapping for edge prediction result
         remap_edge_pred(pred_etypes,
                         predict_dir,
@@ -301,6 +389,15 @@ def _add_distributed_remap_args(parser):
         The arguments under this argument graph are mainly
         designed for distributed remapping results in SageMaker,
         where a shared file system is not avaliable.
+
+        Parameter
+        ---------
+        parser: argparse.ArgumentParser
+            Argument parser
+
+        Return
+        ------
+        parser: Argument parser
     """
     group = parser.add_argument_group(title="dist_remap")
     group.add_argument("--with-shared-fs", type=bool, default=True,

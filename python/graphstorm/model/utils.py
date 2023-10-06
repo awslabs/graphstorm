@@ -808,8 +808,6 @@ def save_prediction_results(predictions, prediction_path, rank):
 def save_node_prediction_results(predictions, prediction_path):
     """ Save node predictions to the given path
 
-<<<<<<< HEAD
-=======
         The saved node prediction results looks like:
 
         Example:
@@ -843,7 +841,6 @@ def save_node_prediction_results(predictions, prediction_path):
         You need to remap them into raw input
         node ID space by following [LINK].
 
->>>>>>> id-remap-dev
         Parameters
         ----------
         prediction: tensor
@@ -870,8 +867,6 @@ def save_node_prediction_results(predictions, prediction_path):
 def save_edge_prediction_results(predictions, prediction_path):
     """ Save edge predictions to the given path
 
-<<<<<<< HEAD
-=======
         Example:
         --------
         The saved node prediction results looks like:
@@ -905,7 +900,6 @@ def save_edge_prediction_results(predictions, prediction_path):
         You need to remap them into raw input
         node ID space by following [LINK].
 
->>>>>>> id-remap-dev
         Parameters
         ----------
         prediction: dict of tensor
@@ -916,14 +910,9 @@ def save_edge_prediction_results(predictions, prediction_path):
     rank = get_rank()
     world_size = get_world_size()
     for etype, pred in predictions.items():
-<<<<<<< HEAD
         pred_val, src_nid, dst_nid = pred
         save_ep_prediction_results(pred_val, src_nid, dst_nid,
                                    os.path.join(prediction_path, "_".join(etype)), rank)
-=======
-        save_prediction_results(pred,
-                                os.path.join(prediction_path, "_".join(etype)), rank)
->>>>>>> id-remap-dev
     if rank == 0:
         meta_fname = os.path.join(prediction_path, "result_info.json")
         meta_info = {
