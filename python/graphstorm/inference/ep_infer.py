@@ -20,11 +20,7 @@ import time
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_edge_prediction_results
-<<<<<<< HEAD
 from ..model.utils import shuffle_nids
-=======
-from ..model.utils import shuffle_predict
->>>>>>> id-remap-dev
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
