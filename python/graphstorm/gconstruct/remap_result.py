@@ -58,8 +58,8 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
     for i in range(num_chunks):
         output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
 
-        start = i * num_chunks
-        end = (i + 1) * num_chunks if i + 1 < num_chunks else len(pred_result)
+        start = i * chunk_size
+        end = (i + 1) * chunk_size if i + 1 < chunk_size else len(pred_result)
         pred = pred_result[start:end]
         src_nid = src_id_map.map_id(src_nids[start:end])
         dst_nid = dst_id_map.map_id(dst_nids[start:end])
