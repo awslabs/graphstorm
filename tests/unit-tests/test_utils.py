@@ -28,7 +28,7 @@ from dgl.distributed import DistTensor
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
 from graphstorm.model.utils import _get_data_range, NTYPE
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
-from graphstorm.model.utils import shuffle_predict
+from graphstorm.model.utils import shuffle_predict, shuffle_nids
 from graphstorm.model.utils import pad_file_index
 from graphstorm.model.utils import save_node_prediction_results
 from graphstorm.model.utils import save_edge_prediction_results
@@ -166,24 +166,64 @@ def test_exchange_node_id_mapping(num_embs, backend):
     assert p2.exitcode == 0
     assert p3.exitcode == 0
 
-def run_distribute_nid_map(embeddings, local_rank, world_size,
+def run_distribute_nid_map(embeddings, worker_rank, world_size,
     node_id_mapping_file, backend, target_nid_mapping):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
     th.distributed.init_process_group(backend=backend,
                                       init_method=dist_init_method,
                                       world_size=world_size,
-                                      rank=local_rank)
-    device = setup_device(local_rank)
-    nid_mapping = distribute_nid_map(embeddings, local_rank, world_size,
+                                      rank=worker_rank)
+    device = setup_device(worker_rank)
+    nid_mapping = distribute_nid_map(embeddings, worker_rank, world_size,
         node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-        assert_equal(target_nid_mapping[local_rank].numpy(), nid_mapping.cpu().numpy())
+        assert_equal(target_nid_mapping[worker_rank].numpy(), nid_mapping.cpu().numpy())
     elif isinstance(embeddings, dict):
         for name in embeddings.keys():
-            assert_equal(target_nid_mapping[name][local_rank].numpy(), \
+            assert_equal(target_nid_mapping[name][worker_rank].numpy(), \
                 nid_mapping[name].cpu().numpy())
+    if worker_rank == 0:
+        th.distributed.destroy_process_group()
+
+def run_distributed_shuffle_nids(part_config, ntype, nids, node_id_mapping_file,
+                                 worker_rank, world_size, original_nids):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=worker_rank)
+    dgl.distributed.initialize('')
+    g = dgl.distributed.DistGraph(graph_name='dummy', part_config=part_config)
+
+    shuffled_nids = shuffle_nids(g, ntype, nids, node_id_mapping_file, worker_rank)
+    assert_equal(shuffled_nids.numpy(), original_nids.numpy())
+
+    if worker_rank == 0:
+        th.distributed.destroy_process_group()
+
+def test_shuffle_nids():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        g, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
+        nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
+
+        target_ntype = g.ntypes[0]
+        ori_nid_maps = {target_ntype: th.randperm(g.number_of_nodes(target_ntype))}
+        th.save(ori_nid_maps, nid_map_dict_path)
+
+        test_nids0 = th.randint(g.number_of_nodes(target_ntype),
+                                (g.number_of_nodes(target_ntype),))
+        orig_nids0 = ori_nid_maps[target_ntype][test_nids0]
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_distributed_shuffle_nids,
+                        args=(part_config, target_ntype, test_nids0, nid_map_dict_path,
+                              0, 1, orig_nids0))
+        p0.start()
+        p0.join()
+        assert p0.exitcode == 0
 
 @pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_distribute_nid_map(backend):
@@ -688,12 +728,12 @@ def test_save_edge_prediction_results():
         etype0 = ("ntype0", "rel0", "ntype1")
         etype1 = ("ntype0", "rel1", "ntype2")
         predictions0 = {
-            etype0: th.rand((10, 4)),
-            etype1: th.rand((10, 4)),
+            etype0: (th.rand((10, 4)), th.randint(100, (10,)), th.randint(100, (10,))),
+            etype1: (th.rand((10, 4)), th.randint(100, (10,)), th.randint(100, (10,)))
         }
         predictions1 = {
-            etype0: th.rand((10, 4)),
-            etype1: th.rand((10, 4)),
+            etype0: (th.rand((10, 4)), th.randint(100, (10,)), th.randint(100, (10,))),
+            etype1: (th.rand((10, 4)), th.randint(100, (10,)), th.randint(100, (10,)))
         }
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_dist_save_predict_results,
@@ -722,8 +762,6 @@ def test_save_edge_prediction_results():
             info = json.load(f)
             assert info["format"] == "pytorch"
             assert info["world_size"] == 2
-            print(info["etypes"])
-            print([etype0, etype1])
             assert set([tuple(etype) for etype in info["etypes"]]) == set([etype0, etype1])
 
         e0_feat0 = th.load(os.path.join(tmpdirname,
@@ -734,13 +772,38 @@ def test_save_edge_prediction_results():
                                         os.path.join("_".join(etype1), "predict-00000.pt")))
         e1_feat1 = th.load(os.path.join(tmpdirname,
                                         os.path.join("_".join(etype1), "predict-00001.pt")))
+        e0_src0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype0), "src_nids-00000.pt")))
+        e0_src1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype0), "src_nids-00001.pt")))
+        e1_src0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype1), "src_nids-00000.pt")))
+        e1_src1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype1), "src_nids-00001.pt")))
+        e0_dst0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype0), "dst_nids-00000.pt")))
+        e0_dst1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype0), "dst_nids-00001.pt")))
+        e1_dst0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype1), "dst_nids-00000.pt")))
+        e1_dst1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join("_".join(etype1), "dst_nids-00001.pt")))
 
         assert_almost_equal(th.cat([e0_feat0, e0_feat1]).numpy(),
-                            th.cat([predictions0[etype0], predictions1[etype0]]).numpy())
+                            th.cat([predictions0[etype0][0], predictions1[etype0][0]]).numpy())
         assert_almost_equal(th.cat([e1_feat0, e1_feat1]).numpy(),
-                            th.cat([predictions0[etype1], predictions1[etype1]]).numpy())
+                            th.cat([predictions0[etype1][0], predictions1[etype1][0]]).numpy())
+        assert_almost_equal(th.cat([e0_src0, e0_src1]).numpy(),
+                            th.cat([predictions0[etype0][1], predictions1[etype0][1]]).numpy())
+        assert_almost_equal(th.cat([e1_src0, e1_src1]).numpy(),
+                            th.cat([predictions0[etype1][1], predictions1[etype1][1]]).numpy())
+        assert_almost_equal(th.cat([e0_dst0, e0_dst1]).numpy(),
+                            th.cat([predictions0[etype0][2], predictions1[etype0][2]]).numpy())
+        assert_almost_equal(th.cat([e1_dst0, e1_dst1]).numpy(),
+                            th.cat([predictions0[etype1][2], predictions1[etype1][2]]).numpy())
 
 if __name__ == '__main__':
+    test_shuffle_nids()
     test_save_node_prediction_results()
     test_save_edge_prediction_results()
     test_distribute_nid_map(backend='gloo')
