@@ -150,7 +150,7 @@ def _get_file_range(num_files, rank, world_size):
     # For example, with 10 files and world_size == 4
     # number files for each rank will be:
     # 2 2 3 3
-    if rank + rest < world_size:
+    if rank * files_per_inst + rest < world_size:
         start = files_per_inst * rank
         end = start + files_per_inst
     else:
@@ -218,6 +218,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
             # the edge prediction files stored locally
             start, end = 0, num_parts
 
+        logging.debug(f"{rank} handle {start}-{end}")
         for i in range(start, end):
             pred_file = pred_files[i]
             src_nid_file = src_nid_files[i]
@@ -254,7 +255,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
                 "dst_nid_path": os.path.join(input_pred_dir, dst_nid_file),
                 "src_id_map": src_nid_map,
                 "dst_id_map": dst_nid_map,
-                "output_fname_prefix": os.path.join(out_pred_dir, pred_file[:pred_file.rindex(".")]),
+                "output_fname_prefix": os.path.join(out_pred_dir, f"pred.{pred_file[:pred_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
                 "preserve_input": preserve_input
             })
