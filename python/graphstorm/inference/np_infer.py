@@ -79,10 +79,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
 
         sys_tracker.check('start inferencing')
         self._model.eval()
-        # TODO support multiple ntypes
-        assert len(loader.data.eval_ntypes) == 1, \
-            "GraphStorm only support single target node type for training and inference"
-        ntype = loader.data.eval_ntypes[0]
+        ntypes = loader.data.eval_ntypes
 
         if use_mini_batch_infer:
             res = node_mini_batch_gnn_predict(self._model, loader, return_proba,
@@ -90,11 +87,6 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             preds = res[0]
             embs = res[1]
             labels = res[2] if do_eval else None
-
-            if isinstance(embs, dict):
-                embs = {ntype: embs[ntype]}
-            else:
-                embs = {ntype: embs}
         else:
             embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
                                            task_tracker=self.task_tracker)
@@ -109,62 +101,51 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         # do evaluation first
         # do evaluation if any
         if do_eval:
-            pred = preds[ntype]
-            label = labels[ntype]
-
-            test_start = time.time()
-            val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
-            sys_tracker.check('run evaluation')
-            if get_rank() == 0:
-                self.log_print_metrics(val_score=val_score,
-                                       test_score=test_score,
-                                       dur_eval=time.time() - test_start,
-                                       total_steps=0)
+            for ntype in ntypes:
+                pred = preds[ntype]
+                label = labels[ntype]
+                test_start = time.time()
+                val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
+                sys_tracker.check('run evaluation')
+                if get_rank() == 0:
+                    self.log_print_metrics(val_score=val_score,
+                                        test_score=test_score,
+                                        dur_eval=time.time() - test_start,
+                                        total_steps=0)
 
         if save_embed_path is not None:
-            if get_rank() == 0:
-                logging.info("save embeddings to %s", save_embed_path)
-            if use_mini_batch_infer:
-                g = loader.data.g
-                ntype_emb = create_dist_tensor((g.num_nodes(ntype), embs[ntype].shape[1]),
-                                               dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
-                                               part_policy=g.get_node_partition_policy(ntype),
-                                               # TODO: this makes the tensor persistent in memory.
-                                               persistent=True)
-                # nodes that do prediction in mini-batch may be just a subset of the
-                # entire node set.
-                ntype_emb[loader.target_nidx[ntype]] = embs[ntype]
-            else:
-                ntype_emb = embs[ntype]
-            embeddings = {ntype: ntype_emb}
+            for ntype in ntypes:
+                if get_rank() == 0:
+                    logging.info("save embeddings pf {ntype} to %s", save_embed_path)
 
-            save_gsgnn_embeddings(save_embed_path, embeddings, get_rank(),
-                get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file,
-                save_embed_format=save_embed_format)
+                # only save embeddings of target_nidx
+                g = loader.data.g
+                assert ntype in embs, \
+                    f"{ntype} is not in the set of evaluation ntypes {loader.data.eval_ntypes}"
+                emb_nids = loader.target_nidx[ntype]
+
+                if node_id_mapping_file is not None:
+                    emb_nids = shuffle_nids(g, ntype, emb_nids,
+                                             node_id_mapping_file, get_rank())
+                shuffled_embs[ntype] = (embs[ntype], emb_nids)
+            save_node_emb_results(shuffled_embs, save_embed_path)
+
+
             barrier()
             sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
-            # shuffle pred results according to node_id_mapping_file
-            if node_id_mapping_file is not None:
+            for ntype in ntypes:
                 g = loader.data.g
-                shuffled_preds = {}
-                for ntype, pred in preds.items():
-                    pred_shape = list(pred.shape)
-                    pred_shape[0] = g.num_nodes(ntype)
-                    pred_data = create_dist_tensor(pred_shape, dtype=pred.dtype,
-                        name=f'predict-{ntype}',
-                        part_policy=g.get_node_partition_policy(ntype),
-                        # TODO: this makes the tensor persistent in memory.
-                        persistent=True)
-                    # nodes that have predictions may be just a subset of the
-                    # entire node set.
-                    pred_data[loader.target_nidx[ntype]] = pred.cpu()
-                    pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, get_rank(),
-                                           get_world_size(), device=device)
-                    shuffled_preds[ntype] = pred
+                assert ntype in preds, \
+                    f"{ntype} is not in the set of evaluation ntypes {loader.data.eval_ntypes}"
+
+                pred_nids = loader.target_nidx[ntype]
+                if node_id_mapping_file is not None:
+                    pred_nids = shuffle_nids(g, ntype, pred_nids,
+                                             node_id_mapping_file, get_rank())
+                shuffled_preds[ntype] = (embs[ntype], pred_nids)
+
             save_node_prediction_results(shuffled_preds, save_prediction_path)
         barrier()
         sys_tracker.check('save predictions')
