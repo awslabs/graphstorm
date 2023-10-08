@@ -197,9 +197,14 @@ def run_distributed_shuffle_nids(part_config, ntype, nids, node_id_mapping_file,
                                       rank=worker_rank)
     dgl.distributed.initialize('')
     g = dgl.distributed.DistGraph(graph_name='dummy', part_config=part_config)
-    shuffler = NodeIDShuffler(g, node_id_mapping_file, worker_rank)
+    shuffler = NodeIDShuffler(g,
+    node_id_mapping_file, worker_rank)
+    assert len(shuffler._id_mapping_info) == 0
     shuffled_nids = shuffler.shuffle_nids(ntype, nids)
     assert_equal(shuffled_nids.numpy(), original_nids.numpy())
+    assert len(shuffler._id_mapping_info) == 1
+    shuffled_nids = shuffler.shuffle_nids("dummy", nids)
+    assert len(shuffler._id_mapping_info) == 2
 
     if worker_rank == 0:
         th.distributed.destroy_process_group()
@@ -210,7 +215,8 @@ def test_shuffle_nids():
         nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
 
         target_ntype = g.ntypes[0]
-        ori_nid_maps = {target_ntype: th.randperm(g.number_of_nodes(target_ntype))}
+        ori_nid_maps = {target_ntype: th.randperm(g.number_of_nodes(target_ntype)),
+                        "dummy": th.randperm(g.number_of_nodes(target_ntype))}
         th.save(ori_nid_maps, nid_map_dict_path)
 
         test_nids0 = th.randint(g.number_of_nodes(target_ntype),

@@ -763,7 +763,7 @@ class NodeIDShuffler():
 
         return self._id_mapping_info[ntype][nids]
 
-def save_edge_prediction_results(predictions, src_nids, dst_nids,
+def save_edge_prediction_result(predictions, src_nids, dst_nids,
                                prediction_path, rank):
     """ Save edge predictions to the given path, i.e., prediction_path.
 
@@ -939,7 +939,7 @@ def save_edge_prediction_results(predictions, prediction_path):
     world_size = get_world_size()
     for etype, pred in predictions.items():
         pred_val, src_nid, dst_nid = pred
-        save_edge_prediction_results(pred_val, src_nid, dst_nid,
+        save_edge_prediction_result(pred_val, src_nid, dst_nid,
                                      os.path.join(prediction_path, "_".join(etype)), rank)
 
     if rank == 0:
