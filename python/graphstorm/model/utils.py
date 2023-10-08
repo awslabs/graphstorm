@@ -729,6 +729,7 @@ class NodeIDShuffler():
 
     def _load_id_mapping(self, ntype):
         """load id mapping of ntype"""
+        g = self._g
         num_nodes = g.num_nodes(ntype)
         id_mapping_info = create_dist_tensor((num_nodes,), dtype=th.int64,
                                             name=f"mapping-{ntype}",
