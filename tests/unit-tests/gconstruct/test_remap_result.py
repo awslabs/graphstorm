@@ -19,6 +19,10 @@ import tempfile
 import pytest
 
 from graphstorm.gconstruct.remap_result import _get_file_range
+from graphstorm.gconstruct.remap_result import worker_remap_edge_pred
+
+def test_worker_remap_edge_pred():
+    worker_remap_edge_pred()
 
 def test__get_file_range():
     start, end = _get_file_range(10, 0, 0)
@@ -48,3 +52,4 @@ def test__get_file_range():
 
 if __name__ == '__main__':
     test__get_file_range()
+    test_worker_remap_edge_pred()

@@ -3,7 +3,6 @@ import argparse
 import logging
 import json
 import time
-import multiprocessing
 import queue
 import math
 
@@ -24,9 +23,10 @@ from graphstorm.config import (GSConfig,
 
 from .utils import SHARED_MEM_OBJECT_THRESHOLD
 
+id_maps = {}
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
-    dst_nid_path, src_id_map, dst_id_map,
+    dst_nid_path, src_type, dst_type,
     output_fname_prefix, chunk_size, preserve_input):
     """ Do one edge remapping task
 
@@ -38,10 +38,10 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
             The path to the file storing source node ids
         dst_nid_path: str
             The path to the file storing destination node ids
-        src_id_map: IdReverseMap
-            Id mapping for source nodes
-        dst_id_map: IdReverseMap
-            Id mapping for destination nodes
+        src_type: str
+            Src node type.
+        dst_type: str
+            Dst node type.
         output_fname_prefix: str
             Output file name prefix.
         chunk_size: int
@@ -52,8 +52,8 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
     pred_result = th.load(pred_file_path).numpy()
     src_nids = th.load(src_nid_path).numpy()
     dst_nids = th.load(dst_nid_path).numpy()
-    dst_id_map = dst_id_map if dst_id_map is not None else src_id_map
-
+    src_id_map = id_maps[src_type]
+    dst_id_map = id_maps[dst_type]
     num_chunks = math.ceil(len(pred_result) / chunk_size)
     for i in range(num_chunks):
         output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
@@ -107,6 +107,8 @@ def multiprocessing_remap(tasks, num_proc, remap_func):
             Reampping function
     """
     if num_proc > 1 and len(tasks) > 1:
+        if num_proc > len(tasks):
+            num_proc = len(tasks)
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
@@ -223,17 +225,10 @@ def remap_edge_pred(pred_etypes, pred_dir,
             pred_file = pred_files[i]
             src_nid_file = src_nid_files[i]
             dst_nid_file = dst_nid_files[i]
-            src_nid_map = id_maps[etype[0]]
+            src_type = etype[0]
             # if src ntype == dst ntype, there is no need to
             # pickle nid mappings twice
-            dst_nid_map = id_maps[etype[2]] if etype[0] != etype[2] else None
-            nid_mapping_size = src_nid_map.size + \
-                dst_nid_map.size if dst_nid_map is not None else 0
-
-            # Max pickle obj size is 2 GByte
-            # We need to handle the case when orig_nids > 2 GByte
-            if nid_mapping_size > SHARED_MEM_OBJECT_THRESHOLD:
-                num_proc = 1
+            dst_type = etype[2]
 
             # file is in format of
             #    predict-00000.pt
@@ -253,8 +248,8 @@ def remap_edge_pred(pred_etypes, pred_dir,
                 "pred_file_path": os.path.join(input_pred_dir, pred_file),
                 "src_nid_path": os.path.join(input_pred_dir, src_nid_file),
                 "dst_nid_path": os.path.join(input_pred_dir, dst_nid_file),
-                "src_id_map": src_nid_map,
-                "dst_id_map": dst_nid_map,
+                "src_type": src_type,
+                "dst_type": dst_type,
                 "output_fname_prefix": os.path.join(out_pred_dir, f"pred.{pred_file[:pred_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
                 "preserve_input": preserve_input
@@ -356,7 +351,6 @@ def main(args, gs_config_args):
             pred_etypes = [etype.split(",") for etype in info["etypes"]] \
                     if "etypes" in info else []
 
-    id_maps = {}
     ntypes = \
         [etype[0] for etype in pred_etypes] + \
         [etype[2] for etype in pred_etypes]
