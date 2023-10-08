@@ -28,7 +28,7 @@ from dgl.distributed import DistTensor
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
 from graphstorm.model.utils import _get_data_range, NTYPE
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
-from graphstorm.model.utils import shuffle_predict, shuffle_nids
+from graphstorm.model.utils import shuffle_predict, NodeIDShuffler
 from graphstorm.model.utils import pad_file_index
 from graphstorm.model.utils import save_node_prediction_results
 from graphstorm.model.utils import save_edge_prediction_results
@@ -197,8 +197,8 @@ def run_distributed_shuffle_nids(part_config, ntype, nids, node_id_mapping_file,
                                       rank=worker_rank)
     dgl.distributed.initialize('')
     g = dgl.distributed.DistGraph(graph_name='dummy', part_config=part_config)
-
-    shuffled_nids = shuffle_nids(g, ntype, nids, node_id_mapping_file, worker_rank)
+    shuffler = NodeIDShuffler(g, node_id_mapping_file, worker_rank)
+    shuffled_nids = shuffler.shuffle_nids(ntype, nids)
     assert_equal(shuffled_nids.numpy(), original_nids.numpy())
 
     if worker_rank == 0:
