@@ -723,9 +723,7 @@ def shuffle_nids(g, ntype, nids, node_id_mapping_file, rank):
     num_nodes = g.num_nodes(ntype)
     id_mapping_info = create_dist_tensor((num_nodes,), dtype=th.int64,
                                           name=f"mapping-{ntype}",
-                                          part_policy=g.get_node_partition_policy(ntype),
-                                          # TODO: this makes the tensor persistent in memory.
-                                          persistent=True)
+                                          part_policy=g.get_node_partition_policy(ntype))
     if rank == 0:
         id_mappings = th.load(node_id_mapping_file)
         # the id_mapping stores the mapping from shuffled node ID to original ID
@@ -741,7 +739,7 @@ def shuffle_nids(g, ntype, nids, node_id_mapping_file, rank):
 
     return id_mapping_info[nids]
 
-def save_ep_prediction_results(predictions, src_nids, dst_nids,
+def save_edge_prediction_results(predictions, src_nids, dst_nids,
                                prediction_path, rank):
     """ Save edge predictions to the given path, i.e., prediction_path.
 
@@ -917,8 +915,8 @@ def save_edge_prediction_results(predictions, prediction_path):
     world_size = get_world_size()
     for etype, pred in predictions.items():
         pred_val, src_nid, dst_nid = pred
-        save_ep_prediction_results(pred_val, src_nid, dst_nid,
-                                   os.path.join(prediction_path, "_".join(etype)), rank)
+        save_edge_prediction_results(pred_val, src_nid, dst_nid,
+                                     os.path.join(prediction_path, "_".join(etype)), rank)
 
     if rank == 0:
         meta_fname = os.path.join(prediction_path, "result_info.json")
