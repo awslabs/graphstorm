@@ -187,8 +187,8 @@ def run_distribute_nid_map(embeddings, worker_rank, world_size,
     if worker_rank == 0:
         th.distributed.destroy_process_group()
 
-def run_distributed_shuffle_nids(part_config, ntype, nids, node_id_mapping_file,
-                                 worker_rank, world_size, original_nids):
+def run_distributed_shuffle_nids(part_config, ntype0, ntype1, nids0, nids1, node_id_mapping_file,
+                                 worker_rank, world_size, original_nids0, original_nids1):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
     th.distributed.init_process_group(backend="gloo",
@@ -200,11 +200,12 @@ def run_distributed_shuffle_nids(part_config, ntype, nids, node_id_mapping_file,
     shuffler = NodeIDShuffler(g,
     node_id_mapping_file, worker_rank)
     assert len(shuffler._id_mapping_info) == 0
-    shuffled_nids = shuffler.shuffle_nids(ntype, nids)
-    assert_equal(shuffled_nids.numpy(), original_nids.numpy())
+    shuffled_nids = shuffler.shuffle_nids(ntype0, nids0)
+    assert_equal(shuffled_nids.numpy(), original_nids0.numpy())
     assert len(shuffler._id_mapping_info) == 1
-    shuffled_nids = shuffler.shuffle_nids("dummy", nids)
+    shuffled_nids = shuffler.shuffle_nids(ntype1, nids1)
     assert len(shuffler._id_mapping_info) == 2
+    assert_equal(shuffled_nids.numpy(), original_nids1.numpy())
 
     if worker_rank == 0:
         th.distributed.destroy_process_group()
@@ -214,19 +215,23 @@ def test_shuffle_nids():
         g, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
         nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
 
-        target_ntype = g.ntypes[0]
-        ori_nid_maps = {target_ntype: th.randperm(g.number_of_nodes(target_ntype)),
-                        "dummy": th.randperm(g.number_of_nodes(target_ntype))}
+        target_ntype0 = g.ntypes[0]
+        target_ntype1 = g.ntypes[1]
+        ori_nid_maps = {target_ntype0: th.randperm(g.number_of_nodes(target_ntype0)),
+                        target_ntype1: th.randperm(g.number_of_nodes(target_ntype1))}
         th.save(ori_nid_maps, nid_map_dict_path)
 
-        test_nids0 = th.randint(g.number_of_nodes(target_ntype),
-                                (g.number_of_nodes(target_ntype),))
-        orig_nids0 = ori_nid_maps[target_ntype][test_nids0]
+        test_nids0 = th.randint(g.number_of_nodes(target_ntype0),
+                                (g.number_of_nodes(target_ntype0),))
+        orig_nids0 = ori_nid_maps[target_ntype0][test_nids0]
+        test_nids1 = th.arange(10)
+        orig_nids1 = ori_nid_maps[target_ntype1][test_nids1]
 
         ctx = mp.get_context('spawn')
         p0 = ctx.Process(target=run_distributed_shuffle_nids,
-                        args=(part_config, target_ntype, test_nids0, nid_map_dict_path,
-                              0, 1, orig_nids0))
+                        args=(part_config, target_ntype0, target_ntype1,
+                              test_nids0, test_nids1, nid_map_dict_path,
+                              0, 1, orig_nids0, orig_nids1))
         p0.start()
         p0.join()
         assert p0.exitcode == 0
