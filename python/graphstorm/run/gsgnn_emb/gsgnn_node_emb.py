@@ -18,15 +18,15 @@
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.dataloading import GSgnnLPTrainData, GSgnnNodeTrainData, GSgnnEdgeTrainData
-from graphstorm.model.utils import save_embeddings
-from graphstorm.model import do_full_graph_inference
+from graphstorm.dataloading import (GSgnnEdgeInferData, GSgnnNodeInferData,
+                            GSgnnEdgeDataLoader, GSgnnNodeDataLoader)
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
 from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_NODE_REGRESSION,
                                 BUILTIN_TASK_EDGE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
                                 BUILTIN_TASK_LINK_PREDICTION)
+from graphstorm.inference import GSgnnEmbGenInferer
 
 def main(config_args):
     """ main function
@@ -44,26 +44,24 @@ def main(config_args):
         tracker.log_params(config.__dict__)
 
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
-        train_data = GSgnnLPTrainData(config.graph_name,
-                                      config.part_config,
-                                      train_etypes=config.train_etype,
-                                      eval_etypes=config.eval_etype,
-                                      node_feat_field=config.node_feat_name,
-                                      pos_graph_feat_field=config.lp_edge_weight_for_loss)
-    elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        train_data = GSgnnNodeTrainData(config.graph_name,
+        input_graph = GSgnnEdgeInferData(config.graph_name,
                                         config.part_config,
-                                        train_ntypes=config.target_ntype,
-                                        eval_ntypes=config.eval_target_ntype,
+                                        eval_etypes=config.eval_etype,
                                         node_feat_field=config.node_feat_name,
-                                        label_field=config.label_field)
-    elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        train_data = GSgnnEdgeTrainData(config.graph_name,
-                                        config.part_config,
-                                        train_etypes=config.target_etype,
-                                        node_feat_field=config.node_feat_name,
-                                        label_field=config.label_field,
                                         decoder_edge_feat=config.decoder_edge_feat)
+    elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
+        input_graph = GSgnnNodeInferData(config.graph_name,
+                                    config.part_config,
+                                    eval_ntypes=config.target_ntype,
+                                    node_feat_field=config.node_feat_name,
+                                    label_field=config.label_field)
+    elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
+        input_graph = GSgnnEdgeInferData(config.graph_name,
+                                    config.part_config,
+                                    eval_etypes=config.target_etype,
+                                    node_feat_field=config.node_feat_name,
+                                    label_field=config.label_field,
+                                    decoder_edge_feat=config.decoder_edge_feat)
     else:
         raise TypeError("Not supported for task type: ", config.task_type)
 
@@ -74,30 +72,55 @@ def main(config_args):
         "restore model path cannot be none for gs_gen_node_embeddings"
 
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
-        model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
+        model = gs.create_builtin_lp_gnn_model(input_graph.g, config, train_task=False)
     elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=False)
+        model = gs.create_builtin_node_gnn_model(input_graph.g, config, train_task=False)
     elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=False)
+        model = gs.create_builtin_edge_gnn_model(input_graph.g, config, train_task=False)
+    else:
+        raise TypeError("Not supported for task type: ", config.task_type)
 
-    model_path = config.restore_model_path
-    # TODO(zhengda) the model path has to be in a shared filesystem.
-    model.restore_model(model_path)
-    # Preparing input layer for training or inference.
-    # The input layer can pre-compute node features in the preparing step if needed.
-    # For example pre-compute all BERT embeddings
-    model.prepare_input_encoder(train_data)
-    # Runjie: To generate embeddings, it might be preferable to utilize the
-    # entire graph instead of just the training graph.
-    # Additionally, generating embeddings will not result in any edge leakage issues.
-    embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
-                                             task_tracker=tracker)
-    save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                     gs.get_world_size(),
-                     device=device,
-                     node_id_mapping_file=config.node_id_mapping_file,
-                     save_embed_format=config.save_embed_format)
+    if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
+        if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+            link_prediction_loader = GSgnnLinkPredictionTestDataLoader
+        elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+            link_prediction_loader = GSgnnLinkPredictionJointTestDataLoader
+        else:
+            raise ValueError('Unknown test negative sampler.'
+                             'Supported test negative samplers include '
+                             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
 
+        dataloader = link_prediction_loader(input_graph, input_graph.test_idxs,
+                                         batch_size=config.eval_batch_size,
+                                         num_negative_edges=config.num_negative_edges_eval,
+                                         fanout=config.eval_fanout)
+    elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
+        dataloader = GSgnnNodeDataLoader(input_graph, input_graph.infer_idxs, fanout=config.eval_fanout,
+                                         batch_size=config.eval_batch_size, device=device,
+                                         train_task=False,
+                                         construct_feat_ntype=config.construct_feat_ntype,
+                                         construct_feat_fanout=config.construct_feat_fanout)
+    elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
+        dataloader = GSgnnEdgeDataLoader(input_graph, input_graph.infer_idxs, fanout=config.eval_fanout,
+                                         batch_size=config.eval_batch_size,
+                                         device=device, train_task=False,
+                                         reverse_edge_types_map=config.reverse_edge_types_map,
+                                         remove_target_edge_type=config.remove_target_edge_type,
+                                         construct_feat_ntype=config.construct_feat_ntype,
+                                         construct_feat_fanout=config.construct_feat_fanout)
+    else:
+        raise TypeError("Not supported for task type: ", config.task_type)
+
+    emb_generator = GSgnnEmbGenInferer(model)
+    emb_generator.setup_device(device=device)
+
+    emb_generator.infer(input_graph, config.task_type,
+                save_embed_path=config.save_embed_path,
+                loader=dataloader,
+                use_mini_batch_infer=config.use_mini_batch_infer,
+                node_id_mapping_file=config.node_id_mapping_file,
+                return_proba=config.return_proba,
+                save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser

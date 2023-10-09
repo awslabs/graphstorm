@@ -13,10 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Entry point for running link prediction tasks.
+    Entry point for running embedding generating tasks.
 
     Run as:
-    python3 -m graphstorm.run.gs_gen_embedding <Launch args>
+    python3 -m graphstorm.run.gs_gen_node_embedding <Launch args>
 """
 import os
 import logging
@@ -37,10 +37,6 @@ def main():
     cmd_path = os.path.join(lib_dir, cmd)
     exec_script_args = [cmd_path] + exec_script_args
 
-    if "coo" not in args.graph_format:
-        args.graph_format = f"{args.graph_format},coo"
-        logging.debug("Automatically add COO format to graph formats for link prediction. " + \
-                "New graph_format is %s", args.graph_format)
     submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":
