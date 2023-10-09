@@ -19,13 +19,17 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.dataloading import (GSgnnEdgeInferData, GSgnnNodeInferData,
-                            GSgnnEdgeDataLoader, GSgnnNodeDataLoader)
+                            GSgnnEdgeDataLoader, GSgnnNodeDataLoader,
+                            GSgnnLinkPredictionTestDataLoader,
+                            GSgnnLinkPredictionJointTestDataLoader)
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
 from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_NODE_REGRESSION,
                                 BUILTIN_TASK_EDGE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
                                 BUILTIN_TASK_LINK_PREDICTION)
+from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_JOINT_NEG_SAMPLER)
 from graphstorm.inference import GSgnnEmbGenInferer
 
 def main(config_args):

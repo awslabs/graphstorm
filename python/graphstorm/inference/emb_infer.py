@@ -15,9 +15,12 @@
 
     Inferrer wrapper for embedding generation.
 """
-import time
-
 import logging
+from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
+                                BUILTIN_TASK_NODE_REGRESSION,
+                                BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                BUILTIN_TASK_EDGE_REGRESSION,
+                                BUILTIN_TASK_LINK_PREDICTION)
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
@@ -26,11 +29,7 @@ from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 
 from ..utils import sys_tracker, get_rank, get_world_size, barrier, create_dist_tensor
-from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
-                                BUILTIN_TASK_NODE_REGRESSION,
-                                BUILTIN_TASK_EDGE_CLASSIFICATION,
-                                BUILTIN_TASK_EDGE_REGRESSION,
-                                BUILTIN_TASK_LINK_PREDICTION)
+
 
 class GSgnnEmbGenInferer(GSInferrer):
     """ Embedding Generation inffer inferrer.
@@ -99,7 +98,7 @@ class GSgnnEmbGenInferer(GSInferrer):
         self._model.eval()
 
         if task_type == BUILTIN_TASK_LINK_PREDICTION:
-            # for embedding generation, it is preferred to use whole graph
+            # for embedding generation, it is preferred to use full graph
             if use_mini_batch_infer:
                 embs = do_mini_batch_inference(self._model, data, fanout=loader.fanout,
                                                edge_mask=None,
