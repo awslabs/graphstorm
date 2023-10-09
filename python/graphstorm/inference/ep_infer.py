@@ -20,7 +20,7 @@ import time
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_edge_prediction_results
-from ..model.utils import shuffle_nids
+from ..model.utils import NodeIDShuffler
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
@@ -136,6 +136,9 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
 
         if save_prediction_path is not None:
             g = loader.data.g
+            # Only init the nid_shuffler when there is a node_id_mapping_file.
+            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file) \
+                if node_id_mapping_file else None
             shuffled_preds = {}
             for etype, pred in preds.items():
                 assert etype in infer_data.eval_etypes, \
@@ -144,10 +147,8 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                     g.find_edges(loader.target_eidx[etype], etype=etype)
 
                 if node_id_mapping_file is not None:
-                    pred_src_nids = shuffle_nids(g, etype[0], pred_src_nids,
-                                                node_id_mapping_file, get_rank())
-                    pred_dst_nids = shuffle_nids(g, etype[2], pred_dst_nids,
-                                                node_id_mapping_file, get_rank())
+                    pred_src_nids = nid_shuffler.shuffle_nids(etype[0], pred_src_nids)
+                    pred_dst_nids = nid_shuffler.shuffle_nids(etype[2], pred_dst_nids)
                 shuffled_preds[etype] = (pred, pred_src_nids, pred_dst_nids)
             save_edge_prediction_results(shuffled_preds, save_prediction_path)
 
