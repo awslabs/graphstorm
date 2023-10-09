@@ -32,6 +32,7 @@ from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER)
 from graphstorm.inference import GSgnnEmbGenInferer
 
+
 def main(config_args):
     """ main function
     """
@@ -75,6 +76,7 @@ def main(config_args):
     assert config.restore_model_path is not None, \
         "restore model path cannot be none for gs_gen_node_embeddings"
 
+    # load the model
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
         model = gs.create_builtin_lp_gnn_model(input_graph.g, config, train_task=False)
     elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
@@ -83,7 +85,10 @@ def main(config_args):
         model = gs.create_builtin_edge_gnn_model(input_graph.g, config, train_task=False)
     else:
         raise TypeError("Not supported for task type: ", config.task_type)
+    model.restore_model(config.restore_model_path,
+                        model_layer_to_load=config.restore_model_layers)
 
+    # define the dataloader
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
         if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
             link_prediction_loader = GSgnnLinkPredictionTestDataLoader
@@ -117,6 +122,7 @@ def main(config_args):
     else:
         raise TypeError("Not supported for task type: ", config.task_type)
 
+    # start the infer
     emb_generator = GSgnnEmbGenInferer(model)
     emb_generator.setup_device(device=device)
 
