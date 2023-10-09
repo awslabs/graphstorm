@@ -307,6 +307,10 @@ Classification and Regression Task
     - Yaml: ``imbalance_class_weights: 0.1,0.2,0.3``
     - Argument: ``--imbalance-class-weights 0.1,0.2,0.3``
     - Default value: ``None``
+- **return_proba**: For classification task, this configuraiton determines whether to return prediction probability or the argmax prediction. Set `true`` to return predictions probability and `false` to return the argmax prediction.
+    - Yaml: ``return_proba: true``
+    - Argument: ``--return_proba true``
+    - Default value: ``true``
 - **save_prediction_path**: Path to save prediction results. This is used in node/edge classification/regression inference.
     - Yaml: ``save_prediction_path: /data/infer-output/predictions/``
     - Argument: ``--save-prediction-path /data/infer-output/predictions/``
