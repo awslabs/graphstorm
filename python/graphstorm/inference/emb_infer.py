@@ -117,7 +117,8 @@ class GSgnnEmbGenInferer(GSInferrer):
                     else {ntype: inter_embs}
                 g = loader.data.g
                 ntype_emb = create_dist_tensor((g.num_nodes(ntype), inter_embs[ntype].shape[1]),
-                                               dtype=inter_embs[ntype].dtype, name=f'gen-emb-{ntype}',
+                                               dtype=inter_embs[ntype].dtype,
+                                               name=f'gen-emb-{ntype}',
                                                part_policy=g.get_node_partition_policy(ntype),
                                                persistent=True)
                 ntype_emb[loader.target_nidx[ntype]] = inter_embs[ntype]
