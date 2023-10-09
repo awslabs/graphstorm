@@ -2238,8 +2238,12 @@ def _add_lm_model_args(parser):
                  "to warmup a GNN model")
     group.add_argument("--max-seq-len", type=int, default=argparse.SUPPRESS,
                        help="The maximum of sequence length for distillation")
-    group.add_argument("--cache-lm-embed", type=bool, default=False,
-            help="Whether to cache the LM embeddings in files.")
+    group.add_argument("--cache-lm-embed",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="Whether to cache the LM embeddings in files. " + \
+                    "If the LM embeddings have been saved before, load the saved embeddings " + \
+                    "instead of computing the LM embeddings again.")
     return parser
 
 def _add_rgat_args(parser):

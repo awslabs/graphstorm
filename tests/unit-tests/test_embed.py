@@ -215,10 +215,14 @@ def test_lm_cache():
         lm_models = LMModels(g, lm_config, 0, 10)
         lm_cache = LMCache(g, lm_models, tmpdirname)
         lm_cache.update_cache(100)
+        assert len(lm_cache) == 1
+        assert len(lm_cache.ntypes) == 1
+        assert lm_cache.ntypes[0] == 'n0'
 
         lm_cache2 = LMCache(g, lm_models, tmpdirname)
-        emb1 = lm_cache.get_embedding("n0")
-        emb2 = lm_cache2.get_embedding("n0")
+        assert len(lm_cache2) == 1
+        emb1 = lm_cache["n0"]
+        emb2 = lm_cache2["n0"]
         assert np.all(emb1[0:len(emb1)].numpy() == emb2[0:len(emb2)].numpy())
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()

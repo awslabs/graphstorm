@@ -242,10 +242,7 @@ class LMCache:
     def __len__(self):
         return len(self._lm_emb_cache)
 
-    def __getitem__(self, key):
-        return self._lm_emb_cache[key]
-
-    def get_embedding(self, ntype):
+    def __getitem__(self, ntype):
         """ Get the cached embedding of a node type.
         """
         return self._lm_emb_cache[ntype]
