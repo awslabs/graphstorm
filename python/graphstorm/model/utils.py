@@ -467,18 +467,18 @@ def remap_embeddings(embeddings, rank, world_size,
                 start, end = _get_data_range(rank, world_size, len(emb))
                 # we need to keep emb to be dist tensor unchanged
                 emb[th.arange(start, end)] = emb[nid_mapping[name]]
-            th.distributed.barrier()
+            barrier()
 
     return embeddings
 
-def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
+def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through pytorch a distributed way
 
         Parameters
         ----------
-        model_path : str
-            The path of the folder where the model is saved.
+        emb_path : str
+            The path of the folder where the embeddings are saved.
         embeddings : DistTensor
             Embeddings to save
         rank : int
@@ -499,9 +499,9 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
         #     - owner of the folder can read, write, and execute;
         #     - owner' group can read, write;
         #     - others can read, write, and execute.
-        os.chmod(model_path, 0o767)
+        os.chmod(emb_path, 0o767)
 
-    # make sure the model_path permission is changed before other process start to save
+    # make sure the emb_path permission is changed before other process start to save
     barrier()
 
     assert rank < world_size
@@ -540,24 +540,24 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
-            th.save(emb, os.path.join(model_path, f'{name}_emb.part{pad_file_index(rank)}.bin'))
+            th.save(emb, os.path.join(emb_path, f'{name}_emb.part{pad_file_index(rank)}.bin'))
             emb_info["emb_name"].append(name)
     else:
-        th.save(embeddings, os.path.join(model_path, f'emb.part{pad_file_index(rank)}.bin'))
+        th.save(embeddings, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
         emb_info["emb_name"] = None
 
     if rank == 0:
-        with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+        with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(emb_info))
 
-def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
+def save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through hdf5 into a single file.
 
         Parameters
         ----------
-        model_path : str
-            The path of the folder where the model is saved.
+        emb_path : str
+            The path of the folder where the embeddings are saved.
         embeddings : DistTensor
             Embeddings to save
         rank : int
@@ -575,17 +575,17 @@ def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
     mapped_embeds = remap_embeddings(embeddings, rank, world_size,
     node_id_mapping_file, device)
     if rank == 0:
-        stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(model_path, "embed_dict.hdf5"))
+        stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(emb_path, "embed_dict.hdf5"))
 
-def save_embeddings(model_path, embeddings, rank, world_size,
+def save_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None,
     save_embed_format="pytorch"):
     """ Save embeddings.
 
         Parameters
         ----------
-        model_path : str
-            The path of the folder where the model is saved.
+        emb_path : str
+            The path of the folder where the embeddings are saved.
         embeddings : DistTensor
             Embeddings to save
         rank : int
@@ -603,22 +603,21 @@ def save_embeddings(model_path, embeddings, rank, world_size,
             The format of saved embeddings.
             Currently support ["pytorch", "hdf5"].
     """
-    os.makedirs(model_path, exist_ok=True)
+    os.makedirs(emb_path, exist_ok=True)
     if save_embed_format == "pytorch":
         if rank == 0:
-            logging.info("Writing GNN embeddings to "\
-                "%s in pytorch format.", model_path)
-        save_pytorch_embeddings(model_path, embeddings, rank, world_size,
+            logging.info("Writing GNN embeddings to %s in pytorch format.",
+                    emb_path)
+        save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
             device, node_id_mapping_file)
     elif save_embed_format == "hdf5":
         if rank == 0:
-            logging.info("Writing GNN embeddings to "\
-                "%s in hdf5 format.", \
-                os.path.join(model_path, 'embed_dict.hdf5'))
-        save_hdf5_embeddings(model_path, embeddings, rank, world_size,
+            logging.info("Writing GNN embeddings to %s in hdf5 format.", \
+                os.path.join(emb_path, 'embed_dict.hdf5'))
+        save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
             device, node_id_mapping_file)
     else:
-        raise ValueError(f"{model_path} is not supported for save_embed_format")
+        raise ValueError(f"{emb_path} is not supported for save_embed_format")
 
 def shuffle_predict(predictions, id_mapping_file, pred_type,
                     rank, world_size, device):
