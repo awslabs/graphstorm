@@ -99,13 +99,15 @@ def main(config_args):
                                          num_negative_edges=config.num_negative_edges_eval,
                                          fanout=config.eval_fanout)
     elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        dataloader = GSgnnNodeDataLoader(input_graph, input_graph.infer_idxs, fanout=config.eval_fanout,
+        dataloader = GSgnnNodeDataLoader(input_graph, input_graph.infer_idxs,
+                                         fanout=config.eval_fanout,
                                          batch_size=config.eval_batch_size, device=device,
                                          train_task=False,
                                          construct_feat_ntype=config.construct_feat_ntype,
                                          construct_feat_fanout=config.construct_feat_fanout)
     elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        dataloader = GSgnnEdgeDataLoader(input_graph, input_graph.infer_idxs, fanout=config.eval_fanout,
+        dataloader = GSgnnEdgeDataLoader(input_graph, input_graph.infer_idxs,
+                                         fanout=config.eval_fanout,
                                          batch_size=config.eval_batch_size,
                                          device=device, train_task=False,
                                          reverse_edge_types_map=config.reverse_edge_types_map,
