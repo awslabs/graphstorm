@@ -858,6 +858,37 @@ def save_edge_prediction_result(predictions, src_nids, dst_nids,
     th.save(src_nids, os.path.join(prediction_path, f"src_nids-{pad_file_index(rank)}.pt"))
     th.save(dst_nids, os.path.join(prediction_path, f"dst_nids-{pad_file_index(rank)}.pt"))
 
+def save_node_prediction_result(predictions, nids,
+                               prediction_path, rank):
+    """ Save node predictions to the given path, i.e., prediction_path.
+
+        The function will save two tensors: 1) predictions, which stores
+        the prediction results; 2) nides, which stores the node ids of the
+        target nodes.
+
+        Parameters
+        ----------
+        prediction_path: tensor
+            The tensor of predictions.
+        nids: tensor
+            The tensor of target node ids.
+        prediction_path: str
+            The path of the prediction is saved.
+        rank: int
+            Rank of the current process in a distributed environment.
+    """
+    os.makedirs(prediction_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(prediction_path, 0o767)
+    # make sure the prediction_path permission is changed before other process start to save
+    barrier()
+    th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
+    th.save(nids, os.path.join(prediction_path, f"nids-{pad_file_index(rank)}.pt"))
 
 def save_prediction_results(predictions, prediction_path, rank):
     """ Save node predictions to the given path
@@ -898,6 +929,9 @@ def save_node_prediction_results(predictions, prediction_path):
                 |- predict-00000.pt
                 |- predict-00001.pt
                 |- ...
+                |- nids-00000.pt
+                |- nids-00001.pt
+                |- ...
             |- ntype1
                 |- ...
 
@@ -922,17 +956,18 @@ def save_node_prediction_results(predictions, prediction_path):
 
         Parameters
         ----------
-        prediction: tensor
-            The dict of tensors of predictions.
+        predictions: dict of tuple of tensors
+            The dict of tuple of tensors of predict results and the corresponding nids
         prediction_path: str
             The path of the prediction is saved.
     """
     rank = get_rank()
     world_size = get_world_size()
-    for ntype, pred in predictions.items():
-        save_prediction_results(pred,
-                                os.path.join(prediction_path, ntype),
-                                rank)
+    for ntype, pred_result in predictions.items():
+        pred, nids = pred_result
+        save_node_prediction_result(pred, nids,
+                                    os.path.join(prediction_path, ntype),
+                                    rank)
     if rank == 0:
         meta_fname = os.path.join(prediction_path, "result_info.json")
         meta_info = {

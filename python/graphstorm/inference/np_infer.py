@@ -136,16 +136,20 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
-            for ntype in ntypes:
+            # save_embed_path may be None. In that case, we need to init nid_shuffler
+            if nid_shuffler is None:
+                nid_shuffler = NodeIDShuffler(g, node_id_mapping_file) \
+                if node_id_mapping_file else None
+            shuffled_preds = {}
+            for ntype, pred in preds.items:
                 g = loader.data.g
                 assert ntype in preds, \
                     f"{ntype} is not in the set of evaluation ntypes {loader.data.eval_ntypes}"
 
                 pred_nids = loader.target_nidx[ntype]
                 if node_id_mapping_file is not None:
-                    pred_nids = shuffle_nids(g, ntype, pred_nids,
-                                             node_id_mapping_file, get_rank())
-                shuffled_preds[ntype] = (embs[ntype], pred_nids)
+                    pred_nids = nid_shuffler.shuffle_nids(ntype, pred_nids)
+                shuffled_preds[ntype] = (pred, pred_nids)
 
             save_node_prediction_results(shuffled_preds, save_prediction_path)
         barrier()
