@@ -19,9 +19,9 @@ import time
 import logging
 
 from .graphstorm_infer import GSInferrer
-from ..model.utils import save_embeddings as save_gsgnn_embeddings
+from ..model.utils import save_shuffled_node_embeddings
 from ..model.utils import save_node_prediction_results
-from ..model.utils import shuffle_predict
+from ..model.utils import NodeIDShuffler
 from ..model.gnn import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
@@ -96,8 +96,6 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             labels = res[1] if do_eval else None
         sys_tracker.check('compute embeddings')
 
-        device = self.device
-
         # do evaluation first
         # do evaluation if any
         if do_eval:
@@ -113,7 +111,11 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                                         dur_eval=time.time() - test_start,
                                         total_steps=0)
 
+        nid_shuffler = None
         if save_embed_path is not None:
+            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file) \
+                if node_id_mapping_file else None
+            shuffled_embs = {}
             for ntype in ntypes:
                 if get_rank() == 0:
                     logging.info("save embeddings pf {ntype} to %s", save_embed_path)
@@ -125,10 +127,9 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                 emb_nids = loader.target_nidx[ntype]
 
                 if node_id_mapping_file is not None:
-                    emb_nids = shuffle_nids(g, ntype, emb_nids,
-                                             node_id_mapping_file, get_rank())
+                    emb_nids = nid_shuffler.shuffle_nids(ntype, emb_nids)
                 shuffled_embs[ntype] = (embs[ntype], emb_nids)
-            save_node_emb_results(shuffled_embs, save_embed_path)
+            save_shuffled_node_embeddings(shuffled_embs, save_embed_path)
 
 
             barrier()

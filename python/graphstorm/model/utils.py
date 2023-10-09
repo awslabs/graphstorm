@@ -624,6 +624,61 @@ def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
         with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(emb_info))
 
+def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format="pytorch"):
+    """ Save node embeddings that have already been shuffled.
+
+        For each node embeddings, two tensors are required and should be
+        provided as a tuple: (embedding tensor, embdding nid tensor)
+
+        Parameters
+        ----------
+        shuffled_embs: dict of tuple of tensors
+            Embeddings and their associated node ids to be saved
+        save_embed_path: str
+            Path to save the embeddings
+        save_embed_format : str
+            The format of saved embeddings.
+            Currently support ["pytorch"].
+    """
+    os.makedirs(save_embed_path, exist_ok=True)
+    assert save_embed_format == "pytorch", \
+        "save_shuffled_node_embeddings only supports pytorch format now."
+    rank = get_rank()
+    world_size = get_world_size()
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(save_embed_path, 0o767)
+        logging.info("Writing GNN embeddings to "\
+            "%s in pytorch format.", save_embed_path)
+
+    # make sure the save_embed_path permission is changed before other process start to save
+    barrier()
+
+    emb_info = {
+        "format": "pytorch",
+        "emb_name":[],
+        "world_size":world_size
+    }
+
+    for ntype, emb_info in shuffled_embs.items():
+        os.makedirs(os.path.join(save_embed_path, ntype), exist_ok=True)
+        embs, nids = emb_info
+        assert len(nids) == len(embs), \
+            f"The embeding length {len(embs)} does not match the node id length {len(nids)}"
+        th.save(embs, os.path.join(os.path.join(save_embed_path, ntype),
+                                  f'emb.part{pad_file_index(rank)}.bin'))
+        th.save(nids, os.path.join(os.path.join(save_embed_path, ntype),
+                                  f'nids.part{pad_file_index(rank)}.bin'))
+        emb_info["emb_name"].append(ntype)
+
+    if rank == 0:
+        with open(os.path.join(save_embed_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+            f.write(json.dumps(emb_info))
+
 def save_embeddings(model_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None,
     save_embed_format="pytorch"):
