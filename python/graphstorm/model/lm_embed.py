@@ -28,6 +28,7 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
+from .utils import load_pytorch_embedding
 from ..utils import get_rank, barrier, create_dist_tensor
 
 class LMModels(nn.Module):
@@ -59,6 +60,7 @@ class LMModels(nn.Module):
         # to help find the right BERT model for a node type.
         self._lm_map = {}
         self._lm_models = nn.ModuleDict()
+        self._lm_model_names = {}
         self._lm_node_feats = {}
         for lm_config in node_lm_configs:
             lm_model = init_lm_model(lm_config,
@@ -66,6 +68,8 @@ class LMModels(nn.Module):
                                      lm_infer_batch_size=lm_infer_batch_size)
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
+            for ntype in lm_ntypes:
+                self._lm_model_names[ntype] = lm_config["model_name"]
             lm_node_feats = get_lm_node_feats(g, lm_model, lm_ntypes)
             for ntype, feats in lm_node_feats.items():
                 assert ntype not in self._lm_node_feats, \
@@ -129,6 +133,20 @@ class LMModels(nn.Module):
         """
         idx = self._lm_map[ntype]
         return self._lm_models[idx]
+
+    def get_lm_model_name(self, ntype):
+        """ Get the LM model name on a node type.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        str : the model name
+        """
+        return self._lm_model_names[ntype]
 
     def get_lm_node_feat(self, ntype):
         """ Get the LM node features.
@@ -196,13 +214,28 @@ class LMCache:
         if embed_path is not None:
             self._load_embeddings()
 
-    def _load_embeddings(self, embed_path):
+    def _load_embeddings(self):
         """ Load LM embeddings from files.
         """
+        for ntype in self._lm_models.ntypes:
+            model_name = self._lm_models.get_lm_model_name(model_name)
+            assert "/" not in model_name, \
+                    f"We only support builtin LM models for now. The model name is {model_name}."
+            embed_path1 = os.path.join(os.path.join(self._embed_path, ntype), model_name)
+            self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path1,
+                    self._g.get_node_partition_policy(ntype), "bert_emb")
+            # TODO We need to make sure the LM model signature that generate the embeddings
+            # is the same as the current LM model.
 
     def _save_embeddings(self):
         """ Save LM embeddings.
         """
+        for ntype in self._lm_models.ntypes:
+            model_name = self._lm_models.get_lm_model_name(model_name)
+            assert "/" not in model_name, \
+                    f"We only support builtin LM models for now. The model name is {model_name}."
+            embed_path1 = os.path.join(os.path.join(self._embed_path, ntype), model_name)
+            save_embeddings(embed_path1, self._lm_emb_cache[ntype], get_rank(), get_world_size())
 
     def get_embedding(self, ntype):
         """ Get the cached embedding of a node type.
@@ -213,7 +246,7 @@ class LMCache:
     def ntypes(self):
         """ Get the node types with embedding cache.
         """
-        return list(self._lm_emb_cache.keys())
+        return self._lm_models.ntypes
 
     def update_cache(self, lm_infer_batch_size, use_fp16=True):
         """ Update the LM embedding cache.

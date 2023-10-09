@@ -471,6 +471,32 @@ def remap_embeddings(embeddings, rank, world_size,
 
     return embeddings
 
+def load_pytorch_embedding(emb_path, part_policy, name):
+    """ Load embedding tensor in Pytorch format.
+
+    Parameters
+    ----------
+    emb_path : str
+        The path of the save embedding files.
+    part_policy : dgl.distributed.PartitionPolicy
+        The partitioning policy
+    name : str
+        The name of the created distributed tensor.
+
+    Returns
+    -------
+    DistTensor : the loaded embeddings.
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    emb = th.load(os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
+    dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
+            name=name, part_policy=part_policy)
+    start, end = _get_data_range(rank, world_size, len(dist_emb))
+    dist_emb[start:end] = emb
+    barrier()
+    return dist_emb
+
 def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through pytorch a distributed way
