@@ -19,6 +19,7 @@
 
 import logging
 import time
+import os
 
 import torch as th
 from torch import nn
@@ -28,8 +29,8 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from .utils import load_pytorch_embedding
-from ..utils import get_rank, barrier, create_dist_tensor
+from .utils import load_pytorch_embedding, save_embeddings
+from ..utils import get_rank, get_world_size, barrier, create_dist_tensor
 
 class LMModels(nn.Module):
     """ LM model collection
@@ -218,12 +219,13 @@ class LMCache:
         """ Load LM embeddings from files.
         """
         for ntype in self._lm_models.ntypes:
-            model_name = self._lm_models.get_lm_model_name(model_name)
+            model_name = self._lm_models.get_lm_model_name(ntype)
             assert "/" not in model_name, \
                     f"We only support builtin LM models for now. The model name is {model_name}."
             embed_path1 = os.path.join(os.path.join(self._embed_path, ntype), model_name)
-            self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path1,
-                    self._g.get_node_partition_policy(ntype), "bert_emb")
+            if os.path.exists(embed_path1):
+                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path1,
+                        self._g.get_node_partition_policy(ntype), "bert_emb")
             # TODO We need to make sure the LM model signature that generate the embeddings
             # is the same as the current LM model.
 
@@ -231,11 +233,17 @@ class LMCache:
         """ Save LM embeddings.
         """
         for ntype in self._lm_models.ntypes:
-            model_name = self._lm_models.get_lm_model_name(model_name)
+            model_name = self._lm_models.get_lm_model_name(ntype)
             assert "/" not in model_name, \
                     f"We only support builtin LM models for now. The model name is {model_name}."
             embed_path1 = os.path.join(os.path.join(self._embed_path, ntype), model_name)
             save_embeddings(embed_path1, self._lm_emb_cache[ntype], get_rank(), get_world_size())
+
+    def __len__(self):
+        return len(self._lm_emb_cache)
+
+    def __getitem__(self, key):
+        return self._lm_emb_cache[key]
 
     def get_embedding(self, ntype):
         """ Get the cached embedding of a node type.
@@ -296,10 +304,11 @@ class LMCache:
             if get_rank() == 0:
                 logging.info('Computing bert embedding on node %s takes %.3f seconds',
                              ntype, time.time() - start)
-            lm_emb_cache[ntype] = input_emb
+            self._lm_emb_cache[ntype] = input_emb
             lm_model.train()
 
-        self._save_embeddings()
+        if self._embed_path is not None:
+            self._save_embeddings()
 
 class GSPureLMNodeInputLayer(GSNodeInputLayer):
     """The input embedding layer with language model only for all nodes in a

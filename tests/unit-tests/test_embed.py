@@ -30,7 +30,7 @@ from graphstorm.model import GSNodeEncoderInputLayer, GSLMNodeEncoderInputLayer,
 from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
-
+from graphstorm.model.lm_embed import LMModels, LMCache
 
 from data_utils import generate_dummy_dist_graph
 from data_utils import create_lm_graph, create_lm_graph2
@@ -199,6 +199,27 @@ def test_compute_embed(dev):
     # Run it again to tigger the branch that access 'input_emb' directly.
     embeds = compute_node_input_embeddings(g, 10, layer,
                                            feat_field={'n0' : ['feat']})
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_lm_cache():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
+
+        lm_models = LMModels(g, lm_config, 0, 10)
+        lm_cache = LMCache(g, lm_models, tmpdirname)
+        lm_cache.update_cache(100)
+
+        lm_cache2 = LMCache(g, lm_models, tmpdirname)
+        emb1 = lm_cache.get_embedding("n0")
+        emb2 = lm_cache2.get_embedding("n0")
+        assert np.all(emb1[0:len(emb1)].numpy() == emb2[0:len(emb2)].numpy())
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -424,6 +445,7 @@ def test_lm_embed_warmup(dev):
 
 
 if __name__ == '__main__':
+    test_lm_cache()
     test_input_layer1(None)
     test_input_layer1(F.relu)
     test_input_layer2()
