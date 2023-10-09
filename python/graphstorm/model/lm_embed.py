@@ -406,13 +406,8 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         if self.num_train == 0:
             self.freeze(g)
 
-    def freeze(self, g):
+    def freeze(self, _):
         """ Generate Bert caching if needed
-
-        Parameters
-        ----------
-        g : DistGraph
-            The distributed graph object.
         """
         # The lm_emb_cache is used in following cases:
         # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
@@ -598,13 +593,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         if self.num_train == 0:
             self.freeze(g)
 
-    def freeze(self, g):
+    def freeze(self, _):
         """ Generate Bert caching if needed
-
-        Parameters
-        ----------
-        g : DistGraph
-            The distributed graph object.
         """
         # The lm_emb_cache is used in following cases:
         # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
