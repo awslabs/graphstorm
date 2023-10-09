@@ -275,7 +275,7 @@ General Configurations
     - Yaml: ``task_type: node_classification``
     - Argument: ``--task-type node_classification``
     - Default value: This parameter must be provided by user.
-- **eval_metric**: Evaluation metric used during evaluation. The input can be a string specifying the evaluation metric to report or a list of strings specifying a list of evaluation metrics to report. The first evaluation metric is treated as the major metric and is used to choose the best trained model. The supported evaluation metrics of classification tasks include ``accuracy``, ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``. The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``. The supported evaluation metrics of link prediction tasks include ``mrr``.
+- **eval_metric**: Evaluation metric used during evaluation. The input can be a string specifying the evaluation metric to report or a list of strings specifying a list of evaluation metrics to report. The first evaluation metric is treated as the major metric and is used to choose the best trained model. The supported evaluation metrics of classification tasks include ``accuracy``, ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``. The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``. The supported evaluation metrics of link prediction tasks include ``mrr``. 
     - Yaml: ``eval_metric:``
         | ``- accuracy``
         | ``- precision_recall``
@@ -284,6 +284,10 @@ General Configurations
             - For classification tasks, the default value is ``accuracy``.
             - For regression tasks, the default value is ``rmse``.
             - For link prediction tasks, the default value is ``mrr``.
+
+.. note::
+
+    To use ``precision_recall`` and ``roc_auc``, please set the **return_proba** to be `false`.
 
 Classification and Regression Task
 ......................................
