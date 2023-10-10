@@ -338,7 +338,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         Batch size used for computing text embeddings for static lm model. Default: 16
     use_fp16 : bool 
         Use float16 to store LM embeddings. Default: True
-    embed_path : str
+    cached_embed_path : str
         The path where the LM embeddings are cached.
     
     Examples:
@@ -370,7 +370,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                  num_train=0,
                  lm_infer_batch_size=16,
                  use_fp16=True,
-                 embed_path=None):
+                 cached_embed_path=None):
         super(GSPureLMNodeInputLayer, self).__init__(g)
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
@@ -380,7 +380,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_fp16 = use_fp16
         self.use_cache = False
-        self.lm_emb_cache = LMCache(g, self._lm_models, embed_path=embed_path)
+        self.lm_emb_cache = LMCache(g, self._lm_models, embed_path=cached_embed_path)
 
         self._feat_size = self._lm_models.feat_size
         for lm_model in self._lm_models.lm_models:
@@ -507,7 +507,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         available. Default: False
     use_fp16 : bool
         Use float16 to store the BERT embeddings. Default: True
-    embed_path : str
+    cached_embed_path : str
         The path where the LM embeddings are cached.
 
     Examples:
@@ -547,7 +547,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                  dropout=0.0,
                  use_node_embeddings=False,
                  use_fp16=True,
-                 embed_path=None):
+                 cached_embed_path=None):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
 
@@ -568,7 +568,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         self.use_fp16 = use_fp16
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_cache = False
-        self.lm_emb_cache = LMCache(g, lm_models, embed_path=embed_path)
+        self.lm_emb_cache = LMCache(g, lm_models, embed_path=cached_embed_path)
 
         super(GSLMNodeEncoderInputLayer, self).__init__(
             g, adjust_feat_size, embed_size,
