@@ -42,9 +42,8 @@
         "features": [
             {
                 "feature_col": "age",
-                "transform":    {"name": "max_min_norm",
-                          "max_bound": 40,
-                          "min_bound": 4}
+                "transform":    {"name": "bucket",
+                          "bucket": [1, 10, 20, 30, 40]}
             }
         ]
       }

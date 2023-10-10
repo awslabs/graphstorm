@@ -332,6 +332,45 @@ class TwoPhaseFeatTransform(FeatTransform):
     def call(self, feats):
         raise NotImplementedError
 
+class BucketTransform(FeatTransform):
+    """ This doesn't transform the feature.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    bucket: list[num]:
+        The bucket list used for bucket transformation
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    """
+    def __init__(self, col_name, feat_name, bucket, out_dtype=None):
+        assert bucket is not None, "bucket must be provided for bucket transform"
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(BucketTransform, self).__init__(col_name, feat_name, out_dtype)
+
+    def call(self, feats):
+        """ This transforms the features.
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+                f"The feature {self.feat_name} has to be NumPy array."
+        assert np.issubdtype(feats.dtype, np.integer) \
+                or np.issubdtype(feats.dtype, np.floating), \
+                f"The feature {self.feat_name} has to be integers or floats."
+        return {self.feat_name: feats}
+
 class CategoricalTransform(TwoPhaseFeatTransform):
     """ Convert the data into categorical values.
 
@@ -928,6 +967,14 @@ def parse_feat_ops(confs):
                 separator = conf['separator'] if 'separator' in conf else None
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator, transform_conf=conf)
+            elif conf['name'] == 'bucket':
+                assert 'bucket' in conf, \
+                    "It is required to provide bucket information for bucket feature transform"
+                bucket = conf['bucket']
+                transform = BucketTransform(feat['feature_col'],
+                                               feat_name,
+                                               bucket=bucket,
+                                               out_dtype=out_dtype)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
