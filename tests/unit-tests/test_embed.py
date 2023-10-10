@@ -220,10 +220,18 @@ def test_lm_cache():
         assert lm_cache.ntypes[0] == 'n0'
 
         lm_cache2 = LMCache(g, lm_models, tmpdirname)
+        lm_cache2.update_cache(100)
         assert len(lm_cache2) == 1
         emb1 = lm_cache["n0"]
         emb2 = lm_cache2["n0"]
         assert np.all(emb1[0:len(emb1)].numpy() == emb2[0:len(emb2)].numpy())
+
+        model_name = lm_cache._get_model_name("n0")
+        for param in lm_models.get_lm_model("n0").parameters():
+            param.data += 1
+        model_name1 = lm_cache._get_model_name("n0")
+        assert model_name != model_name1
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 

@@ -20,7 +20,9 @@
 import logging
 import time
 import os
+import hashlib
 
+import numpy as np
 import torch as th
 from torch import nn
 import dgl
@@ -149,6 +151,22 @@ class LMModels(nn.Module):
         """
         return self._lm_model_names[ntype]
 
+    def get_lm_model_hash(self, ntype):
+        """ Compute the hash code of a LM model on a given node type.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        str : the hash code of the model.
+        """
+        weights = [th.flatten(param.data) for param in self.get_lm_model(ntype).parameters()]
+        weights = th.cat(weights).cpu().numpy()
+        return hashlib.sha1(weights.view(np.uint8)).hexdigest()
+
     def get_lm_node_feat(self, ntype):
         """ Get the LM node features.
 
@@ -213,31 +231,46 @@ class LMCache:
         self._lm_emb_cache = {}
         self._embed_path = embed_path
 
+    def _get_model_hash(self, ntype):
+        """ Get the hash code of a model.
+
+        If necessary, we may cache the hash code in the future.
+        """
+        return self._lm_models.get_lm_model_hash(ntype)
+
+    def _get_model_name(self, ntype):
+        """ Get the model name
+
+        The model name should be the original model name followed with a hash code:
+        "model_name"-"hash_code"
+
+        """
+        model_name = self._lm_models.get_lm_model_name(ntype)
+        assert "/" not in model_name, \
+                f"We only support builtin LM models for now. The model name is {model_name}."
+        model_hash = self._get_model_hash(ntype)
+        # We only take the first 10 characters of the hash code to construct the model name.
+        return model_name + "-" + model_hash[0:10]
+
     def _load_embeddings(self):
         """ Load LM embeddings from files.
         """
         for ntype in self._lm_models.ntypes:
-            model_name = self._lm_models.get_lm_model_name(ntype)
-            assert "/" not in model_name, \
-                    f"We only support builtin LM models for now. The model name is {model_name}."
-            embed_path = os.path.join(os.path.join(self._embed_path, ntype), model_name)
+            embed_path = os.path.join(os.path.join(self._embed_path, ntype),
+                    self._get_model_name(ntype))
             if os.path.exists(embed_path):
                 if get_rank() == 0:
                     logging.info("load LM embedding from %s for node type %s",
                             embed_path, ntype)
                 self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
                         self._g.get_node_partition_policy(ntype), "bert_emb")
-            # TODO We need to make sure the LM model signature that generate the embeddings
-            # is the same as the current LM model.
 
     def _save_embeddings(self):
         """ Save LM embeddings.
         """
         for ntype in self._lm_models.ntypes:
-            model_name = self._lm_models.get_lm_model_name(ntype)
-            assert "/" not in model_name, \
-                    f"We only support builtin LM models for now. The model name is {model_name}."
-            embed_path = os.path.join(os.path.join(self._embed_path, ntype), model_name)
+            embed_path = os.path.join(os.path.join(self._embed_path, ntype),
+                    self._get_model_name(ntype))
             save_embeddings(embed_path, self._lm_emb_cache[ntype], get_rank(), get_world_size())
 
     def __len__(self):
@@ -268,6 +301,9 @@ class LMCache:
         # computing them from scratch.
         if self._embed_path is not None:
             self._load_embeddings()
+
+        # If all embeddings are cached, don't compute the embeddings again.
+        if np.all([ntype in self._lm_emb_cache for ntype in self._lm_models.ntypes]):
             return
 
         for ntype in self._lm_models.ntypes:
