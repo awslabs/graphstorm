@@ -20,6 +20,10 @@ on:
       - 'graphstorm-processing/**'
       - '.github/workflows/gsprocessing-workflow.yml'    
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.event.pull_request.head.ref }}
+  cancel-in-progress: true
+  
 permissions:
   id-token: write
   pull-requests: write
@@ -45,9 +49,6 @@ jobs:
       && github.event_name == 'pull_request_target'
       && contains(github.event.pull_request.labels.*.name, 'ready'))}}
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.event.number || github.event.pull_request.head.ref }}
-      cancel-in-progress: true
     steps:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
@@ -93,9 +94,6 @@ jobs:
     if: ${{ github.event.label.name != 'draft' }}
     needs: lint_check
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.event.number || github.event.pull_request.head.ref }}
-      cancel-in-progress: true
     steps:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
