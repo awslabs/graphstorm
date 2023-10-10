@@ -664,9 +664,8 @@ def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_for
         "world_size":world_size
     }
 
-    for ntype, emb_info in shuffled_embs.items():
+    for ntype, (embs, nids) in shuffled_embs.items():
         os.makedirs(os.path.join(save_embed_path, ntype), exist_ok=True)
-        embs, nids = emb_info
         assert len(nids) == len(embs), \
             f"The embeding length {len(embs)} does not match the node id length {len(nids)}"
         th.save(embs, os.path.join(os.path.join(save_embed_path, ntype),
@@ -804,6 +803,7 @@ class NodeIDShuffler():
             # Save ID mapping into dist tensor
             id_mapping_info[th.arange(num_nodes)] = id_mapping
         barrier()
+        print(id_mapping_info[th.arange(num_nodes)])
         return id_mapping_info
 
     def shuffle_nids(self, ntype, nids):

@@ -433,71 +433,73 @@ def test_shuffle_predict(num_embs, backend):
         # Load saved embeddings
         assert_equal(pred[nid_mapping["node"]].numpy(), shuffled_pred)
 
-@pytest.mark.parametrize("num_embs", [16, 17])
-@pytest.mark.parametrize("backend", ["gloo", "nccl"])
-def test_shuffle_emb_with_shuffle_nids(num_embs, backend):
+def do_dist_shuffle_nids(part_config, node_id_mapping_file, ntypes, nids,
+                         worker_rank, world_size, conn):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=worker_rank)
+    dgl.distributed.initialize('')
+    g = dgl.distributed.DistGraph(graph_name='dummy', part_config=part_config)
+    shuffler = NodeIDShuffler(g, node_id_mapping_file, ntypes)
+    shuffled_nids = []
+    for ntype, nid in zip(ntypes, nids):
+        shuffled_nid = shuffler.shuffle_nids(ntype, nid)
+        shuffled_nids.append(shuffled_nid.detach().cpu().numpy())
+
+    conn.send(shuffled_nids)
+
+    if worker_rank == 0:
+        th.distributed.destroy_process_group()
+
+def test_shuffle_emb_with_shuffle_nids():
     # multiple embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
+        g, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
         embs = {}
         ori_nid_mappings = {}
         nid_mappings = {}
-        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
+        num_n0 = g.num_nodes('n0')
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_n0)
         embs['n0'] = emb
         ori_nid_mappings['n0'] = ori_nid_mapping
         nid_mappings['n0'] = nid_mapping
-        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs*2)
+        num_n1 = g.num_nodes('n1')
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_n1)
         embs['n1'] = emb
         ori_nid_mappings['n1'] = ori_nid_mapping
         nid_mappings['n1'] = nid_mapping
-        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs*3)
-        embs['n2'] = emb
-        ori_nid_mappings['n2'] = ori_nid_mapping
-        nid_mappings['n2'] = nid_mapping
+        ntypes = ['n0', 'n1']
+        nids0 = [th.arange(num_n0), th.arange(num_n1)]
 
         save_maps(tmpdirname, "node_mapping", ori_nid_mappings)
         nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         ctx = mp.get_context('spawn')
-        p0 = ctx.Process(target=run_dist_save_embeddings,
-                        args=(tmpdirname, embs, 0, 2, nid_mapping_file, backend))
-        p1 = ctx.Process(target=run_dist_save_embeddings,
-                        args=(tmpdirname, embs, 1, 2, nid_mapping_file, backend))
-
-        p0 = ctx.Process(target=run_dist_save_embeddings,
-                        args=(tmpdirname, embs, 0, 2, nid_mapping_file, backend))
-        p1 = ctx.Process(target=run_dist_save_embeddings,
-                        args=(tmpdirname, embs, 1, 2, nid_mapping_file, backend))
-
+        conn1, conn2 = mp.Pipe()
+        p0 = ctx.Process(target=do_dist_shuffle_nids,
+                        args=(part_config, nid_mapping_file, ntypes, nids0, 0, 1, conn2))
         p0.start()
-        p1.start()
         p0.join()
-        p1.join()
         assert p0.exitcode == 0
-        assert p1.exitcode == 0
+
+        shuffled_nids = conn1.recv()
+        conn1.close()
+        conn2.close()
+
+        shuffled_nids0 = shuffled_nids[0]
+        shuffled_nids1 = shuffled_nids[1]
+        assert len(shuffled_nids0) == len(embs['n0'])
+        assert len(shuffled_nids1) == len(embs['n1'])
 
         # Load saved embeddings
-        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n0'),
-                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n0'),
-                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
-        saved_emb = th.cat([emb0, emb1], dim=0)
-        assert len(saved_emb) == len(embs['n0'])
-        assert_equal(embs['n0'][nid_mappings['n0']].numpy(), saved_emb.numpy())
-
-        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n1'),
-                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n1'),
-                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
-        saved_emb = th.cat([emb0, emb1], dim=0)
-        assert len(saved_emb) == len(embs['n1'])
-        assert_equal(embs['n1'][nid_mappings['n1']].numpy(), saved_emb.numpy())
-
-        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n2'),
-                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n2'),
-                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
-        saved_emb = th.cat([emb0, emb1], dim=0)
-        assert len(saved_emb) == len(embs['n2'])
-        assert_equal(embs['n2'][nid_mappings['n2']].numpy(), saved_emb.numpy())
+        ground_truth0 = embs['n0'][nid_mappings['n0']].numpy()
+        for i, nid in enumerate(shuffled_nids0):
+            assert_equal(ground_truth0[nid], embs['n0'][i].numpy())
+        ground_truth1 = embs['n1'][nid_mappings['n1']].numpy()
+        for i, nid in enumerate(shuffled_nids1):
+            assert_equal(ground_truth1[nid], embs['n1'][i].numpy())
 
 @pytest.mark.parametrize("num_embs", [16, 17])
 @pytest.mark.parametrize("backend", ["gloo", "nccl"])
@@ -804,9 +806,9 @@ def test_save_node_prediction_results():
         n1_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "nids-00001.pt")))
 
         assert_almost_equal(th.cat([n0_feat0, n0_feat1]).numpy(),
-                            th.cat([predictions0[ntype0], predictions1[ntype0]]).numpy())
+                            th.cat([predictions0[ntype0][0], predictions1[ntype0][0]]).numpy())
         assert_almost_equal(th.cat([n1_feat0, n1_feat1]).numpy(),
-                            th.cat([predictions0[ntype1], predictions1[ntype1]]).numpy())
+                            th.cat([predictions0[ntype1][0], predictions1[ntype1][0]]).numpy())
         assert_almost_equal(th.cat([n0_nid0, n0_nid1]).numpy(),
                             th.cat([predictions0[ntype0][1], predictions1[ntype0][1]]).numpy())
         assert_almost_equal(th.cat([n1_nid0, n1_nid1]).numpy(),
@@ -841,32 +843,40 @@ def test_save_shuffled_node_embeddings():
 
         os.path.exists(os.path.join(tmpdirname, "emb_info.json"))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join(ntype0, "emb.part00000.pt")))
+                                    os.path.join(ntype0, "emb.part00000.bin")))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join(ntype0, "emb.part00001.pt")))
+                                    os.path.join(ntype0, "emb.part00001.bin")))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join(ntype1, "emb.part00000.pt")))
+                                    os.path.join(ntype1, "emb.part00000.bin")))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join(ntype1, "emb.part00001.pt")))
-        with open(os.path.join(tmpdirname, "result_info.json"), 'r', encoding='utf-8') as f:
+                                    os.path.join(ntype1, "emb.part00001.bin")))
+        with open(os.path.join(tmpdirname, "emb_info.json"), 'r', encoding='utf-8') as f:
             info = json.load(f)
             assert info["format"] == "pytorch"
             assert info["world_size"] == 2
             assert set(info["emb_name"]) == set([ntype0, ntype1])
 
-        n0_feat0 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "emb.part00000.pt")))
-        n0_feat1 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "emb.part00001.pt")))
-        n0_nid0 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "nids.part00000.pt")))
-        n0_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "nids.part.pt")))
-        n1_feat0 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "emb.part00000.pt")))
-        n1_feat1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "emb.part00001.pt")))
-        n1_nid0 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "nids.part00000.pt")))
-        n1_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "nids.part00001.pt")))
+        n0_feat0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join(ntype0, "emb.part00000.bin")))
+        n0_feat1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join(ntype0, "emb.part00001.bin")))
+        n0_nid0 = th.load(os.path.join(tmpdirname,
+                                       os.path.join(ntype0, "nids.part00000.bin")))
+        n0_nid1 = th.load(os.path.join(tmpdirname,
+                                       os.path.join(ntype0, "nids.part00001.bin")))
+        n1_feat0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join(ntype1, "emb.part00000.bin")))
+        n1_feat1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join(ntype1, "emb.part00001.bin")))
+        n1_nid0 = th.load(os.path.join(tmpdirname,
+                                       os.path.join(ntype1, "nids.part00000.bin")))
+        n1_nid1 = th.load(os.path.join(tmpdirname,
+                                       os.path.join(ntype1, "nids.part00001.bin")))
 
         assert_almost_equal(th.cat([n0_feat0, n0_feat1]).numpy(),
-                            th.cat([embs0[ntype0], embs1[ntype0]]).numpy())
+                            th.cat([embs0[ntype0][0], embs1[ntype0][0]]).numpy())
         assert_almost_equal(th.cat([n1_feat0, n1_feat1]).numpy(),
-                            th.cat([embs0[ntype1], embs1[ntype1]]).numpy())
+                            th.cat([embs0[ntype1][0], embs1[ntype1][0]]).numpy())
         assert_almost_equal(th.cat([n0_nid0, n0_nid1]).numpy(),
                             th.cat([embs0[ntype0][1], embs1[ntype0][1]]).numpy())
         assert_almost_equal(th.cat([n1_nid0, n1_nid1]).numpy(),
@@ -967,7 +977,7 @@ if __name__ == '__main__':
     test_exchange_node_id_mapping(101, backend='nccl')
     test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
     test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
-    test_shuffle_emb_with_shuffle_nids(num_embs=16, backend='gloo')
+    test_shuffle_emb_with_shuffle_nids()
 
     test_get_feat_size()
     test_save_embeddings()

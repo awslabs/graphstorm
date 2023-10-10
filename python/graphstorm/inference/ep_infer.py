@@ -141,7 +141,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                 target_ntypes.add(etype[0])
                 target_ntypes.add(etype[2])
             # Only init the nid_shuffler when there is a node_id_mapping_file.
-            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, target_ntypes) \
+            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(target_ntypes)) \
                 if node_id_mapping_file else None
             shuffled_preds = {}
             for etype, pred in preds.items():
