@@ -104,8 +104,8 @@ def launch_train_task(task_type, num_gpus, graph_config,
     launch_cmd += ["--cf", f"{yaml_path}",
         "--save-model-path", f"{save_model_path}"] + \
         ["--restore-model-path", f"{restore_model_path}"] \
-            if restore_model_path is not None else [] + \
-        extra_args
+            if restore_model_path is not None else []
+    launch_cmd += extra_args
 
     print(launch_cmd)
 
@@ -248,12 +248,12 @@ def run_train(args, unknownargs):
                                             num_gpus,
                                             graph_config_path,
                                             save_model_path,
-                                            restore_model_path,
                                             ip_list_path,
                                             yaml_path,
                                             gs_params,
                                             state_q,
-                                            custom_script)
+                                            custom_script,
+                                            restore_model_path)
             train_task.join()
             err_code = state_q.get()
         except RuntimeError as e:
