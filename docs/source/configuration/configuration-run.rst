@@ -26,7 +26,7 @@ GraphStorm's `graphstorm.run.launch <https://github.com/awslabs/graphstorm/blob/
     - NCCL_DEBUG=INFO
 - **lm-encoder-only**: Indicate that the model is using language model + decoder only. model. No GNN is involved, only graph structure.
 
-..  note:: Below configurations can be set either in a YAML configuraiton file or be added as arguments of launch command.
+..  note:: Below configurations can be set either in a YAML configuration file or be added as arguments of launch command.
 
 Environment Configurations
 -------------------------------------
@@ -307,7 +307,7 @@ Classification and Regression Task
     - Yaml: ``imbalance_class_weights: 0.1,0.2,0.3``
     - Argument: ``--imbalance-class-weights 0.1,0.2,0.3``
     - Default value: ``None``
-- **return_proba**: For classification task, this configuraiton determines whether to return probability estimates for each class or the maximum probable class. Set `true`` to return probability estimates and `false` to return the maximum probable class.
+- **return_proba**: For classification task, this configuration determines whether to return probability estimates for each class or the maximum probable class. Set `true`` to return probability estimates and `false` to return the maximum probable class.
     - Yaml: ``return_proba: true``
     - Argument: ``--return_proba true``
     - Default value: ``true``
