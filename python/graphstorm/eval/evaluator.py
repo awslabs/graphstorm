@@ -326,7 +326,6 @@ class GSgnnInstanceEvaluator():
         """
         return self._best_iter
 
-
 class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
     """ The class for user defined evaluator.
 
