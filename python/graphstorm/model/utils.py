@@ -723,6 +723,8 @@ class NodeIDShuffler():
             f"{node_id_mapping_file} must exist."
 
         ntypes = ntypes if ntypes is not None else g.ntypes
+        assert isinstance(ntypes, list) and len(ntypes) > 0, \
+            f"ntypes is not a list or is an empty list {ntypes}"
         id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
 
         self._id_mapping_info = {
