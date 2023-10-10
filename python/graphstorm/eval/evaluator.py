@@ -326,10 +326,6 @@ class GSgnnInstanceEvaluator():
         """
         return self._best_iter
 
-    @property
-    def history(self):
-        """ Evaluation history"""
-        return self._history
 
 class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
     """ The class for user defined evaluator.
