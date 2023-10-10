@@ -433,13 +433,75 @@ def test_shuffle_predict(num_embs, backend):
         # Load saved embeddings
         assert_equal(pred[nid_mapping["node"]].numpy(), shuffled_pred)
 
-# TODO: Only test gloo now
-# Will add test for nccl once we enable nccl
+@pytest.mark.parametrize("num_embs", [16, 17])
+@pytest.mark.parametrize("backend", ["gloo", "nccl"])
+def test_shuffle_emb_with_shuffle_nids(num_embs, backend):
+    # multiple embedding
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        embs = {}
+        ori_nid_mappings = {}
+        nid_mappings = {}
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
+        embs['n0'] = emb
+        ori_nid_mappings['n0'] = ori_nid_mapping
+        nid_mappings['n0'] = nid_mapping
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs*2)
+        embs['n1'] = emb
+        ori_nid_mappings['n1'] = ori_nid_mapping
+        nid_mappings['n1'] = nid_mapping
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs*3)
+        embs['n2'] = emb
+        ori_nid_mappings['n2'] = ori_nid_mapping
+        nid_mappings['n2'] = nid_mapping
+
+        save_maps(tmpdirname, "node_mapping", ori_nid_mappings)
+        nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_dist_save_embeddings,
+                        args=(tmpdirname, embs, 0, 2, nid_mapping_file, backend))
+        p1 = ctx.Process(target=run_dist_save_embeddings,
+                        args=(tmpdirname, embs, 1, 2, nid_mapping_file, backend))
+
+        p0 = ctx.Process(target=run_dist_save_embeddings,
+                        args=(tmpdirname, embs, 0, 2, nid_mapping_file, backend))
+        p1 = ctx.Process(target=run_dist_save_embeddings,
+                        args=(tmpdirname, embs, 1, 2, nid_mapping_file, backend))
+
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+
+        # Load saved embeddings
+        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n0'),
+                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n0'),
+                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
+        saved_emb = th.cat([emb0, emb1], dim=0)
+        assert len(saved_emb) == len(embs['n0'])
+        assert_equal(embs['n0'][nid_mappings['n0']].numpy(), saved_emb.numpy())
+
+        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n1'),
+                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n1'),
+                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
+        saved_emb = th.cat([emb0, emb1], dim=0)
+        assert len(saved_emb) == len(embs['n1'])
+        assert_equal(embs['n1'][nid_mappings['n1']].numpy(), saved_emb.numpy())
+
+        emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n2'),
+                                    f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
+        emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n2'),
+                                    f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
+        saved_emb = th.cat([emb0, emb1], dim=0)
+        assert len(saved_emb) == len(embs['n2'])
+        assert_equal(embs['n2'][nid_mappings['n2']].numpy(), saved_emb.numpy())
+
 @pytest.mark.parametrize("num_embs", [16, 17])
 @pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_save_embeddings_with_id_mapping(num_embs, backend):
-    import tempfile
-
     # single embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
         emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
@@ -905,6 +967,7 @@ if __name__ == '__main__':
     test_exchange_node_id_mapping(101, backend='nccl')
     test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
     test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
+    test_shuffle_emb_with_shuffle_nids(num_embs=16, backend='gloo')
 
     test_get_feat_size()
     test_save_embeddings()
