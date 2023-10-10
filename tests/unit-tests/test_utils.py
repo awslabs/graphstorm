@@ -198,13 +198,20 @@ def run_distributed_shuffle_nids(part_config, ntype0, ntype1, nids0, nids1, node
     dgl.distributed.initialize('')
     g = dgl.distributed.DistGraph(graph_name='dummy', part_config=part_config)
     shuffler = NodeIDShuffler(g,
-    node_id_mapping_file)
-    assert len(shuffler._id_mapping_info) == 0
+    node_id_mapping_file, [ntype0, ntype1])
+    assert len(shuffler._id_mapping_info) == 2
     shuffled_nids = shuffler.shuffle_nids(ntype0, nids0)
     assert_equal(shuffled_nids.numpy(), original_nids0.numpy())
-    assert len(shuffler._id_mapping_info) == 1
     shuffled_nids = shuffler.shuffle_nids(ntype1, nids1)
+    assert_equal(shuffled_nids.numpy(), original_nids1.numpy())
+    del shuffler
+
+    shuffler = NodeIDShuffler(g,
+    node_id_mapping_file)
     assert len(shuffler._id_mapping_info) == 2
+    shuffled_nids = shuffler.shuffle_nids(ntype0, nids0)
+    assert_equal(shuffled_nids.numpy(), original_nids0.numpy())
+    shuffled_nids = shuffler.shuffle_nids(ntype1, nids1)
     assert_equal(shuffled_nids.numpy(), original_nids1.numpy())
 
     if worker_rank == 0:
