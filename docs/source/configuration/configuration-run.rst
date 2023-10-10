@@ -285,10 +285,6 @@ General Configurations
             - For regression tasks, the default value is ``rmse``.
             - For link prediction tasks, the default value is ``mrr``.
 
-.. note::
-
-    To use ``precision_recall`` and ``roc_auc``, please set the **return_proba** to be `false`.
-
 Classification and Regression Task
 ......................................
 - **label_field**: (**Required**) The field name of labelled data in the graph data. For node classification tasks, GraphStorm use ``graph.nodes[target_ntype].data[label_field]`` to access node labels. For edge classification tasks, GraphStorm use ``graph.edges[target_etype].data[label_field]`` to access edge labels.
@@ -311,7 +307,7 @@ Classification and Regression Task
     - Yaml: ``imbalance_class_weights: 0.1,0.2,0.3``
     - Argument: ``--imbalance-class-weights 0.1,0.2,0.3``
     - Default value: ``None``
-- **return_proba**: For classification task, this configuraiton determines whether to return prediction probability or the argmax prediction. Set `true`` to return predictions probability and `false` to return the argmax prediction.
+- **return_proba**: For classification task, this configuraiton determines whether to return probability estimates for each class or the maximum probable class. Set `true`` to return probability estimates and `false` to return the maximum probable class.
     - Yaml: ``return_proba: true``
     - Argument: ``--return_proba true``
     - Default value: ``true``
