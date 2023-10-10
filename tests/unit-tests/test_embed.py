@@ -219,6 +219,8 @@ def test_lm_cache():
         assert len(lm_cache.ntypes) == 1
         assert lm_cache.ntypes[0] == 'n0'
 
+        # Create the second cache. It should loads the embeddings from
+        # the first cache.
         lm_cache2 = LMCache(g, lm_models, tmpdirname)
         lm_cache2.update_cache(100)
         assert len(lm_cache2) == 1
@@ -226,11 +228,53 @@ def test_lm_cache():
         emb2 = lm_cache2["n0"]
         assert np.all(emb1[0:len(emb1)].numpy() == emb2[0:len(emb2)].numpy())
 
+        # If the model is changed, the model name should also be changed.
         model_name = lm_cache._get_model_name("n0")
         for param in lm_models.get_lm_model("n0").parameters():
             param.data += 1
         model_name1 = lm_cache._get_model_name("n0")
         assert model_name != model_name1
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def run_dist_cache(g, lm_config, tmpdirname):
+    lm_models = LMModels(g, lm_config, 0, 10)
+    lm_cache = LMCache(g, lm_models, tmpdirname)
+    lm_cache.update_cache(100)
+    assert len(lm_cache) == 1
+    assert len(lm_cache.ntypes) == 1
+    assert lm_cache.ntypes[0] == 'n0'
+
+    # Create the second cache. It should loads the embeddings from
+    # the first cache.
+    lm_cache2 = LMCache(g, lm_models, tmpdirname)
+    lm_cache2.update_cache(100)
+    assert len(lm_cache2) == 1
+    emb1 = lm_cache["n0"]
+    emb2 = lm_cache2["n0"]
+    assert np.all(emb1[0:len(emb1)].numpy() == emb2[0:len(emb2)].numpy())
+
+def test_mp_lm_cache():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_dist_cache, args=(g, lm_config, tmpdirname))
+        p1 = ctx.Process(target=run_dist_cache, args=(g, lm_config, tmpdirname))
+
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -458,6 +502,7 @@ def test_lm_embed_warmup(dev):
 
 if __name__ == '__main__':
     test_lm_cache()
+    test_mp_lm_cache()
     test_input_layer1(None)
     test_input_layer1(F.relu)
     test_input_layer2()
