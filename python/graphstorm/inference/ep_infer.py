@@ -20,11 +20,11 @@ import time
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_edge_prediction_results
-from ..model.utils import shuffle_predict
+from ..model.utils import NodeIDShuffler
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from ..utils import sys_tracker, get_world_size, get_rank, barrier, create_dist_tensor
+from ..utils import sys_tracker, get_world_size, get_rank, barrier
 
 class GSgnnEdgePredictionInferrer(GSInferrer):
     """ Edge classification/regression inferrer.
@@ -38,8 +38,9 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         The GNN model for node prediction.
     """
 
+    # pylint: disable=unused-argument
     def infer(self, loader, save_embed_path, save_prediction_path=None,
-            use_mini_batch_infer=False, # pylint: disable=unused-argument
+            use_mini_batch_infer=False,
             node_id_mapping_file=None,
             edge_id_mapping_file=None,
             return_proba=True,
@@ -134,23 +135,26 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
             sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
-            if edge_id_mapping_file is not None:
-                g = loader.data.g
-                shuffled_preds = {}
-                for etype, pred in preds.items():
-                    assert etype in infer_data.eval_etypes, \
-                        f"{etype} is not in the set of evaluation etypes {infer_data.eval_etypes}"
-                    pred_shape = list(pred.shape)
-                    pred_shape[0] = g.num_edges(etype)
-                    pred_data = create_dist_tensor(pred_shape, dtype=pred.dtype,
-                        name='predict-'+'-'.join(etype),
-                        part_policy=g.get_edge_partition_policy(etype))
-                    # edges that have predictions may be just a subset of the
-                    # entire edge set.
-                    pred_data[loader.target_eidx[etype]] = pred.cpu()
-                    pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, get_rank(),
-                                           get_world_size(), device=device)
-                    shuffled_preds[etype] = pred
-                save_edge_prediction_results(shuffled_preds, save_prediction_path)
+            g = loader.data.g
+            target_ntypes = set()
+            for etype, _ in preds.items():
+                target_ntypes.add(etype[0])
+                target_ntypes.add(etype[2])
+            # Only init the nid_shuffler when there is a node_id_mapping_file.
+            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(target_ntypes)) \
+                if node_id_mapping_file else None
+            shuffled_preds = {}
+            for etype, pred in preds.items():
+                assert etype in infer_data.eval_etypes, \
+                    f"{etype} is not in the set of evaluation etypes {infer_data.eval_etypes}"
+                pred_src_nids, pred_dst_nids = \
+                    g.find_edges(loader.target_eidx[etype], etype=etype)
+
+                if node_id_mapping_file is not None:
+                    pred_src_nids = nid_shuffler.shuffle_nids(etype[0], pred_src_nids)
+                    pred_dst_nids = nid_shuffler.shuffle_nids(etype[2], pred_dst_nids)
+                shuffled_preds[etype] = (pred, pred_src_nids, pred_dst_nids)
+            save_edge_prediction_results(shuffled_preds, save_prediction_path)
+
         barrier()
         sys_tracker.check('save predictions')
