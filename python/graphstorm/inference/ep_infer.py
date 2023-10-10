@@ -137,7 +137,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         if save_prediction_path is not None:
             g = loader.data.g
             target_ntypes = set()
-            for etype in preds.keys():
+            for etype, _ in preds.items():
                 target_ntypes.add(etype[0])
                 target_ntypes.add(etype[2])
             # Only init the nid_shuffler when there is a node_id_mapping_file.
