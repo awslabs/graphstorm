@@ -14,6 +14,7 @@
     limitations under the License.
 """
 
+import multiprocessing as mp
 import pytest
 import torch as th
 from torch import nn
@@ -25,6 +26,7 @@ import tempfile
 
 import dgl
 from transformers import AutoTokenizer
+import graphstorm as gs
 from graphstorm import get_feat_size
 from graphstorm.model import GSNodeEncoderInputLayer, GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from graphstorm.model.embed import compute_node_input_embeddings
@@ -33,7 +35,7 @@ from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from graphstorm.model.lm_embed import LMModels, LMCache
 
 from data_utils import generate_dummy_dist_graph
-from data_utils import create_lm_graph, create_lm_graph2
+from data_utils import create_lm_graph, create_lm_graph2, load_lm_graph
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
@@ -238,7 +240,9 @@ def test_lm_cache():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def run_dist_cache(g, lm_config, tmpdirname):
+def run_dist_cache(part_config, tmpdirname):
+    gs.initialize(ip_config=None, backend="gloo")
+    g, lm_config = load_lm_graph(part_config)
     lm_models = LMModels(g, lm_config, 0, 10)
     lm_cache = LMCache(g, lm_models, tmpdirname)
     lm_cache.update_cache(100)
@@ -262,12 +266,12 @@ def test_mp_lm_cache():
                                       rank=0,
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
-        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+        lm_config, feat_size, input_ids, attention_mask, _, part_config = \
             create_lm_graph(tmpdirname)
 
         ctx = mp.get_context('spawn')
-        p0 = ctx.Process(target=run_dist_cache, args=(g, lm_config, tmpdirname))
-        p1 = ctx.Process(target=run_dist_cache, args=(g, lm_config, tmpdirname))
+        p0 = ctx.Process(target=run_dist_cache, args=(part_config, tmpdirname))
+        p1 = ctx.Process(target=run_dist_cache, args=(part_config, tmpdirname))
 
         p0.start()
         p1.start()
