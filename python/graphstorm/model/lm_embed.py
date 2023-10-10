@@ -278,15 +278,14 @@ class LMCache:
             lm_node_feat = self._lm_models.get_lm_node_feat(ntype)
             lm_model.eval()
             hidden_size = lm_model.feat_size
-            # TODO we should not save the BERT embeddings on the graph data in the future.
-            if 'bert_emb' not in self._g.nodes[ntype].data:
-                self._g.nodes[ntype].data['bert_emb'] = create_dist_tensor(
+            if ntype not in self._lm_emb_cache:
+                self._lm_emb_cache[ntype] = create_dist_tensor(
                         (self._g.number_of_nodes(ntype), hidden_size),
                         name="bert_emb",
                         dtype=th.float16 if use_fp16 else th.float32,
                         part_policy=self._g.get_node_partition_policy(ntype),
                         persistent=True)
-            input_emb = self._g.nodes[ntype].data['bert_emb']
+            emb = self._lm_emb_cache[ntype]
             infer_nodes = dgl.distributed.node_split(
                     th.ones((self._g.number_of_nodes(ntype),), dtype=th.bool),
                     partition_book=self._g.get_partition_book(),
@@ -304,14 +303,13 @@ class LMCache:
                     }
                     text_embs = lm_model(input_ntypes, input_lm_feats)
                     if use_fp16:
-                        input_emb[input_nodes] = text_embs[ntype].half().to('cpu')
+                        emb[input_nodes] = text_embs[ntype].half().to('cpu')
                     else:
-                        input_emb[input_nodes] = text_embs[ntype].to('cpu')
+                        emb[input_nodes] = text_embs[ntype].to('cpu')
             barrier()
             if get_rank() == 0:
                 logging.info('Computing bert embedding on node %s takes %.3f seconds',
                              ntype, time.time() - start)
-            self._lm_emb_cache[ntype] = input_emb
             lm_model.train()
 
         if self._embed_path is not None:
