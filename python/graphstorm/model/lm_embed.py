@@ -212,8 +212,6 @@ class LMCache:
         self._lm_models = lm_models
         self._lm_emb_cache = {}
         self._embed_path = embed_path
-        if embed_path is not None:
-            self._load_embeddings()
 
     def _load_embeddings(self):
         """ Load LM embeddings from files.
@@ -222,9 +220,12 @@ class LMCache:
             model_name = self._lm_models.get_lm_model_name(ntype)
             assert "/" not in model_name, \
                     f"We only support builtin LM models for now. The model name is {model_name}."
-            embed_path1 = os.path.join(os.path.join(self._embed_path, ntype), model_name)
-            if os.path.exists(embed_path1):
-                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path1,
+            embed_path = os.path.join(os.path.join(self._embed_path, ntype), model_name)
+            if os.path.exists(embed_path):
+                if get_rank() == 0:
+                    logging.info("load LM embedding from %s for node type %s",
+                            embed_path, ntype)
+                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
                         self._g.get_node_partition_policy(ntype), "bert_emb")
             # TODO We need to make sure the LM model signature that generate the embeddings
             # is the same as the current LM model.
@@ -236,8 +237,8 @@ class LMCache:
             model_name = self._lm_models.get_lm_model_name(ntype)
             assert "/" not in model_name, \
                     f"We only support builtin LM models for now. The model name is {model_name}."
-            embed_path1 = os.path.join(os.path.join(self._embed_path, ntype), model_name)
-            save_embeddings(embed_path1, self._lm_emb_cache[ntype], get_rank(), get_world_size())
+            embed_path = os.path.join(os.path.join(self._embed_path, ntype), model_name)
+            save_embeddings(embed_path, self._lm_emb_cache[ntype], get_rank(), get_world_size())
 
     def __len__(self):
         return len(self._lm_emb_cache)
@@ -263,7 +264,15 @@ class LMCache:
         use_fp16 : bool
             Use float16 to store BERT embeddings.
         """
+        # If the embeddings have been cached, we just load them instead of
+        # computing them from scratch.
+        if self._embed_path is not None:
+            self._load_embeddings()
+            return
+
         for ntype in self._lm_models.ntypes:
+            if get_rank() == 0:
+                logging.debug("compute embedding for node type %s", ntype)
             start = time.time()
             lm_model = self._lm_models.get_lm_model(ntype)
             lm_node_feat = self._lm_models.get_lm_node_feat(ntype)
@@ -287,16 +296,17 @@ class LMCache:
 
             node_list = th.split(infer_nodes, lm_infer_batch_size)
             input_ntypes = [ntype]
-            for input_nodes in node_list:
-                input_lm_feats = {}
-                input_lm_feats[ntype] = {
-                        fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
-                }
-                text_embs = lm_model(input_ntypes, input_lm_feats)
-                if use_fp16:
-                    input_emb[input_nodes] = text_embs[ntype].half().to('cpu')
-                else:
-                    input_emb[input_nodes] = text_embs[ntype].to('cpu')
+            with th.no_grad():
+                for input_nodes in node_list:
+                    input_lm_feats = {}
+                    input_lm_feats[ntype] = {
+                            fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
+                    }
+                    text_embs = lm_model(input_ntypes, input_lm_feats)
+                    if use_fp16:
+                        input_emb[input_nodes] = text_embs[ntype].half().to('cpu')
+                    else:
+                        input_emb[input_nodes] = text_embs[ntype].to('cpu')
             barrier()
             if get_rank() == 0:
                 logging.info('Computing bert embedding on node %s takes %.3f seconds',
