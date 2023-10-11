@@ -153,6 +153,9 @@ def main(config_args):
         model.prepare_input_encoder(train_data)
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
+        # Only save embeddings of nodes from target ntype(s).
+        # Embeddings of nodes from other ntype(s) are meaningless.
+        embeddings = {ntype: embeddings[ntype] for ntype in config.target_ntype}
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         gs.get_world_size(),
                         device=device,

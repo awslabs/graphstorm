@@ -94,11 +94,20 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                                           return_label=do_eval)
             preds = res[0]
             labels = res[1] if do_eval else None
+
+            if save_embed_path is not None:
+                # Only embeddings of the target nodes will be saved.
+                embs = {ntype: embs[ntype][loader.target_nidx[ntype]] \
+                        for ntype in ntypes}
+            else:
+                # release embs
+                del embs
         sys_tracker.check('compute embeddings')
 
         # do evaluation first
         # do evaluation if any
         if do_eval:
+            # iterate all the target ntypes
             for ntype in ntypes:
                 pred = preds[ntype]
                 label = labels[ntype]
@@ -113,6 +122,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
 
         nid_shuffler = None
         if save_embed_path is not None:
+            # We are going to save the node embeddings of loader.target_nidx[ntype]
             nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, ntypes) \
                 if node_id_mapping_file else None
             shuffled_embs = {}

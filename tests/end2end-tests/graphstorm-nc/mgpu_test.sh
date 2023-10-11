@@ -217,7 +217,7 @@ mkdir -p /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM
 ln -s /data/gsgnn_nc_ml_text/epoch-$best_epoch /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM/LM
 ln -s /data/gsgnn_nc_ml_text/epoch-$best_epoch /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM/GNN
 
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM --restore-model-layers embed --inference 
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM --restore-model-layers embed --inference
 
 error_and_exit $?
 
@@ -254,7 +254,42 @@ fi
 
 rm /tmp/log.txt
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_nc_ml_text/emb/ --infer_embout /data/gsgnn_nc_ml_text/infer-emb/
+cnt=$(ls -l /data/gsgnn_nc_ml_text/infer-emb/ | wc -l)
+if test $cnt != 1
+then
+    echo "We only save embeddings of movie"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml_text/infer-emb/movie/ | grep "emb.part" | wc -l)
+if test $cnt != NUM_INFERs
+then
+    echo "There must be $NUM_INFERs embedding parts"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/| wc -l)
+if test $cnt != 1
+then
+    echo "We only save prediction results of movie"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie | grep "predict" | wc -l)
+if test $cnt != NUM_INFERs
+then
+    echo "There must be $NUM_INFERs prediction parts"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie | grep "nids" | wc -l)
+if test $cnt != NUM_INFERs
+then
+    echo "There must be $NUM_INFERs nid parts for predictions of movie"
+    exit -1
+fi
+
+python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/gsgnn_nc_ml_text/emb/ --infer_embout /data/gsgnn_nc_ml_text/infer-emb/
 
 error_and_exit $?
 rm -fr /data/gsgnn_nc_ml_text/*
