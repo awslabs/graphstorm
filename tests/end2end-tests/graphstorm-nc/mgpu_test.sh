@@ -269,7 +269,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/| wc -l)
-if test $cnt != 1
+if test $cnt != 3
 then
     echo "We only save prediction results of movie"
     exit -1
