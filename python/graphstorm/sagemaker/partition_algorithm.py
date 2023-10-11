@@ -26,9 +26,12 @@ import socket
 import numpy as np
 import pyarrow as pa
 import pyarrow.csv as pa_csv
-from sagemaker import Session
 
-from .s3_utils import upload_file_to_s3
+try:
+    from sagemaker import Session
+    from .s3_utils import upload_file_to_s3
+except:
+    print("Can not run with SageMaker")
 
 DGL_TOOL_PATH = "/root/dgl/tools"
 
@@ -51,10 +54,23 @@ class PartitionerConfig:
     metadata_file: str
     local_output_path: str
     rank: int
-    sagemaker_session: Session
 
+try:
+    @dataclass()
+    class SageMakerPartitionerConfig(PartitionerConfig):
+        """
+        Dataclass for holding the configuration for a partitioning algorithm run on SageMaker.
 
-class PartitionAlgorithm(abc.ABC):
+        Parameters
+        ----------
+        sagemaker_session : sagemaker.Session
+            The SageMaker session used for training.
+        """
+        sagemaker_session: Session
+except:
+    print("Can not run with SageMaker")
+
+class Partitioner(abc.ABC):
     """
     Base class for partition algorithm implementations.
 
@@ -70,7 +86,6 @@ class PartitionAlgorithm(abc.ABC):
         self.metadata_file = partition_config.metadata_file
         self.local_output_path = partition_config.local_output_path
         self.rank = partition_config.rank
-        self.sagemaker_session = partition_config.sagemaker_session
 
         with open(self.metadata_file, 'r', encoding='utf-8') as metafile:
             self.metadata = json.load(metafile)
@@ -79,23 +94,24 @@ class PartitionAlgorithm(abc.ABC):
 
         os.makedirs(self.local_output_path, exist_ok=True)
 
-    def create_partitions(self, output_s3_path: str, num_partitions: int) -> Tuple[str, str]:
+    def create_partitions(self, num_partitions: int, output_path: str = None) -> Tuple[str, str]:
         """
-        Creates a partitioning and uploads the results to the provided S3 location.
+        Creates a partitioning
 
         Expected
 
         Parameters
         ----------
-        output_s3_path : str
-            S3 prefix to upload the partitioning results to.
+        output_path : str
+            Path prefix to upload the partitioning results to. It can be local, S3 or others.
         num_partitions : int
             Number of partitions to create.
 
         Returns
         -------
-        local_partition_path, s3_partition_path : Tuple[str, str]
-            Paths to the local partitioning directory and S3 URI to the uploaded partition data.
+        local_partition_path, partition_path : Tuple[str, str]
+            Paths to the local partitioning directory and the
+            partitioning directory to the output path.
         """
         local_partition_path = self._run_partitioning(num_partitions)
 
@@ -106,10 +122,66 @@ class PartitionAlgorithm(abc.ABC):
                 raise RuntimeError("Expected partition_meta.json to be present in "
                     f"{local_partition_path} got contents: {os.listdir(local_partition_path)}")
 
-        s3_partition_path = os.path.join(output_s3_path, "partition")
-        self._upload_results_to_s3(local_partition_path, s3_partition_path)
+        if output_path is not None:
+            partition_path = os.path.join(output_path, "partition")
+            self._copy_results_to_output(local_partition_path, partition_path)
+        else:
+            partition_path = local_partition_path
 
-        return local_partition_path, s3_partition_path
+        return local_partition_path, partition_path
+
+    @abc.abstractmethod
+    def _run_partitioning(self, num_partitions: int) -> str:
+        """
+        Runs the partitioning algorithm.
+
+        Side-effect contract: At the end of this call the partition assignment files, as defined in
+        https://docs.dgl.ai/guide/distributed-preprocessing.html#step-1-graph-partitioning
+        and a partitioning metadata JSON file, as defined in
+        https://github.com/dmlc/dgl/blob/29e666152390c272e0115ce8455da1adb5fcacb1/tools/partition_algo/base.py#L8
+        should exist on the leader instance (rank 0), under the returned partition_dir.
+
+        Parameters
+        ----------
+        num_partitions : int
+            Number of partition assignments to create.
+
+        Returns
+        -------
+        partition_dir : str
+            Path to the partitioning directory.
+            On the leader this must contain the partition assignment data
+            and a partition_meta.json file.
+        """
+
+    @abc.abstractmethod
+    def _copy_results_to_output(self, local_partition_directory: str, output_path: str) -> None:
+        """
+        Copy the partitioning results to the output path.
+
+        Parameters
+        ----------
+        local_partition_directory : str
+            Path to the partitioning directory.
+        output_path : str
+            The output path to copy the partitioning results to.
+        """
+
+class SageMakerPartitioner(Partitioner):
+    """
+    Base class for partition algorithm implementations.
+
+    Parameters
+    ----------
+    partition_config : PartitionConfig
+        The configuration for the partition algorithm.
+        See `PartitionConfig` for detailed argument list.
+    """
+    def __init__(self,
+        partition_config: PartitionerConfig
+    ):
+        self.sagemaker_session = partition_config.sagemaker_session
+        super(SageMakerPartitioner, self).__init__(partition_config)
 
     def broadcast_partition_done(self, client_list, world_size, success=True):
         """ Notify each worker process the partition assignment process is done
@@ -144,50 +216,32 @@ class PartitionAlgorithm(abc.ABC):
         if msg != "PartitionDone":
             raise RuntimeError(f"Wait for partition Error detected, msg: {msg}")
 
-    @abc.abstractmethod
-    def _run_partitioning(self, num_partitions: int) -> str:
-        """
-        Runs the partitioning algorithm.
-
-        Side-effect contract: At the end of this call the partition assignment files, as defined in
-        https://docs.dgl.ai/guide/distributed-preprocessing.html#step-1-graph-partitioning
-        and a partitioning metadata JSON file, as defined in
-        https://github.com/dmlc/dgl/blob/29e666152390c272e0115ce8455da1adb5fcacb1/tools/partition_algo/base.py#L8
-        should exist on the leader instance (rank 0), under the returned partition_dir.
-
-        Parameters
-        ----------
-        num_partitions : int
-            Number of partition assignments to create.
-
-        Returns
-        -------
-        partition_dir : str
-            Path to the partitioning directory.
-            On the leader this must contain the partition assignment data
-            and a partition_meta.json file.
-        """
-
-
-    # TODO: Because the locations are entangled is it better if we don't take arguments here?
-    @abc.abstractmethod
-    def _upload_results_to_s3(self, local_partition_directory: str, output_s3_path: str) -> None:
-        """
-        Uploads the partitioning results to S3 once they become available on the local filesystem.
-
-        Parameters
-        ----------
-        local_partition_directory : str
-            Path to the partitioning directory.
-        output_s3_path : str
-            S3 prefix to upload the partitioning results to.
-        """
-
-class RandomPartitioner(PartitionAlgorithm): # pylint: disable=too-few-public-methods
+class RandomPartitionAlgorithm(): # pylint: disable=too-few-public-methods
     """
     Single-instance random partitioning algorithm.
+
+    Parameters
+    ----------
+    local_output_path: str
+        Local output path
+    metadata: dict
+        partitioning metadata JSON
+    rank: int
+        Rank of the current worker process.
     """
-    def _run_partitioning(self, num_partitions: int) -> str:
+    def __init__(self, local_output_path, metadata, rank=0) -> None:
+        self.local_output_path = local_output_path
+        self.metadata = metadata
+        self.rank = rank
+
+    def run_partitioning(self, num_partitions: int) -> str:
+        """ Run partition
+
+        Parameters
+        ----------
+        num_partitions: int
+            Number of target partitions.
+        """
         partition_dir = os.path.join(self.local_output_path, "partition")
         os.makedirs(partition_dir, exist_ok=True)
 
@@ -232,14 +286,49 @@ class RandomPartitioner(PartitionAlgorithm): # pylint: disable=too-few-public-me
         with open(partition_meta_filepath, "w", encoding='utf-8') as metafile:
             json.dump(partition_meta, metafile)
 
+class SageMakerRandomPartitioner(SageMakerPartitioner): # pylint: disable=too-few-public-methods
+    """
+    Single-instance random partitioning algorithm running on SageMaker
+    """
+    def _run_partitioning(self, num_partitions: int) -> str:
+        random_part = RandomPartitionAlgorithm(self.local_output_path,
+                                               self.metadata,
+                                               self.rank)
+        partition_dir = random_part.run_partitioning(num_partitions)
+        return partition_dir
 
-    def _upload_results_to_s3(self, local_partition_directory: str, output_s3_path: str) -> None:
+    def _copy_results_to_output(self, local_partition_directory: str, output_path: str) -> None:
+        """ Copy data to S3
+
+        Parameters
+        ----------
+        local_partition_directory: str
+            Path to local partition files.
+        output_path: str
+            S3 path to upload the local partition files.
+        """
         if self.rank == 0:
             logging.debug(
                 "Uploading partition files to %s, local_partition_directory: %s",
-                output_s3_path,
+                output_path,
                 local_partition_directory)
-            upload_file_to_s3(output_s3_path, local_partition_directory, self.sagemaker_session)
+            upload_file_to_s3(output_path, local_partition_directory, self.sagemaker_session)
         else:
             # Workers do not hold any partitioning information locally
             pass
+
+class LocalRandomPartitioner(Partitioner): # pylint: disable=too-few-public-methods
+    """
+    Single-instance random partitioning algorithm running on a Linux instance.
+    """
+    def _run_partitioning(self, num_partitions: int) -> str:
+        random_part = RandomPartitionAlgorithm(self.local_output_path,
+                                               self.metadata,
+                                               self.rank)
+        partition_dir = random_part.run_partitioning(num_partitions)
+
+        return partition_dir
+
+    def _copy_results_to_output(self, local_partition_directory: str, output_path: str) -> None:
+        # Do nothing as we assume the partitions are stored in a shared file system.
+        pass
