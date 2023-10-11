@@ -221,6 +221,13 @@ node_conf = [
                 "feature_name": "feat_fp16",
                 "out_dtype": 'float16',
             },
+            {
+                "feature_col": "float2",
+                "feature_name": "feat_bucket",
+                "out_dtype": 'float16',
+                "transform": {"name": "bucket",
+                              "bucket": [100, 200, 300, 1000]}
+            }
         ],
         "labels":       [
             {
