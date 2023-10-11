@@ -155,7 +155,7 @@ def main(config_args):
                                              task_tracker=tracker)
         # Only save embeddings of nodes from target ntype(s).
         # Embeddings of nodes from other ntype(s) are meaningless.
-        embeddings = {ntype: embeddings[ntype] for ntype in config.target_ntype}
+        embeddings = {ntype: embeddings[ntype] for ntype in train_data.train_ntypes}
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         gs.get_world_size(),
                         device=device,

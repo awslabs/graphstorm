@@ -207,7 +207,7 @@ fi
 
 rm /tmp/log.txt
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_nc_ml_text/emb/ --infer_embout /data/gsgnn_nc_ml_text/infer-emb/
+python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/gsgnn_nc_ml_text/emb/ --infer_embout /data/gsgnn_nc_ml_text/infer-emb/
 
 error_and_exit $?
 
@@ -255,7 +255,7 @@ fi
 rm /tmp/log.txt
 
 cnt=$(ls -l /data/gsgnn_nc_ml_text/infer-emb/ | wc -l)
-if test $cnt != 1
+if test $cnt != 3
 then
     echo "We only save embeddings of movie"
     exit -1

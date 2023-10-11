@@ -803,7 +803,6 @@ class NodeIDShuffler():
             # Save ID mapping into dist tensor
             id_mapping_info[th.arange(num_nodes)] = id_mapping
         barrier()
-        print(id_mapping_info[th.arange(num_nodes)])
         return id_mapping_info
 
     def shuffle_nids(self, ntype, nids):

@@ -35,15 +35,7 @@ if __name__ == '__main__':
         info_emb_info = json.load(f)
 
     # meta info should be same
-    if args.link_prediction:
-        # For link prediction, both training and inference will save
-        # node embeddings for each node type.
-        assert len(train_emb_info["emb_name"]) == len(info_emb_info["emb_name"])
-        assert sorted(train_emb_info["emb_name"]) == sorted(info_emb_info["emb_name"])
-    else:
-        # For other tasks, we only save node embeddings for the target type
-        # in the inference.
-        assert len(train_emb_info["emb_name"]) >= len(info_emb_info["emb_name"])
+    assert len(train_emb_info["emb_name"]) == len(info_emb_info["emb_name"])
 
     # feats are same
     for ntype in info_emb_info["emb_name"]:
@@ -75,5 +67,5 @@ if __name__ == '__main__':
         assert infer_emb.shape[0] == infer_nids.shape[0]
         assert train_emb.shape[1] == infer_emb.shape[1]
 
-        for nid, inf_emb in zip(infer_nids, inf_emb):
-            assert_almost_equal(train_emb[nid].numpy(), infer_emb.numpy(), decimal=3)
+        for nid, inf_emb in zip(infer_nids, infer_emb):
+            assert_almost_equal(train_emb[nid].numpy(), inf_emb.numpy(), decimal=3)
