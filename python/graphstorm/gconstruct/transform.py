@@ -25,6 +25,7 @@ import json
 
 import numpy as np
 import torch as th
+import pandas as pd
 
 from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import AutoTokenizer
@@ -349,6 +350,8 @@ class BucketTransform(FeatTransform):
     """
     def __init__(self, col_name, feat_name, bucket, out_dtype=None):
         assert bucket is not None, "bucket must be provided for bucket transform"
+        self.bucket = bucket
+        self.bucket_cnt = len(bucket)
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(BucketTransform, self).__init__(col_name, feat_name, out_dtype)
 
@@ -369,7 +372,20 @@ class BucketTransform(FeatTransform):
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
-        return {self.feat_name: feats}
+        bucket = sorted(self.bucket)
+        bin_indices = pd.cut(feats, bucket, labels=False)
+        for i, ele in enumerate(bin_indices):
+            if pd.notnull(ele):
+                continue
+            bin_indices[i] = 0. if feats[i] <= self.bucket[0] \
+                else self.bucket_cnt - 1
+        bin_indices = bin_indices.astype(np.int64)
+
+        encoding = np.zeros((len(feats), self.bucket_cnt), dtype=np.int8)
+        for i, emb in enumerate(encoding):
+            emb[bin_indices[i]] = 1
+
+        return {self.feat_name: encoding}
 
 class CategoricalTransform(TwoPhaseFeatTransform):
     """ Convert the data into categorical values.

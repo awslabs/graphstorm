@@ -42,8 +42,9 @@
         "features": [
             {
                 "feature_col": "age",
-                "transform":    {"name": "bucket",
-                          "bucket": [1, 10, 20, 30, 40]}
+                "transform":    {
+                          "name": "bucket",
+                          "bucket": [3, 10, 20, 30, 40]}
             }
         ]
       }
