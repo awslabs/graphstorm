@@ -28,7 +28,11 @@ permissions:
 defaults:
   run:
     shell: bash
-
+    
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+  
 # All test scripts split in individual .sh files and moved to .github/workflow scripts
 env:
   COMMAND-PYTEST: chmod +x ./pytest_check.sh && ./pytest_check.sh
