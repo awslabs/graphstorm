@@ -21,8 +21,6 @@ from graphstorm.config import (GSConfig,
                                BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION)
 
-from .utils import SHARED_MEM_OBJECT_THRESHOLD
-
 id_maps = {}
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
