@@ -144,10 +144,3 @@ class GSgnnEmbGenInferer(GSInferrer):
             save_embed_format=save_embed_format)
         barrier()
         sys_tracker.check('save embeddings')
-
-        # save relation embedding if any
-        if get_rank() == 0:
-            decoder = self._model.decoder
-            if isinstance(decoder, LinkPredictDistMultDecoder):
-                if save_embed_path is not None:
-                    save_relation_embeddings(save_embed_path, decoder)
