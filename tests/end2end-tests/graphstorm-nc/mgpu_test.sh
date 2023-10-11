@@ -133,7 +133,7 @@ fi
 
 rm /tmp/log.txt
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/infer-emb/
+python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/infer-emb/
 
 error_and_exit $?
 
@@ -142,7 +142,7 @@ python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOM
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/mini-infer-emb --mini-batch-infer
+python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/mini-infer-emb
 
 error_and_exit $?
 
