@@ -150,7 +150,7 @@ def _get_file_range(num_files, rank, world_size):
     # For example, with 10 files and world_size == 4
     # number files for each rank will be:
     # 2 2 3 3
-    if rank * files_per_inst + rest < world_size:
+    if rank + rest < world_size:
         start = files_per_inst * rank
         end = start + files_per_inst
     else:
@@ -161,7 +161,7 @@ def _get_file_range(num_files, rank, world_size):
 
 def remap_edge_pred(pred_etypes, pred_dir,
                     output_dir, out_chunk_size,
-                    num_proc, rank, world_size, id_maps, with_shared_fs,
+                    num_proc, rank, world_size, with_shared_fs,
                     preserve_input=False):
     """ Remap edge prediction result.
 
@@ -185,8 +185,6 @@ def remap_edge_pred(pred_etypes, pred_dir,
             The global rank of current processes.
         world_size: int
             The total number of processes in the cluster.
-        id_maps: dict of IdReverseMap
-            Node id mappings
         with_shared_fs: bool
             Whether shared file system is avaliable
         preserve_input: bool
