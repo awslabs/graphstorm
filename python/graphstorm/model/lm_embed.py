@@ -583,7 +583,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                  dropout=0.0,
                  use_node_embeddings=False,
                  use_fp16=True,
-                 cached_embed_path=None):
+                 cached_embed_path=None,
+                 force_no_embeddings=None):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
 
@@ -608,7 +609,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
         super(GSLMNodeEncoderInputLayer, self).__init__(
             g, adjust_feat_size, embed_size,
-            activation, dropout, use_node_embeddings)
+            activation, dropout, use_node_embeddings,
+            force_no_embeddings=force_no_embeddings)
         self._lm_models = lm_models
 
     def get_general_dense_parameters(self):
