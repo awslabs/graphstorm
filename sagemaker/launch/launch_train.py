@@ -135,9 +135,9 @@ def get_train_parser():
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph", required=True)
     training_args.add_argument("--model-artifact-s3", type=str, default=None,
-        help="S3 bucket to save model artifacts")
+        help="S3 path to save model artifacts")
     training_args.add_argument("--model-checkpoint-to-load", type=str, default=None,
-        help="S3 bucket to a model checkpoint from a previous training task "
+        help="S3 path to a model checkpoint from a previous training task "
              "that is going to be resumed.")
     training_args.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \

@@ -40,7 +40,7 @@ def parse_train_args():
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 location to store the model artifacts.")
     parser.add_argument("--model-checkpoint-to-load", type=str, default=None,
-        help="S3 bucket to a model checkpoint from a previous training task "
+        help="S3 path to a model checkpoint from a previous training task "
              "that is going to be resumed.")
     parser.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \

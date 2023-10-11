@@ -138,7 +138,7 @@ aws s3 ls s3://PATH_TO_SAVE_TRAINED_MODEL/
 ```
 
 If you want to resume a saved model checkpoint to do model fine-tuning you can pass
-the s3 address of the model checkpoint through the ``--model-checkpoint-to-load``
+the S3 address of the model checkpoint through the ``--model-checkpoint-to-load``
 argument. For example by passing ``--model-checkpoint-to-load s3://mag-model/epoch-2/``,
 GraphStorm will initialize the model parameters with the model checkpoint stored in ``s3://mag-model/epoch-2/``.
 
