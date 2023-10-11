@@ -351,7 +351,7 @@ class BucketTransform(FeatTransform):
     def __init__(self, col_name, feat_name, bucket, out_dtype=None):
         assert bucket is not None, "bucket must be provided for bucket transform"
         self.bucket = bucket
-        self.bucket_cnt = len(bucket)
+        self.bucket_cnt = len(bucket) - 1
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(BucketTransform, self).__init__(col_name, feat_name, out_dtype)
 

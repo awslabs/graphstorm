@@ -24,7 +24,8 @@ from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              NumericalMinMaxTransform,
                                              Noop,
                                              RankGaussTransform,
-                                             CategoricalTransform)
+                                             CategoricalTransform,
+                                             BucketTransform)
 from graphstorm.gconstruct.transform import (_check_label_stats_type,
                                              collect_label_stats,
                                              CustomLabelProcessor,
@@ -633,6 +634,34 @@ def test_classification_processor():
     assert_equal(ret[stats_info_key][1], vals)
     assert_equal(ret[stats_info_key][2], counts)
 
+
+@pytest.mark.parametrize("out_dtype", [None, np.float16])
+def test_bucket_transform(out_dtype):
+    bucket = [10, 20, 30]
+    transform = BucketTransform("test", "test", bucket=bucket, out_dtype=out_dtype)
+    feats = np.zeros(4)
+    feats[0], feats[1], feats[2], feats[3] = 1, 11, 21, 31
+    bucket_feats = transform(feats)
+    if out_dtype is not None:
+        assert bucket_feats['test'].dtype == np.float16
+    else:
+        assert bucket_feats['test'].dtype == np.float32
+
+    feats_tar = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=out_dtype)
+    assert_equal(bucket_feats['test'], feats_tar)
+
+    bucket = [1.1, 2.1, 3.1]
+    feats[0], feats[1], feats[2], feats[3] = 0.1, 1.2, 2.2, 3.2
+    transform = BucketTransform("test", "test", bucket=bucket, out_dtype=out_dtype)
+    bucket_feats = transform(feats)
+    if out_dtype is not None:
+        assert bucket_feats['test'].dtype == np.float16
+    else:
+        assert bucket_feats['test'].dtype == np.float32
+
+    feats_tar = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=out_dtype)
+    assert_equal(bucket_feats['test'], feats_tar)
+
 if __name__ == '__main__':
     test_categorize_transform()
     test_get_output_dtype()
@@ -644,6 +673,8 @@ if __name__ == '__main__':
     test_fp_min_max_transform(np.float32, np.float16)
     test_noop_transform(None)
     test_noop_transform(np.float16)
+    test_bucket_transform(None)
+    test_bucket_transform(np.float16)
 
     test_rank_gauss_transform(np.cfloat, None)
     test_rank_gauss_transform(np.cfloat, np.float16)
