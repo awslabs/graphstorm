@@ -262,7 +262,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml_text/infer-emb/movie/ | grep "emb.part" | wc -l)
-if test $cnt != NUM_INFERs
+if test $cnt != $NUM_INFERs
 then
     echo "There must be $NUM_INFERs embedding parts"
     exit -1
@@ -276,14 +276,14 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie | grep "predict" | wc -l)
-if test $cnt != NUM_INFERs
+if test $cnt != $NUM_INFERs
 then
     echo "There must be $NUM_INFERs prediction parts"
     exit -1
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie | grep "nids" | wc -l)
-if test $cnt != NUM_INFERs
+if test $cnt != $NUM_INFERs
 then
     echo "There must be $NUM_INFERs nid parts for predictions of movie"
     exit -1
