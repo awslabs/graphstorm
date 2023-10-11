@@ -31,7 +31,7 @@ try:
     from sagemaker import Session
     from .s3_utils import upload_file_to_s3
 except:
-    print("Can not run with SageMaker")
+    print("Can not run with Amazon SageMaker support. Please install sagemaker.")
 
 DGL_TOOL_PATH = "/root/dgl/tools"
 
@@ -68,7 +68,7 @@ try:
         """
         sagemaker_session: Session
 except:
-    print("Can not run with SageMaker")
+    print("Can not run with Amazon SageMaker support. Please install sagemaker.")
 
 class Partitioner(abc.ABC):
     """
