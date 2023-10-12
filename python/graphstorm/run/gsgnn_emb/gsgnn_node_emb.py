@@ -18,18 +18,13 @@
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.dataloading import (GSgnnEdgeInferData, GSgnnNodeInferData,
-                            GSgnnEdgeDataLoader, GSgnnNodeDataLoader,
-                            GSgnnLinkPredictionTestDataLoader,
-                            GSgnnLinkPredictionJointTestDataLoader)
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.dataloading import (GSgnnEdgeInferData, GSgnnNodeInferData)
 from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_NODE_REGRESSION,
                                 BUILTIN_TASK_EDGE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
                                 BUILTIN_TASK_LINK_PREDICTION)
-from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                                    BUILTIN_LP_JOINT_NEG_SAMPLER)
 from graphstorm.inference import GSgnnEmbGenInferer
 
 
@@ -88,50 +83,15 @@ def main(config_args):
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
 
-    # define the dataloader
-    if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
-        if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-            link_prediction_loader = GSgnnLinkPredictionTestDataLoader
-        elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
-            link_prediction_loader = GSgnnLinkPredictionJointTestDataLoader
-        else:
-            raise ValueError('Unknown test negative sampler.'
-                             'Supported test negative samplers include '
-                             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
-
-        dataloader = link_prediction_loader(input_graph, input_graph.test_idxs,
-                                         batch_size=config.eval_batch_size,
-                                         num_negative_edges=config.num_negative_edges_eval,
-                                         fanout=config.eval_fanout)
-    elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        dataloader = GSgnnNodeDataLoader(input_graph, input_graph.infer_idxs,
-                                         fanout=config.eval_fanout,
-                                         batch_size=config.eval_batch_size, device=device,
-                                         train_task=False,
-                                         construct_feat_ntype=config.construct_feat_ntype,
-                                         construct_feat_fanout=config.construct_feat_fanout)
-    elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        dataloader = GSgnnEdgeDataLoader(input_graph, input_graph.infer_idxs,
-                                         fanout=config.eval_fanout,
-                                         batch_size=config.eval_batch_size,
-                                         device=device, train_task=False,
-                                         reverse_edge_types_map=config.reverse_edge_types_map,
-                                         remove_target_edge_type=config.remove_target_edge_type,
-                                         construct_feat_ntype=config.construct_feat_ntype,
-                                         construct_feat_fanout=config.construct_feat_fanout)
-    else:
-        raise TypeError("Not supported for task type: ", config.task_type)
-
-    # start the infer
+    # start to infer
     emb_generator = GSgnnEmbGenInferer(model)
     emb_generator.setup_device(device=device)
 
     emb_generator.infer(input_graph, config.task_type,
                 save_embed_path=config.save_embed_path,
-                loader=dataloader,
+                eval_fanout=config.eval_fanout,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
-                return_proba=config.return_proba,
                 save_embed_format=config.save_embed_format)
 
 def generate_parser():
