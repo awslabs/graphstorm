@@ -55,11 +55,12 @@ class GSgnnEmbGenInferer(GSInferrer):
         fanout: list of int
             The fanout of each GNN layers used in inference.
         """
+        infer_ntypes = sorted(g.infer_idxs)
         if use_mini_batch_infer:
             embs = do_mini_batch_inference(model, g, fanout=fanout,
                                            edge_mask=None,
                                            task_tracker=self.task_tracker,
-                                           infer_ntypes=g.infer_idxs)
+                                           infer_ntypes=infer_ntypes)
         else:
             embs = do_full_graph_inference(model, g, fanout=fanout,
                                            task_tracker=self.task_tracker)
@@ -81,12 +82,11 @@ class GSgnnEmbGenInferer(GSInferrer):
         fanout: list of int
             The fanout of each GNN layers used in inference.
         """
-        infer_ntypes = []
+        infer_ntypes = set()
         for etype in g.infer_idxs:
-            if etype[0] not in infer_ntypes:
-                infer_ntypes.append(etype[0])
-            if etype[2] not in infer_ntypes:
-                infer_ntypes.append(etype[2])
+            infer_ntypes.add(etype[0])
+            infer_ntypes.add(etype[2])
+        infer_ntypes = sorted(infer_ntypes)
 
         if use_mini_batch_infer:
             embs = do_mini_batch_inference(model, g, fanout=fanout,
