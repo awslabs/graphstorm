@@ -17,6 +17,7 @@
 """
 
 import os
+import json
 import dgl
 import numpy as np
 import torch as th
@@ -420,6 +421,31 @@ def generate_dummy_dist_graph_multi_target_ntypes(dirname, size='tiny', graph_na
     hetero_graph = generate_dummy_hetero_graph_multi_target_ntypes(size=size, gen_mask=gen_mask)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
+
+def load_lm_graph(part_config):
+    with open(part_config) as f:
+        part_metadata = json.load(f)
+    g = dgl.distributed.DistGraph(graph_name=part_metadata["graph_name"],
+            part_config=part_config)
+
+    bert_model_name = "bert-base-uncased"
+    max_seq_length = 8
+    lm_config = [{"lm_type": "bert",
+                  "model_name": bert_model_name,
+                  "gradient_checkpoint": True,
+                  "node_types": ["n0"]}]
+    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    input_text = ["Hello world!"]
+    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    input_ids, valid_len, attention_mask, _ = \
+        create_tokens(tokenizer=tokenizer,
+                      input_text=input_text,
+                      max_seq_length=max_seq_length,
+                      num_node=g.number_of_nodes('n0'))
+
+    g.nodes['n0'].data[TOKEN_IDX] = input_ids
+    g.nodes['n0'].data[VALID_LEN] = valid_len
+    return g, lm_config
 
 def create_lm_graph(tmpdirname):
     """ Create a graph with textual feaures
