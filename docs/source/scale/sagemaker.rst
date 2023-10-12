@@ -160,6 +160,11 @@ Because we are using a three-partition OGB-MAG graph, we need to set the ``--ins
 
 The trained model artifact will be stored in the S3 location provided through the ``--model-artifact-s3`` argument. You can use the following command to check the model artifacts after the training completes.
 
+If you want to resume a saved model checkpoint to do model fine-tuning you can pass
+the S3 address of the model checkpoint through the ``--model-checkpoint-to-load``
+argument. For example by passing ``--model-checkpoint-to-load s3://mag-model/epoch-2/``,
+GraphStorm will initialize the model parameters with the model checkpoint stored in ``s3://mag-model/epoch-2/``.
+
 .. code-block:: bash
 
     aws s3 ls s3://<PATH_TO_SAVE_TRAINED_MODEL>/
