@@ -479,7 +479,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
             lm_ntypes = lm_config["node_types"]
             # Update feature size
             for ntype in lm_ntypes:
-                adjust_feat_size[ntype] += lm_models.feat_size
+                lm_type = lm_models._lm_map[ntype]
+                adjust_feat_size[ntype] += lm_models._lm_models[lm_type].feat_size
                 if get_rank() == 0:
                     logging.debug('Node %s adds lm %s features %d->%d',
                                   ntype, lm_config["lm_type"], feat_size[ntype],
