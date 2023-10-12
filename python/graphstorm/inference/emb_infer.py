@@ -81,7 +81,7 @@ class GSgnnEmbGenInferer(GSInferrer):
         fanout: list of int
             The fanout of each GNN layers used in inference.
         """
-        infer_ntypes = set()
+        infer_ntypes = []
         for etype in g.infer_idxs:
             if etype[0] not in infer_ntypes:
                 infer_ntypes.append(etype[0])
