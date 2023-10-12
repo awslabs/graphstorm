@@ -16,6 +16,7 @@
     Do random partition for distributed data processing.
     This script only works with graphstorm-processing (Distirbuted graph processing).
 """
+import os
 import argparse
 import time
 import logging
@@ -27,17 +28,6 @@ from threading import Thread
 
 from graphstorm.sagemaker.partition_algorithm import (PartitionerConfig,
                                                       LocalRandomPartitioner)
-
-
-def main(args):
-    partition_config = PartitionerConfig(
-        metadata_file=args.meta_info_path,
-        local_output_path=args.output_path,
-        rank=0)
-
-    partitioner = LocalRandomPartitioner(partition_config)
-    local_partition_path = partitioner.create_partitions(args.num_parts)
-    print(local_partition_path)
 
 def run_build_dglgraph(
         input_data_path,
@@ -102,6 +92,37 @@ def run_build_dglgraph(
         if err_code != 0:
             raise RuntimeError("build dglgrah failed")
 
+
+def main(args):
+    local_output_path = os.path.join(args.output_path, "tmp")
+    partition_config = PartitionerConfig(
+        metadata_file=args.meta_info_path,
+        local_output_path=local_output_path,
+        rank=0)
+
+    if args.part_algorithm == "random":
+        partitioner = LocalRandomPartitioner(partition_config)
+        local_partition_path = partitioner.create_partitions(args.num_parts)
+    else:
+        raise RuntimeError(f"Unknow partition algorithm {args.part_algorighm}")
+
+    meta_info = args.meta_info_path.rsplit("/", 1)
+    input_data_path = meta_info[0]
+    metadata_filename = meta_info[1]
+    partitions_dir = local_partition_path
+    ip_list = args.ip_list
+    output_path = args.output_path
+    dgl_tool_path = args.dgl_tool_path
+    run_build_dglgraph(
+        input_data_path,
+        partitions_dir,
+        ip_list,
+        output_path,
+        metadata_filename,
+        dgl_tool_path)
+
+    os.removedirs(local_output_path)
+
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Partition DGL graphs for node and edge classification "
                                         + "or regression tasks")
@@ -113,6 +134,10 @@ if __name__ == '__main__':
                            help="Number of partitions to generate")
     argparser.add_argument("--dgl-tool-path", type=str, required=True,
                            help="The path to dgl/tools")
+    argparser.add_argument("--part-algorithm", type=str, default="random",
+                           choices=["random"], help="Partition algorithm to use.")
+    argparser.add_argument("--ip-list", type=str, required=True,
+                           help="A file storing the ip list of instances of the partition cluster.")
 
     args = argparser.parse_args()
     start = time.time()
