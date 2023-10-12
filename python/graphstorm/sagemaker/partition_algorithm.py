@@ -78,13 +78,16 @@ class SageMakerPartitioner():
     def create_partitions(self, output_s3_path: str, num_partitions: int) -> Tuple[str, str]:
         """
         Creates a partitioning and uploads the results to the provided S3 location.
+
         Expected
+
         Parameters
         ----------
         output_s3_path : str
             S3 prefix to upload the partitioning results to.
         num_partitions : int
             Number of partitions to create.
+
         Returns
         -------
         local_partition_path, s3_partition_path : Tuple[str, str]
@@ -141,15 +144,18 @@ class SageMakerPartitioner():
     def _run_partitioning(self, num_partitions: int) -> str:
         """
         Runs the partitioning algorithm.
+
         Side-effect contract: At the end of this call the partition assignment files, as defined in
         https://docs.dgl.ai/guide/distributed-preprocessing.html#step-1-graph-partitioning
         and a partitioning metadata JSON file, as defined in
         https://github.com/dmlc/dgl/blob/29e666152390c272e0115ce8455da1adb5fcacb1/tools/partition_algo/base.py#L8
         should exist on the leader instance (rank 0), under the returned partition_dir.
+
         Parameters
         ----------
         num_partitions : int
             Number of partition assignments to create.
+
         Returns
         -------
         partition_dir : str
@@ -158,11 +164,13 @@ class SageMakerPartitioner():
             and a partition_meta.json file.
         """
 
+
     # TODO: Because the locations are entangled is it better if we don't take arguments here?
     @abc.abstractmethod
     def _upload_results_to_s3(self, local_partition_directory: str, output_s3_path: str) -> None:
         """
         Uploads the partitioning results to S3 once they become available on the local filesystem.
+
         Parameters
         ----------
         local_partition_directory : str
