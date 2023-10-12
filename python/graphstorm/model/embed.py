@@ -209,15 +209,14 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
         self.activation = activation
 
-        if dgl.__version__ <= "1.1.2":
-            if is_distributed() and get_backend() == "nccl":
-                if self.use_node_embeddings:
+        if dgl.__version__ <= "1.1.2" and is_distributed() and get_backend() == "nccl":
+            if self.use_node_embeddings:
+                raise NotImplementedError('NCCL backend is not supported for utilizing ' +
+                    'node embeddings. Please use gloo backend.')
+            for ntype in g.ntypes:
+                if not feat_size[ntype]:
                     raise NotImplementedError('NCCL backend is not supported for utilizing ' +
-                        'node embeddings. Please use gloo backend.')
-                for ntype in g.ntypes:
-                    if not feat_size[ntype]:
-                        raise NotImplementedError('NCCL backend is not supported for utilizing ' +
-                            'learnable embeddings on featureless nodes. Please use gloo backend.')
+                        'learnable embeddings on featureless nodes. Please use gloo backend.')
 
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
