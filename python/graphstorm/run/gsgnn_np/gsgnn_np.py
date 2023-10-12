@@ -154,7 +154,11 @@ def main(config_args):
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
         # Only save embeddings of nodes from target ntype(s).
-        # Embeddings of nodes from other ntype(s) are meaningless.
+        # Embeddings of nodes from other ntype(s) are meaningless,
+        # as they are not trained. Specifically, the model parameters
+        # of the weight matrics of the edge types of the last layer GNN
+        # targetting these ntype(s) will not receive any gradient from
+        # the training loss.
         embeddings = {ntype: embeddings[ntype] for ntype in train_data.train_ntypes}
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         gs.get_world_size(),

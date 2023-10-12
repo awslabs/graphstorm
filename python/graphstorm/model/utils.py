@@ -964,8 +964,7 @@ def save_node_prediction_results(predictions, prediction_path):
     """
     rank = get_rank()
     world_size = get_world_size()
-    for ntype, pred_result in predictions.items():
-        pred, nids = pred_result
+    for ntype, (pred, nids) in predictions.items():
         save_node_prediction_result(pred, nids,
                                     os.path.join(prediction_path, ntype),
                                     rank)
