@@ -129,7 +129,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             shuffled_embs = {}
             for ntype in ntypes:
                 if get_rank() == 0:
-                    logging.info("save embeddings pf {ntype} to %s", save_embed_path)
+                    logging.info("save embeddings pf %s to %s", ntype, save_embed_path)
 
                 # only save embeddings of target_nidx
                 assert ntype in embs, \

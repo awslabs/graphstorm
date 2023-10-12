@@ -253,14 +253,28 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_nc_ml/prediction/movie/ | grep "emb.part" | wc -l)
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/movie/ | grep "predict" | wc -l)
 if test $cnt != $NUM_TRAINERS
 then
     echo "There must be $NUM_TRAINERS prediction parts for movie."
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_nc_ml/prediction/user/ | grep "emb.part" | wc -l)
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/movie/ | grep "nids" | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "There must be $NUM_TRAINERS prediction parts for movie."
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/user/ | grep "predict" | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "There must be $NUM_TRAINERS prediction parts for user."
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/user/ | grep "nids" | wc -l)
 if test $cnt != $NUM_TRAINERS
 then
     echo "There must be $NUM_TRAINERS prediction parts for user."
