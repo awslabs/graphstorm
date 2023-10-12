@@ -322,7 +322,7 @@ def run_partition(job_config: PartitionJobConfig):
     else:
         # Perform the partitioning. Leader uploads partition assignments to S3.
         local_partition_path, s3_partition_path = partitioner.create_partitions(
-            num_parts, output_s3)
+            output_s3, num_parts)
         if host_rank == 0:
             partitioner.broadcast_partition_done(client_list, world_size, success=True)
             # Wait for signal from all workers that they have downloaded partition assignments
