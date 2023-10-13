@@ -21,7 +21,7 @@ import torch as th
 import dgl
 
 from ..config.config import GLEM_CONFIGURABLE_PARAMETER_NAMES
-from .gnn import GSOptimizer
+from .gnn import GLEMOptimizer
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
 
 class GLEM(GSgnnNodeModelBase):
@@ -140,7 +140,7 @@ class GLEM(GSgnnNodeModelBase):
             lm_opts = [lm_optimizer]
         else:
             lm_opts = []
-        self._optimizer = GSOptimizer(dense_opts=dense_opts,
+        self._optimizer = GLEMOptimizer(dense_opts=dense_opts,
                                       lm_opts=lm_opts,
                                       sparse_opts=sparse_opts)
 
