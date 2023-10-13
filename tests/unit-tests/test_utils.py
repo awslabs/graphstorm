@@ -30,8 +30,9 @@ from graphstorm.model.utils import _get_data_range, NTYPE
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
 from graphstorm.model.utils import shuffle_predict, NodeIDShuffler
 from graphstorm.model.utils import pad_file_index
-from graphstorm.model.utils import save_node_prediction_results
-from graphstorm.model.utils import save_edge_prediction_results
+from graphstorm.model.utils import (save_node_prediction_results,
+                                    save_edge_prediction_results,
+                                    save_shuffled_node_embeddings)
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
@@ -432,13 +433,77 @@ def test_shuffle_predict(num_embs, backend):
         # Load saved embeddings
         assert_equal(pred[nid_mapping["node"]].numpy(), shuffled_pred)
 
-# TODO: Only test gloo now
-# Will add test for nccl once we enable nccl
+def do_dist_shuffle_nids(part_config, node_id_mapping_file, ntypes, nids,
+                         worker_rank, world_size, conn):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=worker_rank)
+    dgl.distributed.initialize('')
+    g = dgl.distributed.DistGraph(graph_name='dummy', part_config=part_config)
+    shuffler = NodeIDShuffler(g, node_id_mapping_file, ntypes)
+    shuffled_nids = []
+    for ntype, nid in zip(ntypes, nids):
+        shuffled_nid = shuffler.shuffle_nids(ntype, nid)
+        shuffled_nids.append(shuffled_nid.detach().cpu().numpy())
+
+    conn.send(shuffled_nids)
+
+    if worker_rank == 0:
+        th.distributed.destroy_process_group()
+
+def test_shuffle_emb_with_shuffle_nids():
+    # multiple embedding
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        g, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
+        embs = {}
+        ori_nid_mappings = {}
+        nid_mappings = {}
+        num_n0 = g.num_nodes('n0')
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_n0)
+        embs['n0'] = emb
+        ori_nid_mappings['n0'] = ori_nid_mapping
+        nid_mappings['n0'] = nid_mapping
+        num_n1 = g.num_nodes('n1')
+        emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_n1)
+        embs['n1'] = emb
+        ori_nid_mappings['n1'] = ori_nid_mapping
+        nid_mappings['n1'] = nid_mapping
+        ntypes = ['n0', 'n1']
+        nids0 = [th.arange(num_n0), th.arange(num_n1)]
+
+        save_maps(tmpdirname, "node_mapping", ori_nid_mappings)
+        nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
+        ctx = mp.get_context('spawn')
+        conn1, conn2 = mp.Pipe()
+        p0 = ctx.Process(target=do_dist_shuffle_nids,
+                        args=(part_config, nid_mapping_file, ntypes, nids0, 0, 1, conn2))
+        p0.start()
+        p0.join()
+        assert p0.exitcode == 0
+
+        shuffled_nids = conn1.recv()
+        conn1.close()
+        conn2.close()
+
+        shuffled_nids0 = shuffled_nids[0]
+        shuffled_nids1 = shuffled_nids[1]
+        assert len(shuffled_nids0) == len(embs['n0'])
+        assert len(shuffled_nids1) == len(embs['n1'])
+
+        # Load saved embeddings
+        ground_truth0 = embs['n0'][nid_mappings['n0']].numpy()
+        for i, nid in enumerate(shuffled_nids0):
+            assert_equal(ground_truth0[nid], embs['n0'][i].numpy())
+        ground_truth1 = embs['n1'][nid_mappings['n1']].numpy()
+        for i, nid in enumerate(shuffled_nids1):
+            assert_equal(ground_truth1[nid], embs['n1'][i].numpy())
+
 @pytest.mark.parametrize("num_embs", [16, 17])
 @pytest.mark.parametrize("backend", ["gloo", "nccl"])
 def test_save_embeddings_with_id_mapping(num_embs, backend):
-    import tempfile
-
     # single embedding
     with tempfile.TemporaryDirectory() as tmpdirname:
         emb, ori_nid_mapping, nid_mapping = gen_embedding_with_nid_mapping(num_embs)
@@ -694,12 +759,12 @@ def test_save_node_prediction_results():
         ntype0 = "ntype0"
         ntype1 = "ntype1"
         predictions0 = {
-            ntype0: th.rand((10, 4)),
-            ntype1: th.rand((10, 4)),
+            ntype0: (th.rand((10, 4)), th.randint(20, (10,))),
+            ntype1: (th.rand((10, 4)), th.randint(20, (10,))),
         }
         predictions1 = {
-            ntype0: th.rand((10, 4)),
-            ntype1: th.rand((10, 4)),
+            ntype0: (th.rand((10, 4)), th.randint(20, (10,))),
+            ntype1: (th.rand((10, 4)), th.randint(20, (10,))),
         }
 
         ctx = mp.get_context('spawn')
@@ -733,13 +798,89 @@ def test_save_node_prediction_results():
 
         n0_feat0 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "predict-00000.pt")))
         n0_feat1 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "predict-00001.pt")))
+        n0_nid0 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "nids-00000.pt")))
+        n0_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "nids-00001.pt")))
         n1_feat0 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "predict-00000.pt")))
         n1_feat1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "predict-00001.pt")))
+        n1_nid0 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "nids-00000.pt")))
+        n1_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "nids-00001.pt")))
 
         assert_almost_equal(th.cat([n0_feat0, n0_feat1]).numpy(),
-                            th.cat([predictions0[ntype0], predictions1[ntype0]]).numpy())
+                            th.cat([predictions0[ntype0][0], predictions1[ntype0][0]]).numpy())
         assert_almost_equal(th.cat([n1_feat0, n1_feat1]).numpy(),
-                            th.cat([predictions0[ntype1], predictions1[ntype1]]).numpy())
+                            th.cat([predictions0[ntype1][0], predictions1[ntype1][0]]).numpy())
+        assert_almost_equal(th.cat([n0_nid0, n0_nid1]).numpy(),
+                            th.cat([predictions0[ntype0][1], predictions1[ntype0][1]]).numpy())
+        assert_almost_equal(th.cat([n1_nid0, n1_nid1]).numpy(),
+                            th.cat([predictions0[ntype1][1], predictions1[ntype1][1]]).numpy())
+
+def test_save_shuffled_node_embeddings():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        ntype0 = "ntype0"
+        ntype1 = "ntype1"
+        embs0 = {
+            ntype0: (th.rand((10, 4)), th.randint(20, (10,))),
+            ntype1: (th.rand((10, 4)), th.randint(20, (10,))),
+        }
+        embs1 = {
+            ntype0: (th.rand((10, 4)), th.randint(20, (10,))),
+            ntype1: (th.rand((10, 4)), th.randint(20, (10,))),
+        }
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_dist_save_predict_results,
+                         args=(save_shuffled_node_embeddings,
+                               tmpdirname, embs0, 0, 2))
+        p1 = ctx.Process(target=run_dist_save_predict_results,
+                         args=(save_shuffled_node_embeddings,
+                               tmpdirname, embs1, 1, 2))
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+
+        os.path.exists(os.path.join(tmpdirname, "emb_info.json"))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join(ntype0, "emb.part00000.bin")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join(ntype0, "emb.part00001.bin")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join(ntype1, "emb.part00000.bin")))
+        os.path.exists(os.path.join(tmpdirname,
+                                    os.path.join(ntype1, "emb.part00001.bin")))
+        with open(os.path.join(tmpdirname, "emb_info.json"), 'r', encoding='utf-8') as f:
+            info = json.load(f)
+            assert info["format"] == "pytorch"
+            assert info["world_size"] == 2
+            assert set(info["emb_name"]) == set([ntype0, ntype1])
+
+        n0_feat0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join(ntype0, "emb.part00000.bin")))
+        n0_feat1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join(ntype0, "emb.part00001.bin")))
+        n0_nid0 = th.load(os.path.join(tmpdirname,
+                                       os.path.join(ntype0, "nids.part00000.bin")))
+        n0_nid1 = th.load(os.path.join(tmpdirname,
+                                       os.path.join(ntype0, "nids.part00001.bin")))
+        n1_feat0 = th.load(os.path.join(tmpdirname,
+                                        os.path.join(ntype1, "emb.part00000.bin")))
+        n1_feat1 = th.load(os.path.join(tmpdirname,
+                                        os.path.join(ntype1, "emb.part00001.bin")))
+        n1_nid0 = th.load(os.path.join(tmpdirname,
+                                       os.path.join(ntype1, "nids.part00000.bin")))
+        n1_nid1 = th.load(os.path.join(tmpdirname,
+                                       os.path.join(ntype1, "nids.part00001.bin")))
+
+        assert_almost_equal(th.cat([n0_feat0, n0_feat1]).numpy(),
+                            th.cat([embs0[ntype0][0], embs1[ntype0][0]]).numpy())
+        assert_almost_equal(th.cat([n1_feat0, n1_feat1]).numpy(),
+                            th.cat([embs0[ntype1][0], embs1[ntype1][0]]).numpy())
+        assert_almost_equal(th.cat([n0_nid0, n0_nid1]).numpy(),
+                            th.cat([embs0[ntype0][1], embs1[ntype0][1]]).numpy())
+        assert_almost_equal(th.cat([n1_nid0, n1_nid1]).numpy(),
+                            th.cat([embs0[ntype1][1], embs1[ntype1][1]]).numpy())
 
 def test_save_edge_prediction_results():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -824,6 +965,7 @@ if __name__ == '__main__':
     test_shuffle_nids()
     test_save_node_prediction_results()
     test_save_edge_prediction_results()
+    test_save_shuffled_node_embeddings()
     test_distribute_nid_map(backend='gloo')
     test_distribute_nid_map(backend='nccl')
 
@@ -835,6 +977,7 @@ if __name__ == '__main__':
     test_exchange_node_id_mapping(101, backend='nccl')
     test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
     test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
+    test_shuffle_emb_with_shuffle_nids()
 
     test_get_feat_size()
     test_save_embeddings()
