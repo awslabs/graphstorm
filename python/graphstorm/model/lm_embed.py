@@ -181,6 +181,21 @@ class LMModels(nn.Module):
         """
         return self._lm_node_feats[ntype]
 
+    def get_feat_size(self, ntype):
+        """ Get the LM output feature size for a node type.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        int : The feature size of the LM model
+        """
+        lm_type = self._lm_map[ntype]
+        return self._lm_models[lm_type].feat_size
+
     @property
     def ntypes(self):
         """ Get all node types with text features.
@@ -595,8 +610,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
             lm_ntypes = lm_config["node_types"]
             # Update feature size
             for ntype in lm_ntypes:
-                lm_type = lm_models._lm_map[ntype]
-                adjust_feat_size[ntype] += lm_models._lm_models[lm_type].feat_size
+                adjust_feat_size[ntype] += lm_models.get_feat_size(ntype)
                 if get_rank() == 0:
                     logging.debug('Node %s adds lm %s features %d->%d',
                                   ntype, lm_config["lm_type"], feat_size[ntype],
