@@ -156,10 +156,10 @@ def run_train(args, unknownargs):
     model_checkpoint_s3 = args.model_checkpoint_to_load
     if model_checkpoint_s3 is not None:
         restore_model_path = "/tmp/gsgnn_model_checkpoint/"
+        os.makedirs(restore_model_path, exist_ok=True)
     else:
         restore_model_path = None
     output_path = "/tmp/gsgnn_model/"
-    os.makedirs(restore_model_path, exist_ok=True)
     os.makedirs(output_path, exist_ok=True)
 
     # start the ssh server
