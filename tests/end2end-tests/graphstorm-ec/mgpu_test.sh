@@ -135,6 +135,15 @@ python3 check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/g
 
 error_and_exit $?
 
+echo "**************dataset: Movielens, use gen_node_embeddings to generate embeddings on edge classification"
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --use-mini-batch-infer false --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --save-embed-path /data/gsgnn_ec/save-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --logging-file /tmp/train_log.txt --logging-level debug
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/gsgnn_ec/save-emb/
+
+error_and_exit $?
+
 echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model without test_mask"
 python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_no_test_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ --no-validation true
 
