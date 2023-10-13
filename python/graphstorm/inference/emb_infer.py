@@ -73,6 +73,7 @@ class GSgnnEmbGenInferer(GSInferrer):
         sys_tracker.check('start generating embedding')
         self._model.eval()
 
+        # infer ntypes must be sorted for node embedding saving
         if task_type == BUILTIN_TASK_LINK_PREDICTION:
             infer_ntypes = None
         elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
@@ -95,6 +96,8 @@ class GSgnnEmbGenInferer(GSInferrer):
             embs = do_full_graph_inference(self._model, data, fanout=eval_fanout,
                                            edge_mask=None,
                                            task_tracker=self.task_tracker)
+            if not infer_ntypes:
+                embs = {ntype: embs[ntype] for ntype in infer_ntypes}
 
         if get_rank() == 0:
             logging.info("save embeddings to %s", save_embed_path)
