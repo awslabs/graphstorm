@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Inferrer wrapper for embedding generation.
+    Inferer wrapper for embedding generation.
 """
 import logging
 from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
@@ -70,7 +70,7 @@ class GSgnnEmbGenInferer(GSInferrer):
         assert save_embed_path is not None, \
             "It requires save embed path for gs_gen_node_embedding"
 
-        sys_tracker.check('start embedding generation')
+        sys_tracker.check('start generating embedding')
         self._model.eval()
 
         if task_type == BUILTIN_TASK_LINK_PREDICTION:
