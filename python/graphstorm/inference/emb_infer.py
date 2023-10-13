@@ -54,6 +54,8 @@ class GSgnnEmbGenInferer(GSInferrer):
             task_type must be one of graphstorm builtin task types
         save_embed_path : str
             The path where the GNN embeddings will be saved.
+        eval_fanout: list of int
+            The fanout of each GNN layers used in evaluation and inference.
         use_mini_batch_infer : bool
             Whether to use mini-batch inference when computing node embeddings.
         node_id_mapping_file: str

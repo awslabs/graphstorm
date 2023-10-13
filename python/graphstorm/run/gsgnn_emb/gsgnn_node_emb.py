@@ -44,17 +44,17 @@ def main(config_args):
         tracker.log_params(config.__dict__)
 
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
-        input_graph = GSgnnEdgeInferData(config.graph_name,
+        input_data = GSgnnEdgeInferData(config.graph_name,
                                         config.part_config,
                                         eval_etypes=config.eval_etype,
                                         node_feat_field=config.node_feat_name)
     elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        input_graph = GSgnnNodeInferData(config.graph_name,
+        input_data = GSgnnNodeInferData(config.graph_name,
                                         config.part_config,
                                         eval_ntypes=config.target_ntype,
                                         node_feat_field=config.node_feat_name)
     elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        input_graph = GSgnnEdgeInferData(config.graph_name,
+        input_data = GSgnnEdgeInferData(config.graph_name,
                                         config.part_config,
                                         eval_etypes=config.target_etype,
                                         node_feat_field=config.node_feat_name)
@@ -69,11 +69,11 @@ def main(config_args):
 
     # load the model
     if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
-        model = gs.create_builtin_lp_gnn_model(input_graph.g, config, train_task=False)
+        model = gs.create_builtin_lp_gnn_model(input_data.g, config, train_task=False)
     elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        model = gs.create_builtin_node_gnn_model(input_graph.g, config, train_task=False)
+        model = gs.create_builtin_node_gnn_model(input_data.g, config, train_task=False)
     elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        model = gs.create_builtin_edge_gnn_model(input_graph.g, config, train_task=False)
+        model = gs.create_builtin_edge_gnn_model(input_data.g, config, train_task=False)
     else:
         raise TypeError("Not supported for task type: ", config.task_type)
     model.restore_model(config.restore_model_path,
@@ -83,7 +83,7 @@ def main(config_args):
     emb_generator = GSgnnEmbGenInferer(model)
     emb_generator.setup_device(device=device)
 
-    emb_generator.infer(input_graph, config.task_type,
+    emb_generator.infer(input_data, config.task_type,
                 save_embed_path=config.save_embed_path,
                 eval_fanout=config.eval_fanout,
                 use_mini_batch_infer=config.use_mini_batch_infer,
