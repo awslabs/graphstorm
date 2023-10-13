@@ -153,7 +153,10 @@ def run_train(args, unknownargs):
     """
     num_gpus = args.num_gpus
     data_path = args.data_path
-    restore_model_path = "/tmp/gsgnn_model_checkpoint/"
+    if model_checkpoint_s3 is not None:
+        restore_model_path = "/tmp/gsgnn_model_checkpoint/"
+    else:
+        restore_model_path = None
     output_path = "/tmp/gsgnn_model/"
     os.makedirs(restore_model_path, exist_ok=True)
     os.makedirs(output_path, exist_ok=True)
