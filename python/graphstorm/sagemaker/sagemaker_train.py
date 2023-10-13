@@ -153,6 +153,7 @@ def run_train(args, unknownargs):
     """
     num_gpus = args.num_gpus
     data_path = args.data_path
+    model_checkpoint_s3 = args.model_checkpoint_to_load
     if model_checkpoint_s3 is not None:
         restore_model_path = "/tmp/gsgnn_model_checkpoint/"
     else:
@@ -217,7 +218,6 @@ def run_train(args, unknownargs):
     graph_data_s3 = args.graph_data_s3
     task_type = args.task_type
     train_yaml_s3 = args.train_yaml_s3
-    model_checkpoint_s3 = args.model_checkpoint_to_load
     model_artifact_s3 = args.model_artifact_s3.rstrip('/')
     custom_script = args.custom_script
 
