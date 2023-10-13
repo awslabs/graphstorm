@@ -87,12 +87,12 @@ class GSgnnEmbGenInferer(GSInferrer):
         if use_mini_batch_infer:
             embs = do_mini_batch_inference(self._model, data, fanout=eval_fanout,
                                            edge_mask=None,
-                                           task_tracker=self.task_tracker)
+                                           task_tracker=self.task_tracker,
+                                           infer_ntypes=infer_ntypes)
         else:
             embs = do_full_graph_inference(self._model, data, fanout=eval_fanout,
                                            edge_mask=None,
-                                           task_tracker=self.task_tracker,
-                                           infer_ntypes=infer_ntypes)
+                                           task_tracker=self.task_tracker)
 
         if get_rank() == 0:
             logging.info("save embeddings to %s", save_embed_path)
