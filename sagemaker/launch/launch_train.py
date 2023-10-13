@@ -71,7 +71,6 @@ def run_job(input_args, image, unknowargs):
         params["custom-script"] = custom_script
     if model_checkpoint_to_load is not None:
         params["model-checkpoint-to-load"] = model_checkpoint_to_load
-    print(params)
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
