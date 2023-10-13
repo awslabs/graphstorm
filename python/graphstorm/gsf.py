@@ -518,18 +518,23 @@ def set_encoder(model, g, config, train_task):
     reconstruct_feats = len(config.construct_feat_ntype) > 0
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:
+        emb_path = os.path.join(os.path.dirname(config.part_config),
+                "cached_embs") if config.cache_lm_embed else None
         if model_encoder_type == "lm":
             # only use language model(s) as input layer encoder(s)
             encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
                                              num_train=config.lm_train_nodes,
-                                             lm_infer_batch_size=config.lm_infer_batch_size)
+                                             lm_infer_batch_size=config.lm_infer_batch_size,
+                                             cached_embed_path=emb_path)
         else:
             encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
                                                 feat_size, config.hidden_size,
                                                 num_train=config.lm_train_nodes,
                                                 lm_infer_batch_size=config.lm_infer_batch_size,
                                                 dropout=config.dropout,
-                                                use_node_embeddings=config.use_node_embeddings)
+                                                use_node_embeddings=config.use_node_embeddings,
+                                                cached_embed_path=emb_path,
+                                                force_no_embeddings=config.construct_feat_ntype)
     else:
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
