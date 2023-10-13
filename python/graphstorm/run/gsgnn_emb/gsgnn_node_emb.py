@@ -47,21 +47,17 @@ def main(config_args):
         input_graph = GSgnnEdgeInferData(config.graph_name,
                                         config.part_config,
                                         eval_etypes=config.eval_etype,
-                                        node_feat_field=config.node_feat_name,
-                                        decoder_edge_feat=config.decoder_edge_feat)
+                                        node_feat_field=config.node_feat_name)
     elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
         input_graph = GSgnnNodeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_ntypes=config.target_ntype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                        config.part_config,
+                                        eval_ntypes=config.target_ntype,
+                                        node_feat_field=config.node_feat_name)
     elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
         input_graph = GSgnnEdgeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_etypes=config.target_etype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    decoder_edge_feat=config.decoder_edge_feat)
+                                        config.part_config,
+                                        eval_etypes=config.target_etype,
+                                        node_feat_field=config.node_feat_name)
     else:
         raise TypeError("Not supported for task type: ", config.task_type)
 

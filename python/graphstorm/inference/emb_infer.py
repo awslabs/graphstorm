@@ -24,7 +24,6 @@ from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
-
 from ..utils import sys_tracker, get_rank, get_world_size, barrier
 
 
@@ -39,90 +38,6 @@ class GSgnnEmbGenInferer(GSInferrer):
     model : GSgnnNodeModel
         The GNN model with different task.
     """
-
-    def nc_emb(self, g, model, use_mini_batch_infer, fanout):
-        """ Embedding Generation for node task.
-        It will only generate embeddings on the target node type.
-
-        Parameters
-        ----------
-        g: GSgnnData
-            The GraphStorm dataset
-        model : GSgnnNodeModel
-            The GNN model on edge prediction/classification task
-        use_mini_batch_infer : bool
-            Whether to use mini-batch inference when computing node embeddings.
-        fanout: list of int
-            The fanout of each GNN layers used in inference.
-        """
-        infer_ntypes = sorted(g.infer_idxs)
-        if use_mini_batch_infer:
-            embs = do_mini_batch_inference(model, g, fanout=fanout,
-                                           edge_mask=None,
-                                           task_tracker=self.task_tracker,
-                                           infer_ntypes=infer_ntypes)
-        else:
-            embs = do_full_graph_inference(model, g, fanout=fanout,
-                                           task_tracker=self.task_tracker)
-        return embs
-
-    def ec_emb(self, g, model, use_mini_batch_infer, fanout):
-        """ Embedding Generation for edge task.
-        It will only generate embeddings on the target node type
-        defined in the target edge type.
-
-        Parameters
-        ----------
-        g: GSgnnData
-            The GraphStorm dataset
-        model : GSgnnNodeModel
-            The GNN model on edge prediction/classification task
-        use_mini_batch_infer : bool
-            Whether to use mini-batch inference when computing node embeddings.
-        fanout: list of int
-            The fanout of each GNN layers used in inference.
-        """
-        infer_ntypes = set()
-        for etype in g.infer_idxs:
-            infer_ntypes.add(etype[0])
-            infer_ntypes.add(etype[2])
-        infer_ntypes = sorted(infer_ntypes)
-
-        if use_mini_batch_infer:
-            embs = do_mini_batch_inference(model, g, fanout=fanout,
-                                           edge_mask=None,
-                                           task_tracker=self.task_tracker,
-                                           infer_ntypes=infer_ntypes)
-        else:
-            embs = do_full_graph_inference(model, g, fanout=fanout,
-                                           task_tracker=self.task_tracker)
-        return embs
-
-    def lp_emb(self, g, model, use_mini_batch_infer, fanout):
-        """ Embedding Generation for link prediction task.
-        It will only generate embeddings on whole graph.
-
-        Parameters
-        ----------
-        g: GSgnnData
-            The GraphStorm dataset
-        model : GSgnnNodeModel
-            The GNN model on edge prediction/classification task
-        use_mini_batch_infer : bool
-            Whether to use mini-batch inference when computing node embeddings.
-        fanout: list of int
-            The fanout of each GNN layers used in inference.
-        """
-        if use_mini_batch_infer:
-            embs = do_mini_batch_inference(model, g, fanout=fanout,
-                                           edge_mask=None,
-                                           task_tracker=self.task_tracker)
-        else:
-            embs = do_full_graph_inference(model, g, fanout=fanout,
-                                           edge_mask=None,
-                                           task_tracker=self.task_tracker)
-        return embs
-
     def infer(self, data, task_type, save_embed_path, eval_fanout,
             use_mini_batch_infer=False,
             node_id_mapping_file=None,
@@ -157,13 +72,27 @@ class GSgnnEmbGenInferer(GSInferrer):
         self._model.eval()
 
         if task_type == BUILTIN_TASK_LINK_PREDICTION:
-            embs = self.lp_emb(data, self._model, use_mini_batch_infer, eval_fanout)
+            infer_ntypes = None
         elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-            embs = self.nc_emb(data, self._model, use_mini_batch_infer, eval_fanout)
+            infer_ntypes = sorted(data.infer_idxs)
         elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-            embs = self.ec_emb(data, self._model, use_mini_batch_infer, eval_fanout)
+            infer_ntypes = set()
+            for etype in data.infer_idxs:
+                infer_ntypes.add(etype[0])
+                infer_ntypes.add(etype[2])
+            infer_ntypes = sorted(infer_ntypes)
         else:
             raise TypeError("Not supported for task type: ", task_type)
+
+        if use_mini_batch_infer:
+            embs = do_mini_batch_inference(self._model, data, fanout=eval_fanout,
+                                           edge_mask=None,
+                                           task_tracker=self.task_tracker)
+        else:
+            embs = do_full_graph_inference(self._model, data, fanout=eval_fanout,
+                                           edge_mask=None,
+                                           task_tracker=self.task_tracker,
+                                           infer_ntypes=infer_ntypes)
 
         if get_rank() == 0:
             logging.info("save embeddings to %s", save_embed_path)
