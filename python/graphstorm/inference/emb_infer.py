@@ -96,7 +96,7 @@ class GSgnnEmbGenInferer(GSInferrer):
             embs = do_full_graph_inference(self._model, data, fanout=eval_fanout,
                                            edge_mask=None,
                                            task_tracker=self.task_tracker)
-            if not infer_ntypes:
+            if infer_ntypes:
                 embs = {ntype: embs[ntype] for ntype in infer_ntypes}
 
         if get_rank() == 0:
