@@ -1,11 +1,12 @@
-.. role:: hidden
+﻿.. role:: hidden
     :class: hidden-section
-.. currentmodule:: {{ module }}
+.. currentmodule:: graphstorm.eval
 
 
-{{ name | underline}}
+GSgnnPerEtypeMrrLPEvaluator
+===========================
 
-.. autoclass:: {{ name }}
+.. autoclass:: GSgnnPerEtypeMrrLPEvaluator
     :show-inheritance:
     :members: prepare_data, get_node_feats, get_edge_feats, get_labels, forward, get_sparse_params, 
               get_general_dense_parameters, get_lm_dense_parameters, save_model, remove_saved_model,

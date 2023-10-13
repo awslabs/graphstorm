@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>graphstorm.model.SAGEConv &mdash; GraphStorm 0.3 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="graphstorm.model.HGTEncoder" href="graphstorm.model.HGTEncoder.html" />
+    <link rel="prev" title="graphstorm.model.SAGEEncoder" href="graphstorm.model.SAGEEncoder.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GraphStorm
+          </a>
+              <div class="version">
+                0.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Processing</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing/gs-processing-getting-started.html">GraphStorm Processing Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing/usage/example.html">GraphStorm Processing Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing/usage/distributed-processing-setup.html">GraphStorm Processing setup for Amazon SageMaker</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing/usage/amazon-sagemaker.html">Running distributed jobs on Amazon SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Training</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scale/sagemaker.html">Use GraphStorm on SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/own-models.html">Use Your Own Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/language-models.html">Use Text as Node Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../advanced/advanced-wholegraph.html">Use WholeGraph in GraphStorm</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.dataloading.html">graphstorm.dataloading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.eval.html">graphstorm.eval</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.inference.html">graphstorm.inference</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api/graphstorm.model.html#base-models">Base models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/graphstorm.model.html#input-layers">Input Layers</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api/graphstorm.model.html#encoders-and-gnn-layers">Encoders and GNN Layers</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelationalGCNEncoder.html">graphstorm.model.RelationalGCNEncoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelGraphConvLayer.html">graphstorm.model.RelGraphConvLayer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelationalGATEncoder.html">graphstorm.model.RelationalGATEncoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.RelationalAttLayer.html">graphstorm.model.RelationalAttLayer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.SAGEEncoder.html">graphstorm.model.SAGEEncoder</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">graphstorm.model.SAGEConv</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#graphstorm.model.SAGEConv"><code class="docutils literal notranslate"><span class="pre">SAGEConv</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.HGTEncoder.html">graphstorm.model.HGTEncoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graphstorm.model.HGTLayer.html">graphstorm.model.HGTLayer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GraphStorm</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api/graphstorm.model.html">graphstorm.model</a></li>
+      <li class="breadcrumb-item active">graphstorm.model.SAGEConv</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/generated/graphstorm.model.SAGEConv.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="graphstorm-model-sageconv">
+<h1>graphstorm.model.SAGEConv<a class="headerlink" href="#graphstorm-model-sageconv" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="graphstorm.model.SAGEConv">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">graphstorm.model.</span></span><span class="sig-name descname"><span class="pre">SAGEConv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_feat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_feat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aggregator_type='mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout=0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation=&lt;function</span> <span class="pre">relu&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_ffn_layers_in_gnn=0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ffn_activation=&lt;function</span> <span class="pre">relu&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm=None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#graphstorm.model.SAGEConv" title="Permalink to this definition"></a></dt>
+<dd><p>GraphSage Convolutional layerfrom <a class="reference external" href="https://arxiv.org/pdf/1706.02216.pdf">Inductive Representation Learning on
+Large Graphs</a></p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}h_{\mathcal{N}(i)}^{(l+1)} &amp;= \mathrm{aggregate}
+\left(\{h_{j}^{l}, \forall j \in \mathcal{N}(i) \}\right)\\h_{i}^{(l+1)} &amp;= \sigma \left(W \cdot \mathrm{concat}
+(h_{i}^{l}, h_{\mathcal{N}(i)}^{l+1}) \right)\\h_{i}^{(l+1)} &amp;= \mathrm{norm}(h_{i}^{(l+1)})\end{aligned}\end{align} \]</div>
+<p>If a weight tensor on each edge is provided, the aggregation becomes:</p>
+<div class="math notranslate nohighlight">
+\[h_{\mathcal{N}(i)}^{(l+1)} = \mathrm{aggregate}
+\left(\{e_{ji} h_{j}^{l}, \forall j \in \mathcal{N}(i) \}\right)\]</div>
+<p>where <span class="math notranslate nohighlight">\(e_{ji}\)</span> is the scalar weight on the edge from node <span class="math notranslate nohighlight">\(j\)</span> to node <span class="math notranslate nohighlight">\(i\)</span>.
+Please make sure that <span class="math notranslate nohighlight">\(e_{ji}\)</span> is broadcastable with <span class="math notranslate nohighlight">\(h_j^{l}\)</span>.</p>
+<section id="note">
+<h2>Note:<a class="headerlink" href="#note" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>SAGEConv is only effective on the homogeneous graph, not like other conv implementation.</p></li>
+</ul>
+</section>
+<section id="examples">
+<h2>Examples:<a class="headerlink" href="#examples" title="Permalink to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># suppose graph and input_feature are ready</span>
+<span class="kn">from</span> <span class="nn">graphstorm.model.sage_encoder</span> <span class="kn">import</span> <span class="n">SAGEConv</span>
+
+<span class="n">layer</span> <span class="o">=</span> <span class="n">SAGEConv</span><span class="p">(</span><span class="n">h_dim</span><span class="p">,</span> <span class="n">h_dim</span><span class="p">,</span> <span class="n">aggregator_type</span><span class="p">,</span>
+                        <span class="n">bias</span><span class="p">,</span> <span class="n">activation</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span>
+                        <span class="n">num_ffn_layers_in_gnn</span><span class="p">,</span> <span class="n">norm</span><span class="p">)</span>
+<span class="n">h</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">input_feature</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="parameters">
+<h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this heading"></a></h2>
+<dl class="simple">
+<dt>in_feat<span class="classifier">int</span></dt><dd><p>Input feature size.</p>
+</dd>
+<dt>out_feat<span class="classifier">int</span></dt><dd><p>Output feature size.</p>
+</dd>
+<dt>aggregator_type<span class="classifier">str</span></dt><dd><p>One of mean, gcn, pool, lstm</p>
+</dd>
+<dt>bias<span class="classifier">bool, optional</span></dt><dd><p>True if bias is added. Default: True</p>
+</dd>
+<dt>activation<span class="classifier">callable, optional</span></dt><dd><p>Activation function. Default: None</p>
+</dd>
+<dt>dropout<span class="classifier">float, optional</span></dt><dd><p>Dropout rate. Default: 0.0</p>
+</dd>
+<dt>num_ffn_layers_in_gnn: int, optional</dt><dd><p>Number of layers of ngnn between gnn layers</p>
+</dd>
+<dt>ffn_actication: torch.nn.functional</dt><dd><p>Activation Method for ngnn</p>
+</dd>
+<dt>norm<span class="classifier">str, optional</span></dt><dd><p>Normalization Method. Default: None</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="graphstorm.model.SAGEEncoder.html" class="btn btn-neutral float-left" title="graphstorm.model.SAGEEncoder" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="graphstorm.model.HGTEncoder.html" class="btn btn-neutral float-right" title="graphstorm.model.HGTEncoder" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, AGML team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

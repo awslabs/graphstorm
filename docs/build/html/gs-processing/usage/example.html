@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GraphStorm Processing Example &mdash; GraphStorm 0.3 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="GraphStorm Processing setup for Amazon SageMaker" href="distributed-processing-setup.html" />
+    <link rel="prev" title="GraphStorm Processing Getting Started" href="../gs-processing-getting-started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            GraphStorm
+          </a>
+              <div class="version">
+                0.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration/index.html">GraphStorm Configurations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Processing</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing-getting-started.html">GraphStorm Processing Getting Started</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">GraphStorm Processing Example</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#install-example-dependencies">Install example dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#expected-file-inputs-and-configuration">Expected file inputs and configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#relative-file-paths-required">Relative file paths required</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#node-files-are-optional">Node files are optional</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#example-data-and-configuration">Example data and configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run-a-gsprocessing-job-locally">Run a GSProcessing job locally</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#examining-the-job-output">Examining the job output</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="distributed-processing-setup.html">GraphStorm Processing setup for Amazon SageMaker</a></li>
+<li class="toctree-l1"><a class="reference internal" href="amazon-sagemaker.html">Running distributed jobs on Amazon SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Training</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../scale/sagemaker.html">Use GraphStorm on SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../advanced/own-models.html">Use Your Own Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../advanced/language-models.html">Use Text as Node Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../advanced/advanced-wholegraph.html">Use WholeGraph in GraphStorm</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.html">graphstorm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.dataloading.html">graphstorm.dataloading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.eval.html">graphstorm.eval</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.inference.html">graphstorm.inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.model.html">graphstorm.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">GraphStorm</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">GraphStorm Processing Example</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/gs-processing/usage/example.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="graphstorm-processing-example">
+<h1>GraphStorm Processing Example<a class="headerlink" href="#graphstorm-processing-example" title="Permalink to this heading"></a></h1>
+<p>To demonstrate how to use the library locally we will
+use the same example data as we use in our
+unit tests, which you can find in the project’s repository,
+under <code class="docutils literal notranslate"><span class="pre">graphstorm/graphstorm-processing/tests/resources/small_heterogeneous_graph</span></code>.</p>
+<section id="install-example-dependencies">
+<h2>Install example dependencies<a class="headerlink" href="#install-example-dependencies" title="Permalink to this heading"></a></h2>
+<p>To run the local example you will need to install the GSProcessing
+library to your Python environment, and you’ll need to clone the
+GraphStorm repository to get access to the data.</p>
+<p>Follow the <a class="reference internal" href="../gs-processing-getting-started.html#gsp-installation-ref"><span class="std std-ref">Installation</span></a> guide to install the GSProcessing library.</p>
+<p>You can clone the repository using</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
+</pre></div>
+</div>
+<p>You can then navigate to the <code class="docutils literal notranslate"><span class="pre">graphstorm-processing/</span></code> directory
+that contains the relevant data:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>./graphstorm/graphstorm-processing/
+</pre></div>
+</div>
+</section>
+<section id="expected-file-inputs-and-configuration">
+<h2>Expected file inputs and configuration<a class="headerlink" href="#expected-file-inputs-and-configuration" title="Permalink to this heading"></a></h2>
+<p>GSProcessing expects the input files to be in specific format that will allow
+us to perform the processing and prepare the data for partitioning and training.</p>
+<p>The data files are expected to be:</p>
+<ul class="simple">
+<li><p>Tabular data files. We support CSV-with-header format, or in Parquet format.
+The files can be split (multiple parts), or a single file.</p></li>
+<li><p>Available on a local file system or on S3.</p></li>
+<li><p>One tabular file source per edge and node type. For example, for a particular edge
+type, all node identifiers (source, destination), features, and labels should
+exist as columns in a single file source.</p></li>
+</ul>
+<p>Apart from the data, GSProcessing also requires a configuration file that describes the
+data and the transformations we will need to apply to the features and any encoding needed for
+labels.
+We support both the <a class="reference external" href="https://graphstorm.readthedocs.io/en/latest/configuration/configuration-gconstruction.html#configuration-json-explanations">GConstruct configuration format</a>
+, and the library’s own GSProcessing format, described in <a class="reference internal" href="../developer/input-configuration.html"><span class="doc">GraphStorm Processing Input Configuration</span></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We expect end users to only provide a GConstruct configuration file,
+and only use the configuration format of GSProcessing as an intermediate
+layer to decouple the two projects.</p>
+<p>Developers who are looking to use GSProcessing
+as their backend processing engine can either use the GSProcessing configuration
+format directly, or translate their own configuration format to GSProcessing,
+as we do with GConstruct.</p>
+</div>
+<p>For a detailed description of all the entries of the GSProcessing configuration file see
+<a class="reference internal" href="../developer/input-configuration.html"><span class="doc">GraphStorm Processing Input Configuration</span></a>.</p>
+<section id="relative-file-paths-required">
+<span id="gsp-relative-paths"></span><h3>Relative file paths required<a class="headerlink" href="#relative-file-paths-required" title="Permalink to this heading"></a></h3>
+<p>The one difference with single-instance GConstruct files,
+is that we require that the file paths listed in the configuration file are
+<cite>relative to the location of the configuration file.</cite> Specifically:</p>
+<ul class="simple">
+<li><p>All file paths listed <strong>must not</strong> start with <code class="docutils literal notranslate"><span class="pre">/</span></code>.</p></li>
+<li><p>Assuming the configuration file is under <code class="docutils literal notranslate"><span class="pre">$PATH</span></code>, and a filepath is listed as <code class="docutils literal notranslate"><span class="pre">${FILEPATH}</span></code>
+in the configuration file, the corresponding file is expected to exist at <code class="docutils literal notranslate"><span class="pre">${PATH}/${FILEPATH}</span></code>.</p></li>
+</ul>
+<p>For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>&gt;<span class="w"> </span><span class="nb">pwd</span>
+/home/path/to/data/<span class="w"> </span><span class="c1"># This is the current working directory (cwd)</span>
+&gt;<span class="w"> </span>ls
+gconstruct-config.json<span class="w"> </span>edge_data<span class="w"> </span><span class="c1"># These are the files under the cwd</span>
+&gt;<span class="w"> </span>ls<span class="w"> </span>edge_data/<span class="w"> </span><span class="c1"># These are the files under the edge_data directory</span>
+movie-included_in-genre.csv
+</pre></div>
+</div>
+<p>The contents of the <code class="docutils literal notranslate"><span class="pre">gconstruct-config.json</span></code> can be:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;edges&quot;</span> <span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="c1"># Note that the file is a relative path</span>
+            <span class="s2">&quot;files&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;edges/movie-included_in-genre.csv&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;csv&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;separator&quot;</span> <span class="p">:</span> <span class="s2">&quot;,&quot;</span>
+            <span class="p">}</span>
+            <span class="c1"># [...] Other edge config values</span>
+        <span class="p">}</span>
+    <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Given the above we can run a job with local input data as:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>&gt;<span class="w"> </span>gs-processing<span class="w"> </span>--input-data<span class="w"> </span>/home/path/to/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config-filename<span class="w"> </span>gconstruct-config.json
+</pre></div>
+</div>
+<p>The benefit with using relative paths is that we can move the same files
+to any location, including S3, and run the same job without making changes to the config
+file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Move all files to new directory</span>
+&gt;<span class="w"> </span>mv<span class="w"> </span>/home/path/to/data<span class="w"> </span>/home/new-path/to/data
+<span class="c1"># After moving all the files we can still use the same config</span>
+&gt;<span class="w"> </span>gs-processing<span class="w"> </span>--input-data<span class="w"> </span>/home/new-path/to/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config-filename<span class="w"> </span>gconstruct-config.json
+
+<span class="c1"># Upload data to S3</span>
+&gt;<span class="w"> </span>aws<span class="w"> </span>s3<span class="w"> </span>sync<span class="w"> </span>/home/new-path/to/data<span class="w"> </span>s3://my-bucket/data/
+<span class="c1"># We can still use the same config, just change the prefix to an S3 path</span>
+&gt;<span class="w"> </span>python<span class="w"> </span>run_distributed_processing.py<span class="w"> </span>--input-data<span class="w"> </span>s3://my-bucket/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config-filename<span class="w"> </span>gconstruct-config.json
+</pre></div>
+</div>
+</section>
+<section id="node-files-are-optional">
+<h3>Node files are optional<a class="headerlink" href="#node-files-are-optional" title="Permalink to this heading"></a></h3>
+<p>GSProcessing does not require node files to be provided for
+every node type. If a node type appears in one of the edges,
+its unique node identifiers will be determined by the edge files.</p>
+<p>In the example GConstruct file above (<cite>gconstruct-config.json</cite>), the node ids for the node types
+<code class="docutils literal notranslate"><span class="pre">movie</span></code> and <code class="docutils literal notranslate"><span class="pre">genre</span></code> will be extracted from the edge list provided.</p>
+</section>
+</section>
+<section id="example-data-and-configuration">
+<h2>Example data and configuration<a class="headerlink" href="#example-data-and-configuration" title="Permalink to this heading"></a></h2>
+<p>For this example we use a small heterogeneous graph inspired by the Movielens dataset.
+You can see the configuration file under
+<code class="docutils literal notranslate"><span class="pre">graphstorm-processing/tests/resources/small_heterogeneous_graph/gconstruct-config.json</span></code></p>
+<p>We have 4 node types, <code class="docutils literal notranslate"><span class="pre">movie</span></code>, <code class="docutils literal notranslate"><span class="pre">genre</span></code>, <code class="docutils literal notranslate"><span class="pre">director</span></code>, and <code class="docutils literal notranslate"><span class="pre">user</span></code>. The graph has 3
+edge types, <code class="docutils literal notranslate"><span class="pre">movie:included_in:genre</span></code>, <code class="docutils literal notranslate"><span class="pre">user:rated:movie</span></code>, and <code class="docutils literal notranslate"><span class="pre">director:directed:movie</span></code>.</p>
+<p>We include one <code class="docutils literal notranslate"><span class="pre">no-op</span></code> feature, <code class="docutils literal notranslate"><span class="pre">age</span></code>, that we directly pass to the output without any transformation,
+and one label, <code class="docutils literal notranslate"><span class="pre">gender</span></code>, that we transform to prepare the data for a node classification task.</p>
+</section>
+<section id="run-a-gsprocessing-job-locally">
+<h2>Run a GSProcessing job locally<a class="headerlink" href="#run-a-gsprocessing-job-locally" title="Permalink to this heading"></a></h2>
+<p>While GSProcessing is designed to run on distributed clusters,
+we can also run small jobs in a local environment, using a local Spark instance.</p>
+<p>To do so, we will be using the <code class="docutils literal notranslate"><span class="pre">gs-processing</span></code> entry point,
+to process the data and create the output on our local storage.</p>
+<p>We will provide an input and output prefix for our data, passing
+local paths to the script.</p>
+<p>We also provide the argument <code class="docutils literal notranslate"><span class="pre">--num-output-files</span></code> that instructs PySpark
+to try and create output with 4 partitions <a class="footnote-reference brackets" href="#f1" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>.</p>
+<p>Assuming our working directory is <code class="docutils literal notranslate"><span class="pre">graphstorm/graphstorm-processing/</span></code>
+we can use the following command to run the processing job locally:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>gs-processing<span class="w"> </span>--config-filename<span class="w"> </span>gconstruct-config.json<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--input-prefix<span class="w"> </span>./tests/resources/small_heterogeneous_graph<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output-prefix<span class="w"> </span>/tmp/gsprocessing-example/<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--num-output-files<span class="w"> </span><span class="m">4</span>
+</pre></div>
+</div>
+<p>To finalize processing and to wrangle the data into the structure that
+DGL distributed partitioning expects, we need an additional step that
+guarantees the data conform to the expectations of DGL:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>gs-repartition<span class="w"> </span>--input-prefix<span class="w"> </span>/tmp/gsprocessing-example/
+</pre></div>
+</div>
+</section>
+<section id="examining-the-job-output">
+<span id="gsp-examining-output"></span><h2>Examining the job output<a class="headerlink" href="#examining-the-job-output" title="Permalink to this heading"></a></h2>
+<p>Once the processing and re-partitioning jobs are done,
+we can examine the outputs they created. The output will be
+compatible with the <a class="reference external" href="https://docs.dgl.ai/guide/distributed-preprocessing.html#chunked-graph-format">Chunked Graph Format of DistDGL</a>
+and can be used downstream to create a partitioned graph.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/tmp/gsprocessing-example
+$<span class="w"> </span>ls
+
+edges/<span class="w">  </span>launch_arguments.json<span class="w">  </span>metadata.json<span class="w">  </span>node_data/
+node_id_mappings/<span class="w">  </span>perf_counters.json<span class="w">  </span>updated_row_counts_metadata.json
+</pre></div>
+</div>
+<p>We have a few JSON files and the data directories containing
+the graph structure, features, and labels. In more detail:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">launch_arguments.json</span></code>: Contains the arguments that were used
+to launch the processing job, allowing you to check the parameters after the
+job finishes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">updated_row_counts_metadata.json</span></code>:
+This file is meant to be used as the input configuration for the
+distributed partitioning pipeline. <code class="docutils literal notranslate"><span class="pre">repartition_files.py</span></code> produces
+this file using the original <code class="docutils literal notranslate"><span class="pre">metadata.json</span></code> file as input.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">metadata.json</span></code>: Created by <code class="docutils literal notranslate"><span class="pre">gs-processing</span></code> and used as input
+for <code class="docutils literal notranslate"><span class="pre">repartition_files.py</span></code>, can be removed once that script has run.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">perf_counters.json</span></code>: A JSON file that contains runtime measurements
+for the various components of GSProcessing. Can be used to profile the
+application and discover bottlenecks.</p></li>
+</ul>
+<p>The directories created contain:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">edges</span></code>: Contains the edge structures, one sub-directory per edge
+type. Each edge file will contain two columns, the source and destination
+<cite>numerical</cite> node id, named <code class="docutils literal notranslate"><span class="pre">src_int_id</span></code> and <code class="docutils literal notranslate"><span class="pre">dist_int_id</span></code> respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">node_data</span></code>: Contains the features for the nodes, one sub-directory
+per node type. Each file will contain one column named after the original
+feature name that contains the value of the feature (could be a scalar or a vector).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">node_id_mappings</span></code>: Contains mappings from the original node ids to the
+ones created by the processing job. This mapping would allow you to trace
+back predictions to the original nodes/edges. The files will have two columns,
+<code class="docutils literal notranslate"><span class="pre">node_str_id</span></code> that contains the original string ID of the node, and <code class="docutils literal notranslate"><span class="pre">node_int_id</span></code>
+that contains the numerical id that the string id was mapped to.</p></li>
+</ul>
+<p>If the graph had included edge features they would appear
+in an <code class="docutils literal notranslate"><span class="pre">edge_data</span></code> directory.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It’s important to note that files for edges and edge data will have the
+same order and row counts per file, as expected by DistDGL. Similarly,
+all node feature files will have the same order and row counts, where
+the first row corresponds to the feature value for node id 0, the second
+for node id 1 etc.</p>
+</div>
+<p>At this point you can use the DGL distributed partitioning pipeline
+to partition your data, as described in the
+<a class="reference external" href="https://docs.dgl.ai/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline">DGL documentation</a>
+.</p>
+<p>To simplify the process of partitioning and training, without the need
+to manage your own infrastructure, we recommend using GraphStorm’s
+<a class="reference external" href="https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html">SageMaker wrappers</a>
+that do all the hard work for you and allow
+you to focus on model development. In particular you can follow the GraphStorm documentation to run
+<a class="reference external" href="https://github.com/awslabs/graphstorm/tree/main/sagemaker#launch-graph-partitioning-task">distributed partititioning on SageMaker</a>.</p>
+<p>To run GSProcessing jobs on Amazon SageMaker we’ll need to follow
+<a class="reference internal" href="distributed-processing-setup.html"><span class="doc">GraphStorm Processing setup for Amazon SageMaker</span></a> to set up our environment
+and <a class="reference internal" href="amazon-sagemaker.html"><span class="doc">Running distributed jobs on Amazon SageMaker</span></a> to execute the job.</p>
+<p class="rubric">Footnotes</p>
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="f1" role="note">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">1</a><span class="fn-bracket">]</span></span>
+<p>Note that this is just a hint to the Spark engine, and it’s
+not guaranteed that the number of output partitions will always match
+the requested value.</p>
+</aside>
+</aside>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../gs-processing-getting-started.html" class="btn btn-neutral float-left" title="GraphStorm Processing Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="distributed-processing-setup.html" class="btn btn-neutral float-right" title="GraphStorm Processing setup for Amazon SageMaker" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, AGML team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

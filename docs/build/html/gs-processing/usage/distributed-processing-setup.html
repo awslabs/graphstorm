@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GraphStorm Processing setup for Amazon SageMaker &mdash; GraphStorm 0.3 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Running distributed jobs on Amazon SageMaker" href="amazon-sagemaker.html" />
+    <link rel="prev" title="GraphStorm Processing Example" href="example.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            GraphStorm
+          </a>
+              <div class="version">
+                0.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration/index.html">GraphStorm Configurations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Processing</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing-getting-started.html">GraphStorm Processing Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html">GraphStorm Processing Example</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">GraphStorm Processing setup for Amazon SageMaker</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#clone-the-graphstorm-repository">Clone the GraphStorm repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-docker">Install Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-poetry">Install Poetry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#set-up-aws-access">Set up AWS access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-the-graphstorm-processing-image-using-docker">Building the GraphStorm Processing image using Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#push-the-image-to-the-amazon-elastic-container-registry-ecr">Push the image to the Amazon Elastic Container Registry (ECR)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#launch-a-sagemaker-processing-job-using-the-example-scripts">Launch a SageMaker Processing job using the example scripts.</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="amazon-sagemaker.html">Running distributed jobs on Amazon SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Training</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../scale/sagemaker.html">Use GraphStorm on SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../advanced/own-models.html">Use Your Own Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../advanced/language-models.html">Use Text as Node Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../advanced/advanced-usages.html">GraphStorm Advanced Usages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../advanced/advanced-wholegraph.html">Use WholeGraph in GraphStorm</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.html">graphstorm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.dataloading.html">graphstorm.dataloading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.eval.html">graphstorm.eval</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.inference.html">graphstorm.inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.model.html">graphstorm.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">GraphStorm</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">GraphStorm Processing setup for Amazon SageMaker</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/gs-processing/usage/distributed-processing-setup.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="graphstorm-processing-setup-for-amazon-sagemaker">
+<h1>GraphStorm Processing setup for Amazon SageMaker<a class="headerlink" href="#graphstorm-processing-setup-for-amazon-sagemaker" title="Permalink to this heading"></a></h1>
+<p>In this guide we’ll demonstrate how to prepare your environment to run
+GraphStorm Processing (GSProcessing) jobs on Amazon SageMaker.</p>
+<p>We’re assuming a Linux host environment used throughout
+this tutorial, but other OS should work fine as well.</p>
+<p>The steps required are:</p>
+<ul class="simple">
+<li><p>Clone the GraphStorm repository.</p></li>
+<li><p>Install Docker.</p></li>
+<li><p>Install Poetry.</p></li>
+<li><p>Set up AWS access.</p></li>
+<li><p>Build the GraphStorm Processing image using Docker.</p></li>
+<li><p>Push the image to the Amazon Elastic Container Registry (ECR).</p></li>
+<li><p>Launch a SageMaker Processing job using the example scripts.</p></li>
+</ul>
+<section id="clone-the-graphstorm-repository">
+<h2>Clone the GraphStorm repository<a class="headerlink" href="#clone-the-graphstorm-repository" title="Permalink to this heading"></a></h2>
+<p>You can clone the GraphStorm repository using</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
+</pre></div>
+</div>
+<p>You can then navigate to the <code class="docutils literal notranslate"><span class="pre">graphstorm-processing/docker</span></code> directory
+that contains the relevant code:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>./graphstorm/graphstorm-processing/docker
+</pre></div>
+</div>
+</section>
+<section id="install-docker">
+<h2>Install Docker<a class="headerlink" href="#install-docker" title="Permalink to this heading"></a></h2>
+<p>To get started with building the GraphStorm Processing image
+you’ll need to have the Docker engine installed.</p>
+<p>To install Docker follow the instructions at the
+<a class="reference external" href="https://docs.docker.com/engine/install/">official site</a>.</p>
+</section>
+<section id="install-poetry">
+<h2>Install Poetry<a class="headerlink" href="#install-poetry" title="Permalink to this heading"></a></h2>
+<p>We use <a class="reference external" href="https://python-poetry.org/docs/">Poetry</a> as our build
+tool and for dependency management,
+so we need to install it to facilitate building the library.</p>
+<p>You can install Poetry using:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-sSL<span class="w"> </span>https://install.python-poetry.org<span class="w"> </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-
+</pre></div>
+</div>
+<p>For detailed installation instructions the
+<a class="reference external" href="https://python-poetry.org/docs/">Poetry docs</a>.</p>
+</section>
+<section id="set-up-aws-access">
+<h2>Set up AWS access<a class="headerlink" href="#set-up-aws-access" title="Permalink to this heading"></a></h2>
+<p>To build and push the image to ECR we’ll make use of the
+<code class="docutils literal notranslate"><span class="pre">aws-cli</span></code> and we’ll need valid AWS credentials as well.</p>
+<p>To install the AWS CLI you can use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span><span class="s2">&quot;https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip&quot;</span><span class="w"> </span>-o<span class="w"> </span><span class="s2">&quot;awscliv2.zip&quot;</span>
+unzip<span class="w"> </span>awscliv2.zip
+sudo<span class="w"> </span>./aws/install
+</pre></div>
+</div>
+<p>To set up credentials for use with <code class="docutils literal notranslate"><span class="pre">aws-cli</span></code> see the
+<a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-examples">AWS docs</a>.</p>
+<p>Your role should have full ECR access to be able to pull from ECR to build the image,
+create an ECR repository if it doesn’t exist, and push the GSProcessing image to the repository.</p>
+</section>
+<section id="building-the-graphstorm-processing-image-using-docker">
+<h2>Building the GraphStorm Processing image using Docker<a class="headerlink" href="#building-the-graphstorm-processing-image-using-docker" title="Permalink to this heading"></a></h2>
+<p>Once Docker and Poetry are installed, and your AWS credentials are set up,
+we can use the provided scripts
+in the <code class="docutils literal notranslate"><span class="pre">graphstorm-processing/docker</span></code> directory to build the image.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">build_gsprocessing_image.sh</span></code> script can build the image
+locally and tag it. For example, assuming our current directory is where
+we cloned <code class="docutils literal notranslate"><span class="pre">graphstorm/graphstorm-processing</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>docker/build_gsprocessing_image.sh
+</pre></div>
+</div>
+<p>The above will use the Dockerfile of the latest available GSProcessing version,
+build an image and tag it as <code class="docutils literal notranslate"><span class="pre">graphstorm-processing:${VERSION}</span></code> where
+<code class="docutils literal notranslate"><span class="pre">${VERSION}</span></code> will take be the latest available GSProcessing version (e.g. <code class="docutils literal notranslate"><span class="pre">0.1.0</span></code>).</p>
+<p>The script also supports other arguments to customize the image name,
+tag and other aspects of the build. See <code class="docutils literal notranslate"><span class="pre">bash</span> <span class="pre">docker/build_gsprocessing_image.sh</span> <span class="pre">--help</span></code>
+for more information.</p>
+</section>
+<section id="push-the-image-to-the-amazon-elastic-container-registry-ecr">
+<h2>Push the image to the Amazon Elastic Container Registry (ECR)<a class="headerlink" href="#push-the-image-to-the-amazon-elastic-container-registry-ecr" title="Permalink to this heading"></a></h2>
+<p>Once the image is built we can use the <code class="docutils literal notranslate"><span class="pre">push_gsprocessing_image.sh</span></code> script
+that will create an ECR repository if needed and push the image we just built.</p>
+<p>The script does not require any arguments and by default will
+create a repository named <code class="docutils literal notranslate"><span class="pre">graphstorm-processing</span></code> in the <code class="docutils literal notranslate"><span class="pre">us-west-2</span></code> region,
+on the default AWS account <code class="docutils literal notranslate"><span class="pre">aws-cli</span></code> is configured for,
+and push the image tagged with the latest version of GSProcessing.</p>
+<p>The script supports 4 optional arguments:</p>
+<ol class="arabic simple">
+<li><p>Image name/repository. (<code class="docutils literal notranslate"><span class="pre">-i/--image</span></code>) Default: <code class="docutils literal notranslate"><span class="pre">graphstorm-processing</span></code></p></li>
+<li><p>Image tag. Default: (<code class="docutils literal notranslate"><span class="pre">-v/--version</span></code>) <code class="docutils literal notranslate"><span class="pre">&lt;latest_library_version&gt;</span></code> e.g. <code class="docutils literal notranslate"><span class="pre">0.1.0</span></code>.</p></li>
+<li><p>ECR region. Default: (<code class="docutils literal notranslate"><span class="pre">-r/--region</span></code>) <code class="docutils literal notranslate"><span class="pre">us-west-2</span></code>.</p></li>
+<li><p>AWS Account ID. (<code class="docutils literal notranslate"><span class="pre">-a/--account</span></code>) Default: Uses the account ID detected by the <code class="docutils literal notranslate"><span class="pre">aws-cli</span></code>.</p></li>
+</ol>
+<p>Example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>push_gsprocessing_image.sh<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;graphstorm-processing&quot;</span><span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span><span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;us-west-2&quot;</span><span class="w"> </span>-a<span class="w"> </span><span class="s2">&quot;1234567890&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="launch-a-sagemaker-processing-job-using-the-example-scripts">
+<h2>Launch a SageMaker Processing job using the example scripts.<a class="headerlink" href="#launch-a-sagemaker-processing-job-using-the-example-scripts" title="Permalink to this heading"></a></h2>
+<p>Once the setup is complete, you can follow the
+<a class="reference internal" href="amazon-sagemaker.html"><span class="doc">SageMaker Processing job guide</span></a>
+to launch your distributed processing job using AWS resources.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="example.html" class="btn btn-neutral float-left" title="GraphStorm Processing Example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="amazon-sagemaker.html" class="btn btn-neutral float-right" title="Running distributed jobs on Amazon SageMaker" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, AGML team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

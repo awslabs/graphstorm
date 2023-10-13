@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Use WholeGraph in GraphStorm &mdash; GraphStorm 0.3 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="graphstorm" href="../api/graphstorm.html" />
+    <link rel="prev" title="GraphStorm Advanced Usages" href="advanced-usages.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GraphStorm
+          </a>
+              <div class="version">
+                0.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install/env-setup.html">Environment Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/quick-start.html">Standalone Mode Quick Start Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/own-data.html">Use Your Own Data Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration/index.html">GraphStorm Configurations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Processing</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing/gs-processing-getting-started.html">GraphStorm Processing Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing/usage/example.html">GraphStorm Processing Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing/usage/distributed-processing-setup.html">GraphStorm Processing setup for Amazon SageMaker</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gs-processing/usage/amazon-sagemaker.html">Running distributed jobs on Amazon SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Training</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../scale/distributed.html">Use GraphStorm in a Distributed Cluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scale/sagemaker.html">Use GraphStorm on SageMaker</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="own-models.html">Use Your Own Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="language-models.html">Use Text as Node Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced-usages.html">GraphStorm Advanced Usages</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Use WholeGraph in GraphStorm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#motivation">Motivation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-graphstorm-wholegraph-docker-environment">Setup GraphStorm-WholeGraph Docker environment</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisite">Prerequisite</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#build-a-graphstorm-wholegraph-docker-image-from-source">Build a GraphStorm-WholeGraph Docker image from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-a-graphstorm-wholegraph-container">Create a GraphStorm-WholeGraph container</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#verify-efa-and-nccl-configuration">Verify EFA and NCCL configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#convert-node-features-to-a-wholegraph-compatible-format">Convert node features to a WholeGraph-compatible format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run-training-jobs-for-link-prediction-using-wholegraph">Run training jobs for link prediction using WholeGraph</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.html">graphstorm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.dataloading.html">graphstorm.dataloading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.eval.html">graphstorm.eval</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.inference.html">graphstorm.inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.model.html">graphstorm.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/graphstorm.trainer.html">graphstorm.trainer</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GraphStorm</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Use WholeGraph in GraphStorm</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/advanced/advanced-wholegraph.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="use-wholegraph-in-graphstorm">
+<span id="advanced-wholegraph"></span><h1>Use WholeGraph in GraphStorm<a class="headerlink" href="#use-wholegraph-in-graphstorm" title="Permalink to this heading"></a></h1>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Permalink to this heading"></a></h2>
+<p>Feature transfer is often the most expensive module in a link prediction training task . When dealing with MAG-240m datasets, approximately 75% of the epoch time is spent on transferring features from remote machines. To address this critical bottleneck, we have leveraged NVIDIA’s <a class="reference external" href="https://github.com/rapidsai/wholegraph">WholeGraph</a> library. WholeGraph optimizes the procedure by copying node features from remote CPUs to remote GPUs and then efficiently transferring these features to local GPUs. This is achieved through the utilization of the Elastic Fabric Adapter (EFA) network interface and NVIDIA Collective Communications Library (NCCL).  WholeGraph is able to achieve 3.8x speedup in end-to-end training compare to non-WholeGraph counterpart using  P4d instances on Amazon EC2.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>WholeGraph support is an experimental feature of GraphStorm. Currently, only node features can be accessed through WholeGraph. We will add support of accessing edge features through WholeGraph in <a class="reference external" href="https://github.com/awslabs/graphstorm/issues/512">the next release</a>.</p>
+</div>
+</section>
+<section id="setup-graphstorm-wholegraph-docker-environment">
+<h2>Setup GraphStorm-WholeGraph Docker environment<a class="headerlink" href="#setup-graphstorm-wholegraph-docker-environment" title="Permalink to this heading"></a></h2>
+<section id="prerequisite">
+<h3>Prerequisite<a class="headerlink" href="#prerequisite" title="Permalink to this heading"></a></h3>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p><strong>EFA supported Hardware</strong>: Elastic Fabric Adapter (EFA) supported NVIDIA GPU clusters. Amazon EC2 supports EFA on specific instances, including <cite>p3dn.24xlarge</cite>, <cite>p4d.24xlarge</cite>, and <cite>p5.48xlarge</cite>.</p></li>
+<li><p><strong>EFA-enabled security group</strong>: Please follow the <a class="reference external" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start-nccl-base.html#nccl-start-base-setup">steps</a> to prepare an EFA-enabled security group for Amazon EC2 instances.</p></li>
+<li><p><strong>Docker</strong>: You need to install Docker in your environment as the <a class="reference external" href="https://docs.docker.com/get-docker/">Docker documentation</a> suggests, and the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html">Nvidia Container Toolkit</a>.</p></li>
+</ol>
+</div></blockquote>
+<p>For example, in an Amazon EC2 instance without Docker preinstalled, you can run the following commands to install Docker.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+sudo<span class="w"> </span>apt<span class="w"> </span>update
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>Docker.io
+</pre></div>
+</div>
+</section>
+</section>
+<section id="build-a-graphstorm-wholegraph-docker-image-from-source">
+<h2>Build a GraphStorm-WholeGraph Docker image from source<a class="headerlink" href="#build-a-graphstorm-wholegraph-docker-image-from-source" title="Permalink to this heading"></a></h2>
+<p>Please use the following command to build a Docker image from source:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/awslabs/graphstorm.git
+<span class="nb">cd</span><span class="w"> </span>/path-to-graphstorm/docker/
+bash<span class="w"> </span>/path-to-graphstorm/docker/build_docker_wholegraph.sh<span class="w"> </span>/path-to-graphstorm/<span class="w"> </span>docker-name<span class="w"> </span>docker-tag
+</pre></div>
+</div>
+<p>There are three arguments of the <code class="docutils literal notranslate"><span class="pre">build_docker_wholegraph.sh</span></code>:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p><strong>path-to-graphstorm (required)</strong>, is the absolute path of the <code class="docutils literal notranslate"><span class="pre">graphstorm</span></code> folder, where you clone the GraphStorm source code. For example, the path could be <code class="docutils literal notranslate"><span class="pre">/code/graphstorm</span></code>.</p></li>
+<li><p><strong>docker-name (optional)</strong>, is the assigned name of the Docker image to be built. Default is <code class="docutils literal notranslate"><span class="pre">graphstorm-wholegraph</span></code>.</p></li>
+<li><p><strong>docker-tag (optional)</strong>, is the assigned tag of the Docker image to be built. Default is <code class="docutils literal notranslate"><span class="pre">local</span></code>.</p></li>
+</ol>
+</div></blockquote>
+<p>You can use the below command to check if the new Docker image is created successfully.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>image<span class="w"> </span>ls
+</pre></div>
+</div>
+<p>If the build succeeds, there should be a new Docker image, named <cite>&lt;docker-name&gt;:&lt;docker-tag&gt;</cite>, e.g., <code class="docutils literal notranslate"><span class="pre">graphstorm-wholegraph:local</span></code>.</p>
+</section>
+<section id="create-a-graphstorm-wholegraph-container">
+<h2>Create a GraphStorm-WholeGraph container<a class="headerlink" href="#create-a-graphstorm-wholegraph-container" title="Permalink to this heading"></a></h2>
+<p>You can launch a container based on the Docker image built in the previous step. Make sure to use <code class="docutils literal notranslate"><span class="pre">--privileged</span></code> and <code class="docutils literal notranslate"><span class="pre">—network=host</span></code> map your host network to the container:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sudo<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>--ipc<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>--ulimit<span class="w"> </span><span class="nv">memlock</span><span class="o">=</span>-1<span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>--ulimit<span class="w"> </span><span class="nv">stack</span><span class="o">=</span><span class="m">67108864</span><span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>--network<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>--privileged<span class="w"> </span><span class="se">\</span>
+<span class="w">                  </span>--name<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-d<span class="w"> </span>-t<span class="w"> </span>graphstorm-wholegraph:local
+</pre></div>
+</div>
+<p>This command will create a GraphStorm-wholeGraph container, named test and run the container as a daemon.
+Then connect to the container by running the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>container<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span><span class="nb">test</span><span class="w"> </span>/bin/bash
+</pre></div>
+</div>
+<p>If succeeds, the command prompt will change to the container’s, like</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@&lt;ip-address&gt;:/#
+</pre></div>
+</div>
+</section>
+<section id="verify-efa-and-nccl-configuration">
+<h2>Verify EFA and NCCL configuration<a class="headerlink" href="#verify-efa-and-nccl-configuration" title="Permalink to this heading"></a></h2>
+<p>The docker file installs the required software such as EFA software and NCCL library to enable WholeGraph in GraphStorm. Ensure to thoroughly test your EFA configurations on your instances, as improper configuration may automatically revert to default providers without displaying any error messages.</p>
+<p>Confirm that the EFA software components were successfully installed.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fi_info<span class="w"> </span>-p<span class="w"> </span>efa<span class="w"> </span>-t<span class="w"> </span>FI_EP_RDM
+</pre></div>
+</div>
+<p>The command should return information about the Libfabric EFA interfaces. The following example shows the command output in a g4dn.metal instance with single EFA network interface:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fi_info<span class="w"> </span>-p<span class="w"> </span>efa<span class="w"> </span>-t<span class="w"> </span>FI_EP_RDM
+provider:<span class="w"> </span>efa
+fabric:<span class="w"> </span>efa
+domain:<span class="w"> </span>efa_0-rdm
+version:<span class="w"> </span><span class="m">118</span>.20
+type:<span class="w"> </span>FI_EP_RDM
+protocol:<span class="w"> </span>FI_PROTO_EFA
+</pre></div>
+</div>
+<p>Instances such as <cite>p4d.24xlarge</cite> and <cite>p5.48xlarge</cite> with multiple network interfaces should display information about multiple interfaces.</p>
+<p>After successfully installing EFA on all the instances, next, verify network communication with <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> while enabling the <code class="docutils literal notranslate"><span class="pre">NCCL_DEBUG</span></code> option with the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-x<span class="w"> </span><span class="nv">NCCL_DEBUG</span><span class="o">=</span>INFO<span class="w"> </span><span class="se">\</span>
+--allow-run-as-root<span class="w"> </span><span class="se">\</span>
+-n<span class="w"> </span>&lt;Sum<span class="w"> </span>of<span class="w"> </span>num_gpus<span class="w"> </span>on<span class="w"> </span>all<span class="w"> </span>instances&gt;<span class="w"> </span><span class="se">\</span>
+-H<span class="w"> </span>&lt;ip1&gt;:&lt;num_gpus<span class="w"> </span>of<span class="w"> </span>instance1&gt;,&lt;ip2&gt;:&lt;num_gpus<span class="w"> </span>of<span class="w"> </span>instance2&gt;,<span class="w"> </span>&lt;ip3&gt;...
+--bind-to<span class="w"> </span>none<span class="w">  </span>alltoall_perf_mpi<span class="w"> </span><span class="se">\</span>
+-duint8<span class="w"> </span>-b8<span class="w"> </span>-e2G<span class="w"> </span>-f2<span class="w"> </span>-g1<span class="w"> </span><span class="p">|&amp;</span><span class="w"> </span>tee
+</pre></div>
+</div>
+<p>The <cite>&lt;ip&gt;</cite> should hold the IP address of the docker container .</p>
+<p>The output should resemble with the following screenshot which includes <cite>NCCL INFO NET/OFI Selected Provider is efa</cite>:</p>
+<figure class="align-center">
+<img alt="../_images/wholegraph-nccl.png" src="../_images/wholegraph-nccl.png" />
+</figure>
+</section>
+<section id="convert-node-features-to-a-wholegraph-compatible-format">
+<h2>Convert node features to a WholeGraph-compatible format<a class="headerlink" href="#convert-node-features-to-a-wholegraph-compatible-format" title="Permalink to this heading"></a></h2>
+<p>Different from typical GraphStorm training where node features are stored in the <code class="docutils literal notranslate"><span class="pre">node_feat.dgl</span></code> in each partition, to utilize WholeGraph, the node features must be converted into a compatible WholeGraph format. After construct your raw data into GraphStorm required DistDGL format following this <a class="reference internal" href="../tutorials/own-data.html#use-own-data"><span class="std std-ref">graph construction tutorial</span></a>, users can achieve this by utilizing the <code class="docutils literal notranslate"><span class="pre">convert_feat_to_wholegraph.py</span></code> script with <code class="docutils literal notranslate"><span class="pre">--dataset-path</span></code> pointing to the folder with the partitioned graph data and specify the features to be transformed using the <code class="docutils literal notranslate"><span class="pre">--feat-names</span></code> option. For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>convert_feat_to_wholegraph.py<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--dataset-path<span class="w"> </span>ogbn-mag240m-2p<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--feat-names<span class="w"> </span>paper:feat
+</pre></div>
+</div>
+<p>You can provide multiple features names such as <code class="docutils literal notranslate"><span class="pre">--feat-names</span> <span class="pre">paper:feat</span> <span class="pre">author:feat1,feat2</span> <span class="pre">institution:feat</span></code>.</p>
+<p>In the above example, the script will create a new folder named <code class="docutils literal notranslate"><span class="pre">wholegraph</span></code> under the <code class="docutils literal notranslate"><span class="pre">ogbn-mag240m-2p</span></code> folder, containing the WholeGraph input files. And the script will trim the distDGL file <code class="docutils literal notranslate"><span class="pre">node_feat.dgl</span></code> in each partition to remove the specified feature attributes, leaving only other attributes such as <code class="docutils literal notranslate"><span class="pre">train_mask</span></code>, <code class="docutils literal notranslate"><span class="pre">test_mask</span></code>, <code class="docutils literal notranslate"><span class="pre">val_mask</span></code> or <code class="docutils literal notranslate"><span class="pre">labels</span></code> intact. The script also keeps an copy of the original file in <code class="docutils literal notranslate"><span class="pre">node_feat.dgl.bak</span></code>.</p>
+</section>
+<section id="run-training-jobs-for-link-prediction-using-wholegraph">
+<h2>Run training jobs for link prediction using WholeGraph<a class="headerlink" href="#run-training-jobs-for-link-prediction-using-wholegraph" title="Permalink to this heading"></a></h2>
+<p>After completing the setup steps outlined in 1-3, launching a GraphStorm task with WholeGraph becomes a straightforward process. Once the machines are configured correctly, training jobs can be initiated using regular GraphStorm scripts. Utilizing WholeGraph within GraphStorm is seamless and doesn’t require any additional steps. The system automatically detects the generated <code class="docutils literal notranslate"><span class="pre">wholegraph</span></code> folder and utilizes WholeGraph when available.</p>
+<p>For example link prediction task can be initiated using the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>graphstorm.run.gs_link_prediction<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--workspace<span class="w"> </span>/data/ogbn_mag_lp/<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num_trainers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num_servers<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--num_samplers<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--part_config<span class="w"> </span>/data/ogbn_mag_lp_2p/ogbn-mag.json<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ip_config<span class="w"> </span>/data/ip_list.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--ssh_port<span class="w"> </span><span class="m">2222</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--graph_format<span class="w"> </span>csc,coo<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--cf<span class="w"> </span>/graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--node-feat-name<span class="w"> </span>paper:feat
+</pre></div>
+</div>
+<p>The output should include the following messages confirming the use of WholeGraph.</p>
+<figure class="align-center">
+<img alt="../_images/wholegraph-signal.png" src="../_images/wholegraph-signal.png" />
+</figure>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="advanced-usages.html" class="btn btn-neutral float-left" title="GraphStorm Advanced Usages" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../api/graphstorm.html" class="btn btn-neutral float-right" title="graphstorm" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, AGML team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
