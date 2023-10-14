@@ -103,8 +103,7 @@ def launch_train_task(task_type, num_gpus, graph_config,
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
         "--save-model-path", f"{save_model_path}"]
-    launch_cmd +=
-        ["--restore-model-path", f"{restore_model_path}"] \
+    launch_cmd += ["--restore-model-path", f"{restore_model_path}"] \
             if restore_model_path is not None else []
     launch_cmd += extra_args
 
