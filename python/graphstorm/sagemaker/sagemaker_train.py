@@ -39,11 +39,12 @@ from .utils import (download_yaml_config,
                     barrier,
                     terminate_workers,
                     wait_for_exit,
+                    download_model,
                     upload_model_artifacts)
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,
-    extra_args, state_q, custom_script):
+    extra_args, state_q, custom_script, restore_model_path=None):
     """ Launch SageMaker training task
 
     Parameters
@@ -68,6 +69,10 @@ def launch_train_task(task_type, num_gpus, graph_config,
         A queue used to return execution result (success or failure)
     custom_script: str
         Custom training script provided by a customer to run customer training logic.
+    restore_model_path: str
+        Path for the model to restore for model fine-tuning.
+        Default: None
+
     Return
     ------
     Thread: training task thread
@@ -97,7 +102,10 @@ def launch_train_task(task_type, num_gpus, graph_config,
         "--ssh-port", "22"]
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
-        "--save-model-path", f"{save_model_path}"] + extra_args
+        "--save-model-path", f"{save_model_path}"]
+    launch_cmd += ["--restore-model-path", f"{restore_model_path}"] \
+            if restore_model_path is not None else []
+    launch_cmd += extra_args
 
     print(launch_cmd)
 
@@ -145,6 +153,12 @@ def run_train(args, unknownargs):
     """
     num_gpus = args.num_gpus
     data_path = args.data_path
+    model_checkpoint_s3 = args.model_checkpoint_to_load
+    if model_checkpoint_s3 is not None:
+        restore_model_path = "/tmp/gsgnn_model_checkpoint/"
+        os.makedirs(restore_model_path, exist_ok=True)
+    else:
+        restore_model_path = None
     output_path = "/tmp/gsgnn_model/"
     os.makedirs(output_path, exist_ok=True)
 
@@ -213,6 +227,11 @@ def run_train(args, unknownargs):
         data_path, sagemaker_session)
     graph_config_path = download_graph(graph_data_s3, graph_name,
         host_rank, data_path, sagemaker_session)
+    if model_checkpoint_s3 is not None:
+        # Download Saved model checkpoint to resume
+        download_model(model_checkpoint_s3, restore_model_path, sagemaker_session)
+        print(f"{restore_model_path} {os.listdir(restore_model_path)}")
+
 
     err_code = 0
     if host_rank == 0:
@@ -236,7 +255,8 @@ def run_train(args, unknownargs):
                                             yaml_path,
                                             gs_params,
                                             state_q,
-                                            custom_script)
+                                            custom_script,
+                                            restore_model_path)
             train_task.join()
             err_code = state_q.get()
         except RuntimeError as e:

@@ -908,7 +908,7 @@ def check_input_arguments(args):
     ), "--num-servers must be a positive number."
     assert (
         args.part_config is not None
-    ), "A user has to specify a partition configuration file with --part-onfig."
+    ), "A user has to specify a partition configuration file with --part-config."
     assert (
         args.ip_config is not None
     ), "A user has to specify an IP configuration file with --ip-config."
