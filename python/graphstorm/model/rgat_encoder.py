@@ -177,6 +177,11 @@ class RelationalAttLayer(nn.Module):
         hs = self.conv(g, inputs_src)
 
         def _apply(ntype, h):
+            # handle the case when len(h) is 0
+            if h.shape[0] == 0:
+                shape = list(inputs[ntype].shape)
+                shape[0] = 0
+                return h.reshape(shape)
             if self.self_loop:
                 h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
