@@ -328,7 +328,14 @@ class GSgnnInstanceEvaluator():
 
     @property
     def history(self):
-        """ Evaluation history"""
+        """ Evaluation history
+        
+            Returns
+            -------
+            A list of evaluation history in training. The detailed contents of the list rely
+            on specific Evaluators. For example, ``GSgnnRegressionEvaluator`` and
+            ``GSgnnAccEvaluator`` add a tuple of validation and testing score as one list element.
+        """
         return self._history
 
 class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
