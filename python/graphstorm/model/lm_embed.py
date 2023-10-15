@@ -264,6 +264,7 @@ class LMCache:
                             embed_path, ntype)
                 self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
                         self._g.get_node_partition_policy(ntype), "bert_emb")
+                self._g.nodes[ntype].data["bert_emb"] = self._lm_emb_cache[ntype]
 
     def _save_embeddings(self):
         """ Save LM embeddings.
@@ -286,6 +287,10 @@ class LMCache:
         """ Get the node types with embedding cache.
         """
         return self._lm_models.ntypes
+
+    @property
+    def embed_ndata_name(self):
+        return {ntype: "bert_emb" for ntype in self.ntypes}
 
     def update_cache(self, lm_infer_batch_size, use_fp16=True):
         """ Update the LM embedding cache.
@@ -321,6 +326,7 @@ class LMCache:
                         dtype=th.float16 if use_fp16 else th.float32,
                         part_policy=self._g.get_node_partition_policy(ntype),
                         persistent=True)
+                self._g.nodes[ntype].data["bert_emb"] = self._lm_emb_cache[ntype]
             emb = self._lm_emb_cache[ntype]
             infer_nodes = dgl.distributed.node_split(
                     th.ones((self._g.number_of_nodes(ntype),), dtype=th.bool),
@@ -445,12 +451,12 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         """
         return self._lm_models.parameters()
 
-    def prepare(self, g):
+    def prepare(self, data):
         # If there is no trainable nodes, freeze Bert layer.
         if self.num_train == 0:
-            self.freeze(g)
+            self.freeze(data)
 
-    def freeze(self, _):
+    def freeze(self, data):
         """ Generate Bert caching if needed
         """
         # The lm_emb_cache is used in following cases:
@@ -464,6 +470,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         #
         # 3) if train_nodes > 0, no emb_cache is used unless Case 2.
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
+        data.add_node_feats(self.lm_emb_cache.embed_ndata_name)
         self.use_cache = True
 
     def require_cache_embed(self):
@@ -501,6 +508,15 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         for ntype in input_nodes:
             assert ntype in embs, f"Cannot compute BERT embeddings for node {ntype}."
         return embs
+
+    @property
+    def in_dims(self):
+        """ The input feature size.
+
+        The BERT embeddings are usually pre-computed as node features.
+        So we consider the BERT embedding size as input node feature size.
+        """
+        return self._feat_size
 
     @property
     def out_dims(self):
@@ -634,12 +650,12 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         """
         return self._lm_models.parameters()
 
-    def prepare(self, g):
+    def prepare(self, data):
         # If there is no trainable nodes, freeze Bert layer.
         if self.num_train == 0:
-            self.freeze(g)
+            self.freeze(data)
 
-    def freeze(self, _):
+    def freeze(self, data):
         """ Generate Bert caching if needed
         """
         # The lm_emb_cache is used in following cases:
@@ -653,6 +669,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         #
         # 3) if train_nodes > 0, no emb_cache is used unless Case 2.
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
+        data.add_node_feats(self.lm_emb_cache.embed_ndata_name)
         self.use_cache = True
 
     def unfreeze(self):
@@ -689,13 +706,16 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
         # Compute language model features first
-        cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
-        lm_feats = self._lm_models(input_nodes, lm_emb_cache=cache)
+        #cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
+        if not self.use_cache:
+            lm_feats = self._lm_models(input_nodes)
+        else:
+            lm_feats = {}
 
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.
-            lm_feat = lm_feat.to(next(self.parameters()).device)
+            lm_feat = lm_feat.to(self.device)
             if ntype in input_feats:
                 input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:

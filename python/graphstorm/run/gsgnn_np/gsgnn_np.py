@@ -72,6 +72,7 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field)
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
+
     if config.training_method["name"] == "glem":
         trainer_class = GLEMNodePredictionTrainer
     elif config.training_method["name"] == "default":
@@ -91,6 +92,12 @@ def main(config_args):
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
+
+    # Preparing input layer for training or inference.
+    # The input layer can pre-compute node features in the preparing step if needed.
+    # For example pre-compute all BERT embeddings
+    model.prepare_input_encoder(train_data)
+
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
         unlabeled_idxs = train_data.get_unlabeled_idxs()
@@ -121,10 +128,6 @@ def main(config_args):
                                               construct_feat_ntype=config.construct_feat_ntype,
                                               construct_feat_fanout=config.construct_feat_fanout)
 
-    # Preparing input layer for training or inference.
-    # The input layer can pre-compute node features in the preparing step if needed.
-    # For example pre-compute all BERT embeddings
-    model.prepare_input_encoder(train_data)
     if config.save_model_path is not None:
         save_model_path = config.save_model_path
     elif config.save_embed_path is not None:

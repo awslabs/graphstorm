@@ -542,6 +542,7 @@ def set_encoder(model, g, config, train_task):
                                           use_node_embeddings=config.use_node_embeddings,
                                           force_no_embeddings=config.construct_feat_ntype,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input)
+    feat_size = encoder.in_dims
     model.set_node_input_encoder(encoder)
 
     # Set GNN encoders

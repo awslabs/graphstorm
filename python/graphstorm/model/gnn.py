@@ -649,19 +649,19 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """ Preparing input layer for training or inference.
         """
         if self._node_input_encoder is not None:
-            self._node_input_encoder.prepare(train_data.g)
+            self._node_input_encoder.prepare(train_data)
 
         if self._edge_input_encoder is not None:
-            self._edge_input_encoder.prepare(train_data.g)
+            self._edge_input_encoder.prepare(train_data)
 
     def freeze_input_encoder(self, train_data):
         """ Freeze input layer for model training.
         """
         if self._node_input_encoder is not None:
-            self._node_input_encoder.freeze(train_data.g)
+            self._node_input_encoder.freeze(train_data)
 
         if self._edge_input_encoder is not None:
-            self._edge_input_encoder.freeze(train_data.g)
+            self._edge_input_encoder.freeze(train_data)
 
     def unfreeze_input_encoder(self):
         """ Unfreeze input layer for model training

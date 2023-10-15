@@ -203,6 +203,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
+        self.feat_size = feat_size
         if force_no_embeddings is None:
             force_no_embeddings = []
 
@@ -335,6 +336,12 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             return list(self.sparse_embeds.values())
         else:
             return []
+
+    @property
+    def in_dims(self):
+        """ The input feature size.
+        """
+        return self.feat_size
 
     @property
     def out_dims(self):

@@ -261,6 +261,20 @@ class GSgnnData():
         else:
             return ntype in self.node_feat_field
 
+    def add_node_feats(self, node_feats):
+        """ Add new node features.
+
+        This can happen when we compute BERT embeddings before training starts.
+        """
+        assert not isinstance(self.node_feat_field, str)
+        _node_feats = {}
+        for ntype, feat_field in node_feats.items():
+            _node_feats[ntype] = feat_field if isinstance(feat_field, list) else [feat_field]
+        if self.node_feat_field is None:
+            self._node_feat_field = _node_feats
+        else:
+            self._node_feat_field.update(_node_feats)
+
     def get_node_feats(self, input_nodes, device='cpu'):
         """ Get the node features
 
