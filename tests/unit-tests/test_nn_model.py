@@ -64,47 +64,49 @@ def create_dummy_test_graph(dim):
 
     return block, inputs, list(edges.keys())
 
-def test_rgcn_with_zero_input():
-    dim = 32
-    block, inputs, etypes = create_dummy_test_graph(32)
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32, 64])
+def test_rgcn_with_zero_input(input_dim, output_dim):
+    block, inputs, etypes = create_dummy_test_graph(input_dim)
 
     layer = RelGraphConvLayer(
-        dim, dim, etypes,
+        input_dim, output_dim, etypes,
         2, activation=th.nn.ReLU(), self_loop=True,
         dropout=0.1)
 
     out = layer(block, inputs)
     assert out["n0"].shape[0] == 1024
-    assert out["n0"].shape[1] == 32
+    assert out["n0"].shape[1] == output_dim
     assert out["n1"].shape[0] == 0
-    assert out["n1"].shape[1] == 32
+    assert out["n1"].shape[1] == output_dim
     assert out["n2"].shape[0] == 0
-    assert out["n2"].shape[1] == 32
+    assert out["n2"].shape[1] == output_dim
     assert out["n3"].shape[0] == 0
-    assert out["n3"].shape[1] == 32
+    assert out["n3"].shape[1] == output_dim
     assert "n4" not in out
 
-def test_rgat_with_zero_input():
-    dim = 32
-    block, inputs, etypes = create_dummy_test_graph(32)
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_rgat_with_zero_input(input_dim, output_dim):
+    block, inputs, etypes = create_dummy_test_graph(input_dim)
 
     layer = RelationalAttLayer(
-        dim, dim, etypes,
+        input_dim, output_dim, etypes,
         2, activation=th.nn.ReLU(), self_loop=True,
         dropout=0.1)
 
     out = layer(block, inputs)
     assert out["n0"].shape[0] == 1024
-    assert out["n0"].shape[1] == 32
+    assert out["n0"].shape[1] == output_dim
     assert out["n1"].shape[0] == 0
-    assert out["n1"].shape[1] == 32
+    assert out["n1"].shape[1] == output_dim
     assert out["n2"].shape[0] == 0
-    assert out["n2"].shape[1] == 32
+    assert out["n2"].shape[1] == output_dim
     assert out["n3"].shape[0] == 0
-    assert out["n3"].shape[1] == 32
+    assert out["n3"].shape[1] == output_dim
     assert "n4" not in out
 
 
 if __name__ == '__main__':
-    test_rgcn_with_zero_input()
-    test_rgat_with_zero_input()
+    test_rgcn_with_zero_input(32,64)
+    test_rgat_with_zero_input(32,64)
