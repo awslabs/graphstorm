@@ -264,8 +264,7 @@ class HGTLayer(nn.Module):
                         trans_out = self.drop(self.a_linears[k](h[k]))
                         trans_out = trans_out * alpha + h[k] * (1-alpha)
                 else:
-                    # handle the case when len(h[k]) is 0
-                    new_h[k] = h[k].new_empty((0, self.out_dim))
+                    continue
 
                 if self.use_norm:
                     new_h[k] = self.norms[k](trans_out)
