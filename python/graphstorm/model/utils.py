@@ -624,6 +624,60 @@ def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
         with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(emb_info))
 
+def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format="pytorch"):
+    """ Save node embeddings that have already been shuffled.
+
+        For each node embeddings, two tensors are required and should be
+        provided as a tuple: (embedding tensor, embdding nid tensor)
+
+        Parameters
+        ----------
+        shuffled_embs: dict of tuple of tensors
+            Embeddings and their associated node ids to be saved
+        save_embed_path: str
+            Path to save the embeddings
+        save_embed_format : str
+            The format of saved embeddings.
+            Currently support ["pytorch"].
+    """
+    os.makedirs(save_embed_path, exist_ok=True)
+    assert save_embed_format == "pytorch", \
+        "save_shuffled_node_embeddings only supports pytorch format now."
+    rank = get_rank()
+    world_size = get_world_size()
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(save_embed_path, 0o767)
+        logging.info("Writing GNN embeddings to "\
+            "%s in pytorch format.", save_embed_path)
+
+    # make sure the save_embed_path permission is changed before other process start to save
+    barrier()
+
+    emb_info = {
+        "format": "pytorch",
+        "emb_name":[],
+        "world_size":world_size
+    }
+
+    for ntype, (embs, nids) in shuffled_embs.items():
+        os.makedirs(os.path.join(save_embed_path, ntype), exist_ok=True)
+        assert len(nids) == len(embs), \
+            f"The embeding length {len(embs)} does not match the node id length {len(nids)}"
+        th.save(embs, os.path.join(os.path.join(save_embed_path, ntype),
+                                  f'emb.part{pad_file_index(rank)}.bin'))
+        th.save(nids, os.path.join(os.path.join(save_embed_path, ntype),
+                                  f'nids.part{pad_file_index(rank)}.bin'))
+        emb_info["emb_name"].append(ntype)
+
+    if rank == 0:
+        with open(os.path.join(save_embed_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+            f.write(json.dumps(emb_info))
+
 def save_embeddings(model_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None,
     save_embed_format="pytorch"):
@@ -805,6 +859,37 @@ def save_edge_prediction_result(predictions, src_nids, dst_nids,
     th.save(src_nids, os.path.join(prediction_path, f"src_nids-{pad_file_index(rank)}.pt"))
     th.save(dst_nids, os.path.join(prediction_path, f"dst_nids-{pad_file_index(rank)}.pt"))
 
+def save_node_prediction_result(predictions, nids,
+                               prediction_path, rank):
+    """ Save node predictions to the given path, i.e., prediction_path.
+
+        The function will save two tensors: 1) predictions, which stores
+        the prediction results; 2) nides, which stores the node ids of the
+        target nodes.
+
+        Parameters
+        ----------
+        prediction_path: tensor
+            The tensor of predictions.
+        nids: tensor
+            The tensor of target node ids.
+        prediction_path: str
+            The path of the prediction is saved.
+        rank: int
+            Rank of the current process in a distributed environment.
+    """
+    os.makedirs(prediction_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(prediction_path, 0o767)
+    # make sure the prediction_path permission is changed before other process start to save
+    barrier()
+    th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
+    th.save(nids, os.path.join(prediction_path, f"nids-{pad_file_index(rank)}.pt"))
 
 def save_prediction_results(predictions, prediction_path, rank):
     """ Save node predictions to the given path
@@ -845,6 +930,9 @@ def save_node_prediction_results(predictions, prediction_path):
                 |- predict-00000.pt
                 |- predict-00001.pt
                 |- ...
+                |- nids-00000.pt
+                |- nids-00001.pt
+                |- ...
             |- ntype1
                 |- ...
 
@@ -869,17 +957,17 @@ def save_node_prediction_results(predictions, prediction_path):
 
         Parameters
         ----------
-        prediction: tensor
-            The dict of tensors of predictions.
+        predictions: dict of tuple of tensors
+            The dict of tuple of tensors of predict results and the corresponding nids
         prediction_path: str
             The path of the prediction is saved.
     """
     rank = get_rank()
     world_size = get_world_size()
-    for ntype, pred in predictions.items():
-        save_prediction_results(pred,
-                                os.path.join(prediction_path, ntype),
-                                rank)
+    for ntype, (pred, nids) in predictions.items():
+        save_node_prediction_result(pred, nids,
+                                    os.path.join(prediction_path, ntype),
+                                    rank)
     if rank == 0:
         meta_fname = os.path.join(prediction_path, "result_info.json")
         meta_info = {
