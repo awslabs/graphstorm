@@ -1,0 +1,36 @@
+---
+version: 1.0
+gsf:
+  basic:
+    model_encoder_type: rgcn
+    graph_name: ogbn-arxiv
+    backend: gloo
+    ip_config: ip_list.txt
+    part_config: /data/ogbn-arxiv-1p/ogbn-arxiv.json
+    verbose: false
+  gnn:
+    fanout: "15,10"
+    num_layers: 2
+    hidden_size: 128
+    use_mini_batch_infer: false
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  hyperparam:
+    dropout: 0.5
+    lr: 0.001
+    num_epochs: 10
+    batch_size: 1024
+    wd_l2norm: 0
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  node_classification:
+    target_ntype: "node"
+    label_field: "labels"
+    multilabel: false
+    num_classes: 40
