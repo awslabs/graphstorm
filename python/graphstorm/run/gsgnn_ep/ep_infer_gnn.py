@@ -22,7 +22,7 @@ from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
-from graphstorm.utils import setup_device
+from graphstorm.utils import setup_device, use_wholegraph
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -43,7 +43,8 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(False)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  use_wholegraph=use_wholegraph(config.part_config))
     device = setup_device(config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,

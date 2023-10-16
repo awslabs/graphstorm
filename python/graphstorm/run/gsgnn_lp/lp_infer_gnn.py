@@ -26,7 +26,7 @@ from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
-from graphstorm.utils import setup_device
+from graphstorm.utils import setup_device, use_wholegraph
 
 def main(config_args):
     """ main function
@@ -34,7 +34,8 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(False)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  use_wholegraph=use_wholegraph(config.part_config))
     device = setup_device(config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
