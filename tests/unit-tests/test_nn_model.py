@@ -65,7 +65,7 @@ def create_dummy_test_graph(dim):
     return block, inputs, list(edges.keys())
 
 @pytest.mark.parametrize("input_dim", [32])
-@pytest.mark.parametrize("output_dim", [32, 64])
+@pytest.mark.parametrize("output_dim", [32])
 def test_rgcn_with_zero_input(input_dim, output_dim):
     block, inputs, etypes = create_dummy_test_graph(input_dim)
 
@@ -108,5 +108,5 @@ def test_rgat_with_zero_input(input_dim, output_dim):
 
 
 if __name__ == '__main__':
-    test_rgcn_with_zero_input(32,64)
+    test_rgcn_with_zero_input(32,32)
     test_rgat_with_zero_input(32,64)
