@@ -259,10 +259,12 @@ class HGTLayer(nn.Module):
                             trans_out = trans_out * alpha + h[k] * (1-alpha)
                     else:                       # Nodes not really in destination side.
                         warnings.warn("Warning. Graph convolution returned empty "
-                          f"dictionary, for node with type: {str(k)}")
-                        # So add psudo self-loop with feature copy.
-                        trans_out = self.drop(self.a_linears[k](h[k]))
-                        trans_out = trans_out * alpha + h[k] * (1-alpha)
+                          f"dictionary for node with type: {str(k)}. Pleaes check your data \
+                            for no in-degree {str(k)} nodes.")
+                        # So add psudo self-loop for the destination nodes with its own feature.
+                        dst_h = h[k][:g.num_dst_nodes(k)]
+                        trans_out = self.drop(self.a_linears[k](dst_h))
+                        trans_out = trans_out * alpha + dst_h * (1-alpha)
                 else:
                     continue
 
