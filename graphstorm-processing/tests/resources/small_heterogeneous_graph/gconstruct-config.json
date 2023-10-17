@@ -45,7 +45,7 @@
                 "transform":    {
                           "name": "bucket_numerical",
                           "range": [10, 40],
-                          "bucket_cnt": 4}
+                          "bucket_cnt": 3}
             }
         ]
       }
