@@ -26,7 +26,8 @@ from graphstorm.gconstruct import remap_result
 from graphstorm.gconstruct.file_io import read_data_parquet
 from graphstorm.gconstruct.id_map import IdMap, IdReverseMap
 from graphstorm.gconstruct.remap_result import _get_file_range
-from graphstorm.gconstruct.remap_result import worker_remap_edge_pred
+from graphstorm.gconstruct.remap_result import (worker_remap_edge_pred,
+                                                worker_remap_node_pred)
 
 def gen_id_maps(num_ids=1000):
     nid0 = np.random.permutation(num_ids).tolist()
@@ -46,6 +47,66 @@ def gen_edge_preds(num_ids=1000, num_preds=2000):
     dst_nids = th.randint(num_ids, (num_preds,))
 
     return pred, src_nids, dst_nids
+
+def gen_node_preds(num_ids=1000, num_preds=2000):
+    pred = th.rand((num_preds, 10))
+    nids = th.randint(num_ids, (num_preds,))
+
+    return pred, nids
+
+def test_worker_remap_node_pred():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        num_ids = 1000
+        num_preds = 1000
+        mappings = gen_id_maps(num_ids)
+        map_files = {}
+        ntypes = []
+        for ntype, map in mappings.items():
+            map_files[ntype] = map.save(os.path.join(tmpdirname, ntype + "_id_remap.parquet"))
+            ntypes.append(ntype)
+
+        preds, nids = gen_node_preds(num_ids, num_preds)
+        pred_path = os.path.join(tmpdirname, "pred-00000.pt")
+        nid_path = os.path.join(tmpdirname, "nid-00000.pt")
+        output_path_prefix = os.path.join(tmpdirname, "out-pred")
+        th.save(preds, pred_path)
+        th.save(nids, nid_path)
+        chunk_size = 256
+
+        for ntype in ntypes:
+            remap_result.id_maps[ntype] = IdReverseMap(os.path.join(tmpdirname, ntype + "_id_remap.parquet"))
+
+        worker_remap_node_pred(pred_path, nid_path, ntypes[0],
+                               output_path_prefix, chunk_size, preserve_input=True)
+        assert os.path.exists(f"{output_path_prefix}_00000.parquet")
+        assert os.path.exists(f"{output_path_prefix}_00001.parquet")
+        assert os.path.exists(f"{output_path_prefix}_00002.parquet")
+        assert os.path.exists(f"{output_path_prefix}_00003.parquet")
+
+        data0 = read_data_parquet(f"{output_path_prefix}_00000.parquet",
+                                  ["pred", "nid"])
+        data1 = read_data_parquet(f"{output_path_prefix}_00001.parquet",
+                                  ["pred", "nid"])
+        data2 = read_data_parquet(f"{output_path_prefix}_00002.parquet",
+                                  ["pred", "nid"])
+        data3 = read_data_parquet(f"{output_path_prefix}_00003.parquet",
+                                  ["pred", "nid"])
+        assert len(data0["pred"]) == 256
+        assert len(data1["pred"]) == 256
+        assert len(data2["pred"]) == 256
+        assert len(data3["pred"]) == 232
+
+        preds_ = [data0["pred"], data1["pred"], data2["pred"], data3["pred"]]
+        nids_ = [data0["nid"], data1["nid"], data2["nid"], data3["nid"]]
+
+        preds_ = np.concatenate(preds_, axis=0)
+        nids_ = np.concatenate(nids_, axis=0)
+        revserse_mapping = {}
+        revserse_mapping[ntypes[0]] = {val: key for key, val in mappings[ntypes[0]]._ids.items()}
+
+        for i in range(num_preds):
+            assert_equal(preds_[i], preds[i].numpy())
+            assert_equal(nids_[i], revserse_mapping[ntypes[0]][int(nids_[i])])
 
 def test_worker_remap_edge_pred():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -147,3 +208,4 @@ def test__get_file_range():
 if __name__ == '__main__':
     test__get_file_range()
     test_worker_remap_edge_pred()
+    test_worker_remap_node_pred()
