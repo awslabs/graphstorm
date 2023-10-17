@@ -25,7 +25,6 @@ import json
 
 import numpy as np
 import torch as th
-import pandas as pd
 
 from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import AutoTokenizer
@@ -351,13 +350,13 @@ class BucketTransform(FeatTransform):
         Default: None, we will not do data type casting.
     """
     def __init__(self, col_name, feat_name, bucket_cnt,
-                 range, slide_window_size=0, out_dtype=None):
+                 bucket_range, slide_window_size=0, out_dtype=None):
         assert bucket_cnt is not None, \
             "bucket count must be provided for bucket feature transform"
         assert range is not None, \
             "bucket range must be provided for bucket feature transform"
         self.bucket_cnt = bucket_cnt
-        self.range = range
+        self.bucket_range = bucket_range
         self.slide_window_size = slide_window_size
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(BucketTransform, self).__init__(col_name, feat_name, out_dtype)
@@ -382,8 +381,8 @@ class BucketTransform(FeatTransform):
 
         print("num value: ", feats)
         encoding = np.zeros((len(feats), self.bucket_cnt), dtype=np.int8)
-        max_val = max(self.range)
-        min_val = min(self.range)
+        max_val = max(self.bucket_range)
+        min_val = min(self.bucket_range)
         bucket_size = (max_val - min_val) / self.bucket_cnt
         for i, f in enumerate(feats):
             high_val = min(f + (self.slide_window_size / 2), max_val)
@@ -1023,7 +1022,7 @@ def parse_feat_ops(confs):
                 transform = BucketTransform(feat['feature_col'],
                                                feat_name,
                                                bucket_cnt=bucket_cnt,
-                                               range=range,
+                                               bucket_range=range,
                                                slide_window_size=slide_window_size,
                                                out_dtype=out_dtype)
             else:

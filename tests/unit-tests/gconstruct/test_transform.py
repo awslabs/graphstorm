@@ -639,7 +639,7 @@ def test_classification_processor():
 def test_bucket_transform(out_dtype):
     bucket_range = [10, 30]
     transform = BucketTransform("test", "test", 2,
-                 range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
+                 bucket_range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
     feats = np.zeros(4)
     feats[0], feats[1], feats[2], feats[3] = 1, 11, 21, 31
     bucket_feats = transform(feats)
@@ -654,7 +654,7 @@ def test_bucket_transform(out_dtype):
     bucket_range = [1.1, 2.1, 3.1]
     feats[0], feats[1], feats[2], feats[3] = 0.2, 1.2, 2.2, 3.2
     transform = BucketTransform("test", "test", 2,
-                 range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
+                 bucket_range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
     bucket_feats = transform(feats)
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
@@ -666,7 +666,7 @@ def test_bucket_transform(out_dtype):
 
     bucket_range = [10, 30]
     transform = BucketTransform("test", "test", 2,
-                 range=bucket_range, slide_window_size=10, out_dtype=out_dtype)
+                 bucket_range=bucket_range, slide_window_size=10, out_dtype=out_dtype)
     feats = np.zeros(4)
     feats[0], feats[1], feats[2], feats[3] = 1, 11, 21, 31
     bucket_feats = transform(feats)
