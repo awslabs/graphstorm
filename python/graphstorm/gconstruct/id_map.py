@@ -18,13 +18,10 @@
 """
 import os
 import logging
-import ctypes
-
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
-from torch import multiprocessing
 
 from .file_io import read_data_parquet
 from .utils import ExtMemArrayWrapper

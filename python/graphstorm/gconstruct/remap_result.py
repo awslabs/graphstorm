@@ -1,3 +1,23 @@
+"""
+    Copyright 2023 Contributors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    Remapping GraphStorm outputs (edge prediction results
+    node prediction results and node embeddings)
+    into the original node ID space.
+"""
+
 import os
 import argparse
 import logging
@@ -14,12 +34,12 @@ from .file_io import write_data_parquet
 from .id_map import IdReverseMap
 from ..utils import get_log_level
 
-from graphstorm.config import (GSConfig,
-                               get_argument_parser,
-                               BUILTIN_TASK_EDGE_CLASSIFICATION,
-                               BUILTIN_TASK_EDGE_REGRESSION,
-                               BUILTIN_TASK_NODE_CLASSIFICATION,
-                               BUILTIN_TASK_NODE_REGRESSION)
+from ..config import (GSConfig,
+                      get_argument_parser,
+                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                      BUILTIN_TASK_EDGE_REGRESSION,
+                      BUILTIN_TASK_NODE_CLASSIFICATION,
+                      BUILTIN_TASK_NODE_REGRESSION)
 
 id_maps = {}
 
@@ -222,7 +242,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
         pred_files.sort()
 
         num_parts = len(pred_files)
-        logging.debug(f"{etype} has {num_parts} embedding files")
+        logging.debug(f"%s has %d embedding files", etype, num_parts)
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
             # each instance only needs to process
@@ -234,7 +254,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
             # the edge prediction files stored locally
             start, end = 0, num_parts
 
-        logging.debug(f"{rank} handle {start}-{end}")
+        logging.debug("%d handle %d-%d}", rank, start, end)
         for i in range(start, end):
             pred_file = pred_files[i]
             src_nid_file = src_nid_files[i]
@@ -250,13 +270,16 @@ def remap_edge_pred(pred_etypes, pred_dir,
                 "dst_nid_path": os.path.join(input_pred_dir, dst_nid_file),
                 "src_type": src_type,
                 "dst_type": dst_type,
-                "output_fname_prefix": os.path.join(out_pred_dir, f"pred.{pred_file[:pred_file.rindex('.')]}"),
+                "output_fname_prefix": os.path.join(out_pred_dir, \
+                    f"pred.{pred_file[:pred_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
                 "preserve_input": preserve_input
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
     dur = time.time() - start
+
+    logging.debug("%d Finish edge rempaing in %f secs}", rank, dur)
 
 def _parse_gs_config(config):
     """ Get remapping related information from GSConfig
@@ -445,11 +468,10 @@ def generate_parser():
     group.add_argument("--preserve-input",
                        type=lambda x: (str(x).lower() in ['true', '1']),default=False,
                        help="Whether we preserve the input data.")
-    parser = add_distributed_remap_args(parser)
-    return parser
+    return add_distributed_remap_args(parser)
 
 if __name__ == '__main__':
-    parser = generate_parser()
-    args, gs_config_args = parser.parse_known_args()
+    gs_parser = generate_parser()
+    args, gs_config_args = gs_parser.parse_known_args()
 
     main(args, gs_config_args)
