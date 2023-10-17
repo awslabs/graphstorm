@@ -19,9 +19,6 @@ RARE_CATEGORY = "GSP_CONSTANT_OTHER"
 MISSING_CATEGORY = "GSP_CONSTANT_UNKNOWN"
 SINGLE_CATEGORY_COL = "SINGLE_CATEGORY"
 
-################ Multi-numerical Limits #####################
-MAX_COLUMNS_TO_IMPUTE = 50
-
 SUPPORTED_FILE_TYPES = ["csv", "parquet"]
 
 ################### Label Properties  ########################
