@@ -43,8 +43,9 @@
             {
                 "feature_col": "age",
                 "transform":    {
-                          "name": "bucket",
-                          "bucket": [3, 10, 20, 30, 40]}
+                          "name": "bucket_numerical",
+                          "range": [10, 40],
+                          "bucket_cnt": 4}
             }
         ]
       }
