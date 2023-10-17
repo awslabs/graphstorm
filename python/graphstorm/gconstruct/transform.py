@@ -386,8 +386,8 @@ class BucketTransform(FeatTransform):
         min_val = min(self.range)
         bucket_size = (max_val - min_val) / self.bucket_cnt
         for i, f in enumerate(feats):
-            high_val = min(f + self.slide_window_size / 2, max_val)
-            low_val = max(f - self.slide_window_size / 2, min_val)
+            high_val = min(f + (self.slide_window_size / 2), max_val)
+            low_val = max(f - (self.slide_window_size / 2), min_val)
 
             # Early exits to avoid numpy calls
             membership_list = [0.0] * self.bucket_cnt
@@ -403,8 +403,8 @@ class BucketTransform(FeatTransform):
             # Determine upper and lower bucket membership
             low_val -= min_val
             high_val -= min_val
-            low_idx = max(round(low_val / bucket_size), 0)
-            high_idx = min((round(high_val / bucket_size)) + 1, self.bucket_cnt)
+            low_idx = max(low_val // bucket_size, 0)
+            high_idx = min(high_val // bucket_size + 1, self.bucket_cnt)
 
             idx = np.arange(start=low_idx, stop=high_idx, dtype=int)
             membership_list = np.zeros(self.bucket_cnt, dtype=float)
