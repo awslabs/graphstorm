@@ -66,6 +66,7 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
                 "dst_nid": dst_nid}
 
         write_data_parquet(data, output_fname)
+
     if preserve_input is False:
         os.remove(pred_file_path)
         os.remove(src_nid_path)
@@ -284,6 +285,7 @@ def _parse_gs_config(config):
         pred_etypes = config.target_etype
         pred_etypes = pred_etypes \
             if isinstance(pred_etypes, list) else [pred_etypes]
+        pred_etypes = [list(pred_etype) for pred_etype in pred_etypes]
     elif task_type in (BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION):
         pred_ntypes = config.target_ntype
         pred_ntypes = pred_ntypes \
@@ -315,6 +317,10 @@ def main(args, gs_config_args):
         id_mapping_path = args.node_id_mapping
         predict_dir = args.prediction_dir
         pred_etypes = args.pred_etypes
+        if pred_etypes is not None:
+            assert len(pred_etypes) > 0, \
+                f"prediction etypes is empty"
+            pred_etypes = [etype.split(",") for etype in pred_etypes]
 
     rank = args.rank
     world_size = args.world_size
@@ -334,10 +340,6 @@ def main(args, gs_config_args):
     # provided if edge prediction result rempa is required,
     # as result_info.json is only saved by rank0 and there is no shared fs.
     if pred_etypes is not None:
-        assert len(pred_etypes) > 0, \
-            f"prediction etypes is empty"
-        pred_etypes = [etype.split(",") for etype in pred_etypes]
-
         for pred_etype in pred_etypes:
             assert os.path.exists(os.path.join(predict_dir, "_".join(pred_etype))), \
                 f"prediction results of {pred_etype} do not exists."
@@ -371,7 +373,6 @@ def main(args, gs_config_args):
                         num_proc,
                         rank,
                         world_size,
-                        id_maps,
                         with_shared_fs,
                         args.preserve_input)
 
@@ -394,7 +395,8 @@ def add_distributed_remap_args(parser):
         parser: Argument parser
     """
     group = parser.add_argument_group(title="dist_remap")
-    group.add_argument("--with-shared-fs", type=bool, default=True,
+    group.add_argument("--with-shared-fs",
+                       type=lambda x: (str(x).lower() in ['true', '1']),default=True,
                        help="Whether all files are stored in a shared file system"
                             "False when it is running on SageMaker")
 
@@ -440,7 +442,8 @@ def generate_parser():
                                 "under prediction_dir will be used to retrive the pred_etypes")
     group.add_argument("--output-chunk-size", type=int, default=100000,
                        help="Number of rows per output file.")
-    group.add_argument("--preserve-input", type=bool, default=False,
+    group.add_argument("--preserve-input",
+                       type=lambda x: (str(x).lower() in ['true', '1']),default=False,
                        help="Whether we preserve the input data.")
     parser = add_distributed_remap_args(parser)
     return parser

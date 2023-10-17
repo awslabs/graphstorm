@@ -356,15 +356,15 @@ def wrap_dist_remap_command(
         if sys.executable is not None and sys.executable != "" \
         else "python3 "
 
-    udf_command[0] = "graphstorm.gconstruct.remap_result.py"
+    udf_command[0] = "graphstorm.gconstruct.remap_result"
 
     # Add remap related arguments
-    udf_command += ["--rank", rank]
-    udf_command += ["--world-size", world_size]
-    udf_command += ["--with-shared-fs", with_shared_fs]
-    udf_command += ["--num-processes", num_trainers]
-    udf_command += ["--output-chunk-size", output_chunk_size]
-    udf_command += ["--preserve-input", preserve_input]
+    udf_command += ["--rank", str(rank)]
+    udf_command += ["--world-size", str(world_size)]
+    udf_command += ["--with-shared-fs", "True" if with_shared_fs else "False"]
+    udf_command += ["--num-processes", str(num_trainers)]
+    udf_command += ["--output-chunk-size", str(output_chunk_size)]
+    udf_command += ["--preserve-input", "True" if preserve_input else "False"]
 
     # transforms the udf_command from:
     #     path/to/dist_trainer.py arg0 arg1
@@ -677,6 +677,9 @@ def submit_remap_jobs(args, udf_command, hosts):
     thread_list = []
     state_q = queue.Queue()
 
+    pythonpath=os.environ.get("PYTHONPATH", "")
+    env_vars = f"PYTHONPATH={pythonpath} "
+
     for node_id, host in enumerate(hosts):
         ip, _ = host
         remap_dist_command = wrap_dist_remap_command(udf_command,
@@ -687,7 +690,9 @@ def submit_remap_jobs(args, udf_command, hosts):
                                                      args.output_chunk_size,
                                                      args.preserve_input)
 
-        cmd = "cd " + str(args.workspace) + "; " + remap_dist_command
+        cmd = wrap_cmd_with_local_envvars(remap_dist_command, env_vars)
+
+        cmd = "cd " + str(args.workspace) + "; " + cmd
         clients_cmd.append(cmd)
         thread_list.append(
             execute_remote(
@@ -695,7 +700,8 @@ def submit_remap_jobs(args, udf_command, hosts):
             )
         )
 
-        logging.debug(remap_dist_command)
+        logging.debug(cmd)
+        logging.info(cmd)
 
     # Start a cleanup process dedicated for cleaning up remote jobs.
     conn1, conn2 = multiprocessing.Pipe()
@@ -900,8 +906,9 @@ def submit_jobs(args, udf_command):
         sys.exit(-1)
 
     logging.info("Start doing node id remapping")
-    if args.do_nid_remap():
+    if args.do_nid_remap:
         submit_remap_jobs(args, udf_command, hosts)
+    logging.info("Finish doing node id remapping")
 
 def get_argument_parser():
     """ Arguments listed here are those used by the launch script to launch
@@ -1012,7 +1019,7 @@ def get_argument_parser():
         help="Do GraphStorm node ID to Raw input node ID remapping."
     )
 
-    parser.add_remap_result_args(parser)
+    parser = add_remap_result_args(parser)
     return parser
 
 def add_remap_result_args(parser):
