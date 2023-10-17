@@ -169,6 +169,23 @@ def remap_edge_pred(pred_etypes, pred_dir,
         have prediction results and spin num_proc workers
         to do the rampping jos.
 
+        The directory storing prediction results looks like:
+        # Predicionts:
+        #    predict-00000.pt
+        #    predict-00001.pt
+        #    ...
+        #    src_nids-00000.pt
+        #    src_nids-00001.pt
+        #    ...
+        #    dst_nids-00000.pt
+        #    dst_nids-00001.pt
+        #    ...
+
+        The output emb files will be
+        #    predict-00000_00000.parquet
+        #    predict-00000_00001.parquet
+        #    ...
+
         Parameters
         ----------
         pred_etypes: list of tuples
@@ -226,20 +243,6 @@ def remap_edge_pred(pred_etypes, pred_dir,
             # pickle nid mappings twice
             dst_type = etype[2]
 
-            # file is in format of
-            #    predict-00000.pt
-            #    predict-00001.pt
-            #    ...
-            #    src_nids-00000.pt
-            #    src_nids-00001.pt
-            #    ...
-            #    dst_nids-00000.pt
-            #    dst_nids-00001.pt
-            #    ...
-            # the output emb files will be
-            #    predict-00000_00000.parquet
-            #    predict-00000_00001.parquet
-            #    ...
             task_list.append({
                 "pred_file_path": os.path.join(input_pred_dir, pred_file),
                 "src_nid_path": os.path.join(input_pred_dir, src_nid_file),
@@ -320,10 +323,10 @@ def main(args, gs_config_args):
     assert world_size > 0, \
         f"World size must be larger than 0, but get {world_size}."
     assert rank < world_size, \
-        f"Expecting {world_size} workers but the worker ID is {rank}"
+        f"Expecting {world_size} workers but the worker ID is {rank}."
     out_chunk_size = args.output_chunk_size
     assert out_chunk_size > 0, \
-        f"Output chunk size should larger than 0 but get {out_chunk_size}"
+        f"Output chunk size should larger than 0 but get {out_chunk_size}."
 
     # if pred_etypes (edges with prediction results)
     # is not None, We need to remap edge prediction results.
@@ -337,7 +340,7 @@ def main(args, gs_config_args):
 
         for pred_etype in pred_etypes:
             assert os.path.exists(os.path.join(predict_dir, "_".join(pred_etype))), \
-                f"prediction results of {pred_etype} do not exists"
+                f"prediction results of {pred_etype} do not exists."
     elif os.path.exists(os.path.join(predict_dir, "result_info.json")):
         # User does not provide pred_etypes.
         # Try to get it from saved prediction config.
@@ -373,11 +376,11 @@ def main(args, gs_config_args):
                         args.preserve_input)
 
 
-def _add_distributed_remap_args(parser):
+def add_distributed_remap_args(parser):
     """ Distributed remapping only
 
         Users can ignore arguments in this argument group.
-        The arguments under this argument graph are mainly
+        The arguments under this argument group are mainly
         designed for distributed remapping results in SageMaker,
         where a shared file system is not avaliable.
 
@@ -405,7 +408,7 @@ def _add_distributed_remap_args(parser):
 def generate_parser():
     """ Generate an argument parser
     """
-    parser = argparse.ArgumentParser("Preprocess graphs")
+    parser = argparse.ArgumentParser("Remapping graph node IDs")
     parser.add_argument(
         "--yaml_config_file",
         "--cf",
@@ -416,7 +419,7 @@ def generate_parser():
 
     group = parser.add_argument_group(title="remap")
     group.add_argument("--num-processes", type=int, default=4,
-                       help="The number of processes to process the data simulteneously.")
+                       help="The number of processes to process the data simultaneously.")
     group.add_argument("--node-id-mapping", type=str,
                        help="The directory storing the id mappings")
     group.add_argument("--prediction-dir", type=str,
@@ -436,10 +439,10 @@ def generate_parser():
                                 "If pred_etypes is not provided, result_info.json "
                                 "under prediction_dir will be used to retrive the pred_etypes")
     group.add_argument("--output-chunk-size", type=int, default=100000,
-                       help="Number of raws per output file.")
+                       help="Number of rows per output file.")
     group.add_argument("--preserve-input", type=bool, default=False,
                        help="Whether we preserve the input data.")
-    parser = _add_distributed_remap_args(parser)
+    parser = add_distributed_remap_args(parser)
     return parser
 
 if __name__ == '__main__':

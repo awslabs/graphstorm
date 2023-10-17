@@ -71,7 +71,7 @@ class NoopMap:
         """
 
 class IdReverseMap:
-    """ Map GraphStorm ID into original Node ID
+    """ Map GraphStorm node ID into original Node ID
 
         This loads an ID map for output IDs.
 
@@ -122,11 +122,6 @@ class IdReverseMap:
             return np.array([], dtype=np.str)
 
         return self._ids[ids]
-
-    @property
-    def size(self):
-        "Get the approximated szie of the id mapping"
-        return self._ids.size * self._ids.itemsize
 
 class IdMap:
     """ Map an ID to a new ID.

@@ -106,11 +106,10 @@ def main(args):
     th.save(th.tensor(dst3_new), os.path.join(pred_output_etype1, f"dst_nids-{pad_file_index(1)}.pt"))
 
 if __name__ == '__main__':
-    argparser = argparse.ArgumentParser("Generate graph")
+    argparser = argparse.ArgumentParser("Check edge prediction remapping")
     argparser.add_argument("--output", type=str, required=True,
                            help="Path to save the generated data")
 
     args = argparser.parse_args()
 
     main(args)
-

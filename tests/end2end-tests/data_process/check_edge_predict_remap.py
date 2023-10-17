@@ -54,7 +54,7 @@ def main(args):
     assert_equal(data["pred"][:,1].astype("str"), data["dst_nid"])
 
 if __name__ == '__main__':
-    argparser = argparse.ArgumentParser("Generate graph")
+    argparser = argparse.ArgumentParser("Check edge prediction remapping")
     argparser.add_argument("--remap-output", type=str, required=True,
                            help="Path to save the generated data")
 
