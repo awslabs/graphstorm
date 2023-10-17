@@ -1014,7 +1014,7 @@ def parse_feat_ops(confs):
                 assert 'range' in conf, \
                     "It is required to provide range information for bucket feature transform"
                 bucket_cnt = conf['bucket_cnt']
-                range = conf['range']
+                bucket_range = conf['range']
                 if 'slide_window_size' in conf:
                     slide_window_size = conf['slide_window_size']
                 else:
@@ -1022,7 +1022,7 @@ def parse_feat_ops(confs):
                 transform = BucketTransform(feat['feature_col'],
                                                feat_name,
                                                bucket_cnt=bucket_cnt,
-                                               bucket_range=range,
+                                               bucket_range=bucket_range,
                                                slide_window_size=slide_window_size,
                                                out_dtype=out_dtype)
             else:
