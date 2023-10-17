@@ -48,35 +48,14 @@ def main(args):
     nid0_ = nid0[np.random.randint(1000, size=2000)]
     nid1_ = nid1[np.random.randint(1000, size=2000)]
     pred0 = np.stack((nid0_, nid0_), axis=1)
+    pred1 = np.stack((nid1_, nid1_), axis=1)
     nid0_new, _ = nid0_map.map_id(nid0_.astype('str'))
     nid1_new, _ = nid1_map.map_id(nid1_.astype('str'))
-
-
-    src1 = nid0[np.random.randint(1000, size=2000)]
-    dst1 = nid1[np.random.randint(1000, size=2000)]
-    pred1 = np.stack((src1, dst1), axis=1)
-    src1_new, _ = nid0_map.map_id(src1.astype('str'))
-    dst1_new, _ = nid1_map.map_id(dst1.astype('str'))
-
-
-    # generate faked edge results
-    src2 = nid1[np.random.randint(1000, size=2000)]
-    dst2 = nid0[np.random.randint(1000, size=2000)]
-    pred2 = np.stack((src2, dst2), axis=1)
-    src2_new, _ = nid1_map.map_id(src2.astype('str'))
-    dst2_new, _ = nid0_map.map_id(dst2.astype('str'))
-
-
-    src3 = nid1[np.random.randint(1000, size=2000)]
-    dst3 = nid0[np.random.randint(1000, size=2000)]
-    pred3 = np.stack((src3, dst3), axis=1)
-    src3_new, _ = nid1_map.map_id(src3.astype('str'))
-    dst3_new, _ = nid0_map.map_id(dst3.astype('str'))
 
     meta_info = {
         "format": "pytorch",
         "world_size": 2,
-        "etypes": [etype0, etype1]
+        "ntypes": [ntype0, ntype1]
     }
 
     pred_output = os.path.join(output_path, "pred")
@@ -85,23 +64,15 @@ def main(args):
     with open(meta_fname, 'w', encoding='utf-8') as f:
             json.dump(meta_info, f, indent=4)
 
-    pred_output_etype0 = os.path.join(pred_output, "_".join(etype0))
-    pred_output_etype1 = os.path.join(pred_output, "_".join(etype1))
-    os.makedirs(pred_output_etype0)
-    os.makedirs(pred_output_etype1)
-    th.save(th.tensor(pred0), os.path.join(pred_output_etype0, f"predict-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(src0_new), os.path.join(pred_output_etype0, f"src_nids-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(dst0_new), os.path.join(pred_output_etype0, f"dst_nids-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(pred1), os.path.join(pred_output_etype0, f"predict-{pad_file_index(1)}.pt"))
-    th.save(th.tensor(src1_new), os.path.join(pred_output_etype0, f"src_nids-{pad_file_index(1)}.pt"))
-    th.save(th.tensor(dst1_new), os.path.join(pred_output_etype0, f"dst_nids-{pad_file_index(1)}.pt"))
+    pred_output_ntype0 = os.path.join(pred_output, ntype0)
+    pred_output_ntype1 = os.path.join(pred_output, ntype1)
+    os.makedirs(pred_output_ntype0)
+    os.makedirs(pred_output_ntype1)
+    th.save(th.tensor(pred0), os.path.join(pred_output_ntype0, f"predict-{pad_file_index(0)}.pt"))
+    th.save(th.tensor(nid0_new), os.path.join(pred_output_ntype0, f"nids-{pad_file_index(0)}.pt"))
 
-    th.save(th.tensor(pred2), os.path.join(pred_output_etype1, f"predict-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(src2_new), os.path.join(pred_output_etype1, f"src_nids-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(dst2_new), os.path.join(pred_output_etype1, f"dst_nids-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(pred3), os.path.join(pred_output_etype1, f"predict-{pad_file_index(1)}.pt"))
-    th.save(th.tensor(src3_new), os.path.join(pred_output_etype1, f"src_nids-{pad_file_index(1)}.pt"))
-    th.save(th.tensor(dst3_new), os.path.join(pred_output_etype1, f"dst_nids-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(pred1), os.path.join(pred_output_ntype1, f"predict-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(nid1_new), os.path.join(pred_output_ntype1, f"nids-{pad_file_index(1)}.pt"))
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Check edge prediction remapping")

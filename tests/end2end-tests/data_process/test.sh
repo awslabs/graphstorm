@@ -72,6 +72,7 @@ python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/
 
 python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format DistDGL --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf
 
+# Check edge predict
 python3 $GS_HOME/tests/end2end-tests/data_process/gen_edge_predict_remap_test.py --output /tmp/ep_remap/id_mapping/
 
 # Test remap edge prediction results
@@ -82,3 +83,16 @@ python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mappi
 error_and_exit $?
 
 python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/ep_remap/pred/
+
+
+# Check node predict
+python3 $GS_HOME/tests/end2end-tests/data_process/gen_node_predict_remap_test.py --output /tmp/np_remap/id_mapping/
+
+# Test remap edge prediction results
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/np_remap/id_mapping/ --logging-level debug --pred-ntypes "n0" "n1" --preserve-input True --prediction-dir /tmp/np_remap/pred/ --rank 0 --world-size 2
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/np_remap/id_mapping/ --logging-level debug --pred-ntypes "n0" "n1" --preserve-input True --prediction-dir /tmp/np_remap/pred/ --rank 1 --world-size 2
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_node_predict_remap.py --remap-output /tmp/np_remap/pred/
