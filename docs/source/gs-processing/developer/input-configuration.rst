@@ -193,21 +193,21 @@ following top-level keys:
             "files": ["String"],
             "separator": "String"
         },
-        "column" : "String",
-        "type" : "String",
+        "source": {"column": "String", "type": "String"},
+        "relation": {"type": "String"},
+        "destination": {"column": "String", "type": "String"},
         "labels" : [
-            {
-                "column": "String",
-                "type": "String",
-                "separator": "String",
-                "split_rate": {
-                    "train": "Float",
-                    "val": "Float",
-                    "test": "Float"
+                {
+                    "column": "String",
+                    "type": "String",
+                    "split_rate": {
+                        "train": "Float",
+                        "val": "Float",
+                        "test": "Float"
+                    }
                 }
-            }
-        ],
-        "features": [{}]
+            ],
+            "features": [{}]
     }
 
 -  ``data``: (JSON object, required): Has the same definition as for
