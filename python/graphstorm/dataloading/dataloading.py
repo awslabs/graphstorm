@@ -1177,6 +1177,13 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     def __next__(self):
         return self.dataloader.__next__(), self.unlabeled_dataloader.__next__()
 
+    def __len__(self):
+        # Follow
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # DistDataLoader.expected_idxs is the length of the datalaoder
+        return min(self.dataloader.expected_idxs,
+                   self.unlabeled_dataloader.expected_idxs)
+
 ####################### Distillation #############################
 
 class DistillDataManager:
