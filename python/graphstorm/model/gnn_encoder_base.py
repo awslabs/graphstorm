@@ -18,6 +18,7 @@
 
 from functools import partial
 import logging
+import time
 
 import dgl
 import torch as th
@@ -158,7 +159,11 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
                                                             shuffle=False,
                                                             drop_last=False)
 
-        len_dataloader = max_num_batch = len(list(dataloader))
+        # Follow
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # DistDataLoader.expected_idxs is the length of the datalaoder
+        len_dataloader = max_num_batch = dataloader.expected_idxs
+
         tensor = th.tensor([len_dataloader], device=device)
         if is_distributed():
             th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
@@ -232,7 +237,10 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
     -------
         dict of Tensors : the inferenced tensors.
     """
-    len_dataloader = max_num_batch = len(list(dataloader))
+    # Follow
+    # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+    # DistDataLoader.expected_idxs is the length of the datalaoder
+    len_dataloader = max_num_batch = dataloader.expected_idxs
     tensor = th.tensor([len_dataloader], device=device)
     if is_distributed():
         th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
