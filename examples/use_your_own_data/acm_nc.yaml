@@ -13,7 +13,6 @@ gsf:
   input:
     restore_model_path: null
   output:
-    opk_model_to_save: 3
     save_model_path: /tmp/acm_nc/models
     save_embed_path: /tmp/acm_nc/embeds
   hyperparam:
