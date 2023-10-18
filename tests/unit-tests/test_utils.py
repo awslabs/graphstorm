@@ -523,9 +523,9 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         assert p1.exitcode == 0
 
         # Load saved embeddings
-        emb0 = th.load(os.path.join(os.path.join(tmpdirname, NTYPE),
+        emb0 = th.load(os.path.join(os.path.join(tmpdirname, dgl.NTYPE),
                                     f'emb.part{pad_file_index(0)}.bin'), weights_only=True)
-        emb1 = th.load(os.path.join(os.path.join(tmpdirname, NTYPE),
+        emb1 = th.load(os.path.join(os.path.join(tmpdirname, dgl.NTYPE),
                                     f'emb.part{pad_file_index(1)}.bin'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(emb)
