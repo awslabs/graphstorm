@@ -18,7 +18,6 @@
 
 from functools import partial
 import logging
-import time
 
 import dgl
 import torch as th
