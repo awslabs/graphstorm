@@ -472,6 +472,6 @@ def generate_parser():
 
 if __name__ == '__main__':
     remap_parser = generate_parser()
-    remap_args, gs_args = remap_parser.parse_known_args()
+    remap_args, unknown_args = remap_parser.parse_known_args()
 
-    main(remap_args, gs_args)
+    main(remap_args, unknown_args)
