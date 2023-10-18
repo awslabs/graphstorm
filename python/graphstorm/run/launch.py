@@ -1023,6 +1023,22 @@ def get_argument_parser():
     return parser
 
 def add_remap_result_args(parser):
+    """ Add node id remapping related arguments
+
+        Output_chunk_size is used to control the max number of raws of each
+        output (e.g., parquet) file.
+        Preserve_input is used to indicate whether GSF will keep the un-remapped data
+        in the output folder. The main purpose of setting preserve_input to True is
+        for debugging.
+        With_shared_fs tells whether the task is running on a system without shared
+        file system support (e.g., SageMaker). The main purpose of this argument is
+        supporting SageMaker.
+
+    Parameters
+    ----------
+    parser:
+        ArgParser
+    """
     group = parser.add_argument_group(title="remap")
     group.add_argument("--output-chunk-size", type=int, default=100000,
                        help="Number of rows per output file.")
