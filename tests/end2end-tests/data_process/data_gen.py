@@ -225,7 +225,7 @@ node_conf = [
                 "feature_col": "float2",
                 "feature_name": "feat_bucket",
                 "out_dtype": 'float16',
-                "transform": {"name": "bucket",
+                "transform": {"name": "bucket_numerical",
                               "range": [10, 50],
                               "bucket_cnt": 2,
                               "slide_window_size": 10
