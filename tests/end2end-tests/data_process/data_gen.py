@@ -102,6 +102,7 @@ edge_data1_2 = {
     'float_feat_rank_gauss': np.random.rand(src1.shape[0], 2),
     'float_feat_rank_gauss_fp16': np.random.rand(src1.shape[0], 2),
     'float1_max_min': edge_data1_2_float,
+    'float1_bucket': edge_data1_2_float,
 }
 
 src3 = node_data2['id'][np.random.randint(0, 20000, 100000)]
