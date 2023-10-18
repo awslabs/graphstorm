@@ -939,13 +939,14 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         ntype_feat_sizes = {}  # type: Dict[str, int]
         for feat_conf in feature_configs:
             logging.info(
-                "Processing feat_name: '%s' feat_cols: %s", feat_conf.feat_name, feat_conf.cols
+                "Processing feat_name hahaha: '%s' feat_cols: %s", feat_conf.feat_name, feat_conf.cols
             )
 
             transformer = DistFeatureTransformer(feat_conf)
 
             transformed_feature_df = transformer.apply_transformation(nodes_df)
 
+            transformed_feature_df.show()
             # TODO: Remove hack with [feat_conf.feat_name]
             for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
                 node_transformation_start = perf_counter()
