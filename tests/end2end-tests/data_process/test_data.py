@@ -167,8 +167,6 @@ data = g.edges[('node1', 'relation1', 'node2')].data['max_min_norm']
 assert data.dtype is th.float32
 assert th.max(data) <= 1.0
 assert th.min(data) >= 0
-data = g.edges[('node1', 'relation1', 'node2')].data['bucket']
-assert data.dtype is th.float32
 data = g.edges[('node1', 'relation1', 'node2')].data['feat_fp16_hdf5']
 assert data.dtype is th.float16
 

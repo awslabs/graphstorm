@@ -373,13 +373,13 @@ class BucketTransform(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
-                f"The feature {self.feat_name} has to be NumPy array."
+        assert isinstance(feats, (np.ndarray)), \
+                f"The feature {self.feat_name} has to be NumPy array " \
+                f"within numerical value."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
 
-        print("num value: ", feats)
         encoding = np.zeros((len(feats), self.bucket_cnt), dtype=np.int8)
         max_val = max(self.bucket_range)
         min_val = min(self.bucket_range)

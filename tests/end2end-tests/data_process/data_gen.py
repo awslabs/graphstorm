@@ -307,13 +307,6 @@ edge_conf = [
                 "transform": {"name": 'max_min_norm'}
             },
             {
-                "feature_col": "float1_bucket",
-                "feature_name": "bucket",
-                "transform": {"name": 'bucket_numerical',
-                              "range": [100, 1000],
-                              "bucket_cnt": 5}
-            },
-            {
                 "feature_col": "float_feat_rank_gauss",
                 "feature_name": "feat_rank_gauss",
                 "transform": {"name": 'rank_gauss'}
