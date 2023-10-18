@@ -132,7 +132,7 @@ class GSgnnEdgeDataLoaderBase():
         """
 
     def __len__(self):
-        """ Return the length of the data loader
+        """ Return the length (number of mini-batches) of the data loader
 
         Returns
         int: length
@@ -288,7 +288,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length of the datalaoder
+        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
         return self.dataloader.expected_idxs
 
     @property
@@ -365,7 +365,7 @@ class GSgnnLinkPredictionDataLoaderBase():
         """
 
     def __len__(self):
-        """ Return the length of the data loader
+        """ Return the length (number of mini-batches) of the data loader
 
         Returns
         int: length
@@ -541,7 +541,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length of the datalaoder
+        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
         return self.dataloader.expected_idxs
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
@@ -866,7 +866,7 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length of the datalaoder
+        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
         # AllEtypeDistEdgeDataLoader is a child class of DistDataLoader
         return self.dataloader.expected_idxs
 
@@ -1012,7 +1012,7 @@ class GSgnnNodeDataLoaderBase():
         """
 
     def __len__(self):
-        """ Return the length of the data loader
+        """ Return the length (number of mini-batches) of the data loader
 
         Returns
         int: length
@@ -1136,7 +1136,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length of the datalaoder
+        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
         return self.dataloader.expected_idxs
 
 class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
@@ -1180,7 +1180,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length of the datalaoder
+        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
 
