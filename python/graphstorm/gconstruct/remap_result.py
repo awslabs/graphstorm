@@ -242,7 +242,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
         pred_files.sort()
 
         num_parts = len(pred_files)
-        logging.debug(f"%s has %d embedding files", etype, num_parts)
+        logging.debug("%s has %d embedding files", etype, num_parts)
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
             # each instance only needs to process
@@ -342,7 +342,7 @@ def main(args, gs_config_args):
         pred_etypes = args.pred_etypes
         if pred_etypes is not None:
             assert len(pred_etypes) > 0, \
-                f"prediction etypes is empty"
+                "prediction etypes is empty"
             pred_etypes = [etype.split(",") for etype in pred_etypes]
 
     rank = args.rank
@@ -471,7 +471,7 @@ def generate_parser():
     return add_distributed_remap_args(parser)
 
 if __name__ == '__main__':
-    gs_parser = generate_parser()
-    args, gs_config_args = gs_parser.parse_known_args()
+    remap_parser = generate_parser()
+    remap_args, gs_config_args = remap_parser.parse_known_args()
 
-    main(args, gs_config_args)
+    main(remap_args, gs_config_args)
