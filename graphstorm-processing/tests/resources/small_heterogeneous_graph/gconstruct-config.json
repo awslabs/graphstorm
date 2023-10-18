@@ -19,6 +19,16 @@
         "source_id_col" : "~from",
         "dest_id_col" : "~to",
         "relation": ["user", "rated", "movie"]
+      },
+      {
+        "files": "edges/director-directed-movie.csv",
+        "format": {
+            "name": "csv",
+            "separator" : ","
+        },
+        "source_id_col" : "~from",
+        "dest_id_col" : "~to",
+        "relation": ["director", "directed", "movie"]
       }
     ],
     "nodes" : [
@@ -30,7 +40,7 @@
       },
       {
         "node_id_col":  "~id",
-        "node_type":    "movie",
+        "node_type":    "movies",
         "format":       {"name": "csv", "separator": ","},
         "files":        ["nodes/movie.csv"]
       },
@@ -39,13 +49,16 @@
         "node_type":    "user",
         "format":       {"name": "csv", "separator": ","},
         "files":        ["nodes/user.csv"],
+        "labels" : [
+            {
+              "label_col": "gender",
+              "task_type": "classification",
+              "split_pct" : [0.8, 0.1, 0.1]
+            }
+        ],
         "features": [
             {
-                "feature_col": "age",
-                "transform":    {
-                          "name": "bucket_numerical",
-                          "range": [10, 40],
-                          "bucket_cnt": 3}
+                "feature_col": ["age"]
             }
         ]
       }
