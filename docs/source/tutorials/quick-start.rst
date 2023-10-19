@@ -20,7 +20,7 @@ This tutorial will use GraphStorm's built-in OGB-arxiv dataset for a node classi
 
     - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
 
-Download  and Partition OGB-arxiv Data
+Download and Partition OGB-arxiv Data
 --------------------------------------
 First run the below command.
 
@@ -109,6 +109,43 @@ The inference command is:
                --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/
 
 This inference command predicts the classes of nodes in the testing set and saves the results, a Pytorch tensor file named "**predict-0.pt**", into the ``/tmp/ogbn-arxiv-nc/predictions/`` folder.
+
+Generating Embedding
+----------------
+If users only need to generate node embeddings instead of doing predictions on the graph, users can use saved model and same yaml configure used in training to achieve that, e.g epoch-7 to do so:
+.. code-block:: bash
+
+    python3 -m graphstorm.run.gs_gen_node_embedding \
+               --workspace /tmp/ogbn-arxiv-nc \
+               --num-trainers 1 \
+               --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
+               --ip-config /tmp/ogbn-arxiv-nc/ip_list.txt \
+               --ssh-port 2222 \
+               --save-embed-path /tmp/saved_embed \
+               --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/ \
+               --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
+               --use-mini-batch-infer true \
+
+Users need to specify restore-model-path and save-embed-path when using the command above to generate node embeddings, the node embeddings will be saved into the save-embed path.
+
+For node classification/regression task, if ``target_ntype`` is provided, the command will generate and save node embeddings on ``target_ntype``, otherwise it will be on all node types.
+
+For edge classification/regression task, it ``target_etype`` is provided, the command will generate and save node embeddings on source and destination node type defined in the ``target_etype``, otherwise it will be on all node types.
+
+For link prediction task, it will generate node embeddings on all node types.
+
+The saved result will be like:
+
+.. code-block:: bash
+
+    /tmp/saved_embed
+        emb_info.json
+        {node_type1}_emb.part00000.bin
+        {node_type1}_emb.part00001.bin
+        ...
+        {node_type2}_emb.part00000.bin
+        {node_type2}_emb.part00001.bin
+        ...
 
 **That is it!** You have learnt how to use GraphStorm in three steps. 
 
