@@ -106,7 +106,7 @@ def test_worker_remap_node_pred():
 
         for i in range(num_preds):
             assert_equal(preds_[i], preds[i].numpy())
-            assert_equal(nids_[i], revserse_mapping[ntypes[0]][int(nids_[i])])
+            assert_equal(nids_[i], revserse_mapping[ntypes[0]][int(nids[i])])
 
 def test_worker_remap_edge_pred():
     with tempfile.TemporaryDirectory() as tmpdirname:
