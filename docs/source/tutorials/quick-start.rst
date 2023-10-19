@@ -112,7 +112,7 @@ This inference command predicts the classes of nodes in the testing set and save
 
 Generating Embedding
 ----------------
-If users only need to generate node embeddings instead of doing predictions on the graph, users can use saved model and same yaml configure used in training to achieve that, e.g epoch-7 to do so:
+If users only need to generate node embeddings instead of doing predictions on the graph, users can use saved model and same yaml configure used in training to achieve that, e.g model in epoch-7 to do so:
 .. code-block:: bash
 
     python3 -m graphstorm.run.gs_gen_node_embedding \
