@@ -276,7 +276,7 @@ def remap_node_pred(pred_ntypes, pred_dir,
         nid_files.sort()
         pred_files.sort()
         num_parts = len(pred_files)
-        logging.debug(f"{ntype} has {num_parts} embedding files")
+        logging.debug("{%s} has {%d} embedding files", ntype, num_parts)
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -289,7 +289,7 @@ def remap_node_pred(pred_ntypes, pred_dir,
             # the edge prediction files stored locally
             start, end = 0, num_parts
 
-        logging.debug(f"{rank} handle {start}-{end}")
+        logging.debug("{%d} handle {%d}-{%d}", rank, start, end)
         for i in range(start, end):
             pred_file = pred_files[i]
             nid_file = nid_files[i]
@@ -298,7 +298,8 @@ def remap_node_pred(pred_ntypes, pred_dir,
                 "pred_file_path": os.path.join(input_pred_dir, pred_file),
                 "nid_path": os.path.join(input_pred_dir, nid_file),
                 "ntype": ntype,
-                "output_fname_prefix": os.path.join(out_pred_dir, f"pred.{pred_file[:pred_file.rindex('.')]}"),
+                "output_fname_prefix": os.path.join(out_pred_dir, \
+                    f"pred.{pred_file[:pred_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
                 "preserve_input": preserve_input
             })
