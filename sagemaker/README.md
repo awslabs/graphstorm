@@ -137,6 +137,11 @@ You can use following command to check the model artifacts:
 aws s3 ls s3://PATH_TO_SAVE_TRAINED_MODEL/
 ```
 
+If you want to resume a saved model checkpoint to do model fine-tuning you can pass
+the S3 address of the model checkpoint through the ``--model-checkpoint-to-load``
+argument. For example by passing ``--model-checkpoint-to-load s3://mag-model/epoch-2/``,
+GraphStorm will initialize the model parameters with the model checkpoint stored in ``s3://mag-model/epoch-2/``.
+
 Please note `save_embed_path` and `save_prediction_path` must be disabled, i.e., set to 'None' when using SageMaker.
 They only work with shared file system while SageMaker solution does not support using shared file system now.
 
