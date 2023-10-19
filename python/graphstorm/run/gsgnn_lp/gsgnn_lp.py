@@ -202,7 +202,8 @@ def main(config_args):
         save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
                         gs.get_world_size(),
                         device=device,
-                        node_id_mapping_file=config.node_id_mapping_file)
+                        node_id_mapping_file=config.node_id_mapping_file,
+                        save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser
