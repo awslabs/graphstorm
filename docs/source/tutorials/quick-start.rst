@@ -111,7 +111,7 @@ The inference command is:
 This inference command predicts the classes of nodes in the testing set and saves the results, a Pytorch tensor file named "**predict-0.pt**", into the ``/tmp/ogbn-arxiv-nc/predictions/`` folder.
 
 Generating Embedding
-----------------
+------------------------
 If users only need to generate node embeddings instead of doing predictions on the graph, users can use saved model and same yaml configure used in training to achieve that, e.g model in epoch-7 to do so:
 .. code-block:: bash
 
