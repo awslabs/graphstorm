@@ -27,7 +27,7 @@ import torch as th
 import dgl
 import pytest
 from data_utils import (
-    generate_dummy_dist_graph, 
+    generate_dummy_dist_graph,
     generate_dummy_dist_graph_reconstruct,
     create_distill_data,
 )
@@ -37,9 +37,17 @@ from graphstorm.utils import setup_device
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
-from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
+from graphstorm.dataloading import (GSgnnNodeDataLoader,
+                                    GSgnnEdgeDataLoader,
+                                    GSgnnNodeSemiSupDataLoader)
 from graphstorm.dataloading import (GSgnnLinkPredictionDataLoader,
-                                   FastGSgnnLinkPredictionDataLoader)
+                                    GSgnnLPJointNegDataLoader,
+                                    GSgnnLPLocalUniformNegDataLoader,
+                                    GSgnnLPLocalJointNegDataLoader,
+                                    FastGSgnnLinkPredictionDataLoader,
+                                    FastGSgnnLPJointNegDataLoader,
+                                    FastGSgnnLPLocalUniformNegDataLoader,
+                                    FastGSgnnLPLocalJointNegDataLoader)
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
@@ -944,7 +952,7 @@ def test_distill_sampler_get_file(num_files):
         file_list = os.listdir(tmpdirname)
         tracker = {
             "global_start": [],
-            "global_end": [], 
+            "global_end": [],
             "part_len": [],
         }
         for rank in range(4):
@@ -969,7 +977,7 @@ def test_distill_sampler_get_file(num_files):
             tracker["part_len"].append(dist_sampler.part_len)
             if rank == 0:
                 tracker["remainder"] = dist_sampler.remainder
-            
+
             # test DistributedFileSampler.get_file
             if num_files == 3:
                 if rank == 0 or rank == 3:
@@ -1024,7 +1032,7 @@ def test_distill_sampler_get_file(num_files):
 @pytest.mark.parametrize("is_train", [True, False])
 @pytest.mark.parametrize("infinite", [False, True])
 @pytest.mark.parametrize("shuffle", [True, False])
-def test_DistillDistributedFileSampler(num_files, is_train, 
+def test_DistillDistributedFileSampler(num_files, is_train,
     infinite, shuffle):
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_distill_data(tmpdirname, num_files)
@@ -1072,7 +1080,7 @@ def test_DistillDistributedFileSampler(num_files, is_train,
         assert set(global_sampled_files) == set(os.listdir(tmpdirname))
 
 
-def run_distill_dist_data(worker_rank, world_size, 
+def run_distill_dist_data(worker_rank, world_size,
     backend, tmpdirname, num_files, is_train):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
@@ -1165,7 +1173,144 @@ def test_DistillDataloaderGenerator(backend, num_files, is_train):
         assert p2.exitcode == 0
         assert p3.exitcode == 0
 
+@pytest.mark.parametrize("batch_size", [10, 11])
+def test_np_dataloader_len(batch_size):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n1'], label_field='label')
+
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    target_idx_2 = {'n1': th.arange(np_data.g.number_of_nodes('n1')//2)}
+    # target_idx > unlabeled_idx
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size, 'cuda:0',
+                                     train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size, 'cuda:0',
+                                     train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    # target_idx < unlabeled_idx
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+@pytest.mark.parametrize("batch_size", [10, 11])
+def test_ep_dataloader_len(batch_size):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label')
+
+    ################### Test train_task #######################
+
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=False, remove_target_edge_type=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=True, remove_target_edge_type=False)
+    assert len(dataloader) == len(list(dataloader))
+
+@pytest.mark.parametrize("batch_size", [10, 11])
+def test_lp_dataloader_len(batch_size):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=[('n0', 'r1', 'n1')])
+
+    ################### Test train_task #######################
+
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
+    dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
 if __name__ == '__main__':
+    test_np_dataloader_len(11)
+    test_ep_dataloader_len(11)
+    test_lp_dataloader_len(11)
+
     test_np_dataloader_trim_data(GSgnnNodeDataLoader)
     test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
     test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)

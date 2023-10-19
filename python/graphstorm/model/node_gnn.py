@@ -209,7 +209,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
-    len_dataloader = max_num_batch = len(list(loader))
+    len_dataloader = max_num_batch = len(loader)
     tensor = th.tensor([len_dataloader], device=device)
     if is_distributed():
         th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
