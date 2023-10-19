@@ -132,7 +132,7 @@ For node classification/regression task, if ``target_ntype`` is provided, the co
 
 For edge classification/regression task, it ``target_etype`` is provided, the command will generate and save node embeddings on source and destination node type defined in the ``target_etype``, otherwise it will be on all node types.
 
-For link prediction task, it will generate node embeddings on all node types.
+For link prediction task, it will generate and save node embeddings on all node types.
 
 The saved result will be like:
 
