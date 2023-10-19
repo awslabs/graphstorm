@@ -63,7 +63,8 @@ def create_dummy_zero_input_test_graph(dim):
               "n3": th.empty((0,dim)),
               "n4": th.empty((0,dim)),}
 
-    return block, inputs, list(edges.keys())
+    return block, inputs, list(num_src_nodes.keys()), list(edges.keys())
+
 
 def create_dummy_no_indegree_test_graph(dim=16):
     """ Generate dummy test graph in which some destination nodes have no in-degree.
@@ -96,11 +97,12 @@ def create_dummy_no_indegree_test_graph(dim=16):
               "n2": th.empty((64, dim))}
 
     return block, inputs, list(num_src_nodes.keys()), list(edges.keys())
+
     
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32])
 def test_rgcn_with_zero_input(input_dim, output_dim):
-    block, inputs, etypes = create_dummy_zero_input_test_graph(input_dim)
+    block, inputs, _, etypes = create_dummy_zero_input_test_graph(input_dim)
 
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
@@ -118,10 +120,11 @@ def test_rgcn_with_zero_input(input_dim, output_dim):
     assert out["n3"].shape[1] == output_dim
     assert "n4" not in out
 
+
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
 def test_rgat_with_zero_input(input_dim, output_dim):
-    block, inputs, etypes = create_dummy_zero_input_test_graph(input_dim)
+    block, inputs, _, etypes = create_dummy_zero_input_test_graph(input_dim)
 
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
@@ -129,6 +132,7 @@ def test_rgat_with_zero_input(input_dim, output_dim):
         dropout=0.1)
 
     out = layer(block, inputs)
+
     assert out["n0"].shape[0] == 1024
     assert out["n0"].shape[1] == output_dim
     assert out["n1"].shape[0] == 0
@@ -138,6 +142,71 @@ def test_rgat_with_zero_input(input_dim, output_dim):
     assert out["n3"].shape[0] == 0
     assert out["n3"].shape[1] == output_dim
     assert "n4" not in out
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_hgt_with_zero_input(input_dim, output_dim):
+    block, inputs, ntypes, etypes = create_dummy_zero_input_test_graph(input_dim)
+
+    layer = HGTLayer(input_dim,
+                     output_dim,
+                     ntypes,
+                     etypes,
+                     num_heads=4)
+    out = layer(block, inputs)
+
+    assert out["n0"].shape[0] == 1024
+    assert out["n0"].shape[1] == output_dim
+    # assert out["n1"].shape[0] == 0
+    # assert out["n1"].shape[1] == output_dim
+    # assert out["n2"].shape[0] == 0
+    # assert out["n2"].shape[1] == output_dim
+    # assert out["n3"].shape[0] == 0
+    # assert out["n3"].shape[1] == output_dim
+    assert "n1" not in out
+    assert "n2" not in out
+    assert "n3" not in out
+    assert "n4" not in out
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32])
+def test_rgcn_with_no_indegree_dstnodes(input_dim, output_dim):
+    block, inputs, ntypes, etypes = create_dummy_no_indegree_test_graph(input_dim)
+
+    layer = RelGraphConvLayer(
+        input_dim, output_dim, etypes,
+        2, activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+
+    outputs = layer(block, inputs)
+    
+    assert outputs['n0'].shape[0] == 256
+    assert outputs['n0'].shape[1] == output_dim
+    assert outputs['n1'].shape[0] == 64
+    assert outputs['n1'].shape[1] == output_dim
+    assert outputs['n2'].shape[0] == 64
+    assert outputs['n2'].shape[1] == output_dim
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_rgat_with_no_indegree_dstnodes(input_dim, output_dim):
+    block, inputs, ntypes, etypes = create_dummy_no_indegree_test_graph(input_dim)
+
+    layer = RelationalAttLayer(input_dim, output_dim, etypes,
+                               2, activation=th.nn.ReLU(), self_loop=True,
+                               dropout=0.1)
+    outputs = layer(block, inputs)
+    
+    assert outputs['n0'].shape[0] == 256
+    assert outputs['n0'].shape[1] == output_dim
+    assert outputs['n1'].shape[0] == 64
+    assert outputs['n1'].shape[1] == output_dim
+    assert outputs['n2'].shape[0] == 64
+    assert outputs['n2'].shape[1] == output_dim
+
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
@@ -159,6 +228,10 @@ def test_hgt_with_no_indegree_dstnodes(input_dim, output_dim):
     assert outputs['n2'].shape[1] == output_dim
 
 if __name__ == '__main__':
-    test_rgcn_with_zero_input(32,32)
-    test_rgat_with_zero_input(32,64)
+    test_rgcn_with_zero_input(32, 64)
+    test_rgat_with_zero_input(32, 64)
+    test_hgt_with_zero_input(32, 64)
+
+    test_rgcn_with_no_indegree_dstnodes(32, 64)
+    test_rgcn_with_no_indegree_dstnodes(32, 64)
     test_hgt_with_no_indegree_dstnodes(32, 64)
