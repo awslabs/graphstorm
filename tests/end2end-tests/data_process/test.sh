@@ -72,8 +72,8 @@ python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/
 
 python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format DistDGL --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf
 
-# Check edge predict
-python3 $GS_HOME/tests/end2end-tests/data_process/gen_edge_predict_remap_test.py --output /tmp/ep_remap/id_mapping/
+echo "********* Test the remap edge predictions *********"
+python3 $GS_HOME/tests/end2end-tests/data_process/gen_edge_predict_remap_test.py --output /tmp/ep_remap/
 
 # Test remap edge prediction results
 python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/pred/ --rank 0 --world-size 2
@@ -86,6 +86,7 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --
 
 
 # Check node predict
+echo "********* Test the remap node predictions *********"
 python3 $GS_HOME/tests/end2end-tests/data_process/gen_node_predict_remap_test.py --output /tmp/np_remap/id_mapping/
 
 # Test remap edge prediction results
