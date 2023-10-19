@@ -907,10 +907,13 @@ def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs = \
+        map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, False)
     assert len(new_src_ids) == len(src_ids)
     assert len(new_dst_ids) == len(dst_ids)
+    assert src_exist_locs is None
+    assert dst_exist_locs is None
     for src_id1, src_id2 in zip(new_src_ids, src_ids):
         assert src_id1 == int(src_id2)
     for dst_id1, dst_id2 in zip(new_dst_ids, dst_ids):
@@ -921,18 +924,24 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
     src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
     try:
-        new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+        new_src_ids, new_dst_ids, _, _ = \
+            map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                                 id_map, False)
         raise ValueError("fail")
     except:
         pass
 
     # Test the case that source node IDs don't exist and we skip non exist edges.
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs \
+        = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_src_ids) for id_ in src_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+    assert src_exist_locs is not None
+    assert_equal(src_ids[src_exist_locs], new_src_ids)
+    assert_equal(dst_ids[src_exist_locs], new_dst_ids)
+    assert dst_exist_locs is None
 
     # Test the case that none of the source node IDs exists and we skip non exist edges.
     src_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
@@ -946,22 +955,27 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
     try:
-        new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+        new_src_ids, new_dst_ids, _, _ = \
+            map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                                 id_map, False)
         raise ValueError("fail")
     except:
         pass
 
     # Test the case that destination node IDs don't exist and we skip non exist edges.
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_dst_ids) for id_ in dst_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+    assert src_exist_locs is None
+    assert_equal(src_ids[dst_exist_locs], new_src_ids)
+    assert_equal(dst_ids[dst_exist_locs], new_dst_ids)
+    assert dst_exist_locs is not None
 
     # Test the case that none of the destination node IDs exists and we skip non exist edges.
     dst_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, _, _ = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     assert len(new_src_ids) == 0
     assert len(new_dst_ids) == 0
@@ -1219,10 +1233,10 @@ def test_multiprocessing_checks():
 
 if __name__ == '__main__':
     test_multiprocessing_checks()
-    test_csv()
+    test_csv(None)
     test_hdf5()
     test_json()
-    test_partition_graph()
+    test_partition_graph(1)
     test_merge_arrays()
     test_map_node_ids()
     test_id_map()
