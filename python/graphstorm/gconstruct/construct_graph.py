@@ -582,11 +582,14 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
     """
     logging.info("The graph has %d node types and %d edge types.",
                  len(g.ntypes), len(g.etypes))
+    for ntype in g.ntypes:
+        logging.info("Node type %s has %d nodes", ntype, g.number_of_nodes(ntype))
+    for etype in g.canonical_etypes:
+        logging.info("Edge type %s has %d edges", etype, g.number_of_edges(etype))
 
     for ntype in node_data:
         feat_names = list(node_data[ntype].keys())
-        logging.info("Node type %s has %d nodes with features: %s.",
-                     ntype, g.number_of_nodes(ntype), str(feat_names))
+        logging.info("Node type %s has features: %s.", ntype, str(feat_names))
         num_train = np.sum(node_data[ntype]["train_mask"]) \
                 if "train_mask" in node_data[ntype] else 0
         num_val = np.sum(node_data[ntype]["val_mask"]) \
@@ -598,8 +601,7 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
                          ntype, num_train, num_val, num_test)
     for etype in edge_data:
         feat_names = list(edge_data[etype].keys())
-        logging.info("Edge type %s has %d edges with features: %s.",
-                     str(etype), g.number_of_edges(etype), str(feat_names))
+        logging.info("Edge type %s has features: %s.", str(etype), str(feat_names))
         num_train = np.sum(edge_data[etype]["train_mask"]) \
                 if "train_mask" in edge_data[etype] else 0
         num_val = np.sum(edge_data[etype]["val_mask"]) \
