@@ -369,15 +369,18 @@ class BucketTransform(FeatTransform):
         Parameters
         ----------
         feats : Numpy array
-            The feature data
+            The numerical feature data
 
         Returns
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        assert isinstance(feats, (np.ndarray)), \
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array " \
                 f"within numerical value."
+        if isinstance(feats, ExtMemArrayWrapper):
+            feats = feats.to_numpy()
+            
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
