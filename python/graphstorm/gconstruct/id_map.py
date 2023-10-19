@@ -224,6 +224,6 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
             raise ValueError(f"dest nodes of {dst_type} do not exist: {dst_ids[bool_mask]}")
         # We need to remove the source nodes as well.
         src_ids = src_ids[orig_locs] if len(orig_locs) > 0 else np.array([], dtype=src_ids.dtype)
-        dst_exist_locs = bool_mask
+        dst_exist_locs = orig_locs
     dst_ids = new_dst_ids
     return src_ids, dst_ids, src_exist_locs, dst_exist_locs
