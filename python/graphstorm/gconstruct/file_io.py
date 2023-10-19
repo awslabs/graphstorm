@@ -345,6 +345,7 @@ def _parse_file_format(conf, is_node, in_mem):
         for label_conf in conf["labels"]:
             if "label_col" in label_conf:
                 keys.append(label_conf["label_col"])
+    keys = list(set(keys))
     if fmt["name"] == "parquet":
         return partial(read_data_parquet, data_fields=keys)
     elif fmt["name"] == "json":
