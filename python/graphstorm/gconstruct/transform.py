@@ -399,9 +399,7 @@ class BucketTransform(FeatTransform):
             high_idx = min(high_val // bucket_size + 1, self.bucket_cnt)
 
             idx = np.arange(start=low_idx, stop=high_idx, dtype=int)
-            membership_list = np.zeros(self.bucket_cnt, dtype=float)
-            membership_list[idx] = 1.0
-            encoding[i] = membership_list
+            encoding[i][idx] = 1.0
 
             # Avoid edge case not in bucket
             if f >= max_val:
