@@ -92,7 +92,7 @@ echo "The best model is saved in epoch $best_epoch"
 rm /tmp/train_log.txt
 
 echo "**************dataset: Movielens, do inference on saved model"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ --logging-file /tmp/log.txt
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ --logging-file /tmp/log.txt --preserve-input True
 
 error_and_exit $?
 
@@ -133,18 +133,48 @@ fi
 
 rm /tmp/log.txt
 
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/movie/ | grep predict | wc -l)
+if test $cnt != $NUM_INFERs * 2
+then
+    echo "The number of saved prediction results $cnt is not equal to the number of inferers $NUM_INFERs * 2 as --preserve-input is True"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/movie/ | grep nids | wc -l)
+if test $cnt != $NUM_INFERs
+then
+    echo "The number of saved node ids $cnt is not equal to the number of inferers $NUM_INFERs"
+    exit -1
+fi
+
 python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/infer-emb/
 
 error_and_exit $?
 
 echo "**************dataset: Movielens, do inference on saved model with mini-batch-infer without test mask"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_notest_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true  --save-embed-path /data/gsgnn_nc_ml/mini-infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ --no-validation true
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_notest_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true  --save-embed-path /data/gsgnn_nc_ml/mini-infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/mini-prediction/ --no-validation true --preserve-input True
 
 error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_nc_ml/mini-prediction/movie/ | grep predict | wc -l)
+if test $cnt != $NUM_INFERs * 2
+then
+    echo "The number of saved prediction results $cnt is not equal to the number of inferers $NUM_INFERs * 2 as --preserve-input is True"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/mini-prediction/movie/ | grep nids | wc -l)
+if test $cnt != $NUM_INFERs
+then
+    echo "The number of saved node ids $cnt is not equal to the number of inferers $NUM_INFERs"
+    exit -1
+fi
 
 python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/mini-infer-emb
 
 error_and_exit $?
+
+rm -fr /data/gsgnn_nc_ml/
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch save model save emb node, early stop"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_nc_ml/ --topk-model-to-save 3 --save-embed-path /data/gsgnn_nc_ml/emb/ --use-early-stop True --early-stop-burnin-rounds 2 -e 20 --early-stop-rounds 3 --early-stop-strategy consecutive_increase --logging-file /tmp/exec.log --logging-level debug
@@ -194,7 +224,7 @@ echo "The best model is saved in epoch $best_epoch"
 rm /tmp/train_log.txt
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false   --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ --logging-file /tmp/log.txt --logging-level debug
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false   --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True
 
 error_and_exit $?
 
@@ -217,9 +247,23 @@ mkdir -p /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM
 ln -s /data/gsgnn_nc_ml_text/epoch-$best_epoch /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM/LM
 ln -s /data/gsgnn_nc_ml_text/epoch-$best_epoch /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM/GNN
 
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM --restore-model-layers embed --inference
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM --restore-model-layers embed --inference --save-prediction-path /data/gsgnn_nc_ml_text/prediction/
 
 error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie/ | grep predict | wc -l)
+if test $cnt != $NUM_INFERs
+then
+    echo "The number of saved prediction results $cnt is not equal to the number of inferers $NUM_INFERs"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie/ | grep nids | wc -l)
+if test $cnt != 0
+then
+    echo "nids-xxx should be removed"
+    exit -1
+fi
 
 rm -fr /data/gsgnn_nc_ml_text/*
 
@@ -241,7 +285,7 @@ echo "The best model is saved in epoch $best_epoch"
 rm /tmp/train_log.txt
 
 echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ --logging-file /tmp/log.txt --logging-level debug
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True
 
 error_and_exit $?
 
@@ -276,9 +320,9 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie | grep "predict" | wc -l)
-if test $cnt != $NUM_INFERs
+if test $cnt != $NUM_INFERs * 2
 then
-    echo "There must be $NUM_INFERs prediction parts"
+    echo "The number of saved prediction results $cnt is not equal to the number of inferers $NUM_INFERs * 2 as --preserve-input is True"
     exit -1
 fi
 
