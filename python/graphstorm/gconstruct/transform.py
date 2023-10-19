@@ -355,7 +355,7 @@ class BucketTransform(FeatTransform):
                  bucket_range, slide_window_size=0, out_dtype=None):
         assert bucket_cnt is not None, \
             "bucket count must be provided for bucket feature transform"
-        assert range is not None, \
+        assert bucket_range is not None and len(bucket_range) == 2, \
             "bucket range must be provided for bucket feature transform"
         self.bucket_cnt = bucket_cnt
         self.bucket_range = bucket_range
