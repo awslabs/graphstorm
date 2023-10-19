@@ -21,8 +21,42 @@ import torch as th
 import dgl
 
 from ..config.config import GLEM_CONFIGURABLE_PARAMETER_NAMES
-from .gnn import GLEMOptimizer
+from .gnn import GSOptimizer
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
+
+class GLEMOptimizer(GSOptimizer):
+    """ An optimizer specific for GLEM, implementing on/off switches of sparse optimizer.
+    """
+    def _clear_traces(self):
+        """ Clear the traces in sparse optimizers.
+        """
+        for optimizer in self.sparse_opts:
+            for emb in optimizer._params:
+                emb.reset_trace()
+
+    def zero_grad(self, optimize_sparse_params=True):
+        """ Setting the gradient to zero
+        """
+        all_opts = self.dense_opts + self.lm_opts
+        if optimize_sparse_params:
+            all_opts += self.sparse_opts
+        for optimizer in all_opts:
+            optimizer.zero_grad()
+        if not optimize_sparse_params:
+            # force reset trace for sparse opt when sparse emb are frozen
+            # under this condition, emb still collects traces with grad being None's.
+            # we need to do this to ensure the gradient update step after unfreezing
+            # can be performed correctly.
+            self._clear_traces()
+
+    def step(self, optimize_sparse_params=True):
+        """ Moving the optimizer
+        """
+        all_opts = self.dense_opts + self.lm_opts
+        if optimize_sparse_params:
+            all_opts += self.sparse_opts
+        for optimizer in all_opts:
+            optimizer.step()
 
 class GLEM(GSgnnNodeModelBase):
     """
@@ -53,7 +87,7 @@ class GLEM(GSgnnNodeModelBase):
                  em_order_gnn_first=False,
                  inference_using_gnn=True,
                  pl_weight=0.5,
-                 num_pretrain_epochs=1,
+                 num_pretrain_epochs=5,
                  lm_param_group=None,
                  gnn_param_group=None
                  ):
@@ -72,9 +106,9 @@ class GLEM(GSgnnNodeModelBase):
         # False: gnn is being trained
         self.training_lm = None
         if lm_param_group is None:
-            lm_param_group = []
+            lm_param_group = ["pure_lm", "node_proj_matrix"]
         if gnn_param_group is None:
-            gnn_param_group = []
+            gnn_param_group = ["node_input_projs"]
         assert set(lm_param_group).issubset(GLEM_CONFIGURABLE_PARAMETER_NAMES['lm_param_group'])
         assert set(gnn_param_group).issubset(GLEM_CONFIGURABLE_PARAMETER_NAMES['gnn_param_group'])
         self.param_names_groups = {'lm': lm_param_group, 'gnn': gnn_param_group}

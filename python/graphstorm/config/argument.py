@@ -579,17 +579,10 @@ class GSConfig:
                     "em_order_gnn_first": False,
                     "inference_using_gnn": True,
                     "pl_weight": 0.5,
-                    "num_pretrain_epochs": 1,
-                    "lm_param_group": ["pure_lm", "node_proj_matrix"],
-                    "gnn_param_group": ["node_input_projs"]
+                    "num_pretrain_epochs": 5
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
-                for param_group in ["lm_param_group", "gnn_param_group"]:
-                    allowed_param_set = GLEM_CONFIGURABLE_PARAMETER_NAMES[param_group]
-                    assert set(self._training_method["kwargs"][param_group]).issubset(
-                        allowed_param_set),\
-                        f"{param_group} must be a subset of {allowed_param_set}"
             return self._training_method
         return {"name": "default", "kwargs": {}}
 
