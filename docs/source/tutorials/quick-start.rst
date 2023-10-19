@@ -124,7 +124,7 @@ If users only need to generate node embeddings instead of doing predictions on t
                --save-embed-path /tmp/saved_embed \
                --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/ \
                --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
-               --use-mini-batch-infer true \
+               --use-mini-batch-infer true
 
 Users need to specify restore-model-path and save-embed-path when using the command above to generate node embeddings, the node embeddings will be saved into the save-embed path.
 
