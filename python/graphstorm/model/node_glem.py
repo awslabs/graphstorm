@@ -20,9 +20,14 @@ from copy import deepcopy
 import torch as th
 import dgl
 
-from ..config.config import GLEM_CONFIGURABLE_PARAMETER_NAMES
 from .gnn import GSOptimizer
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
+
+# GLEM supports configuring the parameter grouping of the following:
+GLEM_CONFIGURABLE_PARAMETER_NAMES = {
+    "gnn_param_group": set(["pure_lm", "sparse_embed", "node_input_projs", "node_proj_matrix"]),
+    "lm_param_group": set(["pure_lm", "node_input_projs", "node_proj_matrix"])
+    }
 
 class GLEMOptimizer(GSOptimizer):
     """ An optimizer specific for GLEM, implementing on/off switches of sparse optimizer.
@@ -117,11 +122,11 @@ class GLEM(GSgnnNodeModelBase):
         self.training_sparse_embed = 'sparse_embed' in lm_param_group + gnn_param_group
 
     @property
-    def default_parameter_groups(self):
+    def builtin_parameter_groups(self):
         """To store the grouping of trainable parameters irrespective of input config"""
         return {
             'lm': list(self.lm.decoder.parameters()),
-            'gnn': list(self.gnn.gnn_encoder.parameters())
+            'gnn': list(self.gnn.gnn_encoder.parameters()) + list(self.gnn.decoder.parameters())
         }
 
     @property
@@ -133,6 +138,15 @@ class GLEM(GSgnnNodeModelBase):
             'node_input_projs': list(self.lm.node_input_encoder.input_projs.parameters()),
             'node_proj_matrix': list(self.lm.node_input_encoder.proj_matrix.parameters()),
         }
+
+    def trainable_parameters(self, part):
+        """To access the trainable torch parameters from lm or gnn part of the model."""
+        params = self.builtin_parameter_groups[part]
+        # for part in ['lm', 'gnn']:
+        for param_name in self.param_names_groups[part]:
+            if param_name != 'sparse_embed':
+                params.extend(self.named_params[param_name])
+        return params
 
     @property
     def inference_route_is_gnn(self):
@@ -243,13 +257,9 @@ class GLEM(GSgnnNodeModelBase):
 
     def toggle_params(self, part='lm', freeze=True):
         """Freeze or unfreeze parameters in lm or gnn"""
-        params = self.default_parameter_groups[part]
-        for param_name in self.param_names_groups[part]:
-            if param_name == 'sparse_embed':
-                self.training_sparse_embed = not freeze
-            else:
-                params.extend(self.named_params[param_name])
-        for param in params:
+        if 'sparse_embed' in self.param_names_groups[part]:
+            self.training_sparse_embed = not freeze
+        for param in self.trainable_parameters(part):
             param.requires_grad = not freeze
 
     def toggle(self, part='lm'):
