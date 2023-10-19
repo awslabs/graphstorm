@@ -650,6 +650,7 @@ def test_bucket_transform(out_dtype):
     feats_tar = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=out_dtype)
     assert_equal(bucket_feats['test'], feats_tar)
 
+    # Case for float number
     bucket_range = [1.1, 2.1, 3.1]
     feats = np.array([0.2, 1.2, 2.2, 3.2])
     transform = BucketTransform("test", "test", 2,
@@ -663,6 +664,7 @@ def test_bucket_transform(out_dtype):
     feats_tar = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=out_dtype)
     assert_equal(bucket_feats['test'], feats_tar)
 
+    # Case with sliding window
     bucket_range = [10, 30]
     transform = BucketTransform("test", "test", 2,
                  bucket_range=bucket_range, slide_window_size=10, out_dtype=out_dtype)
@@ -693,7 +695,8 @@ def test_bucket_transform(out_dtype):
     # Edge case for large sliding window
     bucket_range = [10, 30]
     transform = BucketTransform("test", "test", 2,
-                                bucket_range=bucket_range, slide_window_size=100, out_dtype=out_dtype)
+                                bucket_range=bucket_range, slide_window_size=100,
+                                out_dtype=out_dtype)
     feats = np.array([1, 10, 20, 30])
     bucket_feats = transform(feats)
     if out_dtype is not None:
