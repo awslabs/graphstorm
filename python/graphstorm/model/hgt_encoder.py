@@ -68,7 +68,7 @@ class HGTLayer(nn.Module):
 
     Note:
     -----
-    * Different from DGL's HGTConv, this implementation is based on heterogeneous graph. Other 
+    * Different from DGL's HGTConv, this implementation is based on heterogeneous graph. Other
       hyperparameters' default values are same as the DGL's HGTConv setting.
 
     * The cross-relation aggregation function of this implementation is `mean`, which was chosen
@@ -76,7 +76,7 @@ class HGTLayer(nn.Module):
 
     Examples:
     ----------
-    
+
     .. code:: python
 
         # suppose graph and input_feature are ready
@@ -85,7 +85,7 @@ class HGTLayer(nn.Module):
         layer = HGTLayer(hid_dim, out_dim, g.ntypes, g.canonical_etypes,
                          num_heads, activation, dropout, norm)
         h = layer(g, input_feature)
-        
+
     Parameters
     ----------
     in_dim : int
@@ -382,7 +382,7 @@ class HGTEncoder(GraphConvEncoder):
             Sampled subgraph in DGL MFG
         h: dict[str, torch.Tensor]
             Input node feature for each node type.
-            
+
         Returns
         ----------
         h: dict[str, torch.Tensor]
