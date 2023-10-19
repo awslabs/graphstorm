@@ -288,7 +288,8 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
         return self.dataloader.expected_idxs
 
     @property
@@ -541,7 +542,8 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
         return self.dataloader.expected_idxs
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
@@ -866,8 +868,9 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
-        # AllEtypeDistEdgeDataLoader is a child class of DistDataLoader
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
+        # AllEtypeDistEdgeDataLoader is a child class of DistDataLoader.
         return self.dataloader.expected_idxs
 
 class GSgnnAllEtypeLPJointNegDataLoader(GSgnnAllEtypeLinkPredictionDataLoader):
@@ -1136,7 +1139,8 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
         return self.dataloader.expected_idxs
 
 class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
@@ -1180,7 +1184,10 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     def __len__(self):
         # Follow
         # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # DistDataLoader.expected_idxs is the length (number of batches) of the datalaoder
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
+        # As it uses two dataloader, either one throws
+        # an End of Iter error will stop the dataloader.
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
 
