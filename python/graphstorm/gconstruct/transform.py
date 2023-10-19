@@ -333,7 +333,7 @@ class TwoPhaseFeatTransform(FeatTransform):
         raise NotImplementedError
 
 class BucketTransform(FeatTransform):
-    """ This doesn't transform the feature.
+    """ Convert the numerical value into buckets.
 
     Parameters
     ----------
@@ -343,8 +343,10 @@ class BucketTransform(FeatTransform):
         The feature name used in the constructed graph.
     bucket_cnt: num:
         The count of bucket lists used in the bucket feature transform
-    range: list[num]:
+    bucket_range: list[num]:
         The range of bucket lists only defining the start and end point
+    slide_window_size: int
+        interval or range within which numeric values are grouped into buckets
     out_dtype:
         The dtype of the transformed feature.
         Default: None, we will not do data type casting.
@@ -388,17 +390,6 @@ class BucketTransform(FeatTransform):
             high_val = min(f + (self.slide_window_size / 2), max_val)
             low_val = max(f - (self.slide_window_size / 2), min_val)
 
-            # Early exits to avoid numpy calls
-            membership_list = [0.0] * self.bucket_cnt
-            if f >= max_val:
-                membership_list[-1] = 1.0
-                encoding[i] = membership_list
-                continue
-            if f <= min_val:
-                membership_list[0] = 1.0
-                encoding[i] = membership_list
-                continue
-
             # Determine upper and lower bucket membership
             low_val -= min_val
             high_val -= min_val
@@ -409,6 +400,12 @@ class BucketTransform(FeatTransform):
             membership_list = np.zeros(self.bucket_cnt, dtype=float)
             membership_list[idx] = 1.0
             encoding[i] = membership_list
+
+            # Avoid edge case not in bucket
+            if f >= max_val:
+                encoding[i][-1] = 1.0
+            if f <= min_val:
+                encoding[i][0] = 1.0
 
         return {self.feat_name: encoding}
 
