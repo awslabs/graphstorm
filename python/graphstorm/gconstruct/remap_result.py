@@ -29,7 +29,7 @@ import math
 import torch as th
 from torch import multiprocessing
 from torch.multiprocessing import Process
-from ..model.utils import pad_file_index
+from ..model.utils import pad_file_index, get_data_range
 from .file_io import write_data_parquet
 from .id_map import IdReverseMap
 from ..utils import get_log_level
@@ -42,6 +42,87 @@ from ..config import (GSConfig,
                       BUILTIN_TASK_NODE_REGRESSION)
 
 id_maps = {}
+
+def worker_remap_node_emb(emb_file_path, nid_path, nid_range_info, ntype,
+    output_fname_prefix, chunk_size, preserve_input):
+    """ Do one node prediction remapping task
+
+        GraphStorm has two ways to store node embeddings:
+        1. Store the entire node embeddings of nodes of ntype T.
+           In this case, node embeddings has already been shuffled
+           into the order before doing graph partition.
+           The order is aligned with the order in the
+           original-to-graphstorm ID mapping.
+           Link prediction inference, edge prediction inference and
+           embedding inference usually generate node embeddings in this way.
+        2. Store the node embeddings of a subset of nodes of ntype T.
+            In this case, node embeddings are stored along with an
+            nids.xxx.bin file.
+            The nid file stores the before-graph-partition node ids of
+            the corresponding node embeddings.
+            Node clasification usually generate node embeddings in this
+            way.
+
+        Parameters
+        ----------
+        emb_file_path: str
+            The path to the node embeddings.
+        nid_path: str
+            The path to the file storing node ids.
+            This parameter is exclusive with nid_range.
+        nid_range_info: tuple of int
+            The range of nids corresponding to the embedding files.
+            This parameter is exclusive with nid_path.
+        ntype: str
+            Node type.
+        output_fname_prefix: str
+            Output file name prefix.
+        chunk_size: int
+            Max number of raws per output file.
+        preserve_input: bool
+            Whether the input data should be removed.
+    """
+    embs = th.load(emb_file_path).numpy()
+    nid_map = id_maps[ntype]
+    num_chunks = math.ceil(len(embs) / chunk_size)
+
+    if nid_path is not None:
+        nids = th.load(nid_path).numpy()
+        for i in range(num_chunks):
+            output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
+
+            start = i * chunk_size
+            end = (i + 1) * chunk_size if i + 1 < chunk_size else len(embs)
+            emb = embs[start:end]
+            nid = nid_map.map_id(nids[start:end])
+            data = {"emb": emb,
+                    "nid": nid}
+            write_data_parquet(data, output_fname)
+
+    else:
+        total_num_files, emb_len = nid_range_info
+        # Get index of emb file
+        local_rank = int(emb_file_path[emb_file_path.rindex(".part")+5:])
+        nid_start, nid_end = \
+                    get_data_range(local_rank, total_num_files, emb_len)
+        nids = nid_map.map_range(nid_start, nid_end)
+
+        for i in range(num_chunks):
+            output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
+
+            start = i * chunk_size
+            end = (i + 1) * chunk_size if i + 1 < chunk_size else len(embs)
+            emb = embs[start:end]
+            nid = nids[start:end]
+            data = {"emb": emb,
+                    "nid": nid}
+            write_data_parquet(data, output_fname)
+
+    if preserve_input is False:
+        os.remove(emb_file_path)
+        if nid_path is not None:
+            os.remove(nid_path)
+
 
 def worker_remap_node_pred(pred_file_path, nid_path, ntype,
     output_fname_prefix, chunk_size, preserve_input):
@@ -220,8 +301,8 @@ def _get_file_range(num_files, rank, world_size):
 
     return start, end
 
-def remap_node_emb(emb_ntypes, node_emb_dir,
-                   emb_output, out_chunk_size,
+def remap_node_emb(emb_ntypes, emb_lens, node_emb_dir,
+                   output_dir, out_chunk_size,
                    num_proc, rank,  world_size,
                    with_shared_fs, preserve_input=False):
     """ Remap node embeddings.
@@ -264,8 +345,8 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         #     nids.part00000.bin
         #     nids.part00001.bin
         #     ...
-        #     emb_part00000.bin
-        #     emb_part00001.bin
+        #     emb.part00000.bin
+        #     emb.part00001.bin
         #     ...
 
 
@@ -285,12 +366,14 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
 
         Parameters
         ----------
-        pred_ntypes: list of str
-            List of node types that have prediction results to be remapped。
-        pred_dir: str
-            The directory storing the prediction results.
+        emb_ntypes: list of str
+            List of node types that have node embeddings to be remapped。
+        emb_lens: dict
+            Dictionary storing the length of each node embedding.
+        node_emb_dir: str
+            The directory storing the node embeddings.
         output_dir: str
-            The directory storing the remapped prediction results.
+            The directory storing the remapped node embeddings.
         out_chunk_size: int
             Max number of raws per output file.
         num_proc: int
@@ -304,6 +387,65 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         preserve_input: bool
             Whether the input data should be removed.
     """
+    start = time.time()
+    task_list = []
+    for ntype in emb_ntypes:
+        input_emb_dir = os.path.join(node_emb_dir, ntype)
+        out_embdir = os.path.join(output_dir, ntype)
+        ntype_emb_files = os.listdir(input_emb_dir)
+        # please note nid_files can be empty.
+        nid_files = [fname for fname in ntype_emb_files if fname.startswith("nids")]
+        emb_files = [fname for fname in ntype_emb_files if fname.startswith("emb")]
+
+        nid_files.sort()
+        emb_files.sort()
+        num_parts = len(emb_files)
+        logging.debug("{%s} has {%d} embedding files", ntype, num_parts)
+
+        if with_shared_fs:
+            # If the data are stored in a shared filesystem,
+            # each instance only needs to process
+            # a subset of edge prediction files
+            start, end = _get_file_range(num_parts, rank, world_size)
+        else:
+            # If the data are stored in local filesystem (not shared),
+            # each instance needs to process all
+            # the edge prediction files stored locally
+            start, end = 0, num_parts
+
+        logging.debug("{%d} handle {%d}-{%d}", rank, start, end)
+        for i in range(start, end):
+            emb_file = emb_files[i]
+            if len(nid_files) > 0:
+                nid_file = nid_files[i]
+                nid_range_info = None
+            else:
+                assert emb_lens is not None, \
+                    "The length of each node embedding should be provided through " \
+                    "either emb_info.json when shared filesystem is avaliable " \
+                    "or --node-emb-length"
+                nid_file = None
+                if with_shared_fs:
+                    total_num_files = num_parts
+                else:
+                    # If the data are stored in local filesystem (not shared),
+                    # We are expecting each instance has the same number of
+                    # embdding files.
+                    total_num_files = num_parts * world_size
+                nid_range_info = (total_num_files, emb_lens[ntype])
+
+            task_list.append({
+                "emb_file_path": os.path.join(input_emb_dir, emb_file),
+                "nid_path": nid_file,
+                "nid_range_info": nid_range_info,
+                "ntype": ntype,
+                "output_fname_prefix": os.path.join(out_embdir, \
+                    f"emb.{emb_file[:emb_file.rindex('.')]}"),
+                "chunk_size": out_chunk_size,
+                "preserve_input": preserve_input
+            })
+
+    multiprocessing_remap(task_list, num_proc, worker_remap_node_emb)
 
 def remap_node_pred(pred_ntypes, pred_dir,
                     output_dir, out_chunk_size,
@@ -361,7 +503,7 @@ def remap_node_pred(pred_ntypes, pred_dir,
         nid_files.sort()
         pred_files.sort()
         num_parts = len(pred_files)
-        logging.debug("{%s} has {%d} embedding files", ntype, num_parts)
+        logging.debug("{%s} has {%d} prediction files", ntype, num_parts)
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -576,6 +718,7 @@ def main(args, gs_config_args):
 
     ################## remap embeddings #############
     emb_ntypes = None
+    emb_lens = None
     if node_emb_dir is not None:
         if with_shared_fs:
             assert os.path.exists(os.path.join(node_emb_dir, "emb_info.json")), \
@@ -585,11 +728,21 @@ def main(args, gs_config_args):
                 info = json.load(f)
                 ntypes = info["emb_name"]
                 emb_ntypes = ntypes if isinstance(ntypes, list) else [ntypes]
+                if "num_embs" in info:
+                    emb_lens = info["num_embs"]
+                    emb_lens = {ntype: emb_len for ntype, emb_len in zip (ntypes, emb_lens)}\
+                        if isinstance(emb_lens, list) else {ntypes: emb_lens}
         else: # There is no shared file system
             emb_names = os.listdir(node_emb_dir)
             if rank == 0:
                 emb_names = [e_name for e_name in emb_names if e_name != "emb_info.json"]
             emb_ntypes = emb_names
+            if args.node_emb_length is not None:
+                emb_lens = args.node_emb_length
+                assert len(emb_lens) == len(emb_ntypes), \
+                    "Need embeddiing length for each node embedding," \
+                    f"expecting {emb_ntypes} but get {emb_lens}"
+                emb_lens = {emb_len.split(":")[0]: emb_len.split(":")[1] for emb_len in emb_lens}
 
     ################## remap prediction #############
     # if pred_etypes (edges with prediction results)
@@ -642,6 +795,7 @@ def main(args, gs_config_args):
         emb_output = node_emb_dir
         # We need to do ID remapping for node embeddings
         remap_node_emb(emb_ntypes,
+                       emb_lens,
                        node_emb_dir,
                        emb_output,
                        out_chunk_size,
@@ -680,10 +834,10 @@ def main(args, gs_config_args):
 def add_distributed_remap_args(parser):
     """ Distributed remapping only
 
-        Users can ignore arguments in this argument group.
         The arguments under this argument group are mainly
-        designed for distributed remapping results in SageMaker,
-        where a shared file system is not avaliable.
+        designed for distributed remapping results.
+        Users can ignore arguments in this argument group if
+        they are not doing distributed remapping.
 
         Parameter
         ---------
@@ -699,12 +853,13 @@ def add_distributed_remap_args(parser):
                        type=lambda x: (str(x).lower() in ['true', '1']),default=True,
                        help="Whether all files are stored in a shared file system"
                             "False when it is running on SageMaker")
-
     group.add_argument("--rank", type=int, default=0,
-                           help="The rank of current worker.")
+                       help="The rank of current worker.")
     group.add_argument("--world-size", type=int, default=1,
-                           help="Totoal number of workers in the cluster.")
-
+                       help="Totoal number of workers in the cluster.")
+    group.add_argument("--node-emb-length", type=str, nargs="+", default=None,
+                       help="Give the number of embeddings of each node embedding."
+                            "For example --node_emb_length user:100 movie 1000")
     return parser
 
 def generate_parser():
