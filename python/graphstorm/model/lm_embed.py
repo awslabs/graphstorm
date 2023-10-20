@@ -33,7 +33,6 @@ from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
 from .utils import load_pytorch_embedding, save_embeddings
 from ..utils import get_rank, get_world_size, barrier, create_dist_tensor
-from ..utils import get_rank, barrier, create_dist_tensor
 
 class LMModels(nn.Module):
     """ LM model collection
