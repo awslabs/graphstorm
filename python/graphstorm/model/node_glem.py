@@ -122,14 +122,6 @@ class GLEM(GSgnnNodeModelBase):
         self.training_sparse_embed = 'sparse_embed' in lm_param_group + gnn_param_group
 
     @property
-    def builtin_parameter_groups(self):
-        """To store the grouping of trainable parameters irrespective of input config"""
-        return {
-            'lm': list(self.lm.decoder.parameters()),
-            'gnn': list(self.gnn.gnn_encoder.parameters()) + list(self.gnn.decoder.parameters())
-        }
-
-    @property
     def named_params(self):
         """Mapping parameter name to the actual list of parameters."""
         return {
@@ -141,8 +133,10 @@ class GLEM(GSgnnNodeModelBase):
 
     def trainable_parameters(self, part):
         """To access the trainable torch parameters from lm or gnn part of the model."""
-        params = self.builtin_parameter_groups[part]
-        # for part in ['lm', 'gnn']:
+        if part == 'lm':
+            params = list(self.lm.decoder.parameters())
+        elif part == 'gnn':
+            params = list(self.gnn.gnn_encoder.parameters()) + list(self.gnn.decoder.parameters())
         for param_name in self.param_names_groups[part]:
             if param_name != 'sparse_embed':
                 params.extend(self.named_params[param_name])
