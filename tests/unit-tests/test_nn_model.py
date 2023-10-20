@@ -156,8 +156,6 @@ def test_hgt_with_zero_input(input_dim, output_dim):
                      num_heads=4)
     out = layer(block, inputs)
 
-    print(out)
-
     assert out["n0"].shape[0] == 1024
     assert out["n0"].shape[1] == output_dim
     assert out["n1"].shape[0] == 0
