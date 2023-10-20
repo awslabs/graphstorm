@@ -461,7 +461,7 @@ def main(args, gs_config_args):
         gs_args = gs_parser.parse_args(gs_config_args)
         config = GSConfig(gs_args)
         config.verify_arguments(False)
-        id_mapping_path, predict_dir, _, pred_ntypes, pred_etypes = \
+        id_mapping_path, predict_dir, node_emb_dir, pred_ntypes, pred_etypes = \
             _parse_gs_config(config)
     else:
         # Case 2: remap_result is called alone.
@@ -470,6 +470,7 @@ def main(args, gs_config_args):
         logging.basicConfig(level=get_log_level(args.logging_level), force=True)
         id_mapping_path = args.node_id_mapping
         predict_dir = args.prediction_dir
+        node_emb_dir = args.node_emb_dir
         pred_etypes = args.pred_etypes
         if pred_etypes is not None:
             assert len(pred_etypes) > 0, \
@@ -606,7 +607,11 @@ def generate_parser():
     group.add_argument("--node-id-mapping", type=str,
                        help="The directory storing the id mappings")
     group.add_argument("--prediction-dir", type=str,
+                       default=None,
                        help="The directory storing the graph prediction results.")
+    group.add_argument("--node-emb-dir", type=str,
+                       default=None,
+                       help="The directory storing the node embeddings.")
     group.add_argument("--output-format", type=str,
                        default="parquet",
                        choices=['parquet'],
