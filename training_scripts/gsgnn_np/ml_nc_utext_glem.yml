@@ -31,6 +31,7 @@ gsf:
         em_order_gnn_first: false
         inference_using_gnn: true
         pl_weight: 0.5
+        num_pretrain_epochs: 1
   input:
     restore_model_path: null
   output:
