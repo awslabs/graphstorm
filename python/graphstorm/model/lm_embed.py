@@ -31,8 +31,8 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from .utils import (load_pytorch_embedding,
-                    save_pytorch_embedding)
+from .utils import load_pytorch_embedding, save_embeddings
+from ..utils import get_rank, get_world_size, barrier, create_dist_tensor
 from ..utils import get_rank, barrier, create_dist_tensor
 
 class LMModels(nn.Module):
@@ -259,6 +259,7 @@ class LMCache:
         for ntype in self._lm_models.ntypes:
             embed_path = os.path.join(os.path.join(self._embed_path, ntype),
                     self._get_model_name(ntype))
+            embed_path = os.path.join(embed_path, ntype)
             if os.path.exists(embed_path):
                 if get_rank() == 0:
                     logging.info("load LM embedding from %s for node type %s",
@@ -272,7 +273,7 @@ class LMCache:
         for ntype in self._lm_models.ntypes:
             embed_path = os.path.join(os.path.join(self._embed_path, ntype),
                     self._get_model_name(ntype))
-            save_pytorch_embedding(embed_path, self._lm_emb_cache[ntype], get_rank())
+            save_embeddings(embed_path, self._lm_emb_cache[ntype], get_rank(), get_world_size())
 
     def __len__(self):
         return len(self._lm_emb_cache)

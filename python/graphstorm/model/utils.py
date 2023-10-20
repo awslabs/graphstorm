@@ -500,33 +500,6 @@ def load_pytorch_embedding(emb_path, part_policy, name):
     barrier()
     return dist_emb
 
-def save_pytorch_embedding(emb_path, embedding, rank):
-    """ Save pytorch embedding
-
-        Parameters
-        ----------
-        emb_path : str
-            The path of the folder where the embeddings are saved.
-        embedding : DistTensor
-            Embedding to save
-        rank : int
-            Rank of the current process in a distributed environment.
-    """
-    os.makedirs(emb_path, exist_ok=True)
-    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
-    if rank == 0:
-        # mode 767 means rwx-rw-rwx:
-        #     - owner of the folder can read, write, and execute;
-        #     - owner' group can read, write;
-        #     - others can read, write, and execute.
-        os.chmod(emb_path, 0o767)
-
-    # make sure the emb_path permission is changed before other process start to save
-    barrier()
-
-    th.save(embedding,
-            os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
-
 def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through pytorch a distributed way
@@ -628,12 +601,15 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
-            save_pytorch_embedding(os.path.join(emb_path, name), emb, rank)
-            emb_info["emb_name"].append(name)
+            os.makedirs(os.path.join(emb_path, name), exist_ok=True)
+            th.save(emb, os.path.join(os.path.join(emb_path, name),
+                                      f'emb.part{pad_file_index(rank)}.bin'))
     else:
+        os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
         # use NTYPE
-        save_pytorch_embedding(os.path.join(emb_path, NTYPE), embeddings, rank)
+        th.save(embeddings, os.path.join(os.path.join(emb_path, NTYPE),
+                                         f'emb.part{pad_file_index(rank)}.bin'))
         emb_info["emb_name"] = NTYPE
 
     if rank == 0:
