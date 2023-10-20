@@ -255,6 +255,10 @@ node_conf = [
                 "feature_col": "data",
                 "feature_name": "feat",
             },
+            {
+                "feature_col": "data",
+                "feature_name": "feat1",
+            },
         ],
     },
     {
