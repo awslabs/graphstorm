@@ -208,8 +208,8 @@ class HGTLayer(nn.Module):
                 sub_graph = g[srctype, etype, dsttype]
 
                 # check if no edges exist for this can_etype
-                if sub_graph.num_edges() == 0:
-                    continue
+                # if sub_graph.num_edges() == 0:
+                #     continue
 
                 k_linear = self.k_linears[srctype]
                 v_linear = self.v_linears[srctype]
@@ -267,7 +267,11 @@ class HGTLayer(nn.Module):
                         trans_out = self.drop(dst_h)
                         trans_out = trans_out * alpha + dst_h * (1-alpha)
                 else:
-                    continue
+                    # Handle zero number of dst nodes, which is an extreme case
+                    if g.dstnodes[k].data.get('t') is not None:
+                        trans_out = self.a_linears[k](h[k])
+                    else:
+                        continue
 
                 if self.use_norm:
                     new_h[k] = self.norms[k](trans_out)

@@ -156,17 +156,16 @@ def test_hgt_with_zero_input(input_dim, output_dim):
                      num_heads=4)
     out = layer(block, inputs)
 
+    print(out)
+
     assert out["n0"].shape[0] == 1024
     assert out["n0"].shape[1] == output_dim
-    # assert out["n1"].shape[0] == 0
-    # assert out["n1"].shape[1] == output_dim
-    # assert out["n2"].shape[0] == 0
-    # assert out["n2"].shape[1] == output_dim
-    # assert out["n3"].shape[0] == 0
-    # assert out["n3"].shape[1] == output_dim
-    assert "n1" not in out
-    assert "n2" not in out
-    assert "n3" not in out
+    assert out["n1"].shape[0] == 0
+    assert out["n1"].shape[1] == output_dim
+    assert out["n2"].shape[0] == 0
+    assert out["n2"].shape[1] == output_dim
+    assert out["n3"].shape[0] == 0
+    assert out["n3"].shape[1] == output_dim
     assert "n4" not in out
 
 
