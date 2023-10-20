@@ -133,7 +133,8 @@ def flip_node_mask(dist_tensor, indices):
         flipped mask: dgl.distributed.DistTensor
     """
     flipped_dist_tensor = dgl.distributed.DistTensor(
-        dist_tensor.shape, dist_tensor.dtype, init_func=_init_func)
+        dist_tensor.shape, dist_tensor.dtype, init_func=_init_func,
+        part_policy=dist_tensor.part_policy)
     flipped_dist_tensor[indices] = 1 - dist_tensor[indices]
     return flipped_dist_tensor
 
