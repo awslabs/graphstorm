@@ -604,6 +604,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
             os.makedirs(os.path.join(emb_path, name), exist_ok=True)
             th.save(emb, os.path.join(os.path.join(emb_path, name),
                                       f'emb.part{pad_file_index(rank)}.bin'))
+            emb_info["emb_name"].append(name)
     else:
         os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
