@@ -494,6 +494,8 @@ def load_pytorch_embedding(emb_path, ntype, part_policy, name):
     """
     rank = get_rank()
     world_size = get_world_size()
+    if ntype is None: # homogeneous graph
+        ntype = NTYPE
     emb = th.load(os.path.join(os.path.join(emb_path, ntype),
                                f'emb.part{pad_file_index(rank)}.bin'))
     dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
