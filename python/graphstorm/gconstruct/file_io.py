@@ -20,7 +20,6 @@ from functools import partial
 import glob
 import json
 import os
-import logging
 
 import pyarrow.parquet as pq
 import pyarrow as pa
