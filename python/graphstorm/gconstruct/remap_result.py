@@ -220,6 +220,91 @@ def _get_file_range(num_files, rank, world_size):
 
     return start, end
 
+def remap_node_emb(emb_ntypes, node_emb_dir,
+                   emb_output, out_chunk_size,
+                   num_proc, rank,  world_size,
+                   with_shared_fs, preserve_input=False):
+    """ Remap node embeddings.
+
+        The function wil iterate all the node types that
+        have embeddings and spin num_proc workers
+        to do the rampping jos.
+
+        The directory storing node embeddings looks like:
+
+        Case 1: All the embeddings are saved.
+        Link prediction inference and edge prediction inference
+        will save embeddings in this format.
+
+        Example
+        --------
+        # embedddings:
+        #   ntype0:
+        #     emb.part00000.bin
+        #     emb.part00001.bin
+        #     ...
+        #   ntype1:
+        #     emb.part00000.bin
+        #     emb.part00001.bin
+        #     ...
+
+        Case 2: Only part of embeddings are saved. Node prediction inference
+        will save embeddings in this format.
+        Example
+        --------
+        # embedddings:
+        #   ntype0:
+        #     nids.part00000.bin
+        #     nids.part00001.bin
+        #     ...
+        #     emb.part00000.bin
+        #     emb.part00001.bin
+        #     ...
+        #   ntype1:
+        #     nids.part00000.bin
+        #     nids.part00001.bin
+        #     ...
+        #     emb_part00000.bin
+        #     emb_part00001.bin
+        #     ...
+
+
+        The output files will be
+
+        Example
+        --------
+        # embedddings:
+        #   ntype0:
+        #     emb_part00000_00000.parquet
+        #     emb_part00000_00001.parquet
+        #     ...
+        #   ntype1:
+        #     emb_part00000_00000.parquet
+        #     emb_part00000_00001.parquet
+        #     ...
+
+        Parameters
+        ----------
+        pred_ntypes: list of str
+            List of node types that have prediction results to be remapped。
+        pred_dir: str
+            The directory storing the prediction results.
+        output_dir: str
+            The directory storing the remapped prediction results.
+        out_chunk_size: int
+            Max number of raws per output file.
+        num_proc: int
+            Number of workers used in processing.
+        rank: int
+            The global rank of current processes.
+        world_size: int
+            The total number of processes in the cluster.
+        with_shared_fs: bool
+            Whether shared file system is avaliable
+        preserve_input: bool
+            Whether the input data should be removed.
+    """
+
 def remap_node_pred(pred_ntypes, pred_dir,
                     output_dir, out_chunk_size,
                     num_proc, rank, world_size, with_shared_fs,
@@ -489,7 +574,22 @@ def main(args, gs_config_args):
     assert out_chunk_size > 0, \
         f"Output chunk size should larger than 0 but get {out_chunk_size}."
 
-    # TODO remap embeddings
+    ################## remap embeddings #############
+    emb_ntypes = None
+    if node_emb_dir is not None:
+        if with_shared_fs:
+            assert os.path.exists(os.path.join(node_emb_dir, "emb_info.json")), \
+                f"emb_info.json must exist under {node_emb_dir}"
+            with open(os.path.join(predict_dir, "emb_info.json"),
+                    "r",  encoding='utf-8') as f:
+                info = json.load(f)
+                ntypes = info["emb_name"]
+                emb_ntypes = ntypes if isinstance(ntypes, list) else [ntypes]
+        else: # There is no shared file system
+            emb_names = os.listdir(node_emb_dir)
+            if rank == 0:
+                emb_names = [e_name for e_name in emb_names if e_name != "emb_info.json"]
+            emb_ntypes = emb_names
 
     ################## remap prediction #############
     # if pred_etypes (edges with prediction results)
@@ -515,13 +615,18 @@ def main(args, gs_config_args):
                     if "etypes" in info else None
             pred_ntypes = info["ntypes"] if "ntypes" in info else None
 
+    ntypes = []
+    if emb_ntypes is not None:
+        ntypes = emb_ntypes
+
     if pred_etypes is not None:
-        ntypes = \
+        ntypes += \
             [etype[0] for etype in pred_etypes] + \
             [etype[2] for etype in pred_etypes]
     elif pred_ntypes is not None:
-        ntypes = pred_ntypes
-    else:
+        ntypes += pred_ntypes
+
+    if len(ntypes) == 0:
         # Nothing to remap
         return
 
@@ -532,6 +637,19 @@ def main(args, gs_config_args):
             IdReverseMap(os.path.join(id_mapping_path, ntype + "_id_remap.parquet"))
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
+
+    if len(emb_ntypes) > 0:
+        emb_output = node_emb_dir
+        # We need to do ID remapping for node embeddings
+        remap_node_emb(emb_ntypes,
+                       node_emb_dir,
+                       emb_output,
+                       out_chunk_size,
+                       num_proc,
+                       rank,
+                       world_size,
+                       with_shared_fs,
+                       args.preserve_input)
 
     if len(pred_etypes) > 0:
         pred_output = predict_dir
