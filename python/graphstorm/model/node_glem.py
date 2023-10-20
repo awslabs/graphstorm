@@ -135,7 +135,7 @@ class GLEM(GSgnnNodeModelBase):
         """To access the trainable torch parameters from lm or gnn part of the model."""
         if part == 'lm':
             params = list(self.lm.decoder.parameters())
-        elif part == 'gnn':
+        else:
             params = list(self.gnn.gnn_encoder.parameters()) + list(self.gnn.decoder.parameters())
         for param_name in self.param_names_groups[part]:
             if param_name != 'sparse_embed':
