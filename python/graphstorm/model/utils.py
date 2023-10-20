@@ -512,6 +512,7 @@ def save_pytorch_embedding(emb_path, embedding, rank):
         rank : int
             Rank of the current process in a distributed environment.
     """
+    os.makedirs(emb_path, exist_ok=True)
     th.save(embedding,
             os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
 
@@ -616,11 +617,9 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
-            os.makedirs(os.path.join(emb_path, name), exist_ok=True)
             save_pytorch_embedding(os.path.join(emb_path, name), emb, rank)
             emb_info["emb_name"].append(name)
     else:
-        os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
         # use NTYPE
         save_pytorch_embedding(os.path.join(emb_path, NTYPE), embeddings, rank)
