@@ -256,9 +256,9 @@ node_conf = [
                 "feature_name": "feat",
             },
             {
-                "feature_col": "id",
-                "feature_name": "id_feat",
-            }
+                "feature_col": "data",
+                "feature_name": "feat1",
+            },
         ],
     },
     {
