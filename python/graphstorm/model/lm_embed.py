@@ -262,7 +262,7 @@ class LMCache:
                 if get_rank() == 0:
                     logging.info("load LM embedding from %s for node type %s",
                             embed_path, ntype)
-                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path, ntype,
+                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
                         self._g.get_node_partition_policy(ntype), "bert_emb")
 
     def _save_embeddings(self):
