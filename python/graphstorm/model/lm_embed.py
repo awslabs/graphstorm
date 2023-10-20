@@ -262,7 +262,7 @@ class LMCache:
                 if get_rank() == 0:
                     logging.info("load LM embedding from %s for node type %s",
                             embed_path, ntype)
-                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
+                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path, ntype,
                         self._g.get_node_partition_policy(ntype), "bert_emb")
 
     def _save_embeddings(self):
@@ -372,11 +372,11 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         Number of trainable texts. Default: 0
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static lm model. Default: 16
-    use_fp16 : bool 
+    use_fp16 : bool
         Use float16 to store LM embeddings. Default: True
     cached_embed_path : str
         The path where the LM embeddings are cached.
-    
+
     Examples:
     ----------
 
@@ -564,10 +564,10 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         lm_train_nodes=10
 
         encoder = GSLMNodeEncoderInputLayer(
-            g=np_data.g, 
+            g=np_data.g,
             node_lm_configs=node_lm_configs,
-            feat_size=feat_size, 
-            embed_size=128, 
+            feat_size=feat_size,
+            embed_size=128,
             num_train=lm_train_nodes
         )
         model.set_node_input_encoder(encoder)
