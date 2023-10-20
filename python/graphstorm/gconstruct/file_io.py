@@ -20,6 +20,7 @@ from functools import partial
 import glob
 import json
 import os
+import logging
 
 import pyarrow.parquet as pq
 import pyarrow as pa
@@ -202,6 +203,11 @@ def read_data_parquet(data_file, data_fields=None):
         assert key in df_table, f"The data field {key} does not exist in {data_file}."
         val = df_table[key]
         d = np.array(val)
+        if len(d) == 0:
+            # empty parquet file
+            logging.warning("%s has empty data of key %s: %s", data_file, key, df_table)
+            continue
+
         # For multi-dimension arrays, we split them by rows and
         # save them as objects in parquet. We need to merge them
         # together and store them in a tensor.
