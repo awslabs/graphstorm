@@ -143,7 +143,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         device = model.device
         data = train_loader.data
 
-        # turn off pl loss in the epochs when LM is frozen
+        # turn off pl loss in the epochs during the LM warmup epochs
         no_pl = freeze_input_layer_epochs > 0
         if freeze_input_layer_epochs > 0:
             self._model.lm.freeze_input_encoder(data)
@@ -158,10 +158,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             t0 = time.time()
             rt_profiler.start_record()
 
-            if freeze_input_layer_epochs <= epoch:
-                self._model.lm.unfreeze_input_encoder()
-                no_pl = False
-
             use_gnn = self._model.em_order_gnn_first
             # `use_gnn`` determines which part to train, if `em_order_gnn_first`
             # 1st round: train GNN, fix LM; 2nd round: train LM fix gnn
@@ -169,6 +165,18 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 stage_start_time = time.time()
                 part_to_train = 'gnn' if use_gnn else 'lm'
                 self._model.toggle(part_to_train)
+                if part_to_train == 'gnn' and not self._model.node_input_encoder.use_cache:
+                    # when training gnn, always freeze LM if it's not frozen
+                    # and clear the previously cached lm emb
+                    self._model.node_input_encoder.lm_emb_cache.clear_cache()
+                    self._model.lm.freeze_input_encoder(data)
+                elif part_to_train == 'lm':
+                    # when training lm, unfreeze LM if past warmup epochs
+                    if freeze_input_layer_epochs <= epoch:
+                        no_pl = False
+                        if self._model.node_input_encoder.use_cache:
+                            self._model.lm.unfreeze_input_encoder()
+
                 self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                     device, rt_profiler,
                                     epoch, total_steps, use_mini_batch_infer,

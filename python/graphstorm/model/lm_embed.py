@@ -351,6 +351,11 @@ class LMCache:
         if self._embed_path is not None:
             self._save_embeddings()
 
+    def clear_cache(self):
+        """ Delete the current LM embed cache.
+        """
+        self._lm_emb_cache = {}
+
 class GSPureLMNodeInputLayer(GSNodeInputLayer):
     """The input embedding layer with language model only for all nodes in a
     heterogeneous graph.
