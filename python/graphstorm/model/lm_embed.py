@@ -272,7 +272,6 @@ class LMCache:
         for ntype in self._lm_models.ntypes:
             embed_path = os.path.join(os.path.join(self._embed_path, ntype),
                     self._get_model_name(ntype))
-
             save_pytorch_embedding(embed_path, self._lm_emb_cache[ntype], get_rank())
 
     def __len__(self):

@@ -512,6 +512,17 @@ def save_pytorch_embedding(emb_path, embedding, rank):
         rank : int
             Rank of the current process in a distributed environment.
     """
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(emb_path, 0o767)
+
+    # make sure the emb_path permission is changed before other process start to save
+    barrier()
+
     os.makedirs(emb_path, exist_ok=True)
     th.save(embedding,
             os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
