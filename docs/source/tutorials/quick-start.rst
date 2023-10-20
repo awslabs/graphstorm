@@ -112,7 +112,7 @@ This inference command predicts the classes of nodes in the testing set and save
 
 Generating Embedding
 ------------------------
-If users only need to generate node embeddings instead of doing predictions on the graph, users can use saved model and the same yaml configure file used in training to achieve that with the ``gs_gen_node_embedding`` command:
+If users only need to generate node embeddings instead of doing predictions on the graph, users can use saved model and the same yaml configuration file used in training to achieve that with the ``gs_gen_node_embedding`` command:
 .. code-block:: bash
 
     python3 -m graphstorm.run.gs_gen_node_embedding \
@@ -126,13 +126,13 @@ If users only need to generate node embeddings instead of doing predictions on t
                --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
                --use-mini-batch-infer true
 
-Users need to specify ``--restore-model-path`` and ``--save-embed-path`` when using the command above to generate node embeddings, and the node embeddings will be saved into the save-embed path.
+Users need to specify ``--restore-model-path`` and ``--save-embed-path`` when using the command above to generate node embeddings, and the node embeddings will be saved into the ``--save-embed-path``.
 
-For node classification/regression task, if ``target_ntype`` is provided, the command will generate and save node embeddings on ``target_ntype``, otherwise it will generate embeddings of all node types.
+For node classification/regression task, if ``target_ntype`` is provided, the command will generate and save node embeddings on ``target_ntype``, otherwise it will generate embeddings for all node types.
 
-For edge classification/regression task, it ``target_etype`` is provided, the command will generate and save node embeddings on source and destination node types defined in the ``target_etype``, otherwise it will generate embeddings of all node types.
+For edge classification/regression task, it ``target_etype`` is provided, the command will generate and save node embeddings on source and destination node types defined in the ``target_etype``, otherwise it will generate embeddings for all node types.
 
-For link prediction task, it will generate and save node embeddings of all node types.
+For link prediction task, it will generate and save node embeddings for all node types.
 
 The saved result will be like:
 
