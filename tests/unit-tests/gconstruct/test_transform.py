@@ -694,7 +694,7 @@ def test_bucket_transform(out_dtype):
 
     # Edge case for large sliding window
     bucket_range = [10, 30]
-    transform = BucketTransform("test", "test", 2,
+    transform = BucketTransform("test", "test", 3,
                                 bucket_range=bucket_range, slide_window_size=20,
                                 out_dtype=out_dtype)
     feats = np.array([1, 10, 20, 30])
@@ -704,7 +704,7 @@ def test_bucket_transform(out_dtype):
     else:
         assert bucket_feats['test'].dtype == np.float32
 
-    feats_tar = np.array([[1, 0], [1, 1], [1, 1], [0, 1]], dtype=out_dtype)
+    feats_tar = np.array([[1, 0, 0], [1, 1, 0], [1, 1, 1], [0, 1, 1]], dtype=out_dtype)
     assert_equal(bucket_feats['test'], feats_tar)
 
     # Edge case for super large sliding window
