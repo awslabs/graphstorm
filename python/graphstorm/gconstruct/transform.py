@@ -332,6 +332,83 @@ class TwoPhaseFeatTransform(FeatTransform):
     def call(self, feats):
         raise NotImplementedError
 
+class BucketTransform(FeatTransform):
+    """ Convert the numerical value into buckets.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    bucket_cnt: num:
+        The count of bucket lists used in the bucket feature transform
+    bucket_range: list[num]:
+        The range of bucket lists only defining the start and end point
+    slide_window_size: int
+        interval or range within which numeric values are grouped into buckets
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    """
+    def __init__(self, col_name, feat_name, bucket_cnt,
+                 bucket_range, slide_window_size=0, out_dtype=None):
+        assert bucket_cnt is not None, \
+            "bucket count must be provided for bucket feature transform"
+        assert bucket_range is not None and len(bucket_range) == 2, \
+            "bucket range must be provided for bucket feature transform"
+        self.bucket_cnt = bucket_cnt
+        self.bucket_range = bucket_range
+        self.slide_window_size = slide_window_size
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(BucketTransform, self).__init__(col_name, feat_name, out_dtype)
+
+    def call(self, feats):
+        """ This transforms the features.
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The numerical feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+                f"The feature {self.feat_name} has to be NumPy array " \
+                f"within numerical value."
+        if isinstance(feats, ExtMemArrayWrapper):
+            feats = feats.to_numpy()
+        assert np.issubdtype(feats.dtype, np.integer) \
+                or np.issubdtype(feats.dtype, np.floating), \
+                f"The feature {self.feat_name} has to be integers or floats."
+
+        encoding = np.zeros((len(feats), self.bucket_cnt), dtype=np.int8)
+        max_val = max(self.bucket_range)
+        min_val = min(self.bucket_range)
+        bucket_size = (max_val - min_val) / self.bucket_cnt
+        for i, f in enumerate(feats):
+            high_val = min(f + (self.slide_window_size / 2), max_val)
+            low_val = max(f - (self.slide_window_size / 2), min_val)
+
+            # Determine upper and lower bucket membership
+            low_val -= min_val
+            high_val -= min_val
+            low_idx = max(low_val // bucket_size, 0)
+            high_idx = min(high_val // bucket_size + 1, self.bucket_cnt)
+
+            idx = np.arange(start=low_idx, stop=high_idx, dtype=int)
+            encoding[i][idx] = 1.0
+
+            # Avoid edge case not in bucket
+            if f >= max_val:
+                encoding[i][-1] = 1.0
+            if f <= min_val:
+                encoding[i][0] = 1.0
+
+        return {self.feat_name: encoding}
+
 class CategoricalTransform(TwoPhaseFeatTransform):
     """ Convert the data into categorical values.
 
@@ -928,6 +1005,23 @@ def parse_feat_ops(confs):
                 separator = conf['separator'] if 'separator' in conf else None
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator, transform_conf=conf)
+            elif conf['name'] == 'bucket_numerical':
+                assert 'bucket_cnt' in conf, \
+                    "It is required to count of bucket information for bucket feature transform"
+                assert 'range' in conf, \
+                    "It is required to provide range information for bucket feature transform"
+                bucket_cnt = conf['bucket_cnt']
+                bucket_range = conf['range']
+                if 'slide_window_size' in conf:
+                    slide_window_size = conf['slide_window_size']
+                else:
+                    slide_window_size = 0
+                transform = BucketTransform(feat['feature_col'],
+                                               feat_name,
+                                               bucket_cnt=bucket_cnt,
+                                               bucket_range=bucket_range,
+                                               slide_window_size=slide_window_size,
+                                               out_dtype=out_dtype)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
