@@ -228,8 +228,7 @@ class RelGraphConvLayer(nn.Module):
 
         def _apply(ntype, h):
             if self.self_loop:
-                h = h + inputs_dst[ntype]
-                h = th.matmul(h, self.loop_weight)
+                h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
                 h = h + self.h_bias
             if self.norm:
