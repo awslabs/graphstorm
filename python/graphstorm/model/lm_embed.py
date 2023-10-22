@@ -258,7 +258,6 @@ class LMCache:
         for ntype in self._lm_models.ntypes:
             embed_path = os.path.join(os.path.join(self._embed_path, ntype),
                     self._get_model_name(ntype))
-            embed_path = os.path.join(embed_path, ntype)
             if os.path.exists(embed_path):
                 if get_rank() == 0:
                     logging.info("load LM embedding from %s for node type %s",
