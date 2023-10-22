@@ -508,6 +508,7 @@ def test_lm_embed_warmup(dev):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+@pytest.mark.parametrize("num_embs", [100, 99])
 def test_pytroch_emb_load_save(num_embs):
     with tempfile.TemporaryDirectory() as tmpdirname:
         emb = th.rand(num_embs, 10)
