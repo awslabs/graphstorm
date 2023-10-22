@@ -488,6 +488,7 @@ def save_pytorch_embedding(emb_path, embedding, rank, world_size):
         world_size : int
             World size in a distributed env.
     """
+    os.makedirs(emb_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
     if rank == 0:
         # mode 767 means rwx-rw-rwx:
