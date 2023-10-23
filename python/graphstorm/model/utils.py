@@ -505,7 +505,7 @@ def save_pytorch_embedding(emb_path, embedding, rank, world_size):
     assert isinstance(embedding, (dgl.distributed.DistTensor, LazyDistTensor)), \
         "Input embedding must be a dgl.distributed.DistTensor or a LazyDistTensor"
 
-    start, end = _get_data_range(rank, world_size, len(embedding))
+    start, end = get_data_range(rank, world_size, len(embedding))
     embedding = embedding[start:end]
     th.save(embedding, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
 
@@ -530,7 +530,7 @@ def load_pytorch_embedding(emb_path, part_policy, name):
     emb = th.load(os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
     dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
             name=name, part_policy=part_policy)
-    start, end = _get_data_range(rank, world_size, len(dist_emb))
+    start, end = get_data_range(rank, world_size, len(dist_emb))
     dist_emb[start:end] = emb
     barrier()
     return dist_emb
