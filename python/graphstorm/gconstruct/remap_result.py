@@ -243,10 +243,10 @@ def remap_edge_pred(pred_etypes, pred_dir,
 
         num_parts = len(pred_files)
         logging.debug("%s has %d embedding files", etype, num_parts)
-        assert len(src_nid_file) == len(pred_files), \
+        assert len(src_nid_files) == len(pred_files), \
             "Expect the number of source nid files equal to " \
             "the number of prediction result files, but get " \
-            f"{len(src_nid_file)} and {len(pred_files)}"
+            f"{len(src_nid_files)} and {len(pred_files)}"
         assert len(dst_nid_files) == len(pred_files), \
             "Expect the number of destination nid files equal to " \
             "the number of prediction result files, but get " \
