@@ -33,6 +33,7 @@ from ..model.utils import pad_file_index
 from .file_io import write_data_parquet
 from .id_map import IdReverseMap
 from ..utils import get_log_level
+from .utils import multiprocessing_exec_no_return as multiprocessing_remap
 
 from ..config import (GSConfig,
                       get_argument_parser,
@@ -41,6 +42,13 @@ from ..config import (GSConfig,
                       BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION)
 
+# Id_maps is a global variable.
+# When using multi-processing to do id remap,
+# we do not want to pass id_maps to each worker process
+# through argument which uses Python pickle to copy
+# data. By making id_maps as a global variable, we
+# can rely on Linux copy-on-write to provide a zero-copy
+# id_maps to each worker process.
 id_maps = {}
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
@@ -72,79 +80,39 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nids = th.load(dst_nid_path).numpy()
     src_id_map = id_maps[src_type]
     dst_id_map = id_maps[dst_type]
-    num_chunks = math.ceil(len(pred_result) / chunk_size)
-    for i in range(num_chunks):
-        output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
-
-        start = i * chunk_size
-        end = (i + 1) * chunk_size if i + 1 < chunk_size else len(pred_result)
-        pred = pred_result[start:end]
-        src_nid = src_id_map.map_id(src_nids[start:end])
-        dst_nid = dst_id_map.map_id(dst_nids[start:end])
+    if chunk_size == -1:
+        # Do not split output into multiple files.
+        output_fname = f"{output_fname_prefix}_{pad_file_index(0)}.parquet"
+        pred = pred_result
+        src_nid = src_id_map.map_id(src_nids)
+        dst_nid = dst_id_map.map_id(dst_nids)
         data = {"pred": pred,
                 "src_nid": src_nid,
                 "dst_nid": dst_nid}
 
         write_data_parquet(data, output_fname)
+    else:
+        # Split output into multiple files.
+        # Each file will have maximum chunk size rows.
+        num_chunks = math.ceil(len(pred_result) / chunk_size)
+        for i in range(num_chunks):
+            output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
+
+            start = i * chunk_size
+            end = (i + 1) * chunk_size if i + 1 < chunk_size else len(pred_result)
+            pred = pred_result[start:end]
+            src_nid = src_id_map.map_id(src_nids[start:end])
+            dst_nid = dst_id_map.map_id(dst_nids[start:end])
+            data = {"pred": pred,
+                    "src_nid": src_nid,
+                    "dst_nid": dst_nid}
+
+            write_data_parquet(data, output_fname)
 
     if preserve_input is False:
         os.remove(pred_file_path)
         os.remove(src_nid_path)
         os.remove(dst_nid_path)
-
-def worker_fn(worker_id, task_queue, func):
-    """ Process remap tasks with multiprocessing
-
-        Parameters
-        ----------
-        worker_id: int
-            Worker id.
-        task_queue: Queue
-            Task queue.
-        func: function
-            Function to be executed.
-    """
-    try:
-        while True:
-            # If the queue is empty, it will raise the Empty exception.
-            idx, task_args = task_queue.get_nowait()
-            logging.debug("worker %d Processing %s task", worker_id, idx)
-            func(**task_args)
-    except queue.Empty:
-        pass
-
-def multiprocessing_remap(tasks, num_proc, remap_func):
-    """ Do multi-processing remap
-
-        Parameters
-        ----------
-        task: list
-            List of remap tasks.
-        num_proc: int
-            Number of workers to spin up.
-        remap_func: func
-            Reampping function
-    """
-    if num_proc > 1 and len(tasks) > 1:
-        if num_proc > len(tasks):
-            num_proc = len(tasks)
-        processes = []
-        manager = multiprocessing.Manager()
-        task_queue = manager.Queue()
-        for i, task in enumerate(tasks):
-            task_queue.put((i, task))
-
-        for i in range(num_proc):
-            proc = Process(target=worker_fn, args=(i, task_queue, remap_func))
-            proc.start()
-            processes.append(proc)
-
-        for proc in processes:
-            proc.join()
-    else:
-        for i, task_args in enumerate(tasks):
-            logging.debug("worker 0 Processing %s task", i)
-            remap_func(**task_args)
 
 def _get_file_range(num_files, rank, world_size):
     """ Get the range of files to process by the current instance.
@@ -363,8 +331,8 @@ def main(args, gs_config_args):
     assert rank < world_size, \
         f"Expecting {world_size} workers but the worker ID is {rank}."
     out_chunk_size = args.output_chunk_size
-    assert out_chunk_size > 0, \
-        f"Output chunk size should larger than 0 but get {out_chunk_size}."
+    assert out_chunk_size > -1, \
+        f"Output chunk size should larger than -1 but get {out_chunk_size}."
 
     # if pred_etypes (edges with prediction results)
     # is not None, We need to remap edge prediction results.
@@ -472,7 +440,7 @@ def generate_parser():
                                 "--pred-etypes user,rate,movie user,watch,movie"
                                 "If pred_etypes is not provided, result_info.json "
                                 "under prediction_dir will be used to retrive the pred_etypes")
-    group.add_argument("--output-chunk-size", type=int, default=100000,
+    group.add_argument("--output-chunk-size", type=int, default=-1,
                        help="Number of rows per output file.")
     group.add_argument("--preserve-input",
                        type=lambda x: (str(x).lower() in ['true', '1']),default=False,
