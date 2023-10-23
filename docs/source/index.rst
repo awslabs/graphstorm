@@ -82,7 +82,7 @@ Advanced Topics
 --------------------
 
 - For users who want to use their own GML models in GraphStorm, follow the :ref:`Use Your Own GNN Models<use-own-models>` tutorial to learn the programming interfaces and the steps of how to modify users' own models.
-- For users who want to use text as node features, follow the :ref:`Use Text as Node Features<language_models>` tutorial to learn how to leverage BERT models to use text as node features in GraphStorm.
+- For users who want to leverage language models on nodes with text features, follow the :ref:`Use Language Model in GraphStorm<language_models>` tutorial to learn how to leverage BERT models to use text as node features in GraphStorm.
 - There are various usages of GraphStorm to both speed up training process and help to boost model performance. Users can find these usages in the :ref:`Advanced Usages<advanced_usages>` page.
 
 Contribution

@@ -1,14 +1,31 @@
 .. _language_models:
 
-Use Text as Node Features
-=============================
-Many real world graphs have text contents as nodes' features, e.g., the title and description of a product, and the questions and comments from users. To leverage these text contents, GraphStorm supports language models (LMs), i.e., HuggingFace BERT models, to embed text contents and use these embeddings in Graph models' training and inference.
+Use Language Model in GraphStorm
+==================================
+Many real world graphs have text contents as nodes' features, e.g., the title and description of a product, and the questions and comments from users. To leverage these text contents, GraphStorm supports language models (LMs), i.e., HuggingFace BERT models, to embed text contents and use these embeddings for various Graph Machine Learning tasks.
 
-There are two modes of using LMs in GraphStorm:
+There are a set of modes to use LMs in GraphStorm.
 
-* Embed text contents with pre-trained LMs, and then use them as the input node features, without fine-tuning the LMs. Training speed in this mode is fast, and memory consumption will be lower. However, in some cases, pre-trained LMs may not fit to the graph data well, and fail to improve performance.
+#. Use Pre-trained LMs only without fine-tuning
+    In this mode, users can embed text contents with pre-trained LMs, and then use them as the input node features to train GNN models, but do not fine-tune the LMs. Model training speed in this mode is fast, and memory consumption will be lower. However, in some cases, pre-trained LMs may not fit to the graph data well, hence not improving performance.
 
-* Co-train both LMs and GML models in the same training loop. This will fine-tune the LMs to fit to graph data. In many cases this mode can improve performance, but co-train the LMs will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.
+#. Fine-tune LMs on graph data
+
+    To achieve better performance, it is better to fine-tune LMs with graph data. To achieve this goal, GraphStorm provides three training strategies.
+
+    * Fine-tune LMs only
+
+    In this mode, users can fine-tune LMs relying on labels at graph data, e.g. labels of node/edge or positive/negative edges for link prediction. In this mode, there is no GNN models involved, which means the final performance depends on nodes' features (including text features) only without using graph information. Using this mode may not achieve the best performance, but could pave the way of other modes, e.g. two-step co-training.
+
+    * Two-step co-training manually
+
+    In this mode, users can train both LMs and GNNs in two steps. The first step is similar as the Fine-tune LMs only, and the fine-tuned LMs are saved. In the second step, GraphStorm loads the saved LMs, computes embeddings on text features, and then use them to as input to train GNN models. In this mode, users have the options to fine-tune LMs on the GML tasks different from GNN models. For example, the fine-tuning could happen on a link prediction task, and the trained LMs could be used by GNN models for node classification.
+
+    * Co-train LMs and GNN
+
+    Co-train both LMs and GML models in the same training loop. This will fine-tune the LMs to fit to graph data. In many cases this mode can improve performance, but co-train the LMs will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.
+
+    * Auto Two-step co-trainig (GLEM)
 
 To use LMs in GraphStorm, users can follow the same procedure as the :ref:`Use Your Own Data<use-own-data>` tutorial with some minor changes.
 

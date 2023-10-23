@@ -51,6 +51,11 @@ def create_acm_raw_data(graph,
     ----------
     graph : DGL heterogeneous graph
         The generated dgl.heterograph object.
+    text_feat: dict
+        The raw text of "paper", "author", and "subject" nodes.
+            For "paper" nodes, the text is paper's title plus abstract;
+            For "author" nodes, the text is author's full name;
+            For "subject" nodes, the text is the ACM's subject code, e.g., "A.0".
     output_path: str
         The folder path to save output files
 
@@ -260,6 +265,17 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
     -------
     graph_acm: DGL graph
         Return the generated DGL graph, and save it to the given output_path
+        - The graph has three types of nodes, "paper", "author", and "subject", and six types of
+        edges, including reversed edge types. 
+        - Each node have a 256 dimension random feature, and raw text, which is stored in the
+        text_feat dictionary.
+        - For "paper" nodes, each has a label that is the category of a paper, coming from the
+        PvsC relation. There are total 14 classes for paper nodes.
+    text_feat: dict
+        The raw text of "paper", "author", and "subject" nodes.
+            For "paper" nodes, the text is paper's title plus abstract;
+            For "author" nodes, the text is author's full name;
+            For "subject" nodes, the text is the ACM's subject code, e.g., "A.0".
     """
     if not os.path.exists(dowload_path):
         data_url = 'https://data.dgl.ai/dataset/ACM.mat'
