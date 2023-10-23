@@ -277,8 +277,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         return return_dict
 
 def worker_fn_no_return(worker_id, task_queue, func):
-    """ Process tasks with multiprocessing
-        without return value(s).
+    """ Process tasks in the task_queue with multiprocessing
+        without returning any value.
 
         Parameters
         ----------
@@ -300,7 +300,7 @@ def worker_fn_no_return(worker_id, task_queue, func):
 
 def multiprocessing_exec_no_return(tasks, num_proc, exec_func):
     """ Do multi-processing execution without
-        return results
+        returning any value.
 
         Each worker process will call exec_func
         independently.
