@@ -1082,16 +1082,21 @@ def process_features(data, ops):
     """
     new_data = {}
     for op in ops:
-        res = op(data[op.col_name])
-        assert isinstance(res, dict)
-        for key, val in res.items():
-            # Check if has 1D features. If yes, convert to 2D features
-            if len(val.shape) == 1:
-                if isinstance(val, ExtMemArrayWrapper):
-                    val = val.to_numpy().reshape(-1, 1)
-                else:
-                    val = val.reshape(-1, 1)
-            new_data[key] = val
+        if isinstance(op.col_name, str):
+            col_name = [op.col_name]
+        else:
+            col_name = op.col_name
+        for col in col_name:
+            res = op(data[col])
+            assert isinstance(res, dict)
+            for key, val in res.items():
+                # Check if has 1D features. If yes, convert to 2D features
+                if len(val.shape) == 1:
+                    if isinstance(val, ExtMemArrayWrapper):
+                        val = val.to_numpy().reshape(-1, 1)
+                    else:
+                        val = val.reshape(-1, 1)
+                new_data[key] = val
     return new_data
 
 def get_valid_label_index(label):
