@@ -1096,6 +1096,8 @@ def process_features(data, ops):
                         val = val.to_numpy().reshape(-1, 1)
                     else:
                         val = val.reshape(-1, 1)
+                if key in new_data:
+                    val = np.column_stack((new_data[key], val))
                 new_data[key] = val
     return new_data
 
