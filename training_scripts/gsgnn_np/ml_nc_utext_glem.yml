@@ -24,13 +24,14 @@ gsf:
     fanout: "4"
     num_layers: 1
     hidden_size: 128
-    use_mini_batch_infer: true    
+    use_mini_batch_infer: false
     training_method:
       name: glem
       kwargs:
         em_order_gnn_first: false
         inference_using_gnn: true
         pl_weight: 0.5
+        num_pretrain_epochs: 1
   input:
     restore_model_path: null
   output:
