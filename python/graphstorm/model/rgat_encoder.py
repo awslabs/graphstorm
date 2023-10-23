@@ -195,10 +195,12 @@ class RelationalAttLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    logging.warning("Graph convolution returns empty dict for node of %s.", k)
-                    for _, in_v in inputs_src.items():
-                        device = in_v.device
-                    hs[k] = th.zeros((g.number_of_dst_nodes(k), self.out_feat), device=device)
+                    logging.warning("Warning. Graph convolution returned empty " + \
+                          f"dictionary for node with type: {str(k)}. Pleaes check your data" + \
+                          f" for no in-degree {str(k)} nodes.")
+                    hs[k] = th.zeros((g.number_of_dst_nodes(k),
+                                      self.out_feat),
+                                     device=inputs[k].device)
                     # TODO the above might fail if the device is a different GPU
                 else:
                     hs[k] = hs[k].view(hs[k].shape[0], hs[k].shape[1] * hs[k].shape[2])
