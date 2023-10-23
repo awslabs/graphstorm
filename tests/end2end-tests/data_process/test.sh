@@ -71,3 +71,42 @@ error_and_exit $?
 python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf --graph-format DGL
 
 python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format DistDGL --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf
+
+echo "********* Test the remap edge predictions *********"
+python3 $GS_HOME/tests/end2end-tests/data_process/gen_edge_predict_remap_test.py --output /tmp/ep_remap/
+
+# Test remap edge prediction results
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/pred/ --rank 0 --world-size 2
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/pred/ --rank 1 --world-size 2
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/ep_remap/pred/
+
+error_and_exit $?
+
+mkdir /tmp/ep_remap/pred/0/
+mkdir /tmp/ep_remap/pred/1/
+mkdir /tmp/ep_remap/pred/0/n0_access_n1/
+mkdir /tmp/ep_remap/pred/1/n0_access_n1/
+mkdir /tmp/ep_remap/pred/0/n1_access_n0/
+mkdir /tmp/ep_remap/pred/1/n1_access_n0/
+cp -r /tmp/ep_remap/pred/n0_access_n1/*0.pt /tmp/ep_remap/pred/0/n0_access_n1/
+cp -r /tmp/ep_remap/pred/n0_access_n1/*1.pt /tmp/ep_remap/pred/1/n0_access_n1/
+cp -r /tmp/ep_remap/pred/n1_access_n0/*0.pt /tmp/ep_remap/pred/0/n1_access_n0/
+cp -r /tmp/ep_remap/pred/n1_access_n0/*1.pt /tmp/ep_remap/pred/1/n1_access_n0/
+
+# Test remap edge prediction results
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/pred/0/ --rank 0 --world-size 2 --with-shared-fs False
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/pred/1/ --rank 1 --world-size 2 --with-shared-fs False
+error_and_exit $?
+
+mkdir /tmp/ep_remap/pred/no-share/
+cp -r /tmp/ep_remap/pred/0/* /tmp/ep_remap/pred/no-share/
+cp -r /tmp/ep_remap/pred/1/* /tmp/ep_remap/pred/no-share/
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/ep_remap/pred/no-share/
+error_and_exit $?

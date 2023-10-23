@@ -286,7 +286,7 @@ def save_relation_embeddings(emb_path, decoder):
         json.dump(et2id_map, f, ensure_ascii=False, indent=4)
     th.save(relembs, os.path.join(emb_path, "rel_emb.pt"))
 
-def _get_data_range(rank, world_size, num_embs):
+def get_data_range(rank, world_size, num_embs):
     """ save_embeddings will evenly split node embeddings across all
         the workers to save. This function returns the data range according
         to the current worker rank and the total number of nodes (embeddings).
@@ -346,7 +346,7 @@ def _exchange_node_id_mapping(rank, world_size, device,
     if rank == 0:
         data_tensors = []
         for i in range(world_size):
-            start_idx, end_idx = _get_data_range(i, world_size, num_embs)
+            start_idx, end_idx = get_data_range(i, world_size, num_embs)
             data_tensors.append(
                 node_id_mapping[start_idx:end_idx].to(device))
     else:
@@ -355,7 +355,7 @@ def _exchange_node_id_mapping(rank, world_size, device,
                                     device=device) \
             for _ in range(world_size)]
 
-    start_idx, end_idx = _get_data_range(rank, world_size, num_embs)
+    start_idx, end_idx = get_data_range(rank, world_size, num_embs)
     gather_list = \
         [th.empty((end_idx-start_idx,),
                     dtype=th.long,
@@ -459,7 +459,7 @@ def remap_embeddings(embeddings, rank, world_size,
             node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-        start, end = _get_data_range(rank, world_size, len(embeddings))
+        start, end = get_data_range(rank, world_size, len(embeddings))
         embeddings[list(range(start, end))] = embeddings[nid_mapping]
     elif isinstance(embeddings, dict):
         # We need to duplicate the dict so that the input argument is not changed.
@@ -467,7 +467,7 @@ def remap_embeddings(embeddings, rank, world_size,
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 # this is the same window as nid_mapping
-                start, end = _get_data_range(rank, world_size, len(emb))
+                start, end = get_data_range(rank, world_size, len(emb))
                 # we need to keep emb to be dist tensor unchanged
                 emb[th.arange(start, end)] = emb[nid_mapping[name]]
             barrier()
@@ -505,7 +505,7 @@ def save_pytorch_embedding(emb_path, embedding, rank, world_size):
     assert isinstance(embedding, (dgl.distributed.DistTensor, LazyDistTensor)), \
         "Input embedding must be a dgl.distributed.DistTensor or a LazyDistTensor"
 
-    start, end = _get_data_range(rank, world_size, len(embedding))
+    start, end = get_data_range(rank, world_size, len(embedding))
     embedding = embedding[start:end]
     th.save(embedding, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
 
@@ -530,7 +530,7 @@ def load_pytorch_embedding(emb_path, part_policy, name):
     emb = th.load(os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
     dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
             name=name, part_policy=part_policy)
-    start, end = _get_data_range(rank, world_size, len(dist_emb))
+    start, end = get_data_range(rank, world_size, len(dist_emb))
     dist_emb[start:end] = emb
     barrier()
     return dist_emb
@@ -611,7 +611,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         if nid_mapping is None:
-            start, end = _get_data_range(rank, world_size, len(embeddings))
+            start, end = get_data_range(rank, world_size, len(embeddings))
             embeddings = embeddings[start:end]
         else:
             embeddings = embeddings[nid_mapping]
@@ -621,7 +621,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 if nid_mapping is None:
-                    start, end = _get_data_range(rank, world_size, len(emb))
+                    start, end = get_data_range(rank, world_size, len(emb))
                     emb = emb[start:end]
                 else:
                     emb = emb[nid_mapping[name]]
@@ -630,7 +630,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     emb_info = {
         "format": "pytorch",
         "emb_name":[],
-        "world_size":world_size
+        "world_size": world_size
     }
 
     if isinstance(embeddings, dict):

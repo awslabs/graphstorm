@@ -36,6 +36,7 @@ def main():
     if args.inference:
         cmd = "gsgnn_ep/ep_infer_lm.py" if args.lm_encoder_only \
             else "gsgnn_ep/ep_infer_gnn.py"
+        args.do_nid_remap = True
     else:
         cmd = "gsgnn_ep/gsgnn_lm_ep.py" if args.lm_encoder_only \
             else "gsgnn_ep/gsgnn_ep.py"
