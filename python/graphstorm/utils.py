@@ -31,7 +31,7 @@ TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 
 def setup_device(local_rank):
     r"""Setup computation device.
-    
+
     Parameters
     -----------
     local_rank: int

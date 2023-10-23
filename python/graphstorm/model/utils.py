@@ -474,6 +474,41 @@ def remap_embeddings(embeddings, rank, world_size,
 
     return embeddings
 
+def save_pytorch_embedding(emb_path, embedding, rank, world_size):
+    """ Save Dist embedding tensor in Pytorch format.
+
+        Parameters
+        ----------
+        emb_path : str
+            The path of the save embedding files.
+        embedding : DistTensor
+            The Dist tensor to save.
+        rank : int
+            Rank of the current process in a distributed environment.
+        world_size : int
+            World size in a distributed env.
+    """
+    os.makedirs(emb_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(emb_path, 0o767)
+
+    # make sure the emb_path permission is changed before other process start to save
+    barrier()
+
+    assert rank < world_size
+
+    assert isinstance(embedding, (dgl.distributed.DistTensor, LazyDistTensor)), \
+        "Input embedding must be a dgl.distributed.DistTensor or a LazyDistTensor"
+
+    start, end = _get_data_range(rank, world_size, len(embedding))
+    embedding = embedding[start:end]
+    th.save(embedding, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
+
 def load_pytorch_embedding(emb_path, part_policy, name):
     """ Load embedding tensor in Pytorch format.
 
