@@ -498,8 +498,9 @@ def main(args, gs_config_args):
         # --pred-ntypes or --pred-etypes instead.
         #
         # In case when both --pred-ntypes or --pred-etypes
-        # are provided while result_info.json is also avaliable
-        # GraphStorm remaping to follow --pred-ntypes or --pred-etypes
+        # are provided while result_info.json is also avaliable,
+        # GraphStorm remaping will follow --pred-ntypes or --pred-etypes
+        # and ignore the result_info.json.
         if os.path.exists(os.path.join(predict_dir, "result_info.json")):
             # User does not provide pred_etypes.
             # Try to get it from saved prediction config.
