@@ -71,7 +71,7 @@ objects:
      },
      "source": {"column": "String", "type": "String"},
      "relation": {"type": "String"},
-     "destination": {"column": "String", "type": "String"},
+     "dest": {"column": "String", "type": "String"},
      "labels" : [
             {
                 "column": "String",
