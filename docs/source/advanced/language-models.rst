@@ -11,7 +11,7 @@ There are a set of modes to use LMs in GraphStorm.
 
 #. Fine-tune LMs on graph data
 
-    To achieve better performance, it is better to fine-tune LMs with graph data. To achieve this goal, GraphStorm provides three training strategies.
+    To achieve better performance, it is better to fine-tune LMs with graph data. To achieve this goal, GraphStorm provides four training strategies.
 
     * Fine-tune LMs only
 
@@ -19,20 +19,17 @@ There are a set of modes to use LMs in GraphStorm.
 
     * Two-step co-training manually
 
-    In this mode, users can train both LMs and GNNs in two steps. The first step is similar as the Fine-tune LMs only, and the fine-tuned LMs are saved. In the second step, GraphStorm loads the saved LMs, computes embeddings on text features, and then use them to as input to train GNN models. In this mode, users have the options to fine-tune LMs on the GML tasks different from GNN models. For example, the fine-tuning could happen on a link prediction task, and the trained LMs could be used by GNN models for node classification.
-
-    * Co-train LMs and GNN
-
-    Co-train both LMs and GML models in the same training loop. This will fine-tune the LMs to fit to graph data. In many cases this mode can improve performance, but co-train the LMs will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.
+    In this mode, users can train both LMs and GNNs in two steps. The first step is similar as the Fine-tune LMs only mode, and the fine-tuned LMs are saved. In the second step, GraphStorm loads the saved LMs, computes embeddings on text features, and then use them to as input to train GNN models. In this mode, users have the options to fine-tune LMs on the GML tasks different from GNN models. For example, the fine-tuning could be done on a link prediction task, and the trained LMs then could be used by GNN models for node classification tasks.
 
     * Auto Two-step co-trainig (GLEM)
 
-To use LMs in GraphStorm, users can follow the same procedure as the :ref:`Use Your Own Data<use-own-data>` tutorial with some minor changes.
+    GraphStorm currently provdies an experimental feature based on `GLEM <https://arxiv.org/abs/2210.14709>`_, which trains LM and GNN models iteratively for node classification. In this mode, GLEM automatically conducts the two step co-training iteratively. Under certain prerequsites, this mode can achieve good performance on node classification.
 
-* Step 1. Prepare raw data to include texts as node data;
-* Step 2. Use GraphStorm graph construction tools to tokenize texts and set tokens as node features;
-* Step 3. Configure GraphStorm to use LMs to embed tokenized texts as input node features; and
-* Step 4. If need, configure GraphStorm to co-train LM and GNN models.
+    * Co-train LMs and GNN
+
+    In this mode, LMs and GML models are co-train in the same training epoch simultaneousely, which will better fit the LMs and GNN models to graph data. However, co-train LMs and GNN models will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.
+
+This tutorial will help users to learn how to use GraphStorm for all of the above modes. Given that using language models on text could take longer time than general GNN training, this tutorial uses a relatively small demo graph. Users can follow the `GraphStorm MAG example <https://github.com/awslabs/graphstorm/tree/main/examples/mag>`_ for GraphStorm's performance of large texture graphs.
 
 .. Note::
 
@@ -40,9 +37,10 @@ To use LMs in GraphStorm, users can follow the same procedure as the :ref:`Use Y
 
     If you :ref:`set up the GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
 
-Prepare Raw Data
-------------------
-This tutorial will use the same ACM data as the :ref:`Use Your Own Data<use-own-data>` tutorial to demonstrate how to prepare text as node features.
+Prepare Text Graph Data
+------------------------
+
+This tutorial will use the same ACM data as the :ref:`Use Your Own Data<use-own-data>` tutorial but add text data as node features.
 
 First go the ``/graphstorm/examples/`` folder.
 
@@ -56,7 +54,9 @@ Then run the command to create the ACM data with the required ``raw_w_text`` for
     
     python3 -m /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw --output-type raw_w_text
 
-Once successful, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder ,similar to the :ref:`outputs<acm-raw-data-output>` in the :ref:`Use Your Own Data<use-own-data>` tutorial. But the contents of the ``config.json`` file have a few extra lines that list the text feature columns and specify how they should be processed during graph contruction. 
+Once successful, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder, similar to the :ref:`outputs<acm-raw-data-output>` in the :ref:`Use Your Own Data<use-own-data>` tutorial except that there is one new column, called "text", in node data files as demonstrated in the figure below.
+
+But the contents of the ``config.json`` file have a few extra lines that list the text feature columns and specify how they should be processed during graph contruction. 
 
 The following snippet shows the information of ``author`` nodes. It indicates that the "**text**" column contains text features, and it require the GraphStorm's graph contruction tool to use a `HuggingFace BERT model <https://huggingface.co/models>`_ named ``bert-base-uncased`` to tokenize these text features during construction.
 
