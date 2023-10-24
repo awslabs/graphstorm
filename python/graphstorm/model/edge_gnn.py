@@ -190,7 +190,6 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     if is_distributed():
         th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
         max_num_batch = tensor[0]
-
     dataloader_iter = iter(loader)
 
     with th.no_grad():
@@ -198,28 +197,36 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         # TODO (IN): Fix dataloader to have the same number of minibatches
         for iter_l in range(max_num_batch):
             iter_start = time.time()
-            tmp_keys = []
+            tmp_node_keys = []
+            input_edges = {}
             if iter_l < len_dataloader:
                 input_nodes, target_edge_graph, blocks = next(dataloader_iter)
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
                     input_nodes = {g.ntypes[0]: input_nodes}
-                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
                 # All samples should contain all the ntypes for wholegraph compatibility
+                tmp_node_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
                 input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-                    for ntype in tmp_keys})
+                    for ntype in tmp_node_keys})
+                if data.decoder_edge_feat is not None:
+                    input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
+                        for etype in target_edge_graph.canonical_etypes}
+                    input_edges.update({etype: th.empty((0,), dtype=g.idtype) \
+                        for etype in g.canonical_etypes \
+                            if etype not in target_edge_graph.canonical_etypes})
             else:
                 input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
+                if data.decoder_edge_feat is not None:
+                    input_edges = {etype: th.empty((0,), dtype=g.idtype) \
+                        for etype in g.canonical_etypes}
                 blocks = None
 
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue
-            for ntype in tmp_keys:
+            for ntype in tmp_node_keys:
                 del input_nodes[ntype]
             if data.decoder_edge_feat is not None:
-                input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
-                        for etype in target_edge_graph.canonical_etypes}
                 edge_decoder_feats = data.get_edge_feats(input_edges,
                                                          data.decoder_edge_feat,
                                                          device)
@@ -293,7 +300,9 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     # find the target src and dst ntypes
     model.eval()
     decoder = model.decoder
+    device = model.device
     data = loader.data
+    g = data.g
     preds = {}
     labels = {}
 
@@ -302,12 +311,31 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             "Return label is required, but the label field is not provided whem" \
             "initlaizing the inference dataset."
 
+    len_dataloader = max_num_batch = len(loader)
+    tensor = th.tensor([len_dataloader], device=device)
+    if is_distributed():
+        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = tensor[0]
+    dataloader_iter = iter(loader)
+
     with th.no_grad():
         # save preds and labels together in order not to shuffle
         # the order when gather tensors from other trainers
-        device = model.device
-        for input_nodes, target_edge_graph, _ in loader:
+        for iter_l in range(max_num_batch):
             # TODO suppport multiple target edge types
+            if iter_l < len_dataloader:
+                input_nodes, target_edge_graph, _ = next(dataloader_iter)
+                if data.decoder_edge_feat is not None:
+                    input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
+                        for etype in target_edge_graph.canonical_etypes}
+                    input_edges.update({etype: th.empty((0,), dtype=g.idtype) \
+                        for etype in g.canonical_etypes \
+                            if etype not in target_edge_graph.canonical_etypes})
+            else:
+                if data.decoder_edge_feat is not None:
+                    input_edges = {etype: th.empty((0,), dtype=g.idtype) \
+                            for etype in g.canonical_etypes}
+
             assert len(target_edge_graph.etypes) == 1
             target_etype = target_edge_graph.canonical_etypes[0]
             batch_embs = {}
@@ -315,8 +343,6 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
                 batch_embs[ntype] = emb[ntype][in_nodes].to(device)
             target_edge_graph = target_edge_graph.to(device)
             if data.decoder_edge_feat is not None:
-                input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
-                        for etype in target_edge_graph.canonical_etypes}
                 edge_decoder_feats = data.get_edge_feats(input_edges,
                                                          data.decoder_edge_feat,
                                                          target_edge_graph.device)

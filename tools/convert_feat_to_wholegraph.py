@@ -52,6 +52,7 @@ def process_edge_data(folder, edge_feat_names):
         assert len(feat_info) == 2, \
                 f"Unknown format of the feature name: {feat_name}, " + \
                 "must be EDGE_TYPE:FEAT_NAME"
+        etype = feat_info[0].split(',')
         assert len(etype) == 3, \
                 f"EDGE_TYPE should have 3 strings: {etype}, " + \
                 "must be NODE_TYPE:EDGE_TYPE:NODE_TYPE:"
@@ -127,7 +128,7 @@ def main(folder, node_feat_names, edge_feat_names):
     # Process node features
     if node_feat_names:
         fname_dict = process_node_data(folder, node_feat_names)
-        trimmed_feats = convert_feat_to_wholegraph(fname_dict, "node_feat.dgl" ,node_feat_data, metadata, local_comm, folder)
+        trimmed_feats = convert_feat_to_wholegraph(fname_dict, "node_feat.dgl", metadata, local_comm, folder)
         num_parts = len(trimmed_feats)
 
         # Save new truncated distDGL tensors
