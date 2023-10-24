@@ -25,7 +25,7 @@ import dgl
 from torch.utils.data import Dataset
 import pandas as pd
 
-from ..utils import get_rank, get_world_size, is_distributed
+from ..utils import get_rank, get_world_size, is_distributed, barrier
 from ..utils import sys_tracker, use_wholegraph
 from .utils import dist_sum, flip_node_mask, is_wholegraph_embedding
 
@@ -111,8 +111,15 @@ def prepare_batch_edge_input(g, input_edges,
 
         if feat_name is not None:
             # concatenate multiple features together
-            feat[etypes] = th.cat([g.edges[etypes].data[fname][eid].to(dev) \
-                for fname in feat_name], dim=-1)
+            feats = []
+            for fname in feat_name:
+                data = g.edges[etypes].data[fname] #g.nodes[ntype].data[fname]
+                if is_wholegraph_embedding(data):
+                    data = data.gather(eid.to(dev))
+                else:
+                    data = data[eid].to(dev)
+                feats.append(data)
+            feat[etypes] = th.cat(feats, dim=1)
     return feat
 
 class GSgnnData():
@@ -154,19 +161,36 @@ class GSgnnData():
             num_parts = self._g.get_partition_book().num_partitions()
 
             # load node feature from wholegraph memory
-            for ntype in node_feat_field.keys():
-                assert ntype in self._g.ntypes, \
-                        f"Cannot load features of node type '{ntype}' as graph has" \
-                        f" no such node type."
-                data = {}
-                feat_names = node_feat_field[ntype]
-                for name in feat_names:
-                    data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
-                if len(self._g.ntypes) == 1:
-                    self._g._ndata_store.update(data)
-                else:
-                    self._g._ndata_store[ntype].update(data)
+            if node_feat_field:
+                for ntype in node_feat_field.keys():
+                    # TODO(IN): This check is not related to WholeGraph
+                    assert ntype in self._g.ntypes, \
+                            f"Cannot load features of node type '{ntype}' as graph has" \
+                            f" no such node type."
+                    data = {}
+                    feat_names = node_feat_field[ntype]
+                    for name in feat_names:
+                        data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
+                    if len(self._g.ntypes) == 1:
+                        self._g._ndata_store.update(data)
+                    else:
+                        self._g._ndata_store[ntype].update(data)
 
+            # load edge feature from wholegraph memory
+            if edge_feat_field:
+                for etype in edge_feat_field.keys():
+                    data = {}
+                    feat_names = edge_feat_field[etype]
+                    etype_wg = ":".join(etype)
+                    for name in feat_names:
+                        data[name] = self.load_wg_feat(part_config, num_parts, etype_wg, name)
+                        print("done reading wholegraph", data)
+                    if len(self._g.canonical_etypes) == 1:
+                        self._g._edata_store.update(data)
+                    else:
+                        self._g._edata_store[etype].update(data)
+
+        barrier()
         self.prepare_data(self._g)
         sys_tracker.check('construct training data')
 
@@ -205,9 +229,9 @@ class GSgnnData():
         num_parts : int
             The number of partitions of the dataset
         ntype: str
-            The type of node for which to fetch features or labels for.
+            The type of node or edge for which to fetch features or labels for.
         name: str
-            The name of the features or labels to load
+            The name of the features to load
         """
         import pylibwholegraph.torch as wgth
 
@@ -227,7 +251,7 @@ class GSgnnData():
         with open(metadata_file, encoding="utf8") as f:
             wg_metadata = json.load(f)
         data_shape = wg_metadata[ntype + '/' + name]['shape']
-        node_feat_wm_embedding = wgth.create_embedding(
+        feat_wm_embedding = wgth.create_embedding(
             feature_comm,
             embedding_wholememory_type,
             embedding_wholememory_location,
@@ -238,9 +262,9 @@ class GSgnnData():
         )
         feat_path = os.path.join(os.path.dirname(part_config_path), 'wholegraph', \
                                                  ntype + '~' + name)
-        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
+        feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
                                                                        part_count=num_parts)
-        return node_feat_wm_embedding
+        return feat_wm_embedding
 
     def has_node_feats(self, ntype):
         """ Test if the specified node type has features.
@@ -331,7 +355,7 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
                  node_feat_field=None, edge_feat_field=None,
                  decoder_edge_feat=None):
         super(GSgnnEdgeData, self).__init__(graph_name, part_config,
-                                            node_feat_field, edge_feat_field)
+                                            node_feat_field, decoder_edge_feat)
 
         self._label_field = label_field
         self._decoder_edge_feat = decoder_edge_feat
