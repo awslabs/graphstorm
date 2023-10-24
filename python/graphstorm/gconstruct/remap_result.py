@@ -392,8 +392,8 @@ def _parse_gs_config(config):
     predict_dir = config.save_prediction_path
     emb_dir = config.save_embed_path
     task_type = config.task_type
-    pred_ntypes = None
-    pred_etypes = None
+    pred_ntypes = []
+    pred_etypes = []
     if task_type in (BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION):
         pred_etypes = config.target_etype
         pred_etypes = pred_etypes \
@@ -435,6 +435,14 @@ def main(args, gs_config_args):
             assert len(pred_etypes) > 0, \
                 "prediction etypes is empty"
             pred_etypes = [etype.split(",") for etype in pred_etypes]
+        else:
+            pred_etypes = []
+
+        if pred_ntypes is not None:
+            assert len(pred_ntypes) > 0, \
+                "prediction ntypes is empty"
+        else:
+            pred_ntypes = []
 
     if predict_dir is None:
         logging.info("Prediction dir is not provided. Skip remapping.")
@@ -459,23 +467,23 @@ def main(args, gs_config_args):
 
     ################## remap prediction #############
     # if pred_etypes (edges with prediction results)
-    # is not None, we need to remap edge prediction results.
+    # is not empty, we need to remap edge prediction results.
     # Note: For distributed SageMaker runs, pred_etypes must be
     # provided if edge prediction result remap is required,
     # as result_info.json is only saved by rank0 and
     # there is no shared file system.
-    if pred_etypes is not None:
+    if len(pred_etypes) > 0:
         for pred_etype in pred_etypes:
             assert os.path.exists(os.path.join(predict_dir, "_".join(pred_etype))), \
                 f"prediction results of {pred_etype} do not exists."
 
     # If pred_ntypes (nodes with prediction results)
-    # is not None, we need to remap edge prediction results
+    # is not empty, we need to remap edge prediction results
     # Note: For distributed SageMaker runs, pred_ntypes must be
     # provided if node prediction result remap is required,
     # as result_info.json is only saved by rank0 and
     # there is no shared file system.
-    if pred_ntypes is not None:
+    if len(pred_ntypes) > 0:
         for pred_ntype in pred_ntypes:
             assert os.path.exists(os.path.join(predict_dir, pred_ntype)), \
                 f"prediction results of {pred_ntype} do not exists."
@@ -486,33 +494,45 @@ def main(args, gs_config_args):
         # pred_etypes and pred_ntypes.
         # If shared file system is not avaliable
         # result_info.json is not guaranteed to exist
-        # on each instances.
+        # on each instances. So users must use
+        # --pred-ntypes or --pred-etypes instead.
+        #
+        # In case when both --pred-ntypes or --pred-etypes
+        # are provided while result_info.json is also avaliable
+        # GraphStorm remaping to follow --pred-ntypes or --pred-etypes
         if os.path.exists(os.path.join(predict_dir, "result_info.json")):
             # User does not provide pred_etypes.
             # Try to get it from saved prediction config.
             with open(os.path.join(predict_dir, "result_info.json"),
                         "r",  encoding='utf-8') as f:
                 info = json.load(f)
-                pred_etypes = [etype.split(",") for etype in info["etypes"]] \
-                        if "etypes" in info else None
-                pred_ntypes = info["ntypes"] if "ntypes" in info else None
+                if len(pred_etypes) == 0:
+                    pred_etypes = [list(etype) for etype in info["etypes"]] \
+                        if "etypes" in info else []
+                if len(pred_ntypes) == 0:
+                    pred_ntypes = info["ntypes"] if "ntypes" in info else []
 
-    if pred_etypes is not None:
-        ntypes = \
-            [etype[0] for etype in pred_etypes] + \
-            [etype[2] for etype in pred_etypes]
-    elif pred_ntypes is not None:
-        ntypes = pred_ntypes
-    else:
+    ntypes = []
+
+    ntypes += [etype[0] for etype in pred_etypes] + \
+        [etype[2] for etype in pred_etypes]
+    ntypes += pred_ntypes
+
+    if len(ntypes) == 0:
         # Nothing to remap
         logging.warning("Skip remapping edge predictions and node predictions")
         return
 
     for ntype in set(ntypes):
+        mapping_file = os.path.join(id_mapping_path, ntype + "_id_remap.parquet")
         logging.debug("loading mapping file %s",
-                      os.path.join(id_mapping_path, ntype + "_id_remap.parquet"))
-        id_maps[ntype] = \
-            IdReverseMap(os.path.join(id_mapping_path, ntype + "_id_remap.parquet"))
+                      mapping_file)
+        if os.path.exists(mapping_file):
+            id_maps[ntype] = \
+                IdReverseMap(mapping_file)
+        else:
+            logging.warning("ID mapping file %s does not exists, skip remapping", mapping_file)
+            return
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
 
