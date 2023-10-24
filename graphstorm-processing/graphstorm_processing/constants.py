@@ -39,3 +39,7 @@ DRIVER_MEM_OVERHEAD_RATIO = 0.1
 EXECUTOR_MEM_INSTANCE_MEM_RATIO = 0.95
 # Fraction of executor memory to be allocated as additional non-heap memory per process
 EXECUTOR_MEM_OVERHEAD_RATIO = 0.1
+
+################# Numerical transformations  ################
+VALID_IMPUTERS = ["mean", "median", "most_frequent"]
+VALID_NORMALIZERS = ["none", "min-max", "standard"]

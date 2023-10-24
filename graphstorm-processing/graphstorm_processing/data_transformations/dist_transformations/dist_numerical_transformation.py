@@ -37,12 +37,16 @@ def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: Data
     Applies a single imputation to input dataframe, individually to each of the columns
     provided in the cols argument.
     """
-    assert shared_imputation in [
+    valid_inner_imputers = [
         "mean",
         "median",
         "mode",
         "none",
-    ], f"Unsupported imputation strategy requested: {shared_imputation}"
+    ]
+    assert shared_imputation in valid_inner_imputers, (
+        f"Unsupported imputation strategy requested: {shared_imputation}, the supported "
+        f"strategies are : {valid_inner_imputers}"
+    )
     if shared_imputation == "none":
         imputed_df = input_df
     else:
@@ -97,7 +101,10 @@ def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame) -> 
         # TODO: See if it's possible to exclude NaN values from the sum
         for col, val in col_sums.items():
             if np.isinf(val) or np.isnan(val):
-                col_sums[col] = 0
+                raise RuntimeError(
+                    "Missing values found in the data, cannot apply "
+                    "normalization. Use an imputer in the transformation."
+                )
         scaled_df = imputed_df.select(
             [(F.col(c) / col_sums[f"sum({c})"]).alias(c) for c in cols] + other_cols
         )
@@ -147,8 +154,8 @@ class DistNumericalTransformation(DistributedTransformation):
 
 
 class DistMultiNumericalTransformation(DistNumericalTransformation):
-    """Transformation to apply missing value imputation and various forms of normalization
-     to a multi-column numerical input, where the input is a string separated by a delimiter.
+    """Transformation to apply missing value imputation and normalization
+     to a multi-column numerical input.
 
     Parameters
     ----------
@@ -270,7 +277,7 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
         # Convert the input column from either a delimited string or array to a Vector column
         multi_col_type = input_df.schema.jsonValue()["fields"][0]["type"]
         if multi_col_type == "string":
-            assert self.separator
+            assert self.separator, "Separator needed when dealing with CSV multi-column data."
             vector_df = convert_multistring_to_vector_df(input_df, self.separator)
         else:
             vector_df = input_df.select(

@@ -15,6 +15,7 @@ limitations under the License.
 """
 from typing import Mapping
 
+from graphstorm_processing.constants import VALID_IMPUTERS, VALID_NORMALIZERS
 from .feature_config_base import FeatureConfig
 
 
@@ -27,6 +28,7 @@ class NumericalFeatureConfig(FeatureConfig):
         A method to fill in missing values in the data. Valid values are:
         "mean" (Default), "median", and "most_frequent". Missing values will be replaced
         with the respective value computed from the data.
+
     normalizer: str
         A normalization to apply to each column. Valid values are
         "none", "min-max", and "standard".
@@ -48,14 +50,12 @@ class NumericalFeatureConfig(FeatureConfig):
 
     def _sanity_check(self) -> None:
         super()._sanity_check()
-        valid_imputers = ["mean", "median", "most_frequent"]
         assert (
-            self.imputer in valid_imputers
-        ), f"Unknown imputer requested, expected one of {valid_imputers}, got {self.imputer}"
-        valid_normalizers = ["none", "min-max", "standard"]
+            self.imputer in VALID_IMPUTERS
+        ), f"Unknown imputer requested, expected one of {VALID_IMPUTERS}, got {self.imputer}"
         assert (
-            self.norm in valid_normalizers
-        ), f"Unknown normalizer requested, expected one of {valid_normalizers}, got {self.norm}"
+            self.norm in VALID_NORMALIZERS
+        ), f"Unknown normalizer requested, expected one of {VALID_NORMALIZERS}, got {self.norm}"
 
 
 class MultiNumericalFeatureConfig(NumericalFeatureConfig):
@@ -67,6 +67,7 @@ class MultiNumericalFeatureConfig(NumericalFeatureConfig):
         A method to fill in missing values in the data. Valid values are:
         "mean" (Default), "median", and "most_frequent". Missing values will be replaced
         with the respective value computed from the data.
+
     normalizer: str
         A normalization to apply to each column. Valid values are
         "none", "min-max", and "standard".
@@ -77,6 +78,7 @@ class MultiNumericalFeatureConfig(NumericalFeatureConfig):
         * "min-max": Normalize each value by subtracting the minimum value from it,
         and then dividing it by the difference between the maximum value and the minimum.
         * "standard": Normalize each value by dividing it by the sum of all the values.
+
     separator: str, optional
         A separator to use when splitting a delimited string into multiple numerical values
         as a vector. Only applicable to CSV input. Example: for a separator `'|'` the CSV

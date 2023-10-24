@@ -193,9 +193,8 @@ following top-level keys:
             "files": ["String"],
             "separator": "String"
         },
-        "source": {"column": "String", "type": "String"},
-        "relation": {"type": "String"},
-        "destination": {"column": "String", "type": "String"},
+        "column": "String",
+        "type": "String",
         "labels" : [
                 {
                     "column": "String",
@@ -207,15 +206,15 @@ following top-level keys:
                     }
                 }
             ],
-            "features": [{}]
+        "features": [{}]
     }
 
 -  ``data``: (JSON object, required): Has the same definition as for
    the edges object, with one top-level key for the ``format`` that
    takes a String value, and one for the ``files`` that takes an array
    of String values.
--  ``column``: (String, required): The column in the data that
-   corresponds to the column that stores the node ids.
+-  ``column``: (String, required): The name of the column in the data that
+   stores the node ids.
 -  ``type:`` (String, optional): A type name for the nodes described
    in this object. If not provided the ``column`` value is used as the
    node type.
@@ -252,7 +251,7 @@ following top-level keys:
          assign to the test set [0.0, 1.0).
 
 -  ``features`` (List of JSON objects, optional): Describes
-   the set of features for the current node type. See the next section, :ref:`features-object`
+   the set of features for the current node type. See the section :ref:`features-object`
    for details.
 
 --------------
