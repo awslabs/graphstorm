@@ -1056,10 +1056,15 @@ def preprocess_features(data, ops):
     """
     pre_data = {}
     for op in ops:
-        res = op.pre_process(data[op.col_name])
-        assert isinstance(res, dict)
-        for key, val in res.items():
-            pre_data[key] = val
+        if isinstance(op.col_name, str):
+            col_name = [op.col_name]
+        else:
+            col_name = op.col_name
+        for col in col_name:
+            res = op.pre_process(data[col])
+            assert isinstance(res, dict)
+            for key, val in res.items():
+                pre_data[key] = val
 
     return pre_data
 
