@@ -27,6 +27,7 @@ import subprocess
 from threading import Thread
 
 from .random_partition import LocalRandomPartitioner
+from ..utils import get_log_level
 
 def run_build_dglgraph(
         input_data_path,
@@ -93,22 +94,25 @@ def run_build_dglgraph(
 
 
 def main(args):
+    logging.basicConfig(level=get_log_level(args.logging_level))
     output_path = args.output_path
     metadata_file=args.meta_info_path
     local_output_path = os.path.join(output_path, "tmp")
 
+    part_start = time.time()
     if args.part_algorithm == "random":
         partitioner = LocalRandomPartitioner(metadata_file, local_output_path)
         local_partition_path = partitioner.create_partitions(args.num_parts)
     else:
         raise RuntimeError(f"Unknow partition algorithm {args.part_algorighm}")
-
-    meta_info = args.meta_info_path.rsplit("/", 1)
-    input_data_path = meta_info[0]
-    metadata_filename = meta_info[1]
-    partitions_dir = local_partition_path
+    part_end = time.time()
+    logging.info("Partition takes %f sec", part_end - part_start)
 
     if args.do_dispatch:
+        meta_info = args.meta_info_path.rsplit("/", 1)
+        input_data_path = meta_info[0]
+        metadata_filename = meta_info[1]
+        partitions_dir = local_partition_path
         ip_list = args.ip_list
         dgl_tool_path = args.dgl_tool_path
         run_build_dglgraph(
@@ -137,6 +141,9 @@ if __name__ == '__main__':
     argparser.add_argument("--ip-list", type=str,
                            help="A file storing the ip list of instances of the partition cluster.")
     argparser.add_argument("--do-dispatch", action='store_true')
+    argparser.add_argument("--logging-level", type=str, default="info",
+                           help="The logging level. The possible values: debug, info, warning, \
+                                   error. The default value is info.")
 
     args = argparser.parse_args()
     start = time.time()
