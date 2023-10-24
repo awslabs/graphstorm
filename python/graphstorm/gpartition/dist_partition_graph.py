@@ -26,8 +26,7 @@ import subprocess
 
 from threading import Thread
 
-from graphstorm.sagemaker.partition_algorithm import (PartitionerConfig,
-                                                      LocalRandomPartitioner)
+from .random_partition import LocalRandomPartitioner
 
 def run_build_dglgraph(
         input_data_path,
@@ -94,14 +93,12 @@ def run_build_dglgraph(
 
 
 def main(args):
-    local_output_path = os.path.join(args.output_path, "tmp")
-    partition_config = PartitionerConfig(
-        metadata_file=args.meta_info_path,
-        local_output_path=local_output_path,
-        rank=0)
+    output_path = args.output_path
+    metadata_file=args.meta_info_path
+    local_output_path = os.path.join(output_path, "tmp")
 
     if args.part_algorithm == "random":
-        partitioner = LocalRandomPartitioner(partition_config)
+        partitioner = LocalRandomPartitioner(metadata_file, local_output_path)
         local_partition_path = partitioner.create_partitions(args.num_parts)
     else:
         raise RuntimeError(f"Unknow partition algorithm {args.part_algorighm}")
@@ -110,18 +107,19 @@ def main(args):
     input_data_path = meta_info[0]
     metadata_filename = meta_info[1]
     partitions_dir = local_partition_path
-    ip_list = args.ip_list
-    output_path = args.output_path
-    dgl_tool_path = args.dgl_tool_path
-    run_build_dglgraph(
-        input_data_path,
-        partitions_dir,
-        ip_list,
-        output_path,
-        metadata_filename,
-        dgl_tool_path)
 
-    os.removedirs(local_output_path)
+    if args.do_dispatch:
+        ip_list = args.ip_list
+        dgl_tool_path = args.dgl_tool_path
+        run_build_dglgraph(
+            input_data_path,
+            partitions_dir,
+            ip_list,
+            output_path,
+            metadata_filename,
+            dgl_tool_path)
+
+        os.removedirs(local_output_path)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Partition DGL graphs for node and edge classification "
@@ -132,12 +130,13 @@ if __name__ == '__main__':
                            help="Path to store the partitioned data")
     argparser.add_argument("--num-parts", type=int, required=True,
                            help="Number of partitions to generate")
-    argparser.add_argument("--dgl-tool-path", type=str, required=True,
+    argparser.add_argument("--dgl-tool-path", type=str,
                            help="The path to dgl/tools")
     argparser.add_argument("--part-algorithm", type=str, default="random",
                            choices=["random"], help="Partition algorithm to use.")
-    argparser.add_argument("--ip-list", type=str, required=True,
+    argparser.add_argument("--ip-list", type=str,
                            help="A file storing the ip list of instances of the partition cluster.")
+    argparser.add_argument("--do-dispatch", action='store_true')
 
     args = argparser.parse_args()
     start = time.time()
