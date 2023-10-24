@@ -178,7 +178,7 @@ def test_multi_numerical_transformation_with_special_delimiter(
         assert row["ratings"][1] == float(i + 1)
 
 
-def test_multi_numerical_transformation_with_imputer(
+def test_multi_numerical_transformation_with_mean_imputer(
     multi_num_df_with_missing: DataFrame, check_df_schema
 ):
     """Test multi-num with mean imputation"""
