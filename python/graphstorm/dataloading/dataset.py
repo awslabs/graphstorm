@@ -19,6 +19,7 @@ import os
 import abc
 import json
 import logging
+import re
 
 import torch as th
 import dgl
@@ -163,13 +164,14 @@ class GSgnnData():
             # load node feature from wholegraph memory
             if node_feat_field:
                 for ntype in node_feat_field.keys():
-                    # TODO(IN): This check is not related to WholeGraph
-                    assert ntype in self._g.ntypes, \
-                            f"Cannot load features of node type '{ntype}' as graph has" \
-                            f" no such node type."
                     data = {}
                     feat_names = node_feat_field[ntype]
                     for name in feat_names:
+                        wg_folder = os.path.join(os.path.dirname(part_config), 'wholegraph')
+                        assert len([feat_file for feat_file in os.listdir(wg_folder) \
+                        if re.search(ntype + '~' + name, feat_file)]), \
+                            f"Feature '{name}' of '{ntype}' is not in wholeGraph format. Please convert " \
+                            f"all the available features to WholeGraph format to utilize WholeGraph."
                         data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
                     if len(self._g.ntypes) == 1:
                         self._g._ndata_store.update(data)
@@ -183,8 +185,12 @@ class GSgnnData():
                     feat_names = edge_feat_field[etype]
                     etype_wg = ":".join(etype)
                     for name in feat_names:
+                        wg_folder = os.path.join(os.path.dirname(part_config), 'wholegraph')
+                        assert len([feat_file for feat_file in os.listdir(wg_folder) \
+                            if re.search(etype_wg + '~' + name, feat_file)]), \
+                            f"Feature '{name}' of '{etype}' is not in wholeGraph format. Please convert " \
+                            f"all the available features to WholeGraph format to utilize WholeGraph."
                         data[name] = self.load_wg_feat(part_config, num_parts, etype_wg, name)
-                        print("done reading wholegraph", data)
                     if len(self._g.canonical_etypes) == 1:
                         self._g._edata_store.update(data)
                     else:
