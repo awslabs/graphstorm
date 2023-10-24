@@ -430,6 +430,7 @@ def main(args, gs_config_args):
         id_mapping_path = args.node_id_mapping
         predict_dir = args.prediction_dir
         pred_etypes = args.pred_etypes
+        pred_ntypes = args.pred_ntypes
         if pred_etypes is not None:
             assert len(pred_etypes) > 0, \
                 "prediction etypes is empty"
@@ -451,27 +452,43 @@ def main(args, gs_config_args):
 
     ################## remap prediction #############
     # if pred_etypes (edges with prediction results)
-    # is not None, We need to remap edge prediction results.
+    # is not None, we need to remap edge prediction results.
     # Note: For distributed SageMaker runs, pred_etypes must be
-    # provided if edge prediction result rempa is required,
-    # as result_info.json is only saved by rank0 and there is no shared fs.
+    # provided if edge prediction result remap is required,
+    # as result_info.json is only saved by rank0 and
+    # there is no shared file system.
     if pred_etypes is not None:
         for pred_etype in pred_etypes:
             assert os.path.exists(os.path.join(predict_dir, "_".join(pred_etype))), \
                 f"prediction results of {pred_etype} do not exists."
+
+    # If pred_ntypes (nodes with prediction results)
+    # is not None, we need to remap edge prediction results
+    # Note: For distributed SageMaker runs, pred_ntypes must be
+    # provided if node prediction result remap is required,
+    # as result_info.json is only saved by rank0 and
+    # there is no shared file system.
     if pred_ntypes is not None:
         for pred_ntype in pred_ntypes:
             assert os.path.exists(os.path.join(predict_dir, pred_ntype)), \
                 f"prediction results of {pred_ntype} do not exists."
-    elif os.path.exists(os.path.join(predict_dir, "result_info.json")):
-        # User does not provide pred_etypes.
-        # Try to get it from saved prediction config.
-        with open(os.path.join(predict_dir, "result_info.json"),
-                    "r",  encoding='utf-8') as f:
-            info = json.load(f)
-            pred_etypes = [etype.split(",") for etype in info["etypes"]] \
-                    if "etypes" in info else None
-            pred_ntypes = info["ntypes"] if "ntypes" in info else None
+
+    if with_shared_fs:
+        # Only when shared file system is avaliable,
+        # we will check result_info.json for
+        # pred_etypes and pred_ntypes.
+        # If shared file system is not avaliable
+        # result_info.json is not guaranteed to exist
+        # on each instances.
+        if os.path.exists(os.path.join(predict_dir, "result_info.json")):
+            # User does not provide pred_etypes.
+            # Try to get it from saved prediction config.
+            with open(os.path.join(predict_dir, "result_info.json"),
+                        "r",  encoding='utf-8') as f:
+                info = json.load(f)
+                pred_etypes = [etype.split(",") for etype in info["etypes"]] \
+                        if "etypes" in info else None
+                pred_ntypes = info["ntypes"] if "ntypes" in info else None
 
     if pred_etypes is not None:
         ntypes = \
@@ -481,6 +498,7 @@ def main(args, gs_config_args):
         ntypes = pred_ntypes
     else:
         # Nothing to remap
+        logging.warning("Skip remapping edge predictions and node predictions")
         return
 
     for ntype in set(ntypes):
@@ -503,9 +521,10 @@ def main(args, gs_config_args):
                         world_size,
                         with_shared_fs,
                         args.preserve_input)
+
     if len(pred_ntypes) > 0:
         pred_output = predict_dir
-        # We need to do ID remapping for edge prediction result
+        # We need to do ID remapping for node prediction result
         remap_node_pred(pred_ntypes,
                         predict_dir,
                         pred_output,
