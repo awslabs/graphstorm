@@ -23,6 +23,7 @@ import logging
 import sys
 import queue
 import subprocess
+from shutil import rmtree
 
 from threading import Thread
 
@@ -71,9 +72,9 @@ def run_build_dglgraph(
             "--save-orig-eids"]
 
         # thread func to run the job
-        def run(ssh_cmd, state_q):
+        def run(cmd, state_q):
             try:
-                subprocess.check_call(ssh_cmd, shell=True)
+                subprocess.check_call(cmd, shell=False)
                 state_q.put(0)
             except subprocess.CalledProcessError as err:
                 logging.error("Called process error %s", err)
@@ -123,7 +124,8 @@ def main(args):
             metadata_filename,
             dgl_tool_path)
 
-        os.removedirs(local_output_path)
+        rmtree(local_partition_path)
+        logging.info("Dispatch takes %f sec", part_end - time.time())
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Partition DGL graphs for node and edge classification "
