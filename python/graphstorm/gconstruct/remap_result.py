@@ -23,16 +23,15 @@ import argparse
 import logging
 import json
 import time
-import queue
+import sys
 import math
 
 import torch as th
-from torch import multiprocessing
-from torch.multiprocessing import Process
 from ..model.utils import pad_file_index
 from .file_io import write_data_parquet
 from .id_map import IdReverseMap
 from ..utils import get_log_level
+from .utils import multiprocessing_exec_no_return as multiprocessing_remap
 
 from ..config import (GSConfig,
                       get_argument_parser,
@@ -41,6 +40,13 @@ from ..config import (GSConfig,
                       BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION)
 
+# Id_maps is a global variable.
+# When using multi-processing to do id remap,
+# we do not want to pass id_maps to each worker process
+# through argument which uses Python pickle to copy
+# data. By making id_maps as a global variable, we
+# can rely on Linux copy-on-write to provide a zero-copy
+# id_maps to each worker process.
 id_maps = {}
 
 def worker_remap_node_pred(pred_file_path, nid_path, ntype,
@@ -131,60 +137,6 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
         os.remove(pred_file_path)
         os.remove(src_nid_path)
         os.remove(dst_nid_path)
-
-def worker_fn(worker_id, task_queue, func):
-    """ Process remap tasks with multiprocessing
-
-        Parameters
-        ----------
-        worker_id: int
-            Worker id.
-        task_queue: Queue
-            Task queue.
-        func: function
-            Function to be executed.
-    """
-    try:
-        while True:
-            # If the queue is empty, it will raise the Empty exception.
-            idx, task_args = task_queue.get_nowait()
-            logging.debug("worker %d Processing %s task", worker_id, idx)
-            func(**task_args)
-    except queue.Empty:
-        pass
-
-def multiprocessing_remap(tasks, num_proc, remap_func):
-    """ Do multi-processing remap
-
-        Parameters
-        ----------
-        task: list
-            List of remap tasks.
-        num_proc: int
-            Number of workers to spin up.
-        remap_func: func
-            Reampping function
-    """
-    if num_proc > 1 and len(tasks) > 1:
-        if num_proc > len(tasks):
-            num_proc = len(tasks)
-        processes = []
-        manager = multiprocessing.Manager()
-        task_queue = manager.Queue()
-        for i, task in enumerate(tasks):
-            task_queue.put((i, task))
-
-        for i in range(num_proc):
-            proc = Process(target=worker_fn, args=(i, task_queue, remap_func))
-            proc.start()
-            processes.append(proc)
-
-        for proc in processes:
-            proc.join()
-    else:
-        for i, task_args in enumerate(tasks):
-            logging.debug("worker 0 Processing %s task", i)
-            remap_func(**task_args)
 
 def _get_file_range(num_files, rank, world_size):
     """ Get the range of files to process by the current instance.
@@ -373,6 +325,15 @@ def remap_edge_pred(pred_etypes, pred_dir,
 
         num_parts = len(pred_files)
         logging.debug("%s has %d embedding files", etype, num_parts)
+        assert len(src_nid_files) == len(pred_files), \
+            "Expect the number of source nid files equal to " \
+            "the number of prediction result files, but get " \
+            f"{len(src_nid_files)} and {len(pred_files)}"
+        assert len(dst_nid_files) == len(pred_files), \
+            "Expect the number of destination nid files equal to " \
+            "the number of prediction result files, but get " \
+            f"{len(dst_nid_files)} and {len(pred_files)}"
+
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
             # each instance only needs to process
@@ -408,8 +369,6 @@ def remap_edge_pred(pred_etypes, pred_dir,
 
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
     dur = time.time() - start
-    logging.info("{%d} Remapping edge predictions takes {%f} secs", rank, dur)
-
     logging.debug("%d Finish edge rempaing in %f secs}", rank, dur)
 
 def _parse_gs_config(config):
@@ -627,8 +586,9 @@ def generate_parser():
                                 "--pred-ntypes user movie"
                                 "If pred_ntypes is not provided, result_info.json "
                                 "under prediction_dir will be used to retrive the pred_ntypes")
-    group.add_argument("--output-chunk-size", type=int, default=100000,
-                       help="Number of rows per output file.")
+    group.add_argument("--output-chunk-size", type=int, default=sys.maxsize,
+                       help="Number of rows per output file."
+                       f"By default, it is set to {sys.maxsize}")
     group.add_argument("--preserve-input",
                        type=lambda x: (str(x).lower() in ['true', '1']),default=False,
                        help="Whether we preserve the input data.")
