@@ -169,7 +169,21 @@ class GSgnnEdgeDataLoaderBase():
         return self._fanout
 
 class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
-    """
+    """ A wrapper of MultiLayerNeighborSampler
+
+    This is a wrapper on MultiLayerNeighborSampler to sample additional neighbors
+    for feature construction.
+
+    Parameters
+    ----------
+    sampler : MultiLayerNeighborSampler
+        A sampler to sample multi-hop neighbors.
+    dataset: GSgnnData
+        The GraphStorm dataset
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int
+        The fanout required to construct node features.
     """
     def __init__(self, sampler, dataset, construct_feat_ntype, construct_feat_fanout):
         super().__init__()
@@ -178,6 +192,21 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
                 dataset, construct_feat_ntype, construct_feat_fanout)
 
     def sample_blocks(self, g, seed_nodes, exclude_eids=None):
+        """ Sample blocks for message passing.
+
+        Parameters
+        ----------
+        g : DistGraph
+            The distributed graph.
+        seed_nodes : dict of Tensors
+            The seed nodes
+
+        Returns
+        -------
+        dict of Tensors : the input node IDs.
+        dict of Tensors : the seed node IDs.
+        list of DGLBlock : the blocks for message passing.
+        """
         input_nodes, seed_nodes, blocks = \
                 self._sampler.sample_blocks(g, seed_nodes, exclude_eids)
         if len(blocks) > 0:
@@ -549,7 +578,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         return self
 
     def __next__(self):
-        return = self.dataloader.__next__()
+        return self.dataloader.__next__()
 
     def __len__(self):
         # Follow
