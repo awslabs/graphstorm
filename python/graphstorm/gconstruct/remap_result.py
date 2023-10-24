@@ -436,6 +436,13 @@ def main(args, gs_config_args):
                 "prediction etypes is empty"
             pred_etypes = [etype.split(",") for etype in pred_etypes]
 
+    if predict_dir is None:
+        logging.info("Prediction dir is not provided. Skip remapping.")
+        return
+
+    assert os.path.exists(predict_dir), \
+        f"Prediction dir {predict_dir} does not exist."
+
     rank = args.rank
     world_size = args.world_size
     with_shared_fs = args.with_shared_fs
