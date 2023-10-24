@@ -131,6 +131,13 @@ class GSgnnEdgeDataLoaderBase():
         list of DGLGraph : the subgraph blocks for message passing.
         """
 
+    def __len__(self):
+        """ Return the length (number of mini-batches) of the data loader
+
+        Returns
+        int: length
+        """
+
     @property
     def data(self):
         """ The dataset of this dataloader.
@@ -181,7 +188,7 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
 class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The minibatch dataloader for edge prediction
 
-    GSgnnEdgeDataLoader samples GraphStorm edge dataset into an iterable over mini-batches 
+    GSgnnEdgeDataLoader samples GraphStorm edge dataset into an iterable over mini-batches
     of samples. Both source and destination nodes are included in the batch_graph, which
     will be used by GraphStorm Trainers and Inferrers.
 
@@ -209,12 +216,12 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
-        
+
     Examples
     ------------
-    To train a 2-layer GNN for edge prediction on a set of edges ``target_idx`` on 
+    To train a 2-layer GNN for edge prediction on a set of edges ``target_idx`` on
     a graph where each nodes takes messages from 15 neighbors on the first layer
-    and 10 neighbors on the second. 
+    and 10 neighbors on the second.
 
     .. code:: python
 
@@ -292,6 +299,13 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     def __next__(self):
         return self.dataloader.__next__()
 
+    def __len__(self):
+        # Follow
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
+        return self.dataloader.expected_idxs
+
     @property
     def data(self):
         """ The dataset of this dataloader.
@@ -365,6 +379,13 @@ class GSgnnLinkPredictionDataLoaderBase():
         list of DGLGraph : subgraph blocks for message passing.
         """
 
+    def __len__(self):
+        """ Return the length (number of mini-batches) of the data loader
+
+        Returns
+        int: length
+        """
+
     @property
     def data(self):
         """ The dataset of this dataloader.
@@ -398,10 +419,10 @@ class GSgnnLinkPredictionDataLoaderBase():
 class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     """ Link prediction minibatch dataloader
 
-    GSgnnLinkPredictionDataLoader samples GraphStorm edge dataset into an iterable over mini-batches 
-    of samples. In each batch, pos_graph and neg_graph are sampled subgraph for positive and 
-    negative edges, which will be used by GraphStorm Trainers and Inferrers. Given a positive edge, 
-    a negative edge is composed of the source node and a random negative destination nodes 
+    GSgnnLinkPredictionDataLoader samples GraphStorm edge dataset into an iterable over mini-batches
+    of samples. In each batch, pos_graph and neg_graph are sampled subgraph for positive and
+    negative edges, which will be used by GraphStorm Trainers and Inferrers. Given a positive edge,
+    a negative edge is composed of the source node and a random negative destination nodes
     according to a uniform distribution.
 
     Argument
@@ -432,10 +453,10 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
-    
+
     Examples
     ------------
-    To train a 2-layer GNN for link prediction on a set of positive edges ``target_idx`` on 
+    To train a 2-layer GNN for link prediction on a set of positive edges ``target_idx`` on
     a graph where each nodes takes messages from 15 neighbors on the first layer
     and 10 neighbors on the second. We use 10 negative edges per positive in this example.
 
@@ -446,7 +467,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
         lp_data = GSgnnEdgeTrainData(...)
-        lp_dataloader = GSgnnLinkPredictionDataLoader(lp_data, target_idx, fanout=[15, 10], 
+        lp_dataloader = GSgnnLinkPredictionDataLoader(lp_data, target_idx, fanout=[15, 10],
                                                     num_negative_edges=10, batch_size=128)
         lp_trainer = GSgnnLinkPredictionTrainer(...)
         lp_trainer.fit(lp_dataloader, num_epochs=10)
@@ -529,6 +550,13 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     def __next__(self):
         return = self.dataloader.__next__()
+
+    def __len__(self):
+        # Follow
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
+        return self.dataloader.expected_idxs
 
 class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler
@@ -853,6 +881,14 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     def __next__(self):
         return self.dataloader.__next__()
 
+    def __len__(self):
+        # Follow
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
+        # AllEtypeDistEdgeDataLoader is a child class of DistDataLoader.
+        return self.dataloader.expected_idxs
+
 class GSgnnAllEtypeLPJointNegDataLoader(GSgnnAllEtypeLinkPredictionDataLoader):
     """ Link prediction dataloader with joint negative sampler.
         In each minibatch, at least one edge is sampled from each etype.
@@ -994,6 +1030,13 @@ class GSgnnNodeDataLoaderBase():
         list of DGLGraph : the subgraph blocks for message passing.
         """
 
+    def __len__(self):
+        """ Return the length (number of mini-batches) of the data loader
+
+        Returns
+        int: length
+        """
+
     @property
     def data(self):
         """ The dataset of this dataloader.
@@ -1026,10 +1069,10 @@ class GSgnnNodeDataLoaderBase():
 
 class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
-    
+
     GSgnnNodeDataLoader samples GraphStorm node dataset into an iterable over mini-batches of
     samples including target nodes and sampled neighbor nodes, which will be used by GraphStorm
-    Trainers and Inferrers. 
+    Trainers and Inferrers.
 
     Parameters
     ----------
@@ -1049,15 +1092,15 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
-    
+
     Examples
     ----------
-    To train a 2-layer GNN for node classification on a set of nodes ``target_idx`` on 
+    To train a 2-layer GNN for node classification on a set of nodes ``target_idx`` on
     a graph where each nodes takes messages from 15 neighbors on the first layer
-    and 10 neighbors on the second. 
+    and 10 neighbors on the second.
 
     .. code:: python
-    
+
         from graphstorm.dataloading import GSgnnNodeTrainData
         from graphstorm.dataloading import GSgnnNodeDataLoader
         from graphstorm.trainer import GSgnnNodePredictionTrainer
@@ -1109,6 +1152,13 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     def __next__(self):
         return self.dataloader.__next__()
 
+    def __len__(self):
+        # Follow
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
+        return self.dataloader.expected_idxs
+
 class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     """ Semisupervised Minibatch dataloader for node tasks
 
@@ -1147,6 +1197,16 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     def __next__(self):
         return self.dataloader.__next__(), self.unlabeled_dataloader.__next__()
 
+    def __len__(self):
+        # Follow
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        # of the datalaoder.
+        # As it uses two dataloader, either one throws
+        # an End of Iter error will stop the dataloader.
+        return min(self.dataloader.expected_idxs,
+                   self.unlabeled_dataloader.expected_idxs)
+
 ####################### Distillation #############################
 
 class DistillDataManager:
@@ -1155,10 +1215,10 @@ class DistillDataManager:
 
     Parameters:
     ----------
-    dataloader_generator : DataloaderGenerator: 
+    dataloader_generator : DataloaderGenerator:
         A dataloader generator
         Generates dataloader based on given a file path.
-    dataset_path str : 
+    dataset_path str :
         Path to the data files.
     shuffle : bool
         Set to ``True`` to have the files reshuffled at every epoch (default: ``False``).
@@ -1248,7 +1308,7 @@ class DistillDataManager:
 
 class DistillDataloaderGenerator:
     r""" Distill Data Generator that generates pytorch dataloader based on the given file.
-    
+
     Parameters:
     ----------
     tokenizer : transformers.AutoTokenizer
@@ -1279,10 +1339,10 @@ class DistillDataloaderGenerator:
         self.collate_fn = collate_fn
 
     def _data_len_sync(self, data):
-        r""" Drop additional samples to make sure each dataloader 
+        r""" Drop additional samples to make sure each dataloader
         has the same number of batches. This is to avoid the training
         stuck in distributed mode if any trainer has more or less batches.
-        
+
         Parameters:
         ----------
         data : GSDistillData

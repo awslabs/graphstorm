@@ -175,8 +175,22 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     src_ids = data[src_id_col] if src_id_col is not None else None
     dst_ids = data[dst_id_col] if dst_id_col is not None else None
     if src_ids is not None:
-        src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
+        src_ids, dst_ids, src_exist_locs, dst_exist_locs = \
+            map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
                                         skip_nonexist_edges)
+        if src_exist_locs is not None:
+            feat_data = {key: feat[src_exist_locs] \
+                         for key, feat in feat_data.items()}
+        if dst_exist_locs is not None:
+            feat_data = {key: feat[dst_exist_locs] \
+                         for key, feat in feat_data.items()}
+        # do some check
+        if src_exist_locs is not None or dst_exist_locs is not None:
+            for key, feat in feat_data.items():
+                assert len(src_ids) == len(feat), \
+                    f"Expecting the edge feature {key} has the same length" \
+                    f"as num existing edges {len(src_ids)}, but get {len(feat)}"
+
     return (src_ids, dst_ids, feat_data)
 
 def _process_data(user_pre_parser, user_parser,
