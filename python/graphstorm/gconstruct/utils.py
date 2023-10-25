@@ -550,7 +550,6 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
         self._orig_dtype = self._dtype = dtype
         self._arr = None
         self.merged_file = merged_file
-        self.merge_shape = None
 
     @property
     def dtype(self):
