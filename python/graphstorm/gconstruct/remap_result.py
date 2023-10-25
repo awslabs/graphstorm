@@ -23,16 +23,15 @@ import argparse
 import logging
 import json
 import time
-import queue
+import sys
 import math
 
 import torch as th
-from torch import multiprocessing
-from torch.multiprocessing import Process
 from ..model.utils import pad_file_index, get_data_range
 from .file_io import write_data_parquet
 from .id_map import IdReverseMap
 from ..utils import get_log_level
+from .utils import multiprocessing_exec_no_return as multiprocessing_remap
 
 from ..config import (GSConfig,
                       get_argument_parser,
@@ -41,6 +40,13 @@ from ..config import (GSConfig,
                       BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION)
 
+# Id_maps is a global variable.
+# When using multi-processing to do id remap,
+# we do not want to pass id_maps to each worker process
+# through argument which uses Python pickle to copy
+# data. By making id_maps as a global variable, we
+# can rely on Linux copy-on-write to provide a zero-copy
+# id_maps to each worker process.
 id_maps = {}
 
 def worker_remap_node_emb(emb_file_path, nid_path, nid_range_info, ntype,
@@ -212,60 +218,6 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
         os.remove(pred_file_path)
         os.remove(src_nid_path)
         os.remove(dst_nid_path)
-
-def worker_fn(worker_id, task_queue, func):
-    """ Process remap tasks with multiprocessing
-
-        Parameters
-        ----------
-        worker_id: int
-            Worker id.
-        task_queue: Queue
-            Task queue.
-        func: function
-            Function to be executed.
-    """
-    try:
-        while True:
-            # If the queue is empty, it will raise the Empty exception.
-            idx, task_args = task_queue.get_nowait()
-            logging.debug("worker %d Processing %s task", worker_id, idx)
-            func(**task_args)
-    except queue.Empty:
-        pass
-
-def multiprocessing_remap(tasks, num_proc, remap_func):
-    """ Do multi-processing remap
-
-        Parameters
-        ----------
-        task: list
-            List of remap tasks.
-        num_proc: int
-            Number of workers to spin up.
-        remap_func: func
-            Reampping function
-    """
-    if num_proc > 1 and len(tasks) > 1:
-        if num_proc > len(tasks):
-            num_proc = len(tasks)
-        processes = []
-        manager = multiprocessing.Manager()
-        task_queue = manager.Queue()
-        for i, task in enumerate(tasks):
-            task_queue.put((i, task))
-
-        for i in range(num_proc):
-            proc = Process(target=worker_fn, args=(i, task_queue, remap_func))
-            proc.start()
-            processes.append(proc)
-
-        for proc in processes:
-            proc.join()
-    else:
-        for i, task_args in enumerate(tasks):
-            logging.debug("worker 0 Processing %s task", i)
-            remap_func(**task_args)
 
 def _get_file_range(num_files, rank, world_size):
     """ Get the range of files to process by the current instance.
@@ -600,6 +552,15 @@ def remap_edge_pred(pred_etypes, pred_dir,
 
         num_parts = len(pred_files)
         logging.debug("%s has %d embedding files", etype, num_parts)
+        assert len(src_nid_files) == len(pred_files), \
+            "Expect the number of source nid files equal to " \
+            "the number of prediction result files, but get " \
+            f"{len(src_nid_files)} and {len(pred_files)}"
+        assert len(dst_nid_files) == len(pred_files), \
+            "Expect the number of destination nid files equal to " \
+            "the number of prediction result files, but get " \
+            f"{len(dst_nid_files)} and {len(pred_files)}"
+
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
             # each instance only needs to process
@@ -635,8 +596,6 @@ def remap_edge_pred(pred_etypes, pred_dir,
 
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
     dur = time.time() - start
-    logging.info("{%d} Remapping edge predictions takes {%f} secs", rank, dur)
-
     logging.debug("%d Finish edge rempaing in %f secs}", rank, dur)
 
 def _parse_gs_config(config):
@@ -660,8 +619,8 @@ def _parse_gs_config(config):
     predict_dir = config.save_prediction_path
     emb_dir = config.save_embed_path
     task_type = config.task_type
-    pred_ntypes = None
-    pred_etypes = None
+    pred_ntypes = []
+    pred_etypes = []
     if task_type in (BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION):
         pred_etypes = config.target_etype
         pred_etypes = pred_etypes \
@@ -699,10 +658,26 @@ def main(args, gs_config_args):
         predict_dir = args.prediction_dir
         node_emb_dir = args.node_emb_dir
         pred_etypes = args.pred_etypes
+        pred_ntypes = args.pred_ntypes
         if pred_etypes is not None:
             assert len(pred_etypes) > 0, \
                 "prediction etypes is empty"
             pred_etypes = [etype.split(",") for etype in pred_etypes]
+        else:
+            pred_etypes = []
+
+        if pred_ntypes is not None:
+            assert len(pred_ntypes) > 0, \
+                "prediction ntypes is empty"
+        else:
+            pred_ntypes = []
+
+    if predict_dir is None:
+        logging.info("Prediction dir is not provided. Skip remapping.")
+        return
+
+    assert os.path.exists(predict_dir), \
+        f"Prediction dir {predict_dir} does not exist."
 
     rank = args.rank
     world_size = args.world_size
@@ -717,7 +692,7 @@ def main(args, gs_config_args):
         f"Output chunk size should larger than 0 but get {out_chunk_size}."
 
     ################## remap embeddings #############
-    emb_ntypes = None
+    emb_ntypes = []
     emb_lens = None
     if node_emb_dir is not None:
         if with_shared_fs:
@@ -746,48 +721,73 @@ def main(args, gs_config_args):
 
     ################## remap prediction #############
     # if pred_etypes (edges with prediction results)
-    # is not None, We need to remap edge prediction results.
+    # is not empty, we need to remap edge prediction results.
     # Note: For distributed SageMaker runs, pred_etypes must be
-    # provided if edge prediction result rempa is required,
-    # as result_info.json is only saved by rank0 and there is no shared fs.
-    if pred_etypes is not None:
+    # provided if edge prediction result remap is required,
+    # as result_info.json is only saved by rank0 and
+    # there is no shared file system.
+    if len(pred_etypes) > 0:
         for pred_etype in pred_etypes:
             assert os.path.exists(os.path.join(predict_dir, "_".join(pred_etype))), \
                 f"prediction results of {pred_etype} do not exists."
-    if pred_ntypes is not None:
+
+    # If pred_ntypes (nodes with prediction results)
+    # is not empty, we need to remap edge prediction results
+    # Note: For distributed SageMaker runs, pred_ntypes must be
+    # provided if node prediction result remap is required,
+    # as result_info.json is only saved by rank0 and
+    # there is no shared file system.
+    if len(pred_ntypes) > 0:
         for pred_ntype in pred_ntypes:
             assert os.path.exists(os.path.join(predict_dir, pred_ntype)), \
                 f"prediction results of {pred_ntype} do not exists."
-    elif os.path.exists(os.path.join(predict_dir, "result_info.json")):
-        # User does not provide pred_etypes.
-        # Try to get it from saved prediction config.
-        with open(os.path.join(predict_dir, "result_info.json"),
-                    "r",  encoding='utf-8') as f:
-            info = json.load(f)
-            pred_etypes = [etype.split(",") for etype in info["etypes"]] \
-                    if "etypes" in info else None
-            pred_ntypes = info["ntypes"] if "ntypes" in info else None
+
+    if with_shared_fs:
+        # Only when shared file system is avaliable,
+        # we will check result_info.json for
+        # pred_etypes and pred_ntypes.
+        # If shared file system is not avaliable
+        # result_info.json is not guaranteed to exist
+        # on each instances. So users must use
+        # --pred-ntypes or --pred-etypes instead.
+        #
+        # In case when both --pred-ntypes or --pred-etypes
+        # are provided while result_info.json is also avaliable,
+        # GraphStorm remaping will follow --pred-ntypes or --pred-etypes
+        # and ignore the result_info.json.
+        if os.path.exists(os.path.join(predict_dir, "result_info.json")):
+            # User does not provide pred_etypes.
+            # Try to get it from saved prediction config.
+            with open(os.path.join(predict_dir, "result_info.json"),
+                        "r",  encoding='utf-8') as f:
+                info = json.load(f)
+                if len(pred_etypes) == 0:
+                    pred_etypes = [list(etype) for etype in info["etypes"]] \
+                        if "etypes" in info else []
+                if len(pred_ntypes) == 0:
+                    pred_ntypes = info["ntypes"] if "ntypes" in info else []
 
     ntypes = []
-    if emb_ntypes is not None:
-        ntypes = emb_ntypes
-
-    if pred_etypes is not None:
-        ntypes += \
-            [etype[0] for etype in pred_etypes] + \
-            [etype[2] for etype in pred_etypes]
-    elif pred_ntypes is not None:
-        ntypes += pred_ntypes
+    ntypes += emb_ntypes
+    ntypes += [etype[0] for etype in pred_etypes] + \
+        [etype[2] for etype in pred_etypes]
+    ntypes += pred_ntypes
 
     if len(ntypes) == 0:
         # Nothing to remap
+        logging.warning("Skip remapping edge predictions and node predictions")
         return
 
     for ntype in set(ntypes):
+        mapping_file = os.path.join(id_mapping_path, ntype + "_id_remap.parquet")
         logging.debug("loading mapping file %s",
-                      os.path.join(id_mapping_path, ntype + "_id_remap.parquet"))
-        id_maps[ntype] = \
-            IdReverseMap(os.path.join(id_mapping_path, ntype + "_id_remap.parquet"))
+                      mapping_file)
+        if os.path.exists(mapping_file):
+            id_maps[ntype] = \
+                IdReverseMap(mapping_file)
+        else:
+            logging.warning("ID mapping file %s does not exists, skip remapping", mapping_file)
+            return
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
 
@@ -817,9 +817,10 @@ def main(args, gs_config_args):
                         world_size,
                         with_shared_fs,
                         args.preserve_input)
+
     if len(pred_ntypes) > 0:
         pred_output = predict_dir
-        # We need to do ID remapping for edge prediction result
+        # We need to do ID remapping for node prediction result
         remap_node_pred(pred_ntypes,
                         predict_dir,
                         pred_output,
@@ -905,8 +906,9 @@ def generate_parser():
                                 "--pred-ntypes user movie"
                                 "If pred_ntypes is not provided, result_info.json "
                                 "under prediction_dir will be used to retrive the pred_ntypes")
-    group.add_argument("--output-chunk-size", type=int, default=100000,
-                       help="Number of rows per output file.")
+    group.add_argument("--output-chunk-size", type=int, default=sys.maxsize,
+                       help="Number of rows per output file."
+                       f"By default, it is set to {sys.maxsize}")
     group.add_argument("--preserve-input",
                        type=lambda x: (str(x).lower() in ['true', '1']),default=False,
                        help="Whether we preserve the input data.")

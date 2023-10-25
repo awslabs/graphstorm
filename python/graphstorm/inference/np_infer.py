@@ -146,7 +146,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         if save_prediction_path is not None:
             # save_embed_path may be None. In that case, we need to init nid_shuffler
             if nid_shuffler is None:
-                nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(preds.keys)) \
+                nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(preds.keys())) \
                     if node_id_mapping_file else None
             shuffled_preds = {}
             for ntype, pred in preds.items():

@@ -13,9 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
+import os
 import multiprocessing as mp
 import pytest
+from unittest.mock import patch
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -33,6 +34,9 @@ from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from graphstorm.model.lm_embed import LMModels, LMCache
+from graphstorm.model.utils import (LazyDistTensor,
+                                    load_pytorch_embedding,
+                                    save_pytorch_embedding)
 
 from data_utils import generate_dummy_dist_graph
 from data_utils import create_lm_graph, create_lm_graph2, load_lm_graph
@@ -221,6 +225,7 @@ def test_lm_cache():
         assert len(lm_cache.ntypes) == 1
         assert lm_cache.ntypes[0] == 'n0'
 
+        lm_models._lm_models["n0"].lm_model.init_weights()
         # Create the second cache. It should loads the embeddings from
         # the first cache.
         lm_cache2 = LMCache(g, lm_models, tmpdirname)
@@ -503,8 +508,36 @@ def test_lm_embed_warmup(dev):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+@pytest.mark.parametrize("num_embs", [100, 99])
+def test_pytroch_emb_load_save(num_embs):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        emb = th.rand(num_embs, 10)
+        # gen tensor
+        lazy_emb = LazyDistTensor(emb, th.arange(num_embs))
+        path = os.path.join(tmpdirname, "test")
+        os.makedirs(path)
+        save_pytorch_embedding(path, lazy_emb, 0, 2)
+        save_pytorch_embedding(path, lazy_emb, 1, 2)
+        out_emb = th.empty(emb.shape)
+
+        class DummpyPolicy:
+            def get_size(self):
+                return 0
+
+        @patch("graphstorm.model.utils.create_dist_tensor", side_effect = [out_emb, out_emb])
+        @patch("graphstorm.model.utils.get_rank", side_effect = [0, 1])
+        @patch("graphstorm.model.utils.get_world_size", side_effect = [2, 2])
+        def load_tensor(mode_get_world_size,
+                        mock_get_rank,
+                        mock_create_dist_tensor):
+            load_pytorch_embedding(path, DummpyPolicy(), "dummy")
+            load_pytorch_embedding(path, DummpyPolicy(), "dummy")
+
+        load_tensor()
+        assert_almost_equal(emb.numpy(), out_emb.numpy())
 
 if __name__ == '__main__':
+    test_pytroch_emb_load_save(11)
     test_lm_cache()
     test_mp_lm_cache()
     test_input_layer1(None)
