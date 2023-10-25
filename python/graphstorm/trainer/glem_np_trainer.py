@@ -164,18 +164,13 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             for _ in range(2):
                 stage_start_time = time.time()
                 part_to_train = 'gnn' if use_gnn else 'lm'
-                self._model.toggle(part_to_train)
-                if part_to_train == 'gnn' and not self._model.node_input_encoder.use_cache:
-                    # when training gnn, always freeze LM if it's not frozen
-                    # and clear the previously cached lm emb
-                    self._model.node_input_encoder.lm_emb_cache.clear_cache()
-                    self._model.lm.freeze_input_encoder(data)
-                elif part_to_train == 'lm':
+                self._model.toggle(part_to_train, data)
+                if part_to_train == 'lm':
                     # when training lm, unfreeze LM if past warmup epochs
+                    # otherwise, only train the LM decoder
                     if freeze_input_layer_epochs <= epoch:
                         no_pl = False
-                        if self._model.node_input_encoder.use_cache:
-                            self._model.lm.unfreeze_input_encoder()
+                        self._model.lm.unfreeze_input_encoder()
 
                 self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                     device, rt_profiler,
