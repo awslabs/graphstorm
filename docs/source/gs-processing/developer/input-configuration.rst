@@ -82,8 +82,8 @@ objects:
                     "test": "Float"
                 }
             },
-      ]
-       "features": [{}]
+      ],
+      "features": [{}]
    }
 
 -  ``data`` (JSON Object, required): Describes the physical files
@@ -196,16 +196,16 @@ following top-level keys:
         "column": "String",
         "type": "String",
         "labels" : [
-                {
-                    "column": "String",
-                    "type": "String",
-                    "split_rate": {
-                        "train": "Float",
-                        "val": "Float",
-                        "test": "Float"
-                    }
+            {
+                "column": "String",
+                "type": "String",
+                "split_rate": {
+                    "train": "Float",
+                    "val": "Float",
+                    "test": "Float"
                 }
-            ],
+            }
+        ],
         "features": [{}]
     }
 

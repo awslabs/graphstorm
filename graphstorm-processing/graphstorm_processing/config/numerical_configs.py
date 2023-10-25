@@ -26,7 +26,7 @@ class NumericalFeatureConfig(FeatureConfig):
     ----------------
     imputer: str
         A method to fill in missing values in the data. Valid values are:
-        "mean" (Default), "median", and "most_frequent". Missing values will be replaced
+        "none" (Default), "mean", "median", and "most_frequent". Missing values will be replaced
         with the respective value computed from the data.
 
     normalizer: str
@@ -43,7 +43,7 @@ class NumericalFeatureConfig(FeatureConfig):
 
     def __init__(self, config: Mapping):
         super().__init__(config)
-        self.imputer = self._transformation_kwargs.get("imputer", "mean")
+        self.imputer = self._transformation_kwargs.get("imputer", "none")
         self.norm = self._transformation_kwargs.get("normalizer", "none")
 
         self._sanity_check()

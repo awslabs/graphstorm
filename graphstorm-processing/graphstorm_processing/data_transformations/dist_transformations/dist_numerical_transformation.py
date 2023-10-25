@@ -27,26 +27,39 @@ from pyspark.ml.functions import array_to_vector, vector_to_array
 
 import numpy as np
 
-from graphstorm_processing.constants import SPECIAL_CHARACTERS
+from graphstorm_processing.constants import SPECIAL_CHARACTERS, VALID_IMPUTERS, VALID_NORMALIZERS
 from .base_dist_transformation import DistributedTransformation
 from ..spark_utils import rename_multiple_cols
 
 
 def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: DataFrame) -> DataFrame:
-    """
-    Applies a single imputation to input dataframe, individually to each of the columns
+    """Applies a single imputation to input dataframe, individually to each of the columns
     provided in the cols argument.
+
+    Parameters
+    ----------
+    cols : Sequence[str]
+        List of column names to impute.
+    shared_imputation : str
+        The type of imputer to use. Valid values are "none", "most_frequent"/"mode",
+        "mean", "median".
+    input_df : DataFrame
+        The input DataFrame to apply imputations to.
+
+    Returns
+    -------
+    DataFrame
+        The imputed DataFrame.
     """
-    valid_inner_imputers = [
-        "mean",
-        "median",
-        "mode",
-        "none",
-    ]
+    # "mode" is another way to say most frequent, used by SparkML
+    valid_inner_imputers = VALID_IMPUTERS + ["mode"]
+
     assert shared_imputation in valid_inner_imputers, (
         f"Unsupported imputation strategy requested: {shared_imputation}, the supported "
         f"strategies are : {valid_inner_imputers}"
     )
+    if shared_imputation == "most_frequent":
+        shared_imputation = "mode"
     if shared_imputation == "none":
         imputed_df = input_df
     else:
@@ -62,9 +75,29 @@ def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: Data
 
 
 def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame) -> DataFrame:
-    """
-    Applies a single normalizer to the imputed dataframe, individually to each of the columns
+    """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
+
+    Parameters
+    ----------
+    cols : Sequence[str]
+        List of column names to apply normalization to.
+    shared_norm : str
+        The type of normalization to use. Valid values are "none", "min-max",
+        "standard".
+    imputed_df : DataFrame
+        The input DataFrame to apply normalization to. It should not contain
+        missing values.
+
+    Returns
+    -------
+    DataFrame
+        The normalized DataFrame with only the columns listed in `cols` retained.
+
+    Raises
+    ------
+    RuntimeError
+        If missing values exist in the data when the "standard" normalizer is used.
     """
     other_cols = list(set(imputed_df.columns).difference(cols))
 
@@ -72,6 +105,11 @@ def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame) -> 
         return float(vec[0])
 
     vec_udf = F.udf(single_vec_to_float, FloatType())
+
+    assert shared_norm in VALID_NORMALIZERS, (
+        f"Unsupported normalization requested: {shared_norm}, the supported "
+        f"strategies are : {VALID_NORMALIZERS}"
+    )
 
     if shared_norm == "none":
         scaled_df = imputed_df
@@ -99,7 +137,7 @@ def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame) -> 
     elif shared_norm == "standard":
         col_sums = imputed_df.agg({col: "sum" for col in cols}).collect()[0].asDict()
         # TODO: See if it's possible to exclude NaN values from the sum
-        for col, val in col_sums.items():
+        for _, val in col_sums.items():
             if np.isinf(val) or np.isnan(val):
                 raise RuntimeError(
                     "Missing values found in the data, cannot apply "
@@ -108,8 +146,6 @@ def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame) -> 
         scaled_df = imputed_df.select(
             [(F.col(c) / col_sums[f"sum({c})"]).alias(c) for c in cols] + other_cols
         )
-    else:
-        raise RuntimeError(f"Uknown normalizer type requested for cols {cols}: {shared_norm}")
 
     return scaled_df
 
@@ -240,26 +276,37 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
         def replace_empty_with_nan(x):
             return F.when(x == "", "NaN").otherwise(x)
 
-        def convert_multistring_to_vector_df(
-            multi_string_df: DataFrame, separator: str
+        def convert_multistring_to_sequence_df(
+            multi_string_df: DataFrame, separator: str, column_type: str
         ) -> DataFrame:
             """
-            Convert the provided DataFrame that is assumed to have one string
-            column named with the value of self.multi_column,
-            to a single-column DenseVector DF with the same column name.
+            Convert the provided DataFrame, that is assumed to have one string
+            column named with the value of `self.multi_column`,
+            to a single-column sequence DF with the same column name.
+
+            If `column_type` is "array", the returned DF has one ArrayType column,
+            otherwise if `column_type` is "vector" the DF has one DenseVector type column.
             """
+            assert column_type in ["array", "vector"]
             # Hint: read the transformation comments inside-out, starting with split
-            vector_df = multi_string_df.select(
-                # transform outputs to an array so we convert to a DenseVector
-                array_to_vector(
-                    # After split, replace empty strings with 'NaN' and cast to Array<Float>
-                    F.transform(
-                        F.split(
-                            multi_string_df[self.multi_column], separator
-                        ),  # Split along the separator
-                        replace_empty_with_nan,
-                    ).cast(ArrayType(FloatType(), True))
-                ).alias(self.multi_column)
+            array_df = multi_string_df.select(
+                # After split, replace empty strings with 'NaN' and cast to Array<Float>
+                F.transform(
+                    F.split(
+                        multi_string_df[self.multi_column], separator
+                    ),  # Split along the separator
+                    replace_empty_with_nan,
+                )
+                .cast(ArrayType(FloatType(), True))
+                .alias(self.multi_column)
+            )
+
+            if column_type == "array":
+                return array_df
+
+            vector_df = array_df.select(
+                # Take array column and convert to a DenseVector column
+                array_to_vector(array_df[self.multi_column]).alias(self.multi_column)
             )
             return vector_df
 
@@ -278,7 +325,9 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
         multi_col_type = input_df.schema.jsonValue()["fields"][0]["type"]
         if multi_col_type == "string":
             assert self.separator, "Separator needed when dealing with CSV multi-column data."
-            vector_df = convert_multistring_to_vector_df(input_df, self.separator)
+            vector_df = convert_multistring_to_sequence_df(
+                input_df, self.separator, column_type="vector"
+            )
         else:
             vector_df = input_df.select(
                 array_to_vector(F.col(self.multi_column)).alias(self.multi_column)
@@ -304,16 +353,8 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
                 # Splitting the vectors requires an array DF
                 if multi_col_type == "string":
                     assert self.separator, "Separator must be provided for string-separated vectors"
-                    split_array_df = input_df.select(
-                        # After split, replace empty strings with 'NaN' and cast to Array<Float>
-                        F.transform(
-                            F.split(
-                                input_df[self.multi_column], self.separator
-                            ),  # Split along the separator
-                            replace_empty_with_nan,
-                        )
-                        .cast(ArrayType(FloatType(), True))
-                        .alias(self.multi_column)
+                    split_array_df = convert_multistring_to_sequence_df(
+                        input_df, self.separator, column_type="array"
                     )
                 else:
                     split_array_df = input_df.select(
