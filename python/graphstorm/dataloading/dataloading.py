@@ -169,7 +169,21 @@ class GSgnnEdgeDataLoaderBase():
         return self._fanout
 
 class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
-    """
+    """ A wrapper of MultiLayerNeighborSampler
+
+    This is a wrapper on MultiLayerNeighborSampler to sample additional neighbors
+    for feature construction.
+
+    Parameters
+    ----------
+    sampler : MultiLayerNeighborSampler
+        A sampler to sample multi-hop neighbors.
+    dataset: GSgnnData
+        The GraphStorm dataset
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int
+        The fanout required to construct node features.
     """
     def __init__(self, sampler, dataset, construct_feat_ntype, construct_feat_fanout):
         super().__init__()
@@ -178,6 +192,21 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
                 dataset, construct_feat_ntype, construct_feat_fanout)
 
     def sample_blocks(self, g, seed_nodes, exclude_eids=None):
+        """ Sample blocks for message passing.
+
+        Parameters
+        ----------
+        g : DistGraph
+            The distributed graph.
+        seed_nodes : dict of Tensors
+            The seed nodes
+
+        Returns
+        -------
+        dict of Tensors : the input node IDs.
+        dict of Tensors : the seed node IDs.
+        list of DGLBlock : the blocks for message passing.
+        """
         input_nodes, seed_nodes, blocks = \
                 self._sampler.sample_blocks(g, seed_nodes, exclude_eids)
         if len(blocks) > 0:
@@ -259,8 +288,6 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
-        if construct_feat_ntype is None:
-            construct_feat_ntype = []
         self.dataloader = self._prepare_dataloader(dataset,
                                                    target_idx,
                                                    edge_fanout_lis,
@@ -273,8 +300,10 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
     def _prepare_dataloader(self, dataset, target_idxs, fanout, batch_size,
                             exclude_training_targets=False, reverse_edge_types_map=None,
-                            train_task=True, construct_feat_ntype=[], construct_feat_fanout=5):
+                            train_task=True, construct_feat_ntype=None, construct_feat_fanout=5):
         g = dataset.g
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
         sampler = dgl.dataloading.MultiLayerNeighborSampler(fanout)
         if len(construct_feat_ntype) > 0:
             sampler = MultiLayerNeighborSamplerForReconstruct(sampler,
@@ -482,8 +511,6 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
 
-        if construct_feat_ntype is None:
-            construct_feat_ntype = []
         self.dataloader = self._prepare_dataloader(dataset, target_idx, fanout,
                 num_negative_edges, batch_size, device,
                 train_task=train_task,
@@ -501,9 +528,11 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     def _prepare_dataloader(self, dataset, target_idxs, fanout,
                             num_negative_edges, batch_size, device, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,
-                            edge_mask_for_gnn_embeddings=None, construct_feat_ntype=[],
+                            edge_mask_for_gnn_embeddings=None, construct_feat_ntype=None,
                             construct_feat_fanout=5):
         g = dataset.g
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
         # The dataloader can only sample neighbors from the training graph.
         # This can avoid information leak during the link prediction training.
         # This avoids two types of information leak: it avoids sampling neighbors
@@ -549,7 +578,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         return self
 
     def __next__(self):
-        return = self.dataloader.__next__()
+        return self.dataloader.__next__()
 
     def __len__(self):
         # Follow
@@ -596,9 +625,11 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     def _prepare_dataloader(self, dataset, target_idxs, fanout,
                             num_negative_edges, batch_size, device, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,
-                            edge_mask_for_gnn_embeddings=None, construct_feat_ntype=[],
+                            edge_mask_for_gnn_embeddings=None, construct_feat_ntype=None,
                             construct_feat_fanout=5):
         g = dataset.g
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
         # The dataloader can only sample neighbors from the training graph.
         # This can avoid information leak during the link prediction training.
         # This avoids two types of information leak: it avoids sampling neighbors
@@ -836,9 +867,11 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
                             exclude_training_targets=False,
                             reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None,
-                            construct_feat_ntype=[],
+                            construct_feat_ntype=None,
                             construct_feat_fanout=5):
         g = dataset.g
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
         # See the comment in GSgnnLinkPredictionDataLoader
         if edge_mask_for_gnn_embeddings is not None and \
                 any(edge_mask_for_gnn_embeddings in g.edges[etype].data
@@ -1113,8 +1146,6 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
         super().__init__(dataset, target_idx, fanout)
-        if construct_feat_ntype is None:
-            construct_feat_ntype = []
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -1129,8 +1160,10 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
                                                    construct_feat_fanout=construct_feat_fanout)
 
     def _prepare_dataloader(self, dataset, target_idx, fanout, batch_size,
-            train_task, device, construct_feat_ntype=[], construct_feat_fanout=5):
+            train_task, device, construct_feat_ntype=None, construct_feat_fanout=5):
         g = dataset.g
+        if construct_feat_ntype is None:
+            construct_feat_ntype = []
         if train_task:
             for ntype in target_idx:
                 target_idx[ntype] = trim_data(target_idx[ntype], device)
@@ -1184,7 +1217,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         super().__init__(dataset, target_idx, fanout, batch_size // 2, device,
                          train_task=train_task)
         # loader for unlabeled nodes:
-        self.unlabeled_dataloader = self._prepare_dataloader(dataset.g,
+        self.unlabeled_dataloader = self._prepare_dataloader(dataset,
                                                    unlabeled_idx,
                                                    fanout,
                                                    batch_size // 2,
