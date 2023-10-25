@@ -142,10 +142,10 @@ cp -r /tmp/np_remap/pred/n1/*0.pt /tmp/np_remap/pred/0/n1/
 cp -r /tmp/np_remap/pred/n1/*1.pt /tmp/np_remap/pred/1/n1/
 
 # Test remap edge prediction results
-python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/np_remap/id_mapping/ --logging-level debug --pred-ntypes "n0" "n1" --preserve-input True --prediction-dir /tmp/np_remap/pred/ --rank 0 --world-size 2 --with-shared-fs False
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/np_remap/id_mapping/ --logging-level debug --pred-ntypes "n0" "n1" --preserve-input True --prediction-dir /tmp/np_remap/pred/0/ --rank 0 --world-size 2 --with-shared-fs False
 error_and_exit $?
 
-python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/np_remap/id_mapping/ --logging-level debug --pred-ntypes "n0" "n1" --preserve-input True --prediction-dir /tmp/np_remap/pred/ --rank 1 --world-size 2 --with-shared-fs False
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/np_remap/id_mapping/ --logging-level debug --pred-ntypes "n0" "n1" --preserve-input True --prediction-dir /tmp/np_remap/pred/1/ --rank 1 --world-size 2 --with-shared-fs False
 error_and_exit $?
 
 mkdir /tmp/np_remap/pred/no-share/
