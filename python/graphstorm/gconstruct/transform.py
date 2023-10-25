@@ -1095,8 +1095,6 @@ def process_features(data, ops, ext_mem=None):
         feature_path = 'feature_{}'.format(op.feat_name)
         feature_path = ext_mem + feature_path if ext_mem is not None \
             else feature_path
-        if os.path.exists(feature_path):
-            shutil.rmtree(feature_path)
         if isinstance(op.col_name, str):
             col_name = [op.col_name]
         else:
