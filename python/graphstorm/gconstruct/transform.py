@@ -22,6 +22,8 @@ import os
 import sys
 import abc
 import json
+import uuid
+import hashlib
 import shutil
 
 import numpy as np
@@ -1081,7 +1083,7 @@ def process_features(data, ops, ext_mem=None):
         The data stored as a dict.
     ops : list of FeatTransform
         The operations that transform features.
-    ext_mem: str
+    ext_mem: str or None
         The address of external memory
 
     Returns
@@ -1090,8 +1092,9 @@ def process_features(data, ops, ext_mem=None):
     """
     new_data = {}
     for op in ops:
-        feature_path = ext_mem + 'feature_intermediate/feature_{}'\
-            .format(op.feat_name)
+        feature_path = 'feature_{}'.format(op.feat_name)
+        feature_path = ext_mem + feature_path if ext_mem is not None \
+            else feature_path
         if os.path.exists(feature_path):
             shutil.rmtree(feature_path)
         if isinstance(op.col_name, str):
@@ -1103,7 +1106,7 @@ def process_features(data, ops, ext_mem=None):
             res = op(data[col])
             assert isinstance(res, dict)
             for key, val in res.items():
-                # Check if has 1D features. If yes, convert to 2D features
+                # Check if it has 1D features. If yes, convert to 2D features
                 if len(val.shape) == 1:
                     if isinstance(val, ExtMemArrayWrapper):
                         val = val.to_numpy().reshape(-1, 1)
@@ -1113,14 +1116,25 @@ def process_features(data, ops, ext_mem=None):
                     new_data[key] = val
                 else:
                     tmp_key = key
-                    assert ext_mem is not None, \
-                        "external memory is necessary for multiple column"
-                    if not os.path.exists(feature_path):
-                        os.makedirs(feature_path)
-                        wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
-                    val.tofile(feature_path + '/{}.npy'.format(col))
+                    # Use external memory if it is available
+                    if ext_mem is not None:
+                        if not os.path.exists(feature_path):
+                            os.makedirs(feature_path)
+                            wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
+                        # Generate a random UUID
+                        random_uuid = uuid.uuid4()
 
-        if len(col_name) > 1:
+                        # Generate a SHA-256 hash of the UUID
+                        hash_object = hashlib.sha256(str(random_uuid).encode())
+                        hash_hex = hash_object.hexdigest()
+
+                        val.tofile(feature_path + '/{}_{}.npy'.format(col, hash_hex))
+                    else:
+                        if key in new_data:
+                            val = np.column_stack((new_data[key], val))
+                        new_data[key] = val
+
+        if len(col_name) > 1 and ext_mem is not None:
             wrapper.merge()
             new_data[tmp_key] = wrapper
 

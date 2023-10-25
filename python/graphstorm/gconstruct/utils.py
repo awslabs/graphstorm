@@ -22,6 +22,7 @@ import gc
 import logging
 import copy
 import traceback
+import shutil
 
 import numpy as np
 import dgl
@@ -542,11 +543,14 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
     dtype : numpy dtype
         The data type.
     """
-    def __init__(self, arr_path, shape, dtype):
+    def __init__(self, arr_path, shape, dtype,
+                 merged_file="merged_feature.npy"):
         self._arr_path = arr_path
         self._shape = shape
         self._orig_dtype = self._dtype = dtype
         self._arr = None
+        self.merged_file = merged_file
+        self.merge_shape = None
 
     @property
     def dtype(self):
@@ -572,20 +576,27 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
 
     def __getitem__(self, idx):
         if self._arr is None:
-            self._arr = np.memmap(os.path.join(self._arr_path, "merged_feature.npy"), self._orig_dtype, mode="r", shape=self._shape)
+            self._arr = np.memmap(os.path.join(self._arr_path, self.merged_file),
+                                  self._orig_dtype, mode="r",
+                                  shape=self._shape)
         return self._arr[idx].astype(self.dtype)
+
+    def __del__(self):
+        self.cleanup()
 
     def cleanup(self):
         """ Clean up the array.
         """
         self._arr.flush()
         self._arr = None
+        shutil.rmtree(self._arr_path)
 
     def to_numpy(self):
         """ Convert the data to Numpy array.
         """
         if self._arr is None:
-            arr = np.memmap(self._arr_path, self._orig_dtype, mode="r", shape=self._shape)
+            arr = np.memmap(os.path.join(self._arr_path, self.merged_file),
+                            self._orig_dtype, mode="r", shape=self._shape)
             if self._dtype != self._orig_dtype:
                 arr = arr.astype(self._dtype)
             return arr
@@ -598,14 +609,15 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
         return th.tensor(self.to_numpy())
 
     def merge(self):
-        merged_path = "merged_feature.npy"
+        """ Return feature col-wised.
+        """
         entries = os.listdir(self._arr_path)
 
-        out_arr = np.memmap(os.path.join(self._arr_path, merged_path), self._orig_dtype,
+        out_arr = np.memmap(os.path.join(self._arr_path, self.merged_file), self._orig_dtype,
                             mode="w+", shape=(self._shape[0], len(entries) * self._shape[1]))
         col_start = 0
-        for i, entry in enumerate(entries):
-            if entry == "merged_feature.npy":
+        for entry in entries:
+            if entry == self.merged_file:
                 continue
             arr = np.memmap(os.path.join(self._arr_path, entry), self._orig_dtype,
                             mode="r", shape=self._shape)
@@ -613,9 +625,8 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
             out_arr[:, col_start:col_end] = arr
             col_start = col_end
 
+        self._shape = out_arr.shape
         out_arr.flush()
-        del out_arr
-        
 
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
