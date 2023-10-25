@@ -102,8 +102,8 @@ def launch_train_task(task_type, num_gpus, graph_config,
         "--ssh-port", "22"]
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
-        "--save-model-path", f"{save_model_path}"] + \
-        ["--restore-model-path", f"{restore_model_path}"] \
+        "--save-model-path", f"{save_model_path}"]
+    launch_cmd += ["--restore-model-path", f"{restore_model_path}"] \
             if restore_model_path is not None else []
     launch_cmd += extra_args
 
@@ -153,9 +153,13 @@ def run_train(args, unknownargs):
     """
     num_gpus = args.num_gpus
     data_path = args.data_path
-    restore_model_path = "/tmp/gsgnn_model_checkpoint/"
+    model_checkpoint_s3 = args.model_checkpoint_to_load
+    if model_checkpoint_s3 is not None:
+        restore_model_path = "/tmp/gsgnn_model_checkpoint/"
+        os.makedirs(restore_model_path, exist_ok=True)
+    else:
+        restore_model_path = None
     output_path = "/tmp/gsgnn_model/"
-    os.makedirs(restore_model_path, exist_ok=True)
     os.makedirs(output_path, exist_ok=True)
 
     # start the ssh server
@@ -214,7 +218,6 @@ def run_train(args, unknownargs):
     graph_data_s3 = args.graph_data_s3
     task_type = args.task_type
     train_yaml_s3 = args.train_yaml_s3
-    model_checkpoint_s3 = args.model_checkpoint_to_load
     model_artifact_s3 = args.model_artifact_s3.rstrip('/')
     custom_script = args.custom_script
 
