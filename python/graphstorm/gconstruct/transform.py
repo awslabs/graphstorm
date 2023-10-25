@@ -24,7 +24,6 @@ import abc
 import json
 import uuid
 import hashlib
-import shutil
 
 import numpy as np
 import torch as th
