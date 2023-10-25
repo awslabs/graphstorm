@@ -1217,7 +1217,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         super().__init__(dataset, target_idx, fanout, batch_size // 2, device,
                          train_task=train_task)
         # loader for unlabeled nodes:
-        self.unlabeled_dataloader = self._prepare_dataloader(dataset.g,
+        self.unlabeled_dataloader = self._prepare_dataloader(dataset,
                                                    unlabeled_idx,
                                                    fanout,
                                                    batch_size // 2,
