@@ -22,6 +22,7 @@ import os
 import sys
 import abc
 import json
+import shutil
 
 import numpy as np
 import torch as th
@@ -31,7 +32,7 @@ from transformers import AutoTokenizer
 from transformers import AutoModel, AutoConfig
 
 from .file_io import read_index_json
-from .utils import ExtMemArrayWrapper
+from .utils import ExtMemArrayWrapper, ExtFeatureWrapper
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
@@ -1087,10 +1088,14 @@ def process_features(data, ops):
     """
     new_data = {}
     for op in ops:
+        feature_path = 'feature_{}'.format(op.feat_name)
+        if os.path.exists(feature_path):
+            shutil.rmtree(feature_path)
         if isinstance(op.col_name, str):
             col_name = [op.col_name]
         else:
             col_name = op.col_name
+        tmp_key, wrapper = "", ""
         for col in col_name:
             res = op(data[col])
             assert isinstance(res, dict)
@@ -1101,9 +1106,20 @@ def process_features(data, ops):
                         val = val.to_numpy().reshape(-1, 1)
                     else:
                         val = val.reshape(-1, 1)
-                if key in new_data:
-                    val = np.column_stack((new_data[key], val))
-                new_data[key] = val
+                if len(col_name) == 1:
+                    new_data[key] = val
+                else:
+                    tmp_key = key
+                    feature_path = 'feature_{}'.format(op.feat_name)
+                    if not os.path.exists(feature_path):
+                        os.makedirs(feature_path)
+                        wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
+                    np.save(feature_path + '/{}.npy'.format(col), val)
+
+        if len(col_name) > 1:
+            wrapper.merge()
+            new_data[tmp_key] = wrapper
+
     return new_data
 
 def get_valid_label_index(label):

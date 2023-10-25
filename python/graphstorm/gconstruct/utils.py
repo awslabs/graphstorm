@@ -530,6 +530,95 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
         """
         return th.tensor(self.to_numpy())
 
+class ExtFeatureWrapper(ExtMemArrayWrapper):
+    """ The wrapper to memory-mapped Numpy array when combining feature
+
+    Parameters
+    ----------
+    arr_path : str
+        The path to different feature files directory
+    shape : tuple
+        The shape of the array.
+    dtype : numpy dtype
+        The data type.
+    """
+    def __init__(self, arr_path, shape, dtype):
+        self._arr_path = arr_path
+        self._shape = shape
+        self._orig_dtype = self._dtype = dtype
+        self._arr = None
+
+    @property
+    def dtype(self):
+        """ The data type
+        """
+        return self._dtype
+
+    @property
+    def shape(self):
+        """ The shape of the array.
+        """
+        return self._shape
+
+    def astype(self, dtype):
+        """ Return an array with converted data type.
+        """
+        arr = copy.copy(self)
+        arr._dtype = dtype
+        return arr
+
+    def __len__(self):
+        return self._shape[0]
+
+    def __getitem__(self, idx):
+        if self._arr is None:
+            self._arr = np.memmap(os.path.join(self._arr_path, "merged_feature.npy"), self._orig_dtype, mode="r", shape=self._shape)
+        return self._arr[idx].astype(self.dtype)
+
+    def cleanup(self):
+        """ Clean up the array.
+        """
+        self._arr.flush()
+        self._arr = None
+
+    def to_numpy(self):
+        """ Convert the data to Numpy array.
+        """
+        if self._arr is None:
+            arr = np.memmap(self._arr_path, self._orig_dtype, mode="r", shape=self._shape)
+            if self._dtype != self._orig_dtype:
+                arr = arr.astype(self._dtype)
+            return arr
+        else:
+            return self._arr.astype(self._dtype)
+
+    def to_tensor(self):
+        """ Return Pytorch tensor.
+        """
+        return th.tensor(self.to_numpy())
+
+    def merge(self):
+        merged_path = "merged_feature.npy"
+        entries = os.listdir(self._arr_path)
+
+        out_arr = np.memmap(os.path.join(self._arr_path, merged_path), self._orig_dtype,
+                            mode="w+", shape=(self._shape[0], len(entries) * self._shape[1]))
+        col_start = 0
+        for i, entry in enumerate(entries):
+            if entry == "merged_feature.npy":
+                continue
+            arr = np.memmap(os.path.join(self._arr_path, entry), self._orig_dtype,
+                            mode="r", shape=self._shape)
+            col_end = col_start + self._shape[1]
+            out_arr[:, col_start:col_end] = arr
+            col_start = col_end
+
+        print("out_arr:", out_arr)
+        out_arr.flush()
+        del out_arr
+
+
+
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
 
