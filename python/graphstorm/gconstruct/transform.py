@@ -1121,17 +1121,15 @@ def process_features(data, ops, ext_mem=None):
                         if not os.path.exists(feature_path):
                             os.makedirs(feature_path)
                             wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
-                        # Generate a random UUID
+                        # Generate a hashcode
                         random_uuid = uuid.uuid4()
-
-                        # Generate a SHA-256 hash of the UUID
                         hash_object = hashlib.sha256(str(random_uuid).encode())
                         hash_hex = hash_object.hexdigest()
 
                         val.tofile(feature_path + '/{}_{}.npy'.format(col, hash_hex))
                     else:
-                        if key in new_data:
-                            val = np.column_stack((new_data[key], val))
+                        val = np.column_stack((new_data[key], val)) \
+                            if key in new_data else val
                         new_data[key] = val
 
         if len(col_name) > 1 and ext_mem is not None:
