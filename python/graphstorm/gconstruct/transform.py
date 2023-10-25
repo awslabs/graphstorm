@@ -1069,7 +1069,7 @@ def preprocess_features(data, ops):
 
     return pre_data
 
-def process_features(data, ops):
+def process_features(data, ops, ext_mem=None):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
@@ -1081,6 +1081,8 @@ def process_features(data, ops):
         The data stored as a dict.
     ops : list of FeatTransform
         The operations that transform features.
+    ext_mem: str
+        The address of external memory
 
     Returns
     -------
@@ -1088,7 +1090,8 @@ def process_features(data, ops):
     """
     new_data = {}
     for op in ops:
-        feature_path = 'feature_{}'.format(op.feat_name)
+        feature_path = ext_mem + 'feature_intermediate/feature_{}'\
+            .format(op.feat_name)
         if os.path.exists(feature_path):
             shutil.rmtree(feature_path)
         if isinstance(op.col_name, str):
@@ -1110,7 +1113,8 @@ def process_features(data, ops):
                     new_data[key] = val
                 else:
                     tmp_key = key
-                    feature_path = 'feature_{}'.format(op.feat_name)
+                    assert ext_mem is not None, \
+                        "external memory is necessary for multiple column"
                     if not os.path.exists(feature_path):
                         os.makedirs(feature_path)
                         wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)

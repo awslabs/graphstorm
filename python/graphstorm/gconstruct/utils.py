@@ -613,11 +613,9 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
             out_arr[:, col_start:col_end] = arr
             col_start = col_end
 
-        print("out_arr:", out_arr)
         out_arr.flush()
         del out_arr
-
-
+        
 
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
