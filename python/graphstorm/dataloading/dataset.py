@@ -168,9 +168,10 @@ class GSgnnData():
                     for name in feat_names:
                         wg_folder = os.path.join(os.path.dirname(part_config), 'wholegraph')
                         assert len([feat_file for feat_file in os.listdir(wg_folder) \
-                        if re.search(ntype + '~' + name, feat_file)]) > 0, \
-                            f"Feature '{name}' of '{ntype}' is not in wholeGraph format. Please convert " \
-                            f"all the available features to WholeGraph format to utilize WholeGraph."
+                            if re.search(ntype + '~' + name, feat_file)]) > 0, \
+                            f"Feature '{name}' of '{ntype}' is not in WholeGraph format. " \
+                            f"Please convert all the available features to WholeGraph " \
+                            f"format to utilize WholeGraph."
                         data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
                     if len(self._g.ntypes) == 1:
                         self._g._ndata_store.update(data)
@@ -186,8 +187,9 @@ class GSgnnData():
                         wg_folder = os.path.join(os.path.dirname(part_config), 'wholegraph')
                         assert len([feat_file for feat_file in os.listdir(wg_folder) \
                             if re.search(etype_wg + '~' + name, feat_file)]) > 0, \
-                            f"Feature '{name}' of '{etype}' is not in wholeGraph format. Please convert " \
-                            f"all the available features to WholeGraph format to utilize WholeGraph."
+                            f"Feature '{name}' of '{etype}' is not in WholeGraph format. " \
+                            f"Please convert all the available features to WholeGraph " \
+                            f"format to utilize WholeGraph."
                         data[name] = self.load_wg_feat(part_config, num_parts, etype_wg, name)
                     if len(self._g.canonical_etypes) == 1:
                         self._g._edata_store.update(data)
@@ -223,7 +225,7 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
-    def load_wg_feat(self, part_config_path, num_parts, ntype, name):
+    def load_wg_feat(self, part_config_path, num_parts, type_name, name):
         """Load features from wholegraph memory
 
         Parameters
@@ -232,7 +234,7 @@ class GSgnnData():
             The path of the partition configuration file.
         num_parts : int
             The number of partitions of the dataset
-        ntype: str
+        type_name: str
             The type of node or edge for which to fetch features or labels for.
         name: str
             The name of the features to load
@@ -254,18 +256,18 @@ class GSgnnData():
                                      'wholegraph/metadata.json')
         with open(metadata_file, encoding="utf8") as f:
             wg_metadata = json.load(f)
-        data_shape = wg_metadata[ntype + '/' + name]['shape']
+        data_shape = wg_metadata[type_name + '/' + name]['shape']
         feat_wm_embedding = wgth.create_embedding(
             feature_comm,
             embedding_wholememory_type,
             embedding_wholememory_location,
-            getattr(th, wg_metadata[ntype + '/' + name]['dtype'].split('.')[1]),
+            getattr(th, wg_metadata[type_name + '/' + name]['dtype'].split('.')[1]),
             [data_shape[0],1] if len(data_shape) == 1 else data_shape,
             optimizer=None,
             cache_policy=cache_policy,
         )
         feat_path = os.path.join(os.path.dirname(part_config_path), 'wholegraph', \
-                                                 ntype + '~' + name)
+                                                 type_name + '~' + name)
         feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
                                                                        part_count=num_parts)
         return feat_wm_embedding
