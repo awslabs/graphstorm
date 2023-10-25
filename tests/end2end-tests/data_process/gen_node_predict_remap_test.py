@@ -45,12 +45,19 @@ def main(args):
     nid1_map.save(os.path.join(os.path.join(output_path, "id_mapping"), ntype1+"_id_remap.parquet"))
 
     # generate faked edge results
-    nid0_ = nid0[np.random.randint(1000, size=2000)]
-    nid1_ = nid1[np.random.randint(1000, size=2000)]
-    pred0 = np.stack((nid0_, nid0_), axis=1)
-    pred1 = np.stack((nid1_, nid1_), axis=1)
-    nid0_new, _ = nid0_map.map_id(nid0_.astype('str'))
-    nid1_new, _ = nid1_map.map_id(nid1_.astype('str'))
+    nid0_0 = nid0[np.random.randint(1000, size=2000)]
+    nid1_0 = nid1[np.random.randint(1000, size=2000)]
+    pred0_0 = np.stack((nid0_0, nid0_0), axis=1)
+    pred1_0 = np.stack((nid1_0, nid1_0), axis=1)
+    nid0_new_0, _ = nid0_map.map_id(nid0_0.astype('str'))
+    nid1_new_0, _ = nid1_map.map_id(nid1_0.astype('str'))
+
+    nid0_1 = nid0[np.random.randint(1000, size=2000)]
+    nid1_1 = nid1[np.random.randint(1000, size=2000)]
+    pred0_1 = np.stack((nid0_1, nid0_1), axis=1)
+    pred1_1 = np.stack((nid1_1, nid1_1), axis=1)
+    nid0_new_1, _ = nid0_map.map_id(nid0_1.astype('str'))
+    nid1_new_1, _ = nid1_map.map_id(nid1_1.astype('str'))
 
     meta_info = {
         "format": "pytorch",
@@ -68,11 +75,17 @@ def main(args):
     pred_output_ntype1 = os.path.join(pred_output, ntype1)
     os.makedirs(pred_output_ntype0)
     os.makedirs(pred_output_ntype1)
-    th.save(th.tensor(pred0), os.path.join(pred_output_ntype0, f"predict-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(nid0_new), os.path.join(pred_output_ntype0, f"nids-{pad_file_index(0)}.pt"))
+    th.save(th.tensor(pred0_0), os.path.join(pred_output_ntype0, f"predict-{pad_file_index(0)}.pt"))
+    th.save(th.tensor(nid0_new_0), os.path.join(pred_output_ntype0, f"nids-{pad_file_index(0)}.pt"))
 
-    th.save(th.tensor(pred1), os.path.join(pred_output_ntype1, f"predict-{pad_file_index(1)}.pt"))
-    th.save(th.tensor(nid1_new), os.path.join(pred_output_ntype1, f"nids-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(pred1_0), os.path.join(pred_output_ntype1, f"predict-{pad_file_index(0)}.pt"))
+    th.save(th.tensor(nid1_new_0), os.path.join(pred_output_ntype1, f"nids-{pad_file_index(0)}.pt"))
+
+    th.save(th.tensor(pred0_1), os.path.join(pred_output_ntype0, f"predict-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(nid0_new_1), os.path.join(pred_output_ntype0, f"nids-{pad_file_index(1)}.pt"))
+
+    th.save(th.tensor(pred1_1), os.path.join(pred_output_ntype1, f"predict-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(nid1_new_1), os.path.join(pred_output_ntype1, f"nids-{pad_file_index(1)}.pt"))
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Check edge prediction remapping")
