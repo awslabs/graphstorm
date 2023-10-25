@@ -26,7 +26,7 @@ from ..model.node_glem import GLEM
 from .np_trainer import GSgnnNodePredictionTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem
-from ..utils import barrier, get_rank
+from ..utils import barrier, get_rank, is_distributed
 from ..dataloading import GSgnnNodeSemiSupDataLoader
 
 class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
@@ -253,11 +253,11 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                          blocks_u=blocks_u, node_feats_u=input_feats_u, edge_feats_u=None,
                          input_nodes_u=input_nodes_u)
             profiler.record('train_forward')
-
-            self.optimizer.zero_grad()
+            module = model.module if is_distributed() else model
+            self.optimizer.zero_grad(optimize_sparse_params=module.training_sparse_embed)
             loss.backward()
             profiler.record('train_backward')
-            self.optimizer.step()
+            self.optimizer.step(optimize_sparse_params=module.training_sparse_embed)
             profiler.record('train_step')
 
             if max_grad_norm is not None:

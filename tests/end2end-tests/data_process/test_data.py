@@ -111,6 +111,8 @@ assert np.all(data + rev_data == 0)
 #test data type
 data = g.nodes['node1'].data['feat2']
 assert data.dtype is th.float16
+data = g.nodes['node1'].data['feat_bucket']
+assert data.dtype is th.float16
 data = g.nodes['node1'].data['feat_fp16']
 assert data.dtype is th.float16
 data = g.nodes['node1'].data['feat_fp16_hdf5']
