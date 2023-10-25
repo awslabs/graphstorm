@@ -21,6 +21,7 @@ import os
 import re
 import torch
 import dgl
+import logging
 import pylibwholegraph.torch as wgth
 
 
@@ -64,7 +65,6 @@ def process_edge_data(folder, edge_feat_names):
             f"Feature name of {etype} should be a string not {feat_info[1]}"
         # multiple features separated by ','
         fname_dict[etype] = feat_info[1].split(",")
-
     return fname_dict
 
 def convert_feat_to_wholegraph(fname_dict, file_name, metadata, local_comm, folder):
@@ -72,6 +72,7 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, local_comm, fold
     feats_data = []
     wg_folder = os.path.join(folder, 'wholegraph')
     folder_pattern = re.compile(r"^part[0-9]+$")
+    # Read features from file
     for path in (os.path.join(folder, name) for name in sorted( \
         (f for f in os.listdir(folder) if os.path.isdir(os.path.join(folder, f)) \
         and folder_pattern.match(f)), key=lambda x: int(x.split("part")[1]))):
@@ -84,7 +85,7 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, local_comm, fold
             if feat not in feats_data[0]:
                 raise RuntimeError(f"Error: Unknown feature '{feat}'. Files contain \
                                    the following features: {feats_data[0].keys()}.")
-            print(f"Processing '{feat}' features...")
+            logging.info(f"Processing '{feat}' features...")
             whole_feat_tensor = torch.concat(tuple(t[feat] for t in feats_data), dim=0)
             metadata[feat] = {'shape': list(whole_feat_tensor.shape),
                               'dtype': str(whole_feat_tensor.dtype)}
@@ -122,7 +123,7 @@ def main(folder, node_feat_names, edge_feat_names):
     if not os.path.exists(wg_folder):
         os.makedirs(wg_folder)
 
-    print("node features:", node_feat_names, " and edge features: ", edge_feat_names, " will be converted to WholeGraph format.")
+    logging.info("node features:", node_feat_names, " and edge features: ", edge_feat_names, " will be converted to WholeGraph format.")
 
     metadata = {}
     # Process node features

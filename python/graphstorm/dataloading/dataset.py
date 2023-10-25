@@ -163,13 +163,12 @@ class GSgnnData():
 
             # load node feature from wholegraph memory
             if node_feat_field:
-                for ntype in node_feat_field.keys():
+                for ntype, feat_names in node_feat_field.items():
                     data = {}
-                    feat_names = node_feat_field[ntype]
                     for name in feat_names:
                         wg_folder = os.path.join(os.path.dirname(part_config), 'wholegraph')
                         assert len([feat_file for feat_file in os.listdir(wg_folder) \
-                        if re.search(ntype + '~' + name, feat_file)]), \
+                        if re.search(ntype + '~' + name, feat_file)]) > 0, \
                             f"Feature '{name}' of '{ntype}' is not in wholeGraph format. Please convert " \
                             f"all the available features to WholeGraph format to utilize WholeGraph."
                         data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
@@ -180,14 +179,13 @@ class GSgnnData():
 
             # load edge feature from wholegraph memory
             if edge_feat_field:
-                for etype in edge_feat_field.keys():
+                for etype, feat_names in edge_feat_field.items():
                     data = {}
-                    feat_names = edge_feat_field[etype]
                     etype_wg = ":".join(etype)
                     for name in feat_names:
                         wg_folder = os.path.join(os.path.dirname(part_config), 'wholegraph')
                         assert len([feat_file for feat_file in os.listdir(wg_folder) \
-                            if re.search(etype_wg + '~' + name, feat_file)]), \
+                            if re.search(etype_wg + '~' + name, feat_file)]) > 0, \
                             f"Feature '{name}' of '{etype}' is not in wholeGraph format. Please convert " \
                             f"all the available features to WholeGraph format to utilize WholeGraph."
                         data[name] = self.load_wg_feat(part_config, num_parts, etype_wg, name)
