@@ -156,6 +156,8 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
         The configuration for parsing edge data.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
+    ext_mem: str
+        The address of external memory for multi-column feature
 
     Returns
     -------
@@ -270,6 +272,8 @@ def process_node_data(process_confs, arr_merger, remap_id, ext_mem, num_processe
         Whether or not to remap node IDs
     num_processes: int
         The number of processes to process the input files.
+    ext_mem: str
+        The address of external memory for multi-column feature
 
     Returns
     -------
@@ -442,6 +446,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         The number of processes to process the input files.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
+    ext_mem: str
+        The address of external memory for multi-column feature
 
     Returns
     -------
