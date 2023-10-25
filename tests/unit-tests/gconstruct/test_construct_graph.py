@@ -1274,6 +1274,27 @@ def test_parse_edge_data():
         assert "val_mask" in feat_data
         assert "test_mask" in feat_data
 
+def test_multicolumn():
+    # Just get the features without transformation.
+    feat_op1 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+    }]
+    (res, _, _) = parse_feat_ops(feat_op1)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op1[0]["feature_col"]
+    assert res[0].feat_name == feat_op1[0]["feature_name"]
+    assert isinstance(res[0], Noop)
+
+    data = {
+        "test1": np.random.rand(4, 2),
+        "test2": np.random.rand(4, 2)
+    }
+    proc_res = process_features(data, res)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+    np.testing.assert_allclose(proc_res["test3"], data["test3"])
+
 if __name__ == '__main__':
     test_parse_edge_data()
     test_multiprocessing_checks()
@@ -1288,4 +1309,5 @@ if __name__ == '__main__':
     test_feat_ops()
     test_process_features()
     test_process_features_fp16()
+    test_multicolumn()
     test_label()
