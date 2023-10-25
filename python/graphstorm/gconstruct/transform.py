@@ -1114,7 +1114,7 @@ def process_features(data, ops):
                     if not os.path.exists(feature_path):
                         os.makedirs(feature_path)
                         wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
-                    np.save(feature_path + '/{}.npy'.format(col), val)
+                    val.tofile(feature_path + '/{}.npy'.format(col))
 
         if len(col_name) > 1:
             wrapper.merge()
