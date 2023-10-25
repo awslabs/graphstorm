@@ -1114,23 +1114,23 @@ def process_features(data, ops, ext_mem=None):
                         val = val.reshape(-1, 1)
                 if len(col_name) == 1:
                     new_data[key] = val
-                else:
-                    tmp_key = key
-                    # Use external memory if it is available
-                    if ext_mem is not None:
-                        if not os.path.exists(feature_path):
-                            os.makedirs(feature_path)
-                            wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
-                        # Generate a hashcode
-                        random_uuid = uuid.uuid4()
-                        hash_object = hashlib.sha256(str(random_uuid).encode())
-                        hash_hex = hash_object.hexdigest()
+                    continue
+                tmp_key = key
+                # Use external memory if it is available
+                if ext_mem is not None:
+                    if not os.path.exists(feature_path):
+                        os.makedirs(feature_path)
+                        wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
+                    # Generate a hashcode
+                    random_uuid = uuid.uuid4()
+                    hash_object = hashlib.sha256(str(random_uuid).encode())
+                    hash_hex = hash_object.hexdigest()
 
-                        val.tofile(feature_path + '/{}_{}.npy'.format(col, hash_hex))
-                    else:
-                        val = np.column_stack((new_data[key], val)) \
-                            if key in new_data else val
-                        new_data[key] = val
+                    val.tofile(feature_path + '/{}_{}.npy'.format(col, hash_hex))
+                else:
+                    val = np.column_stack((new_data[key], val)) \
+                        if key in new_data else val
+                    new_data[key] = val
 
         if len(col_name) > 1 and ext_mem is not None:
             wrapper.merge()
