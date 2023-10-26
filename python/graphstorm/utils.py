@@ -91,6 +91,10 @@ def use_wholegraph(part_config):
         os.path.dirname(part_config), 'wholegraph')))
     return USE_WHOLEGRAPH
 
+def is_wholegraph():
+    global USE_WHOLEGRAPH
+    return USE_WHOLEGRAPH
+
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.
 

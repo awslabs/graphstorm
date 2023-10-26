@@ -25,7 +25,7 @@ from torch import nn
 from dgl.distributed import node_split
 from .gs_layer import GSLayer
 
-from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, USE_WHOLEGRAPH
+from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, is_wholegraph
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -201,7 +201,7 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
                     # This happens on a homogeneous graph.
                     assert len(g.ntypes) == 1
                     output_nodes = {g.ntypes[0]: output_nodes}
-            if USE_WHOLEGRAPH:
+            if is_wholegraph():
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
                 prepare_for_wholegraph(g, input_nodes)
             if iter_l % 100000 == 0 and get_rank() == 0:
