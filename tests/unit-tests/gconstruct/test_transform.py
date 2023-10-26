@@ -96,7 +96,7 @@ def test_fp_transform(input_dtype):
     assert len(min_val.shape) == 1
 
     feats = np.random.randn(100).astype(input_dtype)
-    fifo = np.finfo(np.float64)
+    fifo = np.finfo(np.cfloat)
     feats[0] = fifo.max
     feats[1] = -fifo.max
     transform = NumericalMinMaxTransform("test", "test")
