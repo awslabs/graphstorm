@@ -224,7 +224,7 @@ class InbatchJointUniform(JointUniform):
         The number of negative examples per edge.
     '''
     def __init__(self, k):
-        self.k = k
+        super(JointUniform, self).__init__(k)
 
     def _generate(self, g, eids, canonical_etype):
         _, _, vtype = canonical_etype
