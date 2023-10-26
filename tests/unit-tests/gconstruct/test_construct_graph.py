@@ -42,6 +42,7 @@ from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
                                          update_two_phase_feat_ops,
                                          HDF5Array)
 
+
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
     os.close(handle)
@@ -72,11 +73,12 @@ def test_parquet():
 
     os.remove(tmpfile)
 
+
 @pytest.mark.parametrize("delimiter", [None, ",", "\t"])
 def test_csv(delimiter):
     data = {
-            "t1": np.random.uniform(size=(10,)),
-            "t2": np.random.uniform(size=(10,)),
+        "t1": np.random.uniform(size=(10,)),
+        "t2": np.random.uniform(size=(10,)),
     }
     with tempfile.TemporaryDirectory() as tmpdirname:
         if not delimiter:
@@ -94,6 +96,7 @@ def test_csv(delimiter):
             else read_data_csv(os.path.join(tmpdirname, 'test.csv'), delimiter=delimiter, data_fields=['t1'])
         assert 't1' in data1
         np.testing.assert_almost_equal(data1['t1'], data['t1'])
+
 
 def check_json_same_len(tmpfile):
     data = {}
@@ -115,10 +118,11 @@ def check_json_same_len(tmpfile):
     except:
         pass
 
+
 def check_json_unequal_len(tmpfile):
     # Here we write arrays of different lengths to a JSON file.
     data = {
-            "data": [np.random.rand(size) for size in [10, 5, 2, 5]]
+        "data": [np.random.rand(size) for size in [10, 5, 2, 5]]
     }
     write_data_json(data, tmpfile)
     data1 = read_data_json(tmpfile, ["data"])
@@ -129,10 +133,12 @@ def check_json_unequal_len(tmpfile):
         assert np.all(data1["data"][i][:len(arr)] == arr)
         assert np.all(data1["data"][i][len(arr):] == 0)
 
+
 def test_json():
     with tempfile.TemporaryDirectory() as tmpdirname:
         check_json_same_len(os.path.join(tmpdirname, "same_len.json"))
         check_json_unequal_len(os.path.join(tmpdirname, "unequal_len.json"))
+
 
 def test_hdf5():
     handle, tmpfile = tempfile.mkstemp()
@@ -174,6 +180,7 @@ def test_hdf5():
 
     os.remove(tmpfile)
 
+
 def check_feat_ops_noop():
     # Just get the features without transformation.
     feat_op1 = [{
@@ -204,6 +211,7 @@ def check_feat_ops_noop():
     assert res[0].feat_name == feat_op1[0]["feature_col"]
     assert isinstance(res[0], Noop)
 
+
 def check_feat_ops_tokenize():
     feat_op2 = [
         {
@@ -214,12 +222,12 @@ def check_feat_ops_tokenize():
             "feature_col": "test3",
             "feature_name": "test4",
             "transform": {"name": 'tokenize_hf',
-                'bert_model': 'bert-base-uncased',
-                'max_seq_length': 16
-            },
+                          'bert_model': 'bert-base-uncased',
+                          'max_seq_length': 16
+                          },
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op2)
+    (res, _, _) = parse_feat_ops(feat_op2)
     assert len(res) == 2
     assert res[1].col_name == feat_op2[1]["feature_col"]
     assert res[1].feat_name == feat_op2[1]["feature_name"]
@@ -246,18 +254,19 @@ def check_feat_ops_tokenize():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
+
 def check_feat_ops_bert():
     feat_op3 = [
         {
             "feature_col": "test3",
             "feature_name": "test4",
             "transform": {"name": 'bert_hf',
-                'bert_model': 'bert-base-uncased',
-                'max_seq_length': 16
-            },
+                          'bert_model': 'bert-base-uncased',
+                          'max_seq_length': 16
+                          },
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op3)
+    (res, _, _) = parse_feat_ops(feat_op3)
     assert len(res) == 1
     assert res[0].col_name == feat_op3[0]["feature_col"]
     assert res[0].feat_name == feat_op3[0]["feature_name"]
@@ -277,13 +286,13 @@ def check_feat_ops_bert():
             "feature_col": "test3",
             "feature_name": "test4",
             "transform": {"name": 'bert_hf',
-                'bert_model': 'bert-base-uncased',
-                'max_seq_length': 16,
-                'infer_batch_size': 1,
-            },
+                          'bert_model': 'bert-base-uncased',
+                          'max_seq_length': 16,
+                          'infer_batch_size': 1,
+                          },
         },
     ]
-    (res2, _, _)  = parse_feat_ops(feat_op4)
+    (res2, _, _) = parse_feat_ops(feat_op4)
     assert len(res2) == 1
     assert res2[0].col_name == feat_op4[0]["feature_col"]
     assert res2[0].feat_name == feat_op4[0]["feature_name"]
@@ -291,6 +300,7 @@ def check_feat_ops_bert():
     assert "test4" in proc_res2
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
+
 
 def check_feat_ops_maxmin():
     data0 = {
@@ -304,10 +314,10 @@ def check_feat_ops_maxmin():
             "feature_col": "test1",
             "feature_name": "test5",
             "transform": {"name": 'max_min_norm',
-            },
+                          },
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op5)
+    (res, _, _) = parse_feat_ops(feat_op5)
     assert len(res) == 1
     assert res[0].col_name == feat_op5[0]["feature_col"]
     assert res[0].feat_name == feat_op5[0]["feature_name"]
@@ -322,8 +332,8 @@ def check_feat_ops_maxmin():
         1: preproc_res1
     }
     update_two_phase_feat_ops(return_dict, res)
-    data_col0 = data0["test1"][:,0].tolist() + data1["test1"][:,0].tolist()
-    data_col1 = data0["test1"][:,1].tolist() + data1["test1"][:,1].tolist()
+    data_col0 = data0["test1"][:, 0].tolist() + data1["test1"][:, 0].tolist()
+    data_col1 = data0["test1"][:, 1].tolist() + data1["test1"][:, 1].tolist()
     max0 = max(data_col0)
     min0 = min(data_col0)
     max1 = max(data_col1)
@@ -337,8 +347,8 @@ def check_feat_ops_maxmin():
     assert proc_res5.dtype == np.float32
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
-    assert_almost_equal(proc_res5[:,0], data_col0)
-    assert_almost_equal(proc_res5[:,1], data_col1)
+    assert_almost_equal(proc_res5[:, 0], data_col0)
+    assert_almost_equal(proc_res5[:, 1], data_col1)
 
     feat_op6 = [
         {
@@ -347,10 +357,10 @@ def check_feat_ops_maxmin():
             "transform": {"name": 'max_min_norm',
                           "max_bound": 2.,
                           "min_bound": -2.
-            },
+                          },
         },
     ]
-    (res2, _, _)  = parse_feat_ops(feat_op6)
+    (res2, _, _) = parse_feat_ops(feat_op6)
     assert len(res2) == 1
     assert res2[0].col_name == feat_op6[0]["feature_col"]
     assert res2[0].feat_name == feat_op6[0]["feature_name"]
@@ -365,8 +375,8 @@ def check_feat_ops_maxmin():
         1: preproc_res1
     }
     update_two_phase_feat_ops(return_dict, res2)
-    data_col0 = data0["test1"][:,0].tolist() + data1["test1"][:,0].tolist()
-    data_col1 = data0["test1"][:,1].tolist() + data1["test1"][:,1].tolist()
+    data_col0 = data0["test1"][:, 0].tolist() + data1["test1"][:, 0].tolist()
+    data_col1 = data0["test1"][:, 1].tolist() + data1["test1"][:, 1].tolist()
     max0 = max(data_col0)
     min0 = min(data_col0)
     max1 = max(data_col1)
@@ -384,15 +394,16 @@ def check_feat_ops_maxmin():
     assert proc_res6.dtype == np.float32
     data_col0 = (np.array(data_col0) - min0) / (max0 - min0)
     data_col1 = (np.array(data_col1) - min1) / (max1 - min1)
-    assert_almost_equal(proc_res6[:,0], data_col0)
-    assert_almost_equal(proc_res6[:,1], data_col1)
+    assert_almost_equal(proc_res6[:, 0], data_col0)
+    assert_almost_equal(proc_res6[:, 1], data_col1)
+
 
 def check_feat_ops_rank_gauss():
     data7_0 = {
-        "test1": np.random.randn(100,2).astype(np.float32)
+        "test1": np.random.randn(100, 2).astype(np.float32)
     }
     data7_1 = {
-        "test1": np.random.randn(100,2).astype(np.float32)
+        "test1": np.random.randn(100, 2).astype(np.float32)
     }
 
     feat_op7 = [
@@ -404,7 +415,7 @@ def check_feat_ops_rank_gauss():
             },
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op7)
+    (res, _, _) = parse_feat_ops(feat_op7)
     assert len(res) == 1
     assert res[0].col_name == feat_op7[0]["feature_col"]
     assert res[0].feat_name == feat_op7[0]["feature_name"]
@@ -418,6 +429,7 @@ def check_feat_ops_rank_gauss():
     rev_trans_feat = np.flip(trans_feat, axis=0)
     assert np.all(trans_feat + rev_trans_feat == 0)
 
+
 def check_feat_ops_categorical():
     feat_op7 = [
         {
@@ -426,10 +438,10 @@ def check_feat_ops_categorical():
             "transform": {"name": 'to_categorical'},
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op7)
+    (res, _, _) = parse_feat_ops(feat_op7)
     data0 = {
         "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]
-            + [str(i) for i in range(10)]),
+                          + [str(i) for i in range(10)]),
     }
     data1 = {
         "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]),
@@ -457,10 +469,10 @@ def check_feat_ops_categorical():
             "transform": {"name": 'to_categorical', "separator": ","},
         },
     ]
-    (res2, _, _)  = parse_feat_ops(feat_op8)
+    (res2, _, _) = parse_feat_ops(feat_op8)
     data0 = {
-        "test1": np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, size=10)]
-            + [str(i) for i in range(9)]),
+        "test1": np.array([f"{i},{i + 1}" for i in np.random.randint(0, 9, size=10)]
+                          + [str(i) for i in range(9)]),
     }
     data1 = {
         "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]),
@@ -483,6 +495,7 @@ def check_feat_ops_categorical():
         assert multi_hot[int(str_i2)] == 1
     assert 'mapping' in feat_op8[0]["transform"]
 
+
 def test_feat_ops():
     check_feat_ops_noop()
     check_feat_ops_tokenize()
@@ -490,6 +503,7 @@ def test_feat_ops():
     check_feat_ops_maxmin()
     check_feat_ops_categorical()
     check_feat_ops_rank_gauss()
+
 
 def test_process_features_fp16():
     # Just get the features without transformation.
@@ -505,11 +519,11 @@ def test_process_features_fp16():
         "feature_col": "test1",
         "feature_name": "test1",
         "out_dtype": "float16",
-    },{
+    }, {
         "feature_col": "test2",
         "feature_name": "test2",
         "out_dtype": "float16",
-    },{
+    }, {
         "feature_col": "test3",
         "feature_name": "test3",
         "out_dtype": "int8",
@@ -550,6 +564,7 @@ def test_process_features_fp16():
     assert_almost_equal(rst2['test2'], data['test2'].reshape(-1, 1), decimal=3)
     assert_almost_equal(rst2['test3'], data['test3'].reshape(-1, 1).astype(np.int8))
 
+
 def test_process_features():
     # Just get the features without transformation.
     data = {}
@@ -559,7 +574,7 @@ def test_process_features():
     feat_op1 = [{
         "feature_col": "test1",
         "feature_name": "test1",
-    },{
+    }, {
         "feature_col": "test2",
         "feature_name": "test2",
     }]
@@ -572,6 +587,7 @@ def test_process_features():
     assert (len(rst['test2'].shape)) == 2
     np.testing.assert_array_equal(rst['test1'], data['test1'])
     np.testing.assert_array_equal(rst['test2'], data['test2'].reshape(-1, 1))
+
 
 def test_label():
     def check_split(res):
@@ -608,19 +624,20 @@ def test_label():
         check_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
         check_integer(res['label'], res)
+
     def check_classification_no_split(res):
         check_no_split(res)
         assert np.issubdtype(res['label'].dtype, np.integer)
 
     conf = {
-            "labels": [
-                {'task_type': 'classification',
-                 'label_col': 'label',
-                 'split_pct': [0.8, 0.1, 0.1]}
-            ]
+        "labels": [
+            {'task_type': 'classification',
+             'label_col': 'label',
+             'split_pct': [0.8, 0.1, 0.1]}
+        ]
     }
     ops = parse_label_ops(conf, True)
-    data = {'label' : np.random.uniform(size=10) * 10}
+    data = {'label': np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     check_classification(res)
     ops = parse_label_ops(conf, True)
@@ -628,22 +645,22 @@ def test_label():
     check_classification(res)
 
     # Check classification with invalid labels.
-    data = {'label' : np.random.uniform(size=13) * 10}
+    data = {'label': np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
     ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
     # Check multi-label classification with invalid labels.
-    data = {'label' : np.random.randint(2, size=(15,5)).astype(np.float32)}
-    data['label'][[0,3,4]] = np.NAN
-    data['label'][[1,2], [3,4]] = np.NAN
+    data = {'label': np.random.randint(2, size=(15, 5)).astype(np.float32)}
+    data['label'][[0, 3, 4]] = np.NAN
+    data['label'][[1, 2], [3, 4]] = np.NAN
     ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with integer labels.
-    data = {'label' : np.random.randint(10, size=10)}
+    data = {'label': np.random.randint(10, size=10)}
     ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
@@ -651,26 +668,26 @@ def test_label():
     # Check classification with integer labels.
     # Data split doesn't use all labeled samples.
     conf = {
-            "labels": [
-                {'task_type': 'classification',
-                 'label_col': 'label',
-                 'split_pct': [0.4, 0.05, 0.05]}
-            ]
+        "labels": [
+            {'task_type': 'classification',
+             'label_col': 'label',
+             'split_pct': [0.4, 0.05, 0.05]}
+        ]
     }
     ops = parse_label_ops(conf, True)
-    data = {'label' : np.random.randint(3, size=20)}
+    data = {'label': np.random.randint(3, size=20)}
     res = process_labels(data, ops)
     check_classification(res)
 
     # split_pct is not specified.
     conf = {
-            "labels": [
-                {'task_type': 'classification',
-                 'label_col': 'label'}
-            ]
+        "labels": [
+            {'task_type': 'classification',
+             'label_col': 'label'}
+        ]
     }
     ops = parse_label_ops(conf, True)
-    data = {'label' : np.random.randint(3, size=10)}
+    data = {'label': np.random.randint(3, size=10)}
     res = process_labels(data, ops)
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
@@ -678,21 +695,21 @@ def test_label():
 
     # Check custom data split for classification.
     data = {
-            "id": np.arange(10),
-            'label' : np.random.randint(3, size=10)
+        "id": np.arange(10),
+        'label': np.random.randint(3, size=10)
     }
     write_index_json(np.arange(8), "/tmp/train_idx.json")
     write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
     write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
     conf = {
-            "node_id_col": "id",
-            "labels": [
-                {'task_type': 'classification',
-                 'label_col': 'label',
-                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
-                                            "valid": "/tmp/val_idx.json",
-                                            "test": "/tmp/test_idx.json"}}
-            ]
+        "node_id_col": "id",
+        "labels": [
+            {'task_type': 'classification',
+             'label_col': 'label',
+             'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                        "valid": "/tmp/val_idx.json",
+                                        "test": "/tmp/test_idx.json"}}
+        ]
     }
     ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
@@ -700,17 +717,17 @@ def test_label():
 
     # Check custom data split with only training set.
     data = {
-            "id": np.arange(10),
-            'label' : np.random.randint(3, size=10)
+        "id": np.arange(10),
+        'label': np.random.randint(3, size=10)
     }
     write_index_json(np.arange(8), "/tmp/train_idx.json")
     conf = {
-            "node_id_col": "id",
-            "labels": [
-                {'task_type': 'classification',
-                 'label_col': 'label',
-                 'custom_split_filenames': {"train": "/tmp/train_idx.json"} }
-            ]
+        "node_id_col": "id",
+        "labels": [
+            {'task_type': 'classification',
+             'label_col': 'label',
+             'custom_split_filenames': {"train": "/tmp/train_idx.json"}}
+        ]
     }
     ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
@@ -723,32 +740,33 @@ def test_label():
 
     # Check custom data split without providing split
     conf = {
-            "labels": [
-                {'task_type': 'classification',
-                 'label_col': 'label',
-                 'split_pct': [0, 0, 0]}
-            ]
+        "labels": [
+            {'task_type': 'classification',
+             'label_col': 'label',
+             'split_pct': [0, 0, 0]}
+        ]
     }
     ops = parse_label_ops(conf, True)
-    data = {'label' : np.random.uniform(size=10) * 10}
+    data = {'label': np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     check_classification_no_split(res)
 
     # Check regression
     def check_regression(res):
         check_split(res)
+
     def check_regression_no_split(res):
         check_no_split(res)
 
     conf = {
-            "labels": [
-                {'task_type': 'regression',
-                 'label_col': 'label',
-                 'split_pct': [0.8, 0.1, 0.1]}
-            ]
+        "labels": [
+            {'task_type': 'regression',
+             'label_col': 'label',
+             'split_pct': [0.8, 0.1, 0.1]}
+        ]
     }
     ops = parse_label_ops(conf, True)
-    data = {'label' : np.random.uniform(size=10) * 10}
+    data = {'label': np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     check_regression(res)
     ops = parse_label_ops(conf, False)
@@ -756,7 +774,7 @@ def test_label():
     check_regression(res)
 
     # Check regression with invalid labels.
-    data = {'label' : np.random.uniform(size=13) * 10}
+    data = {'label': np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
     ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
@@ -764,21 +782,21 @@ def test_label():
 
     # Check custom data split for regression.
     data = {
-            "id": np.arange(10),
-            'label' : np.random.uniform(size=10) * 10
+        "id": np.arange(10),
+        'label': np.random.uniform(size=10) * 10
     }
     write_index_json(np.arange(8), "/tmp/train_idx.json")
     write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
     write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
     conf = {
-            "node_id_col": "id",
-            "labels": [
-                {'task_type': 'regression',
-                 'label_col': 'label',
-                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
-                                            "valid": "/tmp/val_idx.json",
-                                            "test": "/tmp/test_idx.json"} }
-            ]
+        "node_id_col": "id",
+        "labels": [
+            {'task_type': 'regression',
+             'label_col': 'label',
+             'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                        "valid": "/tmp/val_idx.json",
+                                        "test": "/tmp/test_idx.json"}}
+        ]
     }
     ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
@@ -786,26 +804,26 @@ def test_label():
 
     # Check custom data split without providing split
     conf = {
-            "labels": [
-                {'task_type': 'regression',
-                 'label_col': 'label',
-                 'split_pct': [0, 0, 0]}
-            ]
+        "labels": [
+            {'task_type': 'regression',
+             'label_col': 'label',
+             'split_pct': [0, 0, 0]}
+        ]
     }
-    data = {'label' : np.random.uniform(size=10) * 10}
+    data = {'label': np.random.uniform(size=10) * 10}
     ops = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_regression_no_split(res)
 
     # Check link prediction
     conf = {
-            "labels": [
-                {'task_type': 'link_prediction',
-                 'split_pct': [0.8, 0.1, 0.1]}
-            ]
+        "labels": [
+            {'task_type': 'link_prediction',
+             'split_pct': [0.8, 0.1, 0.1]}
+        ]
     }
     ops = parse_label_ops(conf, False)
-    data = {'label' : np.random.uniform(size=10) * 10}
+    data = {'label': np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     assert len(res) == 3
     assert 'train_mask' in res
@@ -817,18 +835,19 @@ def test_label():
 
     # Check custom data split without providing split
     conf = {
-            "labels": [
-                {'task_type': 'link_prediction',
-                 'split_pct': [0, 0, 0]}
-            ]
+        "labels": [
+            {'task_type': 'link_prediction',
+             'split_pct': [0, 0, 0]}
+        ]
     }
     ops = parse_label_ops(conf, False)
-    data = {'label' : np.random.uniform(size=10) * 10}
+    data = {'label': np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     assert len(res) == 0
     assert 'train_mask' not in res
     assert 'val_mask' not in res
     assert 'test_mask' not in res
+
 
 def check_id_map_exist(id_map, input_ids):
     # Test the case that all Ids exist in the map.
@@ -840,6 +859,7 @@ def check_id_map_exist(id_map, input_ids):
     for id1, id2 in zip(remap_ids, rand_ids):
         assert id1 == int(id2)
 
+
 def check_id_map_not_exist(id_map, input_ids, out_range_ids):
     # Test the case that some of the Ids don't exist.
     rand_ids = np.array([input_ids[random.randint(0, len(input_ids)) % len(input_ids)] for _ in range(5)])
@@ -850,6 +870,7 @@ def check_id_map_not_exist(id_map, input_ids, out_range_ids):
     assert np.sum(idx >= len(rand_ids)) == 0
     for id1, id2 in zip(remap_ids, rand_ids):
         assert id1 == int(id2)
+
 
 def check_id_map_dtype_not_match(id_map, str_ids):
     # Test the case that the ID array of integer type
@@ -869,6 +890,7 @@ def check_id_map_dtype_not_match(id_map, str_ids):
         raise ValueError("fails")
     except:
         pass
+
 
 def test_id_map():
     # This tests all cases in IdMap.
@@ -905,13 +927,14 @@ def test_id_map():
                                                          decimal.Decimal(15),
                                                          decimal.Decimal(20)]))
 
+
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
     new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs = \
         map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
-                                            id_map, False)
+                     id_map, False)
     assert len(new_src_ids) == len(src_ids)
     assert len(new_dst_ids) == len(dst_ids)
     assert src_exist_locs is None
@@ -921,6 +944,7 @@ def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     for dst_id1, dst_id2 in zip(new_dst_ids, dst_ids):
         assert dst_id1 == int(dst_id2)
 
+
 def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that source node IDs don't exist.
     src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
@@ -928,7 +952,7 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
     try:
         new_src_ids, new_dst_ids, _, _ = \
             map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
-                                                id_map, False)
+                         id_map, False)
         raise ValueError("fail")
     except:
         pass
@@ -936,7 +960,7 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that source node IDs don't exist and we skip non exist edges.
     new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs \
         = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
-                                            id_map, True)
+                       id_map, True)
     num_valid = sum([int(id_) < len(str_src_ids) for id_ in src_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
@@ -948,9 +972,10 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that none of the source node IDs exists and we skip non exist edges.
     src_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
     new_src_ids, new_dst_ids, _, _ = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
-                                            id_map, True)
+                                                  id_map, True)
     assert len(new_src_ids) == 0
     assert len(new_dst_ids) == 0
+
 
 def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that destination node IDs don't exist.
@@ -959,14 +984,14 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     try:
         new_src_ids, new_dst_ids, _, _ = \
             map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
-                                                id_map, False)
+                         id_map, False)
         raise ValueError("fail")
     except:
         pass
 
     # Test the case that destination node IDs don't exist and we skip non exist edges.
     new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
-                                            id_map, True)
+                                                                            id_map, True)
     num_valid = sum([int(id_) < len(str_dst_ids) for id_ in dst_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
@@ -978,9 +1003,10 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that none of the destination node IDs exists and we skip non exist edges.
     dst_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
     new_src_ids, new_dst_ids, _, _ = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
-                                            id_map, True)
+                                                  id_map, True)
     assert len(new_src_ids) == 0
     assert len(new_dst_ids) == 0
+
 
 def test_map_node_ids():
     # This tests all cases in map_node_ids.
@@ -991,6 +1017,7 @@ def test_map_node_ids():
     check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map)
     check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map)
     check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map)
+
 
 def test_merge_arrays():
     # This is to verify the correctness of ExtMemArrayMerger
@@ -1043,6 +1070,7 @@ def test_merge_arrays():
         em_arr = converter([data1], "test5")
         assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
+
 
 @pytest.mark.parametrize("num_parts", [1, 2])
 def test_partition_graph(num_parts):
@@ -1121,24 +1149,25 @@ def test_partition_graph(num_parts):
             assert name in edata2
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
+
 def test_multiprocessing_checks():
     # If the data are stored in multiple HDF5 files and there are
     # features and labels for processing.
     conf = {
         "format": {"name": "hdf5"},
-        "features":     [
+        "features": [
             {
-                "feature_col":  "feat",
+                "feature_col": "feat",
                 "transform": {"name": 'tokenize_hf',
-                    'bert_model': 'bert-base-uncased',
-                    'max_seq_length': 16
-                },
+                              'bert_model': 'bert-base-uncased',
+                              'max_seq_length': 16
+                              },
             },
         ],
-        "labels":       [
+        "labels": [
             {
-                "label_col":    "label",
-                "task_type":    "classification",
+                "label_col": "label",
+                "task_type": "classification",
             },
         ],
     }
@@ -1152,10 +1181,10 @@ def test_multiprocessing_checks():
     # labels for processing.
     conf = {
         "format": {"name": "hdf5"},
-        "labels":       [
+        "labels": [
             {
-                "label_col":    "label",
-                "task_type":    "classification",
+                "label_col": "label",
+                "task_type": "classification",
             },
         ],
     }
@@ -1169,13 +1198,13 @@ def test_multiprocessing_checks():
     # features for processing.
     conf = {
         "format": {"name": "hdf5"},
-        "features":     [
+        "features": [
             {
-                "feature_col":  "feat",
+                "feature_col": "feat",
                 "transform": {"name": 'tokenize_hf',
-                    'bert_model': 'bert-base-uncased',
-                    'max_seq_length': 16
-                },
+                              'bert_model': 'bert-base-uncased',
+                              'max_seq_length': 16
+                              },
             },
         ],
     }
@@ -1197,9 +1226,9 @@ def test_multiprocessing_checks():
     # features that don't require processing.
     conf = {
         "format": {"name": "hdf5"},
-        "features":     [
+        "features": [
             {
-                "feature_col":  "feat",
+                "feature_col": "feat",
             },
         ],
     }
@@ -1213,9 +1242,9 @@ def test_multiprocessing_checks():
     # features that don't require processing.
     conf = {
         "format": {"name": "parquet"},
-        "features":     [
+        "features": [
             {
-                "feature_col":  "feat",
+                "feature_col": "feat",
             },
         ],
     }
@@ -1232,6 +1261,7 @@ def test_multiprocessing_checks():
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
+
 
 def test_parse_edge_data():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -1251,7 +1281,7 @@ def test_parse_edge_data():
 
         feat_ops = [Noop("feat", "feat", None)]
         label_ops = [
-            LinkPredictionProcessor(None, None, [0.7,0.1,0.2], None)]
+            LinkPredictionProcessor(None, None, [0.7, 0.1, 0.2], None)]
         data_file = os.path.join(tmpdirname, "data.parquet")
         write_data_parquet(data, data_file)
 
@@ -1274,6 +1304,7 @@ def test_parse_edge_data():
         assert "val_mask" in feat_data
         assert "test_mask" in feat_data
 
+
 def test_multicolumn():
     # Just get the features without transformation.
     feat_op1 = [{
@@ -1290,10 +1321,12 @@ def test_multicolumn():
         "test1": np.random.rand(4, 2),
         "test2": np.random.rand(4, 2)
     }
+    data["test3"] = np.column_stack((data['test1'], data['test2']))
     proc_res = process_features(data, res)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
     np.testing.assert_allclose(proc_res["test3"], data["test3"])
+
 
 if __name__ == '__main__':
     test_parse_edge_data()
