@@ -101,8 +101,8 @@ def test_fp_transform(input_dtype):
     feats[1] = -fifo.max
     transform = NumericalMinMaxTransform("test", "test")
     max_val, min_val = transform.pre_process(feats)["test"]
-    max_v = np.amax(feats).astype(np.float32)
-    min_v = np.amin(feats).astype(np.float32)
+    max_v = np.amax(feats).astype(input_dtype)
+    min_v = np.amin(feats).astype(input_dtype)
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
     assert_equal(max_val[0], np.finfo(input_dtype).max)
