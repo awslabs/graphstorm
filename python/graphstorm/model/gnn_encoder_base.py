@@ -117,7 +117,7 @@ def prepare_for_wholegraph(g, input_nodes):
         input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
             for ntype in tmp_keys})
     else:
-        input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
+        input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes})
 
 def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                              edge_mask=None, target_ntypes=None, task_tracker=None):

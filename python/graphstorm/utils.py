@@ -92,7 +92,8 @@ def use_wholegraph(part_config):
     return USE_WHOLEGRAPH
 
 def is_wholegraph():
-    global USE_WHOLEGRAPH
+    """ Check whether global USE_WHOLEGRAPH is true
+    """
     return USE_WHOLEGRAPH
 
 def estimate_mem_train(root, task):
