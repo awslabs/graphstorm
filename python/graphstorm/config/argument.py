@@ -2353,6 +2353,8 @@ def _add_link_prediction_args(parser):
             help="Link prediction decoder type.")
     group.add_argument("--num-negative-edges", type=int, default=argparse.SUPPRESS,
             help="Number of edges consider for the negative batch of edges.")
+    group.add_argument("--fixed-test-size", type=int, default=argparse.SUPPRESS,
+            help="Fixed number of test data used in evaluation.")
     group.add_argument("--num-negative-edges-eval", type=int, default=argparse.SUPPRESS,
             help="Number of edges consider for the negative "
                  "batch of edges for the model evaluation. "
