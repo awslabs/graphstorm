@@ -647,6 +647,11 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
         num_samples = 0
         for pos_neg_tuple, sample_type in dataloader:
             num_samples += 1
+            assert isinstance(pos_neg_tuple, dict)
+            assert len(pos_neg_tuple) == 1
+            for _, pos_neg in pos_neg_tuple.items():
+                pos_src, _, pos_dst, _ = pos_neg
+                assert len(pos_src) <= batch_size
 
         assert num_samples ==  -(-fixed_test_size // batch_size) * 2
 

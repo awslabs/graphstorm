@@ -1008,7 +1008,9 @@ class GSgnnLinkPredictionTestDataLoader():
         g = self._data.g
         current_pos = self._current_pos[etype]
         end_of_etype = current_pos + self._batch_size >= self._fixed_test_size[etype]
-        pos_eids = self._target_idx[etype][current_pos:] if end_of_etype \
+
+        pos_eids = self._target_idx[etype][current_pos:self._fixed_test_size[etype]] \
+            if end_of_etype \
             else self._target_idx[etype][current_pos:current_pos+self._batch_size]
         pos_pairs = g.find_edges(pos_eids, etype=etype)
         pos_neg_tuple = self._negative_sampler.gen_neg_pairs(g, {etype:pos_pairs})
