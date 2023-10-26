@@ -264,6 +264,7 @@ class GSConfig:
         _ = self.decoder_edge_feat
 
         # Evaluation
+        _ = self.fixed_test_size
         _ = self.eval_fanout
         _ = self.use_mini_batch_infer
         _ = self.eval_batch_size
@@ -797,6 +798,22 @@ class GSConfig:
         else:
             # By default use -1 as full neighbor
             return [-1] * self.num_layers
+
+    @property
+    def fixed_test_size(self):
+        """ Fixed number of test data used in evaluation
+
+            This is useful for reducing the overhead of doing link prediction evaluation.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_fixed_test_size"):
+            assert self._fixed_test_size > 0, \
+                "fixed_test_size must be larger than 0"
+            return self._fixed_test_size
+
+        # Use the full test set
+        return None
+
 
     @property
     def textual_data_path(self):

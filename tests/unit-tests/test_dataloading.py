@@ -638,6 +638,18 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
                 assert neg_src.shape[1] == num_negative_edges
                 assert th.all(neg_src < g.number_of_nodes(canonical_etype[0]))
 
+        fixed_test_size = 10
+        dataloader = GSgnnLinkPredictionTestDataLoader(
+            lp_data,
+            target_idx=lp_data.train_idxs, # use train edges as val or test edges
+            batch_size=batch_size,
+            num_negative_edges=num_negative_edges,fixed_test_size=fixed_test_size)
+        num_samples = 0
+        for pos_neg_tuple, sample_type in dataloader:
+            num_samples += 1
+
+        assert num_samples ==  -(-fixed_test_size // batch_size) * 2
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
@@ -1307,6 +1319,8 @@ def test_lp_dataloader_len(batch_size):
     assert len(dataloader) == len(list(dataloader))
 
 if __name__ == '__main__':
+    test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    test_GSgnnLinkPredictionTestDataLoader(10, 20)
     test_np_dataloader_len(11)
     test_ep_dataloader_len(11)
     test_lp_dataloader_len(11)
@@ -1324,8 +1338,6 @@ if __name__ == '__main__':
     test_node_dataloader_reconstruct()
     test_GSgnnAllEtypeLinkPredictionDataLoader(10)
     test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
     test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
     test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 

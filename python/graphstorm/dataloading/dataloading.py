@@ -953,8 +953,15 @@ class GSgnnLinkPredictionTestDataLoader():
         The number of negative edges per positive edge
     fanout: int
         Evaluation fanout for computing node embedding
+    fixed_test_size: int
+        Fixed number of test data used in evaluation.
+        If it is none, use the whole testset.
+        When test is huge, using fixed_test_size
+        can save validation and test time.
+        Default: None.
     """
-    def __init__(self, dataset, target_idx, batch_size, num_negative_edges, fanout=None):
+    def __init__(self, dataset, target_idx, batch_size, num_negative_edges, fanout=None,
+    fixed_test_size=None):
         self._data = dataset
         self._fanout = fanout
         for etype in target_idx:
@@ -962,6 +969,15 @@ class GSgnnLinkPredictionTestDataLoader():
                     "edge type {} does not exist in the graph".format(etype)
         self._batch_size = batch_size
         self._target_idx = target_idx
+        self._fixed_test_size = {}
+        for etype, t_idx in target_idx.items():
+            self._fixed_test_size[etype] = fixed_test_size \
+                if fixed_test_size is not None else len(t_idx)
+            if self._fixed_test_size[etype] > len(t_idx):
+                logging.warning("The size of the test set of etype %s" \
+                                "is %d, which is smaller than the expected"
+                                "test size %d, force it to %d",
+                                etype, len(t_idx), self._fixed_test_size[etype], len(t_idx))
         self._negative_sampler = self._prepare_negative_sampler(num_negative_edges)
         self._reinit_dataset()
 
@@ -970,6 +986,11 @@ class GSgnnLinkPredictionTestDataLoader():
         """
         self._current_pos = {etype:0 for etype, _ in self._target_idx.items()}
         self.remaining_etypes = list(self._target_idx.keys())
+        for etype, t_idx in self._target_idx.items():
+            # If the expected test size is smaller than the size of test set
+            # shuffle the test ids
+            if self._fixed_test_size[etype] < len(t_idx):
+                self._target_idx[etype] = self._target_idx[etype][th.randperm(len(t_idx))]
 
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
@@ -986,7 +1007,7 @@ class GSgnnLinkPredictionTestDataLoader():
         """
         g = self._data.g
         current_pos = self._current_pos[etype]
-        end_of_etype = current_pos + self._batch_size >= len(self._target_idx[etype])
+        end_of_etype = current_pos + self._batch_size >= self._fixed_test_size[etype]
         pos_eids = self._target_idx[etype][current_pos:] if end_of_etype \
             else self._target_idx[etype][current_pos:current_pos+self._batch_size]
         pos_pairs = g.find_edges(pos_eids, etype=etype)
