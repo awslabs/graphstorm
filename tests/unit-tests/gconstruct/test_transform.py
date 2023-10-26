@@ -99,14 +99,14 @@ def test_fp_transform(input_dtype):
     fifo = np.finfo(np.cfloat)
     feats[0] = fifo.max
     feats[1] = -fifo.max
-    transform = NumericalMinMaxTransform("test", "test")
+    transform = NumericalMinMaxTransform("test", "test", 
+                                         out_dtype=input_dtype)
     max_val, min_val = transform.pre_process(feats)["test"]
-    max_v = np.amax(feats).astype(input_dtype)
-    min_v = np.amin(feats).astype(input_dtype)
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
-    assert_equal(max_v, np.finfo(input_dtype).max)
-    assert_equal(min_v, -np.finfo(input_dtype).max)
+    res_dtype = np.float32 if input_dtype == np.cfloat else input_dtype
+    assert_equal(max_val[0], np.finfo(res_dtype).max)
+    assert_equal(min_val[0], -np.finfo(res_dtype).max)
 
     feats = np.random.randn(100, 1).astype(input_dtype)
     feats[0][0] = 10.
