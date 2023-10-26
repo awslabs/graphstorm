@@ -217,14 +217,7 @@ class InbatchJointUniform(JointUniform):
     The main idea is to sample a set of nodes and use them to corrupt all edges in a mini-batch.
     This algorithm won't change the sampling probability for each individual edge, but can
     significantly reduce the number of nodes in a mini-batch.
-
-    Parameters
-    ----------
-    k : int
-        The number of negative examples per edge.
     '''
-    def __init__(self, k):
-        super(InbatchJointUniform, self).__init__(k)
 
     def _generate(self, g, eids, canonical_etype):
         _, _, vtype = canonical_etype
