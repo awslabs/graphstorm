@@ -21,8 +21,9 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from .gnn_encoder_base import fix_for_wholegraph
 from .utils import append_to_dict
-from ..utils import is_distributed, get_rank
+from ..utils import is_distributed, get_rank, use_wholegraph
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -223,19 +224,15 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         for iter_l in range(max_num_batch):
             iter_start = time.time()
             tmp_keys = []
+            blocks = None
             if iter_l < len_dataloader:
                 input_nodes, seeds, blocks = next(dataloader_iter)
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
                     input_nodes = {g.ntypes[0]: input_nodes}
+            if use_wholegraph():
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                # All samples should contain all the ntypes for wholegraph compatibility
-                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-                    for ntype in tmp_keys})
-            else:
-                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
-                blocks = None
-
+                fix_for_wholegraph(g, input_nodes, iter_l < len_dataloader)
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue

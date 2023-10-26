@@ -25,7 +25,7 @@ from torch import nn
 from dgl.distributed import node_split
 from .gs_layer import GSLayer
 
-from ..utils import get_rank, barrier, is_distributed, create_dist_tensor
+from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, use_wholegraph
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -102,6 +102,25 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return dist_inference(g, self, get_input_embeds, batch_size, fanout,
                             edge_mask=edge_mask, task_tracker=task_tracker)
 
+def fix_for_wholegraph(g, input_nodes, not_end_of_loader):
+    """ Add missing ntypes in input_nodes for wholegraph compatibility
+
+    Parameters
+    ----------
+    g : DistGraph
+        Input graph
+    input_nodes : Tensor
+        Input nodes retrieved from the dataloder
+    not_end_of_loader: Bool
+        Whether trainer has reached end of dataloader
+    """
+    if not_end_of_loader:
+        tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+        input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
+            for ntype in tmp_keys})
+    else:
+        input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
+
 def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                              edge_mask=None, target_ntypes=None, task_tracker=None):
     """Distributed inference of final representation over all node types
@@ -173,6 +192,7 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
         # TODO (IN): Fix dataloader to have same number of minibatches.
         for iter_l in range(max_num_batch):
             tmp_keys = []
+            blocks = None
             if iter_l < len_dataloader:
                 input_nodes, output_nodes, blocks = next(dataloader_iter)
                 if not isinstance(input_nodes, dict):
@@ -183,13 +203,9 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
                     # This happens on a homogeneous graph.
                     assert len(g.ntypes) == 1
                     output_nodes = {g.ntypes[0]: output_nodes}
+            if use_wholegraph():
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                # All samples should contain all the ntypes for wholegraph compatibility
-                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-                    for ntype in tmp_keys})
-            else:
-                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
-                blocks = None
+                fix_for_wholegraph(g, input_nodes, iter_l < len_dataloader)
             if iter_l % 100000 == 0 and get_rank() == 0:
                 logging.info("[Rank 0] dist inference: " \
                         "finishes %d iterations.", iter_l)
