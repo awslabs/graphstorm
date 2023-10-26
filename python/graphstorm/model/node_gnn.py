@@ -21,9 +21,9 @@ import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
-from .gnn_encoder_base import fix_for_wholegraph
+from .gnn_encoder_base import prepare_for_wholegraph
 from .utils import append_to_dict
-from ..utils import is_distributed, get_rank, use_wholegraph
+from ..utils import is_distributed, get_rank, USE_WHOLEGRAPH
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -230,9 +230,9 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
                     input_nodes = {g.ntypes[0]: input_nodes}
-            if use_wholegraph():
+            if USE_WHOLEGRAPH:
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                fix_for_wholegraph(g, input_nodes, iter_l < len_dataloader)
+                prepare_for_wholegraph(g, input_nodes)
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue

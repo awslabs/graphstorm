@@ -25,7 +25,7 @@ from torch import nn
 from dgl.distributed import node_split
 from .gs_layer import GSLayer
 
-from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, use_wholegraph
+from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, USE_WHOLEGRAPH
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -102,7 +102,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return dist_inference(g, self, get_input_embeds, batch_size, fanout,
                             edge_mask=edge_mask, task_tracker=task_tracker)
 
-def fix_for_wholegraph(g, input_nodes, not_end_of_loader):
+def prepare_for_wholegraph(g, input_nodes):
     """ Add missing ntypes in input_nodes for wholegraph compatibility
 
     Parameters
@@ -111,10 +111,8 @@ def fix_for_wholegraph(g, input_nodes, not_end_of_loader):
         Input graph
     input_nodes : Tensor
         Input nodes retrieved from the dataloder
-    not_end_of_loader: Bool
-        Whether trainer has reached end of dataloader
     """
-    if not_end_of_loader:
+    if input_nodes:
         tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
         input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
             for ntype in tmp_keys})
@@ -203,9 +201,9 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
                     # This happens on a homogeneous graph.
                     assert len(g.ntypes) == 1
                     output_nodes = {g.ntypes[0]: output_nodes}
-            if use_wholegraph():
+            if USE_WHOLEGRAPH:
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                fix_for_wholegraph(g, input_nodes, iter_l < len_dataloader)
+                prepare_for_wholegraph(g, input_nodes)
             if iter_l % 100000 == 0 and get_rank() == 0:
                 logging.info("[Rank 0] dist inference: " \
                         "finishes %d iterations.", iter_l)

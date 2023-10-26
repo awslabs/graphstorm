@@ -28,6 +28,7 @@ import torch as th
 import numpy as np
 
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
+USE_WHOLEGRAPH = False
 
 def setup_device(local_rank):
     r"""Setup computation device.
@@ -85,8 +86,10 @@ def barrier():
 def use_wholegraph(part_config):
     """ Use wholegraph for feature fetching if 'wholegraph' folder exists
     """
-    return bool(part_config is not None and os.path.isdir(os.path.join( \
+    global USE_WHOLEGRAPH
+    USE_WHOLEGRAPH = bool(part_config is not None and os.path.isdir(os.path.join( \
         os.path.dirname(part_config), 'wholegraph')))
+    return USE_WHOLEGRAPH
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.
