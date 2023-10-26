@@ -1,5 +1,7 @@
+.. _gs-processing:
+
 GraphStorm Processing Getting Started
-=====================================
+=======================================
 
 
 GraphStorm Distributed Data Processing (GSProcessing) allows you to process and prepare massive graph data
