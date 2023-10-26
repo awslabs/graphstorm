@@ -105,8 +105,8 @@ def test_fp_transform(input_dtype):
     min_v = np.amin(feats).astype(input_dtype)
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
-    assert_equal(max_val[0], np.finfo(input_dtype).max)
-    assert_equal(min_val[0], -np.finfo(input_dtype).max)
+    assert_equal(max_v, np.finfo(input_dtype).max)
+    assert_equal(min_v, -np.finfo(input_dtype).max)
 
     feats = np.random.randn(100, 1).astype(input_dtype)
     feats[0][0] = 10.
