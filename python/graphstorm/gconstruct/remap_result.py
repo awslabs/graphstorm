@@ -695,22 +695,27 @@ def main(args, gs_config_args):
     emb_ntypes = []
     emb_lens = None
     if node_emb_dir is not None:
+        # If node embedding exists, we are going to remap all the embeddings.
         if with_shared_fs:
             assert os.path.exists(os.path.join(node_emb_dir, "emb_info.json")), \
                 f"emb_info.json must exist under {node_emb_dir}"
-            with open(os.path.join(predict_dir, "emb_info.json"),
+            with open(os.path.join(node_emb_dir, "emb_info.json"),
                     "r",  encoding='utf-8') as f:
                 info = json.load(f)
                 ntypes = info["emb_name"]
                 emb_ntypes = ntypes if isinstance(ntypes, list) else [ntypes]
-                if "num_embs" in info:
-                    emb_lens = info["num_embs"]
-                    emb_lens = {ntype: emb_len for ntype, emb_len in zip (ntypes, emb_lens)}\
-                        if isinstance(emb_lens, list) else {ntypes: emb_lens}
+                assert "num_embs" in info, \
+                    "num_embs is required to collect the global length " \
+                    "of each node embedding. Please check your "\
+                    f"{os.path.join(node_emb_dir, 'emb_info.json')}"
+
+                emb_lens = info["num_embs"]
+                emb_lens = {ntype: emb_len for ntype, emb_len in zip (ntypes, emb_lens)}\
+                    if isinstance(emb_lens, list) else {ntypes: emb_lens}
         else: # There is no shared file system
             emb_names = os.listdir(node_emb_dir)
-            if rank == 0:
-                emb_names = [e_name for e_name in emb_names if e_name != "emb_info.json"]
+            emb_names = [e_name for e_name in emb_names if e_name != "emb_info.json"]
+
             emb_ntypes = emb_names
             if args.node_emb_length is not None:
                 emb_lens = args.node_emb_length
