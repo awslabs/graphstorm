@@ -76,6 +76,24 @@ def test_fp_min_max_bound(input_dtype):
         assert_equal(max_val[0], np.finfo(np.float16).max)
         assert_equal(min_val[0], -np.finfo(np.float16).max)
 
+        feats = np.random.randn(100).astype(input_dtype)
+        fifo = np.finfo(np.float32)
+        feats[0] = fifo.max
+        feats[1] = -fifo.max
+        transform = NumericalMinMaxTransform("test", "test",
+                                             max_bound=fifo.max,
+                                             min_bound=-fifo.max,
+                                             out_dtype=input_dtype)
+        max_val, min_val = transform.pre_process(feats)["test"]
+        assert transform._max_bound == np.finfo(np.float16).max
+        assert transform._min_bound == -np.finfo(np.float16).max
+        assert len(max_val.shape) == 1
+        assert len(min_val.shape) == 1
+        assert max_val[0].dtype == np.float16
+        assert min_val[0].dtype == np.float16
+        assert_equal(max_val[0], np.finfo(np.float16).max)
+        assert_equal(min_val[0], -np.finfo(np.float16).max)
+
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 def test_fp_transform(input_dtype):
