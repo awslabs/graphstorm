@@ -35,7 +35,8 @@ from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform, LinkPredictionProcessor
-from graphstorm.gconstruct.transform import BucketTransform, RankGaussTransform, Text2BERT
+from graphstorm.gconstruct.transform import (BucketTransform, RankGaussTransform,
+                                             Text2BERT, NumericalMinMaxTransform)
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
                                          ExtMemArrayWrapper,
@@ -1409,6 +1410,7 @@ def test_multicolumn():
                       'max_seq_length': 16
                       },
     }]
+
     data = {
         "test1": ["test", "haha", "failure"],
         "test2": ["never", "pass", "lint"]
@@ -1451,6 +1453,61 @@ def test_multicolumn():
     bert_expec = np.column_stack((bert_feat_single1["test3"],
                                 bert_feat_single2["test3"]))
     assert_equal(bert_feats["test3"], bert_expec)
+
+    feat_op5 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op5)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op5[0]["feature_col"]
+    assert res[0].feat_name == feat_op5[0]["feature_name"]
+    assert isinstance(res[0], NumericalMinMaxTransform)
+    maxmin_feats = process_features(data, res)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_maxmin1 = {
+        "test1": data["test1"]
+    }
+    feat_maxmin_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_maxmin_single1)
+    maxmin_feat_single1 = process_features(data_maxmin1, res)
+
+    data_maxmin2 = {
+        "test2": data["test2"]
+    }
+    feat_maxmin_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_maxmin_single2)
+    maxmin_feat_single2 = process_features(data_maxmin2, res)
+    maxmin_expec = np.column_stack((maxmin_feat_single1["test3"],
+                                maxmin_feat_single2["test3"]))
+    assert_equal(maxmin_feats["test3"], maxmin_expec)
 
 if __name__ == '__main__':
     test_parse_edge_data()

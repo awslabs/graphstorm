@@ -24,6 +24,7 @@ import abc
 import json
 import uuid
 import hashlib
+import warnings
 
 import numpy as np
 import torch as th
@@ -991,6 +992,7 @@ def parse_feat_ops(confs):
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     assert 'max_val' in conf and 'min_val' in conf, \
                         "max_val and min_val for max_min_norm feature transformation is needed"
+                    warnings.warn("The same max_val and min_val will apply to all column")
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
                 max_val = conf['max_val'] if 'max_val' in conf else None
@@ -1011,8 +1013,8 @@ def parse_feat_ops(confs):
             elif conf['name'] == 'to_categorical':
                 separator = conf['separator'] if 'separator' in conf else None
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
-                    assert "mapping" in conf,\
-                        "mapping is necessary when in multiple columns"
+                    raise RuntimeError("Do not support categorical "
+                                       "feature transform on multiple column")
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator, transform_conf=conf)
             elif conf['name'] == 'bucket_numerical':
@@ -1020,6 +1022,8 @@ def parse_feat_ops(confs):
                     "It is required to count of bucket information for bucket feature transform"
                 assert 'range' in conf, \
                     "It is required to provide range information for bucket feature transform"
+                if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
+                    warnings.warn("The same bucket range and count will apply to all column")
                 bucket_cnt = conf['bucket_cnt']
                 bucket_range = conf['range']
                 if 'slide_window_size' in conf:
