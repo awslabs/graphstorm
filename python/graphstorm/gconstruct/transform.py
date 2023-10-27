@@ -986,6 +986,8 @@ def parse_feat_ops(confs):
                                       infer_batch_size=infer_batch_size,
                                       out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
+                assert isinstance(feat['feature_col'], str) or len(feat['feature_col']) > 1, \
+                    "do not support multiple column for max_min_norm feature transformation"
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
                 max_val = conf['max_val'] if 'max_val' in conf else None
