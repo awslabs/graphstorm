@@ -36,11 +36,9 @@ class GATConv(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.sage_encoder import SAGEConv
+        from graphstorm.model.gat_encoder import GATConv
 
-        layer = GATConv(h_dim, h_dim, aggregator_type,
-                                bias, activation, dropout,
-                                num_ffn_layers_in_gnn, norm)
+        layer = GATConv(h_dim, h_dim, num_heads, num_ffn_layers_in_gnn)
         h = layer(g, input_feature)
 
     Parameters
@@ -50,50 +48,32 @@ class GATConv(nn.Module):
     out_feat : int
         Output feature size.
     num_heads : int
-    aggregator_type : str
-        One of mean, gcn, pool, lstm
-    bias : bool, optional
-        True if bias is added. Default: True
+        Number of heads in Multi-head attention.
     activation : callable, optional
         Activation function. Default: None
     dropout : float, optional
         Dropout rate. Default: 0.0
+    bias : bool, optional
+        True if bias is added. Default: True
     num_ffn_layers_in_gnn: int, optional
         Number of layers of ngnn between gnn layers
     ffn_actication: torch.nn.functional
         Activation Method for ngnn
-    norm : str, optional
-        Normalization Method. Default: None
     """
     def __init__(self,
                  in_feat,
                  out_feat,
-                 aggregator_type='mean',
-                 bias=True,
-                 dropout=0.0,
+                 num_heads,
                  activation=F.relu,
+                 dropout=0.0,
+                 bias=True,
                  num_ffn_layers_in_gnn=0,
-                 ffn_activation=F.relu,
-                 norm=None):
+                 ffn_activation=F.relu):
         super(GATConv, self).__init__()
-        self.in_feat, self.out_feat = in_feat, out_feat
-        self.aggregator_type = aggregator_type
+        self.conv = dglnn.GATConv(in_feat, out_feat // num_heads, num_heads, dropout,
+                                  activation=activation, allow_zero_in_degree=True,
+                                  bias=bias)
 
-        self.conv = dglnn.SAGEConv(self.in_feat, self.out_feat, self.aggregator_type,
-                                   feat_drop=dropout, bias=bias)
-
-        self.activation = activation
-        # normalization
-        self.norm = None
-        if activation is None and norm is not None:
-            raise ValueError("Cannot set gnn norm layer when activation layer is None")
-        if norm == "batch":
-            self.norm = nn.BatchNorm1d(out_feat)
-        elif norm == "layer":
-            self.norm = nn.LayerNorm(out_feat)
-        else:
-            # by default we don't apply any normalization
-            self.norm = None
         # ngnn
         self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
         self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
@@ -117,21 +97,18 @@ class GATConv(nn.Module):
 
         inputs = inputs['_N']
         h_conv = self.conv(g, inputs)
-        if self.norm:
-            h_conv = self.norm(h_conv)
-        if self.activation:
-            h_conv = self.activation(h_conv)
+        h_conv = h_conv.view(h_conv.shape[0], h_conv.shape[1] * h_conv.shape[2])
+
         if self.num_ffn_layers_in_gnn > 0:
             h_conv = self.ngnn_mlp(h_conv)
 
         return {'_N': h_conv}
 
-
 class GATEncoder(GraphConvEncoder):
     r""" GAT Conv Encoder
 
-    The SAGEEncoder employs several SAGEConv Layers as its encoding mechanism.
-    The SAGEEncoder should be designated as the model's encoder within Graphstorm.
+    The GATEncoder employs several GATConv Layers as its encoding mechanism.
+    The GATEncoder should be designated as the model's encoder within Graphstorm.
 
     Parameters
     ----------
@@ -139,23 +116,25 @@ class GATEncoder(GraphConvEncoder):
         Hidden dimension
     out_dim : int
         Output dimension
+    num_head : int
+        Number of multi-heads attention
     num_hidden_layers : int
         Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
     dropout : float
         Dropout. Default 0.
+    activation : callable, optional
+        Activation function. Default: None
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
-    norm : str, optional
-        Normalization Method. Default: None
 
     Examples:
     ----------
     
     .. code:: python
 
-        # Build model and do full-graph inference on SAGEEncoder
+        # Build model and do full-graph inference on GATEncoder
         from graphstorm import get_feat_size
-        from graphstorm.model.sage_encoder import SAGEEncoder
+        from graphstorm.model.gat_encoder import GATEncoder
         from graphstorm.model.node_decoder import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnNodeTrainData
@@ -170,11 +149,8 @@ class GATEncoder(GraphConvEncoder):
                                           use_node_embeddings=True)
         model.set_node_input_encoder(encoder)
 
-        gnn_encoder = SAGEEncoder(4, 4,
-                                  num_hidden_layers=1,
-                                  dropout=0,
-                                  aggregator_type='mean',
-                                  norm=norm)
+        gnn_encoder = GATEncoder(4, 4, num_heads=2
+                                 num_hidden_layers=1)
         model.set_gnn_encoder(gnn_encoder)
         model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
 
@@ -182,25 +158,23 @@ class GATEncoder(GraphConvEncoder):
     """
     def __init__(self,
                  h_dim, out_dim,
+                 num_heads,
                  num_hidden_layers=1,
                  dropout=0,
-                 aggregator_type='mean',
                  activation=F.relu,
-                 num_ffn_layers_in_gnn=0,
-                 norm=None):
+                 num_ffn_layers_in_gnn=0):
         super(GATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
 
         self.layers = nn.ModuleList()
         for _ in range(num_hidden_layers):
-            self.layers.append(GATConv(h_dim, h_dim, aggregator_type,
-                                        bias=False, activation=activation,
-                                        dropout=dropout,
-                                        num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
-                                        norm=norm))
+            self.layers.append(GATConv(h_dim, h_dim, num_heads,
+                                        activation=activation,
+                                        dropout=dropout, bias=False,
+                                        num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
-        self.layers.append(GATConv(h_dim, out_dim, aggregator_type,
-                                    bias=False, activation=activation,
-                                    dropout=dropout,
+        self.layers.append(GATConv(h_dim, out_dim, num_heads,
+                                    activation=activation,
+                                    dropout=dropout, bias=False,
                                     num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
     def forward(self, blocks, h):
