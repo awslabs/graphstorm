@@ -30,17 +30,17 @@ gsf:
         inference_using_gnn: true
         pl_weight: 0.5
         num_pretrain_epochs: 0
+    use_pseudolabel: true
   input:
     restore_model_path: null
   output:
-    # topk_model_to_save: 3
     save_model_path: /tmp/acm_nc/models
     save_embeds_path: /tmp/acm_nc/embeds
   hyperparam:
     dropout: 0.
     lr: 0.0001
     lm_tune_lr: 0.0001
-    num_epochs: 20
+    num_epochs: 300
     batch_size: 1024
     wd_l2norm: 0
     alpha_l2norm: 0.
