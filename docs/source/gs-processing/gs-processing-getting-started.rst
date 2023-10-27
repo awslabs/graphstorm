@@ -1,3 +1,5 @@
+.. _gs-processing:
+
 GraphStorm Processing Getting Started
 =====================================
 

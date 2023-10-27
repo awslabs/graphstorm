@@ -26,7 +26,7 @@ from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
 from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
 
-from ..utils import barrier, get_rank
+from ..utils import barrier, get_rank, is_distributed
 
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
@@ -192,11 +192,12 @@ class GSgnnTrainer():
         '''
         barrier()
         if save_model_path is not None:
-            assert isinstance(model.module, (GSgnnModel, GSgnnModelBase)), \
+            module = model.module if is_distributed() else model
+            assert isinstance(module, (GSgnnModel, GSgnnModelBase)), \
                 "Please make sure the model derives from GSgnnModel or GSgnnModelBase, " \
                 "which provides a scalable model saving implementation."
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
-            model.module.save_model(save_model_path)
+            module.save_model(save_model_path)
             self.optimizer.save_opt_state(save_model_path)
 
         # make sure each trainer finishes its own model saving task.

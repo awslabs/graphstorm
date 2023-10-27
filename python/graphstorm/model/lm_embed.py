@@ -19,7 +19,10 @@
 
 import logging
 import time
+import os
+import hashlib
 
+import numpy as np
 import torch as th
 from torch import nn
 import dgl
@@ -28,62 +31,8 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from ..utils import get_rank, barrier, create_dist_tensor
-
-def update_bert_cache(g, lm_models, lm_emb_cache, lm_infer_batch_size, use_fp16=True):
-    """ Update the lm_emb_cache using lanaguage models.
-
-    Parameters
-    ----------
-    lm_models: LMModels
-        A collection of LM models and related information.
-    lm_emb_cache: dict
-        Language model embedding cache
-    lm_infer_batch_size: int
-        Language model inference batch size
-    use_fp16 : bool
-        Use float16 to store BERT embeddings.
-    """
-    for ntype in lm_models.ntypes:
-        start = time.time()
-        lm_model = lm_models.get_lm_model(ntype)
-        lm_node_feat = lm_models.get_lm_node_feat(ntype)
-        lm_model.eval()
-        hidden_size = lm_model.feat_size
-        # TODO we should not save the BERT embeddings on the graph data in the future.
-        if 'bert_emb' not in g.nodes[ntype].data:
-            g.nodes[ntype].data['bert_emb'] = create_dist_tensor(
-                        (g.number_of_nodes(ntype), hidden_size),
-                        name="bert_emb",
-                        dtype=th.float16 if use_fp16 else th.float32,
-                        part_policy=g.get_node_partition_policy(ntype),
-                        persistent=True)
-        input_emb = g.nodes[ntype].data['bert_emb']
-        infer_nodes = dgl.distributed.node_split(
-                th.ones((g.number_of_nodes(ntype),), dtype=th.bool),
-                partition_book=g.get_partition_book(),
-                ntype=ntype, force_even=False)
-        logging.debug("node %s, local infer set: %d, batch size: %d",
-                      ntype, len(infer_nodes), lm_infer_batch_size)
-
-        node_list = th.split(infer_nodes, lm_infer_batch_size)
-        input_ntypes = [ntype]
-        for input_nodes in node_list:
-            input_lm_feats = {}
-            input_lm_feats[ntype] = {
-                    fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
-            }
-            text_embs = lm_model(input_ntypes, input_lm_feats)
-            if use_fp16:
-                input_emb[input_nodes] = text_embs[ntype].half().to('cpu')
-            else:
-                input_emb[input_nodes] = text_embs[ntype].to('cpu')
-        barrier()
-        if get_rank() == 0:
-            logging.info('Computing bert embedding on node %s takes %.3f seconds',
-                         ntype, time.time() - start)
-        lm_emb_cache[ntype] = input_emb
-        lm_model.train()
+from .utils import load_pytorch_embedding, save_embeddings
+from ..utils import get_rank, get_world_size, barrier, create_dist_tensor
 
 class LMModels(nn.Module):
     """ LM model collection
@@ -114,6 +63,7 @@ class LMModels(nn.Module):
         # to help find the right BERT model for a node type.
         self._lm_map = {}
         self._lm_models = nn.ModuleDict()
+        self._lm_model_names = {}
         self._lm_node_feats = {}
         for lm_config in node_lm_configs:
             lm_model = init_lm_model(lm_config,
@@ -121,6 +71,8 @@ class LMModels(nn.Module):
                                      lm_infer_batch_size=lm_infer_batch_size)
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
+            for ntype in lm_ntypes:
+                self._lm_model_names[ntype] = lm_config["model_name"]
             lm_node_feats = get_lm_node_feats(g, lm_model, lm_ntypes)
             for ntype, feats in lm_node_feats.items():
                 assert ntype not in self._lm_node_feats, \
@@ -153,7 +105,7 @@ class LMModels(nn.Module):
             # No bert training, Get cached LM embedding
             # Note: self.lm_emb_cache is initialized by calling warmup
             for ntype, idx in input_nodes.items():
-                if ntype in lm_emb_cache:
+                if ntype in lm_emb_cache.ntypes:
                     lm_feats[ntype] = lm_emb_cache[ntype][idx].to(dev).float()
         else:
             # TODO: Release the bert cache properly
@@ -184,6 +136,36 @@ class LMModels(nn.Module):
         """
         idx = self._lm_map[ntype]
         return self._lm_models[idx]
+
+    def get_lm_model_name(self, ntype):
+        """ Get the LM model name on a node type.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        str : the model name
+        """
+        return self._lm_model_names[ntype]
+
+    def get_lm_model_hash(self, ntype):
+        """ Compute the hash code of a LM model on a given node type.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        str : the hash code of the model.
+        """
+        weights = [th.flatten(param.data) for param in self.get_lm_model(ntype).parameters()]
+        weights = th.cat(weights).cpu().numpy()
+        return hashlib.sha1(weights.view(np.uint8)).hexdigest()
 
     def get_lm_node_feat(self, ntype):
         """ Get the LM node features.
@@ -233,6 +215,142 @@ class LMModels(nn.Module):
         """
         return list(self._lm_models.values())
 
+class LMCache:
+    """ Cache for the LM embeddings.
+
+    Parameters
+    ----------
+    lm_models: LMModels
+        A collection of LM models and related information.
+    embed_path : str
+        The path where the embedding files are stored.
+    """
+    def __init__(self, g, lm_models, embed_path=None):
+        self._g = g
+        self._lm_models = lm_models
+        self._lm_emb_cache = {}
+        self._embed_path = embed_path
+
+    def _get_model_hash(self, ntype):
+        """ Get the hash code of a model.
+
+        If necessary, we may cache the hash code in the future.
+        """
+        return self._lm_models.get_lm_model_hash(ntype)
+
+    def _get_model_name(self, ntype):
+        """ Get the model name
+
+        The model name should be the original model name followed with a hash code:
+        "model_name"-"hash_code"
+
+        """
+        model_name = self._lm_models.get_lm_model_name(ntype)
+        assert "/" not in model_name, \
+                f"We only support builtin LM models for now. The model name is {model_name}."
+        model_hash = self._get_model_hash(ntype)
+        # We only take the first 10 characters of the hash code to construct the model name.
+        return model_name + "-" + model_hash[0:10]
+
+    def _load_embeddings(self):
+        """ Load LM embeddings from files.
+        """
+        for ntype in self._lm_models.ntypes:
+            embed_path = os.path.join(os.path.join(self._embed_path, ntype),
+                    self._get_model_name(ntype))
+            if os.path.exists(embed_path):
+                if get_rank() == 0:
+                    logging.info("load LM embedding from %s for node type %s",
+                            embed_path, ntype)
+                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
+                        self._g.get_node_partition_policy(ntype), "bert_emb")
+
+    def _save_embeddings(self):
+        """ Save LM embeddings.
+        """
+        for ntype in self._lm_models.ntypes:
+            embed_path = os.path.join(os.path.join(self._embed_path, ntype),
+                    self._get_model_name(ntype))
+            save_embeddings(embed_path, self._lm_emb_cache[ntype], get_rank(), get_world_size())
+
+    def __len__(self):
+        return len(self._lm_emb_cache)
+
+    def __getitem__(self, ntype):
+        """ Get the cached embedding of a node type.
+        """
+        return self._lm_emb_cache[ntype]
+
+    @property
+    def ntypes(self):
+        """ Get the node types with embedding cache.
+        """
+        return self._lm_models.ntypes
+
+    def update_cache(self, lm_infer_batch_size, use_fp16=True):
+        """ Update the LM embedding cache.
+
+        Parameters
+        ----------
+        lm_infer_batch_size: int
+            Language model inference batch size
+        use_fp16 : bool
+            Use float16 to store BERT embeddings.
+        """
+        # If the embeddings have been cached, we just load them instead of
+        # computing them from scratch.
+        if self._embed_path is not None:
+            self._load_embeddings()
+
+        # If all embeddings are cached, don't compute the embeddings again.
+        if np.all([ntype in self._lm_emb_cache for ntype in self._lm_models.ntypes]):
+            return
+
+        for ntype in self._lm_models.ntypes:
+            if get_rank() == 0:
+                logging.debug("compute embedding for node type %s", ntype)
+            start = time.time()
+            lm_model = self._lm_models.get_lm_model(ntype)
+            lm_node_feat = self._lm_models.get_lm_node_feat(ntype)
+            lm_model.eval()
+            hidden_size = lm_model.feat_size
+            if ntype not in self._lm_emb_cache:
+                self._lm_emb_cache[ntype] = create_dist_tensor(
+                        (self._g.number_of_nodes(ntype), hidden_size),
+                        name="bert_emb",
+                        dtype=th.float16 if use_fp16 else th.float32,
+                        part_policy=self._g.get_node_partition_policy(ntype),
+                        persistent=True)
+            emb = self._lm_emb_cache[ntype]
+            infer_nodes = dgl.distributed.node_split(
+                    th.ones((self._g.number_of_nodes(ntype),), dtype=th.bool),
+                    partition_book=self._g.get_partition_book(),
+                    ntype=ntype, force_even=False)
+            logging.debug("node %s, local infer set: %d, batch size: %d",
+                          ntype, len(infer_nodes), lm_infer_batch_size)
+
+            node_list = th.split(infer_nodes, lm_infer_batch_size)
+            input_ntypes = [ntype]
+            with th.no_grad():
+                for input_nodes in node_list:
+                    input_lm_feats = {}
+                    input_lm_feats[ntype] = {
+                            fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
+                    }
+                    text_embs = lm_model(input_ntypes, input_lm_feats)
+                    if use_fp16:
+                        emb[input_nodes] = text_embs[ntype].half().to('cpu')
+                    else:
+                        emb[input_nodes] = text_embs[ntype].to('cpu')
+            barrier()
+            if get_rank() == 0:
+                logging.info('Computing bert embedding on node %s takes %.3f seconds',
+                             ntype, time.time() - start)
+            lm_model.train()
+
+        if self._embed_path is not None:
+            self._save_embeddings()
+
 class GSPureLMNodeInputLayer(GSNodeInputLayer):
     """The input embedding layer with language model only for all nodes in a
     heterogeneous graph.
@@ -255,7 +373,9 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static lm model. Default: 16
     use_fp16 : bool 
-        Use float16 to store BERT embeddings. Default: True
+        Use float16 to store LM embeddings. Default: True
+    cached_embed_path : str
+        The path where the LM embeddings are cached.
     
     Examples:
     ----------
@@ -285,7 +405,8 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                  node_lm_configs,
                  num_train=0,
                  lm_infer_batch_size=16,
-                 use_fp16=True):
+                 use_fp16=True,
+                 cached_embed_path=None):
         super(GSPureLMNodeInputLayer, self).__init__(g)
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
@@ -295,7 +416,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_fp16 = use_fp16
         self.use_cache = False
-        self.lm_emb_cache = {}
+        self.lm_emb_cache = LMCache(g, self._lm_models, embed_path=cached_embed_path)
 
         self._feat_size = self._lm_models.feat_size
         for lm_model in self._lm_models.lm_models:
@@ -329,13 +450,8 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         if self.num_train == 0:
             self.freeze(g)
 
-    def freeze(self, g):
+    def freeze(self, _):
         """ Generate Bert caching if needed
-
-        Parameters
-        ----------
-        g : DistGraph
-            The distributed graph object.
         """
         # The lm_emb_cache is used in following cases:
         # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
@@ -347,11 +463,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         #    nodes are set to 0 and the lm_emb_cache is not refreshed.
         #
         # 3) if train_nodes > 0, no emb_cache is used unless Case 2.
-        update_bert_cache(g,
-                          self._lm_models,
-                          self.lm_emb_cache,
-                          self.lm_infer_batch_size,
-                          use_fp16=self.use_fp16)
+        self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
 
     def require_cache_embed(self):
@@ -431,6 +543,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         available. Default: False
     use_fp16 : bool
         Use float16 to store the BERT embeddings. Default: True
+    cached_embed_path : str
+        The path where the LM embeddings are cached.
 
     Examples:
     ----------
@@ -468,7 +582,9 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
-                 use_fp16=True):
+                 use_fp16=True,
+                 cached_embed_path=None,
+                 force_no_embeddings=None):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
 
@@ -489,11 +605,12 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         self.use_fp16 = use_fp16
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_cache = False
-        self.lm_emb_cache = {}
+        self.lm_emb_cache = LMCache(g, lm_models, embed_path=cached_embed_path)
 
         super(GSLMNodeEncoderInputLayer, self).__init__(
             g, adjust_feat_size, embed_size,
-            activation, dropout, use_node_embeddings)
+            activation, dropout, use_node_embeddings,
+            force_no_embeddings=force_no_embeddings)
         self._lm_models = lm_models
 
     def get_general_dense_parameters(self):
@@ -522,13 +639,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         if self.num_train == 0:
             self.freeze(g)
 
-    def freeze(self, g):
+    def freeze(self, _):
         """ Generate Bert caching if needed
-
-        Parameters
-        ----------
-        g : DistGraph
-            The distributed graph object.
         """
         # The lm_emb_cache is used in following cases:
         # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
@@ -540,11 +652,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         #    nodes are set to 0 and the lm_emb_cache is not refreshed.
         #
         # 3) if train_nodes > 0, no emb_cache is used unless Case 2.
-        update_bert_cache(g,
-                          self._lm_models,
-                          self.lm_emb_cache,
-                          self.lm_infer_batch_size,
-                          use_fp16=self.use_fp16)
+        self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
 
     def unfreeze(self):

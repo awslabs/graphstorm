@@ -578,7 +578,7 @@ class GSConfig:
                     "em_order_gnn_first": False,
                     "inference_using_gnn": True,
                     "pl_weight": 0.5,
-                    "num_pretrain_epochs": 1
+                    "num_pretrain_epochs": 5
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
@@ -645,6 +645,15 @@ class GSConfig:
 
         # By default there is no distill_lm_config
         return None
+
+    @property
+    def cache_lm_embed(self):
+        """ Whether to cache the LM embeddings on files.
+        """
+        if hasattr(self, "_cache_lm_embed"):
+            return self._cache_lm_embed
+        else:
+            return None
 
     ###################### general gnn model related ######################
     @property
@@ -2229,6 +2238,12 @@ def _add_lm_model_args(parser):
                  "to warmup a GNN model")
     group.add_argument("--max-seq-len", type=int, default=argparse.SUPPRESS,
                        help="The maximum of sequence length for distillation")
+    group.add_argument("--cache-lm-embed",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="Whether to cache the LM embeddings in files. " + \
+                    "If the LM embeddings have been saved before, load the saved embeddings " + \
+                    "instead of computing the LM embeddings again.")
     return parser
 
 def _add_rgat_args(parser):
