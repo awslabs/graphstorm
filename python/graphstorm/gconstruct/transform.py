@@ -987,8 +987,8 @@ def parse_feat_ops(confs):
                                       out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
-                    assert isinstance(feat['feature_col'], str), \
-                        "do not support multiple column for max_min_norm feature transformation"
+                    assert 'max_val' in conf and 'min_val' in conf, \
+                        "max_val and min_val for max_min_norm feature transformation is needed"
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
                 max_val = conf['max_val'] if 'max_val' in conf else None
@@ -1138,7 +1138,6 @@ def process_features(data, ops, ext_mem=None):
         if len(col_name) > 1 and ext_mem is not None:
             wrapper.merge()
             new_data[tmp_key] = wrapper
-    print(new_data)
     return new_data
 
 def get_valid_label_index(label):
