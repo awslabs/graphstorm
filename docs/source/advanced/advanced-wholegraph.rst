@@ -39,16 +39,31 @@ For example, in an Amazon EC2 instance without Docker preinstalled, you can run 
     sudo systemctl restart docker
 
 Launch instance with EFA support
---------------------------------------------------------
+---------------------------------
 
 While launching the EFA supported EC2 instances, in the Network settings section, choose Edit, and then do the following:
 
     1. For Subnet, choose the subnet in which to launch the instance. If you do not select a subnet, you can't enable the instance for EFA.
 
-    2. For Firewall (security groups), choose Select existing security group, and then select the EFA-enabled security group
+    2. For Firewall (security groups), Choose `Select existing security group` and then pick the EFA-enabled security group you previously created as outlined in the prerequisites.
 
     3. Expand the Advanced network configuration section, and for Elastic Fabric Adapter, select Enable.
 
+
+Install aws-efa-installer on the EC2 instance
+----------------------------------------------
+
+Install aws-efa-installer on both the base instance and within the Docker container. This enables the instance to use AWS's EFA kernel instead of Ubuntu's default kernel. Install the EFA installer without `--skip-kmod` on the instance and with --skip-kmod in the container. A command is provided for the base instance installation, and the Dockerfile will handle container installation in the next step.
+
+.. code:: bash
+
+    curl -O https://efa-installer.amazonaws.com/aws-efa-installer-latest.tar.gz \
+    && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && cd aws-efa-installer \
+    && apt-get update \
+    && apt-get install -y libhwloc-dev \
+    && ./efa_installer.sh -y -g -d --skip-limit-conf --no-verify \
+    && rm -rf /var/lib/apt/lists/*
 
 
 Build a GraphStorm-WholeGraph Docker image from source
@@ -81,7 +96,7 @@ If the build succeeds, there should be a new Docker image, named `<docker-name>:
 Create a GraphStorm-WholeGraph container
 -----------------------------------------
 
-You can launch a container based on the Docker image built in the previous step. Make sure to use ``--privileged`` and ``—network=host`` map your host network to the container:
+You can launch a container based on the Docker image built in the previous step. Make sure to use ``--privileged`` and ``—-network=host`` map your host network to the container:
 
 .. code:: bash
 
