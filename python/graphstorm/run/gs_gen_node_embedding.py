@@ -37,10 +37,13 @@ def main():
     cmd_path = os.path.join(lib_dir, cmd)
     exec_script_args = [cmd_path] + exec_script_args
 
+    # The default value of do_nid_remap is None.
+    # In inference, the default behavior is do remapping
+    args.do_nid_remap = True if args.do_nid_remap is None else args.do_nid_remap
+
     submit_jobs(args, exec_script_args)
 
 if __name__ == "__main__":
     FMT = "%(asctime)s %(levelname)s %(message)s"
     logging.basicConfig(format=FMT, level=logging.INFO)
     main()
-    
