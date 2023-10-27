@@ -30,10 +30,7 @@ from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
 from graphstorm.config import BUILTIN_LP_DISTMULT_DECODER
-from graphstorm.config import (GRAPHSTORM_MODEL_EMBED_LAYER,
-                               GRAPHSTORM_MODEL_GNN_LAYER,
-                               GRAPHSTORM_MODEL_DECODER_LAYER,
-                               GRAPHSTORM_MODEL_ALL_LAYERS)
+from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
 def check_failure(config, field):
     has_error = False
@@ -148,7 +145,6 @@ def test_load_basic_info():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "backend")
-        check_failure(config, "ip_config")
         check_failure(config, "part_config")
         check_failure(config, "eval_frequency")
         check_failure(config, "model_encoder_type")
@@ -599,10 +595,10 @@ def create_node_class_config(tmp_path, file_name):
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
         "multilabel": True,
-        "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,0.1,0.2,0.3,0.1,0", # Does not work with multilabel
+        "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2", # len mismatch
     }
 
-    with open(os.path.join(tmp_path, file_name+"_fail_imb_l_w3.yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name+"_fail_imb_w3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # test imbalance label
@@ -641,8 +637,7 @@ def test_node_class_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test1.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.multilabel == True
-        # imbalance_class_weight does not work with multilabel == True
-        check_failure(config, "imbalance_class_weights")
+        assert config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_metric1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -698,7 +693,7 @@ def test_node_class_info():
         assert config.num_classes == 20
         check_failure(config, "imbalance_class_weights")
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_imb_l_w3.yaml'), local_rank=0)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_imb_w3.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.num_classes == 20
         assert config.multilabel == True
@@ -826,7 +821,7 @@ def create_edge_class_config(tmp_path, file_name):
         "target_etype": "query,match,asin",
         "reverse_edge_types_map": "query,match,rev-match,asin",
         "multilabel": "error",
-        "num_classes": 1,
+        "num_classes": 0,
         "num_decoder_basis": 1,
         "remove_target_edge_type": "error",
         "decoder_edge_feat": ["query,no-match,asin:feat0,feat1"]
@@ -927,7 +922,8 @@ def create_lp_config(tmp_path, file_name):
         "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
         "eval_metric": "MRR",
         "lp_decoder_type": "dot_product",
-        "lp_edge_weight_for_loss": ["weight"]
+        "lp_edge_weight_for_loss": ["weight"],
+        "model_select_etype": "query,click,asin"
     }
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
@@ -955,7 +951,8 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
         "lp_decoder_type": "transe",
-        "lp_edge_weight_for_loss": ["query,click,asin:weight1"]
+        "lp_edge_weight_for_loss": ["query,click,asin:weight1"],
+        "model_select_etype": "fail"
     }
     # config for check error value
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
@@ -1008,6 +1005,7 @@ def test_lp_info():
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 12.0
         assert config.lp_edge_weight_for_loss == None
+        assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1027,6 +1025,7 @@ def test_lp_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.lp_edge_weight_for_loss == "weight"
+        assert config.model_select_etype == ("query", "click", "asin")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1044,6 +1043,7 @@ def test_lp_info():
         assert config.gamma == 1.0
         assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == ["weight0"]
         assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == ["weight1"]
+        assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1056,6 +1056,7 @@ def test_lp_info():
         check_failure(config, "lp_loss_func")
         check_failure(config, "lp_decoder_type")
         check_failure(config, "lp_edge_weight_for_loss")
+        check_failure(config, "model_select_etype")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -1075,6 +1076,7 @@ def test_lp_info():
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["link_prediction"] = {}
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgat"
     }
@@ -1083,7 +1085,6 @@ def create_gnn_config(tmp_path, file_name):
         "fanout": "10,20,30",
         "num_layers": 3,
         "hidden_size": 128,
-        "use_mini_batch_infer": False
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1104,12 +1105,20 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["node_classification"] = {}
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "rgat"
+    }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,feat_name2", "ntype1:fname"],
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["edge_classification"] = {}
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "rgat"
+    }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
     }
@@ -1198,6 +1207,7 @@ def test_gnn_info():
         assert 'ntype1' in config.node_feat_name
         assert config.node_feat_name['ntype0'] == ["feat_name", "feat_name2"]
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test4.yaml'),
                          local_rank=0)
@@ -1209,6 +1219,7 @@ def test_gnn_info():
         assert "feat_name" in config.node_feat_name['ntype0']
         assert "fname" in config.node_feat_name['ntype0']
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test5.yaml'),
                          local_rank=0)
@@ -1255,6 +1266,7 @@ def create_io_config(tmp_path, file_name):
 
     yaml_object["gsf"]["input"] = {
         "restore_model_path": "./restore",
+        "restore_model_layers": "dense_embed",
         "restore_optimizer_path": "./opt_restore",
     }
 
@@ -1294,6 +1306,7 @@ def test_load_io_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.restore_model_path == "./restore"
+        assert config.restore_model_layers == ["dense_embed"]
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_frequency == 100
@@ -1477,7 +1490,7 @@ def test_lm():
         config = GSConfig(args)
         check_failure(config, "freeze_lm_encoder_epochs")
 
-def test_check_lm_config():
+def test_check_node_lm_config():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         yaml_object = create_dummpy_config_obj()
@@ -1492,19 +1505,19 @@ def test_check_lm_config():
                      "gradient_checkpoint": True,
                      "node_types": ['a']}
         old_config = dict(lm_config)
-        config._check_lm_config(lm_config)
+        config._check_node_lm_config(lm_config)
         assert old_config == lm_config
         lm_config = {"lm_type": "bert",
                      "model_name": "bert-base-uncased",
                      "node_types": ['a', 'b', 'c']}
-        config._check_lm_config(lm_config)
+        config._check_node_lm_config(lm_config)
         assert "gradient_checkpoint" in lm_config
         assert lm_config["gradient_checkpoint"] == False
 
         def must_fail(conf):
             has_error = False
             try:
-                config._check_lm_config(conf)
+                config._check_node_lm_config(conf)
             except:
                 has_error = True
             assert has_error
@@ -1539,4 +1552,4 @@ if __name__ == '__main__':
     test_lp_info()
 
     test_lm()
-    test_check_lm_config()
+    test_check_node_lm_config()

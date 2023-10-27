@@ -16,14 +16,17 @@
 import random
 import os
 import tempfile
+import pytest
 import decimal
 import pyarrow.parquet as pq
 import numpy as np
 import dgl
 import torch as th
 
+from functools import partial
 from numpy.testing import assert_equal, assert_almost_equal
 
+from graphstorm.gconstruct.construct_graph import parse_edge_data
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
@@ -31,7 +34,7 @@ from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5A
 from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
-from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
+from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform, LinkPredictionProcessor
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
                                          ExtMemArrayWrapper,
@@ -69,19 +72,26 @@ def test_parquet():
 
     os.remove(tmpfile)
 
-def test_csv():
+@pytest.mark.parametrize("delimiter", [None, ",", "\t"])
+def test_csv(delimiter):
     data = {
             "t1": np.random.uniform(size=(10,)),
             "t2": np.random.uniform(size=(10,)),
     }
     with tempfile.TemporaryDirectory() as tmpdirname:
-        write_data_csv(data, os.path.join(tmpdirname, 'test.csv'))
-        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'))
+        if not delimiter:
+            write_data_csv(data, os.path.join(tmpdirname, 'test.csv'))
+            data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'))
+        else:
+            write_data_csv(data, os.path.join(tmpdirname, 'test.csv'), delimiter=delimiter)
+            data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), delimiter=delimiter)
+
         for key, val in data.items():
             assert key in data1
             np.testing.assert_almost_equal(data1[key], data[key])
 
-        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), data_fields=['t1'])
+        data1 = read_data_csv(os.path.join(tmpdirname, 'test.csv'), data_fields=['t1']) if not delimiter \
+            else read_data_csv(os.path.join(tmpdirname, 'test.csv'), delimiter=delimiter, data_fields=['t1'])
         assert 't1' in data1
         np.testing.assert_almost_equal(data1['t1'], data['t1'])
 
@@ -899,10 +909,13 @@ def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs = \
+        map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, False)
     assert len(new_src_ids) == len(src_ids)
     assert len(new_dst_ids) == len(dst_ids)
+    assert src_exist_locs is None
+    assert dst_exist_locs is None
     for src_id1, src_id2 in zip(new_src_ids, src_ids):
         assert src_id1 == int(src_id2)
     for dst_id1, dst_id2 in zip(new_dst_ids, dst_ids):
@@ -913,22 +926,28 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
     src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
     try:
-        new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+        new_src_ids, new_dst_ids, _, _ = \
+            map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                                 id_map, False)
         raise ValueError("fail")
     except:
         pass
 
     # Test the case that source node IDs don't exist and we skip non exist edges.
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs \
+        = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_src_ids) for id_ in src_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+    assert src_exist_locs is not None
+    assert_equal(src_ids[src_exist_locs].astype(np.int64), new_src_ids)
+    assert_equal(dst_ids[src_exist_locs].astype(np.int64), new_dst_ids)
+    assert dst_exist_locs is None
 
     # Test the case that none of the source node IDs exists and we skip non exist edges.
     src_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, _, _ = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     assert len(new_src_ids) == 0
     assert len(new_dst_ids) == 0
@@ -938,22 +957,27 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
     try:
-        new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+        new_src_ids, new_dst_ids, _, _ = \
+            map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                                 id_map, False)
         raise ValueError("fail")
     except:
         pass
 
     # Test the case that destination node IDs don't exist and we skip non exist edges.
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_dst_ids) for id_ in dst_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+    assert src_exist_locs is None
+    assert_equal(src_ids[dst_exist_locs].astype(np.int64), new_src_ids)
+    assert_equal(dst_ids[dst_exist_locs].astype(np.int64), new_dst_ids)
+    assert dst_exist_locs is not None
 
     # Test the case that none of the destination node IDs exists and we skip non exist edges.
     dst_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, _, _ = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     assert len(new_src_ids) == 0
     assert len(new_dst_ids) == 0
@@ -1020,7 +1044,8 @@ def test_merge_arrays():
         assert isinstance(em_arr, (np.ndarray, ExtMemArrayWrapper))
         np.testing.assert_array_equal(data1, em_arr)
 
-def test_partition_graph():
+@pytest.mark.parametrize("num_parts", [1, 2])
+def test_partition_graph(num_parts):
     # This is to verify the correctness of partition_graph.
     # This function does some manual node/edge feature constructions for each partition.
     num_nodes = {'node1': 100,
@@ -1037,7 +1062,6 @@ def test_partition_graph():
     # Partition the graph with our own partition_graph.
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     dgl.random.seed(0)
-    num_parts = 2
     node_data1 = []
     edge_data1 = []
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -1209,12 +1233,54 @@ def test_multiprocessing_checks():
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
 
+def test_parse_edge_data():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        str_src_ids = np.array([str(i) for i in range(10)])
+        str_dst_ids = np.array([str(i) for i in range(15)])
+        node_id_map = {"src": IdMap(str_src_ids),
+                       "dst": IdMap(str_dst_ids)}
+
+        src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
+        dst_ids = np.array([str(random.randint(0, 25)) for _ in range(15)])
+        feat = np.random.rand(15, 10)
+        data = {
+            "src_id": src_ids,
+            "dst_id": dst_ids,
+            "feat": feat,
+        }
+
+        feat_ops = [Noop("feat", "feat", None)]
+        label_ops = [
+            LinkPredictionProcessor(None, None, [0.7,0.1,0.2], None)]
+        data_file = os.path.join(tmpdirname, "data.parquet")
+        write_data_parquet(data, data_file)
+
+        conf = {
+            "source_id_col": "src_id",
+            "dest_id_col": "dst_id",
+            "relation": ("src", "rel", "dst")
+        }
+        keys = ["src_id", "dst_id", "feat"]
+        src_ids, dst_ids, feat_data = \
+            parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
+                            partial(read_data_parquet, data_fields=keys),
+                            conf, skip_nonexist_edges=True)
+        for _, val in feat_data.items():
+            assert len(src_ids) == len(val)
+            assert len(dst_ids) == len(val)
+
+        assert "feat" in feat_data
+        assert "train_mask" in feat_data
+        assert "val_mask" in feat_data
+        assert "test_mask" in feat_data
+
 if __name__ == '__main__':
+    test_parse_edge_data()
     test_multiprocessing_checks()
-    test_csv()
+    test_csv(None)
     test_hdf5()
     test_json()
-    test_partition_graph()
+    test_partition_graph(1)
     test_merge_arrays()
     test_map_node_ids()
     test_id_map()

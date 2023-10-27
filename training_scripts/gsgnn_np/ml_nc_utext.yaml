@@ -38,7 +38,6 @@ gsf:
     lm_tune_lr: 0.0001
     num_epochs: 3
     batch_size: 128
-    bert_infer_bs: 128
     wd_l2norm: 0
     no_validation: false
   rgcn:
@@ -48,6 +47,6 @@ gsf:
     use_node_embeddings: false
   node_classification:
     target_ntype: "movie"
-    label_field: "genre"
+    label_field: "label"
     multilabel: false
     num_classes: 19

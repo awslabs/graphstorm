@@ -33,8 +33,16 @@ from graphstorm.gconstruct.file_io import write_data_hdf5, write_index_json
 # without labels, 4) features of different types, 5) node features
 # with different dimensions.
 # We create multiple edges in a similar way.
+def gen_rand_nid(max_nid, num_nodes):
+    node_ids = np.unique(np.random.randint(0, max_nid, num_nodes))
+    if len(node_ids) != num_nodes:
+        print(f"The length of generated node ids is {len(node_ids)}."
+              "But {num_nodes} is needed. Regenerate the node ids.")
+        return gen_rand_nid(max_nid, num_nodes)
+    return node_ids
 
-node_id1 = np.unique(np.random.randint(0, 1000000000, 10000))
+np.random.seed(1)
+node_id1 = gen_rand_nid(1000000000, 10000)
 node_text = np.array([str(nid) for nid in node_id1])
 node_data1 = {
     'id': node_id1,
@@ -61,7 +69,7 @@ node_data2 = {
             + [str(i) for i in range(10)],
 }
 
-node_id3 = np.unique(np.random.randint(0, 1000000000, 5000))
+node_id3 = gen_rand_nid(1000000000, 5000)
 node_id3_str = np.array([str(nid) for nid in node_id3])
 node_data3 = {
     'id': node_id3_str,
@@ -69,7 +77,7 @@ node_data3 = {
     'data1': node_id3,
 }
 
-node_id4 = np.unique(np.random.randint(0, 1000000000, 5000))
+node_id4 = gen_rand_nid(1000000000, 5000)
 node_id4_str = np.array([str(nid) for nid in node_id3])
 node_data4 = {
     'id': node_id4_str,
@@ -94,6 +102,7 @@ edge_data1_2 = {
     'float_feat_rank_gauss': np.random.rand(src1.shape[0], 2),
     'float_feat_rank_gauss_fp16': np.random.rand(src1.shape[0], 2),
     'float1_max_min': edge_data1_2_float,
+    'float1_bucket': edge_data1_2_float,
 }
 
 src3 = node_data2['id'][np.random.randint(0, 20000, 100000)]
@@ -213,6 +222,16 @@ node_conf = [
                 "feature_name": "feat_fp16",
                 "out_dtype": 'float16',
             },
+            {
+                "feature_col": "float2",
+                "feature_name": "feat_bucket",
+                "out_dtype": 'float16',
+                "transform": {"name": "bucket_numerical",
+                              "range": [10, 50],
+                              "bucket_cnt": 2,
+                              "slide_window_size": 10
+}
+            }
         ],
         "labels":       [
             {
@@ -220,6 +239,7 @@ node_conf = [
                 "task_type":    "classification",
                 "custom_split_filenames": {"train": os.path.join(in_dir, 'node1_train.json'),
                                            "valid": os.path.join(in_dir, 'node1_valid.json')},
+                "label_stats_type": "frequency_cnt",
             },
         ],
     },
@@ -246,6 +266,10 @@ node_conf = [
                 "feature_col": "data",
                 "feature_name": "feat",
             },
+            {
+                "feature_col": "data",
+                "feature_name": "feat1",
+            },
         ],
     },
     {
@@ -268,6 +292,7 @@ edge_conf = [
                 "label_col":    "label",
                 "task_type":    "classification",
                 "split_pct":   [0.8, 0.2, 0.0],
+                "label_stats_type": "frequency_cnt",
             },
         ],
     },

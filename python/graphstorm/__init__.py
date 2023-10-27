@@ -15,9 +15,11 @@
 
     Graphstorm package.
 """
-__version__ = "0.2"
+__version__ = "0.3"
 
-from .utils import get_rank
+from . import gsf
+from . import utils
+from .utils import get_rank, get_world_size
 from .gsf import initialize, get_feat_size
 from .gsf import create_builtin_node_gnn_model
 from .gsf import create_builtin_edge_gnn_model

@@ -20,9 +20,11 @@ import os
 import sys
 import argparse
 import math
+import logging
 
 import yaml
 import torch as th
+import torch.nn.functional as F
 
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
@@ -34,7 +36,9 @@ from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
-from .config import BUILTIN_TASK_LINK_PREDICTION
+from .config import (BUILTIN_TASK_LINK_PREDICTION,
+                     LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
+from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
 from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
@@ -45,10 +49,11 @@ from .config import SUPPORTED_TASKS
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
 
-from .config import GRAPHSTORM_MODEL_ALL_LAYERS
+from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
+                     GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
 
 from .utils import get_graph_name
-from ..utils import TORCH_MAJOR_VER
+from ..utils import TORCH_MAJOR_VER, get_log_level
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -64,6 +69,12 @@ __all__ = [
 def get_argument_parser():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description="GSGNN Arguments")
+    parser.add_argument('--logging-level', type=str, default="info",
+                        help="Change the logging level. " + \
+                               "Potential values are 'debug', 'info', 'warning', 'error'." + \
+                               "The default value is 'info'.")
+    parser.add_argument('--logging-file', type=str, default=argparse.SUPPRESS,
+                        help='The file where the logging is saved to.')
     # Required parameters
     parser.add_argument(
         "--yaml_config_file",
@@ -77,14 +88,14 @@ def get_argument_parser():
         parser.add_argument(
                 "--local-rank",
                 type=int,
-                default=-1,
+                default=0,
                 help="local_rank for distributed training on gpus",
                 )
     else:
         parser.add_argument(
                 "--local_rank",
                 type=int,
-                default=-1,
+                default=0,
                 help="local_rank for distributed training on gpus",
                 )
 
@@ -105,6 +116,7 @@ def get_argument_parser():
     parser = _add_edge_classification_args(parser)
     parser = _add_task_general_args(parser)
     parser = _add_lm_model_args(parser)
+    parser = _add_distill_args(parser)
     return parser
 
 # pylint: disable=no-member
@@ -117,43 +129,69 @@ class GSConfig:
         Commend line arguments
     """
     def __init__(self, cmd_args):
+        # We need to config the logging at very beginning. Otherwise, logging will not work.
+        log_level = get_log_level(cmd_args.logging_level) \
+                if hasattr(cmd_args, "logging_level") else logging.INFO
+        log_file = cmd_args.logging_file if hasattr(cmd_args, "logging_file") else None
+        if log_file is None:
+            # We need to force the logging to reset the existing logging handlers
+            # in order to make sure this config is effective.
+            logging.basicConfig(level=log_level, force=True)
+        else:
+            logging.basicConfig(filename=log_file, level=log_level, force=True)
+
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
-
         self.set_attributes(configuration)
-
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
+
+        logging.debug(str(configuration))
+        cmd_args_dict = cmd_args.__dict__
+        # Print overriden arguments.
+        for arg_key in cmd_args_dict:
+            if arg_key not in ["yaml_config_file", "local_rank"]:
+                logging.debug("Overriding Argument: %s", arg_key)
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
-        print(configuration)
         if 'lm_model' in configuration:
-            # has language model configuration
-            # lm_model:
-            #   node_lm_models:
-            #     -
-            #       lm_type: bert
-            #       model_name: "bert-base-uncased"
-            #       gradient_checkpoint: true
-            #       node_types:
-            #         - n_0
-            #         - n_1
-            #     -
-            #       lm_type: bert
-            #       model_name: "allenai/scibert_scivocab_uncased"
-            #       gradient_checkpoint: true
-            #       node_types:
-            #         - n_2
             lm_model = configuration['lm_model']
-            assert "node_lm_models" in lm_model, "node_lm_models must be provided"
+            assert "node_lm_models" in lm_model or "distill_lm_models" in lm_model, \
+                "either node_lm_models or distill_lm_models must be provided"
             # if node_lm_models is not defined, ignore the lm model
-            node_lm_models = lm_model['node_lm_models']
-            setattr(self, "_node_lm_configs", node_lm_models)
+            if "node_lm_models" in lm_model:
+                # has node language model configuration, e.g.,
+                # lm_model:
+                #   node_lm_models:
+                #     -
+                #       lm_type: bert
+                #       model_name: "bert-base-uncased"
+                #       gradient_checkpoint: true
+                #       node_types:
+                #         - n_0
+                #         - n_1
+                #     -
+                #       lm_type: bert
+                #       model_name: "allenai/scibert_scivocab_uncased"
+                #       gradient_checkpoint: true
+                #       node_types:
+                #         - n_2
+                node_lm_models = lm_model['node_lm_models']
+                setattr(self, "_node_lm_configs", node_lm_models)
+            else:
+                # has distill language model configuration, e.g.,
+                # lm_model:
+                #   distill_lm_models:
+                #     -
+                #       lm_type: DistilBertModel
+                #       model_name: "distilbert-base-uncased"
+                distill_lm_models = lm_model['distill_lm_models']
+                setattr(self, "_distill_lm_configs", distill_lm_models)
 
         # handle gnn config
         gnn_family = configuration['gsf']
@@ -201,7 +239,6 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
-                print(f"Overriding Argument: {arg_key}")
 
     def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.
@@ -244,6 +281,9 @@ class GSConfig:
             _ = self.lm_train_nodes
             _ = self.lm_tune_lr
             _ = self.lr
+            _ = self.max_grad_norm
+            _ = self.grad_norm_type
+            _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
             _ = self.save_model_path
@@ -263,21 +303,29 @@ class GSConfig:
             _ = self.lm_infer_batch_size
             _ = self.freeze_lm_encoder_epochs
 
+        if self.distill_lm_configs:
+            _ = self.textual_data_path
+
         # I/O related
         _ = self.restore_model_layers
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
         _ = self.save_embed_path
+        _ = self.save_embed_format
 
         # Model architecture
         _ = self.dropout
         _ = self.decoder_type
         _ = self.num_decoder_basis
         # Encoder related
+        _ = self.construct_feat_ntype
+        _ = self.construct_feat_encoder
+        _ = self.construct_feat_fanout
         encoder_type = self.model_encoder_type
         if encoder_type == "lm":
             assert self.node_lm_configs is not None
         else:
+            _ = self.input_activate
             _ = self.hidden_size
             _ = self.num_layers
             _ = self.use_self_loop
@@ -308,6 +356,7 @@ class GSConfig:
             _ = self.imbalance_class_weights
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             _ = self.target_ntype
+            _ = self.eval_target_ntype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
             _ = self.target_etype
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
@@ -322,14 +371,15 @@ class GSConfig:
             _ = self.num_negative_edges
             _ = self.eval_negative_sampler
             _ = self.num_negative_edges_eval
+            _ = self.model_select_etype
 
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
         """
         for i, _ in enumerate(self.node_lm_configs):
             if self.node_lm_configs[i]["gradient_checkpoint"]:
-                print(f"WARNING: {reason} can not work with " \
-                        "gradient checkpoint. Turn gradient checkpoint to False")
+                logging.warning("%s can not work with gradient checkpoint. " \
+                        + "Turn gradient checkpoint to False", reason)
                 self.node_lm_configs[i]["gradient_checkpoint"] = False
 
     def handle_argument_conflicts(self):
@@ -387,10 +437,12 @@ class GSConfig:
         """ IP config of instances in a cluster
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_ip_config"), "IP config must be provided"
-        assert os.path.isfile(self._ip_config), \
-            f"IP config file {self._ip_config} does not exist"
-        return self._ip_config
+        if hasattr(self, "_ip_config"):
+            assert os.path.isfile(self._ip_config), \
+                    f"IP config file {self._ip_config} does not exist"
+            return self._ip_config
+        else:
+            return None
 
     @property
     def part_config(self):
@@ -525,14 +577,15 @@ class GSConfig:
                 glem_defaults = {
                     "em_order_gnn_first": False,
                     "inference_using_gnn": True,
-                    "pl_weight": 0.5
+                    "pl_weight": 0.5,
+                    "num_pretrain_epochs": 5
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
             return self._training_method
         return {"name": "default", "kwargs": {}}
 
-    def _check_lm_config(self, lm_config):
+    def _check_node_lm_config(self, lm_config):
         assert "lm_type" in lm_config, "lm_type (type of language model," \
             "e.g., bert) must be provided for node_lm_models."
         assert "model_name" in lm_config, "language model model_name must " \
@@ -546,25 +599,61 @@ class GSConfig:
 
     @property
     def node_lm_configs(self):
-        """ check bert config
+        """ check node lm config
         """
         if hasattr(self, "_node_lm_configs"):
             if self._node_lm_configs is None:
                 return None
 
-            # lm_config is not NOne
+            # node lm_config is not None
             assert isinstance(self._node_lm_configs, list), \
                 "Node language model config is not None. It must be a list"
             assert len(self._node_lm_configs) > 0, \
                 "Number of node language model config must larger than 0"
 
             for lm_config in self._node_lm_configs:
-                self._check_lm_config(lm_config)
+                self._check_node_lm_config(lm_config)
 
             return self._node_lm_configs
 
         # By default there is no node_lm_config
         return None
+
+    def _check_distill_lm_config(self, lm_config):
+        assert "lm_type" in lm_config, "lm_type (type of language model," \
+            "e.g., DistilBertModel) must be provided for distill_lm_models."
+        assert "model_name" in lm_config, "pre-trained model_name must " \
+            "be provided for distill_lm_models."
+
+    @property
+    def distill_lm_configs(self):
+        """ check distill lm config
+        """
+        if hasattr(self, "_distill_lm_configs"):
+            assert self._distill_lm_configs is not None, \
+                "distill_lm_configs cannot be None."
+            # distill lm_config is not None
+            assert isinstance(self._distill_lm_configs, list), \
+                "Distill language model config is not None. It must be a list"
+            assert len(self._distill_lm_configs) > 0, \
+                "Number of distill language model config must larger than 0"
+
+            for lm_config in self._distill_lm_configs:
+                self._check_distill_lm_config(lm_config)
+
+            return self._distill_lm_configs
+
+        # By default there is no distill_lm_config
+        return None
+
+    @property
+    def cache_lm_embed(self):
+        """ Whether to cache the LM embeddings on files.
+        """
+        if hasattr(self, "_cache_lm_embed"):
+            return self._cache_lm_embed
+        else:
+            return None
 
     ###################### general gnn model related ######################
     @property
@@ -572,11 +661,51 @@ class GSConfig:
         """ Which graph encoder to use, it can be GNN or language model only
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_model_encoder_type"), \
-            "Model encoder type should be provided"
-        assert self._model_encoder_type in BUILTIN_ENCODER, \
-            f"Model encoder type should be in {BUILTIN_ENCODER}"
-        return self._model_encoder_type
+        if self.distill_lm_configs is None:
+            assert hasattr(self, "_model_encoder_type"), \
+                "Model encoder type should be provided"
+            assert self._model_encoder_type in BUILTIN_ENCODER, \
+                f"Model encoder type should be in {BUILTIN_ENCODER}"
+            return self._model_encoder_type
+        else:
+            return None
+
+    @property
+    def max_grad_norm(self):
+        """ maximum L2 norm of gradients, used for gradient clip
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_max_grad_norm"):
+            max_grad_norm = float(self._max_grad_norm)
+            assert max_grad_norm > 0
+            return self._max_grad_norm
+        return None
+
+    @property
+    def grad_norm_type(self):
+        """ type of the used p-norm, used for gradient clip
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_grad_norm_type"):
+            grad_norm_type = self._grad_norm_type
+            assert grad_norm_type > 0 or grad_norm_type == 'inf'
+            return self._grad_norm_type
+        return 2
+
+    @property
+    def input_activate(self):
+        """ Design activation funtion type in the input layer
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_input_activate"):
+            if self._input_activate == "none":
+                return None
+            elif self._input_activate == "relu":
+                return F.relu
+            else:
+                raise RuntimeError("Only support input activate flag 'none' for None "
+                                   "and 'relu' for torch.nn.functional.relu")
+        return None
 
     @property
     def node_feat_name(self):
@@ -655,7 +784,7 @@ class GSConfig:
 
             fanout = self._fanout.split(",")
             return self._check_fanout(fanout, "Train")
-        return 0
+        return [-1] * self.num_layers
 
     @property
     def eval_fanout(self):
@@ -670,18 +799,55 @@ class GSConfig:
             return [-1] * self.num_layers
 
     @property
+    def textual_data_path(self):
+        """ distillation textual data path
+        """
+        if hasattr(self, "_textual_data_path"):
+            return self._textual_data_path
+        return None
+
+    @property
+    def max_distill_step(self):
+        """ Maximum training steps for distillation.
+        """
+        # only needed by distillation
+        if hasattr(self, "_max_distill_step"):
+            assert self._max_distill_steps > 0, \
+                "Maximum training steps should be greater than 0."
+            return self._max_distill_step
+        else:
+            # default max training steps
+            return 10000
+
+    @property
+    def max_seq_len(self):
+        """ Maximum sequence length for distillation.
+        """
+        # only needed by distillation
+        if hasattr(self, "_max_seq_len"):
+            assert self._max_seq_len > 0, \
+                "Maximum sequence length for distillation should be greater than 0."
+            return self._max_seq_len
+        else:
+            # default maximum sequence length
+            return 1024
+
+    @property
     def hidden_size(self):
         """ Hidden embedding size
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_hidden_size"), \
-            "hidden_size must be provided when pretrain a embedding layer, " \
-            "or train a GNN model"
-        assert isinstance(self._hidden_size, int), \
-            "Hidden embedding size must be an integer"
-        assert self._hidden_size > 0, \
-            "Hidden embedding size must be larger than 0"
-        return self._hidden_size
+        if self.distill_lm_configs is None:
+            assert hasattr(self, "_hidden_size"), \
+                "hidden_size must be provided when pretrain a embedding layer, " \
+                "or train a GNN model"
+            assert isinstance(self._hidden_size, int), \
+                "Hidden embedding size must be an integer"
+            assert self._hidden_size > 0, \
+                "Hidden embedding size must be larger than 0"
+            return self._hidden_size
+        else:
+            return None
 
     @property
     def num_layers(self):
@@ -710,8 +876,30 @@ class GSConfig:
                 "Use mini batch inference flag must be True or False"
             return self._use_mini_batch_infer
 
-        # By default, use mini batch inference, which requires less memory
-        return True
+        if self.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+            # For Link prediction inference, using mini-batch
+            # inference is much less efficient than full-graph
+            # inference in most cases.
+            # So we set it to False by default
+            return False
+        else:
+            # By default, for node classification/regression and
+            # edge classification/regression tasks,
+            # using mini batch inference reduces memory cost
+            # So we set it to True by default
+            return True
+
+    @property
+    def gnn_norm(self):
+        """ Normalization (Batch or Layer)
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_gnn_norm"):
+            return None
+        assert self._gnn_norm in BUILTIN_GNN_NORM, \
+            "Normalization type must be one of batch or layer"
+
+        return self._gnn_norm
 
     ###################### I/O related ######################
     ### Restore model ###
@@ -720,16 +908,29 @@ class GSConfig:
         """ GraphStorm model layers to load.
         """
         # pylint: disable=no-member
+        model_layers = GRAPHSTORM_MODEL_ALL_LAYERS
         if hasattr(self, "_restore_model_layers"):
             assert self.restore_model_path is not None, \
-                "restore-model-path must be provided"
+                "restore-model-path must be provided if restore-model-layers is specified."
             model_layers = self._restore_model_layers.split(',')
             for layer in model_layers:
-                assert layer in GRAPHSTORM_MODEL_ALL_LAYERS, \
-                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_ALL_LAYERS}"
-            return model_layers
-
-        return GRAPHSTORM_MODEL_ALL_LAYERS
+                assert layer in GRAPHSTORM_MODEL_LAYER_OPTIONS, \
+                    f"{layer} is not supported, must be any of {GRAPHSTORM_MODEL_LAYER_OPTIONS}"
+        # GLEM restore layers to the LM component, thus conflicting with all layers:
+        # use [GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_DECODER_LAYER] to restore an LM
+        # checkpoint with decoder trained for node classification.
+        # For example, the check point is saved from a GLEM model.
+        # use [GRAPHSTORM_MODEL_EMBED_LAYER] if the checkpoint doesn't contain such decoder for LM.
+        if self.training_method["name"] == "glem":
+            if model_layers == GRAPHSTORM_MODEL_ALL_LAYERS:
+                logging.warning("Restoring GLEM's LM from checkpoint only support %s and %s.'\
+                                'Setting to: '%s'",
+                                [GRAPHSTORM_MODEL_EMBED_LAYER],
+                                [GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_DECODER_LAYER],
+                                GRAPHSTORM_MODEL_EMBED_LAYER
+                                )
+                model_layers = [GRAPHSTORM_MODEL_EMBED_LAYER]
+        return model_layers
 
     @property
     def restore_model_path(self):
@@ -759,6 +960,19 @@ class GSConfig:
         if hasattr(self, "_save_embed_path"):
             return self._save_embed_path
         return None
+
+    @property
+    def save_embed_format(self):
+        """ Specify the format of saved embeddings.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_save_embed_format"):
+            assert self._save_embed_format in ["pytorch", "hdf5"], \
+                f"{self._save_embed_format} is not supported for save_embed_format." \
+                f"Supported format ['pytorch', 'hdf5']."
+            return self._save_embed_format
+        # default to be 'pytorch'
+        return "pytorch"
 
     @property
     def save_model_path(self):
@@ -923,6 +1137,41 @@ class GSConfig:
         return False
 
     @property
+    def construct_feat_ntype(self):
+        """ The node types that require to construct node features.
+        """
+        if hasattr(self, "_construct_feat_ntype") \
+                and self._construct_feat_ntype is not None:
+            return self._construct_feat_ntype
+        else:
+            return []
+
+    @property
+    def construct_feat_encoder(self):
+        """ The encoder used for constructing node features.
+        """
+        if hasattr(self, "_construct_feat_encoder"):
+            assert self._construct_feat_encoder == "rgcn", \
+                    "Feature construction currently only support rgcn."
+            return self._construct_feat_encoder
+        else:
+            return "rgcn"
+
+    @property
+    def construct_feat_fanout(self):
+        """ The fanout for constructing node features
+        """
+        if hasattr(self, "_construct_feat_fanout"):
+            assert isinstance(self._construct_feat_fanout, int), \
+                    "The fanout for feature construction should be integers."
+            assert self._construct_feat_fanout > 0 or self._construct_feat_fanout == -1, \
+                    "The fanout for feature construction should be positive or -1 " + \
+                    "if we use all neighbors to construct node features."
+            return self._construct_feat_fanout
+        else:
+            return 5
+
+    @property
     def wd_l2norm(self):
         """ Weight decay
         """
@@ -1065,7 +1314,7 @@ class GSConfig:
         # By default do not use num_bases
         return -1
 
-    ## RGAT only ##
+    ## RGAT and HGT only ##
     @property
     def num_heads(self):
         """ Number of attention heads
@@ -1092,6 +1341,17 @@ class GSConfig:
         return self._label_field
 
     @property
+    def use_pseudolabel(self):
+        """ Whether use pseudolabeling for unlabeled nodes in semi-supervised training
+
+            It only works with node-level tasks.
+        """
+        if hasattr(self, "_use_pseudolabel"):
+            assert self._use_pseudolabel in (True, False)
+            return self._use_pseudolabel
+        return False
+
+    @property
     def num_classes(self):
         """ The cardinality of labels in a classification task
 
@@ -1100,7 +1360,16 @@ class GSConfig:
         # pylint: disable=no-member
         assert hasattr(self, "_num_classes"), \
             "Must provide the number possible labels through num_classes"
-        assert self._num_classes > 1
+        if isinstance(self._num_classes, dict):
+            for num_classes in self._num_classes.values():
+                assert num_classes > 0
+        else:
+            # We need num_classes=1 for binary classification because when we use precision-recall
+            # as evaluation metric, this precision-recall is computed on the positive score.
+            # If we switch to num_classes=2, we also need changes in the evaluation part:
+            # (1) evaluation code need to first recognize whether it is binary classification
+            # (2) then evaluation code select the positive score column from the 2-d prediction.
+            assert self._num_classes > 0
         return self._num_classes
 
     @property
@@ -1109,34 +1378,66 @@ class GSConfig:
 
             Used by node classification and edge classification
         """
-        if hasattr(self, "_multilabel"):
-            assert self._multilabel in [True, False]
-            return self._multilabel
 
-        return False
+        def check_multilabel(multilabel):
+            assert multilabel in [True, False]
+            return multilabel
+
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
+            if hasattr(self, "_multilabel"):
+                num_classes, multilabel = self.num_classes, self._multilabel
+                assert isinstance(multilabel, dict)
+                return {ntype: check_multilabel(multilabel[ntype]) for ntype in num_classes}
+            return {ntype: False for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_multilabel"):
+                return check_multilabel(self._multilabel)
+            return False
 
     @property
     def multilabel_weights(self):
         """Used to specify label weight of each class in a
-           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss.
+           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss
+           as pos_weight.
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
-        if hasattr(self, "_multilabel_weights"):
-            assert self.multilabel is True, "Must be a multi-label classification task."
+
+        def check_multilabel_weights(multilabel, multilabel_weights, num_classes):
+            assert multilabel is True, "Must be a multi-label classification task."
             try:
-                weights = self._multilabel_weights.split(",")
+                weights = multilabel_weights.split(",")
                 weights = [float(w) for w in weights]
             except Exception: # pylint: disable=broad-except
-                assert False, "The weights should in following format 0.1,0.2,0.3,0.1,0.0"
+                raise RuntimeError("The weights should in following format 0.1,0.2,0.1,0.0")
             for w in weights:
                 assert w >= 0., "multilabel weights can not be negative values"
-            assert len(weights) == self.num_classes, \
+            assert len(weights) == num_classes, \
                 "Each class must have an assigned weight"
-
             return th.tensor(weights)
 
-        return None
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
+            if hasattr(self, "_multilabel_weights"):
+                multilabel = self.multilabel
+                num_classes = self.num_classes
+                multilabel_weights = self._multilabel_weights
+                ntype_weights = {}
+                for ntype in num_classes:
+                    if ntype in multilabel_weights:
+                        ntype_weights[ntype] = check_multilabel_weights(multilabel[ntype],
+                                                                        multilabel_weights[ntype],
+                                                                        num_classes[ntype])
+                    else:
+                        ntype_weights[ntype] = None
+                return ntype_weights
+            return {ntype: None for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_multilabel_weights"):
+                return check_multilabel_weights(self.multilabel,
+                                                self._multilabel_weights,
+                                                self.num_classes)
+
+            return None
 
     @property
     def return_proba(self):
@@ -1149,7 +1450,7 @@ class GSConfig:
 
             if self._return_proba is True and \
                 self.task_type in [BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_EDGE_REGRESSION]:
-                print("WARNING: node regression and edge regression tasks "
+                logging.warning("node regression and edge regression tasks "
                       "automatically ignore --return-proba flag. Regression "
                       "prediction results will be returned.")
             return self._return_proba
@@ -1165,22 +1466,41 @@ class GSConfig:
 
             Customer should provide the weight in following format 0.1,0.2,0.3,0.1
         """
-        if hasattr(self, "_imbalance_class_weights"):
-            assert self.multilabel is False, "Only used with single label classfication."
+
+        def check_imbalance_class_weights(imbalance_class_weights, num_classes):
             try:
-                weights = self._imbalance_class_weights.split(",")
+                weights = imbalance_class_weights.split(",")
                 weights = [float(w) for w in weights]
             except Exception: # pylint: disable=broad-except
-                assert False, \
-                    "The rescaling weights should in following format 0.1,0.2,0.3,0.1"
+                raise RuntimeError("The weights should in following format 0.1,0.2,0.3,0.1")
             for w in weights:
                 assert w > 0., "Each weight should be larger than 0."
-            assert len(weights) == self.num_classes, \
+            assert len(weights) == num_classes, \
                 "Each class must have an assigned weight"
-
             return th.tensor(weights)
 
-        return None
+        if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
+            if hasattr(self, "_imbalance_class_weights"):
+                assert isinstance(self._imbalance_class_weights, dict), \
+                    print('The imbalance_class_weights should be dictionary')
+                num_classes = self.num_classes
+                imbalance_class_weights = self._imbalance_class_weights
+                ntype_weights = {}
+                for ntype in num_classes:
+                    if ntype in imbalance_class_weights:
+                        ntype_weights[ntype] = check_imbalance_class_weights(
+                            imbalance_class_weights[ntype],
+                            num_classes[ntype]
+                            )
+                    else:
+                        ntype_weights[ntype] = None
+                return ntype_weights
+            return {ntype: None for ntype in self.num_classes}
+        else:
+            if hasattr(self, "_imbalance_class_weights"):
+                return check_imbalance_class_weights(self._imbalance_class_weights,
+                                                     self.num_classes)
+            return None
 
     ###classification/regression inference related ####
     @property
@@ -1204,6 +1524,25 @@ class GSConfig:
         assert hasattr(self, "_target_ntype"), \
             "Must provide the target ntype through target_ntype"
         return self._target_ntype
+
+    @property
+    def eval_target_ntype(self):
+        """ The node type for evaluation prediction
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_eval_target_ntype"):
+            assert isinstance(self._eval_target_ntype, str), \
+                "Now we only support single ntype evaluation"
+            return self._eval_target_ntype
+        else:
+            if isinstance(self.target_ntype, str):
+                return self.target_ntype
+            elif isinstance(self.target_ntype, list):
+                # (wlcong) Now only support single ntype evaluation
+                logging.warning("Now only support single ntype evaluation")
+                return self.target_ntype[0]
+            else:
+                return None
 
     #### edge related task variables ####
     @property
@@ -1265,10 +1604,10 @@ class GSConfig:
         assert len(self._target_etype) > 0, \
             "There must be at least one target etype."
         if len(self._target_etype) != 1:
-            print(f"WARNING: only {self._target_etype[0]} will be used."
-                "Currently, GraphStorm only supports single task edge "
-                "classification/regression. Please contact GraphStorm "
-                "dev team to support multi-task.")
+            logging.warning("only %s will be used." + \
+                "Currently, GraphStorm only supports single task edge " + \
+                "classification/regression. Please contact GraphStorm " + \
+                "dev team to support multi-task.", str(self._target_etype[0]))
 
         return [tuple(target_etype.split(',')) for target_etype in self._target_etype]
 
@@ -1544,6 +1883,20 @@ class GSConfig:
             return None
 
     @property
+    def report_eval_per_type(self):
+        """ Whether report evaluation metrics per node type or edge type.
+            If True, report evaluation results for each node type/edge type."
+            If False, report an average result.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_report_eval_per_type"):
+            assert self._report_eval_per_type in [True, False], \
+                "report_eval_per_type must be True or False"
+            return self._report_eval_per_type
+
+        return False
+
+    @property
     def eval_metric(self):
         """ Evaluation metric used during evaluation
 
@@ -1554,8 +1907,13 @@ class GSConfig:
         # Task is node classification
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, \
             BUILTIN_TASK_EDGE_CLASSIFICATION]:
-            assert self.num_classes > 1, \
-                "For node classification, num_classes must be provided"
+            if isinstance(self.num_classes, dict):
+                for num_classes in self.num_classes.values():
+                    assert num_classes > 0, \
+                        "For node classification, num_classes must be provided"
+            else:
+                assert self.num_classes > 0, \
+                    "For node classification, num_classes must be provided"
 
             # check evaluation metrics
             if hasattr(self, "_eval_metric"):
@@ -1636,6 +1994,22 @@ class GSConfig:
         return eval_metric
 
     @property
+    def model_select_etype(self):
+        """ Canonical etype used for selecting the best model
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_model_select_etype"):
+            etype = self._model_select_etype.split(",")
+            assert len(etype) == 3, \
+                "If you want to select model based on eval value of " \
+                "a specific etype, the model_select_etype must be a " \
+                "canonical etype in the format of src,rel,dst"
+            return tuple(etype)
+
+        # Per edge type lp evaluation is disabled.
+        return LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+
+    @property
     def num_ffn_layers_in_input(self):
         """ Number of extra feedforward neural network layers in the input layer
         """
@@ -1702,6 +2076,9 @@ def _add_gnn_args(parser):
     group = parser.add_argument_group(title="gnn")
     group.add_argument('--model-encoder-type', type=str, default=argparse.SUPPRESS,
             help='Model type can either be gnn or lm to specify the model encoder')
+    group.add_argument(
+        "--input-activate", type=str, default=argparse.SUPPRESS,
+        help="Define the activation type in the input layer")
     group.add_argument("--node-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Node feature field name. It can be in following format: "
             "1) '--node-feat-name feat_name': global feature name, "
@@ -1756,6 +2133,8 @@ def _add_output_args(parser):
     group.add_argument("--save-embed-path", type=str, default=argparse.SUPPRESS,
             help="Save the embddings in the specified directory. "
                  "Use none to turn off embedding saveing")
+    group.add_argument("--save-embed-format", type=str, default=argparse.SUPPRESS,
+            help="Specify the format for saved embeddings. Valid format: ['pytorch', 'hdf5']")
     group.add_argument('--save-model-frequency', type=int, default=argparse.SUPPRESS,
             help='Save the model every N iterations.')
     group.add_argument('--save-model-path', type=str, default=argparse.SUPPRESS,
@@ -1782,6 +2161,7 @@ def _add_hyperparam_args(parser):
     group = parser.add_argument_group(title="hp")
     group.add_argument("--dropout", type=float, default=argparse.SUPPRESS,
             help="dropout probability")
+    group.add_argument("--gnn-norm", type=str, default=argparse.SUPPRESS, help="norm type")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")
     group.add_argument("-e", "--num-epochs", type=int, default=argparse.SUPPRESS,
@@ -1790,11 +2170,21 @@ def _add_hyperparam_args(parser):
             help="Mini-batch size. Must be larger than 0")
     group.add_argument("--sparse-optimizer-lr", type=float, default=argparse.SUPPRESS,
             help="sparse optimizer learning rate")
+    group.add_argument("--max-grad-norm", type=float, default=argparse.SUPPRESS,
+            help="maximum L2 norm of gradients")
+    group.add_argument("--grad-norm-type", type=float, default=argparse.SUPPRESS,
+            help="norm type for gradient clips")
     group.add_argument(
             "--use-node-embeddings",
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
+    group.add_argument("--construct-feat-ntype", type=str, nargs="+",
+            help="The node types whose features are constructed from neighbors' features.")
+    group.add_argument("--construct-feat-encoder", type=str, default=argparse.SUPPRESS,
+            help="The encoder used for constructing node features.")
+    group.add_argument("--construct-feat-fanout", type=int, default=argparse.SUPPRESS,
+            help="The fanout used for constructing node features.")
     group.add_argument("--wd-l2norm", type=float, default=argparse.SUPPRESS,
             help="weight decay l2 norm coef")
     group.add_argument("--alpha-l2norm", type=float, default=argparse.SUPPRESS,
@@ -1811,7 +2201,7 @@ def _add_hyperparam_args(parser):
     group.add_argument('--eval-frequency',
             type=int,
             default=argparse.SUPPRESS,
-            help="How offen to run the evaluation. "
+            help="How often to run the evaluation. "
                  "Every #eval-frequency iterations.")
     group.add_argument(
             '--no-validation',
@@ -1846,6 +2236,14 @@ def _add_lm_model_args(parser):
     group.add_argument("--freeze-lm-encoder-epochs", type=int, default=argparse.SUPPRESS,
             help="Before fine-tuning LM model, how many epochs we will take "
                  "to warmup a GNN model")
+    group.add_argument("--max-seq-len", type=int, default=argparse.SUPPRESS,
+                       help="The maximum of sequence length for distillation")
+    group.add_argument("--cache-lm-embed",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="Whether to cache the LM embeddings in files. " + \
+                    "If the LM embeddings have been saved before, load the saved embeddings " + \
+                    "instead of computing the LM embeddings again.")
     return parser
 
 def _add_rgat_args(parser):
@@ -1875,7 +2273,7 @@ def _add_node_classification_args(parser):
             "--multilabel-weights",
             type=str,
             default=argparse.SUPPRESS,
-            help="Used to specify label weight of each class in a "
+            help="Used to specify the weight of positive examples of each class in a "
             "multi-label classifiction task."
             "It is feed into th.nn.BCEWithLogitsLoss."
             "The weights should in following format 0.1,0.2,0.3,0.1,0.0 ")
@@ -1885,7 +2283,7 @@ def _add_node_classification_args(parser):
             default=argparse.SUPPRESS,
             help="Used to specify a manual rescaling weight given to each class "
             "in a single-label multi-class classification task."
-            "It is feed into th.nn.CrossEntropyLoss."
+            "It is feed into th.nn.CrossEntropyLoss or th.nn.BCEWithLogitsLoss."
             "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
     group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
                        help="The cardinality of labels in a classifiction task")
@@ -1893,6 +2291,11 @@ def _add_node_classification_args(parser):
                        help="Whether to return the probabilities of all the predicted \
                        results or only the maximum one. Set True to return the \
                        probabilities. Set False to return the maximum one.")
+    group.add_argument(
+        "--use-pseudolabel",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help="Whether use pseudolabeling for unlabeled nodes in semi-supervised training")
     return parser
 
 def _add_edge_classification_args(parser):
@@ -1977,6 +2380,13 @@ def _add_link_prediction_args(parser):
             "The corresponding feature name is <feat_name>"
             "2)'--lp-edge-weight-for-loss query,adds,asin:weight0 query,clicks,asin:weight1 ..."
             "Different edge types have different weight fields.")
+    group.add_argument("--model-select-etype", type=str, default=argparse.SUPPRESS,
+            help="Canonical edge type used for selecting best model during "
+                 "link prediction training. It can be in following format:"
+                "1) '--model-select-etype ALL': Use the average of the evaluation "
+                "metrics of each edge type to select the best model"
+                "2) '--model-select-etype query,adds,item': Use the evaluation "
+                "metric of the edge type (query,adds,item) to select the best model")
 
     return parser
 
@@ -1987,12 +2397,24 @@ def _add_task_general_args(parser):
                 "the evaluation metric used. Supported metrics are accuracy,"
                 "precision_recall, or roc_auc multiple metrics"
                 "can be specified e.g. --eval-metric accuracy precision_recall")
+    group.add_argument('--report-eval-per-type', type=bool, default=argparse.SUPPRESS,
+            help="Whether report evaluation metrics per node type or edge type."
+                 "If True, report evaluation results for each node type/edge type."
+                 "If False, report an average evaluation result.")
     return parser
 
 def _add_inference_args(parser):
     group = parser.add_argument_group(title="infer")
     group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
+    return parser
+
+def _add_distill_args(parser):
+    group = parser.add_argument_group(title="distill")
+    group.add_argument("--textual-data-path", type=str, default=argparse.SUPPRESS,
+                       help="Where to load the textual data for distillation.")
+    group.add_argument("--max-distill-step", type=int, default=argparse.SUPPRESS,
+                       help="The maximum of training step for each node type for distillation")
     return parser
 
 # Users can add their own udf parser

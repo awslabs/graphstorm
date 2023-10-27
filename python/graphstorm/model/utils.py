@@ -19,6 +19,7 @@ import os
 import math
 import json
 import shutil
+import logging
 
 import torch as th
 from torch import nn
@@ -26,8 +27,29 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
-from ..utils import get_rank
-from ..data.utils import alltoallv_nccl, alltoallv_cpu
+from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
+from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
+from ..data.utils import alltoallv_cpu, alltoallv_nccl
+
+def pad_file_index(file_index, width=5):
+    """ Left pad file_index with zerros.
+
+        for examaple, given 1, it will return 00001.
+
+        Parameters
+        ----------
+        file_index: int
+            Index of the file
+        width: int
+            Minimum length of resulting string; strings with length less
+            than width be prepended with 0 characters.
+
+        Return
+        ------
+        str: padded file_index
+    """
+    assert width > 1, "Width should be larger than 1"
+    return str(file_index).zfill(width)
 
 def sparse_emb_initializer(emb):
     """ Initialize sparse embedding
@@ -99,7 +121,7 @@ def save_model_results_json(conf, test_model_performance, save_perf_results_path
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(model_results_and_conf, f, ensure_ascii=False, indent=4)
 
-def _get_sparse_emb_range(num_embs, local_rank, world_size):
+def _get_sparse_emb_range(num_embs, rank, world_size):
     """ Provide a deterministic method to split trainable sparse embeddings
         during saveing and loading according local rank and world size.
 
@@ -107,25 +129,81 @@ def _get_sparse_emb_range(num_embs, local_rank, world_size):
         ----------
         num_embs:
             Size of a sparse embedding
-        local_rank : int
-            Local rank
+        rank: int
+            Rank of the current process in a distributed environment.
         world_size : int
-            World size in a distributed env.
+            World size in a distributed environment. This tells the size of a distributed cluster
+            (How many processes in a cluster).
     """
-    assert local_rank < world_size, \
-        "local rank {local_rank} shold be smaller than world size {world_size}"
+    assert rank < world_size, \
+        "local rank {rank} shold be smaller than world size {world_size}"
     # Get corresponding data range
     if num_embs < world_size:
-        start = local_rank if local_rank < num_embs else num_embs
-        end = local_rank + 1 if local_rank < num_embs else num_embs
+        start = rank if rank < num_embs else num_embs
+        end = rank + 1 if rank < num_embs else num_embs
     else:
-        start = local_rank * math.ceil(num_embs / world_size)
-        end = (local_rank + 1) * math.ceil(num_embs / world_size)
-        end = num_embs if local_rank + 1 == world_size else end
+        start = rank * math.ceil(num_embs / world_size)
+        end = (rank + 1) * math.ceil(num_embs / world_size)
+        end = num_embs if rank + 1 == world_size else end
     return start, end
 
-def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
-    """ save sparse embeddings if any
+def save_sparse_emb(model_path, sparse_emb, ntype):
+    """ Save sparse emb `sparse_emb` into `model_path`
+
+        Sparse embeddings are stored as:
+            $model_path/$ntype/sparse_emb_0.pt
+            $model_path/$ntype/sparse_emb_1.pt
+            ...
+
+        Example:
+        --------
+        Save sparse embeddings of an input embed_layer by calling ``save_sparse_emb``
+        iterating all the sparse embeddings of the embed_layer
+
+        .. code::
+            # embed_layer is the input embed_layer
+            embed_layer = embed_layer.module \
+                if isinstance(embed_layer, DistributedDataParallel) \
+                else embed_layer
+
+            for ntype, sparse_emb in embed_layer.sparse_embeds.items():
+                save_sparse_emb(model_path, sparse_emb, ntype)
+
+        Parameters
+        ----------
+        model_path: str
+            The path of the model is saved.
+        sparse_emb: dgl.distributed.DistEmbedding
+            A Distributed node embedding.
+        ntype: str
+            The node type the embedding belongs to.
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    num_embs = sparse_emb.num_embeddings
+    start, end = _get_sparse_emb_range(num_embs, rank, world_size)
+    # collect sparse_emb in a iterative way
+    embs = []
+    batch_size = 10240
+    # TODO: dgl.distributed.DistEmbedding should provide emb.shape
+
+    idxs = th.split(th.arange(start=start, end=end), batch_size, dim=0)
+    for idx in idxs:
+        # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
+        embs.append(sparse_emb._tensor[idx])
+
+    embs = th.cat(embs, dim=0)
+    # In distributed mode where uses an NFS folder, directly call this makedirs method to
+    # create spare embedding path will cause folder permission error that prevents
+    # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
+    # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
+    emb_path = os.path.join(model_path, ntype)
+    os.makedirs(emb_path, exist_ok=True)
+    emb_file_path = os.path.join(emb_path, f'sparse_emb_{pad_file_index(rank)}.pt')
+    th.save(embs, emb_file_path)
+
+def save_sparse_embeds(model_path, embed_layer):
+    """ save sparse embeddings if embed_layer has any
 
         Sparse embeddings are stored as:
         $model_path/ntype0/sparse_emb_0.pt
@@ -142,10 +220,6 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
             The path of the model is saved.
         embed_layer: model
             A (distributed) model of embedding layers.
-        local_rank : int
-            Local rank
-        world_size : int
-            World size in a distributed env.
     """
     if embed_layer is None:
         return
@@ -153,29 +227,8 @@ def save_sparse_embeds(model_path, embed_layer, local_rank, world_size):
         if isinstance(embed_layer, DistributedDataParallel) else embed_layer
 
     if len(embed_layer.sparse_embeds) > 0:
-        assert local_rank < world_size
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
-            num_embs = embed_layer.g.number_of_nodes(ntype)
-            start, end = _get_sparse_emb_range(num_embs, local_rank, world_size)
-            # collect sparse_emb in a iterative way
-            embs = []
-            batch_size = 10240
-            # TODO: dgl.distributed.DistEmbedding should provide emb.shape
-
-            idxs = th.split(th.arange(start=start, end=end), batch_size, dim=0)
-            for idx in idxs:
-                # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-                embs.append(sparse_emb._tensor[idx])
-
-            embs = th.cat(embs, dim=0)
-            # In distributed mode where uses an NFS folder, directly call this makedirs method to
-            # create spare embedding path will cause folder permission error that prevents
-            # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
-            # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
-            emb_path = os.path.join(model_path, ntype)
-            os.makedirs(emb_path, exist_ok=True)
-            emb_file_path = os.path.join(emb_path, f'sparse_emb_{local_rank}.pt')
-            th.save(embs, emb_file_path)
+            save_sparse_emb(model_path, sparse_emb, ntype)
 
 def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Save the states of the optimizers.
@@ -205,7 +258,7 @@ def save_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     if len(sparse_opts) > 0:
         # TODO(xiangsx) Further discussion of whether we need to save the state of
         #               sparse optimizer is needed.
-        print("WARNING: We do not export the state of sparse optimizer")
+        logging.warning("We do not export the state of sparse optimizer")
     os.makedirs(model_path, exist_ok=True)
     th.save(opt_states, os.path.join(model_path, 'optimizers.bin'))
 
@@ -260,7 +313,7 @@ def _get_data_range(rank, world_size, num_embs):
     end = num_embs if rank + 1 == world_size else end
     return start, end
 
-def _exchange_node_id_mapping(local_rank, world_size, device,
+def _exchange_node_id_mapping(rank, world_size, device,
     node_id_mapping, num_embs):
     """ Rank0 loads node_id_mappings and spreads it to other ranks.
         Each rank will get a sub-range of node_id_mappings.
@@ -268,10 +321,11 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
 
         Parameters
         ----------
-        local_rank: int
-            Local rank
+        rank: int
+            Rank of the current process in a distributed environment.
         world_size : int
-            World size in a distributed env.
+            World size in a distributed environment. This tells the size of a distributed cluster
+            (How many processes in a cluster).
         device: torch device
             Device used for all_to_allv data exchange. For gloo backend
             we store data in CPU, For nccl backend, we need to store
@@ -279,11 +333,14 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
         node_id_mapping_file: str
             Path to the file storing node id mapping generated by the
             graph partition algorithm.
+
+        Return:
+        Tensor: sub node_id_mappings corresponding to `rank`
     """
     backend = th.distributed.get_backend()
     device = th.device('cpu') if backend == "gloo" else device
 
-    if local_rank == 0:
+    if rank == 0:
         data_tensors = []
         for i in range(world_size):
             start_idx, end_idx = _get_data_range(i, world_size, num_embs)
@@ -295,7 +352,7 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
                                     device=device) \
             for _ in range(world_size)]
 
-    start_idx, end_idx = _get_data_range(local_rank, world_size, num_embs)
+    start_idx, end_idx = _get_data_range(rank, world_size, num_embs)
     gather_list = \
         [th.empty((end_idx-start_idx,),
                     dtype=th.long,
@@ -305,23 +362,153 @@ def _exchange_node_id_mapping(local_rank, world_size, device,
                                     device=device) \
             for i in range(world_size)]
     if backend == "gloo":
-        alltoallv_cpu(local_rank, world_size, gather_list, data_tensors)
+        alltoallv_cpu(rank, world_size, gather_list, data_tensors)
     else: # backend == "nccl"
-        alltoallv_nccl(local_rank, world_size, gather_list, data_tensors)
-    return gather_list[0]
+        alltoallv_nccl(gather_list, data_tensors)
+    # move mapping into CPU
+    return gather_list[0].to(th.device("cpu"))
 
-def save_embeddings(model_path, embeddings, local_rank, world_size,
-    device=th.device('cpu'), node_id_mapping_file=None):
-    """ Save embeddings in a distributed way
+def distribute_nid_map(embeddings, rank, world_size,
+    node_id_mapping_file, device=th.device('cpu')):
+    """ Distribute nid_map to all workers.
 
         Parameters
         ----------
-        model_path : str
-            The path of the folder where the model is saved.
         embeddings : DistTensor
             Embeddings to save
-        local_rank : int
+        rank : int
             Local rank
+        world_size : int
+            World size in a distributed env.
+        node_id_mapping_file: str
+            Path to the file storing node id mapping generated by the
+            graph partition algorithm.
+        device: torch device
+            Device used for all_to_allv data exchange. For gloo backend
+            we store data in CPU, For nccl backend, we need to store
+            data in GPU.
+
+        Returns
+        _______
+        Dict of list: Embeddings index from original order.
+    """
+    assert node_id_mapping_file is not None
+    if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
+        # only host 0 will load node id mapping from disk
+        if rank == 0:
+            ori_node_id_mapping = th.load(node_id_mapping_file)
+            _, node_id_mapping = th.sort(ori_node_id_mapping)
+        else:
+            node_id_mapping = None
+
+        nid_mapping = _exchange_node_id_mapping(
+            rank, world_size, device, node_id_mapping, len(embeddings))
+    elif isinstance(embeddings, dict):
+        nid_mapping = {}
+        # only host 0 will load node id mapping from disk
+        node_id_mappings = th.load(node_id_mapping_file) \
+            if rank == 0 else None
+
+        for name, emb in embeddings.items():
+            if rank == 0:
+                assert name in node_id_mappings, \
+                    f"node id mapping for ntype {name} should exists"
+                # new mapping back index
+                ori_node_id_mapping = node_id_mappings[name]
+                _, node_id_mapping = th.sort(ori_node_id_mapping)
+            else:
+                node_id_mapping = None
+
+            nid_mapping[name] = _exchange_node_id_mapping(
+                rank, world_size, device, node_id_mapping, len(emb))
+    else:
+        nid_mapping = None
+    return nid_mapping
+
+def remap_embeddings(embeddings, rank, world_size,
+    node_id_mapping_file, device=th.device('cpu')):
+    """ Remap embeddings by nid_map without writing to disk.
+
+        Parameters
+        ----------
+        embeddings : DistTensor
+            Embeddings to save
+        rank : int
+            Local rank
+        world_size : int
+            World size in a distributed env.
+        node_id_mapping_file: str
+            Path to the file storing node id mapping generated by the
+            graph partition algorithm.
+        device: torch device
+            Device used for all_to_allv data exchange. For gloo backend
+            we store data in CPU, For nccl backend, we need to store
+            data in GPU.
+
+        Returns
+        _______
+        DistTensor : remapped DistTensor
+    """
+    assert node_id_mapping_file is not None
+
+    # TODO: handle when node_id_mapping_file is None.
+    nid_mapping = distribute_nid_map(embeddings, rank, world_size,
+            node_id_mapping_file, device)
+
+    if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
+        start, end = _get_data_range(rank, world_size, len(embeddings))
+        embeddings[list(range(start, end))] = embeddings[nid_mapping]
+    elif isinstance(embeddings, dict):
+        # We need to duplicate the dict so that the input argument is not changed.
+        embeddings = dict(embeddings.items())
+        for name, emb in embeddings.items():
+            if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
+                # this is the same window as nid_mapping
+                start, end = _get_data_range(rank, world_size, len(emb))
+                # we need to keep emb to be dist tensor unchanged
+                emb[th.arange(start, end)] = emb[nid_mapping[name]]
+            barrier()
+
+    return embeddings
+
+def load_pytorch_embedding(emb_path, part_policy, name):
+    """ Load embedding tensor in Pytorch format.
+
+    Parameters
+    ----------
+    emb_path : str
+        The path of the save embedding files.
+    part_policy : dgl.distributed.PartitionPolicy
+        The partitioning policy
+    name : str
+        The name of the created distributed tensor.
+
+    Returns
+    -------
+    DistTensor : the loaded embeddings.
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    emb = th.load(os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
+    dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
+            name=name, part_policy=part_policy)
+    start, end = _get_data_range(rank, world_size, len(dist_emb))
+    dist_emb[start:end] = emb
+    barrier()
+    return dist_emb
+
+def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
+    device=th.device('cpu'), node_id_mapping_file=None):
+    """ Save embeddings through pytorch a distributed way
+
+        Parameters
+        ----------
+        emb_path : str
+            The path of the folder where the embeddings are saved.
+        embeddings : DistTensor or dict of DistTensor
+            Embeddings to save
+        rank : int
+            Rank of the current process in a distributed environment.
         world_size : int
             World size in a distributed env.
         device: torch device
@@ -332,54 +519,30 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
             Path to the file storing node id mapping generated by the
             graph partition algorithm.
     """
-    os.makedirs(model_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
-    if local_rank == 0:
+    if rank == 0:
         # mode 767 means rwx-rw-rwx:
         #     - owner of the folder can read, write, and execute;
         #     - owner' group can read, write;
         #     - others can read, write, and execute.
-        os.chmod(model_path, 0o767)
+        os.chmod(emb_path, 0o767)
 
-    # make sure the model_path permission is changed before other process start to save
-    th.distributed.barrier()
+    # make sure the emb_path permission is changed before other process start to save
+    barrier()
 
-    assert local_rank < world_size
+    assert rank < world_size
     # Node ID mapping won't be very large if number of nodes is
     # less than 10 billion. An ID mapping of 10 billion nodes
     # will take around 80 GByte.
     if node_id_mapping_file is not None:
-        if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-            # only host 0 will load node id mapping from disk
-            node_id_mapping = th.load(node_id_mapping_file) \
-                if local_rank == 0 else None
-
-            nid_mapping = _exchange_node_id_mapping(
-                local_rank, world_size, device, node_id_mapping, len(embeddings))
-        elif isinstance(embeddings, dict):
-            nid_mapping = {}
-            # only host 0 will load node id mapping from disk
-            node_id_mappings = th.load(node_id_mapping_file) \
-                if local_rank == 0 else None
-
-            for name, emb in embeddings.items():
-                if local_rank == 0:
-                    assert name in node_id_mappings, \
-                        f"node id mapping for ntype {name} should exists"
-                    node_id_mapping = node_id_mappings[name]
-                else:
-                    node_id_mapping = None
-
-                nid_mapping[name] = _exchange_node_id_mapping(
-                    local_rank, world_size, device, node_id_mapping, len(emb))
-        else:
-            nid_mapping = None
+        nid_mapping = distribute_nid_map(embeddings, rank, world_size,
+            node_id_mapping_file, device)
     else:
         nid_mapping = None
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         if nid_mapping is None:
-            start, end = _get_data_range(local_rank, world_size, len(embeddings))
+            start, end = _get_data_range(rank, world_size, len(embeddings))
             embeddings = embeddings[start:end]
         else:
             embeddings = embeddings[nid_mapping]
@@ -389,7 +552,7 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 if nid_mapping is None:
-                    start, end = _get_data_range(local_rank, world_size, len(emb))
+                    start, end = _get_data_range(rank, world_size, len(emb))
                     emb = emb[start:end]
                 else:
                     emb = emb[nid_mapping[name]]
@@ -403,18 +566,86 @@ def save_embeddings(model_path, embeddings, local_rank, world_size,
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
-            th.save(emb, os.path.join(model_path, f'{name}_emb.part{local_rank}.bin'))
+            th.save(emb, os.path.join(emb_path, f'{name}_emb.part{pad_file_index(rank)}.bin'))
             emb_info["emb_name"].append(name)
     else:
-        th.save(embeddings, os.path.join(model_path, f'emb.part{local_rank}.bin'))
+        th.save(embeddings, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
         emb_info["emb_name"] = None
 
-    if local_rank == 0:
-        with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+    if rank == 0:
+        with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(emb_info))
 
+def save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
+    device=th.device('cpu'), node_id_mapping_file=None):
+    """ Save embeddings through hdf5 into a single file.
+
+        Parameters
+        ----------
+        emb_path : str
+            The path of the folder where the embeddings are saved.
+        embeddings : DistTensor
+            Embeddings to save
+        rank : int
+            Rank of the current process in a distributed environment.
+        world_size : int
+            World size in a distributed env.
+        device: torch device
+            Device used for all_to_allv data exchange. For gloo backend
+            we store data in CPU, For nccl backend, we need to store
+            data in GPU.
+        node_id_mapping_file: str
+            Path to the file storing node id mapping generated by the
+            graph partition algorithm.
+    """
+    mapped_embeds = remap_embeddings(embeddings, rank, world_size, node_id_mapping_file, device)
+    if rank == 0:
+        stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(emb_path, "embed_dict.hdf5"))
+
+def save_embeddings(emb_path, embeddings, rank, world_size,
+    device=th.device('cpu'), node_id_mapping_file=None,
+    save_embed_format="pytorch"):
+    """ Save embeddings.
+
+        Parameters
+        ----------
+        emb_path : str
+            The path of the folder where the embeddings are saved.
+        embeddings : DistTensor or dict of DistTensor
+            Embeddings to save
+        rank : int
+            Rank of the current process in a distributed environment.
+        world_size : int
+            World size in a distributed env.
+        device: torch device
+            Device used for all_to_allv data exchange. For gloo backend
+            we store data in CPU, For nccl backend, we need to store
+            data in GPU.
+        node_id_mapping_file : str
+            Path to the file storing node id mapping generated by the
+            graph partition algorithm.
+        save_embed_format : str
+            The format of saved embeddings.
+            Currently support ["pytorch", "hdf5"].
+    """
+    os.makedirs(emb_path, exist_ok=True)
+    if save_embed_format == "pytorch":
+        if rank == 0:
+            logging.info("Writing GNN embeddings to %s in pytorch format.",
+                    emb_path)
+        save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
+            device, node_id_mapping_file)
+    elif save_embed_format == "hdf5":
+        if rank == 0:
+            logging.info("Writing GNN embeddings to %s in hdf5 format.", \
+                os.path.join(emb_path, 'embed_dict.hdf5'))
+        save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
+            device, node_id_mapping_file)
+    else:
+        raise ValueError(f"{emb_path} is not supported for save_embed_format")
+
 def shuffle_predict(predictions, id_mapping_file, pred_type,
-                    local_rank, world_size, device):
+                    rank, world_size, device):
     """ Shuffle prediction result according to id_mapping
 
         Parameters
@@ -426,23 +657,30 @@ def shuffle_predict(predictions, id_mapping_file, pred_type,
             graph partition algorithm.
         pred_type: str or tuple
             Node type or edge type of the prediction target.
-        local_rank : int
-            Local rank
+        rank: int
+            Rank of the current process in a distributed environment.
         world_size : int
-            World size in a distributed env.
+            World size in a distributed environment. This tells the size of a distributed cluster
+            (How many processes in a cluster).
         device : torch device
             Device used to do data shuffling.
     """
-    id_mapping = th.load(id_mapping_file) if local_rank == 0 else None
     # In most of cases, id_mapping is a dict for heterogeneous graph.
     # For homogeneous graph, it is just a tensor.
-    id_mapping = id_mapping[pred_type] if isinstance(id_mapping, dict) else id_mapping
+    if rank == 0:
+        id_mappings = th.load(id_mapping_file)
+        ori_id_mapping = id_mappings[pred_type] if isinstance(id_mappings, dict) else id_mappings
+        # new mapping back index
+        _, id_mapping = th.sort(ori_id_mapping)
+    else:
+        id_mapping = None
+
     local_id_mapping = _exchange_node_id_mapping(
-                local_rank, world_size, device, id_mapping,
+                rank, world_size, device, id_mapping,
                 len(predictions)).cpu() # predictions are stored in CPU
     return predictions[local_id_mapping]
 
-def save_prediction_results(predictions, prediction_path, local_rank):
+def save_prediction_results(predictions, prediction_path, rank):
     """ Save node and edge predictions to the given path
 
         Parameters
@@ -451,21 +689,21 @@ def save_prediction_results(predictions, prediction_path, local_rank):
             The tensor of predictions
         prediction_path: str
             The path of the prediction is saved.
-        local_rank : int
-            Local rank
+        rank: int
+            Rank of the current process in a distributed environment.
     """
     os.makedirs(prediction_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
-    if local_rank == 0:
+    if rank == 0:
         # mode 767 means rwx-rw-rwx:
         #     - owner of the folder can read, write, and execute;
         #     - owner' group can read, write;
         #     - others can read, write, and execute.
         os.chmod(prediction_path, 0o767)
     # make sure the prediction_path permission is changed before other process start to save
-    th.distributed.barrier()
+    barrier()
 
-    th.save(predictions, os.path.join(prediction_path, "predict-{}.pt".format(local_rank)))
+    th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
 
 def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ Load a complete gnn model.
@@ -490,11 +728,11 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
         if isinstance(decoder, DistributedDataParallel) else decoder
 
     if th.__version__ < "1.13.0":
-        print("WARNING: torch.load() uses pickle module implicitly, " \
-              "which is known to be insecure. It is possible to construct " \
-              "malicious pickle data which will execute arbitrary code " \
-              "during unpickling. Only load data you trust or " \
-              "update torch to 1.13.0+")
+        logging.warning("torch.load() uses pickle module implicitly, " \
+                "which is known to be insecure. It is possible to construct " \
+                "malicious pickle data which will execute arbitrary code " \
+                "during unpickling. Only load data you trust or " \
+                "update torch to 1.13.0+")
         checkpoint = th.load(os.path.join(model_path, 'model.bin'), map_location='cpu')
     else:
         checkpoint = th.load(os.path.join(model_path, 'model.bin'),
@@ -507,7 +745,64 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     if 'decoder' in checkpoint and decoder is not None:
         decoder.load_state_dict(checkpoint['decoder'])
 
-def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
+def load_sparse_emb(target_sparse_emb, ntype_emb_path):
+    """load sparse embeddings from ntype_emb_path
+
+        Sparse embeddings are stored as:
+            $model_path/ntype0/sparse_emb_0.pt
+                               ...
+                               sparse_emb_N.pt
+            $model_path/ntype1/sparse_emb_0.pt
+                               ...
+                               sparse_emb_N.pt
+            ...
+
+        Example:
+        --------
+        Load sparse embeddings of an input embed_layer by calling ``load_sparse_emb``
+        iterating all the sparse embeddings of the embed_layer
+
+        .. code::
+            # embed_layer is the input embed_layer
+            # model_path is where the sparse embeddings are stored.
+            for ntype, sparse_emb in embed_layer.sparse_embeds.items():
+                load_sparse_emb(sparse_emb, os.path.join(model_path, ntype))
+
+        Parameters
+        ----------
+        target_sparse_emb: dgl.distributed.DistEmbedding
+            A Distributed node embedding object where the loaded spare embeddings are stored.
+        ntype_emb_path: str
+            The path where the node embedding are stored (To be loaded).
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    num_files = len(os.listdir(ntype_emb_path))
+    num_embs = target_sparse_emb.num_embeddings
+    # Suppose a sparse embedding is trained and saved using N trainers (e.g., GPUs).
+    # We are going to use K trainers/infers to load it.
+    # The code handles the following cases:
+    # 1. N == K
+    # 2. N > K, some trainers/infers need to load more than one files
+    # 3. N < K, some trainers/infers do not need to load any files
+    for i in range(math.ceil(num_files/world_size)):
+        file_idx = i * world_size + rank
+        if file_idx < num_files:
+            emb = th.load(os.path.join(ntype_emb_path,
+                                       f'sparse_emb_{pad_file_index(file_idx)}.pt'))
+
+            # Get the target idx range for sparse_emb_{rank}.pt
+            start, end = _get_sparse_emb_range(num_embs,
+                                                rank=file_idx,
+                                                world_size=num_files)
+            # write sparse_emb back in an iterative way
+            batch_size = 10240
+            idxs = th.split(th.arange(end - start), batch_size, dim=0)
+            for idx in idxs:
+                # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
+                target_sparse_emb._tensor[start+idx] = emb[idx]
+
+def load_sparse_embeds(model_path, embed_layer):
     """load sparse embeddings if any
 
         Sparse embeddings are stored as:
@@ -522,13 +817,9 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
         Parameters
         ----------
         model_path: str
-            The path of the model is saved.
+            The path of the model to be saved.
         embed_layer: model
             A (distributed) model of embedding layers.
-        local_rank : int
-            Local rank
-        world_size : int
-            World size in a distributed env.
     """
     if embed_layer is None:
         return
@@ -536,43 +827,16 @@ def load_sparse_embeds(model_path, embed_layer, local_rank, world_size):
         if isinstance(embed_layer, DistributedDataParallel) else embed_layer
 
     if len(embed_layer.sparse_embeds) > 0:
-        assert local_rank >= 0
-        assert world_size > 0
-        def load_sparse_emb(num_embs, ntype_path):
-            num_files = len(os.listdir(ntype_path))
-            # Suppose a sparse embedding is trained and saved using N trainers (GPUs).
-            # We are going to use K trainers/infers to load it.
-            # The code handles the following cases:
-            # 1. N == K
-            # 2. N > K, some trainers/infers need to load more than one files
-            # 3. N < K, some trainers/infers do not need to load any files
-            for i in range(math.ceil(num_files/world_size)):
-                file_idx = i * world_size + local_rank
-                if file_idx < num_files:
-                    emb = th.load(os.path.join(ntype_path, f'sparse_emb_{file_idx}.pt'))
-
-                    # Get the target idx range for sparse_emb_{local_rank}.pt
-                    start, end = _get_sparse_emb_range(num_embs,
-                                                       local_rank=file_idx,
-                                                       world_size=num_files)
-                    # write sparse_emb back in an iterative way
-                    batch_size = 10240
-                    idxs = th.split(th.arange(end - start), batch_size, dim=0)
-                    for idx in idxs:
-                        # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-                        sparse_emb._tensor[start+idx] = emb[idx]
-
         for ntype, sparse_emb in embed_layer.sparse_embeds.items():
-            num_embs = embed_layer.g.number_of_nodes(ntype)
             if th.__version__ < "1.13.0":
-                print("WARNING: torch.load() uses pickle module implicitly, " \
-                    "which is known to be insecure. It is possible to construct " \
-                    "malicious pickle data which will execute arbitrary code " \
-                    "during unpickling. Only load data you trust or " \
-                    "update torch to 1.13.0+")
-                load_sparse_emb(num_embs, os.path.join(model_path, ntype))
-            else:
-                load_sparse_emb(num_embs, os.path.join(model_path, ntype))
+                logging.warning("torch.load() uses pickle module implicitly, " \
+                        "which is known to be insecure. It is possible to construct " \
+                        "malicious pickle data which will execute arbitrary code " \
+                        "during unpickling. Only load data you trust or " \
+                        "update torch to 1.13.0+")
+            emb_path = os.path.join(model_path, ntype)
+            assert os.path.exists(emb_path), f"The sparse embedding file {emb_path} doesn't exist."
+            load_sparse_emb(sparse_emb, emb_path)
 
 def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
@@ -589,11 +853,11 @@ def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
             Optimizer for sparse emb layer
     """
     if th.__version__ < "1.13.0":
-        print("WARNING: torch.load() uses pickle module implicitly, " \
-            "which is known to be insecure. It is possible to construct " \
-            "malicious pickle data which will execute arbitrary code " \
-            "during unpickling. Only load data you trust")
-    checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'))
+        logging.warning("torch.load() uses pickle module implicitly, " \
+                "which is known to be insecure. It is possible to construct " \
+                "malicious pickle data which will execute arbitrary code " \
+                "during unpickling. Only load data you trust")
+    checkpoint = th.load(os.path.join(model_path, 'optimizers.bin'), map_location='cpu')
 
     assert len(dense_opts) <= 1, "We can only support one dense optimizer now."
     assert len(lm_opts) <= 1, "We can only support one language model optimizer now."
@@ -633,7 +897,7 @@ def remove_saved_models(model_path):
     try:
         shutil.rmtree(model_path)
     except OSError:
-        print(f'WARNING: Something wrong with deleting contents of {model_path}!')
+        logging.error('Something wrong with deleting contents of %s!', model_path)
         return -1
 
     return 0
@@ -799,6 +1063,49 @@ class TopKList():
 
         return insert_success, return_val
 
+def create_sparse_emb_path(model_path, ntype):
+    """ Create sparse embedding save path by the rank 0
+
+         The folders are like:
+            $model_path/ntype0/
+            $model_path/ntype1/
+            ...
+
+        Example:
+        --------
+
+        Creat paths on a shared file system for saving sparse embeddings of
+        an input embed_layer by calling ``create_sparse_emb_path``
+        for each sparse embedding of the embed_layer
+
+        .. code::
+            # embed_layer is the input embed_layer
+            embed_layer = embed_layer.module \
+                if isinstance(embed_layer, DistributedDataParallel) else embed_layer
+
+            if len(embed_layer.sparse_embeds) > 0:
+                for ntype, _ in embed_layer.sparse_embeds.items():
+                    create_sparse_emb_path(model_path, ntype)
+            return
+
+        Parameters
+        ----------
+        model_path: str
+            The path of the model is saved.
+        ntype: str
+            The node type the sparse embedding belongs to.
+    """
+    # Assume this method is called by rank 0 who can perform chmod
+    if get_rank() == 0:
+        emb_path = os.path.join(model_path, ntype)
+        os.makedirs(emb_path, exist_ok=True)
+
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(emb_path, 0o767)
+    barrier()
 
 def create_sparse_embeds_path(model_path, embed_layer):
     """ create sparse embeddings save path by the rank 0
@@ -823,12 +1130,20 @@ def create_sparse_embeds_path(model_path, embed_layer):
 
     if len(embed_layer.sparse_embeds) > 0:
         for ntype, _ in embed_layer.sparse_embeds.items():
-            emb_path = os.path.join(model_path, ntype)
-            os.makedirs(emb_path, exist_ok=True)
-            # [04/16]: Assume this method is called by rank 0 who can perform chmod
-            assert get_rank() == 0, "Only can the rank 0 process can change folders mode."
-            # mode 767 means rwx-rw-rwx:
-            #     - owner of the folder can read, write, and execute;
-            #     - owner' group can read, write;
-            #     - others can read, write, and execute.
-            os.chmod(emb_path, 0o767)
+            create_sparse_emb_path(model_path, ntype)
+
+def append_to_dict(from_dict, to_dict):
+    """ Append content of from_dict to to_dict
+
+        Parameters
+        ----------
+        from_dict: dict of Tensor
+            Dict of tensor to be added to to_dict
+        to_dict: dict of Tensor
+            Target dict of tensor
+    """
+    for k, v in from_dict.items():
+        if k in to_dict:
+            to_dict[k].append(v.cpu())
+        else:
+            to_dict[k] = [v.cpu()]

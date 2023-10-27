@@ -80,6 +80,9 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
     dict of Numpy arrays.
     """
     data = pd.read_csv(data_file, delimiter=delimiter)
+    assert data.shape[0] > 0, \
+        f"{data_file} has an empty data. The data frame shape is {data.shape}"
+
     if data_fields is not None:
         for field in data_fields:
             assert field in data, f"The data field {field} does not exist in the data file."
@@ -132,6 +135,8 @@ def read_data_json(data_file, data_fields):
         for line in json_file.readlines():
             record = json.loads(line)
             data_records.append(record)
+    assert len(data_records) > 0, \
+        f"{data_file} is empty {data_records}."
 
     data = {key: [] for key in data_fields}
     for record in data_records:
@@ -196,12 +201,16 @@ def read_data_parquet(data_file, data_fields=None):
     table = pq.read_table(data_file)
     data = {}
     df_table = table.to_pandas()
+    assert df_table.shape[0] > 0, \
+        f"{data_file} has an empty data. The data frame shape is {df_table.shape}"
+
     if data_fields is None:
         data_fields = list(df_table.keys())
     for key in data_fields:
         assert key in df_table, f"The data field {key} does not exist in {data_file}."
         val = df_table[key]
         d = np.array(val)
+
         # For multi-dimension arrays, we split them by rows and
         # save them as objects in parquet. We need to merge them
         # together and store them in a tensor.
@@ -266,15 +275,45 @@ def read_data_hdf5(data_file, data_fields=None, in_mem=True):
         data[name] = f[name][:] if in_mem else HDF5Array(f[name], handle)
     return data
 
+def stream_dist_tensors_to_hdf5(data, data_file, chunk_size=100000):
+    """ Stream write dict of dist tensor into a HDF5 file.
+
+    Parameters
+    ----------
+    data : dict of dist tensor
+        The data to be saved to the hdf5 file.
+    data_file : str
+        The file name of the hdf5 file.
+    chunk_size : int
+        The size of a chunk to extract from dist tensor.
+    """
+    chunk_size = 100000
+    with h5py.File(data_file, "w") as f:
+        for key, val in data.items():
+            arr = f.create_dataset(key, val.shape, dtype=np.array(val[0]).dtype)
+            if len(val) > chunk_size:
+                num_chunks = len(val) // chunk_size
+                remainder = len(val) % chunk_size
+                for i in range(num_chunks):
+                    # extract a chunk from dist tensor
+                    chunk_val = np.array(val[i*chunk_size:(i+1)*chunk_size])
+                    arr[i*chunk_size:(i+1)*chunk_size] = chunk_val
+                # need to write remainder
+                if remainder != 0:
+                    remainder_val = np.array(val[num_chunks*chunk_size:len(val)])
+                    arr[num_chunks*chunk_size:] = remainder_val
+            else:
+                arr[:] = np.array(val[0:len(val)])
+
 def write_data_hdf5(data, data_file):
     """ Write data into a HDF5 file.
 
     Parameters
     ----------
     data : dict
-        The data to be saved to the Parquet file.
+        The data to be saved to the hdf5 file.
     data_file : str
-        The file name of the Parquet file.
+        The file name of the hdf5 file.
     """
     with h5py.File(data_file, "w") as f:
         for key, val in data.items():
@@ -315,6 +354,8 @@ def _parse_file_format(conf, is_node, in_mem):
         for label_conf in conf["labels"]:
             if "label_col" in label_conf:
                 keys.append(label_conf["label_col"])
+    # We need to remove duplicated keys to avoid retrieve the same data multiple times.
+    keys = list(set(keys))
     if fmt["name"] == "parquet":
         return partial(read_data_parquet, data_fields=keys)
     elif fmt["name"] == "json":
@@ -322,7 +363,7 @@ def _parse_file_format(conf, is_node, in_mem):
     elif fmt["name"] == "hdf5":
         return partial(read_data_hdf5, data_fields=keys, in_mem=in_mem)
     elif fmt["name"] == "csv":
-        delimiter = fmt["delimiter"] if "delimiter" in fmt else ","
+        delimiter = fmt["separator"] if "separator" in fmt else ","
         return partial(read_data_csv, data_fields=keys, delimiter=delimiter)
     else:
         raise ValueError('Unknown file format: {}'.format(fmt['name']))

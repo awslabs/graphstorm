@@ -29,12 +29,17 @@ import numpy as np
 import torch as th
 import dgl
 
-from ..utils import sys_tracker
+from ..utils import sys_tracker, get_log_level
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files
 from .transform import parse_feat_ops, process_features, preprocess_features
 from .transform import parse_label_ops, process_labels
 from .transform import do_multiprocess_transform
+from .transform import LABEL_STATS_FIELD, collect_label_stats
+from .transform import (print_node_label_stats,
+                        print_edge_label_stats,
+                        save_node_label_stats,
+                        save_edge_label_stats)
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
@@ -170,8 +175,22 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     src_ids = data[src_id_col] if src_id_col is not None else None
     dst_ids = data[dst_id_col] if dst_id_col is not None else None
     if src_ids is not None:
-        src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
+        src_ids, dst_ids, src_exist_locs, dst_exist_locs = \
+            map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
                                         skip_nonexist_edges)
+        if src_exist_locs is not None:
+            feat_data = {key: feat[src_exist_locs] \
+                         for key, feat in feat_data.items()}
+        if dst_exist_locs is not None:
+            feat_data = {key: feat[dst_exist_locs] \
+                         for key, feat in feat_data.items()}
+        # do some check
+        if src_exist_locs is not None or dst_exist_locs is not None:
+            for key, feat in feat_data.items():
+                assert len(src_ids) == len(feat), \
+                    f"Expecting the edge feature {key} has the same length" \
+                    f"as num existing edges {len(src_ids)}, but get {len(feat)}"
+
     return (src_ids, dst_ids, feat_data)
 
 def _process_data(user_pre_parser, user_parser,
@@ -257,6 +276,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
     """
     node_data = {}
     node_id_map = {}
+    label_stats = {}
     for process_conf in process_confs:
         # each iteration is to process a node type.
         assert 'node_type' in process_conf, \
@@ -333,15 +353,25 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
             type_node_id_map = IdMap(type_node_id_map)
             sys_tracker.check(f'Create node ID map of {node_type}')
 
-        for feat_name in type_node_data:
-            merged_feat = arr_merger(type_node_data[feat_name],
-                                     node_type + "_" + feat_name)
-            if feat_name in after_merge_feat_ops:
-                # do data transformation with the entire feat array.
-                merged_feat = after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
-            type_node_data[feat_name] = merged_feat
+        if node_type not in label_stats:
+            label_stats[node_type] = {}
+        for feat_name in list(type_node_data):
+            # features start with LABEL_STATS_FIELD store label statistics
+            if feat_name.startswith(LABEL_STATS_FIELD):
+                label_name, stats_type, stats = \
+                    collect_label_stats(feat_name, type_node_data[feat_name])
+                label_stats[node_type][label_name] = (stats_type, stats)
+                del type_node_data[feat_name]
+            else:
+                merged_feat = arr_merger(type_node_data[feat_name],
+                                         node_type + "_" + feat_name)
+                if feat_name in after_merge_feat_ops:
+                    # do data transformation with the entire feat array.
+                    merged_feat = \
+                        after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+                type_node_data[feat_name] = merged_feat
+                sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
             gc.collect()
-            sys_tracker.check(f'Merge node data {feat_name} of {node_type}')
 
         # If we didn't see the node data for this node type before.
         if len(type_node_data) > 0 and node_type not in node_data:
@@ -367,7 +397,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
                     f"Node data and node IDs for node type {node_type} does not match: " + \
                     f"{len(data)} vs. {len(node_id_map[node_type])}"
     sys_tracker.check('Finish processing node data')
-    return (node_id_map, node_data)
+    return (node_id_map, node_data, label_stats)
 
 def process_edge_data(process_confs, node_id_map, arr_merger,
                       num_processes=1,
@@ -416,7 +446,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
     """
     edges = {}
     edge_data = {}
-
+    label_stats = {}
     for process_conf in process_confs:
         # each iteration is to process an edge type.
         assert 'relation' in process_conf, \
@@ -473,19 +503,29 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 type_edge_data[feat_name][i] = part_data[feat_name]
         return_dict = None
 
-        # handle edge type
-        for feat_name in type_edge_data:
-            etype_str = "-".join(edge_type)
-            merged_feat = arr_merger(type_edge_data[feat_name],
-                                                   etype_str + "_" + feat_name)
-            if feat_name in after_merge_feat_ops:
-                # do data transformation with the entire feat array.
-                merged_feat = after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
-            type_edge_data[feat_name] = merged_feat
-            gc.collect()
-            sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
-
         edge_type = tuple(edge_type)
+        if edge_type not in label_stats:
+            label_stats[edge_type] = {}
+        # handle edge type
+        for feat_name in list(type_edge_data):
+            # features start with LABEL_STATS_FIELD store label statistics
+            if feat_name.startswith(LABEL_STATS_FIELD):
+                label_name, stats_type, stats = \
+                    collect_label_stats(feat_name, type_edge_data[feat_name])
+                label_stats[edge_type][label_name] = (stats_type, stats)
+                del type_edge_data[feat_name]
+            else:
+                etype_str = "-".join(edge_type)
+                merged_feat = arr_merger(type_edge_data[feat_name],
+                                         etype_str + "_" + feat_name)
+                if feat_name in after_merge_feat_ops:
+                    # do data transformation with the entire feat array.
+                    merged_feat = \
+                        after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+                type_edge_data[feat_name] = merged_feat
+                sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
+            gc.collect()
+
         if type_src_ids[0] is not None: # handle src_ids and dst_ids
             assert all(src_ids is not None for src_ids in type_src_ids)
             assert all(dst_ids is not None for dst_ids in type_dst_ids)
@@ -518,11 +558,15 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 f"does not match the number of edges of {edge_type}. " \
                 f"Expecting {len(edges[edge_type][0])}, but get {len(efeats)}"
 
-    return edges, edge_data
+    return (edges, edge_data, label_stats)
 
 def verify_confs(confs):
     """ Verify the configuration of the input data.
     """
+    if "version" not in confs:
+        # TODO: Make a requirement with v1.0 launch
+        logging.warning(
+            "The config file does not have a 'version' entry. Assuming gconstruct-v0.1")
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
     etypes = [conf['relation'] for conf in confs["edges"]]
     for etype in etypes:
@@ -534,22 +578,7 @@ def verify_confs(confs):
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
 
-def get_log_level(log_level):
-    """ Map the logging level.
-    """
-    if log_level == "debug":
-        return logging.DEBUG
-    elif log_level == "info":
-        return logging.INFO
-    elif log_level == "warning":
-        return logging.WARNING
-    elif log_level == "error":
-        return logging.ERROR
-    else:
-        raise ValueError(f"Unknown logging level {log_level}. " + \
-                "The possible values are: debug, info, warning, error.")
-
-def print_graph_info(g, node_data, edge_data):
+def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats):
     """ Print graph information.
 
     Parameters
@@ -560,13 +589,21 @@ def print_graph_info(g, node_data, edge_data):
         Node features
     edge_data : dict of dict of Numpy arrays.
         Edge features
+    node_label_stats: dict of dict of tuple.
+        Node label stats
+    edge_label_stats: dict of dict of tuple.
+        Edge label stats
     """
     logging.info("The graph has %d node types and %d edge types.",
                  len(g.ntypes), len(g.etypes))
+    for ntype in g.ntypes:
+        logging.info("Node type %s has %d nodes", ntype, g.number_of_nodes(ntype))
+    for etype in g.canonical_etypes:
+        logging.info("Edge type %s has %d edges", etype, g.number_of_edges(etype))
+
     for ntype in node_data:
         feat_names = list(node_data[ntype].keys())
-        logging.info("Node type %s has %d nodes with features: %s.",
-                     ntype, g.number_of_nodes(ntype), str(feat_names))
+        logging.info("Node type %s has features: %s.", ntype, str(feat_names))
         num_train = np.sum(node_data[ntype]["train_mask"]) \
                 if "train_mask" in node_data[ntype] else 0
         num_val = np.sum(node_data[ntype]["val_mask"]) \
@@ -578,8 +615,7 @@ def print_graph_info(g, node_data, edge_data):
                          ntype, num_train, num_val, num_test)
     for etype in edge_data:
         feat_names = list(edge_data[etype].keys())
-        logging.info("Edge type %s has %d edges with features: %s.",
-                     str(etype), g.number_of_edges(etype), str(feat_names))
+        logging.info("Edge type %s has features: %s.", str(etype), str(feat_names))
         num_train = np.sum(edge_data[etype]["train_mask"]) \
                 if "train_mask" in edge_data[etype] else 0
         num_val = np.sum(edge_data[etype]["val_mask"]) \
@@ -589,6 +625,14 @@ def print_graph_info(g, node_data, edge_data):
         if num_train + num_val + num_test > 0:
             logging.info("Train/val/test on %s: %d, %d, %d",
                          str(etype), num_train, num_val, num_test)
+
+    for ntype in node_label_stats:
+        for label_name, stats in node_label_stats[ntype].items():
+            print_node_label_stats(ntype, label_name, stats)
+
+    for etype in edge_label_stats:
+        for label_name, stats in edge_label_stats[etype].items():
+            print_edge_label_stats(etype, label_name, stats)
 
 def process_graph(args):
     """ Process the graph.
@@ -603,17 +647,26 @@ def process_graph(args):
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
     verify_confs(process_confs)
+    output_format = args.output_format
+    for out_format in output_format:
+        assert out_format in ["DGL", "DistDGL"], \
+            f'Unknown output format: {format}'
+
     # We only store data to external memory if we partition a graph for distributed training.
-    ext_mem_workspace = args.ext_mem_workspace if args.output_format == "DistDGL" else None
+    ext_mem_workspace = args.ext_mem_workspace \
+        if len(output_format) == 1 and output_format[0] == "DistDGL" else None
     convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
-    node_id_map, node_data = process_node_data(process_confs['nodes'], convert2ext_mem,
-                                               args.remap_node_id,
-                                               num_processes=num_processes_for_nodes)
+
+    node_id_map, node_data, node_label_stats = \
+        process_node_data(process_confs['nodes'], convert2ext_mem,
+                          args.remap_node_id,
+                          num_processes=num_processes_for_nodes)
     sys_tracker.check('Process the node data')
-    edges, edge_data = process_edge_data(process_confs['edges'], node_id_map,
-                                         convert2ext_mem,
-                                         num_processes=num_processes_for_edges,
-                                         skip_nonexist_edges=args.skip_nonexist_edges)
+    edges, edge_data, edge_label_stats = \
+        process_edge_data(process_confs['edges'], node_id_map,
+                          convert2ext_mem,
+                          num_processes=num_processes_for_edges,
+                          skip_nonexist_edges=args.skip_nonexist_edges)
     sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(node_id_map[ntype]) for ntype in node_id_map}
     if args.output_conf_file is not None:
@@ -632,7 +685,8 @@ def process_graph(args):
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    print_graph_info(g, node_data, edge_data)
+    print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats)
+    os.makedirs(args.output_dir, exist_ok=True)
     sys_tracker.check('Construct DGL graph')
 
     # reshape customized mask
@@ -650,14 +704,15 @@ def process_graph(args):
             edge_data[srctype_etype_dsttype]["test_mask"] = \
                 edge_data[srctype_etype_dsttype]["test_mask"].squeeze(1).astype('int8')
 
-    if args.output_format == "DistDGL":
+    if  "DistDGL" in output_format:
         assert args.part_method in ["metis", "random"], \
                 "We only support 'metis' or 'random'."
         partition_graph(g, node_data, edge_data, args.graph_name,
                         args.num_parts, args.output_dir,
                         save_mapping=True, # always save mapping
                         part_method=args.part_method)
-    elif args.output_format == "DGL":
+
+    if "DGL" in output_format:
         for ntype in node_data:
             for name, ndata in node_data[ntype].items():
                 if isinstance(ndata, ExtMemArrayWrapper):
@@ -671,8 +726,12 @@ def process_graph(args):
                 else:
                     g.edges[etype].data[name] = th.tensor(edata)
         dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
-    else:
-        raise ValueError('Unknown output format: {}'.format(args.output_format))
+
+    if len(node_label_stats) > 0:
+        save_node_label_stats(args.output_dir, node_label_stats)
+    if len(edge_label_stats) > 0:
+        save_edge_label_stats(args.output_dir, edge_label_stats)
+
     for ntype in node_id_map:
         map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
         if node_id_map[ntype].save(map_file):
@@ -699,8 +758,11 @@ if __name__ == '__main__':
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
-    argparser.add_argument("--output-format", type=str, default="DistDGL",
-                           help="The output format of the constructed graph.")
+    argparser.add_argument("--output-format", type=str, nargs='+', default=["DistDGL"],
+                           help="The output format of the constructed graph."
+                                "It can be a single output format, for example "
+                                "--output-format 'DGL'. It can also be multiple "
+                                "formats, for example --output-format DGL DistDGL")
     argparser.add_argument("--num-parts", type=int, default=1,
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")

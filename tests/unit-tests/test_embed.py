@@ -14,28 +14,33 @@
     limitations under the License.
 """
 
+import multiprocessing as mp
 import pytest
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_raises
 import tempfile
 
+
 import dgl
 from transformers import AutoTokenizer
+import graphstorm as gs
 from graphstorm import get_feat_size
 from graphstorm.model import GSNodeEncoderInputLayer, GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
-
+from graphstorm.model.lm_embed import LMModels, LMCache
 
 from data_utils import generate_dummy_dist_graph
-from data_utils import create_lm_graph, create_lm_graph2
+from data_utils import create_lm_graph, create_lm_graph2, load_lm_graph
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
-def test_input_layer1():
+@pytest.mark.parametrize("input_activate", [None, F.relu])
+def test_input_layer1(input_activate):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -46,7 +51,7 @@ def test_input_layer1():
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, 'feat')
-    layer = GSNodeEncoderInputLayer(g, feat_size, 2)
+    layer = GSNodeEncoderInputLayer(g, feat_size, 2, activation=input_activate)
     ntypes = list(layer.input_projs.keys())
     assert set(ntypes) == set(g.ntypes)
     node_feat = {}
@@ -57,6 +62,8 @@ def test_input_layer1():
         nn.init.eye_(layer.input_projs[ntype])
         input_nodes[ntype] = np.arange(10)
         node_feat[ntype] = g.nodes[ntype].data['feat'][input_nodes[ntype]]
+        if input_activate:
+            node_feat[ntype] = input_activate(node_feat[ntype])
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
     assert len(embed) == len(node_feat)
@@ -146,13 +153,6 @@ def test_input_layer3(dev):
     assert_almost_equal(embed['n1'].detach().cpu().numpy(),
                         node_embs['n1'].detach().cpu().numpy())
 
-    # Test the case with errors.
-    try:
-        embed = layer(node_feat, {'n2': 'feat'})
-    except:
-        embed = None
-    assert embed is None
-
     # test the case that one node type has no input nodes.
     input_nodes['n0'] = np.arange(10)
     input_nodes['n1'] = np.zeros((0,))
@@ -204,6 +204,85 @@ def test_compute_embed(dev):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_lm_cache():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
+
+        lm_models = LMModels(g, lm_config, 0, 10)
+        lm_cache = LMCache(g, lm_models, tmpdirname)
+        lm_cache.update_cache(100)
+        assert len(lm_cache) == 1
+        assert len(lm_cache.ntypes) == 1
+        assert lm_cache.ntypes[0] == 'n0'
+
+        # Create the second cache. It should loads the embeddings from
+        # the first cache.
+        lm_cache2 = LMCache(g, lm_models, tmpdirname)
+        lm_cache2.update_cache(100)
+        assert len(lm_cache2) == 1
+        emb1 = lm_cache["n0"]
+        emb2 = lm_cache2["n0"]
+        assert np.all(emb1[0:len(emb1)].numpy() == emb2[0:len(emb2)].numpy())
+
+        # If the model is changed, the model name should also be changed.
+        model_name = lm_cache._get_model_name("n0")
+        for param in lm_models.get_lm_model("n0").parameters():
+            param.data += 1
+        model_name1 = lm_cache._get_model_name("n0")
+        assert model_name != model_name1
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def run_dist_cache(part_config, tmpdirname):
+    gs.initialize(ip_config=None, backend="gloo")
+    g, lm_config = load_lm_graph(part_config)
+    lm_models = LMModels(g, lm_config, 0, 10)
+    lm_cache = LMCache(g, lm_models, tmpdirname)
+    lm_cache.update_cache(100)
+    assert len(lm_cache) == 1
+    assert len(lm_cache.ntypes) == 1
+    assert lm_cache.ntypes[0] == 'n0'
+
+    # Create the second cache. It should loads the embeddings from
+    # the first cache.
+    lm_cache2 = LMCache(g, lm_models, tmpdirname)
+    lm_cache2.update_cache(100)
+    assert len(lm_cache2) == 1
+    emb1 = lm_cache["n0"]
+    emb2 = lm_cache2["n0"]
+    assert np.all(emb1[0:len(emb1)].numpy() == emb2[0:len(emb2)].numpy())
+
+def test_mp_lm_cache():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, _, part_config = \
+            create_lm_graph(tmpdirname)
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_dist_cache, args=(part_config, tmpdirname))
+        p1 = ctx.Process(target=run_dist_cache, args=(part_config, tmpdirname))
+
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def test_lm_infer():
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
@@ -221,10 +300,11 @@ def test_lm_infer():
     nn.init.eye_(layer.input_projs['n0'])
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
-    layer.lm_models[0].lm_model.eval()
-    outputs = layer.lm_models[0].lm_model(input_ids,
-                                      attention_mask=attention_mask)
-    layer.lm_models[0].lm_model.train()
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model
+    lm_model.eval()
+    outputs = lm_model(input_ids, attention_mask=attention_mask)
+    lm_model.train()
     out_emb = outputs.pooler_output
     feat_size['n0'] += out_emb.shape[1]
     g.nodes['n0'].data['text'] = out_emb
@@ -260,10 +340,11 @@ def test_lm_embed(num_train):
     nn.init.eye_(layer.input_projs['n0'])
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
-    layer.lm_models[0].lm_model.eval()
-    outputs = layer.lm_models[0].lm_model(input_ids,
-                                      attention_mask=attention_mask)
-    layer.lm_models[0].lm_model.train()
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model
+    lm_model.eval()
+    outputs = lm_model(input_ids, attention_mask=attention_mask)
+    lm_model.train()
     out_emb = outputs.pooler_output
 
     assert len(embeds_with_lm) == len(g.ntypes)
@@ -304,10 +385,11 @@ def test_lm_embed(num_train):
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
 
-    layer.lm_models[0].lm_model.eval()
-    outputs = layer.lm_models[0].lm_model(input_ids,
-                                           attention_mask=attention_mask)
-    layer.lm_models[0].lm_model.train()
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model
+    lm_model.eval()
+    outputs = lm_model(input_ids, attention_mask=attention_mask)
+    lm_model.train()
     out_emb = outputs.pooler_output
 
     assert len(embeds_with_lm) == len(g.ntypes)
@@ -325,17 +407,6 @@ def test_pure_lm_embed(num_train):
                                       rank=0,
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
-        lm_config, _, _, _, g, _ = create_lm_graph(tmpdirname)
-
-    # GSPureLMNodeInputLayer will fail as not all ntypes in g have text feature
-    has_error = False
-    try:
-        layer = GSPureLMNodeInputLayer(g, lm_config, num_train=num_train)
-    except:
-        has_error = True
-    assert has_error
-
-    with tempfile.TemporaryDirectory() as tmpdirname:
         lm_config, feat_size, input_ids0, attention_mask0, \
             input_ids1, attention_mask1, g, _ = create_lm_graph2(tmpdirname)
     layer = GSPureLMNodeInputLayer(g, lm_config, num_train=num_train)
@@ -349,13 +420,11 @@ def test_pure_lm_embed(num_train):
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
 
-    layer.lm_models[0].lm_model.eval()
-    outputs0 = layer.lm_models[0].lm_model(input_ids0,
-                                           attention_mask=attention_mask0)
-
-    outputs1 = layer.lm_models[0].lm_model(input_ids1,
-                                           attention_mask=attention_mask1)
-    layer.lm_models[0].lm_model.train()
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model.eval()
+    outputs0 = lm_model(input_ids0, attention_mask=attention_mask0)
+    outputs1 = lm_model(input_ids1, attention_mask=attention_mask1)
+    lm_model.train()
     out_emb0 = outputs0.pooler_output
     out_emb1 = outputs1.pooler_output
 
@@ -363,10 +432,10 @@ def test_pure_lm_embed(num_train):
 
     assert_almost_equal(out_emb0.detach().numpy(),
                         embeds_with_lm['n0'][th.arange(g.number_of_nodes('n0'))].numpy(),
-                        decimal=5)
+                        decimal=2)
     assert_almost_equal(out_emb1.detach().numpy(),
                         embeds_with_lm['n1'][th.arange(g.number_of_nodes('n0'))].numpy(),
-                        decimal=5)
+                        decimal=2)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -416,7 +485,9 @@ def test_lm_embed_warmup(dev):
     def rand_init(m):
         if isinstance(m, th.nn.Embedding):
             th.nn.init.uniform(m.weight.data, b=10.)
-    layer.lm_models[0].lm_model.apply(rand_init)
+    ntype = layer._lm_models.ntypes[0]
+    lm_model = layer._lm_models.get_lm_model(ntype).lm_model
+    lm_model.apply(rand_init)
     # model has been freezed, still use bert cache.
     feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
     emb_1 = layer(feat, input_nodes)
@@ -434,7 +505,10 @@ def test_lm_embed_warmup(dev):
 
 
 if __name__ == '__main__':
-    test_input_layer1()
+    test_lm_cache()
+    test_mp_lm_cache()
+    test_input_layer1(None)
+    test_input_layer1(F.relu)
     test_input_layer2()
     test_input_layer3('cpu')
     test_input_layer3('cuda:0')

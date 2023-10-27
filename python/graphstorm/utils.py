@@ -30,9 +30,20 @@ import numpy as np
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 
 def setup_device(local_rank):
-    """Setup computation device
+    r"""Setup computation device.
+    
+    Parameters
+    -----------
+    local_rank: int
+        Rank of the current process in a distributed environment.
+
+    Returns
+    -------
+    str: device where the model runs.
     """
     if th.cuda.is_available():
+        assert local_rank < th.cuda.device_count(), \
+                f"local rank={local_rank} but there are {th.cuda.device_count()} GPUs."
         device = 'cuda:%d' % local_rank
         th.cuda.set_device(device)
     else:
@@ -40,15 +51,42 @@ def setup_device(local_rank):
 
     return device
 
+def is_distributed():
+    """ Test whether the process runs in a distributed mode.
+    """
+    return th.distributed.is_initialized()
+
+def get_backend():
+    """ Get the backend of a process group.
+    """
+    assert is_distributed(), "get_backend() is valid only when is_distributed() is True."
+    return th.distributed.get_backend()
+
 def get_rank():
     """ Get rank of a process
     """
-    try:
+    if is_distributed():
         return th.distributed.get_rank()
-    except RuntimeError:
-        # If Pytorch distributed is not set up correctly, we should set
-        # the rank to 0.
-        return 0
+    return 0
+
+def get_world_size():
+    """ Get the world size.
+    """
+    if is_distributed():
+        return th.distributed.get_world_size()
+    return 1
+
+def barrier():
+    """ Run barrier among trainers.
+    """
+    if is_distributed():
+        th.distributed.barrier()
+
+def use_wholegraph(part_config):
+    """ Use wholegraph for feature fetching if 'wholegraph' folder exists
+    """
+    return bool(part_config is not None and os.path.isdir(os.path.join( \
+        os.path.dirname(part_config), 'wholegraph')))
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.
@@ -105,9 +143,10 @@ def estimate_mem_train(root, task):
             max_cli_mem = max_cli_mem / 1024/1024/1024
             mem_list.append(max(max_serv_mem, stable_serv_mem + max_cli_mem))
             shared_mem_list.append(shared_mem)
-            print('part{i}, N={num_nodes}, E={num_edges}, peak serv mem: {max_serv_mem:.3f} GB, '\
-                    'stable serv mem: {stable_serv_mem:.3f} GB, '\
-                    'shared mem: {shared_mem_list[-1]:.3f} GB, cli mem: {max_cli_mem:.3f} GB')
+            logging.info('part%d, N=%d, E=%d, peak serv mem: %.3f GB, ' + \
+                    'stable serv mem: %.3f GB, shared mem: %.3f GB, cli mem: %.3f GB',
+                         i, num_nodes, num_edges, max_serv_mem,
+                         stable_serv_mem, shared_mem_list[-1], max_cli_mem)
     return max(mem_list), max(shared_mem_list)
 
 def estimate_mem_infer(root, graph_name, hidden_size, num_layers):
@@ -178,10 +217,44 @@ def estimate_mem_infer(root, graph_name, hidden_size, num_layers):
             max_cli_mem = max_cli_mem / 1024/1024/1024
             mem_list.append(max(max_serv_mem, stable_serv_mem + max_cli_mem))
             shared_mem_list.append(shared_mem)
-            print(f'part {i}, N={num_nodes}, E={num_edges}, peak serv mem: {max_serv_mem:.3f} GB, '\
-                    'stable serv mem: {stable_serv_mem:.3f} GB, '\
-                    'shared mem: {shared_mem_list[-1]:.3f} GB, cli mem: {max_cli_mem:.3f} GB')
+            logging.info('part%d, N=%d, E=%d, peak serv mem: %.3f GB, ' + \
+                    'stable serv mem: %.3f GB, shared mem: %.3f GB, cli mem: %.3f GB',
+                         i, num_nodes, num_edges, max_serv_mem,
+                         stable_serv_mem, shared_mem_list[-1], max_cli_mem)
     return max(mem_list), max(shared_mem_list)
+
+def print_mem(device):
+    """ Print memory consumption
+    """
+    if th.cuda.is_available():
+        logging.info("Peak GPU Mem alloc: %.4f MB",
+                     th.cuda.max_memory_allocated(device) / 1024 / 1024)
+    else:
+        logging.info("Peak RAM Mem alloc: %.4f MB",
+            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
+
+def get_log_level(log_level):
+    """ Map the logging level.
+    """
+    if log_level == "debug":
+        return logging.DEBUG
+    elif log_level == "info":
+        return logging.INFO
+    elif log_level == "warning":
+        return logging.WARNING
+    elif log_level == "error":
+        return logging.ERROR
+    else:
+        raise ValueError(f"Unknown logging level {log_level}. " + \
+                "The possible values are: debug, info, warning, error.")
+
+def create_dist_tensor(shape, dtype, name=None, part_policy=None, persistent=False):
+    """ A wrapper function to create a distributed tensor.
+    """
+    tensor = dgl.distributed.DistTensor(shape, dtype, name=name,
+                                        part_policy=part_policy, persistent=persistent)
+    logging.debug("Create DistTensor of %s with shape of %s", name, str(tensor.shape))
+    return tensor
 
 class SysTracker:
     """ This tracks the system performance.
@@ -332,7 +405,7 @@ class RuntimeProfiler:
         """
         if self._rank == 0 and self._profile_path is not None:
             for name, runtimes in self._runtime.items():
-                print(name, sum(runtimes) / len(runtimes), "seconds")
+                logging.info("%s %.3f seconds", name, sum(runtimes) / len(runtimes))
 
     def save_profile(self):
         """ Save the profiling result to a file.
@@ -344,7 +417,7 @@ class RuntimeProfiler:
             profile_path = os.path.join(self._profile_path, f"{self._rank}.csv")
             data_frame = pd.DataFrame(runtime)
             data_frame.to_csv(profile_path, float_format='%.3f', index=False)
-            print(f"save profiling in {profile_path}")
+            logging.info("Save profiling in %s.", profile_path)
 
 sys_tracker = SysTracker()
 rt_profiler = RuntimeProfiler()

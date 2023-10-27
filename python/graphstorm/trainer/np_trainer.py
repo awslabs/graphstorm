@@ -17,6 +17,7 @@
 """
 import time
 import resource
+import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
@@ -25,23 +26,51 @@ from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
-from ..utils import sys_tracker
-from ..utils import rt_profiler
+from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
+from ..utils import barrier, is_distributed, get_backend
 
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ A trainer for node prediction
+
+    This class is used to train models for node prediction tasks,
+    such as node classification and node regression.
+
+    It makes use of the functions provided by `GSgnnTrainer`
+    to define two main functions: `fit` that performs the training
+    for the model that is provided when the object is created,
+    and `eval` that evaluates a provided model against test and
+    validation data.
 
     Parameters
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
+
+    Example
+    -------
+
+    .. code:: python
+
+        from graphstorm.dataloading import GSgnnNodeDataLoader
+        from graphstorm.dataset import GSgnnNodeTrainData
+        from graphstorm.model.node_gnn import GSgnnNodeModel
+        from graphstorm.trainer import GSgnnNodePredictionTrainer
+
+        my_dataset = GSgnnNodeTrainData(
+            "my_graph", "/path/to/part_config", "my_node_type")
+        target_idx = {"my_node_type": target_nodes_tensor}
+        my_data_loader = GSgnnNodeDataLoader(
+            my_dataset, target_idx, fanout=[10], batch_size=1024, device='cpu')
+        my_model = GSgnnNodeModel(alpha_l2norm=0.0)
+
+        trainer =  GSgnnNodePredictionTrainer(my_model, topk_model_to_save=1)
+
+        trainer.fit(my_data_loader, num_epochs=2)
     """
-    def __init__(self, model, rank, topk_model_to_save=1):
-        super(GSgnnNodePredictionTrainer, self).__init__(model, rank, topk_model_to_save)
+    def __init__(self, model, topk_model_to_save=1):
+        super(GSgnnNodePredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not a node model. Please implement GSgnnNodeModelBase."
 
@@ -52,8 +81,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             save_model_path=None,
             save_model_frequency=-1,
             save_perf_results_path=None,
-            freeze_input_layer_epochs=0):
+            freeze_input_layer_epochs=0,
+            max_grad_norm=None,
+            grad_norm_type=2.0):
         """ The fit function for node prediction.
+
+        Performs the training for `self.model`. Iterates over the training
+        batches in `train_loader` to compute the loss and perform the backwards
+        step using `self.optimizer`. If an evaluator has been assigned to the
+        trainer, it will run evaluation at the end of every epoch.
 
         Parameters
         ----------
@@ -78,6 +114,12 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             Freeze the input layer for N epochs. This is commonly used when
             the input layer contains language models.
             Default: 0, no freeze.
+        max_grad_norm: float
+            Clip the gradient by the max_grad_norm to ensure stability.
+            Default: None, no clip.
+        grad_norm_type: float
+            Norm type for the gradient clip
+            Default: 2.0
         """
         # Check the correctness of configurations.
         if self.evaluator is not None:
@@ -90,10 +132,14 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
         on_cpu = self.device == th.device('cpu')
-        model = DistributedDataParallel(self._model, device_ids=None if on_cpu else [self.device],
-                                        output_device=None if on_cpu else self.device,
-                                        find_unused_parameters=True,
-                                        static_graph=static_graph)
+        if is_distributed():
+            model = DistributedDataParallel(self._model,
+                                            device_ids=None if on_cpu else [self.device],
+                                            output_device=None if on_cpu else self.device,
+                                            find_unused_parameters=True,
+                                            static_graph=static_graph)
+        else:
+            model = self._model
         device = model.device
         data = train_loader.data
 
@@ -143,18 +189,21 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 self.optimizer.step()
                 rt_profiler.record('train_step')
 
+                if max_grad_norm is not None:
+                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
 
-                if i % 20 == 0 and self.rank == 0:
+                if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
-                    print("Part {} | Epoch {:05d} | Batch {:03d} | Loss: {:.4f} | Time: {:.4f}".
-                            format(self.rank, epoch, i,  loss.item(), time.time() - batch_tic))
+                    logging.info("Part %d | Epoch %05d | Batch %03d | Loss: %.4f | Time: %.4f",
+                                 get_rank(), epoch, i,  loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
                     self.evaluator.do_eval(total_steps, epoch_end=False) and \
                     val_loader is not None:
-                    val_score = self.eval(model.module, val_loader, test_loader,
+                    val_score = self.eval(model.module if is_distributed() else model,
+                                          val_loader, test_loader,
                                           use_mini_batch_infer, total_steps, return_proba=False)
 
                     if self.evaluator.do_early_stop(val_score):
@@ -181,14 +230,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     break
 
             # end of an epoch
-            th.distributed.barrier()
+            barrier()
             epoch_time = time.time() - epoch_start
-            if self.rank == 0:
-                print("Epoch {} take {}".format(epoch, epoch_time))
+            if get_rank() == 0:
+                logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
-                val_score = self.eval(model.module, val_loader, test_loader,
+                val_score = self.eval(model.module if is_distributed() else model,
+                                      val_loader, test_loader,
                                       use_mini_batch_infer, total_steps, return_proba=False)
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
@@ -204,13 +254,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 break
 
         rt_profiler.save_profile()
-        if th.cuda.is_available():
-            print("Peak GPU Mem alloc: {:.4f} MB".format(th.cuda.max_memory_allocated(device) /
-                                                         1024 / 1024))
-        else:
-            print("Peak RAM Mem alloc: {:.4f} MB".format(
-                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
-        if self.rank == 0 and self.evaluator is not None:
+        print_mem(device)
+        if get_rank() == 0 and self.evaluator is not None:
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score': self.evaluator.best_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
@@ -228,7 +273,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
     def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
              return_proba=True):
-        """ do the model evaluation using validiation and test sets
+        """ do the model evaluation using validation and test sets
 
         Parameters
         ----------
@@ -238,6 +283,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             The dataloader for validation data
         test_loader : GSNodeDataLoader
             The dataloader for test data.
+        use_mini_batch_infer: bool
+            Whether do mini-batch inference
         total_steps: int
             Total number of iterations.
         return_proba: bool
@@ -249,6 +296,18 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         """
         teval = time.time()
         sys_tracker.check('before prediction')
+
+        metric = set(self.evaluator.metric)
+        need_proba = metric.intersection({'roc_auc', 'per_class_roc_auc', 'precision_recall'})
+        need_label_pred = metric.intersection({'accuracy', 'f1_score', 'per_class_f1_score'})
+        assert len(need_proba) == 0 or len(need_label_pred) == 0, \
+            f"{need_proba} requires return_proba==True, \
+                         but {need_label_pred} requires return_proba==False."
+        if len(need_proba) > 0 and return_proba is False:
+            return_proba = True
+            logging.warning("%s requires return_proba==True. \
+                Set return_proba to True.", need_proba)
+
         if use_mini_batch_infer:
             val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader, return_proba,
                                                                  return_label=True)
@@ -278,10 +337,26 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 test_label = None
             sys_tracker.check('after_test_score')
         sys_tracker.check('predict')
+
+        # TODO(wlcong) we only support node prediction on one node type for evaluation now
+        assert len(val_label) == 1, "We only support prediction on one node type for now."
+        ntype = list(val_label.keys())[0]
+        # We need to have val and label (test and test label) data in GPU
+        # when backend is nccl, as we need to use nccl.all_reduce to exchange
+        # data between GPUs
+        val_pred = val_pred[ntype].to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_pred[ntype]
+        val_label = val_label[ntype].to(self.device) \
+            if is_distributed() and get_backend() == "nccl" else val_label[ntype]
+        if test_pred is not None:
+            test_pred = test_pred[ntype].to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_pred[ntype]
+            test_label = test_label[ntype].to(self.device) \
+                if is_distributed() and get_backend() == "nccl" else test_label[ntype]
         val_score, test_score = self.evaluator.evaluate(val_pred, test_pred,
                                                         val_label, test_label, total_steps)
         sys_tracker.check('evaluate')
-        if self.rank == 0:
+        if get_rank() == 0:
             self.log_print_metrics(val_score=val_score,
                                     test_score=test_score,
                                     dur_eval=time.time() - teval,

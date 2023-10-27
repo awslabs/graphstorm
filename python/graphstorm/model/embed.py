@@ -15,14 +15,17 @@
 
     Embedding layer implementation
 """
+
+import time
+import logging
 import torch as th
 from torch import nn
 import torch.nn.functional as F
-from dgl.distributed import DistEmbedding, DistTensor, node_split
+from dgl.distributed import DistEmbedding, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
-from ..utils import get_rank
+from ..utils import get_rank, barrier, is_distributed, get_backend, create_dist_tensor
 from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
@@ -136,7 +139,6 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         """
         return None
 
-
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """The input encoder layer for all nodes in a heterogeneous graph.
 
@@ -159,10 +161,32 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     dropout : float
         The dropout parameter
     use_node_embeddings : bool
-        Whether we will use the node embeddings for individual nodes even when node features are
+        Whether we will use learnable embeddings for individual nodes even when node features are
         available.
+    force_no_embeddings : list of str
+        The list node types that are forced to not have learnable embeddings.
     num_ffn_layers_in_input: int, optional
         Number of layers of feedforward neural network for each node type in the input layers
+    ffn_activation : callable
+        The activation function for the feedforward neural networks.
+
+    Examples:
+    ----------
+    
+    .. code:: python
+
+        from graphstorm import get_feat_size
+        from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnNodeTrainData
+
+        np_data = GSgnnNodeTrainData(...)
+
+        model = GSgnnEdgeModel(alpha_l2norm=0)
+        feat_size = get_feat_size(np_data.g, 'feat')
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=True)
+        model.set_node_input_encoder(encoder)
     """
     def __init__(self,
                  g,
@@ -171,13 +195,30 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
+                 force_no_embeddings=None,
                  num_ffn_layers_in_input=0,
-                 ffn_activation=F.relu):
+                 ffn_activation=F.relu,
+                 ):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
-        self.activation = activation
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
+        if force_no_embeddings is None:
+            force_no_embeddings = []
+
+        self.activation = activation
+
+        # NCCL backend is not supported for utilizing learnable embeddings on nodes. It has a
+        # dependency on distDGL (PR https://github.com/dmlc/dgl/pull/5929).
+        # TODO (Israt): Add NCCL support to distDGL.
+        if is_distributed() and get_backend() == "nccl":
+            if self.use_node_embeddings:
+                raise NotImplementedError('NCCL backend is not supported for utilizing \
+                    node embeddings. Please use gloo backend.')
+            for ntype in g.ntypes:
+                if not feat_size[ntype]:
+                    raise NotImplementedError('NCCL backend is not supported for utilizing \
+                        learnable embeddings on featureless nodes. Please use gloo backend.')
 
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
@@ -189,13 +230,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 feat_dim += feat_size[ntype]
             if feat_dim > 0:
                 if get_rank() == 0:
-                    print('Node {} has {} features.'.format(ntype, feat_dim))
+                    logging.debug('Node %s has %d features.', ntype, feat_dim)
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
                 nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain('relu'))
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
                     if get_rank() == 0:
-                        print('Use additional sparse embeddings on node {}'.format(ntype))
+                        logging.debug('Use additional sparse embeddings on node %s', ntype)
                     part_policy = g.get_node_partition_policy(ntype)
                     self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
                                                                self.embed_size,
@@ -207,10 +248,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     # nn.ParameterDict support this assignment operation if not None,
                     # so disable the pylint error
                     self.proj_matrix[ntype] = proj_matrix   # pylint: disable=unsupported-assignment-operation
-            else:
+            elif ntype not in force_no_embeddings:
                 part_policy = g.get_node_partition_policy(ntype)
                 if get_rank() == 0:
-                    print(f'Use sparse embeddings on node {ntype}:{g.number_of_nodes(ntype)}')
+                    logging.debug('Use sparse embeddings on node %s:%d',
+                                  ntype, g.number_of_nodes(ntype))
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                 nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                 self.proj_matrix[ntype] = proj_matrix
@@ -245,6 +287,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
         embs = {}
         for ntype in input_nodes:
+            emb = None
             if ntype in input_feats:
                 assert ntype in self.input_projs, \
                         f"We need a projection for node type {ntype}"
@@ -256,7 +299,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
                     concat_emb=th.cat((emb, node_emb),dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
-            else: # nodes do not have input features
+            elif ntype in self.sparse_embeds: # nodes do not have input features
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
@@ -267,10 +310,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     continue
                 emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
                 emb = emb @ self.proj_matrix[ntype]
-            if self.activation is not None:
-                emb = self.activation(emb)
-            emb = self.dropout(emb)
-            embs[ntype] = emb
+            if emb is not None:
+                if self.activation is not None:
+                    emb = self.activation(emb)
+                    emb = self.dropout(emb)
+                embs[ntype] = emb
 
         def _apply(t, h):
             if self.num_ffn_layers_in_input > 0:
@@ -299,7 +343,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         return self.embed_size
 
 def compute_node_input_embeddings(g, batch_size, embed_layer,
-                                  task_tracker=None, feat_field='feat'):
+                                  task_tracker=None, feat_field='feat',
+                                  target_ntypes=None):
     """
     This function computes the input embeddings of all nodes in a distributed graph
     either from the node features or from the embedding layer.
@@ -316,26 +361,32 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
         The task tracker.
     feat_field : str or dict of str
         The fields that contain the node features.
+    target_ntypes: list of str
+        Node types that need to compute input embeddings.
 
     Returns
     -------
     dict of Tensors : the node embeddings.
     """
+    if get_rank() == 0:
+        logging.debug("Compute the node input embeddings.")
     assert embed_layer is not None, "The input embedding layer is needed"
     embed_layer.eval()
 
     n_embs = {}
+    target_ntypes = g.ntypes if target_ntypes is None else target_ntypes
     th.cuda.empty_cache()
+    start = time.time()
     with th.no_grad():
-        for ntype in g.ntypes:
+        for ntype in target_ntypes:
             embed_size = embed_layer.out_dims
             # TODO(zhengda) we need to be careful about this. Here it creates a persistent
             # distributed tensor to store the node embeddings. This can potentially consume
             # a lot of memory.
             if 'input_emb' not in g.nodes[ntype].data:
-                g.nodes[ntype].data['input_emb'] = DistTensor(
+                g.nodes[ntype].data['input_emb'] = create_dist_tensor(
                         (g.number_of_nodes(ntype), embed_size),
-                        dtype=th.float32, name='{}_input_emb'.format(ntype),
+                        dtype=th.float32, name=f'{ntype}_input_emb',
                         part_policy=g.get_node_partition_policy(ntype),
                         persistent=True)
             else:
@@ -348,20 +399,20 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
             node_list = th.split(infer_nodes, batch_size)
             dev = embed_layer.device
             for iter_l, input_nodes in enumerate(node_list):
-                if iter_l % 10000 == 0 and g.rank() == 0:
-                    print ("extract_all_embeddings_dist on {}: {} of {}".format(ntype,
-                                                                                iter_l,
-                                                                                len(node_list)))
+                iter_start = time.time()
                 if task_tracker is not None:
                     task_tracker.keep_alive(iter_l)
 
                 feat = prepare_batch_input(g, {ntype: input_nodes}, dev=dev, feat_field=feat_field)
                 emb = embed_layer(feat, {ntype: input_nodes})
                 input_emb[input_nodes] = emb[ntype].to('cpu')
+                if iter_l % 200 == 0 and g.rank() == 0:
+                    logging.debug("compute input embeddings on %s: %d of %d, takes %.3f seconds",
+                                  ntype, iter_l, len(node_list), time.time() - iter_start)
             n_embs[ntype] = input_emb
-        if get_rank() == 0:
-            print("Extract node embeddings")
     if embed_layer is not None:
         embed_layer.train()
-    th.distributed.barrier()
+    barrier()
+    if get_rank() == 0:
+        logging.info("Computing input embeddings takes %.3f seconds", time.time() - start)
     return n_embs

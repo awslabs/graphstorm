@@ -21,16 +21,162 @@ import logging
 import os
 import sys
 import abc
+import json
 
 import numpy as np
 import torch as th
 
 from scipy.special import erfinv # pylint: disable=no-name-in-module
-from transformers import BertTokenizer
-from transformers import BertModel, BertConfig
+from transformers import AutoTokenizer
+from transformers import AutoModel, AutoConfig
 
 from .file_io import read_index_json
 from .utils import ExtMemArrayWrapper
+
+LABEL_STATS_FIELD = "training_label_stats"
+LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
+
+CLASSIFICATION_LABEL_STATS_TYPES = [LABEL_STATS_FREQUENCY_COUNT]
+
+def _check_label_stats_type(task_type, label_stats_type):
+    if task_type == "classification":
+        if label_stats_type is not None:
+            assert label_stats_type in CLASSIFICATION_LABEL_STATS_TYPES, \
+                "GraphStorm only support collecting training label statistics in " \
+                f"following format {CLASSIFICATION_LABEL_STATS_TYPES} for classification tasks."
+        return label_stats_type
+
+    return None
+
+def collect_label_stats(feat_name, label_stats):
+    """ Collect label stats according to different stats_type
+
+    Parameters
+    ----------
+    feat_name: str
+        Feature name that stores label stats. It composes of two parts:
+        LABEL_STATS_FIELD+<label feature name>
+    label_stats: list
+        A list of stats created by differet works.
+
+    Return:
+    tuple: A tuple of
+        1. Name of the corresponding label
+        2. label stats type (Used for printing statistics)
+        3. label stats
+    """
+    label_feat_name = feat_name[len(LABEL_STATS_FIELD):]
+    stats_type = label_stats[0][0]
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        label_frequency = {}
+        for _, vals, counts in label_stats:
+            for val, cnt in zip(vals, counts):
+                if val not in label_frequency:
+                    label_frequency[int(val)] = int(cnt)
+                else:
+                    label_frequency[int(val)] += int(cnt)
+        return (label_feat_name, LABEL_STATS_FREQUENCY_COUNT, label_frequency)
+
+    raise RuntimeError(f"Unknown label stats type {stats_type}")
+
+def print_label_stats(stats):
+    """ Print label stats
+
+    Parameters
+    ----------
+    stats: tuple
+        stats_type, stats
+    """
+    stats_type, stats = stats
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        logging.debug("Counts of each label:")
+        logging.debug("[Label Index] | Label Name | Counts")
+        for i, label_name in enumerate(stats):
+            logging.debug("[%d]\t%s: \t%d", i, label_name, stats[label_name])
+
+def print_node_label_stats(ntype, label_name, stats):
+    """ Print label stats of nodes
+
+    Parameters
+    ----------
+    ntype: str
+        Node type
+    label_name: str
+        Label name
+    stats: tuple
+        stats_type, stats
+    """
+    logging.debug("Label statistics of %s nodes with label name %s", ntype, label_name)
+    print_label_stats(stats)
+
+def print_edge_label_stats(etype, label_name, stats):
+    """ Print label stats of nodes
+
+    Parameters
+    ----------
+    etype: tuple
+        Edge type
+    label_name: str
+        Label name
+    stats: tuple
+        stats_type, stats
+    """
+    logging.debug("Label statistics of %s edges with label name %s", etype, label_name)
+    print_label_stats(stats)
+
+def compress_label_stats(stats):
+    """ Compress stats into a json object
+
+    Parameters
+    ----------
+    stats: tuple
+        stats_type, stats
+    """
+    stats_type, stats = stats
+    if stats_type == LABEL_STATS_FREQUENCY_COUNT:
+        info = {"stats_type": LABEL_STATS_FREQUENCY_COUNT,
+                "info": stats}
+        return info
+    else:
+        raise RuntimeError(f"Unknown label stats type {stats_type}")
+
+def save_node_label_stats(output_dir, node_label_stats):
+    """ Save node label stats into disk
+
+    Parameters
+    ----------
+    output_dir: str
+        Path to store node label stats
+    node_label_stats: dict
+        Node label stats to save
+    """
+    info = {}
+    for ntype in node_label_stats:
+        stats_summary = {}
+        for label_name, stats in node_label_stats[ntype].items():
+            stats_summary[label_name] = compress_label_stats(stats)
+        info[ntype] = stats_summary
+    with open(os.path.join(output_dir, 'node_label_stats.json'), 'w', encoding="utf8") as f:
+        json.dump(info, f, indent=4)
+
+def save_edge_label_stats(output_dir, edge_label_stats):
+    """ Save edge label stats into disk
+
+    Parameters
+    ----------
+    output_dir: str
+        Path to store edge label stats
+    edge_label_stats: dict
+        Edge label stats to save
+    """
+    info = {}
+    for etype in edge_label_stats:
+        stats_summary = {}
+        for label_name, stats in edge_label_stats[etype].items():
+            stats_summary[label_name] = compress_label_stats(stats)
+        info[",".join(etype)] = stats_summary
+    with open(os.path.join(output_dir, 'edge_label_stats.json'), 'w', encoding="utf8") as f:
+        json.dump(info, f, indent=4)
 
 def _get_output_dtype(dtype_str):
     if dtype_str == 'float16':
@@ -186,6 +332,83 @@ class TwoPhaseFeatTransform(FeatTransform):
     def call(self, feats):
         raise NotImplementedError
 
+class BucketTransform(FeatTransform):
+    """ Convert the numerical value into buckets.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    bucket_cnt: num:
+        The count of bucket lists used in the bucket feature transform
+    bucket_range: list[num]:
+        The range of bucket lists only defining the start and end point
+    slide_window_size: int
+        interval or range within which numeric values are grouped into buckets
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: None, we will not do data type casting.
+    """
+    def __init__(self, col_name, feat_name, bucket_cnt,
+                 bucket_range, slide_window_size=0, out_dtype=None):
+        assert bucket_cnt is not None, \
+            "bucket count must be provided for bucket feature transform"
+        assert bucket_range is not None and len(bucket_range) == 2, \
+            "bucket range must be provided for bucket feature transform"
+        self.bucket_cnt = bucket_cnt
+        self.bucket_range = bucket_range
+        self.slide_window_size = slide_window_size
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(BucketTransform, self).__init__(col_name, feat_name, out_dtype)
+
+    def call(self, feats):
+        """ This transforms the features.
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The numerical feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+                f"The feature {self.feat_name} has to be NumPy array " \
+                f"within numerical value."
+        if isinstance(feats, ExtMemArrayWrapper):
+            feats = feats.to_numpy()
+        assert np.issubdtype(feats.dtype, np.integer) \
+                or np.issubdtype(feats.dtype, np.floating), \
+                f"The feature {self.feat_name} has to be integers or floats."
+
+        encoding = np.zeros((len(feats), self.bucket_cnt), dtype=np.int8)
+        max_val = max(self.bucket_range)
+        min_val = min(self.bucket_range)
+        bucket_size = (max_val - min_val) / self.bucket_cnt
+        for i, f in enumerate(feats):
+            high_val = min(f + (self.slide_window_size / 2), max_val)
+            low_val = max(f - (self.slide_window_size / 2), min_val)
+
+            # Determine upper and lower bucket membership
+            low_val -= min_val
+            high_val -= min_val
+            low_idx = max(low_val // bucket_size, 0)
+            high_idx = min(high_val // bucket_size + 1, self.bucket_cnt)
+
+            idx = np.arange(start=low_idx, stop=high_idx, dtype=int)
+            encoding[i][idx] = 1.0
+
+            # Avoid edge case not in bucket
+            if f >= max_val:
+                encoding[i][-1] = 1.0
+            if f <= min_val:
+                encoding[i][0] = 1.0
+
+        return {self.feat_name: encoding}
+
 class CategoricalTransform(TwoPhaseFeatTransform):
     """ Convert the data into categorical values.
 
@@ -205,7 +428,11 @@ class CategoricalTransform(TwoPhaseFeatTransform):
     def __init__(self, col_name, feat_name, separator=None, transform_conf=None):
         self._val_dict = {}
         if transform_conf is not None and 'mapping' in transform_conf:
-            self._val_dict = transform_conf['mapping']
+            # We assume the keys of a categorical mapping are strings.
+            # But previously keys can be integers. So we convert them
+            # into strings.
+            self._val_dict = \
+                {str(key): val for key, val in transform_conf['mapping'].items()}
             self._conf = transform_conf
         else:
             self._conf = transform_conf
@@ -233,7 +460,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
         feats = feats[feats != None] # pylint: disable=singleton-comparison
         if self._separator is None:
-            return {self.feat_name: np.unique(feats)}
+            return {self.feat_name: np.unique(feats.astype(str))}
         else:
             assert feats.dtype.type is np.str_, \
                     "We can only convert strings to multiple categorical values with separaters."
@@ -256,7 +483,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             assert len(info) == 0
             return
 
-        self._val_dict = {key: i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        self._val_dict = {str(key): i for i, key in enumerate(np.unique(np.concatenate(info)))}
         # We need to save the mapping in the config object.
         if self._conf is not None:
             self._conf['mapping'] = self._val_dict
@@ -278,17 +505,21 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                encoding[i, self._val_dict[feat]] = 1
+                if str(feat) in self._val_dict:
+                    encoding[i, self._val_dict[str(feat)]] = 1
+                # if key does not exist, keep the feature as all zeros.
         else:
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
-                idx = [self._val_dict[val] for val in feat.split(self._separator)]
+                idx = [self._val_dict[val] for val in feat.split(self._separator) \
+                       if val in self._val_dict]
                 encoding[i, idx] = 1
         return {self.feat_name: encoding}
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     """ Numerical value with Min-Max normalization.
+
         $val = (val-min) / (max-min)$
 
     Parameters
@@ -298,17 +529,29 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
     feat_name : str
         The feature name used in the constructed graph.
     max_bound : float
-        The maximum float value.
+        The maximum float value. Any number larger than max_bound will be set to max_bound.
     min_bound : float
-        The minimum float value
+        The minimum float value. Any number smaller than min_bound will be set to min_bound.
+    max_val : list of float
+        Define the value of `max` in the Min-Max normalization formula for each feature.
+        If max_val is set, max_bound will be ignored.
+    min_val : list of float
+        Define the value of `min` in the Min-Max normalization formula for each feature.
+        If min_val is set, min_bound will be ignored.
     out_dtype:
         The dtype of the transformed feature.
         Default: None, we will not do data type casting.
+    transform_conf : dict
+        The configuration for the feature transformation.
     """
     def __init__(self, col_name, feat_name,
                  max_bound=sys.float_info.max,
                  min_bound=-sys.float_info.max,
-                 out_dtype=None):
+                 max_val=None, min_val=None,
+                 out_dtype=None, transform_conf=None):
+        self._max_val = np.array(max_val, dtype=np.float32) if max_val is not None else None
+        self._min_val = np.array(min_val, dtype=np.float32) if min_val is not None else None
+        self._conf = transform_conf
         self._max_bound = max_bound
         self._min_bound = min_bound
         out_dtype = np.float32 if out_dtype is None else out_dtype
@@ -324,6 +567,12 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         """
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
             "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+
+        # The max and min of $val = (val-min) / (max-min)$ is pre-defined
+        # in the transform_conf, return max_val and min_val directly
+        if self._max_val is not None and self._min_val is not None:
+            return {self.feat_name: (self._max_val, self._min_val)}
+
         if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
@@ -340,15 +589,22 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 feats = feats.astype(np.float32)
             except: # pylint: disable=bare-except
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
-
         assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
-        max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
-            else np.array([np.amax(feats, axis=0)])
-        min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
-            else np.array([np.amin(feats, axis=0)])
 
-        max_val[max_val > self._max_bound] = self._max_bound
-        min_val[min_val < self._min_bound] = self._min_bound
+        if self._max_val is None:
+            max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
+                else np.array([np.amax(feats, axis=0)])
+            max_val[max_val > self._max_bound] = self._max_bound
+        else:
+            max_val = self._max_val
+
+        if self._min_val is None:
+            min_val = np.amin(feats, axis=0) if len(feats.shape) == 2 \
+                else np.array([np.amin(feats, axis=0)])
+            min_val[min_val < self._min_bound] = self._min_bound
+        else:
+            min_val = self._min_val
+
         return {self.feat_name: (max_val, min_val)}
 
     def update_info(self, info):
@@ -374,6 +630,11 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
         self._max_val = max_val
         self._min_val = min_val
+
+        # We need to save the max_val and min_val in the config object.
+        if self._conf is not None:
+            self._conf['max_val'] = self._max_val.tolist()
+            self._conf['min_val'] = self._min_val.tolist()
 
     def call(self, feats):
         """ Do normalization for feats
@@ -490,13 +751,13 @@ class Tokenizer(FeatTransform):
     feat_name : str
         The prefix of the tokenized data
     bert_model : str
-        The name of the BERT model.
+        The name of the lm model. We keep the parameter name for backward compatibilities
     max_seq_length : int
         The maximal length of the tokenization results.
     """
     def __init__(self, col_name, feat_name, bert_model, max_seq_length):
         super(Tokenizer, self).__init__(col_name, feat_name)
-        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
+        self.tokenizer = AutoTokenizer.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
     def call(self, feats):
@@ -523,7 +784,8 @@ class Tokenizer(FeatTransform):
             # The masks are small integers. We can use int4 or int8 to store them.
             # This can signficantly reduce memory consumption.
             att_masks.append(t['attention_mask'].to(th.int8))
-            type_ids.append(t['token_type_ids'].to(th.int8))
+            # Some tokenizer doesn't produce `token_type_ids`, replace w. zeros
+            type_ids.append(t.get('token_type_ids', th.zeros_like(t['input_ids'])).to(th.int8))
         token_id_name = 'input_ids'
         atten_mask_name = 'attention_mask'
         token_type_id_name = 'token_type_ids'
@@ -532,9 +794,9 @@ class Tokenizer(FeatTransform):
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
 
 class Text2BERT(FeatTransform):
-    """ Compute BERT embeddings.
+    """ Compute LM embeddings.
 
-    It computes BERT embeddings.
+    It computes LM embeddings.
 
     Parameters
     ----------
@@ -545,7 +807,7 @@ class Text2BERT(FeatTransform):
     tokenizer : Tokenizer
         A tokenizer
     model_name : str
-        The BERT model name.
+        The LM model name.
     infer_batch_size : int
         The inference batch size.
     out_dtype:
@@ -563,10 +825,10 @@ class Text2BERT(FeatTransform):
         self.infer_batch_size = infer_batch_size
 
     def _init(self):
-        """ Initialize the BERT model.
+        """ Initialize the LM model.
 
-        We should delay the BERT model initialization because we need to
-        initialize the BERT model in the worker process instead of creating it
+        We should delay the LM model initialization because we need to
+        initialize the LM model in the worker process instead of creating it
         in the master process and passing it to the worker process.
         """
         if th.cuda.is_available():
@@ -577,18 +839,17 @@ class Text2BERT(FeatTransform):
             self.device = "cpu"
 
         if self.lm_model is None:
-            config = BertConfig.from_pretrained(self.model_name)
-            lm_model = BertModel.from_pretrained(self.model_name,
-                                                 config=config)
+            config = AutoConfig.from_pretrained(self.model_name)
+            lm_model = AutoModel.from_pretrained(self.model_name, config)
             lm_model.eval()
 
-            # We use the local GPU to compute BERT embeddings.
+            # We use the local GPU to compute LM embeddings.
             if self.device is not None:
                 lm_model = lm_model.to(self.device)
             self.lm_model = lm_model
 
     def call(self, feats):
-        """ Compute BERT embeddings of the strings..
+        """ Compute LM embeddings of the strings..
 
         Parameters
         ----------
@@ -597,7 +858,7 @@ class Text2BERT(FeatTransform):
 
         Returns
         -------
-        dict: BERT embeddings.
+        dict: LM embeddings.
         """
         self._init()
         strs = feats
@@ -725,11 +986,15 @@ def parse_feat_ops(confs):
             elif conf['name'] == 'max_min_norm':
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
+                max_val = conf['max_val'] if 'max_val' in conf else None
+                min_val = conf['min_val'] if 'min_val' in conf else None
                 transform = NumericalMinMaxTransform(feat['feature_col'],
                                                      feat_name,
                                                      max_bound,
                                                      min_bound,
-                                                     out_dtype=out_dtype)
+                                                     max_val,
+                                                     min_val,
+                                                     out_dtype=out_dtype, transform_conf=conf)
             elif conf['name'] == 'rank_gauss':
                 epsilon = conf['epsilon'] if 'epsilon' in conf else None
                 transform = RankGaussTransform(feat['feature_col'],
@@ -740,6 +1005,23 @@ def parse_feat_ops(confs):
                 separator = conf['separator'] if 'separator' in conf else None
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator, transform_conf=conf)
+            elif conf['name'] == 'bucket_numerical':
+                assert 'bucket_cnt' in conf, \
+                    "It is required to count of bucket information for bucket feature transform"
+                assert 'range' in conf, \
+                    "It is required to provide range information for bucket feature transform"
+                bucket_cnt = conf['bucket_cnt']
+                bucket_range = conf['range']
+                if 'slide_window_size' in conf:
+                    slide_window_size = conf['slide_window_size']
+                else:
+                    slide_window_size = 0
+                transform = BucketTransform(feat['feature_col'],
+                                               feat_name,
+                                               bucket_cnt=bucket_cnt,
+                                               bucket_range=bucket_range,
+                                               slide_window_size=slide_window_size,
+                                               out_dtype=out_dtype)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
@@ -859,9 +1141,12 @@ class CustomLabelProcessor:
         The array that contains the index of validation data points.
     test_idx : Numpy array
         The array that contains the index of test data points.
+    stats_type: str
+        Speicfy how to summarize label statistics
     """
     def __init__(self, col_name, label_name, id_col, task_type,
-                 train_idx=None, val_idx=None, test_idx=None):
+                 train_idx=None, val_idx=None, test_idx=None,
+                 stats_type=None):
         self._id_col = id_col
         self._col_name = col_name
         self._label_name = label_name
@@ -869,6 +1154,7 @@ class CustomLabelProcessor:
         self._val_idx = set(val_idx.tolist()) if val_idx is not None else None
         self._test_idx = set(test_idx.tolist()) if test_idx is not None else None
         self._task_type = task_type
+        self._stats_type = stats_type
 
     @property
     def col_name(self):
@@ -933,6 +1219,14 @@ class CustomLabelProcessor:
         res = self.data_split(data[self._id_col])
         if label is not None and self._task_type == "classification":
             res[self.label_name] = np.int32(label)
+            if self._stats_type is not None:
+                if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
+                    # get train labels
+                    train_labels = res[self.label_name][ \
+                        res['train_mask'].astype(np.bool_)]
+                    vals, counts = np.unique(train_labels, return_counts=True)
+                    res[LABEL_STATS_FIELD+self.label_name] = \
+                        (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
         elif label is not None:
             res[self.label_name] = label
         return res
@@ -948,11 +1242,14 @@ class LabelProcessor:
         The label name.
     split_pct : list of int
         The percentage of training, validation and test.
+    stats_type: str
+        Speicfy how to summarize label statistics
     """
-    def __init__(self, col_name, label_name, split_pct):
+    def __init__(self, col_name, label_name, split_pct, stats_type=None):
         self._col_name = col_name
         self._label_name = label_name
         self._split_pct = split_pct
+        self._stats_type = stats_type
 
     @property
     def col_name(self):
@@ -1039,6 +1336,15 @@ class ClassificationProcessor(LabelProcessor):
             return np.random.permutation(valid_label_idx)
         res = self.data_split(permute_idx, len(label))
         res[self.label_name] = np.int32(label)
+
+        if self._stats_type is not None:
+            if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
+                # get train labels
+                train_labels = res[self.label_name][ \
+                    res['train_mask'].astype(np.bool_)]
+                vals, counts = np.unique(train_labels, return_counts=True)
+                res[LABEL_STATS_FIELD+self.label_name] = \
+                    (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
         return res
 
 class RegressionProcessor(LabelProcessor):
@@ -1114,6 +1420,9 @@ def parse_label_ops(confs, is_node):
     label_conf = label_confs[0]
     assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
     task_type = label_conf['task_type']
+    label_stats_type = label_conf['label_stats_type'] \
+        if 'label_stats_type' in label_conf else None
+    label_stats_type = _check_label_stats_type(task_type, label_stats_type)
     if 'custom_split_filenames' in label_conf:
         custom_split = label_conf['custom_split_filenames']
         assert isinstance(custom_split, dict), \
@@ -1124,7 +1433,8 @@ def parse_label_ops(confs, is_node):
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         assert "node_id_col" in confs, "Custom data split only works for nodes."
         return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
-                                     task_type, train_idx, val_idx, test_idx)]
+                                     task_type, train_idx, val_idx, test_idx,
+                                     label_stats_type)]
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
@@ -1137,17 +1447,17 @@ def parse_label_ops(confs, is_node):
         assert 'label_col' in label_conf, \
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
-        return [ClassificationProcessor(label_col, label_col, split_pct)]
+        return [ClassificationProcessor(label_col, label_col, split_pct, label_stats_type)]
     elif task_type == 'regression':
         assert 'label_col' in label_conf, \
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
-        return [RegressionProcessor(label_col, label_col, split_pct)]
+        return [RegressionProcessor(label_col, label_col, split_pct, label_stats_type)]
     else:
         assert task_type == 'link_prediction', \
                 "The task type must be classification, regression or link_prediction."
         assert not is_node, "link_prediction task must be defined on edges."
-        return [LinkPredictionProcessor(None, None, split_pct)]
+        return [LinkPredictionProcessor(None, None, split_pct, label_stats_type)]
 
 def process_labels(data, label_processors):
     """ Process labels

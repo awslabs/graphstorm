@@ -17,9 +17,11 @@
 """
 
 import os
+import json
 import dgl
 import numpy as np
 import torch as th
+import pandas as pd
 import dgl.distributed as dist
 import tempfile
 
@@ -115,6 +117,159 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
 
     return hetero_graph
 
+def generate_dummy_hetero_graph_multi_target_ntypes(size='tiny', gen_mask=True):
+    """
+    generate a dummy heterogeneous graph.
+    Parameters
+    ----------
+    size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+
+    :return:
+    hg: a heterogeneous graph.
+    """
+    size_dict = {
+        'tiny': 1e+2,
+        'small': 1e+4,
+        'medium': 1e+6,
+        'large': 1e+8,
+        'largest': 1e+10
+    }
+
+    data_size = int(size_dict[size])
+
+    num_nodes_dict = {
+        "n0": data_size,
+        "n1": data_size,
+    }
+
+    edges = {
+        ("n0", "r0", "n1"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
+        ("n0", "r1", "n1"): (th.randint(data_size, (2 * data_size,)),
+                             th.randint(data_size, (2 * data_size,)))
+    }
+
+    hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
+
+    # set node and edge features
+    node_feat = {'n0': th.randn(data_size, 2),
+                 'n1': th.randn(data_size, 2)}
+
+    edge_feat = {'r0': th.randn(data_size, 2),
+                 'r1': th.randn(2 * data_size, 2)}
+
+    hetero_graph.nodes['n0'].data['feat'] = node_feat['n0']
+    hetero_graph.nodes['n1'].data['feat'] = node_feat['n1']
+    hetero_graph.nodes['n0'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('n0'), ))
+    hetero_graph.nodes['n1'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('n1'), ))
+
+    hetero_graph.edges['r0'].data['feat'] = edge_feat['r0']
+    hetero_graph.edges['r1'].data['feat'] = edge_feat['r1']
+    hetero_graph.edges['r1'].data['label'] = th.randint(10, (hetero_graph.number_of_edges('r1'), ))
+
+    # set train/val/test masks for nodes and edges
+    if gen_mask:
+        target_ntype = ['n0', 'n1']
+        target_etype = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
+
+        node_train_mask = generate_mask([0,1], data_size)
+        node_val_mask = generate_mask([2,3], data_size)
+        node_test_mask = generate_mask([4,5], data_size)
+
+        node_train_mask2 = generate_mask([i for i in range(data_size//2)], data_size)
+        node_val_mask2 = generate_mask([2,3], data_size)
+        node_test_mask2 = generate_mask([4,5], data_size)
+
+        edge_train_mask = generate_mask([0,1], 2 * data_size)
+        edge_val_mask = generate_mask([2,3], 2 * data_size)
+        edge_test_mask = generate_mask([4,5], 2 * data_size)
+
+        edge_train_mask2 = generate_mask([i for i in range(data_size//2)], data_size)
+        edge_val_mask2 = generate_mask([2,3], data_size)
+        edge_test_mask2 = generate_mask([4,5], data_size)
+
+        hetero_graph.nodes[target_ntype[0]].data['train_mask'] = node_train_mask
+        hetero_graph.nodes[target_ntype[0]].data['val_mask'] = node_val_mask
+        hetero_graph.nodes[target_ntype[0]].data['test_mask'] = node_test_mask
+
+        hetero_graph.nodes[target_ntype[1]].data['train_mask'] = node_train_mask2
+        hetero_graph.nodes[target_ntype[1]].data['val_mask'] = node_val_mask2
+        hetero_graph.nodes[target_ntype[1]].data['test_mask'] = node_test_mask2
+
+        hetero_graph.edges[target_etype[0]].data['train_mask'] = edge_train_mask
+        hetero_graph.edges[target_etype[0]].data['val_mask'] = edge_val_mask
+        hetero_graph.edges[target_etype[0]].data['test_mask'] = edge_test_mask
+
+        hetero_graph.edges[target_etype[1]].data['train_mask'] = edge_train_mask2
+        hetero_graph.edges[target_etype[1]].data['val_mask'] = edge_val_mask2
+        hetero_graph.edges[target_etype[1]].data['test_mask'] = edge_test_mask2
+
+    return hetero_graph
+
+def generate_dummy_hetero_graph_reconstruct(size='tiny', gen_mask=True):
+    """
+    generate a dummy heterogeneous graph for testing the construction of node features..
+    Parameters
+    ----------
+    size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+
+    :return:
+    hg: a heterogeneous graph.
+    """
+    size_dict = {
+        'tiny': 1e+2,
+        'small': 1e+4,
+        'medium': 1e+6,
+        'large': 1e+8,
+        'largest': 1e+10
+    }
+
+    data_size = int(size_dict[size])
+
+    num_nodes_dict = {
+        "n0": data_size,
+        "n1": data_size,
+        "n2": data_size,
+        "n3": data_size,
+        "n4": data_size,
+    }
+
+    edges = {
+        ("n1", "r0", "n0"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
+        ("n2", "r1", "n0"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
+        ("n3", "r2", "n1"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
+        ("n4", "r3", "n2"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
+        ("n0", "r4", "n3"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
+    }
+
+    hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
+
+    # set node and edge features
+    node_feat = {'n0': th.randn(data_size, 2),
+                 'n4': th.randn(data_size, 2)}
+
+    hetero_graph.nodes['n0'].data['feat'] = node_feat['n0']
+    hetero_graph.nodes['n4'].data['feat'] = node_feat['n4']
+    hetero_graph.nodes['n0'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('n0'), ))
+
+    # set train/val/test masks for nodes and edges
+    if gen_mask:
+        target_ntype = ['n0']
+
+        node_train_mask = generate_mask([0,1], data_size)
+        node_val_mask = generate_mask([2,3], data_size)
+        node_test_mask = generate_mask([4,5], data_size)
+
+        hetero_graph.nodes[target_ntype[0]].data['train_mask'] = node_train_mask
+        hetero_graph.nodes[target_ntype[0]].data['val_mask'] = node_val_mask
+        hetero_graph.nodes[target_ntype[0]].data['test_mask'] = node_test_mask
+
+    return hetero_graph
 
 def generate_dummy_homo_graph(size='tiny', gen_mask=True):
     """
@@ -209,7 +364,6 @@ def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'
     dist_graph = dist.DistGraph(graph_name=graph_name, part_config=part_config)
     return dist_graph, part_config
 
-
 def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy', gen_mask=True, is_homo=False):
     """
     Generate a dummy DGL distributed graph with the given size
@@ -230,6 +384,68 @@ def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy', gen_mask
         hetero_graph = generate_dummy_homo_graph(size=size, gen_mask=gen_mask)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
+
+def generate_dummy_dist_graph_reconstruct(dirname, size='tiny',
+                                          graph_name='dummy', gen_mask=True):
+    """
+    Generate a dummy DGL distributed graph with the given size
+    Parameters
+    ----------
+    dirname : the directory where the graph will be partitioned and stored.
+    size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+    graph_name: string as a name
+
+    Returns
+    -------
+    dist_graph: a DGL distributed graph
+    part_config : the path of the partition configuration file.
+    """
+    hetero_graph = generate_dummy_hetero_graph_reconstruct(size=size, gen_mask=gen_mask)
+    return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
+                                              graph_name=graph_name)
+
+def generate_dummy_dist_graph_multi_target_ntypes(dirname, size='tiny', graph_name='dummy', gen_mask=True):
+    """
+    Generate a dummy DGL distributed graph with the given size
+    Parameters
+    ----------
+    dirname : the directory where the graph will be partitioned and stored.
+    size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+    graph_name: string as a name
+
+    Returns
+    -------
+    dist_graph: a DGL distributed graph
+    part_config : the path of the partition configuration file.
+    """
+    hetero_graph = generate_dummy_hetero_graph_multi_target_ntypes(size=size, gen_mask=gen_mask)
+    return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
+                                              graph_name=graph_name)
+
+def load_lm_graph(part_config):
+    with open(part_config) as f:
+        part_metadata = json.load(f)
+    g = dgl.distributed.DistGraph(graph_name=part_metadata["graph_name"],
+            part_config=part_config)
+
+    bert_model_name = "bert-base-uncased"
+    max_seq_length = 8
+    lm_config = [{"lm_type": "bert",
+                  "model_name": bert_model_name,
+                  "gradient_checkpoint": True,
+                  "node_types": ["n0"]}]
+    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    input_text = ["Hello world!"]
+    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    input_ids, valid_len, attention_mask, _ = \
+        create_tokens(tokenizer=tokenizer,
+                      input_text=input_text,
+                      max_seq_length=max_seq_length,
+                      num_node=g.number_of_nodes('n0'))
+
+    g.nodes['n0'].data[TOKEN_IDX] = input_ids
+    g.nodes['n0'].data[VALID_LEN] = valid_len
+    return g, lm_config
 
 def create_lm_graph(tmpdirname):
     """ Create a graph with textual feaures
@@ -261,7 +477,7 @@ def create_lm_graph(tmpdirname):
 
 def create_lm_graph2(tmpdirname):
     """ Create a graph with textual feaures
-        Both n0 and n1 have textual features.
+        Both n0 and n1 have textual features and use the same BERT model.
     """
     bert_model_name = "bert-base-uncased"
     max_seq_length = 8
@@ -298,6 +514,28 @@ def create_lm_graph2(tmpdirname):
 
     return lm_config, feat_size, input_ids0, attention_mask0, \
         input_ids1, attention_mask1, g, create_lm_graph
+
+def create_distill_data(tmpdirname, num_files):
+    """ Create a dataset for distillation.
+    """
+    os.makedirs(tmpdirname, exist_ok=True)
+    for part_i in range(num_files):
+        # test when files have different num of samples
+        if part_i // 2 == 0:
+            num_samples = 100
+        else:
+            num_samples = 110
+
+        id_col = list(range(num_samples))
+        textual_col = ["this is unit test"] * num_samples
+        embeddings_col = [th.rand(10).tolist()] * num_samples
+
+        textual_embed_pddf = pd.DataFrame({
+            "ids": id_col,
+            "textual_feats": textual_col, 
+            "embeddings": embeddings_col
+            }).set_index("ids")
+        textual_embed_pddf.to_parquet(os.path.join(tmpdirname, f"part-{part_i}.parquet"))
 
 """ For self tests"""
 if __name__ == '__main__':

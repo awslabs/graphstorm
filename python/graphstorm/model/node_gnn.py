@@ -15,10 +15,14 @@
 
     GNN model for node prediction task in GraphStorm.
 """
+import time
+import logging
 import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from .utils import append_to_dict
+from ..utils import is_distributed, get_rank
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -71,13 +75,16 @@ class GSgnnNodeModelInterface:
 
         Returns
         -------
-        Tensor : GNN prediction results. Return all the results when return_proba is true
+        Tensor or dict of Tensor:
+            GNN prediction results. Return all the results when return_proba is true
             otherwise return the maximum result.
-        Tensor : the GNN embeddings.
+        Tensor or dict of Tensor:
+            The GNN embeddings.
         """
 
-class GSgnnNodeModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
-                         GSgnnNodeModelInterface):
+# pylint: disable=abstract-method
+class GSgnnNodeModelBase(GSgnnNodeModelInterface,
+                         GSgnnModelBase):
     """ The base class for node-prediction GNN
 
     When a user wants to define a node prediction GNN model and train the model
@@ -109,16 +116,28 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             # no GNN message passing
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats)
-        # TODO(zhengda) we only support node prediction on one node type now
-        assert len(labels) == 1, "We only support prediction on one node type for now."
-        target_ntype = list(labels.keys())[0]
-        assert target_ntype in encode_embs
-        emb = encode_embs[target_ntype]
-        labels = labels[target_ntype]
-        logits = self.decoder(emb)
-        pred_loss = self.loss_func(logits, labels)
-
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+        target_ntypes = list(labels.keys())
+        # compute loss for each node type and aggregate per node type loss
+        pred_loss = 0
+        for target_ntype in target_ntypes:
+            assert target_ntype in encode_embs, f"Node type {target_ntype} not in encode_embs"
+            assert target_ntype in labels, f"Node type {target_ntype} not in labels"
+            emb = encode_embs[target_ntype]
+            ntype_labels = labels[target_ntype]
+            if isinstance(self.decoder, th.nn.ModuleDict):
+                assert target_ntype in self.decoder, f"Node type {target_ntype} not in decoder"
+                decoder = self.decoder[target_ntype]
+            else:
+                decoder = self.decoder
+            ntype_logits = decoder(emb)
+            if isinstance(self.loss_func, th.nn.ModuleDict):
+                assert target_ntype in self.loss_func, \
+                    f"Node type {target_ntype} not in loss function"
+                loss_func = self.loss_func[target_ntype]
+            else:
+                loss_func = self.loss_func
+            pred_loss += loss_func(ntype_logits, ntype_labels)
         # add regularization loss to all parameters to avoid the unused parameter errors
         reg_loss = th.tensor(0.).to(pred_loss.device)
         # L2 regularization of dense parameters
@@ -135,15 +154,22 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             # no GNN message passing in encoder
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats)
-        # TODO(zhengda) we only support node prediction on one node type.
-        assert len(encode_embs) == 1, \
-            f'There are {len(encode_embs)} node types: {list(encode_embs.keys())}'
-        target_ntype = list(encode_embs.keys())[0]
-        if return_proba:
-            return self.decoder.predict_proba(encode_embs[target_ntype]), \
-                encode_embs[target_ntype]
-        return self.decoder.predict(encode_embs[target_ntype]), encode_embs[target_ntype]
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+        target_ntypes = list(encode_embs.keys())
+        # predict for each node type
+        predicts = {}
+        for target_ntype in target_ntypes:
+            if isinstance(self.decoder, th.nn.ModuleDict):
+                assert target_ntype in self.decoder, \
+                    f"Node type {target_ntype} not in decoder"
+                decoder = self.decoder[target_ntype]
+            else:
+                decoder = self.decoder
+            if return_proba:
+                predicts[target_ntype] = decoder.predict_proba(encode_embs[target_ntype])
+            else:
+                predicts[target_ntype] = decoder.predict(encode_embs[target_ntype])
+        return predicts, encode_embs
 
 def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
@@ -161,44 +187,94 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
 
     Returns
     -------
-    Tensor : GNN prediction results. Return all the results when return_proba is true
+    dict of Tensor :
+        GNN prediction results. Return all the results when return_proba is true
         otherwise return the maximum result.
-    Tensor : GNN embeddings.
-    Tensor : labels if return_labels is True
+    dict of Tensor : GNN embeddings.
+    dict of Tensor : labels if return_labels is True
     """
+    if get_rank() == 0:
+        logging.debug("Perform mini-batch inference for node prediction.")
     device = model.device
     data = loader.data
     g = data.g
-    preds = []
+    preds = {}
 
     if return_label:
         assert data.labels is not None, \
             "Return label is required, but the label field is not provided whem" \
             "initlaizing the inference dataset."
 
-    embs = []
-    labels = []
+    embs = {}
+    labels = {}
     model.eval()
+
+    len_dataloader = max_num_batch = len(loader)
+    tensor = th.tensor([len_dataloader], device=device)
+    if is_distributed():
+        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = tensor[0]
+
+    dataloader_iter = iter(loader)
+
     with th.no_grad():
-        for input_nodes, seeds, blocks in loader:
-            if not isinstance(input_nodes, dict):
-                assert len(g.ntypes) == 1
-                input_nodes = {g.ntypes[0]: input_nodes}
+        # WholeGraph does not support imbalanced batch numbers across processes/trainers
+        # TODO (IN): Fix dataloader to have the same number of minibatches
+        for iter_l in range(max_num_batch):
+            iter_start = time.time()
+            tmp_keys = []
+            if iter_l < len_dataloader:
+                input_nodes, seeds, blocks = next(dataloader_iter)
+                if not isinstance(input_nodes, dict):
+                    assert len(g.ntypes) == 1
+                    input_nodes = {g.ntypes[0]: input_nodes}
+                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+                # All samples should contain all the ntypes for wholegraph compatibility
+                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
+                    for ntype in tmp_keys})
+            else:
+                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
+                blocks = None
+
             input_feats = data.get_node_feats(input_nodes, device)
+            if blocks is None:
+                continue
+            for ntype in tmp_keys:
+                del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
-            preds.append(pred.cpu())
-            embs.append(emb.cpu())
-
+            label = data.get_labels(seeds)
             if return_label:
-                lbl = data.get_labels(seeds)
-                assert len(lbl) == 1
-                labels.append(list(lbl.values())[0])
+                append_to_dict(label, labels)
+
+            # pred can be a Tensor or a dict of Tensor
+            # emb can be a Tensor or a dict of Tensor
+            if isinstance(pred, dict):
+                append_to_dict(pred, preds)
+            else:
+                assert len(seeds) == 1, \
+                    f"Expect prediction results of multiple node types {label.keys()}" \
+                    f"But only get results of one node type"
+                ntype = list(seeds.keys())[0]
+                append_to_dict({ntype: pred}, preds)
+
+            if isinstance(emb, dict):
+                append_to_dict(emb, embs)
+            else: # in case model (e.g., llm encoder) only output a tensor without ntype
+                ntype = list(seeds.keys())[0]
+                append_to_dict({ntype: emb}, embs)
+            if get_rank() == 0 and iter_l % 20 == 0:
+                logging.debug("iter %d out of %d: takes %.3f seconds",
+                              iter_l, max_num_batch, time.time() - iter_start)
+
     model.train()
-    preds = th.cat(preds)
-    embs = th.cat(embs)
+    for ntype, ntype_pred in preds.items():
+        preds[ntype] = th.cat(ntype_pred)
+    for ntype, ntype_emb in embs.items():
+        embs[ntype] = th.cat(ntype_emb)
     if return_label:
-        labels = th.cat(labels)
+        for ntype, ntype_label in labels.items():
+            labels[ntype] = th.cat(ntype_label)
         return preds, embs, labels
     else:
         return preds, embs, None
@@ -221,8 +297,10 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
 
     Returns
     -------
-    Tensor : GNN prediction results.
-    Tensor : labels if return_labels is True
+    dict of Tensor :
+        Prediction results.
+    dict of Tensor :
+        Labels if return_labels is True
     """
     device = model.device
     data = loader.data
@@ -232,28 +310,39 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             "Return label is required, but the label field is not provided whem" \
             "initlaizing the inference dataset."
 
-    preds = []
-    labels = []
+    preds = {}
+    labels = {}
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
     model.eval()
     with th.no_grad():
         for input_nodes, seeds, _ in loader:
-            assert len(input_nodes) == 1, "Currently we only support one node type"
-            ntype = list(input_nodes.keys())[0]
-            in_nodes = input_nodes[ntype]
-            if return_proba:
-                pred = model.decoder.predict_proba(emb[ntype][in_nodes].to(device))
-            else:
-                pred = model.decoder.predict(emb[ntype][in_nodes].to(device))
-            preds.append(pred.cpu())
-            if return_label:
-                lbl = data.get_labels(seeds)
-                labels.append(lbl[ntype])
+            for ntype, in_nodes in input_nodes.items():
+                if isinstance(model.decoder, th.nn.ModuleDict):
+                    assert ntype in model.decoder, f"Node type {ntype} not in decoder"
+                    decoder = model.decoder[ntype]
+                else:
+                    decoder = model.decoder
+                if return_proba:
+                    pred = decoder.predict_proba(emb[ntype][in_nodes].to(device))
+                else:
+                    pred = decoder.predict(emb[ntype][in_nodes].to(device))
+                if ntype in preds:
+                    preds[ntype].append(pred.cpu())
+                else:
+                    preds[ntype] = [pred.cpu()]
+                if return_label:
+                    lbl = data.get_labels(seeds)
+                    if ntype in labels:
+                        labels[ntype].append(lbl[ntype])
+                    else:
+                        labels[ntype] = [lbl[ntype]]
     model.train()
 
-    preds = th.cat(preds)
+    for ntype, ntype_pred in preds.items():
+        preds[ntype] = th.cat(ntype_pred)
     if return_label:
-        labels = th.cat(labels)
+        for ntype, ntype_label in labels.items():
+            labels[ntype] = th.cat(ntype_label)
         return preds, labels
     else:
         return preds, None

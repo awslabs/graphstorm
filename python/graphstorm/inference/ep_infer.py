@@ -13,45 +13,44 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infer wrapper for edge classification and regression.
+    Inferrer wrapper for edge classification and regression.
 """
 import time
-import torch as th
-from dgl.distributed import DistTensor
 
-from .graphstorm_infer import GSInfer
+from .graphstorm_infer import GSInferrer
 from ..model.utils import save_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_prediction_results
 from ..model.utils import shuffle_predict
 from ..model.gnn import do_full_graph_inference
-from ..model.edge_gnn import edge_mini_batch_predict
+from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from ..utils import sys_tracker
+from ..utils import sys_tracker, get_world_size, get_rank, barrier, create_dist_tensor
 
-class GSgnnEdgePredictionInfer(GSInfer):
-    """ Edge classification/regression infer.
+class GSgnnEdgePredictionInferrer(GSInferrer):
+    """ Edge classification/regression inferrer.
 
-    This is a highlevel infer wrapper that can be used directly
+    This is a high-level inferrer wrapper that can be used directly
     to do edge classification/regression model inference.
 
     Parameters
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     """
 
     def infer(self, loader, save_embed_path, save_prediction_path=None,
             use_mini_batch_infer=False, # pylint: disable=unused-argument
             node_id_mapping_file=None,
             edge_id_mapping_file=None,
-            return_proba=True):
+            return_proba=True,
+            save_embed_format="pytorch"):
         """ Do inference
 
-        The infer can do three things:
-        1. (Optional) Evaluate the model performance on a test set if given
-        2. Generate node embeddings
+        The inference can do three things:
+
+        1. (Optional) Evaluate the model performance on a test set if given.
+        2. Generate node embeddings.
+        3. Comput inference results for edges with target edge type.
 
         Parameters
         ----------
@@ -68,20 +67,33 @@ class GSgnnEdgePredictionInfer(GSInfer):
             graph partition algorithm.
         return_proba: bool
             Whether to return all the predictions or the maximum prediction.
+        save_embed_format : str
+            Specify the format of saved embeddings.
         """
         do_eval = self.evaluator is not None
         if do_eval:
             assert loader.data.labels is not None, \
-                "A label field must be provided for edge classification or regression " \
-                "when evaluation is required."
+                "A label field must be provided for edge classification " \
+                "or regression inference when evaluation is required."
 
+        if use_mini_batch_infer:
+            assert save_embed_path is None, \
+                "Unable to save the node embeddings when using mini batch inference." \
+                "It is not guaranteed that mini-batch prediction will cover all the nodes."
         sys_tracker.check('start inferencing')
         self._model.eval()
-        embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
-                                       task_tracker=self.task_tracker)
-        sys_tracker.check('compute embeddings')
-        res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
-                                      return_label=do_eval)
+
+        if use_mini_batch_infer:
+            res = edge_mini_batch_gnn_predict(self._model,
+                                              loader,
+                                              return_proba,
+                                              return_label=do_eval)
+        else:
+            embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
+                                           task_tracker=self.task_tracker)
+            sys_tracker.check('compute embeddings')
+            res = edge_mini_batch_predict(self._model, embs, loader, return_proba,
+                                          return_label=do_eval)
         pred = res[0]
         label = res[1] if do_eval else None
         sys_tracker.check('compute prediction')
@@ -91,20 +103,20 @@ class GSgnnEdgePredictionInfer(GSInfer):
         # TODO support multiple etypes
         assert len(infer_data.eval_etypes) == 1, \
             "GraphStorm only support single target edge type for training and inference"
+        pred = pred[infer_data.eval_etypes[0]]
+        label = label[infer_data.eval_etypes[0]] if label is not None else None
 
         # do evaluation first
         if do_eval:
             test_start = time.time()
             val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
             sys_tracker.check('run evaluation')
-            if self.rank == 0:
+            if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
-
         device = self.device
-
         if save_embed_path is not None:
             target_ntypes = set()
             for etype in infer_data.eval_etypes:
@@ -113,12 +125,13 @@ class GSgnnEdgePredictionInfer(GSInfer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-            save_gsgnn_embeddings(save_embed_path, embs, self.rank,
-                th.distributed.get_world_size(),
+            save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
+                get_world_size(),
                 device=device,
-                node_id_mapping_file=node_id_mapping_file)
-        th.distributed.barrier()
-        sys_tracker.check('save embeddings')
+                node_id_mapping_file=node_id_mapping_file,
+                save_embed_format=save_embed_format)
+            barrier()
+            sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
             if edge_id_mapping_file is not None:
@@ -126,17 +139,17 @@ class GSgnnEdgePredictionInfer(GSInfer):
                 etype = infer_data.eval_etypes[0]
                 pred_shape = list(pred.shape)
                 pred_shape[0] = g.num_edges(etype)
-                pred_data = DistTensor(pred_shape,
-                    dtype=pred.dtype, name='predict-'+'-'.join(etype),
-                    part_policy=g.get_edge_partition_policy(etype),
-                    # TODO: this makes the tensor persistent in memory.
-                    persistent=True)
+                pred_data = create_dist_tensor(pred_shape, dtype=pred.dtype,
+                                               name='predict-'+'-'.join(etype),
+                                               part_policy=g.get_edge_partition_policy(etype),
+                                               # TODO: this makes the tensor persistent in memory.
+                                               persistent=True)
                 # edges that have predictions may be just a subset of the
                 # entire edge set.
                 pred_data[loader.target_eidx[etype]] = pred.cpu()
 
-                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, self.rank,
-                    th.distributed.get_world_size(), device=device)
-            save_prediction_results(pred, save_prediction_path, self.rank)
-        th.distributed.barrier()
+                pred = shuffle_predict(pred_data, edge_id_mapping_file, etype, get_rank(),
+                                       get_world_size(), device=device)
+            save_prediction_results(pred, save_prediction_path, get_rank())
+        barrier()
         sys_tracker.check('save predictions')

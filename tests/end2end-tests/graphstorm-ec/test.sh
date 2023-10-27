@@ -27,22 +27,34 @@ echo "Test GraphStorm edge classification"
 
 date
 
+echo "**************standalone"
+python3 $GS_HOME/python/graphstorm/run/gsgnn_ep/gsgnn_ep.py --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --cf $GS_HOME/training_scripts/gsgnn_ep/ml_ec.yaml
+
+error_and_exit $?
+
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
 python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --num-epochs 1
 
 error_and_exit $?
 
+echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT & construct, BERT nodes: movie, inference: mini-batch"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --num-epochs 1 --node-feat-name movie:title --construct-feat-ntype user
+
+error_and_exit $?
+
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, no test"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_no_test_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --num-epochs 1 | tee train_log.txt
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_no_test_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --num-epochs 1 --logging-file /tmp/train_log.txt
 
-error_and_exit ${PIPESTATUS[0]}
+error_and_exit $?
 
-bst_cnt=$(grep "Best Test accuracy: N/A" train_log.txt | wc -l)
+bst_cnt=$(grep "Best Test accuracy: N/A" /tmp/train_log.txt | wc -l)
 if test $bst_cnt -lt 1
 then
     echo "Test set is empty we should have Best Test accuracy: N/A"
     exit -1
 fi
+
+rm /tmp/train_log.txt
 
 mkdir -p /tmp/ML_ec_profile
 
@@ -67,8 +79,8 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 # TODO(zhengda) Failure found during evaluation of the auc metric returning -1 multiclass format is not supported
-echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, eval_metric: precision_recall accuracy"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --eval-metric precision_recall accuracy --num-epochs 1
+echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, eval_metric: accuracy"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --eval-metric precision_recall --num-epochs 1
 
 error_and_exit $?
 
@@ -104,12 +116,12 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch early stop"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --use-early-stop True --early-stop-burnin-rounds 2 -e 30 --early-stop-rounds 3 --eval-frequency 100 --lr 0.01 | tee exec.log
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --use-early-stop True --early-stop-burnin-rounds 2 -e 30 --early-stop-rounds 3 --eval-frequency 100 --lr 0.01 --logging-file /tmp/exec.log
 
-error_and_exit ${PIPESTATUS[0]}
+error_and_exit $?
 
 # check early stop
-cnt=$(cat exec.log | grep "Evaluation step" | wc -l)
+cnt=$(cat /tmp/exec.log | grep "Evaluation step" | wc -l)
 if test $cnt -eq 30
 then
 	echo "Early stop should work, but it didn't"
@@ -122,6 +134,8 @@ then
 	echo "Need at least 5 iters"
 	exit -1
 fi
+
+rm /tmp/exec.log
 
 date
 
