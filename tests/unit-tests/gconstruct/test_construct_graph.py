@@ -35,6 +35,7 @@ from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform, LinkPredictionProcessor
+from graphstorm.gconstruct.transform import BucketTransform, RankGaussTransform, Text2BERT
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
                                          ExtMemArrayWrapper,
@@ -1295,7 +1296,162 @@ def test_multicolumn():
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
     np.testing.assert_allclose(proc_res["test3"], data["test3"])
-    
+
+    feat_op2 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op2)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op2[0]["feature_col"]
+    assert res[0].feat_name == feat_op2[0]["feature_name"]
+    assert isinstance(res[0], BucketTransform)
+    bucket_feats = process_features(data, res)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_bucket1 = {
+        "test1": data["test1"]
+    }
+    feat_bucket_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_bucket_single1)
+    bucket_feat_single1 = process_features(data_bucket1, res)
+
+    data_bucket2 = {
+        "test2": data["test2"]
+    }
+    feat_bucket_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_bucket_single2)
+    bucket_feat_single2 = process_features(data_bucket2, res)
+    bucket_expec = np.column_stack((bucket_feat_single1["test3"],
+                                    bucket_feat_single2["test3"]))
+    assert_equal(bucket_feats["test3"], bucket_expec)
+
+    feat_op3 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss"
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op3)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op3[0]["feature_col"]
+    assert res[0].feat_name == feat_op3[0]["feature_name"]
+    assert isinstance(res[0], RankGaussTransform)
+    rg_feats = process_features(data, res)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_rg1 = {
+        "test1": data["test1"]
+    }
+    feat_rg_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss"
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_rg_single1)
+    rg_feat_single1 = process_features(data_rg1, res)
+
+    data_rg2 = {
+        "test2": data["test2"]
+    }
+    feat_rg_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss",
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_rg_single2)
+    rg_feat_single2 = process_features(data_rg2, res)
+    rg_expec = np.column_stack((rg_feat_single1["test3"],
+                                rg_feat_single2["test3"]))
+    assert_equal(rg_feats["test3"], rg_expec)
+
+    feat_op4 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+    data = {
+        "test1": ["test", "haha", "failure"],
+        "test2": ["never", "pass", "lint"]
+    }
+    (res, _, _) = parse_feat_ops(feat_op4)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op4[0]["feature_col"]
+    assert res[0].feat_name == feat_op4[0]["feature_name"]
+    assert isinstance(res[0], Text2BERT)
+    bert_feats = process_features(data, res)
+    assert "test3" in proc_res
+
+    data_bert1 = {
+        "test1": data["test1"]
+    }
+    feat_bert_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+    (res, _, _) = parse_feat_ops(feat_bert_single1)
+    bert_feat_single1 = process_features(data_bert1, res)
+
+    data_bert2 = {
+        "test2": data["test2"]
+    }
+    feat_bert_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+    (res, _, _) = parse_feat_ops(feat_bert_single2)
+    bert_feat_single2 = process_features(data_bert2, res)
+    bert_expec = np.column_stack((bert_feat_single1["test3"],
+                                bert_feat_single2["test3"]))
+    assert_equal(bert_feats["test3"], bert_expec)
+
 if __name__ == '__main__':
     test_parse_edge_data()
     test_multiprocessing_checks()

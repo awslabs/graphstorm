@@ -969,6 +969,8 @@ def parse_feat_ops(confs):
                         "'tokenize_hf' needs to have the 'bert_model' field."
                 assert 'max_seq_length' in conf, \
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
+                if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
+                    raise TypeError("Not support multiple column for tokenizer")
                 transform = Tokenizer(feat['feature_col'], feat_name, conf['bert_model'],
                                       int(conf['max_seq_length']))
             elif conf['name'] == 'bert_hf':
