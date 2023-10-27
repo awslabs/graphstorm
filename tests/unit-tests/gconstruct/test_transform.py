@@ -141,7 +141,7 @@ def test_fp_transform(input_dtype):
     assert len(min_val.shape) == 1
     assert_equal(max_val[0], 5.)
     assert_equal(min_val[0], -5.)
-    
+
     feats = np.random.randn(100, 1).astype(input_dtype)
     feats[0][0] = 10.
     feats[1][0] = -10.
