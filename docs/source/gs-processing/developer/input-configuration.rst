@@ -379,7 +379,7 @@ arguments.
 
       -  ``imputer`` (String, optional): A method to fill in missing values in the data.
          Valid values are:
-         ``none``, ``mean`` (Default), ``median``, and ``most_frequent``. Missing values will be replaced
+         ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
          with the respective value computed from the data.
       - ``normalizer`` (String, optional): Applies a normalization to the data, after
          imputation. Can take the following values:
