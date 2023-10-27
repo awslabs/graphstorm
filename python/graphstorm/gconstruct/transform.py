@@ -986,8 +986,9 @@ def parse_feat_ops(confs):
                                       infer_batch_size=infer_batch_size,
                                       out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
-                assert isinstance(feat['feature_col'], str) or len(feat['feature_col']) > 1, \
-                    "do not support multiple column for max_min_norm feature transformation"
+                if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
+                    assert isinstance(feat['feature_col'], str), \
+                        "do not support multiple column for max_min_norm feature transformation"
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
                 max_val = conf['max_val'] if 'max_val' in conf else None
@@ -1007,6 +1008,9 @@ def parse_feat_ops(confs):
                                                epsilon=epsilon)
             elif conf['name'] == 'to_categorical':
                 separator = conf['separator'] if 'separator' in conf else None
+                if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
+                    assert "mapping" in conf,\
+                        "mapping is necessary when in multiple columns"
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator, transform_conf=conf)
             elif conf['name'] == 'bucket_numerical':
@@ -1134,7 +1138,7 @@ def process_features(data, ops, ext_mem=None):
         if len(col_name) > 1 and ext_mem is not None:
             wrapper.merge()
             new_data[tmp_key] = wrapper
-
+    print(new_data)
     return new_data
 
 def get_valid_label_index(label):
