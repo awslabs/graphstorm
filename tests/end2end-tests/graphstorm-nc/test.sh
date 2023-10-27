@@ -223,7 +223,7 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 echo "**************dataset: multi target ntypes MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, do inference"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_target_ntypes_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_multi_target_ntypes.yaml --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ --restore-model-path /data/gsgnn_nc_ml/epoch-2/
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_target_ntypes_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_multi_target_ntypes.yaml --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ --restore-model-path /data/gsgnn_nc_ml/epoch-2/ --preserve-input True
 
 error_and_exit $?
 
@@ -256,9 +256,9 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml/prediction/movie/ | grep "predict" | wc -l)
-if test $cnt != $NUM_TRAINERS
+if test $cnt != $NUM_TRAINERS * 2
 then
-    echo "There must be $NUM_TRAINERS prediction parts for movie."
+    echo "There must be $NUM_TRAINERS * 2 prediction parts for movie as --preserve-input is True."
     exit -1
 fi
 
@@ -270,9 +270,9 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml/prediction/user/ | grep "predict" | wc -l)
-if test $cnt != $NUM_TRAINERS
+if test $cnt != $NUM_TRAINERS * 2
 then
-    echo "There must be $NUM_TRAINERS prediction parts for user."
+    echo "There must be $NUM_TRAINERS * 2 prediction parts for user as --preserve-input is True."
     exit -1
 fi
 

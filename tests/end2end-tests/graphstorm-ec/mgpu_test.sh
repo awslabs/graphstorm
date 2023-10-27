@@ -131,7 +131,7 @@ fi
 cnt=$(ls -l /data/gsgnn_ec/prediction/user_rating_movie/ | grep predict | wc -l)
 if test $cnt != $NUM_INFO_TRAINERS * 2
 then
-    echo "The number of saved prediction results $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
+    echo "The number of saved prediction results $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS * 2 as --preserve-input is True"
     exit -1
 fi
 
