@@ -361,6 +361,7 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
                 exclude_edges=exclude_eids,
             )
             eid = frontier.edata[EID]
+            print(eid)
             new_eid = dict(eid)
             if self.mask is not None:
                 new_edges = {}
@@ -395,7 +396,7 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
 
 class FileSamplerInterface:
     r"""File Sampler Interface. This interface defines the
-    # operation supported by a file sampler and the common 
+    # operation supported by a file sampler and the common
     # check and processing for dataset_path.
 
     Parameters:
