@@ -107,7 +107,7 @@ python3 -m graphstorm.run.gs_link_prediction \
 ## Limitation
 GraphStorm framework now supports using CPU or NVidia GPU for model training and inference. But it only works with PyTorch-gloo backend. It was only tested on AWS CPU instances or AWS GPU instances equipped with NVidia GPUs including P4, V100, A10 and A100.
 
-Multiple samplers are only supported for PyTorch versions <= 1.12 and PyTorch version 2.1.0. Please use `--num-samplers 0` for other PyTorch versions. More details [here](https://github.com/awslabs/graphstorm/issues/199).
+Multiple samplers are supported in PyTorch versions <= 1.12 and >= 2.1.0. Please use `--num-samplers 0` for other PyTorch versions. More details [here](https://github.com/awslabs/graphstorm/issues/199).
 
 To use multiple samplers on sagemaker please use PyTorch versions <= 1.12.
 
