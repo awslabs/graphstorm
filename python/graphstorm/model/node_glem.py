@@ -23,6 +23,46 @@ import dgl
 from .gnn import GSOptimizer
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
 
+# GLEM supports configuring the parameter grouping of the following:
+GLEM_CONFIGURABLE_PARAMETER_NAMES = {
+    "gnn_param_group": set(["pure_lm", "sparse_embed", "node_input_projs", "node_proj_matrix"]),
+    "lm_param_group": set(["pure_lm", "node_input_projs", "node_proj_matrix"])
+    }
+
+class GLEMOptimizer(GSOptimizer):
+    """ An optimizer specific for GLEM, implementing on/off switches of sparse optimizer.
+    """
+    def _clear_traces(self):
+        """ Clear the traces in sparse optimizers.
+        """
+        for optimizer in self.sparse_opts:
+            for emb in optimizer._params:
+                emb.reset_trace()
+
+    def zero_grad(self, optimize_sparse_params=True):
+        """ Setting the gradient to zero
+        """
+        all_opts = self.dense_opts + self.lm_opts
+        if optimize_sparse_params:
+            all_opts += self.sparse_opts
+        for optimizer in all_opts:
+            optimizer.zero_grad()
+        if not optimize_sparse_params:
+            # force reset trace for sparse opt when sparse emb are frozen
+            # under this condition, emb still collects traces with grad being None's.
+            # we need to do this to ensure the gradient update step after unfreezing
+            # can be performed correctly.
+            self._clear_traces()
+
+    def step(self, optimize_sparse_params=True):
+        """ Moving the optimizer
+        """
+        all_opts = self.dense_opts + self.lm_opts
+        if optimize_sparse_params:
+            all_opts += self.sparse_opts
+        for optimizer in all_opts:
+            optimizer.step()
+
 class GLEM(GSgnnNodeModelBase):
     """
     GLEM model (https://arxiv.org/abs/2210.14709) for node-level tasks.
@@ -41,6 +81,10 @@ class GLEM(GSgnnNodeModelBase):
     num_pretrain_epochs: int
         Number of pretraining epochs to train LM and GNN independently without
         pseudo-likelihood loss.
+    lm_param_group: List[str]
+        names of parameters that will be optimized when training LM.
+    gnn_param_group: List[str]
+        names of parameters that will be optimized when training GNN.
     """
     def __init__(self,
                  alpha_l2norm,
@@ -48,7 +92,9 @@ class GLEM(GSgnnNodeModelBase):
                  em_order_gnn_first=False,
                  inference_using_gnn=True,
                  pl_weight=0.5,
-                 num_pretrain_epochs=1
+                 num_pretrain_epochs=5,
+                 lm_param_group=None,
+                 gnn_param_group=None
                  ):
         super(GLEM, self).__init__()
         self.alpha_l2norm = alpha_l2norm
@@ -64,6 +110,37 @@ class GLEM(GSgnnNodeModelBase):
         # True: lm is being trained
         # False: gnn is being trained
         self.training_lm = None
+        if lm_param_group is None:
+            lm_param_group = ["pure_lm", "node_proj_matrix"]
+        if gnn_param_group is None:
+            gnn_param_group = ["node_input_projs"]
+        assert set(lm_param_group).issubset(GLEM_CONFIGURABLE_PARAMETER_NAMES['lm_param_group'])
+        assert set(gnn_param_group).issubset(GLEM_CONFIGURABLE_PARAMETER_NAMES['gnn_param_group'])
+        self.param_names_groups = {'lm': lm_param_group, 'gnn': gnn_param_group}
+        # set up default flag for `training_sparse_embed` based on whether its trainable at
+        # either stages:
+        self.training_sparse_embed = 'sparse_embed' in lm_param_group + gnn_param_group
+
+    @property
+    def named_params(self):
+        """Mapping parameter name to the actual list of parameters."""
+        return {
+            'pure_lm': self.lm.get_lm_params(),
+            'sparse_embed': self.lm.get_sparse_params(),
+            'node_input_projs': list(self.lm.node_input_encoder.input_projs.parameters()),
+            'node_proj_matrix': list(self.lm.node_input_encoder.proj_matrix.parameters()),
+        }
+
+    def trainable_parameters(self, part):
+        """To access the trainable torch parameters from lm or gnn part of the model."""
+        if part == 'lm':
+            params = list(self.lm.decoder.parameters())
+        else:
+            params = list(self.gnn.gnn_encoder.parameters()) + list(self.gnn.decoder.parameters())
+        for param_name in self.param_names_groups[part]:
+            if param_name != 'sparse_embed':
+                params.extend(self.named_params[param_name])
+        return params
 
     @property
     def inference_route_is_gnn(self):
@@ -82,7 +159,7 @@ class GLEM(GSgnnNodeModelBase):
     def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
         """Initialize optimzer, which will be stored in self.lm._optimizer, self.gnn._optimizer
         """
-        sparse_params = self.gnn.get_sparse_params()
+        sparse_params = self.lm.get_sparse_params()
         if len(sparse_params) > 0:
             emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_optimizer_lr)
             sparse_opts = [emb_optimizer]
@@ -105,7 +182,7 @@ class GLEM(GSgnnNodeModelBase):
             lm_opts = [lm_optimizer]
         else:
             lm_opts = []
-        self._optimizer = GSOptimizer(dense_opts=dense_opts,
+        self._optimizer = GLEMOptimizer(dense_opts=dense_opts,
                                       lm_opts=lm_opts,
                                       sparse_opts=sparse_opts)
 
@@ -172,37 +249,23 @@ class GLEM(GSgnnNodeModelBase):
         self.lm.set_loss_func(loss_fn)
         self.gnn.set_loss_func(loss_fn)
 
-    def freeze_params(self, part='lm'):
-        """Freeze parameters in lm or gnn"""
-        if part == 'lm':
-            params = self.lm.parameters()
-        elif part == 'gnn':
-            params = self.gnn.parameters()
-        for param in params:
-            param.requires_grad = False
-
-    def unfreeze_params(self, part='lm'):
-        """Unfreeze parameters in lm or gnn"""
-        if part == 'lm':
-            params = self.lm.parameters()
-        elif part == 'lm-input-proj':
-            params = self.lm.node_input_encoder.input_projs.parameters()
-        elif part == 'gnn':
-            params = self.gnn.parameters()
-        for param in params:
-            param.requires_grad = True
+    def toggle_params(self, part='lm', freeze=True):
+        """Freeze or unfreeze parameters in lm or gnn"""
+        if 'sparse_embed' in self.param_names_groups[part]:
+            self.training_sparse_embed = not freeze
+        for param in self.trainable_parameters(part):
+            param.requires_grad = not freeze
 
     def toggle(self, part='lm'):
         """The method toggles training between lm and gnn."""
         if part == 'lm':
             self.training_lm = True
-            self.freeze_params('gnn')
-            self.unfreeze_params('lm')
+            self.toggle_params('gnn', True)
+            self.toggle_params('lm', False)
         elif part == 'gnn':
             self.training_lm = False
-            self.freeze_params('lm')
-            self.unfreeze_params('gnn')
-            self.unfreeze_params('lm-input-proj')
+            self.toggle_params('lm', True)
+            self.toggle_params('gnn', False)
         else:
             raise ValueError(f"Unknown model part: {part}")
 

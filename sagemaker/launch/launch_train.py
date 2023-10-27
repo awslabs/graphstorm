@@ -66,10 +66,11 @@ def run_job(input_args, image, unknowargs):
               "graph-name": graph_name,
               "graph-data-s3": graph_data_s3,
               "train-yaml-s3": train_yaml_s3,
-              "model-artifact-s3": model_artifact_s3,
-              "model-checkpoint-to-load": model_checkpoint_to_load}
+              "model-artifact-s3": model_artifact_s3}
     if custom_script is not None:
         params["custom-script"] = custom_script
+    if model_checkpoint_to_load is not None:
+        params["model-checkpoint-to-load"] = model_checkpoint_to_load
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1

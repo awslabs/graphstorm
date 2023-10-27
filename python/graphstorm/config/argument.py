@@ -578,7 +578,7 @@ class GSConfig:
                     "em_order_gnn_first": False,
                     "inference_using_gnn": True,
                     "pl_weight": 0.5,
-                    "num_pretrain_epochs": 1
+                    "num_pretrain_epochs": 5
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
