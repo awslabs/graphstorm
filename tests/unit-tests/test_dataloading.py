@@ -1339,10 +1339,10 @@ if __name__ == '__main__':
     test_edge_dataloader()
     test_node_dataloader()
     test_node_dataloader_reconstruct()
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
     test_GSgnnAllEtypeLinkPredictionDataLoader(10)
     test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    test_GSgnnLinkPredictionTestDataLoader(10, 20)
     test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
     test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
