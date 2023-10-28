@@ -360,9 +360,9 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
                 output_device=self.output_device,
                 exclude_edges=exclude_eids,
             )
-            eid = frontier.edata[EID]
-            if not isinstance(eid, dict):
-                print(f"{g}: {frontier}: {eid}")
+            eid = {etype: frontier.edge[etype].data[EID] \
+                   for etype in frontier.canonical_etypes}
+            print(f"{frontier}: {eid}")
             new_eid = dict(eid)
             if self.mask is not None:
                 new_edges = {}
