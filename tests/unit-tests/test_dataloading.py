@@ -1315,11 +1315,11 @@ def test_lp_dataloader_len(batch_size):
                                                device='cuda:0', train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+    dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [5,5], batch_size, num_negative_edges=2,
                                                device='cuda:0', train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+    dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [5,5], batch_size, num_negative_edges=2,
                                                device='cuda:0', train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
