@@ -595,17 +595,17 @@ class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """
 
     def _prepare_negative_sampler(self, num_negative_edges):
-        # the default negative sampler is uniform sampler
+        # The negative sampler is the joint uniform negative sampler.
         negative_sampler = JointUniform(num_negative_edges)
         return negative_sampler
 
 class GSgnnLPInBatchJointNegDataLoader(GSgnnLinkPredictionDataLoader):
-    """ Link prediction dataloader with joint negative sampler
+    """ Link prediction dataloader with in-batch and joint negative sampler
 
     """
 
     def _prepare_negative_sampler(self, num_negative_edges):
-        # the default negative sampler is uniform sampler
+        # The negative sampler is the in-batch joint uniform negative sampler.
         negative_sampler = InbatchJointUniform(num_negative_edges)
         return negative_sampler
 

@@ -220,6 +220,13 @@ class InbatchJointUniform(JointUniform):
     '''
 
     def _generate(self, g, eids, canonical_etype):
+        """ The return negative edges will be in the format of:
+            src-uniform-joint | src-in-batch
+            dst-uniform-joint | dst-in-batch
+
+            The first part comes from uniform joint negative sampling.
+            The second part comes from in batch negative sampling.
+        """
         _, _, vtype = canonical_etype
         shape = eids.shape
         dtype = eids.dtype

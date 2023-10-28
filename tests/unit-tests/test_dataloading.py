@@ -1323,8 +1323,10 @@ def test_inbatch_joint_neg_sampler(num_pos, num_neg):
     })
     sampler = InbatchJointUniform(num_neg)
     src, dst = sampler._generate(g, th.arange(num_pos), ("n0", "r0", "n1"))
-    assert len(src) == num_pos * (num_pos - 1) + num_pos * num_neg
-    assert len(dst) == num_pos * (num_pos - 1) + num_pos * num_neg
+    # In batch joint negative includes
+    # uniform negatives + in-batch negatives.
+    assert len(src) == num_pos * num_neg +  num_pos * (num_pos - 1)
+    assert len(dst) == num_pos * num_neg + num_pos * (num_pos - 1)
     in_batch_src = src[-num_pos * (num_pos - 1):]
     in_batch_dst = dst[-num_pos * (num_pos - 1):]
 
