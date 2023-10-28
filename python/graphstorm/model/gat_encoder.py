@@ -95,6 +95,8 @@ class GATConv(nn.Module):
         """
         g = g.local_var()
 
+        assert '_N' in inputs, "GAT encoder only support homogeneous graph."
+
         inputs = inputs['_N']
         h_conv = self.conv(g, inputs)
         h_conv = h_conv.view(h_conv.shape[0], h_conv.shape[1] * h_conv.shape[2])
@@ -109,23 +111,6 @@ class GATEncoder(GraphConvEncoder):
 
     The GATEncoder employs several GATConv Layers as its encoding mechanism.
     The GATEncoder should be designated as the model's encoder within Graphstorm.
-
-    Parameters
-    ----------
-    h_dim : int
-        Hidden dimension
-    out_dim : int
-        Output dimension
-    num_head : int
-        Number of multi-heads attention
-    num_hidden_layers : int
-        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
-    dropout : float
-        Dropout. Default 0.
-    activation : callable, optional
-        Activation function. Default: None
-    num_ffn_layers_in_gnn: int
-        Number of ngnn gnn layers between GNN layers
 
     Examples:
     ----------
@@ -155,6 +140,23 @@ class GATEncoder(GraphConvEncoder):
         model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
 
         h = do_full_graph_inference(model, np_data)
+
+    Parameters
+    ----------
+    h_dim : int
+        Hidden dimension
+    out_dim : int
+        Output dimension
+    num_head : int
+        Number of multi-heads attention
+    num_hidden_layers : int
+        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
+    dropout : float
+        Dropout. Default 0.
+    activation : callable, optional
+        Activation function. Default: None
+    num_ffn_layers_in_gnn: int
+        Number of ngnn gnn layers between GNN layers
     """
     def __init__(self,
                  h_dim, out_dim,
