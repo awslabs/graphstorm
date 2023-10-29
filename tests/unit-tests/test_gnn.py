@@ -41,6 +41,7 @@ from graphstorm.model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmb
 from graphstorm.model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.sage_encoder import SAGEEncoder
+from graphstorm.model.gat_encoder import GATEncoder
 from graphstorm.model.hgt_encoder import HGTEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            MLPEdgeDecoder,
@@ -175,6 +176,23 @@ def create_sage_node_model(g, norm=None):
                               dropout=0,
                               aggregator_type='mean',
                               norm=norm)
+
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+    return model
+
+def create_gat_node_model(g):
+    model = GSgnnNodeModel(alpha_l2norm=0)
+
+    feat_size = get_feat_size(g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 8,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = GATEncoder(8, 8, 4,
+                             num_hidden_layers=1,
+                             dropout=0)
 
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
@@ -539,6 +557,29 @@ def test_sage_node_prediction(norm):
                                      train_ntypes=['_N'], label_field='label',
                                      node_feat_field='feat')
     model = create_sage_node_model(np_data.g, norm)
+    check_node_prediction(model, np_data, is_homo=True)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_gat_node_prediction():
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + GATConv + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, is_homo=True)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['_N'], label_field='label',
+                                     node_feat_field='feat')
+    model = create_gat_node_model(np_data.g)
     check_node_prediction(model, np_data, is_homo=True)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1499,6 +1540,7 @@ if __name__ == '__main__':
     test_rgcn_node_prediction(None)
     test_rgat_node_prediction(None)
     test_sage_node_prediction(None)
+    test_gat_node_prediction()
 
     test_edge_classification()
     test_edge_classification_feat()
