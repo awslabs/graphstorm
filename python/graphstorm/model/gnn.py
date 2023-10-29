@@ -437,7 +437,7 @@ class GSgnnModelBase(nn.Module):
         """
 
     #pylint: disable=unused-argument
-    def unfreeze_input_encoder(self):
+    def unfreeze_input_encoder(self, train_data):
         """ Unfreeze input layer for model training
 
             Default: do nothing
