@@ -319,12 +319,27 @@ def test_GSgnnNodeData():
 
     g = tr_data.g
     node_feats = {ntype: 'emb' for ntype in dist_graph.ntypes}
+
+    # Test add node features.
     for ntype in g.ntypes:
         g.nodes[ntype].data[node_feats[ntype]] = th.zeros(g.number_of_nodes(ntype), 1)
     tr_data.add_node_feats(node_feats)
     for ntype in g.ntypes:
         assert tr_data.has_node_feats(ntype)
-    # TODO get_node_feats
+
+    # Test get node features.
+    input_nodes = {ntype: np.arange(10) for ntype in g.ntypes}
+    feats = tr_data.get_node_feats(input_nodes)
+    for ntype in input_nodes:
+        fields = tr_data.node_feat_field[ntype]
+        assert 'emb' in fields
+        data = []
+        for field in fields:
+            data.append(g.nodes[ntype].data[field][input_nodes[ntype]])
+        data = th.cat(data, dim=1)
+        assert np.all(feats[ntype].numpy() == data.numpy())
+
+    # Test removing node features
     tr_data.remove_node_feats(node_feats)
     for ntype in g.ntypes:
         assert node_feats[ntype] not in tr_data.node_feat_field[ntype]
