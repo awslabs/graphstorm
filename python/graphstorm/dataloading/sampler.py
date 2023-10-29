@@ -362,7 +362,6 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
             )
             eid = {etype: frontier.edges[etype].data[EID] \
                    for etype in frontier.canonical_etypes}
-            print(f"{frontier}: {eid}")
             new_eid = dict(eid)
             if self.mask is not None:
                 new_edges = {}
@@ -389,7 +388,10 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
             else:
                 new_frontier = frontier
             block = to_block(new_frontier, seed_nodes)
-            block.edata[EID] = new_eid
+            # When there is only one etype
+            # we can not use block.edata[EID] = new_eid
+            for etype in block.etypes:
+                block.edges[etype].data[EID] = new_eid[etype]
             seed_nodes = block.srcdata[NID]
             blocks.insert(0, block)
 
