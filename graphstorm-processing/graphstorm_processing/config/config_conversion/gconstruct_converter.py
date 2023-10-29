@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+from typing import Any
+
 from .converter_base import ConfigConverter
 from .meta_configuration import NodeConfig, EdgeConfig
 
@@ -80,27 +82,40 @@ class GConstructConfigConverter(ConfigConverter):
         list[dict]
             The feature information in the GSProcessing format
         """
-        feats_list = []
+        gsp_feats_list = []
         if feats in [[], [{}]]:
             return []
-        for ele in feats:
-            if "transform" in ele:
-                raise ValueError(
-                    "Currently only support no-op operation, "
-                    "we do not support any other no-op operation"
-                )
-            feat_dict = {}
-            kwargs = {"name": "no-op"}
-            for col in ele["feature_col"]:
-                feat_dict = {"column": col, "transform": kwargs}
-                feats_list.append(feat_dict)
-            if "out_dtype" in ele:
+        for gconstruct_feat_dict in feats:
+            gsp_feat_dict = {}
+            gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"][0]
+            if "feature_name" in gconstruct_feat_dict:
+                gsp_feat_dict["name"] = gconstruct_feat_dict["feature_name"]
+
+            gsp_transformation_dict: dict[str, Any] = {}
+            if "transform" in gconstruct_feat_dict:
+                gconstruct_transform_dict = gconstruct_feat_dict["transform"]
+
+                if gconstruct_transform_dict["name"] == "max_min_norm":
+                    gsp_transformation_dict["name"] = "numerical"
+                    gsp_transformation_dict["kwargs"] = {"normalizer": "min-max", "imputer": "mean"}
+                # TODO: Add support for other common transformations here
+                else:
+                    raise ValueError(
+                        "Unsupported GConstruct transformation name: "
+                        f"{gconstruct_transform_dict['name']}"
+                    )
+            else:
+                gsp_transformation_dict["name"] = "no-op"
+
+            if "out_dtype" in gconstruct_feat_dict:
                 assert (
-                    ele["out_dtype"] == "float32"
+                    gconstruct_feat_dict["out_dtype"] == "float32"
                 ), "GSProcessing currently only supports float32 features"
-            if "feature_name" in ele:
-                feat_dict["name"] = ele["feature_name"]
-        return feats_list
+
+            gsp_feat_dict["transformation"] = gsp_transformation_dict
+            gsp_feats_list.append(gsp_feat_dict)
+
+        return gsp_feats_list
 
     @staticmethod
     def convert_nodes(nodes_entries):

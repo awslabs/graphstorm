@@ -181,6 +181,22 @@ class LMModels(nn.Module):
         """
         return self._lm_node_feats[ntype]
 
+    def get_feat_size(self, ntype):
+        """ Get the LM output feature size for a node type.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        int : The feature size of the LM model
+        """
+        assert len(self._lm_models) > 0
+        lm_type = self._lm_map[ntype]
+        return self._lm_models[lm_type].feat_size
+
     @property
     def ntypes(self):
         """ Get all node types with text features.
@@ -190,15 +206,6 @@ class LMModels(nn.Module):
         list of str : the node types with text features.
         """
         return list(self._lm_map.keys())
-
-    @property
-    def feat_size(self):
-        """ The feature size of the BERT model.
-        """
-        assert len(self._lm_models) > 0
-        for model in self._lm_models.values():
-            return model.feat_size
-        return -1
 
     @property
     def device(self):
@@ -435,9 +442,9 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         self.use_cache = False
         self.lm_emb_cache = LMCache(g, self._lm_models, embed_path=cached_embed_path)
 
-        self._feat_size = self._lm_models.feat_size
+        self._feat_size = self._lm_models.get_feat_size(self._lm_models.ntypes[0])
         for lm_model in self._lm_models.lm_models:
-            assert self.out_dims == lm_model.feat_size, \
+            assert self._feat_size == lm_model.feat_size, \
                 "All Language models should have the same output embedding " \
                 "dimension, otherwise please use GSLMNodeEncoderInputLayer " \
                 "(--model-encoder-type mlp) instead of GSLMNodeLMInputLayer " \
@@ -638,7 +645,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
             lm_ntypes = lm_config["node_types"]
             # Update feature size
             for ntype in lm_ntypes:
-                adjust_feat_size[ntype] += lm_models.feat_size
+                adjust_feat_size[ntype] += lm_models.get_feat_size(ntype)
                 if get_rank() == 0:
                     logging.debug('Node %s adds lm %s features %d->%d',
                                   ntype, lm_config["lm_type"], feat_size[ntype],

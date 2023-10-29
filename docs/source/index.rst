@@ -23,6 +23,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    gs-processing/usage/example
    gs-processing/usage/distributed-processing-setup
    gs-processing/usage/amazon-sagemaker
+   gs-processing/developer/input-configuration
 
 .. toctree::
    :maxdepth: 1
@@ -73,8 +74,9 @@ Once successfully set up the GraphStorm Docker running environment,
 Scale to Giant Graphs
 ---------------------------------
 
-For experienced users who wish to train and run infernece on very large graphs,
+For users who wish to train and run infernece on very large graphs,
 
+- follow the :ref:`Use GraphStorm Distributed Data Processing<gs-processing>` tutorial to process and construction large graphs in the Distributed mode.
 - follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the Distributed mode.
 - follow the :ref:`Use GraphStorm on SageMaker<distributed-sagemaker>` tutorial to use GraphStorm in the Distribute mode based on Amazon SageMaker.
 
