@@ -297,6 +297,8 @@ class LMCache:
 
     @property
     def embed_ndata_name(self):
+        """ The embed name of the node data
+        """
         return {ntype: "bert_emb" for ntype in self.ntypes}
 
     def update_cache(self, lm_infer_batch_size, use_fp16=True):
